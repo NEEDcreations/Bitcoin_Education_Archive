@@ -7779,6 +7779,23 @@ window.tctvRestoreAd = function() {
     try { localStorage.removeItem('tctv_ad_minimized'); } catch(e) {}
 };
 
+// Sponsor sidebar minimize/restore
+window.tctvMinimizeSponsor = function() {
+    var el = document.getElementById('tctv-sponsor-content');
+    var btn = document.getElementById('tctv-sponsor-restore');
+    if (el) el.style.display = 'none';
+    if (btn) btn.style.display = 'flex';
+    try { localStorage.setItem('tctv_sponsor_minimized', '1'); } catch(e) {}
+};
+
+window.tctvRestoreSponsor = function() {
+    var el = document.getElementById('tctv-sponsor-content');
+    var btn = document.getElementById('tctv-sponsor-restore');
+    if (el) el.style.display = 'block';
+    if (btn) btn.style.display = 'none';
+    try { localStorage.removeItem('tctv_sponsor_minimized'); } catch(e) {}
+};
+
 window.tctvCopyEmail = function() {
     var email = 'info.603btc@gmail.com';
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -8155,8 +8172,10 @@ window.renderTimechainTV = function() {
     style.textContent = `
         /* Desktop & Tablet: Floating wide remote on the right edge */
         @media (min-width: 768px) {
-            /* Hide sidebar ad (moved below channel list per user request) */
+            /* Old sidebar ad hidden (moved below channel list) */
             #tctv-ad-sidebar { display: none !important; }
+            /* Sponsor sidebar visible on desktop */
+            #tctv-sponsor-sidebar { display: block !important; }
             /* Show the below-EPG ad on all screen sizes */
             #tctv-ad-mobile { display: block !important; }
             #tctv-remote-sidebar {
@@ -8172,7 +8191,7 @@ window.renderTimechainTV = function() {
             #tctv-remote { display: none !important; }
         }
         @media (max-width: 767px) {
-            #tctv-ad-sidebar, #tctv-remote-sidebar { display: none !important; }
+            #tctv-ad-sidebar, #tctv-remote-sidebar, #tctv-sponsor-sidebar { display: none !important; }
             #tctv-remote { display: flex !important; }
             /* On mobile the header is a capped flex child (not sticky).
                flex/max-height set in the main mobile block below. */
@@ -8592,18 +8611,51 @@ window.renderTimechainTV = function() {
     html += '<div id="tctv-video-row" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:6px 10px;flex-wrap:wrap;">';
     var _tctvAdMinimized = false;
     try { _tctvAdMinimized = localStorage.getItem('tctv_ad_minimized') === '1'; } catch(e) {}
-    // Left side - TCTV Ad (desktop only)
-    html += '<div id="tctv-ad-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
-            '<div id="tctv-ad-sidebar-content" style="position:relative;width:140px;padding:12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;text-align:center;' + (_tctvAdMinimized ? 'display:none;' : '') + '">' +
-            '<button onclick="tctvMinimizeAd()" style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
-            '<div style="font-size:1.5rem;margin-bottom:6px;">\ud83d\udcfa</div>' +
-            '<div style="font-size:0.65rem;color:#ccc;font-weight:600;line-height:1.4;">Get your YouTube channel streaming on Timechain TV 24/7!</div>' +
-            '<div style="margin-top:8px;font-size:0.6rem;color:#f7931a;font-weight:700;">Inquire at:</div>' +
-            '<a href="mailto:info.603btc@gmail.com" style="font-size:0.55rem;color:#aaa;text-decoration:none;word-break:break-all;" onmouseover="this.style.color=\'#f7931a\'" onmouseout="this.style.color=\'#aaa\'">info.603btc@gmail.com</a>' +
-            '<button onclick="tctvCopyEmail()" style="display:block;margin:8px auto 0;padding:4px 10px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:6px;color:#f7931a;font-size:0.55rem;font-weight:700;cursor:pointer;">\ud83d\udccb Copy Email</button>' +
+
+    // ── TCTV Sponsor Slot (desktop left sidebar) ──
+    // Set sponsor to null to hide the slot entirely.
+    // To activate: fill in name, logo, tagline, url, ctaText.
+    var _tctvSponsor = null;
+    // Example:
+    // var _tctvSponsor = {
+    //     name: 'Coinkite',
+    //     logo: 'https://example.com/logo.png',   // square or wide, max ~120px rendered
+    //     tagline: 'The most trusted Bitcoin hardware.',
+    //     url: 'https://coinkite.com',
+    //     ctaText: 'Learn More',
+    //     inquireEmail: 'info.603btc@gmail.com'    // shown below CTA
+    // };
+
+    var _sponsorMinimized = false;
+    try { _sponsorMinimized = localStorage.getItem('tctv_sponsor_minimized') === '1'; } catch(e) {}
+
+    // Left side - Sponsor sidebar (desktop only, hidden when no sponsor)
+    if (_tctvSponsor) {
+        html += '<div id="tctv-sponsor-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
+            '<div id="tctv-sponsor-content" style="position:relative;width:160px;padding:14px 12px;background:rgba(247,147,26,0.04);border:1px solid rgba(247,147,26,0.12);border-radius:14px;text-align:center;' + (_sponsorMinimized ? 'display:none;' : '') + '">' +
+                '<button onclick="tctvMinimizeSponsor()" style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
+                '<div style="font-size:0.5rem;color:#666;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">Sponsor</div>' +
+                (_tctvSponsor.logo ? '<a href="' + _tctvSponsor.url + '" target="_blank" rel="noopener sponsored"><img src="' + _tctvSponsor.logo + '" alt="' + _tctvSponsor.name + '" style="max-width:120px;max-height:60px;margin-bottom:8px;border-radius:6px;object-fit:contain;"></a>' : '') +
+                '<div style="font-size:0.75rem;color:#eee;font-weight:800;margin-bottom:4px;">' + _tctvSponsor.name + '</div>' +
+                '<div style="font-size:0.6rem;color:#aaa;line-height:1.4;margin-bottom:10px;">' + _tctvSponsor.tagline + '</div>' +
+                '<a href="' + _tctvSponsor.url + '" target="_blank" rel="noopener sponsored" style="display:inline-block;padding:6px 16px;background:#f7931a;color:#000;border-radius:8px;font-size:0.65rem;font-weight:800;text-decoration:none;letter-spacing:0.5px;">' + (_tctvSponsor.ctaText || 'Learn More') + '</a>' +
+                (_tctvSponsor.inquireEmail ? '<div style="margin-top:10px;padding-top:8px;border-top:1px solid #222;"><div style="font-size:0.5rem;color:#666;margin-bottom:2px;">Become a sponsor:</div><a href="mailto:' + _tctvSponsor.inquireEmail + '" style="font-size:0.5rem;color:#888;text-decoration:none;" onmouseover="this.style.color=\'#f7931a\'" onmouseout="this.style.color=\'#888\'">' + _tctvSponsor.inquireEmail + '</a></div>' : '') +
             '</div>' +
-            '<button id="tctv-ad-restore-desktop" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:0 auto;" title="Show ad">\ud83d\udcfa</button>' +
-            '</div>';
+            '<button id="tctv-sponsor-restore" onclick="tctvRestoreSponsor()" style="' + (_sponsorMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:0.9rem;cursor:pointer;align-items:center;justify-content:center;margin:0 auto;" title="Show sponsor">⭐</button>' +
+        '</div>';
+    } else {
+        // No sponsor — show "Become a Sponsor" placeholder
+        html += '<div id="tctv-sponsor-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
+            '<div id="tctv-sponsor-content" style="position:relative;width:160px;padding:14px 12px;background:rgba(247,147,26,0.04);border:1px solid rgba(247,147,26,0.08);border-radius:14px;text-align:center;' + (_sponsorMinimized ? 'display:none;' : '') + '">' +
+                '<button onclick="tctvMinimizeSponsor()" style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
+                '<div style="font-size:1.8rem;margin-bottom:6px;opacity:0.7;">\ud83c\udf1f</div>' +
+                '<div style="font-size:0.75rem;color:#eee;font-weight:800;margin-bottom:6px;">Your Brand Here</div>' +
+                '<div style="font-size:0.6rem;color:#aaa;line-height:1.4;margin-bottom:10px;">Reach Bitcoiners watching 24/7 curated content</div>' +
+                '<a href="mailto:info.603btc@gmail.com" style="display:inline-block;padding:6px 16px;background:#f7931a;color:#000;border-radius:8px;font-size:0.65rem;font-weight:800;text-decoration:none;">Become a Sponsor</a>' +
+            '</div>' +
+            '<button id="tctv-sponsor-restore" onclick="tctvRestoreSponsor()" style="' + (_sponsorMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:0.9rem;cursor:pointer;align-items:center;justify-content:center;margin:0 auto;" title="Show sponsor">⭐</button>' +
+        '</div>';
+    }
     // Center - Video player (takes full center/right area, fixed remote floats on top)
     html += '<div style="flex:1 1 auto;min-width:0;width:100%;max-width:1100px;" class="tctv-video-wrap">' +
             '<div style="position:relative;aspect-ratio:16/9;max-height:55vh;width:100%;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +

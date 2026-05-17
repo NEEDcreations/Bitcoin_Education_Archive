@@ -114,13 +114,15 @@ function renderAppPage(page, origin) {
         'bitcoin-dashboard': { title: 'Bitcoin Dashboard', desc: 'Live Bitcoin price, block height, mempool, hashrate, fees, and network stats.' },
         'lightning': { title: 'Lightning Wallet', desc: 'Connect your Lightning wallet for instant Bitcoin payments and tips.' },
         'first-purchase': { title: 'How to Buy Bitcoin', desc: 'Step-by-step guide to buying your first Bitcoin safely and securely.' },
-        'dms': { title: 'Direct Messages', desc: 'Private messaging between Bitcoiners on the Bitcoin Education Archive.' }
+        'dms': { title: 'Direct Messages', desc: 'Private messaging between Bitcoiners on the Bitcoin Education Archive.' },
+        'timechain-tv': { title: 'Timechain TV — 24/7 Bitcoin Streaming', desc: '21 channels of 24/7 Bitcoin content. 1,400+ videos curated for maximum orange pill exposure. ⚡📺', image: '/images/tctv-preview.png' },
+        'tv': { title: 'Timechain TV — 24/7 Bitcoin Streaming', desc: '21 channels of 24/7 Bitcoin content. 1,400+ videos curated for maximum orange pill exposure. ⚡📺', image: '/images/tctv-preview.png' }
     };
     const info = pages[page] || { title: page, desc: 'Bitcoin Education Archive' };
     const title = escapeHtml(info.title);
     const desc = escapeHtml(info.desc);
     const url = origin + "/app/" + page;
-    const ogImage = origin + "/og-image.png";;
+    const ogImage = info.image ? (origin + info.image) : (origin + "/og-image.png");
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -187,6 +189,24 @@ export default {
             }
 
             return Response.redirect(PRIMARY_ORIGIN + '/#' + page, 302);
+        }
+
+        // Clean URL aliases for app pages (e.g. /timechain-tv, /tv, /forum, /beats)
+        const cleanAliases = {
+            '/timechain-tv': 'timechain-tv', '/tv': 'tv',
+            '/forum': 'forum', '/marketplace': 'marketplace',
+            '/bitcoin-beats': 'bitcoin-beats', '/beats': 'bitcoin-beats',
+            '/irl-sync': 'irl-sync', '/meet': 'irl-sync',
+            '/chat': 'chat', '/pvp': 'pvp'
+        };
+        const aliasPage = cleanAliases[path];
+        if (aliasPage) {
+            if (isBot(ua)) {
+                return new Response(renderAppPage(aliasPage, origin), {
+                    headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400' }
+                });
+            }
+            return Response.redirect(PRIMARY_ORIGIN + '/#' + aliasPage, 302);
         }
 
         // Everything else: pass through to origin
