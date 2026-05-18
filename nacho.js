@@ -438,7 +438,8 @@ let currentPose = 'default';
 
 // ---- Create Nacho DOM ----
 function createNacho() {
-    if (localStorage.getItem('btc_nacho_hidden') === 'true') {
+    var _nachoHiddenVal = localStorage.getItem('btc_nacho_hidden');
+    if (_nachoHiddenVal === 'true' || _nachoHiddenVal === 'user') {
         nachoVisible = false;
     }
 
@@ -1724,7 +1725,8 @@ window.showNacho = function() {
 
 window.hideNacho = function() {
     nachoVisible = false;
-    localStorage.setItem('btc_nacho_hidden', 'true');
+    // 'user' = manually hidden (won't auto-restore); 'true' kept for back-compat reads
+    localStorage.setItem('btc_nacho_hidden', 'user');
     document.getElementById('nacho-container').classList.add('hidden');
     document.getElementById('nacho-toggle').style.display = 'flex';
 };

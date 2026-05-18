@@ -7566,7 +7566,8 @@ let currentPose = 'default';
 
 // ---- Create Nacho DOM ----
 function createNacho() {
-    if (localStorage.getItem('btc_nacho_hidden') === 'true') {
+    var _nachoHiddenVal = localStorage.getItem('btc_nacho_hidden');
+    if (_nachoHiddenVal === 'true' || _nachoHiddenVal === 'user') {
         nachoVisible = false;
     }
 
@@ -8852,7 +8853,8 @@ window.showNacho = function() {
 
 window.hideNacho = function() {
     nachoVisible = false;
-    localStorage.setItem('btc_nacho_hidden', 'true');
+    // 'user' = manually hidden (won't auto-restore); 'true' kept for back-compat reads
+    localStorage.setItem('btc_nacho_hidden', 'user');
     document.getElementById('nacho-container').classList.add('hidden');
     document.getElementById('nacho-toggle').style.display = 'flex';
 };
@@ -24556,10 +24558,17 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (h) {
             window._nachoDirectLinkCooldown = Date.now() + 120000;
             window._directLinkMode = true;
-            // Hide Nacho on direct links
-            if (typeof hideNacho === 'function') hideNacho();
-            setTimeout(function() { if (typeof hideNacho === 'function') hideNacho(); }, 1000);
-            setTimeout(function() { if (typeof hideNacho === 'function') hideNacho(); }, 2500);
+            // Hide Nacho on direct links (visual-only, don't persist to localStorage)
+            function _directLinkHideNacho() {
+                var nc = document.getElementById('nacho-container');
+                var nt = document.getElementById('nacho-toggle');
+                if (nc) nc.classList.add('hidden');
+                if (nt) nt.style.display = 'none';
+                window._nachoAutoHidden = true;
+            }
+            _directLinkHideNacho();
+            setTimeout(_directLinkHideNacho, 1000);
+            setTimeout(_directLinkHideNacho, 2500);
             // Minimize sign-in banner
             sessionStorage.setItem('btc_signin_banner_dismissed', '1');
             // Gradually re-enable features after cooldown (staggered)
@@ -24570,8 +24579,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                 sessionStorage.removeItem('btc_signin_banner_dismissed');
                 if (typeof updateUserDisplay === 'function') updateUserDisplay();
             }, 150000);
-            // 180s: allow Nacho bubble
-            setTimeout(function() { window._nachoDirectLinkCooldown = 0; }, 180000);
+            // 120s: allow Nacho bubble + bring him back
+            setTimeout(function() {
+                window._nachoDirectLinkCooldown = 0;
+                if (typeof showNacho === 'function' && localStorage.getItem('btc_nacho_hidden') !== 'user') showNacho();
+            }, 120000);
         }
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
         else if (h.indexOf('cert/') === 0) { setTimeout(function() { go(h); }, 1500); }
