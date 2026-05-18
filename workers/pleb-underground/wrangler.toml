@@ -3,7 +3,7 @@ main = "worker.js"
 compatibility_date = "2024-01-01"
 
 [triggers]
-crons = ["*/15 * * * *", "0 22 * * *"]
+crons = ["*/15 * * * *", "0 22 * * *", "50-59 23 * * 1", "0-10 0 * * 2"]
 
 [[kv_namespaces]]
 binding = "PU_STATE"

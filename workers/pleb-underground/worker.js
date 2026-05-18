@@ -90,6 +90,21 @@ async function cacheSetLive(data, ttlSeconds) {
   await cache.put(new Request(LIVE_CACHE_KEY), resp);
 }
 
+// ── Monday Night Live Window Helper ──
+// Pleb Underground goes live ~8 PM EDT on Mondays.
+// EDT = UTC-4. 7:45 PM EDT = 23:45 UTC (Mon). 8:15 PM EDT = 00:15 UTC (Tue).
+function _isMonLiveWindow(isoString) {
+  var d = new Date(isoString);
+  var day = d.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue
+  var h = d.getUTCHours();
+  var m = d.getUTCMinutes();
+  // Mon 23:45-23:59 UTC
+  if (day === 1 && h === 23 && m >= 45) return true;
+  // Tue 00:00-00:15 UTC
+  if (day === 2 && h === 0 && m <= 15) return true;
+  return false;
+}
+
 // ── Live Check (Cache API only — no KV) ──
 
 async function checkLiveStatus(apiKey) {
@@ -116,9 +131,11 @@ async function checkLiveStatus(apiKey) {
     checkedAt: now
   };
 
-  // Store in CF edge cache for 10 min (covers gap between 15-min cron runs)
-  // If live, use shorter TTL so end-of-stream resolves faster
-  await cacheSetLive(status, liveItem ? 300 : 600);
+  // Shorter cache during Monday night live window (7:45 PM – 8:15 PM EDT = 23:45–00:15 UTC)
+  var inMondayWindow = _isMonLiveWindow(now);
+  // If live, 60s TTL. If in Monday window but not live yet, 60s (fast retry). Otherwise 10 min.
+  var ttl = liveItem ? 60 : (inMondayWindow ? 60 : 600);
+  await cacheSetLive(status, ttl);
   return status;
 }
 

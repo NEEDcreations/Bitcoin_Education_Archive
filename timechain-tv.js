@@ -6896,10 +6896,36 @@ function _showPlebLiveBadge(show) {
     }
 }
 
+// Monday night live window: 7:45-8:15 PM EDT = 23:45 UTC Mon – 00:15 UTC Tue
+function _isMonLiveWindow() {
+    var d = new Date();
+    var day = d.getUTCDay();
+    var h = d.getUTCHours();
+    var m = d.getUTCMinutes();
+    if (day === 1 && h === 23 && m >= 45) return true;
+    if (day === 2 && h === 0 && m <= 15) return true;
+    return false;
+}
+
+var _plebPollFast = false;
 function _startPlebLivePolling() {
     if (_plebLivePollInterval) return;
     _plebLiveCheck(); // Immediate first check
-    _plebLivePollInterval = setInterval(_plebLiveCheck, 300000); // Check every 5 min (edge-cached)
+    // Poll every 60s during Monday live window, every 5 min otherwise
+    _plebPollFast = _isMonLiveWindow();
+    _plebLivePollInterval = setInterval(_plebLiveCheck, _plebPollFast ? 60000 : 300000);
+    // Re-evaluate interval every 5 min (switch between fast/slow)
+    if (!window._plebPollRateCheck) {
+        window._plebPollRateCheck = setInterval(function() {
+            var shouldBeFast = _isMonLiveWindow();
+            if (shouldBeFast !== _plebPollFast) {
+                _plebPollFast = shouldBeFast;
+                if (_plebLivePollInterval) clearInterval(_plebLivePollInterval);
+                _plebLivePollInterval = setInterval(_plebLiveCheck, shouldBeFast ? 60000 : 300000);
+                if (shouldBeFast) _plebLiveCheck(); // immediate check when entering window
+            }
+        }, 300000);
+    }
 }
 
 function _stopPlebLivePolling() {
