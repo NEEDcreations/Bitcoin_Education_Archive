@@ -6907,29 +6907,36 @@ function _isMonLiveWindow() {
     return false;
 }
 
-var _plebPollFast = false;
+var _plebPollActive = false;
 function _startPlebLivePolling() {
+    // Only poll during Monday night live window — PU only streams Mon 8 PM EDT
     if (_plebLivePollInterval) return;
-    _plebLiveCheck(); // Immediate first check
-    // Poll every 60s during Monday live window, every 5 min otherwise
-    _plebPollFast = _isMonLiveWindow();
-    _plebLivePollInterval = setInterval(_plebLiveCheck, _plebPollFast ? 60000 : 300000);
-    // Re-evaluate interval every 5 min (switch between fast/slow)
-    if (!window._plebPollRateCheck) {
-        window._plebPollRateCheck = setInterval(function() {
-            var shouldBeFast = _isMonLiveWindow();
-            if (shouldBeFast !== _plebPollFast) {
-                _plebPollFast = shouldBeFast;
-                if (_plebLivePollInterval) clearInterval(_plebLivePollInterval);
-                _plebLivePollInterval = setInterval(_plebLiveCheck, shouldBeFast ? 60000 : 300000);
-                if (shouldBeFast) _plebLiveCheck(); // immediate check when entering window
+    if (_isMonLiveWindow()) {
+        _plebPollActive = true;
+        _plebLiveCheck(); // Immediate first check
+        _plebLivePollInterval = setInterval(_plebLiveCheck, 60000); // every 60s
+    }
+    // Check every 5 min if we've entered the window (lightweight, no YT API call)
+    if (!window._plebWindowCheck) {
+        window._plebWindowCheck = setInterval(function() {
+            if (_isMonLiveWindow() && !_plebPollActive) {
+                _plebPollActive = true;
+                _plebLiveCheck();
+                _plebLivePollInterval = setInterval(_plebLiveCheck, 60000);
+            } else if (!_isMonLiveWindow() && _plebPollActive) {
+                // Window ended — stop polling, clear live state
+                _plebPollActive = false;
+                if (_plebLivePollInterval) { clearInterval(_plebLivePollInterval); _plebLivePollInterval = null; }
+                _plebLiveClear();
             }
         }, 300000);
     }
 }
 
 function _stopPlebLivePolling() {
+    _plebPollActive = false;
     if (_plebLivePollInterval) { clearInterval(_plebLivePollInterval); _plebLivePollInterval = null; }
+    if (window._plebWindowCheck) { clearInterval(window._plebWindowCheck); window._plebWindowCheck = null; }
     _showPlebLiveBadge(false);
     _plebLiveActive = false;
     _plebLiveOverride = null;

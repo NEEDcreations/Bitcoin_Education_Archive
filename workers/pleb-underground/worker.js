@@ -213,15 +213,18 @@ async function handleCron(event, env) {
   const results = {};
 
   // Determine which cron fired based on time
-  // Daily upload sync: only at 22:xx UTC (6 PM EST)
-  const hour = new Date(event.scheduledTime).getUTCHours();
+  const now = new Date(event.scheduledTime);
+  const hour = now.getUTCHours();
   const isDailySync = (hour === 22);
+  const isLiveWindow = _isMonLiveWindow(now.toISOString());
 
-  // Live check runs on EVERY cron trigger (every 15 min)
-  try {
-    results.live = await checkLiveStatus(apiKey);
-  } catch (e) {
-    results.live = { error: e.message };
+  // Live check only during Monday night window (PU only streams Mon 8 PM EDT)
+  if (isLiveWindow) {
+    try {
+      results.live = await checkLiveStatus(apiKey);
+    } catch (e) {
+      results.live = { error: e.message };
+    }
   }
 
   // Upload check only on the daily sync run
