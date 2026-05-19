@@ -13995,10 +13995,17 @@ window.handleMarketplacePopState = function(state, hash) {
 };
 
 // ---- Render Marketplace ----
+var _marketRulesChecked = false;
 window.renderMarketplace = function(options) {
     options = options || {};
     var container = document.getElementById('forumContainer');
     if (!container) return;
+
+    // Show rules once on first marketplace load (persisted in localStorage)
+    if (!_marketRulesChecked) {
+        _marketRulesChecked = true;
+        checkMarketRules();
+    }
 
     // Show skeleton while loading
     if (typeof showSkeletonLoader === 'function' && !options.listingId && !options.search) {
@@ -14015,9 +14022,6 @@ function _actualRenderMarketplace(options) {
 
     container.style.display = 'block';
     container.innerHTML = '';
-
-    // Show rules on first visit
-    checkMarketRules();
 
     var activeCategory = options.category || 'all';
     var searchQuery = options.search || '';
