@@ -13922,6 +13922,7 @@ var MARKETPLACE_SECTIONS = [
     { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
     { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
     { id: 'merchants', name: 'More Bitcoin Merchants', emoji: '🏪', desc: 'Browse more Bitcoin merchants' },
+    { id: 'noderunners', name: 'Even More Merchants', emoji: '🌐', desc: 'Bitcoin shops via Node Runners' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
@@ -14086,6 +14087,20 @@ function _actualRenderMarketplace(options) {
                 '<div style="color:var(--text-muted);font-size:0.85rem;">Loading Galaxy Mind...</div>' +
             '</div>' +
             '<iframe src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;border-radius:12px;position:relative;z-index:2;" allow="fullscreen" onload="var s=document.getElementById(\'gmLoadingSkeleton\');if(s)s.style.display=\'none\'"></iframe>' +
+        '</div>';
+        html += '</div>';
+        container.innerHTML = html;
+        return;
+    }
+
+    // If "Even More Bitcoin Merchants" (Node Runners) tab is active, show iframe and return early
+    if (activeSection === 'noderunners') {
+        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--card-bg);">' +
+            '<div id="nrLoadingSkeleton" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:1;">' +
+                '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;">Loading Node Runners...</div>' +
+            '</div>' +
+            '<iframe src="https://noderunners.network/en/webshop" style="width:100%;height:100%;border:none;border-radius:12px;position:relative;z-index:2;" allow="fullscreen" onload="var s=document.getElementById(\'nrLoadingSkeleton\');if(s)s.style.display=\'none\'"></iframe>' +
         '</div>';
         html += '</div>';
         container.innerHTML = html;
