@@ -174,7 +174,7 @@ function _preloadMarketIframes() {
         var nrWrap = document.createElement('div');
         nrWrap.id = 'nrIframeWrap';
         nrWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://embed-proxy.needcreations.workers.dev/noderunners/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen"></iframe>';
+        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen"></iframe>';
         document.body.appendChild(nrWrap);
     }
 }

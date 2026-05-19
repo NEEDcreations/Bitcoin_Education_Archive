@@ -60,11 +60,6 @@ async function handleRequest(request) {
     return handleSNPage();
   }
 
-  // ---- Node Runners proxy ----
-  if (pathname.indexOf('/noderunners') === 0) {
-    return proxyToNodeRunners(request, url);
-  }
-
   // ---- Everything else: proxy to Galaxy Mind ----
   return proxyToGalaxyMind(request, url);
 }
