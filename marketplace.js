@@ -153,6 +153,69 @@ window.handleMarketplacePopState = function(state, hash) {
 
 // ---- Render Marketplace ----
 var _marketRulesChecked = false;
+var _marketIframesPreloaded = false;
+
+// Preload embed iframes hidden so they're ready when the tab is clicked
+function _preloadMarketIframes() {
+    if (_marketIframesPreloaded) return;
+    _marketIframesPreloaded = true;
+
+    // Galaxy Mind iframe (hidden, preloading in background)
+    if (!document.getElementById('gmIframeWrap')) {
+        var gmWrap = document.createElement('div');
+        gmWrap.id = 'gmIframeWrap';
+        gmWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen"></iframe>';
+        document.body.appendChild(gmWrap);
+    }
+
+    // Node Runners iframe (hidden, preloading in background)
+    if (!document.getElementById('nrIframeWrap')) {
+        var nrWrap = document.createElement('div');
+        nrWrap.id = 'nrIframeWrap';
+        nrWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://embed-proxy.needcreations.workers.dev/noderunners/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen"></iframe>';
+        document.body.appendChild(nrWrap);
+    }
+}
+
+// Show a preloaded iframe by positioning it over a placeholder element
+function _showPreloadedIframe(wrapId, placeholderId) {
+    var wrap = document.getElementById(wrapId);
+    var ph = document.getElementById(placeholderId);
+    if (!wrap || !ph) return;
+    var rect = ph.getBoundingClientRect();
+    wrap.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;z-index:100;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--card-bg);pointer-events:auto;';
+    // Re-position on scroll/resize
+    wrap._reposition = function() {
+        var r = ph.getBoundingClientRect();
+        wrap.style.left = r.left + 'px';
+        wrap.style.top = r.top + 'px';
+        wrap.style.width = r.width + 'px';
+        wrap.style.height = r.height + 'px';
+    };
+    window.addEventListener('scroll', wrap._reposition, true);
+    window.addEventListener('resize', wrap._reposition);
+}
+
+// Hide a preloaded iframe (move offscreen, keep alive)
+function _hidePreloadedIframe(wrapId) {
+    var wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    wrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+    if (wrap._reposition) {
+        window.removeEventListener('scroll', wrap._reposition, true);
+        window.removeEventListener('resize', wrap._reposition);
+        wrap._reposition = null;
+    }
+}
+
+// Hide preloaded iframes when leaving marketplace (called by go/goHome)
+window._hideMarketIframes = function() {
+    _hidePreloadedIframe('gmIframeWrap');
+    _hidePreloadedIframe('nrIframeWrap');
+};
+
 window.renderMarketplace = function(options) {
     options = options || {};
     var container = document.getElementById('forumContainer');
@@ -163,6 +226,9 @@ window.renderMarketplace = function(options) {
         _marketRulesChecked = true;
         checkMarketRules();
     }
+
+    // Start preloading iframes in background on first marketplace visit
+    _preloadMarketIframes();
 
     // Show skeleton while loading
     if (typeof showSkeletonLoader === 'function' && !options.listingId && !options.search) {
@@ -240,31 +306,25 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
-    // If "Other Bitcoin Merchants" tab is active, show iframe and return early
+    // Hide both preloaded iframes by default
+    _hidePreloadedIframe('gmIframeWrap');
+    _hidePreloadedIframe('nrIframeWrap');
+
+    // If "Other Bitcoin Merchants" tab is active, show preloaded Galaxy Mind iframe
     if (activeSection === 'merchants') {
-        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--card-bg);">' +
-            '<div id="gmLoadingSkeleton" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:1;">' +
-                '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;">Loading Galaxy Mind...</div>' +
-            '</div>' +
-            '<iframe src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;border-radius:12px;position:relative;z-index:2;" allow="fullscreen" onload="var s=document.getElementById(\'gmLoadingSkeleton\');if(s)s.style.display=\'none\'"></iframe>' +
-        '</div>';
+        html += '<div id="gmIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
         html += '</div>';
         container.innerHTML = html;
+        _showPreloadedIframe('gmIframeWrap', 'gmIframePlaceholder');
         return;
     }
 
-    // If "Even More Bitcoin Merchants" (Node Runners) tab is active, show iframe and return early
+    // If "Even More Bitcoin Merchants" (Node Runners) tab is active, show preloaded iframe
     if (activeSection === 'noderunners') {
-        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--card-bg);">' +
-            '<div id="nrLoadingSkeleton" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:1;">' +
-                '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;">Loading Node Runners...</div>' +
-            '</div>' +
-            '<iframe src="https://embed-proxy.needcreations.workers.dev/noderunners/en/webshop" style="width:100%;height:100%;border:none;border-radius:12px;position:relative;z-index:2;" allow="fullscreen" onload="var s=document.getElementById(\'nrLoadingSkeleton\');if(s)s.style.display=\'none\'"></iframe>' +
-        '</div>';
+        html += '<div id="nrIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
         html += '</div>';
         container.innerHTML = html;
+        _showPreloadedIframe('nrIframeWrap', 'nrIframePlaceholder');
         return;
     }
 

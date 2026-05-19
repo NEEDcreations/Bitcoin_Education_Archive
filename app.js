@@ -2681,6 +2681,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Hide special page containers when returning home
         var fc = document.getElementById('forumContainer');
         if (fc) fc.style.display = 'none';
+        if (typeof window._hideMarketIframes === 'function') window._hideMarketIframes();
         var msgs = document.getElementById('msgs');
         if (msgs) msgs.style.display = 'none';
         var hero = document.getElementById('hero');
@@ -3485,6 +3486,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Hide forum container when navigating to a channel
         var fc = document.getElementById('forumContainer');
         if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
+        if (typeof window._hideMarketIframes === 'function') window._hideMarketIframes();
         document.getElementById('hero').style.display = '';
         document.getElementById('msgs').style.display = '';
         // Hide floating random button when navigating to a different channel

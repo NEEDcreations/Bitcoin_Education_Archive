@@ -260,13 +260,66 @@ async function proxyToNodeRunners(request, url) {
     // Also remove the antiClickjack CSS hiding element if present
     body = body.replace(/<style\s+id\s*=\s*["']antiClickjack["'][^>]*>[\s\S]*?<\/style>/gi, '');
 
-    // Rewrite absolute URLs to route through proxy
-    body = body.replace(/(href|src|action)\s*=\s*"\//g, '$1="/noderunners/');
+    // Rewrite ALL navigation hrefs (absolute + relative) to go through proxy
+    // so every page click gets frame-buster stripped
+    // Step 1: absolute noderunners URLs → proxy path
+    body = body.replace(/(href)(\s*=\s*)"https:\/\/noderunners\.network\//g, '$1$2"/noderunners/');
+    // Step 2: remaining relative hrefs (skip already-rewritten /noderunners/ and protocol-relative //)
+    body = body.replace(/(href)(\s*=\s*)"(?!\/noderunners\/)\/(?!\/)/g, '$1$2"/noderunners/');
+
+    // Rewrite form actions through proxy
+    body = body.replace(/(action)(\s*=\s*)"https:\/\/noderunners\.network\//g, '$1$2"/noderunners/');
+    body = body.replace(/(action)(\s*=\s*)"(?!\/noderunners\/)\/(?!\/)/g, '$1$2"/noderunners/');
+
+    // src= (JS, images) load DIRECTLY from noderunners for speed
+    body = body.replace(/(src)(\s*=\s*)"\//g, '$1$2"https://noderunners.network/');
+
+    // data-original= (lazy-loaded images) load directly
+    body = body.replace(/(data-original)(\s*=\s*)"\//g, '$1$2"https://noderunners.network/');
+
+    // Now fix CSS/font href links that got proxy-rewritten — they should load direct
+    // <link rel="stylesheet" href="/noderunners/..." → href="https://noderunners.network/..."
+    body = body.replace(/<link([^>]*?)href\s*=\s*"\/noderunners\/([^"]*)"/gi, function(match, pre, path) {
+      if (/rel\s*=\s*["']stylesheet["']/i.test(pre) || /rel\s*=\s*["']icon["']/i.test(pre) || /rel\s*=\s*["']apple-touch-icon["']/i.test(pre) || /\.css/i.test(path) || /\.ico/i.test(path) || /\.png/i.test(path)) {
+        return '<link' + pre + 'href="https://noderunners.network/' + path + '"';
+      }
+      return match;
+    });
+
+    // Inject <base> for any remaining relative URLs (CSS background-image etc.)
+    body = body.replace(/<head([^>]*)>/i, '<head$1><base href="https://noderunners.network/">');
+
+    // Make all links open in the iframe (not parent)
+    body = body.replace(/ target\s*=\s*["']_top["']/gi, ' target="_self"');
+    body = body.replace(/ target\s*=\s*["']_parent["']/gi, ' target="_self"');
+
+    // Intercept JS-based navigations (window.location assignments to noderunners)
+    var navInterceptor = '<script>' +
+      '(function(){' +
+        'var nr="https://noderunners.network";' +
+        // Catch any remaining click navigations as safety net
+        'document.addEventListener("click",function(e){' +
+          'var a=e.target;while(a&&a.tagName!=="A")a=a.parentElement;' +
+          'if(!a||!a.href)return;' +
+          'var h=a.href;' +
+          'if(h.indexOf(nr)===0){' +
+            'e.preventDefault();e.stopPropagation();' +
+            'window.location.href="/noderunners"+h.substring(nr.length);' +
+          '}' +
+        '},true);' +
+      '})();' +
+    '</script>';
+    body = body.replace('</body>', navInterceptor + '</body>');
 
     return new Response(body, {
       status: upstreamResp.status,
       headers: newHeaders,
     });
+  }
+
+  // Cache static assets aggressively
+  if (realPath.match(/\.(css|js|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|ico)(\?|$)/)) {
+    newHeaders.set('Cache-Control', 'public, max-age=86400');
   }
 
   return new Response(upstreamResp.body, {
