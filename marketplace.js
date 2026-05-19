@@ -261,7 +261,7 @@ function _actualRenderMarketplace(options) {
                 '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>' +
                 '<div style="color:var(--text-muted);font-size:0.85rem;">Loading Node Runners...</div>' +
             '</div>' +
-            '<iframe src="https://noderunners.network/en/webshop" style="width:100%;height:100%;border:none;border-radius:12px;position:relative;z-index:2;" allow="fullscreen" onload="var s=document.getElementById(\'nrLoadingSkeleton\');if(s)s.style.display=\'none\'"></iframe>' +
+            '<iframe src="https://embed-proxy.needcreations.workers.dev/noderunners/en/webshop" style="width:100%;height:100%;border:none;border-radius:12px;position:relative;z-index:2;" allow="fullscreen" onload="var s=document.getElementById(\'nrLoadingSkeleton\');if(s)s.style.display=\'none\'"></iframe>' +
         '</div>';
         html += '</div>';
         container.innerHTML = html;

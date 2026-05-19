@@ -12,6 +12,7 @@
 
 var ALLOWED_ORIGIN = 'https://bitcoineducation.quest';
 var GM_ORIGIN = 'https://galaxymind.space';
+var NR_ORIGIN = 'https://noderunners.network';
 
 addEventListener('fetch', function(event) {
   event.respondWith(handleRequest(event.request));
@@ -57,6 +58,11 @@ async function handleRequest(request) {
   // ---- Stacker News fallback page ----
   if (pathname === '/stacker-news') {
     return handleSNPage();
+  }
+
+  // ---- Node Runners proxy ----
+  if (pathname.indexOf('/noderunners') === 0) {
+    return proxyToNodeRunners(request, url);
   }
 
   // ---- Everything else: proxy to Galaxy Mind ----
@@ -210,6 +216,62 @@ async function handleSNSearch(url) {
       'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
       'Cache-Control': 'public, max-age=120',
     }
+  });
+}
+
+// =============================================
+// Node Runners transparent proxy
+// =============================================
+async function proxyToNodeRunners(request, url) {
+  // Strip /noderunners prefix to get the real path
+  var realPath = url.pathname.replace(/^\/noderunners/, '') || '/';
+  var targetUrl = NR_ORIGIN + realPath + url.search;
+
+  var fwdHeaders = new Headers();
+  fwdHeaders.set('User-Agent', request.headers.get('User-Agent') || 'Mozilla/5.0');
+  fwdHeaders.set('Accept', request.headers.get('Accept') || '*/*');
+  fwdHeaders.set('Accept-Language', request.headers.get('Accept-Language') || 'en-US,en;q=0.9');
+  fwdHeaders.set('Accept-Encoding', request.headers.get('Accept-Encoding') || '');
+  fwdHeaders.set('Referer', NR_ORIGIN + '/');
+
+  // Forward cookies for session
+  var cookie = request.headers.get('Cookie');
+  if (cookie) fwdHeaders.set('Cookie', cookie);
+
+  var upstreamResp = await fetch(targetUrl, {
+    method: request.method,
+    headers: fwdHeaders,
+    redirect: 'follow',
+  });
+
+  var newHeaders = new Headers(upstreamResp.headers);
+  newHeaders.delete('X-Frame-Options');
+  newHeaders.delete('Content-Security-Policy');
+  newHeaders.set('Content-Security-Policy', "frame-ancestors 'self' " + ALLOWED_ORIGIN);
+  newHeaders.set('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+
+  var contentType = newHeaders.get('Content-Type') || '';
+  if (contentType.indexOf('text/html') !== -1) {
+    var body = await upstreamResp.text();
+
+    // Strip antiClickjack frame-buster script
+    body = body.replace(/if\s*\(self\s*===\s*top\)[\s\S]*?top\.location\s*=\s*self\.location;[\s\S]*?<\/script>/gi, '</script>');
+
+    // Also remove the antiClickjack CSS hiding element if present
+    body = body.replace(/<style\s+id\s*=\s*["']antiClickjack["'][^>]*>[\s\S]*?<\/style>/gi, '');
+
+    // Rewrite absolute URLs to route through proxy
+    body = body.replace(/(href|src|action)\s*=\s*"\//g, '$1="/noderunners/');
+
+    return new Response(body, {
+      status: upstreamResp.status,
+      headers: newHeaders,
+    });
+  }
+
+  return new Response(upstreamResp.body, {
+    status: upstreamResp.status,
+    headers: newHeaders,
   });
 }
 
