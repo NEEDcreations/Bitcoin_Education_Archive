@@ -260,51 +260,38 @@ async function proxyToNodeRunners(request, url) {
     // Also remove the antiClickjack CSS hiding element if present
     body = body.replace(/<style\s+id\s*=\s*["']antiClickjack["'][^>]*>[\s\S]*?<\/style>/gi, '');
 
-    // Rewrite ALL navigation hrefs (absolute + relative) to go through proxy
-    // so every page click gets frame-buster stripped
-    // Step 1: absolute noderunners URLs → proxy path
-    body = body.replace(/(href)(\s*=\s*)"https:\/\/noderunners\.network\//g, '$1$2"/noderunners/');
-    // Step 2: remaining relative hrefs (skip already-rewritten /noderunners/ and protocol-relative //)
-    body = body.replace(/(href)(\s*=\s*)"(?!\/noderunners\/)\/(?!\/)/g, '$1$2"/noderunners/');
-
-    // Rewrite form actions through proxy
-    body = body.replace(/(action)(\s*=\s*)"https:\/\/noderunners\.network\//g, '$1$2"/noderunners/');
-    body = body.replace(/(action)(\s*=\s*)"(?!\/noderunners\/)\/(?!\/)/g, '$1$2"/noderunners/');
-
-    // src= (JS, images) load DIRECTLY from noderunners for speed
-    body = body.replace(/(src)(\s*=\s*)"\//g, '$1$2"https://noderunners.network/');
-
-    // data-original= (lazy-loaded images) load directly
-    body = body.replace(/(data-original)(\s*=\s*)"\//g, '$1$2"https://noderunners.network/');
-
-    // Now fix CSS/font href links that got proxy-rewritten — they should load direct
-    // <link rel="stylesheet" href="/noderunners/..." → href="https://noderunners.network/..."
-    body = body.replace(/<link([^>]*?)href\s*=\s*"\/noderunners\/([^"]*)"/gi, function(match, pre, path) {
-      if (/rel\s*=\s*["']stylesheet["']/i.test(pre) || /rel\s*=\s*["']icon["']/i.test(pre) || /rel\s*=\s*["']apple-touch-icon["']/i.test(pre) || /\.css/i.test(path) || /\.ico/i.test(path) || /\.png/i.test(path)) {
-        return '<link' + pre + 'href="https://noderunners.network/' + path + '"';
-      }
-      return match;
-    });
-
-    // Inject <base> for any remaining relative URLs (CSS background-image etc.)
+    // Inject <base> so all relative URLs (CSS, JS, images) resolve to noderunners directly
     body = body.replace(/<head([^>]*)>/i, '<head$1><base href="https://noderunners.network/">');
 
     // Make all links open in the iframe (not parent)
     body = body.replace(/ target\s*=\s*["']_top["']/gi, ' target="_self"');
     body = body.replace(/ target\s*=\s*["']_parent["']/gi, ' target="_self"');
 
-    // Intercept JS-based navigations (window.location assignments to noderunners)
+    // Inject capture-phase click interceptor:
+    // All <a> clicks pointing to noderunners.network get routed through the proxy
+    // so every HTML page load gets the frame-buster stripped.
+    // CSS/JS/images load directly via <base> tag — only navigation goes through proxy.
     var navInterceptor = '<script>' +
       '(function(){' +
         'var nr="https://noderunners.network";' +
-        // Catch any remaining click navigations as safety net
+        'var proxy="/noderunners";' +
         'document.addEventListener("click",function(e){' +
           'var a=e.target;while(a&&a.tagName!=="A")a=a.parentElement;' +
-          'if(!a||!a.href)return;' +
-          'var h=a.href;' +
+          'if(!a)return;' +
+          'var h=a.href;' +  // .href is always resolved to absolute by the browser
+          'if(!h)return;' +
           'if(h.indexOf(nr)===0){' +
             'e.preventDefault();e.stopPropagation();' +
-            'window.location.href="/noderunners"+h.substring(nr.length);' +
+            'var path=h.substring(nr.length)||"https://noderunners.network/";' +
+            'window.location.href=proxy+path;' +
+          '}' +
+        '},true);' +
+        // Also intercept form submissions
+        'document.addEventListener("submit",function(e){' +
+          'var f=e.target;' +
+          'if(!f||!f.action)return;' +
+          'if(f.action.indexOf(nr)===0){' +
+            'f.action=proxy+f.action.substring(nr.length);' +
           '}' +
         '},true);' +
       '})();' +
