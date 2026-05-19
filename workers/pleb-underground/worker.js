@@ -92,16 +92,16 @@ async function cacheSetLive(data, ttlSeconds) {
 
 // ── Monday Night Live Window Helper ──
 // Pleb Underground goes live ~8 PM EDT on Mondays.
-// EDT = UTC-4. 7:45 PM EDT = 23:45 UTC (Mon). 8:15 PM EDT = 00:15 UTC (Tue).
+// EDT = UTC-4. 7:30 PM EDT = 23:30 UTC (Mon). 11 PM EDT = 03:00 UTC (Tue).
 function _isMonLiveWindow(isoString) {
   var d = new Date(isoString);
   var day = d.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue
   var h = d.getUTCHours();
   var m = d.getUTCMinutes();
-  // Mon 23:45-23:59 UTC
-  if (day === 1 && h === 23 && m >= 45) return true;
-  // Tue 00:00-00:15 UTC
-  if (day === 2 && h === 0 && m <= 15) return true;
+  // Mon 23:30-23:59 UTC (7:30-7:59 PM EDT)
+  if (day === 1 && h === 23 && m >= 30) return true;
+  // Tue 00:00-02:59 UTC (8:00-10:59 PM EDT)
+  if (day === 2 && h <= 2) return true;
   return false;
 }
 

@@ -6896,14 +6896,16 @@ function _showPlebLiveBadge(show) {
     }
 }
 
-// Monday night live window: 7:45-8:15 PM EDT = 23:45 UTC Mon – 00:15 UTC Tue
+// Monday night live window: 7:30 PM – 11:00 PM EDT = 23:30 UTC Mon – 03:00 UTC Tue
 function _isMonLiveWindow() {
     var d = new Date();
     var day = d.getUTCDay();
     var h = d.getUTCHours();
     var m = d.getUTCMinutes();
-    if (day === 1 && h === 23 && m >= 45) return true;
-    if (day === 2 && h === 0 && m <= 15) return true;
+    // Mon 23:30-23:59 UTC (7:30-7:59 PM EDT)
+    if (day === 1 && h === 23 && m >= 30) return true;
+    // Tue 00:00-02:59 UTC (8:00-10:59 PM EDT)
+    if (day === 2 && h <= 2) return true;
     return false;
 }
 
