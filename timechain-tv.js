@@ -8237,8 +8237,19 @@ window.renderTimechainTV = function() {
         @media (min-width: 768px) {
             /* Old sidebar ad hidden (moved below channel list) */
             #tctv-ad-sidebar { display: none !important; }
-            /* Sponsor sidebar visible on desktop, mobile banner hidden */
-            #tctv-sponsor-sidebar { display: block !important; }
+            /* Sponsor sidebar: fixed to left edge of viewport on desktop.
+               Removed from flex flow so it can't inflate the sticky header
+               or block EPG channel guide scrolling. */
+            #tctv-sponsor-sidebar {
+                display: block !important;
+                position: fixed !important;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                z-index: 200001;
+                flex: none !important;
+                pointer-events: auto;
+            }
             #tctv-sponsor-mobile { display: none !important; }
             /* Show the below-EPG ad on all screen sizes */
             #tctv-ad-mobile { display: block !important; }
