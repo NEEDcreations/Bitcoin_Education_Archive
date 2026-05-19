@@ -504,6 +504,10 @@ function formatChatText(text, mentionUid) {
     });
     // Regular URLs (non-image)
     text = text.replace(/(https?:\/\/[^\s<]+)(?![^<]*<\/a>)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">$1</a>');
+    // Markdown-style in-app links: [Link Text](#route)
+    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(match, label, route) {
+        return '<a href="#' + route + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + route + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>';
+    });
     // #channel tags
     text = text.replace(/#([a-zA-Z0-9_-]+)/g, function(match, tag) {
         return '<a href="#' + tag + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + tag + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + match + '</a>';

@@ -26531,7 +26531,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                 // Announce PVP lobby entry in Global Chat
                 var _pvpName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
                 if (_pvpName && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce('\u2694\uFE0F @' + _pvpName + ' just entered the PVP arena! Think you can beat them? \u27A1\uFE0F Enter PVP Lobby #pvp');
+                    window.nachoGlobalAnnounce('\u2694\uFE0F @' + _pvpName + ' just entered the PVP arena! Think you can beat them? \u27A1\uFE0F [Enter PVP Lobby](#pvp)');
                 }
             };
         }
