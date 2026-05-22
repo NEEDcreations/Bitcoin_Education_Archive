@@ -391,6 +391,9 @@ async function handleTelegramWebhook(request, env) {
 
   if (!text && !imageUrl && !gifUrl) return new Response('OK');
 
+  // Filter out Telegram bot commands — don't bridge to Global Chat
+  if (text && /^\/[a-zA-Z]/.test(text.trim())) return new Response('OK');
+
   var firestoreDoc = {
     fields: {
       text: { stringValue: text || '' },

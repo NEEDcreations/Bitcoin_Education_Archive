@@ -411,8 +411,11 @@ window.beatsPlayTrack = function(idx) {
     var track = window._beatsQueue[idx];
     if (!track || (!track.audioData && !track.audioUrl)) { if (typeof showToast === 'function') showToast('Track not available'); return; }
 
-    // If this track is already playing, don't restart it (prevents accidental re-trigger from event bubbling)
-    if (idx === window._beatsQueueIdx && window._beatsAudio && !window._beatsAudio.paused) return;
+    // If this track is already playing, toggle play/pause instead of restarting
+    if (idx === window._beatsQueueIdx && window._beatsAudio) {
+        beatsTogglePlay();
+        return;
+    }
 
     window._beatsQueueIdx = idx;
 
