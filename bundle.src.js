@@ -24697,6 +24697,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 var _trackId = h.replace('beats/', '');
                 if (_trackId && _trackId.indexOf('/') === -1) window._beatsDeepLink = { type: 'track', trackId: _trackId };
             }
+            window._beatsRouted = true;
             setTimeout(function() { go('bitcoin-beats', null, true); }, 500);
         }
         else if (h === 'chat') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('global'); }, 500); }
@@ -24788,7 +24789,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                     break;
                 default:
                     // Beats deep links (#beats/trackId, #beats/playlist/uid/id) — route to Beats, deep link handler in beats.js takes over
-                    if (hash.indexOf('beats/') === 0 && typeof go === 'function') {
+                    // Skip if initial handler already routed (prevents double go() wiping deep link state)
+                    if (hash.indexOf('beats/') === 0 && typeof go === 'function' && !window._beatsRouted) {
                         // Stash deep link params before go() changes the hash
                         if (hash.indexOf('beats/playlist/') === 0) {
                             var _plP = hash.replace('beats/playlist/', '').split('/');
@@ -24797,8 +24799,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                             var _tId = hash.replace('beats/', '');
                             if (_tId && _tId.indexOf('/') === -1) window._beatsDeepLink = { type: 'track', trackId: _tId };
                         }
+                        window._beatsRouted = true;
                         go('bitcoin-beats'); return;
                     }
+                    // Already routed by initial handler — just stop retrying
+                    if (hash.indexOf('beats/') === 0 && window._beatsRouted) return;
                     // Certificate verification link (e.g. #cert/CERT-XXXXX)
                     if (hash.indexOf('cert/') === 0 && typeof go === 'function') { go(hash); return; }
                     // Channel direct link (e.g. #mining, #self-custody)

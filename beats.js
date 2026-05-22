@@ -51,6 +51,7 @@ window.renderBitcoinBeats = function() {
     container.innerHTML = html;
 
     // Check for deep link params stashed by app.js router
+    window._beatsRouted = false; // Reset routing guard for future navigations
     if (window._beatsDeepLink) {
         var dl = window._beatsDeepLink;
         window._beatsDeepLink = null;
