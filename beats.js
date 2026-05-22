@@ -61,8 +61,50 @@ window.renderBitcoinBeats = function() {
         } else if (dl.type === 'track') {
             db.collection('beats_tracks').doc(dl.trackId).get().then(function(doc) {
                 if (doc.exists) {
-                    window._beatsQueue = [{ id: doc.id, ...doc.data() }];
-                    beatsPlayTrack(0);
+                    var t = { id: doc.id, ...doc.data() };
+                    window._beatsQueue = [t];
+                    window._beatsQueueIdx = 0;
+                    // On mobile, autoplay is blocked without a user gesture.
+                    // Load the track into the player UI so one tap on ▶ starts it.
+                    var isMob = window.innerWidth <= 900;
+                    if (isMob) {
+                        // Create audio element (paused) so play button works instantly
+                        if (window._beatsAudio) { window._beatsAudio.pause(); window._beatsAudio = null; }
+                        window._beatsAudio = new Audio(t.audioUrl || t.audioData);
+                        window._beatsAudio.volume = (document.getElementById('beatsVolume') ? document.getElementById('beatsVolume').value : 80) / 100;
+                        window._beatsAudio.preload = 'auto';
+                        // Update player UI to show loaded track
+                        window._beatsNowPlaying = { title: t.title || 'Untitled', artist: t.artist || t.authorName || 'Unknown', genre: t.genre || '', coverArt: t.coverArt || t.coverUrl || '', authorId: t.authorId || '', trackId: t.id || '' };
+                        window._beatsCurrentAuthorId = t.authorId || t.authorUid || '';
+                        if (typeof beatsShowGlobalPlayer === 'function') beatsShowGlobalPlayer();
+                        if (typeof beatsUpdatePlayerUI === 'function') beatsUpdatePlayerUI();
+                        // Wire up ended/next handlers + progress bar
+                        window._beatsAudio.onended = function() { if (typeof beatsNextTrack === 'function') beatsNextTrack(); };
+                        // Start progress bar updates (works whether autoplay succeeds or user taps play)
+                        clearInterval(window._beatsUpdateInterval);
+                        window._beatsUpdateInterval = setInterval(function() {
+                            if (!window._beatsAudio) return;
+                            var pct = window._beatsAudio.duration ? (window._beatsAudio.currentTime / window._beatsAudio.duration) * 100 : 0;
+                            var bar = document.getElementById('beatsProgressBar');
+                            if (bar) bar.style.width = pct + '%';
+                            var timeEl = document.getElementById('beatsTime');
+                            if (timeEl) timeEl.textContent = beatsFormatTime(window._beatsAudio.currentTime) + ' / ' + beatsFormatTime(window._beatsAudio.duration || 0);
+                        }, 500);
+                        // Try autoplay anyway (works on some mobile browsers)
+                        window._beatsAudio.play().then(function() {
+                            // Autoplay succeeded — update button to pause icon
+                            var pb = document.getElementById('beatsPlayBtn');
+                            if (pb) pb.textContent = '⏸';
+                            var mpb = document.getElementById('beatsMiniPlayBtn');
+                            if (mpb) mpb.textContent = '⏸';
+                            if (typeof beatsSetMediaSession === 'function') beatsSetMediaSession(t);
+                        }).catch(function() {
+                            // Autoplay blocked — show toast so user knows to tap play
+                            if (typeof showToast === 'function') showToast('🎵 Tap ▶ to play');
+                        });
+                    } else {
+                        beatsPlayTrack(0);
+                    }
                 }
             });
             return;
