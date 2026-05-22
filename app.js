@@ -4419,6 +4419,12 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
+            // Beats deep links (#beats/trackId, #beats/playlist/uid/id)
+            if (hash.indexOf('beats/') === 0) {
+                go('bitcoin-beats', null, true);
+                return;
+            }
+
             // Channel
             if (hash) {
                 go(hash, null, true);
@@ -4471,7 +4477,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'irl-sync' || h === 'meet') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
-        else if (h === 'bitcoin-beats') { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
+        else if (h === 'bitcoin-beats' || h.indexOf('beats/') === 0) { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
         else if (h === 'chat') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('global'); }, 500); }
         else if (h === 'dms') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('dms'); else if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h === 'lightning') { setTimeout(function() { go('lightning'); }, 500); }
@@ -4560,6 +4566,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (typeof toggleDashboard === 'function') { history.replaceState({ home: true }, '', window.location.pathname); toggleDashboard(); return; }
                     break;
                 default:
+                    // Beats deep links (#beats/trackId, #beats/playlist/uid/id) — route to Beats, deep link handler in beats.js takes over
+                    if (hash.indexOf('beats/') === 0 && typeof go === 'function') { go('bitcoin-beats'); return; }
                     // Certificate verification link (e.g. #cert/CERT-XXXXX)
                     if (hash.indexOf('cert/') === 0 && typeof go === 'function') { go(hash); return; }
                     // Channel direct link (e.g. #mining, #self-custody)

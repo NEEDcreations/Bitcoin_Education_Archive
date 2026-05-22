@@ -2480,24 +2480,42 @@ window.beatsArtistPlayTrack = function(uid, idx) {
 };
 
 // ================================================================
-// FEATURE 4: Direct Track Links (#beats/trackId)
+// FEATURE 4: Direct Track & Playlist Links (#beats/trackId, #beats/playlist/uid/id)
 // ================================================================
 (function() {
     function checkBeatsDeepLink() {
         var hash = window.location.hash;
-        if (hash && hash.indexOf('#beats/') === 0) {
-            var trackId = hash.replace('#beats/', '');
-            if (trackId && typeof db !== 'undefined') {
+        if (!hash || hash.indexOf('#beats/') !== 0) return;
+        var path = hash.replace('#beats/', '');
+        if (!path || typeof db === 'undefined') return;
+
+        // Playlist deep link: #beats/playlist/{ownerUid}/{playlistId}
+        var plMatch = path.match(/^playlist\/([^/]+)\/([^/]+)$/);
+        if (plMatch) {
+            var ownerUid = plMatch[1];
+            var playlistId = plMatch[2];
+            setTimeout(function() {
+                if (typeof go === 'function') go('bitcoin-beats', null, true);
                 setTimeout(function() {
-                    db.collection('beats_tracks').doc(trackId).get().then(function(doc) {
-                        if (doc.exists) {
-                            window._beatsQueue = [{ id: doc.id, ...doc.data() }];
-                            if (typeof go === 'function') go('bitcoin-beats', null, true);
-                            setTimeout(function() { beatsPlayTrack(0); }, 500);
-                        }
-                    });
-                }, 1500);
-            }
+                    if (typeof beatsOpenSharedPlaylist === 'function') {
+                        beatsOpenSharedPlaylist(ownerUid, playlistId);
+                    }
+                }, 800);
+            }, 1500);
+            return;
+        }
+
+        // Track deep link: #beats/{trackId} (no slashes in trackId)
+        if (path.indexOf('/') === -1) {
+            setTimeout(function() {
+                db.collection('beats_tracks').doc(path).get().then(function(doc) {
+                    if (doc.exists) {
+                        window._beatsQueue = [{ id: doc.id, ...doc.data() }];
+                        if (typeof go === 'function') go('bitcoin-beats', null, true);
+                        setTimeout(function() { beatsPlayTrack(0); }, 500);
+                    }
+                });
+            }, 1500);
         }
     }
     window.addEventListener('load', checkBeatsDeepLink);
@@ -2894,6 +2912,59 @@ window.beatsOpenPlaylist = function(playlistId) {
             listEl.appendChild(trackEl);
             beatsRenderTrackList(trackEl, tracks, true);
         });
+    });
+};
+
+// Open a shared playlist from a deep link (#beats/playlist/{ownerUid}/{playlistId})
+// Reads from the OWNER's playlists subcollection, not the current user's
+window.beatsOpenSharedPlaylist = function(ownerUid, playlistId) {
+    // Navigate to Library > Playlists tab first
+    if (typeof beatsTab === 'function') beatsTab('library');
+    var listEl = document.getElementById('beatsTrackList');
+    if (!listEl) {
+        // Beats UI not ready yet — retry
+        setTimeout(function() { beatsOpenSharedPlaylist(ownerUid, playlistId); }, 500);
+        return;
+    }
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading shared playlist...</div>';
+
+    db.collection('users').doc(ownerUid).collection('playlists').doc(playlistId).get().then(function(doc) {
+        if (!doc.exists) {
+            listEl.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">🔍</div><div style="color:var(--text-muted);font-weight:600;">Playlist not found</div><div style="color:var(--text-faint);font-size:0.8rem;margin-top:8px;">It may have been deleted or made private.</div></div>';
+            return;
+        }
+        var pl = doc.data();
+        var ids = pl.trackIds || [];
+
+        var header = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+            '<button onclick="if(typeof beatsRenderLibrary===\'function\')beatsRenderLibrary();else if(typeof renderBitcoinBeats===\'function\')renderBitcoinBeats();" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;">←</button>' +
+            '<div style="flex:1;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;">🔗 ' + escapeHtml(pl.name || 'Playlist') + '</div><div style="color:var(--text-faint);font-size:0.75rem;">' + ids.length + ' tracks · Shared playlist</div></div>' +
+        '</div>';
+
+        if (ids.length === 0) {
+            listEl.innerHTML = header + '<div style="text-align:center;padding:30px;color:var(--text-faint);">This playlist is empty.</div>';
+            return;
+        }
+
+        // Fetch tracks
+        var batches = [];
+        for (var i = 0; i < ids.length; i += 30) batches.push(ids.slice(i, i + 30));
+        Promise.all(batches.map(function(b) {
+            return db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', b).get();
+        })).then(function(results) {
+            var trackMap = {};
+            results.forEach(function(snap) { snap.forEach(function(d) { trackMap[d.id] = { id: d.id, ...d.data() }; }); });
+            var tracks = [];
+            ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
+            window._beatsQueue = tracks;
+            var trackEl = document.createElement('div');
+            listEl.innerHTML = header;
+            listEl.appendChild(trackEl);
+            beatsRenderTrackList(trackEl, tracks, true);
+        });
+    }).catch(function(e) {
+        console.error('Shared playlist load error:', e);
+        if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">⚠️</div><div style="color:var(--text-muted);font-weight:600;">Could not load playlist</div></div>';
     });
 };
 
