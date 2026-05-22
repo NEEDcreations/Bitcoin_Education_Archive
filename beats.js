@@ -50,6 +50,24 @@ window.renderBitcoinBeats = function() {
 
     container.innerHTML = html;
 
+    // Check for deep link params stashed by app.js router
+    if (window._beatsDeepLink) {
+        var dl = window._beatsDeepLink;
+        window._beatsDeepLink = null;
+        if (dl.type === 'playlist' && typeof beatsOpenSharedPlaylist === 'function') {
+            beatsOpenSharedPlaylist(dl.ownerUid, dl.playlistId);
+            return;
+        } else if (dl.type === 'track') {
+            db.collection('beats_tracks').doc(dl.trackId).get().then(function(doc) {
+                if (doc.exists) {
+                    window._beatsQueue = [{ id: doc.id, ...doc.data() }];
+                    beatsPlayTrack(0);
+                }
+            });
+            return;
+        }
+    }
+
     // Load tracks
     beatsLoadTracks('discover');
 };
@@ -2481,46 +2499,25 @@ window.beatsArtistPlayTrack = function(uid, idx) {
 
 // ================================================================
 // FEATURE 4: Direct Track & Playlist Links (#beats/trackId, #beats/playlist/uid/id)
+// Deep link params are stashed on window._beatsDeepLink by app.js router and consumed
+// by renderBitcoinBeats(). The hashchange listener below handles in-app navigation
+// (e.g. clicking a beats link while already on another page).
 // ================================================================
 (function() {
-    function checkBeatsDeepLink() {
+    window.addEventListener('hashchange', function() {
         var hash = window.location.hash;
         if (!hash || hash.indexOf('#beats/') !== 0) return;
         var path = hash.replace('#beats/', '');
-        if (!path || typeof db === 'undefined') return;
+        if (!path) return;
 
-        // Playlist deep link: #beats/playlist/{ownerUid}/{playlistId}
+        // Stash deep link params, then navigate to beats (renderBitcoinBeats will pick them up)
         var plMatch = path.match(/^playlist\/([^/]+)\/([^/]+)$/);
         if (plMatch) {
-            var ownerUid = plMatch[1];
-            var playlistId = plMatch[2];
-            setTimeout(function() {
-                if (typeof go === 'function') go('bitcoin-beats', null, true);
-                setTimeout(function() {
-                    if (typeof beatsOpenSharedPlaylist === 'function') {
-                        beatsOpenSharedPlaylist(ownerUid, playlistId);
-                    }
-                }, 800);
-            }, 1500);
-            return;
+            window._beatsDeepLink = { type: 'playlist', ownerUid: plMatch[1], playlistId: plMatch[2] };
+        } else if (path.indexOf('/') === -1) {
+            window._beatsDeepLink = { type: 'track', trackId: path };
         }
-
-        // Track deep link: #beats/{trackId} (no slashes in trackId)
-        if (path.indexOf('/') === -1) {
-            setTimeout(function() {
-                db.collection('beats_tracks').doc(path).get().then(function(doc) {
-                    if (doc.exists) {
-                        window._beatsQueue = [{ id: doc.id, ...doc.data() }];
-                        if (typeof go === 'function') go('bitcoin-beats', null, true);
-                        setTimeout(function() { beatsPlayTrack(0); }, 500);
-                    }
-                });
-            }, 1500);
-        }
-    }
-    window.addEventListener('load', checkBeatsDeepLink);
-    window.addEventListener('hashchange', function() {
-        if (window.location.hash.indexOf('#beats/') === 0) checkBeatsDeepLink();
+        if (window._beatsDeepLink && typeof go === 'function') go('bitcoin-beats');
     });
 })();
 

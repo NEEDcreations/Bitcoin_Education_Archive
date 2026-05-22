@@ -4421,6 +4421,13 @@ window.nachoQuizAnswer = function(btn, correct) {
 
             // Beats deep links (#beats/trackId, #beats/playlist/uid/id)
             if (hash.indexOf('beats/') === 0) {
+                if (hash.indexOf('beats/playlist/') === 0) {
+                    var _plPs = hash.replace('beats/playlist/', '').split('/');
+                    if (_plPs.length === 2) window._beatsDeepLink = { type: 'playlist', ownerUid: _plPs[0], playlistId: _plPs[1] };
+                } else {
+                    var _tIds = hash.replace('beats/', '');
+                    if (_tIds && _tIds.indexOf('/') === -1) window._beatsDeepLink = { type: 'track', trackId: _tIds };
+                }
                 go('bitcoin-beats', null, true);
                 return;
             }
@@ -4477,7 +4484,17 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'irl-sync' || h === 'meet') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
-        else if (h === 'bitcoin-beats' || h.indexOf('beats/') === 0) { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
+        else if (h === 'bitcoin-beats' || h.indexOf('beats/') === 0) {
+            // Stash deep link params before go() changes the hash
+            if (h.indexOf('beats/playlist/') === 0) {
+                var _plParts = h.replace('beats/playlist/', '').split('/');
+                if (_plParts.length === 2) window._beatsDeepLink = { type: 'playlist', ownerUid: _plParts[0], playlistId: _plParts[1] };
+            } else if (h.indexOf('beats/') === 0 && h !== 'bitcoin-beats') {
+                var _trackId = h.replace('beats/', '');
+                if (_trackId && _trackId.indexOf('/') === -1) window._beatsDeepLink = { type: 'track', trackId: _trackId };
+            }
+            setTimeout(function() { go('bitcoin-beats', null, true); }, 500);
+        }
         else if (h === 'chat') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('global'); }, 500); }
         else if (h === 'dms') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('dms'); else if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h === 'lightning') { setTimeout(function() { go('lightning'); }, 500); }
@@ -4567,7 +4584,17 @@ window.nachoQuizAnswer = function(btn, correct) {
                     break;
                 default:
                     // Beats deep links (#beats/trackId, #beats/playlist/uid/id) — route to Beats, deep link handler in beats.js takes over
-                    if (hash.indexOf('beats/') === 0 && typeof go === 'function') { go('bitcoin-beats'); return; }
+                    if (hash.indexOf('beats/') === 0 && typeof go === 'function') {
+                        // Stash deep link params before go() changes the hash
+                        if (hash.indexOf('beats/playlist/') === 0) {
+                            var _plP = hash.replace('beats/playlist/', '').split('/');
+                            if (_plP.length === 2) window._beatsDeepLink = { type: 'playlist', ownerUid: _plP[0], playlistId: _plP[1] };
+                        } else {
+                            var _tId = hash.replace('beats/', '');
+                            if (_tId && _tId.indexOf('/') === -1) window._beatsDeepLink = { type: 'track', trackId: _tId };
+                        }
+                        go('bitcoin-beats'); return;
+                    }
                     // Certificate verification link (e.g. #cert/CERT-XXXXX)
                     if (hash.indexOf('cert/') === 0 && typeof go === 'function') { go(hash); return; }
                     // Channel direct link (e.g. #mining, #self-custody)
