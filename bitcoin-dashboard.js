@@ -1808,13 +1808,13 @@ function _renderTreasury(container, data, btcPrice) {
 // ── Bitcoin ETF Holdings (loaded from data/etf-holdings.json, updated by cron) ──
 // Fallback data if JSON fetch fails
 var ETF_HOLDINGS_FALLBACK = [
-    { ticker: 'IBIT', name: 'BlackRock', btc: 798000, color: '#6366f1' },
-    { ticker: 'FBTC', name: 'Fidelity', btc: 217000, color: '#22c55e' },
-    { ticker: 'GBTC', name: 'Grayscale', btc: 183000, color: '#eab308' },
-    { ticker: 'ARKB', name: 'ARK 21Shares', btc: 65000, color: '#f97316' },
-    { ticker: 'BITB', name: 'Bitwise', btc: 55000, color: '#06b6d4' }
+    { ticker: 'IBIT', name: 'BlackRock', btc: 787044, color: '#6366f1' },
+    { ticker: 'FBTC', name: 'Fidelity', btc: 213399, color: '#22c55e' },
+    { ticker: 'GBTC', name: 'Grayscale', btc: 180584, color: '#eab308' },
+    { ticker: 'ARKB', name: 'ARK 21Shares', btc: 63920, color: '#f97316' },
+    { ticker: 'BITB', name: 'Bitwise', btc: 53930, color: '#06b6d4' }
 ];
-var ETF_TOTAL_BTC_FALLBACK = 1387000;
+var ETF_TOTAL_BTC_FALLBACK = 1367239;
 
 function _renderEtfHoldings(btcPrice, supply) {
     var container = document.getElementById('etfHoldingsData');

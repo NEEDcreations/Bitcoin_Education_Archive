@@ -54,7 +54,7 @@ async function main() {
   
   // Known shares outstanding (from SEC filings, updated periodically)
   // These change daily as shares are created/redeemed but are relatively stable
-  // Last calibrated: April 11, 2026
+  // Last calibrated: May 23, 2026 (cross-referenced with BitcoinTreasuries.net)
   const SHARES_OUTSTANDING = {
     IBIT: 1383700000,   // ~1.384B shares (BlackRock SEC filing)
     FBTC: 261400000,    // ~261M shares (Fidelity SEC filing)  
@@ -64,13 +64,13 @@ async function main() {
   };
   
   // BTC per share (from prospectus/NAV, very slowly declining due to fees)
-  // Last calibrated: April 11, 2026
+  // Last calibrated: May 23, 2026 (back-calculated from BitcoinTreasuries.net data)
   const BTC_PER_SHARE = {
-    IBIT: 0.000570,     // IBIT NAV = this × BTC price
-    FBTC: 0.000761,
-    GBTC: 0.000883,  
-    ARKB: 0.000290,
-    BITB: 0.000474,
+    IBIT: 0.000569,     // IBIT NAV = this × BTC price
+    FBTC: 0.000816,
+    GBTC: 0.000830,  
+    ARKB: 0.000311,
+    BITB: 0.000509,
   };
 
   const ETFS = [
@@ -93,15 +93,11 @@ async function main() {
       const meta = chart.chart.result[0].meta;
       const sharePrice = meta.regularMarketPrice;
       
-      // Method 1: BTC = shares outstanding × BTC per share
-      const btcFromShares = Math.round(SHARES_OUTSTANDING[etf.ticker] * BTC_PER_SHARE[etf.ticker]);
-      
-      // Method 2: BTC = AUM / BTC price (where AUM = sharePrice × sharesOutstanding)
+      // BTC = shares outstanding × BTC per share (from SEC filings / NAV)
+      // This is the most accurate method — share prices have premiums/discounts
+      // that make AUM-based estimates unreliable
+      const btcHeld = Math.round(SHARES_OUTSTANDING[etf.ticker] * BTC_PER_SHARE[etf.ticker]);
       const aum = sharePrice * SHARES_OUTSTANDING[etf.ticker];
-      const btcFromAUM = Math.round(aum / btcPrice);
-      
-      // Use average of both methods for best estimate
-      const btcHeld = Math.round((btcFromShares + btcFromAUM) / 2);
       
       holdings.push({
         ticker: etf.ticker,
