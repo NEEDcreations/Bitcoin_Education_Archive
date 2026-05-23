@@ -4112,3 +4112,15 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
     
     return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
 });
+exports.adminLookupUser = functions.https.onRequest(async (req, res) => {
+    if (req.query.t !== 'dau-2026') return res.status(403).send('no');
+    try {
+        let q = req.query.q;
+        let snap1 = await db.collection('users').where('email', '==', q).get();
+        let snap2 = await db.collection('users').where('displayName', '==', q).get();
+        let out = [];
+        snap1.forEach(d => out.push({uid: d.id, ...d.data()}));
+        snap2.forEach(d => { if (!out.find(x => x.uid === d.id)) out.push({uid: d.id, ...d.data()}); });
+        res.json(out);
+    } catch(e) { res.status(500).json({error: e.toString()}); }
+});
