@@ -3951,3 +3951,164 @@ exports.tctvAggregatePresence = onSchedule({
         return null;
     }
 });
+
+// ==========================================
+// PROOF OF WALK (STRAVA INTEGRATION)
+// ==========================================
+
+exports.stravaAuth = functions.https.onRequest(async (req, res) => {
+    try {
+        const code = req.query.code;
+        const uid = req.query.state; // Passed from frontend via state param
+        
+        if (!code || !uid) {
+            return res.redirect('https://bitcoineducation.quest/#explore?strava=error-missing-params');
+        }
+
+        const client_id = process.env.STRAVA_CLIENT_ID;
+        const client_secret = process.env.STRAVA_CLIENT_SECRET;
+
+        if (!client_id || !client_secret) {
+            console.error("Missing Strava credentials in .env");
+            return res.redirect('https://bitcoineducation.quest/#explore?strava=config-error');
+        }
+
+        const response = await fetch('https://www.strava.com/api/v3/oauth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                client_id: client_id,
+                client_secret: client_secret,
+                code: code,
+                grant_type: 'authorization_code'
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.access_token) {
+            await db.collection('users').doc(uid).collection('integrations').doc('strava').set({
+                access_token: data.access_token,
+                refresh_token: data.refresh_token,
+                expires_at: data.expires_at,
+                athlete_id: data.athlete ? data.athlete.id : null,
+                athlete_name: data.athlete ? (data.athlete.firstname + ' ' + data.athlete.lastname).trim() : 'Athlete',
+                athlete_profile: data.athlete ? data.athlete.profile : '',
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+            return res.redirect('https://bitcoineducation.quest/#explore?strava=success');
+        } else {
+            console.error("Strava exchange error:", data);
+            return res.redirect('https://bitcoineducation.quest/#explore?strava=error-exchange');
+        }
+    } catch (e) {
+        console.error('Strava Auth Error:', e);
+        return res.redirect('https://bitcoineducation.quest/#explore?strava=error');
+    }
+});
+
+exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    const uid = context.auth.uid;
+    
+    const stravaRef = db.collection('users').doc(uid).collection('integrations').doc('strava');
+    const stravaDoc = await stravaRef.get();
+    if (!stravaDoc.exists) throw new functions.https.HttpsError('not-found', 'Strava not connected');
+    
+    let tokenData = stravaDoc.data();
+    let access_token = tokenData.access_token;
+    
+    // Refresh token if expired (buffer of 5 mins)
+    if (Date.now() / 1000 > (tokenData.expires_at - 300)) {
+        const resp = await fetch('https://www.strava.com/api/v3/oauth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                client_id: process.env.STRAVA_CLIENT_ID,
+                client_secret: process.env.STRAVA_CLIENT_SECRET,
+                refresh_token: tokenData.refresh_token,
+                grant_type: 'refresh_token'
+            })
+        });
+        const refreshed = await resp.json();
+        if (refreshed.access_token) {
+            access_token = refreshed.access_token;
+            await stravaRef.update({
+                access_token: refreshed.access_token,
+                refresh_token: refreshed.refresh_token,
+                expires_at: refreshed.expires_at
+            });
+        } else {
+            throw new functions.https.HttpsError('permission-denied', 'Strava auth expired, please reconnect');
+        }
+    }
+    
+    // Fetch recent activities
+    const actResp = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=30', {
+        headers: { 'Authorization': `Bearer ${access_token}` }
+    });
+    const activities = await actResp.json();
+    if (!Array.isArray(activities)) {
+        console.error("Strava API Failed", activities);
+        throw new functions.https.HttpsError('internal', 'Strava API failed');
+    }
+    
+    let totalPoints = 0;
+    let syncedCount = 0;
+    
+    const userRef = db.collection('users').doc(uid);
+    const statsRef = userRef.collection('proof_of_walk_stats').doc('daily');
+    const validTypes = ["Walk", "Run", "Hike"];
+    const results = [];
+    
+    // Atomic transaction for safety and preventing race conditions
+    await db.runTransaction(async (transaction) => {
+        const dailyDoc = await transaction.get(statsRef);
+        let dailyData = dailyDoc.exists ? dailyDoc.data() : { date: '', distance: 0 };
+        
+        for (let act of activities) {
+            if (!validTypes.includes(act.type)) continue;
+            
+            const actId = act.id.toString();
+            const actRef = userRef.collection('proof_of_walk').doc(actId);
+            const actDoc = await transaction.get(actRef);
+            
+            if (actDoc.exists) continue; // Already processed
+            
+            // Prefer local date string to align with user's timezone boundaries
+            const dateStr = (act.start_date_local || act.start_date).split('T')[0];
+            const actKm = act.distance / 1000;
+            
+            if (dailyData.date !== dateStr) {
+                dailyData = { date: dateStr, distance: 0 };
+            }
+            
+            const remainingCap = Math.max(0, 42.0 - dailyData.distance);
+            const allocatableKm = Math.min(actKm, remainingCap);
+            const pts = Math.floor(allocatableKm * 50);
+            
+            dailyData.distance += allocatableKm;
+            totalPoints += pts;
+            syncedCount++;
+            
+            results.push({ id: actId, type: act.type, distance: actKm, points: pts, date: dateStr });
+            
+            transaction.set(actRef, {
+                distance: actKm,
+                points_awarded: pts,
+                date: dateStr,
+                type: act.type,
+                created_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        
+        if (syncedCount > 0) {
+            transaction.set(statsRef, dailyData);
+            transaction.update(userRef, {
+                points: admin.firestore.FieldValue.increment(totalPoints)
+            });
+        }
+    });
+    
+    return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
+});
