@@ -229,9 +229,9 @@ function renderDailyChallenge() {
         el.style.borderColor = '#22c55e';
         el.style.background = 'rgba(34,197,94,0.05)';
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
-            '<span style="font-size:1.5rem;">✅</span>' +
-            '<div><div style="color:#22c55e;font-size:0.85rem;font-weight:700;">Daily Challenge Complete! +100 pts 🎉</div>' +
-            '<div style="color:var(--text-faint);font-size:0.7rem;">' + challenge.text + ' — Done! Come back tomorrow.</div></div></div>';
+            '<span style="font-size:1.3rem;">✅</span>' +
+            '<div><div style="color:#22c55e;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Today\'s Challenge ✔️</div>' +
+            '<div style="color:var(--text-faint);font-size:0.8rem;"><s>' + challenge.text + '</s> — Done! +100 pts 🎉</div></div></div>';
     } else {
         el.style.borderColor = 'var(--border)';
         el.style.background = 'var(--card-bg)';
@@ -277,12 +277,9 @@ setInterval(window.checkDailyChallenge, 3000);
         if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms') {
             sessionStorage.setItem('btc_forum_visited', 'true');
         }
-        if (id !== 'forum' && id !== 'marketplace' && id !== 'bitcoin-beats' && id !== 'irl-sync' && id !== 'dms') {
-            var count = parseInt(sessionStorage.getItem('btc_channels_today') || '0') + 1;
-            sessionStorage.setItem('btc_channels_today', count.toString());
-            var visited = safeJSON('btc_visited_channels', []);
-            if (visited.indexOf(id) === -1) sessionStorage.setItem('btc_new_channel_read', 'true');
-        }
+        // Note: new-channel detection is handled in the go() wrapper BEFORE
+        // the inner go() adds to btc_visited_channels. Don't re-check here
+        // (it would always be false since go() already added it).
         // Check challenge immediately after nav
         setTimeout(function() { if (typeof checkDailyChallenge === 'function') checkDailyChallenge(); }, 500);
     };
@@ -293,15 +290,22 @@ if (_origGoForChallenge) {
     // Wrap to track
     var _realGo = window.go;
     window.go = async function(id) {
+        // Capture newness BEFORE inner go() adds to visited list
+        var isNewChannel = false;
+        if (id && id !== 'forum' && id !== 'marketplace' && id !== 'bitcoin-beats' && id !== 'irl-sync' && id !== 'dms') {
+            var visited = safeJSON('btc_visited_channels', []);
+            isNewChannel = visited.indexOf(id) === -1;
+        }
         var result = await _realGo.apply(this, arguments);
         if (typeof window._trackChallengeNav === 'function') window._trackChallengeNav(id);
         if (id && id !== 'forum') {
             var count = parseInt(sessionStorage.getItem('btc_channels_today') || '0') + 1;
             sessionStorage.setItem('btc_channels_today', count);
-            var visited = safeJSON('btc_visited_channels', []);
-            if (visited.indexOf(id) === -1) sessionStorage.setItem('btc_new_channel_read', 'true');
+            if (isNewChannel) sessionStorage.setItem('btc_new_channel_read', 'true');
         }
         if (id === 'forum') sessionStorage.setItem('btc_forum_visited', 'true');
+        // Check challenge immediately
+        setTimeout(function() { if (typeof checkDailyChallenge === 'function') checkDailyChallenge(); }, 300);
         return result;
     };
 }
