@@ -508,9 +508,10 @@ function formatChatText(text, mentionUid) {
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(match, label, route) {
         return '<a href="#' + route + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + route + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>';
     });
-    // #channel tags
-    text = text.replace(/#([a-zA-Z0-9_-]+)/g, function(match, tag) {
-        return '<a href="#' + tag + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + tag + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + match + '</a>';
+    // #channel tags — skip matches inside HTML attributes (href, onclick, style, etc.)
+    text = text.replace(/(<[^>]*>)|(#([a-zA-Z0-9_-]+))/g, function(match, htmlTag, hashMatch, tag) {
+        if (htmlTag) return htmlTag; // Pass HTML tags through unchanged
+        return '<a href="#' + tag + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + tag + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">#' + tag + '</a>';
     });
     // @mentions — clickable to open user profile
     var _mentionHandled = false;
