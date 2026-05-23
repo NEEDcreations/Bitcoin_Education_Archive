@@ -1844,30 +1844,39 @@
     // =============================================
     // 🎉 Conversation Milestones
     // =============================================
+    var _milestoneShownThisSession = false;
     function checkNachoMilestone() {
+        // Only show one milestone per session to avoid dump on login
+        if (_milestoneShownThisSession) return null;
         var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
-        var milestones = { 10: 'beginner', 25: 'explorer', 50: 'apprentice', 100: 'scholar', 200: 'expert', 500: 'legend' };
+        var milestones = [10, 25, 50, 100, 200, 500];
         var shown = safeJSON('btc_nacho_q_milestones', []);
-        for (var count in milestones) {
-            if (interactions >= parseInt(count) && shown.indexOf(count) === -1 && shown.indexOf(parseInt(count)) === -1) {
-                shown.push(count);
-                localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(shown));
-                // Persist to Firestore so milestones don't re-trigger on re-login
-                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser) {
-                    db.collection('users').doc(auth.currentUser.uid).update({ nachoMilestones: shown }).catch(function() {});
-                }
-                var msgs = {
-                    10: "🎉 10 questions! You're officially a Bitcoin Beginner! Keep going — there's so much to learn! 🦌",
-                    25: "🎉 25 questions! You've leveled up to Bitcoin Explorer! You're asking the right questions! 💪",
-                    50: "🎉 50 questions! Bitcoin Apprentice unlocked! You know more than most people already! 🧠",
-                    100: "🏆 100 questions! You're a Bitcoin Scholar now! Satoshi would be proud! 🎓",
-                    200: "🔥 200 questions! Bitcoin Expert status! You could probably teach ME a thing or two! 🦌💡",
-                    500: "👑 500 QUESTIONS! You are a Bitcoin LEGEND! There's nothing Nacho can't discuss with you now! 🦌🏆🔥"
-                };
-                return msgs[count] || null;
+        // Silently mark ALL passed milestones as shown, only celebrate the highest NEW one
+        var highestNew = null;
+        for (var i = 0; i < milestones.length; i++) {
+            var count = milestones[i];
+            var countStr = count.toString();
+            if (interactions >= count && shown.indexOf(countStr) === -1 && shown.indexOf(count) === -1) {
+                shown.push(countStr);
+                highestNew = count;
             }
         }
-        return null;
+        if (highestNew === null) return null;
+        localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(shown));
+        // Persist to Firestore so milestones don't re-trigger on re-login
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser) {
+            db.collection('users').doc(auth.currentUser.uid).update({ nachoMilestones: shown }).catch(function() {});
+        }
+        _milestoneShownThisSession = true;
+        var msgs = {
+            10: "🎉 10 questions! You're officially a Bitcoin Beginner! Keep going — there's so much to learn! 🦌",
+            25: "🎉 25 questions! You've leveled up to Bitcoin Explorer! You're asking the right questions! 💪",
+            50: "🎉 50 questions! Bitcoin Apprentice unlocked! You know more than most people already! 🧠",
+            100: "🏆 100 questions! You're a Bitcoin Scholar now! Satoshi would be proud! 🎓",
+            200: "🔥 200 questions! Bitcoin Expert status! You could probably teach ME a thing or two! 🦌💡",
+            500: "👑 500 QUESTIONS! You are a Bitcoin LEGEND! There's nothing Nacho can't discuss with you now! 🦌🏆🔥"
+        };
+        return msgs[highestNew] || null;
     }
 
     // =============================================

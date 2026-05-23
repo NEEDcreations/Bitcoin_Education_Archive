@@ -2134,8 +2134,10 @@ window.personalize = function(text) {
 
     // Replace dynamic Bitcoin values
     if (window._btcData) {
-        // Use more reliable defaults if sensors are still warming up
-        const price = window._btcData.price ? '$' + Math.round(window._btcData.price).toLocaleString() : 'over $60,000';
+        // Use localStorage cache as fallback if live data hasn't loaded yet
+        var _livePrice = window._btcData.price;
+        if (!_livePrice) { try { _livePrice = parseFloat(localStorage.getItem('btc_last_price')); } catch(e) {} }
+        const price = _livePrice ? '$' + Math.round(_livePrice).toLocaleString() : 'over $60,000';
         const height = window._btcData.height ? window._btcData.height.toLocaleString() : 'over 840,000';
         const halving = window._btcData.halvingBlocks ? window._btcData.halvingBlocks.toLocaleString() : 'less than 150,000';
         
