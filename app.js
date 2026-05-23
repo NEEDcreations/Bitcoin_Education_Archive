@@ -4210,7 +4210,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     window.showProofOfWalk = function() {
         var menu = document.getElementById("appsMenu");
         if (menu) menu.style.display = "none";
-        var container = document.getElementById("mainContent");
+        var container = document.getElementById("main");
         if (container) {
             container.innerHTML = "<div id=\"explore-apps-grid\" style=\"padding:20px;\"></div>";
             if (window.renderProofOfWalk) window.renderProofOfWalk();
