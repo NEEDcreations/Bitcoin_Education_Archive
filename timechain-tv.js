@@ -8257,7 +8257,7 @@ window.renderTimechainTV = function() {
             #tctv-sponsor-sidebar {
                 display: block !important;
                 position: fixed !important;
-                left: 12px;
+                left: 220px;
                 top: 50%;
                 transform: translateY(-50%);
                 z-index: 200001;
