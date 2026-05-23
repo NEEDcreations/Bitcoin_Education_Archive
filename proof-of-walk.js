@@ -48,8 +48,7 @@ window.renderProofOfWalk = function() {
         powEl.style.maxWidth = '600px';
         powEl.style.margin = '0 auto';
         
-        let container = document.getElementById('explore-apps-grid').parentNode;
-        container.insertBefore(powEl, container.firstChild);
+        document.getElementById('explore-apps-grid').appendChild(powEl);
     }
     
     powEl.innerHTML = `
