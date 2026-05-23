@@ -200,17 +200,13 @@ async function fetchDashboardData() {
         fetch('https://mempool.space/api/v1/mining/hashrate/1m').then(r => r.json()).then(d => {
             if (d.currentHashrate) data.hashrate = d.currentHashrate;
             if (d.currentDifficulty) data.difficulty = d.currentDifficulty;
-            // Calculate 24h hashrate change from historical data
-            if (d.hashrates && d.hashrates.length >= 2) {
-                var latest = d.hashrates[d.hashrates.length - 1];
-                // Find entry from ~24h ago
-                var target = (latest.timestamp || Date.now()/1000) - 86400;
-                var prev = d.hashrates[0];
-                for (var i = 0; i < d.hashrates.length; i++) {
-                    if (d.hashrates[i].timestamp <= target) prev = d.hashrates[i];
-                }
-                if (prev.avgHashrate && latest.avgHashrate && prev.avgHashrate > 0) {
-                    data.hashrateChange24h = ((latest.avgHashrate - prev.avgHashrate) / prev.avgHashrate * 100);
+            // Calculate hashrate change using 3-day moving averages (smooths daily noise)
+            if (d.hashrates && d.hashrates.length >= 6) {
+                var n = d.hashrates.length;
+                var avg3Recent = (d.hashrates[n-1].avgHashrate + d.hashrates[n-2].avgHashrate + d.hashrates[n-3].avgHashrate) / 3;
+                var avg3Prev = (d.hashrates[n-4].avgHashrate + d.hashrates[n-5].avgHashrate + d.hashrates[n-6].avgHashrate) / 3;
+                if (avg3Prev > 0) {
+                    data.hashrateChange24h = ((avg3Recent - avg3Prev) / avg3Prev * 100);
                 }
             }
         }).catch(() => {})
