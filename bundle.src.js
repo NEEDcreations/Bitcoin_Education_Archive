@@ -5362,7 +5362,7 @@ window.submitUsername = async function() {
     var status = document.getElementById('usernameStatus');
     if (status) status.innerHTML = 'Saving...';
     try {
-        await db.collection('users').doc(currentUser.uid).update({ username: name });
+        await db.collection('users').doc(currentUser.uid).update({ username: name, username_lower: name.toLowerCase() });
         currentUser.username = name;
         updateAuthButton();
         updateRankUI();
@@ -5440,7 +5440,7 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
     updateAuthButton(); updateRankUI();
     // Save to Firestore if signed in
     if (auth && auth.currentUser && db) {
-        try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name }); } catch(e) { console.warn('Username Firestore save failed:', e); }
+        try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name, username_lower: name.toLowerCase() }); } catch(e) { console.warn('Username Firestore save failed:', e); }
     }
     showToast('✅ Username updated to ' + name);
     // Update the "Current username" label and button to confirm
@@ -13713,38 +13713,42 @@ function mentionQueryUsers(prefix) {
         mentionHideDropdown();
         return;
     }
+    // Query multiple case variants since username field is case-sensitive
+    var variants = [prefix];
     var low = prefix.toLowerCase();
-    // Use username field with range query for prefix search
-    db.collection('users')
-        .where('username', '>=', prefix)
-        .where('username', '<=', prefix + '\uf8ff')
-        .limit(5)
-        .get()
-        .then(function(snap) {
-            var users = [];
-            snap.forEach(function(doc) {
-                var d = doc.data();
-                if (d.username) users.push({ uid: doc.id, username: d.username, points: d.points || 0 });
+    var cap = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase();
+    if (low !== prefix) variants.push(low);
+    if (cap !== prefix && cap !== low) variants.push(cap);
+
+    var allUsers = [];
+    var seen = {};
+    var done = 0;
+
+    variants.forEach(function(v) {
+        db.collection('users')
+            .where('username', '>=', v)
+            .where('username', '<=', v + '\uf8ff')
+            .limit(5)
+            .get()
+            .then(function(snap) {
+                snap.forEach(function(doc) {
+                    var d = doc.data();
+                    if (d.username && !seen[doc.id]) {
+                        seen[doc.id] = true;
+                        allUsers.push({ uid: doc.id, username: d.username, points: d.points || 0 });
+                    }
+                });
+            })
+            .catch(function() {})
+            .then(function() {
+                done++;
+                if (done >= variants.length) {
+                    // Sort by points descending for relevance
+                    allUsers.sort(function(a, b) { return (b.points || 0) - (a.points || 0); });
+                    if (_mentionState.activeTextarea) mentionShowDropdown(_mentionState.activeTextarea, allUsers.slice(0, 5));
+                }
             });
-            // Also try lowercase prefix if no results (usernames may have mixed case)
-            if (users.length === 0 && prefix !== low) {
-                db.collection('users')
-                    .where('username', '>=', low)
-                    .where('username', '<=', low + '\uf8ff')
-                    .limit(5)
-                    .get()
-                    .then(function(snap2) {
-                        var users2 = [];
-                        snap2.forEach(function(doc) {
-                            var d = doc.data();
-                            if (d.username) users2.push({ uid: doc.id, username: d.username, points: d.points || 0 });
-                        });
-                        if (_mentionState.activeTextarea) mentionShowDropdown(_mentionState.activeTextarea, users2);
-                    }).catch(function() {});
-            } else {
-                if (_mentionState.activeTextarea) mentionShowDropdown(_mentionState.activeTextarea, users);
-            }
-        }).catch(function() { mentionHideDropdown(); });
+    });
 }
 
 function mentionBindTextarea(textarea) {

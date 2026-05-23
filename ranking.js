@@ -5214,7 +5214,7 @@ window.submitUsername = async function() {
     var status = document.getElementById('usernameStatus');
     if (status) status.innerHTML = 'Saving...';
     try {
-        await db.collection('users').doc(currentUser.uid).update({ username: name });
+        await db.collection('users').doc(currentUser.uid).update({ username: name, username_lower: name.toLowerCase() });
         currentUser.username = name;
         updateAuthButton();
         updateRankUI();
@@ -5292,7 +5292,7 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
     updateAuthButton(); updateRankUI();
     // Save to Firestore if signed in
     if (auth && auth.currentUser && db) {
-        try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name }); } catch(e) { console.warn('Username Firestore save failed:', e); }
+        try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name, username_lower: name.toLowerCase() }); } catch(e) { console.warn('Username Firestore save failed:', e); }
     }
     showToast('✅ Username updated to ' + name);
     // Update the "Current username" label and button to confirm
