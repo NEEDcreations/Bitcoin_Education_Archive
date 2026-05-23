@@ -56,6 +56,22 @@ service cloud.firestore {
                     && request.auth.uid == userId;
 
       // Sats withdrawal history (read own, Cloud Function writes)
+      // Integrations (Strava, Lightning, etc.)
+      match /integrations/{docId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      // Proof of Walk data (read own, Cloud Function writes)
+      match /proof_of_walk/{docId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+      match /proof_of_walk_stats/{docId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+
       match /sats_withdrawals/{docId} {
         allow read: if request.auth != null
                     && request.auth.uid == userId;

@@ -54,7 +54,7 @@ window.renderProofOfWalk = function() {
     powEl.innerHTML = `
         <div class="pow-card">
             <div class="pow-header"><span style="color:#fc4c02;">⛰️ Proof of Walk</span></div>
-            <div class="pow-desc">Connect Strava to earn 50 Sats/points for every kilometer you Walk, Run, or Hike. (Max 42km / 2,100 pts per day)</div>
+            <div class="pow-desc">Connect Strava to earn 50 points for every kilometer you Walk, Run, or Hike. (Max 42km / 2,100 pts per day)</div>
             <div id="pow-ui-state">
                 <div class="spinner" style="border-width:2px;width:24px;height:24px;border-top-color:#f7931a;margin:20px auto;"></div>
             </div>
