@@ -4124,3 +4124,33 @@ exports.adminLookupUser = functions.https.onRequest(async (req, res) => {
         res.json(out);
     } catch(e) { res.status(500).json({error: e.toString()}); }
 });
+exports.adminQueryUsers = functions.https.onRequest(async (req, res) => {
+    if (req.query.t !== 'dau-2026') return res.status(403).send('no');
+    try {
+        let snap = await db.collection('users').get();
+        let matches = [];
+        let q = req.query.q ? req.query.q.toLowerCase() : '';
+        snap.forEach(d => {
+            let u = d.data();
+            if (q) {
+                if ((u.email && u.email.toLowerCase().includes(q)) || (u.displayName && u.displayName.toLowerCase().includes(q)) || d.id === q) {
+                    matches.push({uid: d.id, email: u.email, displayName: u.displayName, points: u.points, flags: u.flagged, ban_reason: u.ban_reason, withdraw_disabled: u.withdrawals_disabled, ip: u.known_ips});
+                }
+            }
+        });
+        res.json(matches);
+    } catch(e) { res.status(500).json({error:e.toString()});}
+});
+exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
+    if (req.query.t !== 'dau-2026') return res.status(403).send('no');
+    try {
+        const uid = req.query.uid;
+        await db.collection('users').doc(uid).update({
+            withdrawals_disabled: false,
+            flagged: false,
+            flag_reason: admin.firestore.FieldValue.delete(),
+            ban_reason: admin.firestore.FieldValue.delete()
+        });
+        res.json({success: true, uid});
+    } catch(e) { res.status(500).json({error:e.toString()});}
+});
