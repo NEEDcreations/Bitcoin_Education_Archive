@@ -1554,10 +1554,12 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     } else {
         setTimeout(patchPvpAnswer, 3000);
     }
-    // Also re-patch on enterPVPMode
+    // Also re-patch on enterPVPMode — retry until pvp.js loads
     var _origEnterPVP = null;
-    setTimeout(function() {
-        if (typeof window.enterPVPMode === 'function' && !window._pvpEnterPatched) {
+    var _pvpPatchAttempts = 0;
+    function _tryPatchEnterPVP() {
+        if (window._pvpEnterPatched) return;
+        if (typeof window.enterPVPMode === 'function') {
             window._pvpEnterPatched = true;
             _origEnterPVP = window.enterPVPMode;
             window.enterPVPMode = function() {
@@ -1569,8 +1571,12 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                     window.nachoGlobalAnnounce('\u2694\uFE0F @' + _pvpName + ' just entered the PVP arena! Think you can beat them? \u27A1\uFE0F [Enter PVP Lobby](#pvp)');
                 }
             };
+        } else if (_pvpPatchAttempts < 20) {
+            _pvpPatchAttempts++;
+            setTimeout(_tryPatchEnterPVP, 2000);
         }
-    }, 3000);
+    }
+    setTimeout(_tryPatchEnterPVP, 3000);
 })();
 
 // ---- Sidebar Reading Progress Indicators ----
