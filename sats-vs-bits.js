@@ -14,6 +14,7 @@ var localSats = 0, localBits = 0;
 var serverSats = 0, serverBits = 0;
 var pendingSats = 0, pendingBits = 0;
 var flushTimer = null;
+var flushing = false;
 var todayTaps = 0;
 var todayKey = '';
 
@@ -47,38 +48,49 @@ function getFingerprint() {
 
 function flushVotes() {
     if (pendingSats === 0 && pendingBits === 0) return;
+    if (flushing) {
+        // Another flush is in-flight — re-debounce so we catch these later
+        clearTimeout(flushTimer);
+        flushTimer = setTimeout(flushVotes, DEBOUNCE_MS);
+        return;
+    }
 
     var s = pendingSats, b = pendingBits;
     pendingSats = 0; pendingBits = 0;
+    flushing = true;
 
-    // Send individual votes through Cloud Function for server-side rate limiting
+    // Batch all pending votes into one Cloud Function call
     var fp = getFingerprint();
-    var calls = [];
-    for (var i = 0; i < s; i++) calls.push('sats');
-    for (var j = 0; j < b; j++) calls.push('bits');
-
-    // Batch: send all pending votes (max ~10 at a time due to debounce)
-    function sendNext() {
-        if (calls.length === 0) return;
-        var side = calls.shift();
-        if (typeof firebase !== 'undefined' && firebase.functions) {
-            firebase.functions().httpsCallable('pollVote')({ side: side, fingerprint: fp })
-                .then(function(result) {
-                    if (result.data && result.data.success) {
-                        // Update server-confirmed base values
-                        serverSats = result.data.sats || serverSats;
-                        serverBits = result.data.bits || serverBits;
-                        // Display = server confirmed + any still-pending local taps
-                        localSats = serverSats + pendingSats;
-                        localBits = serverBits + pendingBits;
-                        updateDisplay();
-                    }
-                    sendNext();
-                })
-                .catch(function() { sendNext(); });
-        }
+    if (typeof firebase !== 'undefined' && firebase.functions) {
+        firebase.functions().httpsCallable('pollVote')({ side: s > 0 ? 'sats' : 'bits', satsCount: s, bitsCount: b, fingerprint: fp })
+            .then(function(result) {
+                flushing = false;
+                if (result.data && result.data.success) {
+                    serverSats = result.data.sats || serverSats;
+                    serverBits = result.data.bits || serverBits;
+                    localSats = serverSats + pendingSats;
+                    localBits = serverBits + pendingBits;
+                    updateDisplay();
+                }
+                // Flush any votes that came in while we were in-flight
+                if (pendingSats > 0 || pendingBits > 0) {
+                    clearTimeout(flushTimer);
+                    flushTimer = setTimeout(flushVotes, DEBOUNCE_MS);
+                }
+            })
+            .catch(function() {
+                flushing = false;
+                // On error, add the failed votes back to pending and retry
+                pendingSats += s; pendingBits += b;
+                localSats = serverSats + pendingSats;
+                localBits = serverBits + pendingBits;
+                updateDisplay();
+                clearTimeout(flushTimer);
+                flushTimer = setTimeout(flushVotes, 1000);
+            });
+    } else {
+        flushing = false;
     }
-    sendNext();
 }
 
 var ANON_LIMIT = 10;
@@ -243,19 +255,13 @@ function loadLiveVotes() {
             var d = doc.data();
             serverSats = d.sats || 0;
             serverBits = d.bits || 0;
-            // Display = server base + any pending optimistic taps not yet confirmed
-            localSats = serverSats + pendingSats;
-            localBits = serverBits + pendingBits;
-
-            // Anti-cheat: check device limit
-            var fp = getFingerprint();
-            var deviceTotal = (d.devices && d.devices[fp]) || 0;
-            if (deviceTotal > 5000) {
-                // This device has voted excessively — flag but don't block display
-                console.warn('[SVB] Device has ' + deviceTotal + ' total votes');
+            // Only update display if we're not mid-flush (prevents bouncing)
+            if (!flushing) {
+                localSats = serverSats + pendingSats;
+                localBits = serverBits + pendingBits;
+                updateDisplay();
             }
         }
-        updateDisplay();
     }, function() {
         // Fallback: one-time read
         db.doc(FIRESTORE_DOC).get().then(function(doc) {

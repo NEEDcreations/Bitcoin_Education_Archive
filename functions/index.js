@@ -2505,13 +2505,23 @@ exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
 
 // ---- Poll Vote (server-side with IP + fingerprint rate limiting) ----
 exports.pollVote = functions.https.onCall(async (data, context) => {
-    const { side, fingerprint } = data || {};
-    if (side !== 'sats' && side !== 'bits') return { success: false, error: 'Invalid side' };
+    const { side, fingerprint, satsCount, bitsCount } = data || {};
+
+    // Support batched votes: satsCount + bitsCount, or single side vote (backward compat)
+    let sInc = Math.max(0, Math.min(parseInt(satsCount) || 0, 50));
+    let bInc = Math.max(0, Math.min(parseInt(bitsCount) || 0, 50));
+    // Backward compat: if no batch counts, use single side
+    if (sInc === 0 && bInc === 0) {
+        if (side === 'sats') sInc = 1;
+        else if (side === 'bits') bInc = 1;
+        else return { success: false, error: 'Invalid side' };
+    }
+    const totalInc = sInc + bInc;
+    if (totalInc === 0) return { success: false, error: 'No votes' };
 
     const ip = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     const fp = (fingerprint || '').toString().substring(0, 32) || 'none';
     const db = admin.firestore();
-    const now = Date.now();
     const dayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Rate limit: max 200 votes per IP per day, max 200 per fingerprint per day (atomic)
@@ -2531,14 +2541,23 @@ exports.pollVote = functions.https.onCall(async (data, context) => {
         if (ipCount >= MAX_PER_DAY) throw new functions.https.HttpsError('resource-exhausted', 'Daily IP limit reached');
         if (fpCount >= MAX_PER_DAY) throw new functions.https.HttpsError('resource-exhausted', 'Daily device limit reached');
 
+        // Clamp to remaining daily budget
+        const remaining = Math.max(0, MAX_PER_DAY - Math.max(ipCount, fpCount));
+        const allowed = Math.min(totalInc, remaining);
+        // Proportionally distribute if clamped
+        const ratio = allowed / totalInc;
+        const aSats = Math.round(sInc * ratio);
+        const aBits = allowed - aSats;
+
         // Atomic: increment poll + rate limits together
         const inc = {};
-        inc[side] = admin.firestore.FieldValue.increment(1);
-        tx.set(pollRef, inc, { merge: true });
+        if (aSats > 0) inc.sats = admin.firestore.FieldValue.increment(aSats);
+        if (aBits > 0) inc.bits = admin.firestore.FieldValue.increment(aBits);
+        if (aSats > 0 || aBits > 0) tx.set(pollRef, inc, { merge: true });
 
         const rateInc = {};
-        rateInc[ipKey] = admin.firestore.FieldValue.increment(1);
-        rateInc[fpKey] = admin.firestore.FieldValue.increment(1);
+        rateInc[ipKey] = admin.firestore.FieldValue.increment(allowed);
+        rateInc[fpKey] = admin.firestore.FieldValue.increment(allowed);
         tx.set(rateRef, rateInc, { merge: true });
     });
 
