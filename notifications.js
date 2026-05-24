@@ -273,12 +273,16 @@ function createNotifOverlay() {
     panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:298;height:65vh;max-height:500px;background:var(--bg,#0a0a0f);border-top:2px solid #6366f1;border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
 
     var header = document.createElement('div');
-    header.style.cssText = 'flex-shrink:0;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);';
-    header.innerHTML = '<span style="font-weight:700;font-size:0.85rem;color:var(--heading,#fff);">🔔 Notifications</span>' +
-        '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<button onclick="markAllNotifsRead();renderNotifList()" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.65rem;cursor:pointer;font-family:inherit;">Mark all read</button>' +
-            '<button onclick="toggleNotifOverlay()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px 8px;">✕</button>' +
-        '</div>';
+    header.style.cssText = 'flex-shrink:0;border-bottom:1px solid var(--border);';
+    header.innerHTML = '<div style="padding:10px 16px 0;display:flex;align-items:center;justify-content:space-between;">' +
+        '<span style="font-weight:700;font-size:0.85rem;color:var(--heading,#fff);">🔔 Notifications</span>' +
+        '<button onclick="toggleNotifOverlay()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px 8px;">✕</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:6px;padding:8px 16px 8px;">' +
+        '<button id="notifTabAll" onclick="window._notifTab=\'all\';_setNotifTabActive();renderNotifList()" style="padding:5px 14px;border-radius:16px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">All</button>' +
+        '<button id="notifTabPts" onclick="window._notifTab=\'points\';_setNotifTabActive();_renderPointsTab()" style="padding:5px 14px;border-radius:16px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⭐ Points</button>' +
+        '<button onclick="markAllNotifsRead();_markAllPointsRead();renderNotifList()" style="margin-left:auto;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.6rem;cursor:pointer;font-family:inherit;">Mark all read</button>' +
+    '</div>';
 
     var body = document.createElement('div');
     body.id = 'notifPanelBody';
@@ -347,10 +351,14 @@ window.toggleNotifOverlay = function() {
 
     if (_notifOverlayOpen) {
         history.pushState({ modal: 'notif' }, '', window.location.pathname + window.location.hash);
+        window._notifTab = 'all';
+        _setNotifTabActive();
         renderNotifList();
-        // Clear badge
+        // Clear badges
         var b = document.getElementById('notifOverlayBadge');
         if (b) b.style.display = 'none';
+        var bb = document.getElementById('bnavNotifBadge');
+        if (bb) bb.style.display = 'none';
     }
 };
 
@@ -419,26 +427,8 @@ function formatNotifTime(d) {
 var _origUpdateNotifBadge = updateNotifBadge;
 updateNotifBadge = function() {
     _origUpdateNotifBadge();
-    var count = window._notifCount || 0;
-    var badge = document.getElementById('notifOverlayBadge');
-    if (badge) {
-        if (count > 0 && !_notifOverlayOpen) {
-            badge.textContent = count > 9 ? '9+' : count;
-            badge.style.display = 'block';
-        } else {
-            badge.style.display = 'none';
-        }
-    }
-    // Mirror to bottom nav badge
-    var bnavBadge = document.getElementById('bnavNotifBadge');
-    if (bnavBadge) {
-        if (count > 0 && !_notifOverlayOpen) {
-            bnavBadge.textContent = count > 9 ? '9+' : count;
-            bnavBadge.style.display = 'block';
-        } else {
-            bnavBadge.style.display = 'none';
-        }
-    }
+    // Merge server notif count + local points count
+    _updatePointsBadge();
 };
 
 // ---- Self-Notifications (local events → Firestore) ----
@@ -591,6 +581,23 @@ window.notifyChatMention = function(recipientUid, senderName, preview) {
     }).catch(function() {});
 };
 
+// Tab switching UI
+window._notifTab = 'all';
+function _setNotifTabActive() {
+    var allBtn = document.getElementById('notifTabAll');
+    var ptsBtn = document.getElementById('notifTabPts');
+    if (allBtn) {
+        allBtn.style.background = window._notifTab === 'all' ? 'var(--accent)' : 'none';
+        allBtn.style.color = window._notifTab === 'all' ? '#fff' : 'var(--text-muted)';
+        allBtn.style.borderColor = window._notifTab === 'all' ? 'var(--accent)' : 'var(--border)';
+    }
+    if (ptsBtn) {
+        ptsBtn.style.background = window._notifTab === 'points' ? 'var(--accent)' : 'none';
+        ptsBtn.style.color = window._notifTab === 'points' ? '#fff' : 'var(--text-muted)';
+        ptsBtn.style.borderColor = window._notifTab === 'points' ? 'var(--accent)' : 'var(--border)';
+    }
+}
+
 // Init overlay
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(createNotifOverlay, 2500); });
@@ -609,27 +616,103 @@ if (typeof auth !== 'undefined' && auth) {
 
 // ---- Additional notification helpers ----
 
-// Notify on points earned
+// Notify on points earned — stored locally to avoid Firestore write costs
 window.notifySelfPoints = function(pts, reason) {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
     if (!pts || pts < 1) return;
-    // Throttle: max 1 points notification per 45 seconds to avoid spam
-    var now = Date.now();
-    window._lastPointsNotif = window._lastPointsNotif || 0;
-    if (now - window._lastPointsNotif < 45000) return;
-    window._lastPointsNotif = now;
-    var msg = '🎯 +' + pts + ' pts';
-    if (reason) msg += ' — ' + reason;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'points',
-        message: msg,
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // Skip silent reasons (read time ticks, empty reasons)
+    if (!reason || reason === '') return;
+    var entry = { pts: pts, reason: reason, ts: Date.now(), read: false };
+    try {
+        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
+        log.push(entry);
+        // Keep last 100 entries
+        if (log.length > 100) log = log.slice(log.length - 100);
+        localStorage.setItem('btc_points_log', JSON.stringify(log));
+    } catch(e) {}
+    // Update badge counts
+    _updatePointsBadge();
 };
+
+// Count unread points notifications
+function _getUnreadPointsCount() {
+    try {
+        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
+        return log.filter(function(e) { return !e.read; }).length;
+    } catch(e) { return 0; }
+}
+
+// Update badge to include points count
+function _updatePointsBadge() {
+    var ptsCount = _getUnreadPointsCount();
+    var serverCount = window._notifCount || 0;
+    var total = serverCount + ptsCount;
+    var badge = document.getElementById('notifOverlayBadge');
+    if (badge) {
+        if (total > 0 && !_notifOverlayOpen) {
+            badge.textContent = total > 9 ? '9+' : total;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    var bnavBadge = document.getElementById('bnavNotifBadge');
+    if (bnavBadge) {
+        if (total > 0 && !_notifOverlayOpen) {
+            bnavBadge.textContent = total > 9 ? '9+' : total;
+            bnavBadge.style.display = 'block';
+        } else {
+            bnavBadge.style.display = 'none';
+        }
+    }
+}
+
+// Mark all local points as read
+function _markAllPointsRead() {
+    try {
+        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
+        log.forEach(function(e) { e.read = true; });
+        localStorage.setItem('btc_points_log', JSON.stringify(log));
+    } catch(e) {}
+    _updatePointsBadge();
+}
+
+// Render the points log tab
+function _renderPointsTab() {
+    var body = document.getElementById('notifPanelBody');
+    if (!body) return;
+    var log;
+    try { log = JSON.parse(localStorage.getItem('btc_points_log') || '[]'); } catch(e) { log = []; }
+    if (log.length === 0) {
+        body.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">⭐</div><div style="color:var(--text-muted);font-size:0.85rem;">No points earned yet!</div><div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Explore channels, answer quizzes, and chat with Nacho to earn points.</div></div>';
+        return;
+    }
+    // Mark all as read when viewing
+    _markAllPointsRead();
+    // Render most recent first
+    var html = '';
+    // Today total
+    var today = new Date().toDateString();
+    var todayTotal = 0;
+    log.forEach(function(e) { if (new Date(e.ts).toDateString() === today) todayTotal += e.pts; });
+    if (todayTotal > 0) {
+        html += '<div style="padding:10px 16px;background:rgba(247,147,26,0.06);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;">Today\'s earnings</span><span style="font-size:0.85rem;font-weight:800;color:var(--accent);">+' + todayTotal + ' pts</span></div>';
+    }
+    for (var i = log.length - 1; i >= 0; i--) {
+        var e = log[i];
+        var ts = e.ts ? formatNotifTime(new Date(e.ts)) : '';
+        html += '<div style="padding:10px 16px;border-bottom:1px solid var(--border);">' +
+            '<div style="display:flex;gap:10px;align-items:flex-start;">' +
+                '<span style="font-size:1.2rem;flex-shrink:0;">⭐</span>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">+' + e.pts + ' pts — ' + (typeof escapeHtml === 'function' ? escapeHtml(e.reason) : e.reason) + '</div>' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + ts + '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+    html += '<div style="text-align:center;padding:12px;"><button onclick="if(confirm(\'Clear points history?\')){{localStorage.removeItem(\'btc_points_log\');_renderPointsTab()}}" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">Clear history</button></div>';
+    body.innerHTML = html;
+}
 
 // Notify on sats claim
 window.notifySelfSatsClaim = function(amount) {
