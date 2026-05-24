@@ -134,21 +134,48 @@ function renderPOWDashboard(stravaData) {
 }
 
 function loadPowStats(uid) {
-    db.collection('users').doc(uid).collection('proof_of_walk_stats').doc('daily').get()
-        .then(doc => {
-            let dist = 0;
-            let dStr = new Date().toISOString().split('T')[0];
-            if (doc.exists) {
-                const data = doc.data();
-                if (data.date === dStr) dist = data.distance; // Only show today's
+    // Sum all synced activities to get lifetime totals, and today's totals
+    var todayStr = new Date().toISOString().split('T')[0];
+    db.collection('users').doc(uid).collection('proof_of_walk')
+        .orderBy('created_at', 'desc').limit(50).get()
+        .then(snap => {
+            let todayDist = 0;
+            let todayPts = 0;
+            let totalDist = 0;
+            let totalPts = 0;
+            snap.forEach(doc => {
+                const d = doc.data();
+                totalDist += d.distance || 0;
+                totalPts += d.points_awarded || 0;
+                if (d.date === todayStr) {
+                    todayDist += d.distance || 0;
+                    todayPts += d.points_awarded || 0;
+                }
+            });
+
+            var distEl = document.getElementById('pow-dist-val');
+            var ptsEl = document.getElementById('pow-pts-val');
+            var barEl = document.getElementById('pow-prog-bar');
+            var txtEl = document.getElementById('pow-prog-txt');
+            if (!distEl) return;
+
+            // Show today's stats in the main display
+            distEl.innerText = todayDist.toFixed(1);
+            ptsEl.innerText = '+' + todayPts;
+
+            let pct = Math.min(100, Math.floor((todayDist / 42.0) * 100));
+            barEl.style.width = pct + '%';
+            txtEl.innerText = todayDist.toFixed(1) + ' km / 42.0 km';
+
+            // Show lifetime totals below the progress bar
+            var lifetimeEl = document.getElementById('pow-lifetime');
+            if (!lifetimeEl) {
+                lifetimeEl = document.createElement('div');
+                lifetimeEl.id = 'pow-lifetime';
+                lifetimeEl.style.cssText = 'font-size:0.75rem;color:#aaa;text-align:center;margin-top:8px;';
+                txtEl.parentNode.parentNode.appendChild(lifetimeEl);
             }
-            
-            document.getElementById('pow-dist-val').innerText = dist.toFixed(1);
-            document.getElementById('pow-pts-val').innerText = '+' + Math.floor(dist * 50);
-            
-            let pct = Math.min(100, Math.floor((dist / 42.0) * 100));
-            document.getElementById('pow-prog-bar').style.width = pct + '%';
-            document.getElementById('pow-prog-txt').innerText = `${dist.toFixed(1)} km / 42.0 km`;
+            lifetimeEl.innerText = '\uD83C\uDFC6 Lifetime: ' + totalDist.toFixed(1) + ' km \u2022 ' + totalPts + ' pts earned';
         })
         .catch(console.error);
 }
@@ -206,7 +233,8 @@ window.syncPow = function() {
                 loadPowHistory(auth.currentUser.uid);
                 // Badge hooks
                 _checkPowBadges(data.pointsEarned);
-                triggerConfetti();
+                if (typeof launchConfetti === 'function') launchConfetti();
+                if (typeof showToast === 'function') showToast('🏃 +' + data.pointsEarned + ' points from Proof of Walk!');
             } else {
                 msg.innerText = 'Up to date! No new eligible walks found.';
             }
