@@ -4061,39 +4061,50 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
     const validTypes = ["Walk", "Run", "Hike"];
     const results = [];
     
-    // Atomic transaction for safety and preventing race conditions
+    // Filter eligible activities first
+    const eligible = activities.filter(act => validTypes.includes(act.type));
+    if (eligible.length === 0) return { success: true, synced: 0, pointsEarned: 0, activities: [] };
+
+    // Atomic transaction — all reads first, then all writes (Firestore requirement)
     await db.runTransaction(async (transaction) => {
+        // Phase 1: READ all docs we need
         const dailyDoc = await transaction.get(statsRef);
+        const userDoc = await transaction.get(userRef);
+        const actRefs = [];
+        const actDocs = [];
+        for (const act of eligible) {
+            const ref = userRef.collection('proof_of_walk').doc(act.id.toString());
+            actRefs.push(ref);
+            actDocs.push(await transaction.get(ref));
+        }
+
+        // Phase 2: COMPUTE points
         let dailyData = dailyDoc.exists ? dailyDoc.data() : { date: '', distance: 0 };
-        
-        for (let act of activities) {
-            if (!validTypes.includes(act.type)) continue;
-            
+        const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
+
+        for (let i = 0; i < eligible.length; i++) {
+            if (actDocs[i].exists) continue; // Already processed
+            const act = eligible[i];
             const actId = act.id.toString();
-            const actRef = userRef.collection('proof_of_walk').doc(actId);
-            const actDoc = await transaction.get(actRef);
-            
-            if (actDoc.exists) continue; // Already processed
-            
-            // Prefer local date string to align with user's timezone boundaries
             const dateStr = (act.start_date_local || act.start_date).split('T')[0];
             const actKm = act.distance / 1000;
-            
+
             if (dailyData.date !== dateStr) {
                 dailyData = { date: dateStr, distance: 0 };
             }
-            
+
             const remainingCap = Math.max(0, 42.0 - dailyData.distance);
             const allocatableKm = Math.min(actKm, remainingCap);
             const pts = Math.floor(allocatableKm * 50);
-            
+
             dailyData.distance += allocatableKm;
             totalPoints += pts;
             syncedCount++;
-            
+
             results.push({ id: actId, type: act.type, distance: actKm, points: pts, date: dateStr });
-            
-            transaction.set(actRef, {
+
+            // Phase 3: WRITE (after all reads are done)
+            transaction.set(actRefs[i], {
                 distance: actKm,
                 points_awarded: pts,
                 date: dateStr,
@@ -4101,11 +4112,11 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
                 created_at: admin.firestore.FieldValue.serverTimestamp()
             });
         }
-        
+
         if (syncedCount > 0) {
             transaction.set(statsRef, dailyData);
             transaction.update(userRef, {
-                points: admin.firestore.FieldValue.increment(totalPoints)
+                points: currentPoints + totalPoints
             });
         }
     });

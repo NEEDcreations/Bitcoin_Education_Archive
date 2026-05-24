@@ -191,7 +191,7 @@ window.syncPow = function() {
     msg.innerText = '';
     msg.style.color = '#aaa';
     
-    const syncStravaWalks = functions.httpsCallable('syncStravaWalks');
+    const syncStravaWalks = firebase.functions().httpsCallable('syncStravaWalks');
     syncStravaWalks()
         .then(result => {
             btn.classList.remove('syncing');
