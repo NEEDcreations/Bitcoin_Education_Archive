@@ -4008,8 +4008,10 @@ exports.stravaAuth = functions.https.onRequest(async (req, res) => {
 });
 
 exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
+    console.log('[POW] syncStravaWalks called');
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
     const uid = context.auth.uid;
+    console.log('[POW] uid:', uid);
     
     const stravaRef = db.collection('users').doc(uid).collection('integrations').doc('strava');
     const stravaDoc = await stravaRef.get();
@@ -4017,6 +4019,7 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
     
     let tokenData = stravaDoc.data();
     let access_token = tokenData.access_token;
+    console.log('[POW] token expires_at:', tokenData.expires_at, 'now:', Math.floor(Date.now()/1000));
     
     // Refresh token if expired (buffer of 5 mins)
     if (Date.now() / 1000 > (tokenData.expires_at - 300)) {
@@ -4048,9 +4051,10 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
         headers: { 'Authorization': `Bearer ${access_token}` }
     });
     const activities = await actResp.json();
+    console.log('[POW] Strava returned', Array.isArray(activities) ? activities.length + ' activities' : JSON.stringify(activities).substring(0, 200));
     if (!Array.isArray(activities)) {
-        console.error("Strava API Failed", activities);
-        throw new functions.https.HttpsError('internal', 'Strava API failed');
+        console.error('[POW] Strava API Failed', activities);
+        throw new functions.https.HttpsError('internal', 'Strava API failed: ' + JSON.stringify(activities).substring(0, 100));
     }
     
     let totalPoints = 0;
@@ -4121,6 +4125,7 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
         }
     });
     
+    console.log('[POW] Done. synced:', syncedCount, 'pts:', totalPoints);
     return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
 });
 exports.adminLookupUser = functions.https.onRequest(async (req, res) => {
