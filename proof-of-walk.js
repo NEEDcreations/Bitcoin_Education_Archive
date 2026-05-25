@@ -62,7 +62,7 @@ window.renderProofOfWalk = function() {
     `;
     
     if (typeof auth === 'undefined' || !auth.currentUser) {
-        document.getElementById('pow-ui-state').innerHTML = `<p style="color:#aaa;font-size:0.9rem;margin-bottom:20px;">Sign in to connect Strava.</p>`;
+        document.getElementById('pow-ui-state').innerHTML = `<p style="color:#aaa;font-size:0.9rem;margin-bottom:12px;">Sign in to connect Strava.</p><a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;box-shadow:none;">Download Strava</a>`;
         return;
     }
     
@@ -87,6 +87,7 @@ function renderPOWConnect() {
     
     document.getElementById('pow-ui-state').innerHTML = `
         <a href="${authUrl}" class="pow-btn">Connect Strava</a>
+        <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;margin-top:12px;display:inline-block;box-shadow:none;">Download Strava</a>
         <div style="font-size:0.7rem;color:#666;margin-top:16px;">We only read your distances to award points. No tracking.</div>
     `;
 }
