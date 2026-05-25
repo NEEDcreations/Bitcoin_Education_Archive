@@ -1975,6 +1975,21 @@ if (_origBeatsPlayTrack) {
         } else {
             _origBeatsPlayTrack(idx);
         }
+        // Update comments panel if open to track the new song
+        setTimeout(function() {
+            var panel = document.getElementById('beatsCommentsPanel');
+            if (panel && window._beatsQueue && window._beatsQueue[idx]) {
+                var newTrack = window._beatsQueue[idx];
+                window._beatsCommentTrackId = newTrack.id;
+                // Update the header title
+                var headerEl = panel.querySelector('div[style*="justify-content:space-between"] > div');
+                if (headerEl) {
+                    headerEl.innerHTML = '💬 Comments — <span style="color:var(--accent);font-weight:600;">' + escapeHtml((newTrack.title || 'Untitled').substring(0, 30)) + '</span>';
+                }
+                // Reload comments for the new track
+                beatsLoadComments(newTrack.id);
+            }
+        }, 200);
     };
 }
 
@@ -1988,6 +2003,9 @@ window.beatsShowComments = function(trackId) {
         if (!current) { showToast('No track selected'); return; }
         trackId = current.id;
     }
+
+    // Store active comment trackId on window so post/load always use the current one
+    window._beatsCommentTrackId = trackId;
 
     // Remove existing comments panel
     var existing = document.getElementById('beatsCommentsPanel');
@@ -2012,8 +2030,8 @@ window.beatsShowComments = function(trackId) {
             '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Loading comments...</div>' +
         '</div>' +
         '<div style="padding:10px 16px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;flex-shrink:0;">' +
-            '<input type="text" id="beatsCommentInput" maxlength="280" placeholder="Leave a comment..." style="flex:1;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')beatsPostComment(\'' + trackId + '\')" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
-            '<button onclick="beatsPostComment(\'' + trackId + '\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Send</button>' +
+            '<input type="text" id="beatsCommentInput" maxlength="280" placeholder="Leave a comment..." style="flex:1;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')beatsPostComment(window._beatsCommentTrackId)" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
+            '<button onclick="beatsPostComment(window._beatsCommentTrackId)" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Send</button>' +
         '</div>';
 
     document.body.appendChild(panel);
@@ -2030,6 +2048,11 @@ window.beatsLoadComments = function(trackId) {
     var listEl = document.getElementById('beatsCommentsList');
     if (!listEl || typeof db === 'undefined') return;
 
+    // Determine if current user is admin
+    var _cu = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    var _isAdmin = _cu && ['needcreations@gmail.com', 'info.603btc@gmail.com'].indexOf(_cu.email || '') !== -1;
+    var _myUid = _cu ? _cu.uid : null;
+
     db.collection('beats_tracks').doc(trackId).collection('comments')
         .orderBy('createdAt', 'desc').limit(50).get()
         .then(function(snap) {
@@ -2040,13 +2063,16 @@ window.beatsLoadComments = function(trackId) {
             var html = '';
             snap.forEach(function(doc) {
                 var c = doc.data();
+                var commentId = doc.id;
                 var timeStr = c.createdAt ? timeAgo(c.createdAt) : '';
+                var canDelete = _isAdmin || (_myUid && c.authorId === _myUid);
                 html += '<div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start;">' +
                     '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#1e293b,#334155);display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0;color:var(--accent);font-weight:700;">' + (c.authorName ? c.authorName.charAt(0).toUpperCase() : '?') + '</div>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px;">' +
                             '<span style="color:var(--heading);font-weight:700;font-size:0.8rem;">' + escapeHtml(c.authorName || 'Anonymous') + '</span>' +
                             '<span style="color:var(--text-faint);font-size:0.65rem;">' + timeStr + '</span>' +
+                            (canDelete ? '<button onclick="beatsDeleteComment(\'' + trackId + '\',\'' + commentId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.65rem;cursor:pointer;padding:0 4px;opacity:0.6;transition:0.2s;" onmouseover="this.style.opacity=1;this.style.color=\'#ef4444\'" onmouseout="this.style.opacity=0.6;this.style.color=\'var(--text-faint)\'">🗑️</button>' : '') +
                         '</div>' +
                         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;word-break:break-word;">' + escapeHtml(c.text || '') + '</div>' +
                     '</div>' +
@@ -2127,6 +2153,40 @@ window.beatsPostComment = function(trackId) {
         showToast('Error posting comment');
         input.disabled = false;
     });
+};
+
+// ---- Delete Comment ----
+window.beatsDeleteComment = function(trackId, commentId) {
+    if (!auth || !auth.currentUser) { showToast('Sign in to delete comments'); return; }
+    if (!confirm('Delete this comment?')) return;
+
+    var _cu = auth.currentUser;
+    var _isAdmin = ['needcreations@gmail.com', 'info.603btc@gmail.com'].indexOf(_cu.email || '') !== -1;
+
+    // Check permission: own comment or admin
+    db.collection('beats_tracks').doc(trackId).collection('comments').doc(commentId).get()
+        .then(function(doc) {
+            if (!doc.exists) { showToast('Comment not found'); return; }
+            var c = doc.data();
+            if (c.authorId !== _cu.uid && !_isAdmin) {
+                showToast('You can only delete your own comments');
+                return;
+            }
+            return db.collection('beats_tracks').doc(trackId).collection('comments').doc(commentId).delete();
+        })
+        .then(function() {
+            showToast('🗑️ Comment deleted');
+            // Decrement comment count
+            db.collection('beats_tracks').doc(trackId).update({
+                commentCount: firebase.firestore.FieldValue.increment(-1)
+            }).catch(function() {});
+            // Reload comments
+            beatsLoadComments(trackId);
+        })
+        .catch(function(e) {
+            console.error('Delete comment error:', e);
+            showToast('Error deleting comment');
+        });
 };
 
 // ---- Helpers ----
