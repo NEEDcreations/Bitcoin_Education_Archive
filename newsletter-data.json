@@ -1,6 +1,13 @@
 {
-  "updated": "2026-05-25T00:01:19.540Z",
+  "updated": "2026-05-25T04:00:55.727Z",
   "news": [
+    {
+      "date": "May 25, 2026",
+      "title": "This Chart Is The Clearest Bitcoin Signal Currently",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/n8BlqrBP6tY",
+      "source": "lukemikic"
+    },
     {
       "date": "May 25, 2026",
       "title": "I Nearly LOST a Bitcoin Wallet By Being Too Clever With My Seed Phrase Backup #shorts",
@@ -14,13 +21,6 @@
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/2LqL_pP9UAs",
       "source": "lukemikic"
-    },
-    {
-      "date": "May 24, 2026",
-      "title": "Bitcoin slips as U.S.-Iran peace deal hopes offset by crypto ETF outflows",
-      "snippet": "Investing.com",
-      "link": "https://news.google.com/articles/CBMixAFBVV95cUxQYjRxNTBaSU1RQVBrWkZZdDduOGRncXVSRFRuamtiLWdheXcyU3Q4SXlSUzdnd0dZYzk0d25QLXVZWlh4SmNzSzZWUFFNMjF5UzJsUFZNRk9NT2JKNFVMRFRnTkd5M1RhYW1JV1RNOTRwV3FMMGlMVmhjaHo0VGRLczlQMHdtWE9nUXlrVEpHcnc5SF82SW9UTl85OFA1VEpzMGhISHZUYkswYU1DQVhKVDJkTkdtd1htWW1BOFFMT2l6MFVl",
-      "source": "googlenews"
     }
   ]
 }
