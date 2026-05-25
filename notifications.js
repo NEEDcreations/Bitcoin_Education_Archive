@@ -616,22 +616,9 @@ if (typeof auth !== 'undefined' && auth) {
 
 // ---- Additional notification helpers ----
 
-// Notify on points earned — stored locally to avoid Firestore write costs
-window.notifySelfPoints = function(pts, reason) {
-    if (!pts || pts < 1) return;
-    // Skip silent reasons (read time ticks, empty reasons)
-    if (!reason || reason === '') return;
-    var entry = { pts: pts, reason: reason, ts: Date.now(), read: false };
-    try {
-        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-        log.push(entry);
-        // Keep last 100 entries
-        if (log.length > 100) log = log.slice(log.length - 100);
-        localStorage.setItem('btc_points_log', JSON.stringify(log));
-    } catch(e) {}
-    // Update badge counts
-    _updatePointsBadge();
-};
+// notifySelfPoints is now defined in ranking.js (bundle) so it's available
+// before this lazy-loaded script. Badge updates are called via _updatePointsBadge
+// which is defined below and available once this script loads.
 
 // Count unread points notifications
 function _getUnreadPointsCount() {

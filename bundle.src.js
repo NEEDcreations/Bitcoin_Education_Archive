@@ -2176,6 +2176,22 @@ function _showPointsToast(pts, reason) {
     }
 }
 
+// Points notification log — stored in localStorage for the bell panel
+// Defined here (in bundle) so it's available before lazy-loaded notifications.js
+window.notifySelfPoints = function(pts, reason) {
+    if (!pts || pts < 1) return;
+    if (!reason || reason === '') return;
+    var entry = { pts: pts, reason: reason, ts: Date.now(), read: false };
+    try {
+        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
+        log.push(entry);
+        if (log.length > 100) log = log.slice(log.length - 100);
+        localStorage.setItem('btc_points_log', JSON.stringify(log));
+    } catch(e) {}
+    // Badge update (if notifications.js has loaded)
+    if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
+};
+
 // Auto-refresh leaderboard if it's currently open
 function refreshLeaderboardIfOpen() {
     var lb = document.getElementById('leaderboard');
