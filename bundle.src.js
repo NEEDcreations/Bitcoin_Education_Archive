@@ -166,6 +166,8 @@ const LEVELS = [
     { name: 'Normie',         emoji: '🟢', min: 0 },
     { name: 'Curious',        emoji: '🔵', min: 10 },
     { name: 'Pleb',           emoji: '🟠', min: 144 },
+    { name: 'Pleb II',        emoji: '🟠🟠', min: 170 },
+    { name: 'Pleb III',       emoji: '🟠🟠🟠', min: 256 },
     { name: 'Stacker',        emoji: '📦', min: 500 },
     { name: 'Stacker II',     emoji: '📦📦', min: 1913 },
     { name: 'Stacker III',    emoji: '📦📦📦', min: 2016 },
@@ -5868,6 +5870,8 @@ function getLevelFlavor(name) {
     const flavors = {
         'Curious': 'You\'re starting to see what all the fuss is about.',
         'Pleb': 'Welcome to the pleb life. You\'re one of us now.',
+        'Pleb II': '170 — the block height when Satoshi mined the first 1,000 blocks. You\'re going deeper.',
+        'Pleb III': '256 — the number of bits in a private key. You\'re becoming unbreakable.',
         'Stacker': 'Stacking sats and stacking knowledge. Impressive.',
         'Stacker II': 'Double stacking! 1913 — the year the Fed was born. You know why that matters.',
         'Stacker III': 'Triple stack mode. 2016 — the year the halving changed everything.',
