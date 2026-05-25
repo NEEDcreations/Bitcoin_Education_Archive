@@ -1824,7 +1824,7 @@ window.nachoOnChannel = function(channelId) {
 // ---- Bubble Quiz Answer Handler ----
 window.nachoBubbleQuizAnswer = function(btn, correct) {
     // Track for daily challenge
-    sessionStorage.setItem('btc_quiz_done', 'true');
+    try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_quiz_done_' + _t, 'true'); } catch(e) {}
 
     // Disable all quiz buttons in the bubble
     var container = btn.parentElement;

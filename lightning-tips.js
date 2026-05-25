@@ -61,8 +61,7 @@ window._tipSuccessCallback=function(amt,opts){
     var _ts=parseInt(localStorage.getItem('btc_tips_sent')||'0');localStorage.setItem('btc_tips_sent',String(_ts+1));
     var _tt=parseInt(localStorage.getItem('btc_tips_total_sats')||'0');localStorage.setItem('btc_tips_total_sats',String(_tt+(amt||0)));
     // Daily challenge tracking
-    sessionStorage.setItem('btc_tip_sent','true');
-    var _tc=parseInt(sessionStorage.getItem('btc_tips_sent_count')||'0');sessionStorage.setItem('btc_tips_sent_count',String(_tc+1));
+    try{var _t=new Date().toISOString().split('T')[0];localStorage.setItem('btc_tip_sent_'+_t,'true');var _tc=parseInt(localStorage.getItem('btc_tips_sent_count_'+_t)||'0');localStorage.setItem('btc_tips_sent_count_'+_t,String(_tc+1));}catch(e){}
     var ov=document.getElementById("tipOverlay");if(!ov)return;
     var inner=ov.querySelector("div");if(!inner)return;
     inner.innerHTML='<div style="text-align:center;padding:20px;animation:fadeSlideIn 0.3s;"><div style="font-size:3rem;margin-bottom:12px;">⚡</div><div style="color:#22c55e;font-size:1.3rem;font-weight:900;margin-bottom:6px;">Payment Confirmed!</div><div style="color:var(--heading);font-size:1.1rem;font-weight:700;margin-bottom:4px;">'+(amt?amt.toLocaleString()+" sats":"Tip sent")+'</div><div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">to '+(typeof escapeHtml==="function"?escapeHtml(opts.recipientName||"user"):opts.recipientName||"user")+'</div><button onclick="this.closest(\'[id=tipOverlay]\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Done ✓</button></div>';

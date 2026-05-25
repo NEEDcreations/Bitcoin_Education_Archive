@@ -3992,10 +3992,12 @@ window.nachoAnswer = function() {
     window._nachoLastQ = q;
 
     // Daily challenge tracking
-    if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('btc_nacho_asked', '1');
-        if (typeof checkDailyChallenge === 'function') checkDailyChallenge();
+    if (typeof _dcInc === 'function') {
+        _dcInc('btc_nacho_asked');
+    } else {
+        try { var _t = new Date().toISOString().split('T')[0]; var _v = parseInt(localStorage.getItem('btc_nacho_asked_' + _t) || '0') + 1; localStorage.setItem('btc_nacho_asked_' + _t, String(_v)); } catch(e) {}
     }
+    if (typeof checkDailyChallenge === 'function') checkDailyChallenge();
 
     // ---- ANTI-INTERRUPTION SHIELD ----
     window._nachoBusy = true;

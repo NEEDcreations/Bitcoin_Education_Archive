@@ -174,7 +174,7 @@
             favs.push(id);
             if (btn) btn.innerHTML = '⭐ Saved';
             // Track in session for daily progress
-            sessionStorage.setItem('btc_fav_added', 'true');
+            try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_fav_added_' + _t, 'true'); } catch(e) {}
         }
         setFavs(favs);
         // Sync to Firebase
@@ -2041,7 +2041,7 @@ window.nachoQuizMe = function(topic) {
 };
 
 window.nachoQuizAnswer = function(btn, correct) {
-    sessionStorage.setItem('btc_quiz_done', 'true');
+    try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_quiz_done_' + _t, 'true'); } catch(e) {}
     var parent = btn.parentElement;
     var buttons = parent.querySelectorAll('button');
     buttons.forEach(function(b) {
@@ -4711,7 +4711,7 @@ window._tctvStartTracker = function() {
     if (window._tctvTimer) return; // Already running
     window._tctvMinutesSession = 0; // Reset session count on re-entry
     // Mark for daily-challenge system (btc_tctv_visited)
-    try { sessionStorage.setItem('btc_tctv_visited', 'true'); } catch(e) {}
+    try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_tctv_visited_' + _t, 'true'); } catch(e) {}
     console.log('[TCTV] Watch tracker started.');
 
     window._tctvTimer = setInterval(function() {
@@ -4730,6 +4730,8 @@ window._tctvStartTracker = function() {
         localStorage.setItem('btc_tctv_watch_time', total.toString());
         
         window._tctvMinutesSession++;
+        // Daily challenge: persist daily TCTV minutes
+        try { var _dt = new Date().toISOString().split('T')[0]; var _dm = parseInt(localStorage.getItem('btc_tctv_minutes_' + _dt) || '0') + 1; localStorage.setItem('btc_tctv_minutes_' + _dt, String(_dm)); } catch(e) {}
         console.log('[TCTV] Watch time:', total, 'min (Session:', window._tctvMinutesSession, 'min)');
 
         // Bump global community stats counter (one +1 per minute, non-anonymous only)

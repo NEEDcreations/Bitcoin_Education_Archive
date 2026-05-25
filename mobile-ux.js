@@ -187,28 +187,42 @@ function showStreakBanner() {
 }
 
 // ---- #11: Daily Challenge ----
+// Helper: date-stamped localStorage (persists across tabs/reloads, resets daily)
+var _dcToday = new Date().toISOString().split('T')[0];
+function _dcGet(key) {
+    return localStorage.getItem(key + '_' + _dcToday) || null;
+}
+function _dcSet(key, val) {
+    localStorage.setItem(key + '_' + _dcToday, val);
+}
+function _dcGetInt(key) {
+    return parseInt(_dcGet(key) || '0', 10);
+}
+function _dcInc(key) {
+    var v = _dcGetInt(key) + 1;
+    _dcSet(key, String(v));
+    return v;
+}
 var DAILY_CHALLENGES = [
-    { id: 'read', text: '📖 Read a new channel', check: function() { return sessionStorage.getItem('btc_new_channel_read') === 'true'; } },
-    { id: 'nacho', text: '🦌 Ask Nacho a question', check: function() { return parseInt(sessionStorage.getItem('btc_nacho_asked') || '0') > 0; } },
-    { id: 'quiz', text: '🎮 Complete a quiz question', check: function() { return sessionStorage.getItem('btc_quiz_done') === 'true'; } },
-    { id: 'explore', text: '🗺️ Visit 3 different channels', check: function() { return parseInt(sessionStorage.getItem('btc_channels_today') || '0') >= 3; } },
-    { id: 'forum', text: '🗣️ Visit the PlebTalk', check: function() { return sessionStorage.getItem('btc_forum_visited') === 'true'; } },
+    { id: 'read', text: '📖 Read a new channel', check: function() { return _dcGet('btc_new_channel_read') === 'true'; } },
+    { id: 'nacho', text: '🦌 Ask Nacho a question', check: function() { return _dcGetInt('btc_nacho_asked') > 0; } },
+    { id: 'quiz', text: '🎮 Complete a quiz question', check: function() { return _dcGet('btc_quiz_done') === 'true'; } },
+    { id: 'explore', text: '🗺️ Visit 3 different channels', check: function() { return _dcGetInt('btc_channels_today') >= 3; } },
+    { id: 'forum', text: '🗣️ Visit the PlebTalk', check: function() { return _dcGet('btc_forum_visited') === 'true'; } },
     { id: 'streak', text: '🔥 Log in to keep your streak', check: function() { return true; } }, // Always completable
-    { id: 'favorite', text: '⭐ Save a channel to favorites', check: function() { return sessionStorage.getItem('btc_fav_added') === 'true'; } },
-    // New: Timechain TV — watch 10 minutes (counted per-session so it's daily-fresh)
-    { id: 'tctv_10m', text: '📺 Watch 10 min of Timechain TV', check: function() { return (window._tctvMinutesSession || 0) >= 10; } },
-    { id: 'tctv_visit', text: '📺 Tune in to Timechain TV', check: function() { return sessionStorage.getItem('btc_tctv_visited') === 'true'; } },
-    // ---- New challenges (May 2026) — TCTV, Lightning, and engagement ----
-    { id: 'tctv_3ch', text: '📺 Watch 3 different TCTV stations', check: function() { var s = sessionStorage.getItem('btc_tctv_stations_visited'); return s ? JSON.parse(s).length >= 3 : false; } },
-    { id: 'tctv_30m', text: '📺 Watch 30 min of Timechain TV', check: function() { return (window._tctvMinutesSession || 0) >= 30; } },
-    { id: 'tip_send', text: '⚡ Send a Lightning tip to someone', check: function() { return sessionStorage.getItem('btc_tip_sent') === 'true'; } },
-    { id: 'tip_3', text: '⚡ Send 3 Lightning tips today', check: function() { return parseInt(sessionStorage.getItem('btc_tips_sent_count') || '0') >= 3; } },
+    { id: 'favorite', text: '⭐ Save a channel to favorites', check: function() { return _dcGet('btc_fav_added') === 'true'; } },
+    { id: 'tctv_10m', text: '📺 Watch 10 min of Timechain TV', check: function() { return _dcGetInt('btc_tctv_minutes') >= 10; } },
+    { id: 'tctv_visit', text: '📺 Tune in to Timechain TV', check: function() { return _dcGet('btc_tctv_visited') === 'true'; } },
+    { id: 'tctv_3ch', text: '📺 Watch 3 different TCTV stations', check: function() { try { var s = _dcGet('btc_tctv_stations_visited'); return s ? JSON.parse(s).length >= 3 : false; } catch(e) { return false; } } },
+    { id: 'tctv_30m', text: '📺 Watch 30 min of Timechain TV', check: function() { return _dcGetInt('btc_tctv_minutes') >= 30; } },
+    { id: 'tip_send', text: '⚡ Send a Lightning tip to someone', check: function() { return _dcGet('btc_tip_sent') === 'true'; } },
+    { id: 'tip_3', text: '⚡ Send 3 Lightning tips today', check: function() { return _dcGetInt('btc_tips_sent_count') >= 3; } },
     { id: 'ln_setup', text: '⚡ Set up your Lightning wallet', check: function() { return !!(localStorage.getItem('btc_nwc_url') || localStorage.getItem('btc_ln_address') || (typeof currentUser !== 'undefined' && currentUser && currentUser.lightningAddress)); } },
-    { id: 'chat_msg', text: '🌍 Send a message in Global Chat', check: function() { return sessionStorage.getItem('btc_chat_sent') === 'true'; } },
-    { id: 'pvp_battle', text: '⚔️ Complete a PVP trivia battle', check: function() { return sessionStorage.getItem('btc_pvp_done') === 'true' || sessionStorage.getItem('_ch_pvp_answer') === '1'; } },
-    { id: 'beats_listen', text: '🎸 Listen to a track on Bitcoin Beats', check: function() { return sessionStorage.getItem('btc_beats_played') === 'true'; } },
-    { id: 'explore_5', text: '🗺️ Explore 5 different channels today', check: function() { return parseInt(sessionStorage.getItem('btc_channels_today') || '0') >= 5; } },
-    { id: 'nacho_3', text: '🦌 Ask Nacho 3 questions', check: function() { return parseInt(sessionStorage.getItem('btc_nacho_asked') || '0') >= 3; } },
+    { id: 'chat_msg', text: '🌍 Send a message in Global Chat', check: function() { return _dcGet('btc_chat_sent') === 'true'; } },
+    { id: 'pvp_battle', text: '⚔️ Complete a PVP trivia battle', check: function() { return _dcGet('btc_pvp_done') === 'true'; } },
+    { id: 'beats_listen', text: '🎸 Listen to a track on Bitcoin Beats', check: function() { return _dcGet('btc_beats_played') === 'true'; } },
+    { id: 'explore_5', text: '🗺️ Explore 5 different channels today', check: function() { return _dcGetInt('btc_channels_today') >= 5; } },
+    { id: 'nacho_3', text: '🦌 Ask Nacho 3 questions', check: function() { return _dcGetInt('btc_nacho_asked') >= 3; } },
 ];
 
 function getDailyChallenge() {
@@ -275,7 +289,7 @@ setInterval(window.checkDailyChallenge, 3000);
         if (!id || id === _lastTrackedId) return;
         _lastTrackedId = id;
         if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms') {
-            sessionStorage.setItem('btc_forum_visited', 'true');
+            _dcSet('btc_forum_visited', 'true');
         }
         // Note: new-channel detection is handled in the go() wrapper BEFORE
         // the inner go() adds to btc_visited_channels. Don't re-check here
@@ -299,11 +313,10 @@ if (_origGoForChallenge) {
         var result = await _realGo.apply(this, arguments);
         if (typeof window._trackChallengeNav === 'function') window._trackChallengeNav(id);
         if (id && id !== 'forum') {
-            var count = parseInt(sessionStorage.getItem('btc_channels_today') || '0') + 1;
-            sessionStorage.setItem('btc_channels_today', count);
-            if (isNewChannel) sessionStorage.setItem('btc_new_channel_read', 'true');
+            _dcInc('btc_channels_today');
+            if (isNewChannel) _dcSet('btc_new_channel_read', 'true');
         }
-        if (id === 'forum') sessionStorage.setItem('btc_forum_visited', 'true');
+        if (id === 'forum') _dcSet('btc_forum_visited', 'true');
         // Check challenge immediately
         setTimeout(function() { if (typeof checkDailyChallenge === 'function') checkDailyChallenge(); }, 300);
         return result;
@@ -314,7 +327,7 @@ if (_origGoForChallenge) {
 var _origNachoUnified = window.nachoUnifiedAnswer;
 if (_origNachoUnified) {
     window.nachoUnifiedAnswer = function(q, cb) {
-        sessionStorage.setItem('btc_nacho_asked', '1');
+        _dcInc('btc_nacho_asked');
         return _origNachoUnified.apply(this, arguments);
     };
 }

@@ -800,7 +800,7 @@ window.sendGlobalChat = function() {
     if (replyData.replyTo) { msgData.replyTo = replyData.replyTo; msgData.replyToName = replyData.replyToName; msgData.replyToText = replyData.replyToText; }
     db.collection(CHAT_COLLECTION).add(msgData).then(function() {
         // Track for daily challenge
-        sessionStorage.setItem('btc_chat_sent', 'true');
+        try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_chat_sent_' + _t, 'true'); } catch(e) {}
         // Increment global chat counter
         db.collection('stats').doc('global').set({ chatMessages: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {});
         // Bridge to Telegram
