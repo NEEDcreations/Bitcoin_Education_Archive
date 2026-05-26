@@ -85,9 +85,14 @@ async function proxyToNodeRunners(request, url, event) {
     // Strip the specific frame-buster script
     body = body.replace(/<script\s+type\s*=\s*["']text\/javascript["']\s*>[\s\S]{0,500}?top\.location\s*=\s*self\.location;[\s\S]{0,200}?<\/script>/gi, '');
 
-    // Kill target=_top/_parent so links stay in iframe
+    // Kill target=_top/_parent/_blank so links stay in iframe
     body = body.replace(/ target\s*=\s*["']_top["']/gi, ' target="_self"');
     body = body.replace(/ target\s*=\s*["']_parent["']/gi, ' target="_self"');
+    body = body.replace(/ target\s*=\s*["']_blank["']/gi, ' target="_self"');
+
+    // Rewrite absolute noderunners.network URLs to proxy-relative so navigation stays in iframe
+    var proxyOrigin = url.origin;
+    body = body.replace(/https:\/\/noderunners\.network/g, proxyOrigin);
 
     // Cache HTML at CF edge for 5 minutes (their catalog won't change faster)
     newHeaders.delete('Cache-Control');
