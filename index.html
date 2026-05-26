@@ -41,7 +41,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260525_2355" as="script">
+    <link rel="preload" href="bundle.js?v=20260526_0035" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -940,6 +940,27 @@
                 </div>
                 <div id="dailySpinBanner" style="display:none;margin-bottom:16px;"></div>
                 <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" onclick="showUsernamePrompt()"></div>
+                <!-- Quest Guide Banner — always visible, collapsible -->
+                <div id="questGuideBanner" style="margin-bottom:16px;max-width:500px;margin-left:auto;margin-right:auto;">
+                    <div id="questGuideFull" onclick="if(typeof showGuide==='function')showGuide()" style="padding:16px 18px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(168,85,247,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:16px;cursor:pointer;transition:all 0.2s;position:relative;" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)';this.style.boxShadow='0 4px 20px rgba(99,102,241,0.15)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.25)';this.style.boxShadow='none'">
+                        <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='none';document.getElementById('questGuideMini').style.display='flex';localStorage.setItem('btc_guide_collapsed','1')" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;opacity:0.6;">▲ hide</button>
+                        <div style="display:flex;align-items:center;gap:14px;">
+                            <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(168,85,247,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📜</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;">Your Quest Begins</div>
+                                <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">Everything you can do — how to earn points, unlock apps, and level up. Tap to open the full guide.</div>
+                            </div>
+                            <div style="color:var(--accent);font-size:1.2rem;flex-shrink:0;">→</div>
+                        </div>
+                    </div>
+                    <div id="questGuideMini" onclick="if(typeof showGuide==='function')showGuide()" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor='rgba(99,102,241,0.4)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.15)'">
+                        <span style="font-size:1.1rem;">📜</span>
+                        <span style="font-size:0.82rem;font-weight:700;color:var(--heading);flex:1;">Quest Guide</span>
+                        <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='block';document.getElementById('questGuideMini').style.display='none';localStorage.removeItem('btc_guide_collapsed')" style="background:none;border:none;color:var(--text-faint);font-size:0.65rem;cursor:pointer;padding:4px;">▼ expand</button>
+                        <span style="color:var(--accent);font-size:0.9rem;">→</span>
+                    </div>
+                </div>
+                <script>if(localStorage.getItem('btc_guide_collapsed')==='1'){var _gf=document.getElementById('questGuideFull');var _gm=document.getElementById('questGuideMini');if(_gf)_gf.style.display='none';if(_gm)_gm.style.display='flex';}</script>
                 <div id="progressRings" style="margin-bottom:16px;"></div>
                 <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:16px;margin-bottom:10px;">
                         <!-- Create Account / Sign In -->
@@ -1004,27 +1025,6 @@
                     <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                     <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho's Story</button>
                 </div>
-                <!-- Quest Guide Banner — always visible, collapsible -->
-                <div id="questGuideBanner" style="margin-bottom:16px;max-width:500px;margin-left:auto;margin-right:auto;">
-                    <div id="questGuideFull" onclick="if(typeof showGuide==='function')showGuide()" style="padding:16px 18px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(168,85,247,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:16px;cursor:pointer;transition:all 0.2s;position:relative;" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)';this.style.boxShadow='0 4px 20px rgba(99,102,241,0.15)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.25)';this.style.boxShadow='none'">
-                        <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='none';document.getElementById('questGuideMini').style.display='flex';localStorage.setItem('btc_guide_collapsed','1')" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;opacity:0.6;">▲ hide</button>
-                        <div style="display:flex;align-items:center;gap:14px;">
-                            <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(168,85,247,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📜</div>
-                            <div style="flex:1;min-width:0;">
-                                <div style="font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;">Your Quest Begins</div>
-                                <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">Everything you can do — how to earn points, unlock apps, and level up. Tap to open the full guide.</div>
-                            </div>
-                            <div style="color:var(--accent);font-size:1.2rem;flex-shrink:0;">→</div>
-                        </div>
-                    </div>
-                    <div id="questGuideMini" onclick="if(typeof showGuide==='function')showGuide()" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor='rgba(99,102,241,0.4)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.15)'">
-                        <span style="font-size:1.1rem;">📜</span>
-                        <span style="font-size:0.82rem;font-weight:700;color:var(--heading);flex:1;">Quest Guide</span>
-                        <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='block';document.getElementById('questGuideMini').style.display='none';localStorage.removeItem('btc_guide_collapsed')" style="background:none;border:none;color:var(--text-faint);font-size:0.65rem;cursor:pointer;padding:4px;">▼ expand</button>
-                        <span style="color:var(--accent);font-size:0.9rem;">→</span>
-                    </div>
-                </div>
-                <script>if(localStorage.getItem('btc_guide_collapsed')==='1'){var _gf=document.getElementById('questGuideFull');var _gm=document.getElementById('questGuideMini');if(_gf)_gf.style.display='none';if(_gm)_gm.style.display='flex';}</script>
                 <div id="continueReading" style="display:none;margin-bottom:16px;"></div>
                 <div id="dailyChallengeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;"></div>
                 <div class="daily-channel" id="dailyChannel"></div>
@@ -1206,9 +1206,9 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260525_2355" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260526_0035" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
-    <script src="onboarding.js?v=20260417tctv" defer></script>
+    <script src="onboarding.js?v=20260526_0035" defer></script>
     <script src="timechain-tv.js?v=20260525_2300" defer></script>
     <script src="mobile-optimize.js?v=20260411" defer></script>
     <script src="audit-fixes-v2.js?v=20260307" defer></script>

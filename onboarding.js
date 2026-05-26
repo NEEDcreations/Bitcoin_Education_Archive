@@ -418,7 +418,7 @@ window.applySimplifiedHome = function() {
     // Hide elements based on level
     var hideSelectors = {
         beginner: [
-            '#giveawayBanner', '#dailySpinBanner', '#welcomeBanner', '#progressRings',
+            '#giveawayBanner', '#dailySpinBanner', '#progressRings',
             '#dailyChallengeCard', '#quoteOfDay', '#explorationMap',
             '#donateSection', '[onclick*="showSpinWheel"]', '[onclick*="showPricePrediction"]',
             '.desktop-only-apps', '#lbFloatBtn', '#desktopDMBtn', '#rankBar',

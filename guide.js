@@ -63,7 +63,7 @@
         sheet.style.cssText = 'background:linear-gradient(180deg,#1a1b2e 0%,#12131f 100%);border:1px solid rgba(99,102,241,0.3);border-bottom:none;border-radius:24px 24px 0 0;width:100%;max-width:500px;max-height:88vh;overflow-y:auto;padding:0 20px 120px;animation:guideSlideUp 0.4s ease-out;-webkit-overflow-scrolling:touch;';
 
         sheet.innerHTML =
-            // ── HERO ── Big, spacious, breathable
+            // ── HERO ──
             '<div style="position:sticky;top:0;z-index:2;background:linear-gradient(180deg,#1a1b2e 90%,transparent);padding:12px 0 0;text-align:center;">' +
                 '<div style="width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 8px;"></div>' +
             '</div>' +
@@ -71,7 +71,7 @@
             '<div style="text-align:center;padding:24px 10px 40px;min-height:40vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">' +
                 '<div style="font-size:3rem;margin-bottom:20px;">📜</div>' +
                 '<h1 style="font-size:2rem;font-weight:900;color:#fff;margin:0 0 12px;line-height:1.2;">Your <span style="color:#f7931a;">Quest</span> Begins</h1>' +
-                '<p style="font-size:1rem;color:#94a3b8;margin:0;max-width:320px;line-height:1.6;">Everything you can do — and how to level up</p>' +
+                '<p style="font-size:1rem;color:#94a3b8;margin:0;max-width:320px;line-height:1.6;">How to earn, learn, and level up</p>' +
                 '<div style="margin-top:24px;font-size:0.75rem;color:#4b5563;letter-spacing:1px;">↓ SCROLL TO EXPLORE ↓</div>' +
             '</div>' +
 
@@ -87,32 +87,23 @@
 
             // ── START HERE ──
             guideSection('⭐ Start Here', [
-                guideCard('🗺️', 'rgba(34,197,94,0.12)', "Nacho's Trails", "Guided learning modules! Start with The Meadow (intro), climb The Mountain (intermediate), and conquer The Summit (advanced). Each trail has curated channels and a 25-question exam.", 'tag-new', 'Recommended path', "minimizeGuide();setTimeout(function(){go('trails')},300)"),
-                guideCard('📖', 'rgba(247,147,26,0.12)', 'Read Channels', 'Tap any channel to read curated Bitcoin content. Each channel you finish earns you points and badges!', 'tag-start', 'Your main activity', "goHome()"),
-                guideCard('🦌', 'rgba(234,179,8,0.12)', 'Ask Nacho Anything', 'Tap the floating deer on any page to ask a quick question. For the full experience, enter Nacho Mode — an interactive AI tutor with quizzes, learning paths, and conversation history.', 'tag-start', 'Always available', "if(typeof showNachoInput==='function')showNachoInput();minimizeGuide()") +
-                '<div onclick="minimizeGuide();setTimeout(function(){if(typeof enterNachoMode===\'function\')enterNachoMode()},300)" style="padding:12px 14px;background:rgba(234,179,8,0.04);border:1px dashed rgba(234,179,8,0.2);border-radius:12px;margin:-4px 0 8px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor=\'rgba(234,179,8,0.5)\'" onmouseout="this.style.borderColor=\'rgba(234,179,8,0.2)\'">' +
-                    '<div style="font-size:0.72rem;color:#eab308;font-weight:700;margin-bottom:6px;">🦌 HOW TO ACCESS NACHO MODE</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:4px;font-size:0.73rem;color:var(--text-muted);line-height:1.4;">' +
-                        '<div>📱 <strong>Mobile:</strong> Tap the 🦌 deer floating on screen, or two-finger tap anywhere</div>' +
-                        '<div>💻 <strong>Desktop:</strong> Press the <kbd style="padding:1px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:3px;font-size:0.65rem;">A</kbd> key for quick ask, or <kbd style="padding:1px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:3px;font-size:0.65rem;">N</kbd> for full Nacho Mode</div>' +
-                        '<div>🧭 <strong>Menu:</strong> Explore Apps → Nacho Mode</div>' +
-                        '<div>🔗 <strong>Direct link:</strong> bitcoineducation.quest/#nacho</div>' +
-                    '</div>' +
-                    '<div style="margin-top:8px;font-size:0.72rem;font-weight:700;color:#f7931a;">→ Tap here to enter Nacho Mode now</div>' +
-                '</div>'
+                guideCard('🗺️', 'rgba(34,197,94,0.12)', "Nacho's Trails", 'Guided learning paths — Meadow, Mountain, and Summit.', 'tag-new', 'Recommended path', "minimizeGuide();setTimeout(function(){go('trails')},300)"),
+                guideCard('📖', 'rgba(247,147,26,0.12)', 'Read Channels', 'Read curated Bitcoin content. Each channel earns points.', 'tag-start', 'Your main activity', "goHome()"),
+                guideCard('🦌', 'rgba(234,179,8,0.12)', 'Ask Nacho Anything', 'AI Bitcoin tutor — ask anything, get quizzed, track progress.', 'tag-start', 'Always available', "minimizeGuide();setTimeout(function(){if(typeof enterNachoMode==='function')enterNachoMode()},300)")
             ]) +
 
             // ── DAILY ACTIVITIES ──
             guideSection('🎯 Daily Activities', [
-                guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin the wheel once per day — win bonus points, tickets, or badges!', 'tag-earn', '+Points daily', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
-                guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete simple tasks each day — visit channels, read content, test your knowledge.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"),
-                guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s Bitcoin price and compete with other users!', 'tag-earn', '+Points if right', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}")
+                guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin once daily for tickets, points, or rare prizes.', 'tag-earn', '+Points daily', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
+                guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete tasks each day for bonus points.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"),
+                guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s BTC price. Earn points if right.', 'tag-earn', '+Points if right', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}"),
+                guideCard('👟', 'rgba(252,76,2,0.12)', 'Proof of Walk', 'Connect Strava to earn 50 pts per km walked, run, or hiked.', 'tag-earn', 'Max 2,100 pts/day', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();if(typeof showProofOfWalk==='function')showProofOfWalk()")
             ]) +
 
             // ── APPS TO UNLOCK ──
             '<div style="margin-bottom:12px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Unlock</div>' +
-                '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these apps:</p>' +
+                '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these:</p>' +
                 unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)") +
                 unlockTier('💬', 'PlebTalk Forum', 'Read 3 topics to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
                 unlockTier('🤝', 'IRL Sync', 'Read 5 topics to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
@@ -123,18 +114,13 @@
 
             // ── MORE FEATURES ──
             guideSection('✨ More Features', [
-                guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Chat with Bitcoiners in real-time. Send messages, DMs, GIFs, and listen to Nacho Radio!', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
-                guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleDashboard==='function')toggleDashboard()},300)"),
-                guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Normie → Pleb → Maxi → Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleLeaderboard==='function')toggleLeaderboard()},300)"),
-                guideCard('₿', 'rgba(247,147,26,0.12)', 'Earn Real Bitcoin', 'Your in-app points are redeemable for sats — small fractions of a real bitcoin. Learn, earn, and stack sats!', 'tag-earn', 'Points → Sats', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)"),
-                guideCard('📺', 'rgba(99,102,241,0.12)', 'Timechain TV', 'Binge-worthy Bitcoin content! Curated videos from top educators — Saylor, Jeff Booth, BTCSessions, and more. Learn while you watch.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)")
+                guideCard('⚔️', 'rgba(239,68,68,0.12)', 'PVP Battles', 'Real-time 1v1 Bitcoin trivia battles against other players.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof enterPVPMode==='function')enterPVPMode()},300)"),
+                guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Live chat with the community — messages, DMs, GIFs, reactions.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
+                guideCard('📺', 'rgba(99,102,241,0.12)', 'Timechain TV', '21 channels of curated Bitcoin video content.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)"),
+                guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, top indicators, mempool, and cycle signals.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleDashboard==='function')toggleDashboard()},300)"),
+                guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard', 'Compete with other learners. Rise from Normie to Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleLeaderboard==='function')toggleLeaderboard()},300)"),
+                guideCard('₿', 'rgba(247,147,26,0.12)', 'Earn Real Bitcoin', 'Redeem points for sats via Lightning. Learn, earn, stack.', 'tag-earn', 'Points → Sats', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)")
             ]) +
-
-            // ── NACHO TIP ──
-            '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px;margin-top:12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;">' +
-                '<div style="font-size:1.3rem;flex-shrink:0;">🦌</div>' +
-                '<div style="font-size:0.75rem;color:#d4a574;line-height:1.5;"><strong style="color:#f7931a;">Nacho\'s Tip:</strong> Start by tapping any channel that looks interesting! There\'s no wrong place to begin — every channel teaches you something new about Bitcoin.</div>' +
-            '</div>' +
 
             // ── ACTIONS ──
             '<div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">' +

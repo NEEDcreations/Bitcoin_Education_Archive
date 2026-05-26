@@ -2621,6 +2621,7 @@ function updateUserDisplay(lv) {
             streakText +
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">⚙️ Tap here for Account & Settings</div>';
         wb.style.display = 'block';
+        wb.removeAttribute('data-simplified-hidden');
     }
 }
 let lbAutoShown = false;
