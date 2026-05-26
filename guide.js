@@ -97,7 +97,8 @@
                 guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin once daily for tickets, points, or rare prizes.', 'tag-earn', '+Points daily', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
                 guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete tasks each day for bonus points.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"),
                 guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s BTC price. Earn points if right.', 'tag-earn', '+Points if right', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}"),
-                guideCard('👟', 'rgba(252,76,2,0.12)', 'Proof of Walk', 'Connect Strava to earn 50 pts per km walked, run, or hiked.', 'tag-earn', 'Max 2,100 pts/day', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();if(typeof showProofOfWalk==='function')showProofOfWalk()")
+                guideCard('👟', 'rgba(252,76,2,0.12)', 'Proof of Walk', 'Connect Strava to earn 50 pts per km walked, run, or hiked.', 'tag-earn', 'Max 2,100 pts/day', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();if(typeof showProofOfWalk==='function')showProofOfWalk()"),
+                guideCard('❓', 'rgba(234,179,8,0.12)', 'Daily Quests', 'Test your Bitcoin knowledge with daily quizzes and earn bonus points.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showDailyQuiz==='function')showDailyQuiz()},300)")
             ]) +
 
             // ── APPS TO UNLOCK ──
@@ -108,19 +109,19 @@
                 unlockTier('💬', 'PlebTalk Forum', 'Read 3 topics to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
                 unlockTier('🤝', 'IRL Sync', 'Read 5 topics to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
                 unlockTier('🛒', 'Lightning Mart', 'Read 10 topics to unlock', marketLocked, marketLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
-                unlockTier('⚡', 'Lightning Tipping', 'Tap to set up your wallet', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('lightning')}},300)") +
-                unlockTier('🎓', 'Scholar Certification', 'Read all topics + pass the exam', true, null) +
+                unlockTier('🦌', 'AI Nacho Mode', 'Chat with your Bitcoin AI guide', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleNachoMode==='function')toggleNachoMode()},300)") +
+                unlockTier('⚔️', 'PVP Battles', 'Real-time 1v1 Bitcoin trivia', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof enterPVPMode==='function')enterPVPMode()},300)") +
+                unlockTier('📺', 'Timechain TV', '21 channels of Bitcoin video content', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)") +
             '</div>' +
 
             // ── MORE FEATURES ──
             guideSection('✨ More Features', [
-                guideCard('⚔️', 'rgba(239,68,68,0.12)', 'PVP Battles', 'Real-time 1v1 Bitcoin trivia battles against other players.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof enterPVPMode==='function')enterPVPMode()},300)"),
                 guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Live chat with the community — messages, DMs, GIFs, reactions.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
-                guideCard('📺', 'rgba(99,102,241,0.12)', 'Timechain TV', '21 channels of curated Bitcoin video content.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)"),
                 guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, top indicators, mempool, and cycle signals.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleDashboard==='function')toggleDashboard()},300)"),
                 guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard', 'Compete with other learners. Rise from Normie to Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleLeaderboard==='function')toggleLeaderboard()},300)"),
                 guideCard('₿', 'rgba(247,147,26,0.12)', 'Earn Real Bitcoin', 'Redeem points for sats via Lightning. Learn, earn, stack.', 'tag-earn', 'Points → Sats', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)"),
-                guideCard('🦌', 'rgba(247,147,26,0.12)', 'AI Nacho Mode', 'Chat with Nacho, your Bitcoin-savvy AI guide powered by real archive knowledge.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleNachoMode==='function')toggleNachoMode()},300)")
+                guideCard('⚡', 'rgba(250,204,21,0.12)', 'Lightning Tipping', 'Set up your Lightning wallet to send and receive tips.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('lightning')}},300)"),
+                guideCard('🎓', 'rgba(168,85,247,0.12)', 'Scholar Certification', 'Read all topics and pass the exam to earn your certification.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('scholar')}},300)")
             ]) +
 
             // ── ACTIONS ──
