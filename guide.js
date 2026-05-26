@@ -102,7 +102,7 @@
 
             // ── APPS TO UNLOCK ──
             '<div style="margin-bottom:12px;">' +
-                '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Unlock</div>' +
+                '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Explore</div>' +
                 '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these:</p>' +
                 unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)") +
                 unlockTier('💬', 'PlebTalk Forum', 'Read 3 topics to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
@@ -119,7 +119,8 @@
                 guideCard('📺', 'rgba(99,102,241,0.12)', 'Timechain TV', '21 channels of curated Bitcoin video content.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)"),
                 guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, top indicators, mempool, and cycle signals.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleDashboard==='function')toggleDashboard()},300)"),
                 guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard', 'Compete with other learners. Rise from Normie to Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleLeaderboard==='function')toggleLeaderboard()},300)"),
-                guideCard('₿', 'rgba(247,147,26,0.12)', 'Earn Real Bitcoin', 'Redeem points for sats via Lightning. Learn, earn, stack.', 'tag-earn', 'Points → Sats', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)")
+                guideCard('₿', 'rgba(247,147,26,0.12)', 'Earn Real Bitcoin', 'Redeem points for sats via Lightning. Learn, earn, stack.', 'tag-earn', 'Points → Sats', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)"),
+                guideCard('🦌', 'rgba(247,147,26,0.12)', 'AI Nacho Mode', 'Chat with Nacho, your Bitcoin-savvy AI guide powered by real archive knowledge.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleNachoMode==='function')toggleNachoMode()},300)")
             ]) +
 
             // ── ACTIONS ──
