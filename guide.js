@@ -76,11 +76,11 @@
             '</div>' +
 
             // ── PROGRESS BAR ──
-            '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:0 0 20px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">' +
+            '<div onclick="minimizeGuide();goHome();setTimeout(function(){var el=document.getElementById(\'explorationMap\');if(el)el.scrollIntoView({behavior:\'smooth\',block:\'center\'});},400)" style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:0 0 20px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:12px;cursor:pointer;">' +
                 '<div style="font-size:1.3rem;">🌱</div>' +
                 '<div style="flex:1;">' +
                     '<div style="font-size:0.7rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Your Journey</div>' +
-                    '<div style="font-size:0.82rem;color:#e2e8f0;font-weight:600;margin-top:2px;">' + (typeof escapeHtml === 'function' ? escapeHtml(rank) : rank) + ' · ' + channelsRead + '/' + totalChannels + ' Channels Read</div>' +
+                    '<div style="font-size:0.82rem;color:#e2e8f0;font-weight:600;margin-top:2px;">' + (typeof escapeHtml === 'function' ? escapeHtml(rank) : rank) + ' · ' + channelsRead + '/' + totalChannels + ' Topics Read</div>' +
                     '<div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:6px;"><div style="height:100%;width:' + Math.max(pctRead, 1) + '%;background:linear-gradient(90deg,#f7931a,#eab308);border-radius:2px;transition:width 1s ease;"></div></div>' +
                 '</div>' +
             '</div>' +
