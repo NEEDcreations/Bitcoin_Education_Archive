@@ -506,7 +506,10 @@ function formatChatText(text, mentionUid) {
     text = text.replace(/(https?:\/\/[^\s<]+)(?![^<]*<\/a>)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">$1</a>');
     // Markdown-style in-app links: [Link Text](#route)
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(match, label, route) {
-        return '<a href="#' + route + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + route + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>';
+        var _action = route === 'pvp' ? "event.preventDefault();if(typeof enterPVPMode==='function')enterPVPMode();"
+                     : route === 'nacho' ? "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();"
+                     : "event.preventDefault();if(typeof go==='function')go('" + route + "');";
+        return '<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>';
     });
     // #channel tags — skip matches inside HTML attributes (href, onclick, style, etc.)
     text = text.replace(/(<[^>]*>)|(#([a-zA-Z0-9_-]+))/g, function(match, htmlTag, hashMatch, tag) {
