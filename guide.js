@@ -157,11 +157,11 @@
 
     // ---- Helper: unlock tier row ----
     function unlockTier(icon, name, req, locked, onclick) {
-        var clickAttr = onclick ? ' onclick="' + onclick + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'rgba(247,147,26,0.3)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.06)\'"'
-            : ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;"';
+        var clickAttr = onclick ? ' onclick="' + onclick + '" style="display:flex !important;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;cursor:pointer;"'
+            : ' style="display:flex !important;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;"';
         return '<div' + clickAttr + '>' +
-            '<div style="font-size:1.1rem;">' + icon + '</div>' +
-            '<div style="flex:1;"><div style="font-size:0.82rem;font-weight:700;color:#e2e8f0;">' + name + '</div><div style="font-size:0.68rem;color:#64748b;">' + req + '</div></div>' +
+            '<div style="font-size:1.1rem;width:28px;text-align:center;flex-shrink:0;">' + icon + '</div>' +
+            '<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:700;color:#e2e8f0;">' + name + '</div><div style="font-size:0.68rem;color:#64748b;">' + req + '</div></div>' +
             '<div style="font-size:0.8rem;color:' + (locked ? '#4b5563' : '#22c55e') + ';">' + (locked ? '🔒' : '✅') + '</div>' +
         '</div>';
     }
