@@ -96,21 +96,22 @@
             guideSection('🎯 Daily Activities', [
                 guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin once daily for tickets, points, or rare prizes.', 'tag-earn', '+Points daily', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
                 guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete tasks each day for bonus points.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"),
-                guideCard('❓', 'rgba(234,179,8,0.12)', 'Daily Quests', 'Test your Bitcoin knowledge with daily quizzes and earn bonus points.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showDailyQuiz==='function')showDailyQuiz()},300)"),
                 guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s BTC price. Earn points if right.', 'tag-earn', '+Points if right', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}"),
-                guideCard('👟', 'rgba(252,76,2,0.12)', 'Proof of Walk', 'Connect Strava to earn 50 pts per km walked, run, or hiked.', 'tag-earn', 'Max 2,100 pts/day', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();if(typeof showProofOfWalk==='function')showProofOfWalk()")
+                guideCard('👟', 'rgba(252,76,2,0.12)', 'Proof of Walk', 'Connect Strava to earn 50 pts per km walked, run, or hiked.', 'tag-earn', 'Max 2,100 pts/day', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();if(typeof showProofOfWalk==='function')showProofOfWalk()"),
+                guideCard('❓', 'rgba(234,179,8,0.12)', 'Daily Quests', 'Test your Bitcoin knowledge with daily quizzes and earn bonus points.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showDailyQuiz==='function')showDailyQuiz()},300)")
             ]) +
 
             // ── APPS TO UNLOCK ──
             '<div style="margin-bottom:12px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Explore</div>' +
-                unlockTier('📺', 'Timechain TV', '21 channels of curated Bitcoin video content.', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)") +
-                unlockTier('🦌', 'AI Nacho Mode', 'Your Bitcoin-savvy AI tutor powered by archive knowledge.', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleNachoMode==='function')toggleNachoMode()},300)") +
-                unlockTier('⚔️', 'PVP Battles', 'Real-time 1v1 Bitcoin trivia battles against other players.', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof enterPVPMode==='function')enterPVPMode()},300)") +
-                unlockTier('🎵', 'Bitcoin Beats', 'Community music player with uploads, likes, and artist pages.', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)") +
-                unlockTier('💬', 'PlebTalk Forum', 'Community discussion board for Bitcoin topics and debates.', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
-                unlockTier('🤝', 'IRL Sync', 'Find and organize real-life Bitcoin meetups near you.', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
-                unlockTier('🛒', 'Lightning Mart', 'Buy and sell goods using Lightning payments.', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
+                '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these:</p>' +
+                unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)") +
+                unlockTier('💬', 'PlebTalk Forum', 'Read 3 topics to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
+                unlockTier('🤝', 'IRL Sync', 'Read 5 topics to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
+                unlockTier('🛒', 'Lightning Mart', 'Read 10 topics to unlock', marketLocked, marketLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
+                unlockTier('🦌', 'AI Nacho Mode', 'Chat with your Bitcoin AI guide', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleNachoMode==='function')toggleNachoMode()},300)") +
+                unlockTier('⚔️', 'PVP Battles', 'Real-time 1v1 Bitcoin trivia', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof enterPVPMode==='function')enterPVPMode()},300)") +
+                unlockTier('📺', 'Timechain TV', '21 channels of Bitcoin video content', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)") +
             '</div>' +
 
             // ── MORE FEATURES ──
