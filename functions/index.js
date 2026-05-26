@@ -2834,40 +2834,58 @@ exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
         // NO correct field
     }));
 
-    const matchRef = await db.collection('pvp_matches').add({
-        player1: {
-            uid: player1.uid,
-            name: (player1.name || 'Anonymous').substring(0, 30),
-            profilePic: player1.profilePic || '',
-            score: 0, correct: 0, answers: []
-        },
-        player2: {
-            uid: player2.uid,
-            name: (player2.name || 'Anonymous').substring(0, 30),
-            profilePic: player2.profilePic || '',
-            score: 0, correct: 0, answers: []
-        },
-        questions: clientQuestions,
-        currentQ: 0,
-        status: 'countdown',
-        questionWinner: null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        questionStartedAt: null
-    });
+    // Use a transaction to atomically claim the lobby doc and create the match.
+    // This prevents the race condition where both players try to create a match
+    // against each other simultaneously.
+    const lobbyRef = db.collection('pvp_lobby').doc(lobbyDocId);
+    const matchRef = db.collection('pvp_matches').doc(); // pre-generate ID
 
-    // Store answer keys in server-only collection
-    await db.collection('pvp_answer_keys').doc(matchRef.id).set({
-        keys: answerKeys,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
+    await db.runTransaction(async (tx) => {
+        const lobbySnap = await tx.get(lobbyRef);
+        if (!lobbySnap.exists) {
+            throw new functions.https.HttpsError('not-found', 'Lobby entry not found');
+        }
+        const lobbyData = lobbySnap.data();
+        if (lobbyData.status !== 'waiting') {
+            throw new functions.https.HttpsError('already-exists', 'Opponent already matched');
+        }
 
-    // Update lobby doc
-    await db.collection('pvp_lobby').doc(lobbyDocId).update({
-        status: 'matched',
-        matchId: matchRef.id,
-        opponentName: (player2.name || 'Anonymous').substring(0, 30),
-        opponentUid: player2.uid,
-        opponentProfilePic: player2.profilePic || ''
+        // Create the match document
+        tx.set(matchRef, {
+            player1: {
+                uid: player1.uid,
+                name: (player1.name || 'Anonymous').substring(0, 30),
+                profilePic: player1.profilePic || '',
+                score: 0, correct: 0, answers: []
+            },
+            player2: {
+                uid: player2.uid,
+                name: (player2.name || 'Anonymous').substring(0, 30),
+                profilePic: player2.profilePic || '',
+                score: 0, correct: 0, answers: []
+            },
+            questions: clientQuestions,
+            currentQ: 0,
+            status: 'countdown',
+            questionWinner: null,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            questionStartedAt: null
+        });
+
+        // Store answer keys in server-only collection
+        tx.set(db.collection('pvp_answer_keys').doc(matchRef.id), {
+            keys: answerKeys,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Atomically mark lobby as matched
+        tx.update(lobbyRef, {
+            status: 'matched',
+            matchId: matchRef.id,
+            opponentName: (player2.name || 'Anonymous').substring(0, 30),
+            opponentUid: player2.uid,
+            opponentProfilePic: player2.profilePic || ''
+        });
     });
 
     return { matchId: matchRef.id };
