@@ -82,13 +82,15 @@ window.renderProofOfWalk = function() {
 
 function renderPOWConnect() {
     const stateUrl = encodeURIComponent(auth.currentUser.uid);
-    // Standard OAuth URL
+    // Standard OAuth URL — must link to strava.com/oauth/authorize per Brand Guidelines
     const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${STRAVA_REDIRECT_URI}&approval_prompt=force&scope=read,activity:read_all&state=${stateUrl}`;
     
     document.getElementById('pow-ui-state').innerHTML = `
-        <a href="${authUrl}" class="pow-btn">Connect Strava</a>
-        <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;margin-top:12px;display:inline-block;box-shadow:none;">Download Strava</a>
-        <div style="font-size:0.7rem;color:#666;margin-top:16px;">We only read your distances to award points. No tracking.</div>
+        <a href="${authUrl}" style="display:inline-block;margin-bottom:12px;"><img src="images/strava/btn_connect_orange.svg" alt="Connect with Strava" style="height:48px;"></a>
+        <br>
+        <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;margin-top:4px;display:inline-block;box-shadow:none;">Download Strava</a>
+        <div style="font-size:0.7rem;color:#666;margin-top:16px;">We only read your activity distances to award points. No GPS, routes, or personal data is stored. <a href="#pow-support" style="color:#fc4c02;">Learn more</a></div>
+        <div style="margin-top:12px;"><a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:24px;opacity:0.7;"></a></div>
     `;
 }
 
@@ -96,8 +98,12 @@ function renderPOWDashboard(stravaData) {
     const uid = auth.currentUser.uid;
     
     let html = `
-        <div style="font-size:0.9rem;color:#eee;margin-bottom:16px;font-weight:700;">
+        <div style="font-size:0.9rem;color:#eee;margin-bottom:8px;font-weight:700;">
             Athlete: <span style="color:#fc4c02;">${stravaData.athlete_name || 'Connected'}</span>
+        </div>
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <a href="https://www.strava.com/athlete/${stravaData.athlete_id ? stravaData.athlete_id : ''}" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;font-size:0.8rem;font-weight:700;text-decoration:underline;">View on Strava</a>
+            <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener noreferrer" style="color:#888;font-size:0.75rem;">Manage Strava Apps</a>
         </div>
         
         <div class="pow-stats">
@@ -126,6 +132,14 @@ function renderPOWDashboard(stravaData) {
         
         <div class="pow-list" id="pow-log-list">
             <div style="text-align:center;color:#666;font-size:0.8rem;padding:20px;">Loading history...</div>
+        </div>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:24px;opacity:0.7;"></a>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <a href="#pow-support" style="color:#888;font-size:0.75rem;">Support</a>
+                <button onclick="disconnectStrava()" style="background:transparent;border:1px solid #666;color:#888;font-size:0.7rem;padding:4px 10px;border-radius:6px;cursor:pointer;">Disconnect &amp; Delete Data</button>
+            </div>
         </div>
     `;
     
@@ -208,6 +222,33 @@ function loadPowHistory(uid) {
         .catch(console.error);
 }
 
+// Disconnect Strava and delete all POW data (API Agreement: must delete on user request)
+window.disconnectStrava = function() {
+    if (!auth.currentUser) return;
+    if (!confirm('This will disconnect Strava and permanently delete all your Proof of Walk data (activity history, points log). Your earned points on the Archive remain. Continue?')) return;
+    var uid = auth.currentUser.uid;
+    var batch = db.batch();
+    // Delete integration doc
+    batch.delete(db.collection('users').doc(uid).collection('integrations').doc('strava'));
+    // Delete stats doc
+    batch.delete(db.collection('users').doc(uid).collection('proof_of_walk_stats').doc('daily'));
+    batch.commit().then(function() {
+        // Delete activity history (subcollection — batch can't query, so delete in loop)
+        return db.collection('users').doc(uid).collection('proof_of_walk').get();
+    }).then(function(snap) {
+        var delBatch = db.batch();
+        snap.forEach(function(doc) { delBatch.delete(doc.ref); });
+        return delBatch.commit();
+    }).then(function() {
+        if (typeof showToast === 'function') showToast('Strava disconnected and data deleted.');
+        // Re-render the connect screen
+        if (typeof showProofOfWalk === 'function') showProofOfWalk();
+    }).catch(function(e) {
+        console.error('Disconnect error:', e);
+        alert('Error disconnecting. Please try again or contact support.');
+    });
+};
+
 window.syncPow = function() {
     const btn = document.getElementById('pow-sync-btn');
     const msg = document.getElementById('pow-sync-msg');
@@ -278,3 +319,143 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.hash = '#explore';
     }
 });
+
+// ==========================================
+// PROOF OF WALK — SUPPORT PAGE (#pow-support)
+// ==========================================
+window.renderPOWSupport = function() {
+    var home = document.getElementById('home');
+    var msgs = document.getElementById('msgs');
+    var hero = document.getElementById('hero');
+    if (home) home.classList.add('hidden');
+    if (hero) hero.style.display = 'none';
+    if (!msgs) return;
+    msgs.style.display = '';
+    window.location.hash = '#pow-support';
+
+    msgs.innerHTML = '<div style="max-width:680px;margin:0 auto;padding:24px 16px;">' +
+        '<div style="text-align:center;margin-bottom:28px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">👟</div>' +
+            '<h1 style="font-size:1.5rem;font-weight:800;color:var(--heading);margin:0 0 6px;">Proof of Walk — Support</h1>' +
+            '<p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 12px;">Help center for walkers using Strava with Bitcoin Education Archive</p>' +
+            '<a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:28px;opacity:0.7;"></a>' +
+        '</div>' +
+
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
+            '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">What is Proof of Walk?</h2>' +
+            '<p style="color:var(--text);font-size:0.9rem;line-height:1.6;margin:0;">Proof of Walk is a feature of <a href="https://bitcoineducation.quest" style="color:var(--accent);">Bitcoin Education Archive</a> that rewards you with in-app points for physical activity. Connect your <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava</a> account and earn <strong>50 points per kilometer</strong> for every Walk, Run, or Hike you log — up to 42 km (2,100 points) per day. Proof of Walk is not developed or endorsed by Strava.</p>' +
+        '</div>' +
+
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
+            '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">How to Connect</h2>' +
+            '<ol style="color:var(--text);font-size:0.9rem;line-height:1.8;margin:0;padding-left:20px;">' +
+                '<li>Sign in to Bitcoin Education Archive</li>' +
+                '<li>Open <strong>Explore Apps</strong> and tap <strong>Proof of Walk</strong></li>' +
+                '<li>Tap the official <strong>Connect with Strava</strong> button — you\u2019ll be redirected to Strava to authorize</li>' +
+                '<li>Review the permissions and grant access</li>' +
+                '<li>You\u2019ll be redirected back automatically</li>' +
+                '<li>Tap <strong>Sync Recent Activities</strong> to load your walks and earn points</li>' +
+            '</ol>' +
+        '</div>' +
+
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
+            '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 12px;">Frequently Asked Questions</h2>' +
+
+            '<div style="margin-bottom:14px;">' +
+                '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">What data do you access from Strava?</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">We request the <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:0.8rem;">read,activity:read_all</code> scope. In practice, we only use your activity type (Walk/Run/Hike) and distance to calculate points. We do not access or store GPS tracks, routes, heart rate, photos, social data, or any other personal information.</p>' +
+            '</div>' +
+
+            '<div style="margin-bottom:14px;">' +
+                '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">Is my Strava data shared with anyone?</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">No. Your Strava data is only visible to you within your own Proof of Walk dashboard. It is never displayed to other users, shared with third parties, sold, or used for advertising. We comply with the <a href="https://www.strava.com/legal/api" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava API Agreement</a> which requires that each user\u2019s data is only shown to that user.</p>' +
+            '</div>' +
+
+            '<div style="margin-bottom:14px;">' +
+                '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">Is my data used for AI or machine learning?</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">No. Strava data is never used for AI, machine learning, model training, analytics, or any purpose beyond calculating your personal walking points.</p>' +
+            '</div>' +
+
+            '<div style="margin-bottom:14px;">' +
+                '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">Why is there a daily limit?</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">The 42 km/day cap (2,100 points) prevents abuse and keeps the system fair for everyone. That\u2019s a full marathon\u2019s worth — plenty for even the most active users!</p>' +
+            '</div>' +
+
+            '<div style="margin-bottom:14px;">' +
+                '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">How do I disconnect and delete my data?</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">Two options:<br><strong>In-app:</strong> Open Proof of Walk and tap <strong>Disconnect &amp; Delete Data</strong>. This removes your Strava tokens and all activity history from our system immediately.<br><strong>On Strava:</strong> Go to <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">strava.com/settings/apps</a>, find Bitcoin Education Archive, and click Revoke Access.<br>You can also email us to request full data deletion.</p>' +
+            '</div>' +
+
+            '<div style="margin-bottom:14px;">' +
+                '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">What happens if I delete an activity on Strava?</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">Deleted activities will no longer appear when you sync. We do not retain Strava data that has been removed from your account.</p>' +
+            '</div>' +
+
+            '<div style="margin-bottom:14px;">' +
+                '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">How do I access my data?</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">Your synced activity history and points are visible in your Proof of Walk dashboard. If you need a full export of your data, email us and we\u2019ll provide it.</p>' +
+            '</div>' +
+
+            '<div style="margin-bottom:0;">' +
+                '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">I\u2019m getting an error connecting. What do I do?</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">Make sure you\u2019re signed in to both the Archive and Strava. If you see a 403 error, the app may be at capacity — email us and we\u2019ll get it sorted.</p>' +
+            '</div>' +
+        '</div>' +
+
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
+            '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">Data &amp; Privacy Policy</h2>' +
+            '<p style="color:var(--text);font-size:0.9rem;line-height:1.6;margin:0 0 12px;">Proof of Walk is powered by the <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava</a> API. Our use of the Strava API complies with the <a href="https://www.strava.com/legal/api" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava API Agreement</a>.</p>' +
+            '<ul style="color:var(--text);font-size:0.85rem;line-height:1.8;margin:0;padding-left:20px;">' +
+                '<li><strong>Data collected:</strong> Activity type, distance, and date for Walk, Run, and Hike activities only</li>' +
+                '<li><strong>Data storage:</strong> Encrypted tokens stored server-side in Firebase (HTTPS only). Activity summaries stored per-user for points calculation.</li>' +
+                '<li><strong>Data not collected:</strong> GPS tracks, routes, maps, heart rate, photos, social connections, or profile details beyond display name</li>' +
+                '<li><strong>Data sharing:</strong> Your Strava data is only displayed to you. It is never shared with other users, third parties, advertisers, or data brokers</li>' +
+                '<li><strong>No AI/ML use:</strong> Strava data is never used for artificial intelligence, machine learning, model training, analytics, or aggregation</li>' +
+                '<li><strong>No advertising use:</strong> Strava data is never used in advertisements or for targeted advertising</li>' +
+                '<li><strong>Data deletion:</strong> You may disconnect and delete all your Strava data at any time via the in-app button or by emailing us. Data is also deleted if you revoke access on Strava</li>' +
+                '<li><strong>Data access:</strong> You can view all your synced data in the Proof of Walk dashboard, or request a full export by email</li>' +
+                '<li><strong>Security:</strong> All data is transmitted over HTTPS. Strava tokens are stored securely in Firebase and are never exposed to the client</li>' +
+                '<li><strong>Strava monitoring:</strong> Strava may collect and use data related to our API access for their business purposes, as described in the <a href="https://www.strava.com/legal/privacy" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava Privacy Policy</a></li>' +
+            '</ul>' +
+        '</div>' +
+
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
+            '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">Your Strava Account</h2>' +
+            '<ul style="color:var(--text);font-size:0.9rem;line-height:1.8;margin:0;padding-left:20px;">' +
+                '<li><a href="https://www.strava.com/athlete" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;font-weight:700;text-decoration:underline;">View on Strava</a> — Go to your Strava profile</li>' +
+                '<li><a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;font-weight:700;text-decoration:underline;">Manage Connected Apps</a> — Revoke or review app permissions</li>' +
+                '<li><a href="https://www.strava.com/settings/privacy" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;font-weight:700;text-decoration:underline;">Strava Privacy Settings</a> — Control your Strava privacy</li>' +
+            '</ul>' +
+        '</div>' +
+
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
+            '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">Badges &amp; Achievements</h2>' +
+            '<ul style="color:var(--text);font-size:0.9rem;line-height:1.8;margin:0;padding-left:20px;">' +
+                '<li>🥾 <strong>First Step</strong> — Complete your first walk sync</li>' +
+                '<li>🔥 <strong>Consistency</strong> — Sync activities on 7 consecutive days</li>' +
+                '<li>🏅 <strong>Marathoner</strong> — Walk/run 42 km in a single day</li>' +
+                '<li>📋 <strong>Daily Quest</strong> — Walk at least 5 km to complete the daily quest</li>' +
+            '</ul>' +
+        '</div>' +
+
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
+            '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">Legal</h2>' +
+            '<ul style="color:var(--text-muted);font-size:0.85rem;line-height:1.8;margin:0;padding-left:20px;">' +
+                '<li>Proof of Walk is a feature of Bitcoin Education Archive. It is not developed, endorsed, or sponsored by Strava.</li>' +
+                '<li>"Strava" and the Strava logo are trademarks of Strava, Inc.</li>' +
+                '<li>Our use of the Strava API is subject to the <a href="https://www.strava.com/legal/api" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava API Agreement</a>, <a href="https://www.strava.com/legal/terms" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava Terms of Service</a>, and <a href="https://www.strava.com/legal/privacy" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava Privacy Policy</a>.</li>' +
+            '</ul>' +
+        '</div>' +
+
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:24px;text-align:center;">' +
+            '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">Need Help?</h2>' +
+            '<p style="color:var(--text-muted);font-size:0.9rem;line-height:1.5;margin:0 0 14px;">If you\u2019re having trouble connecting, syncing, or want to request data deletion, reach out and we\u2019ll help.</p>' +
+            '<a href="mailto:info.603btc@gmail.com?subject=Proof%20of%20Walk%20Support" style="display:inline-block;padding:10px 24px;background:var(--accent);color:#fff;border-radius:10px;font-size:0.9rem;font-weight:700;text-decoration:none;">Email Support</a>' +
+            '<div style="color:var(--text-faint);font-size:0.8rem;margin-top:8px;">info.603btc@gmail.com</div>' +
+        '</div>' +
+
+        '<div style="text-align:center;padding-bottom:20px;">' +
+            '<button onclick="goHome()" style="padding:10px 20px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;">← Back to Archive</button>' +
+        '</div>' +
+    '</div>';
+};
