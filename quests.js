@@ -891,6 +891,8 @@ async function submitQuest() {
     if (pts > 0) {
         // Points already awarded server-side by gradeQuest
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
+        // Log to local points history for the Points notification tab
+        if (typeof notifySelfPoints === 'function') notifySelfPoints(pts, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
         var todayQ = new Date().toISOString().split('T')[0];
         var qLog = safeJSON('btc_quest_daily', {});
         if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
