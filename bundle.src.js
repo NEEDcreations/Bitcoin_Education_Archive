@@ -18735,6 +18735,112 @@ window.checkDailyChallenge = function() {
 }
 setInterval(window.checkDailyChallenge, 3000);
 
+// =============================================
+// Raid Boss Home Card — compact countdown near daily challenge
+// =============================================
+window._raidHomeUnsub = null;
+window._raidHomeTimer = null;
+
+window.renderRaidBossHome = function() {
+    var el = document.getElementById('raidBossHomeCard');
+    if (!el) return;
+    if (typeof firebase === 'undefined' || typeof db === 'undefined') { el.style.display = 'none'; return; }
+
+    // Clean up previous listener
+    if (window._raidHomeUnsub) { window._raidHomeUnsub(); window._raidHomeUnsub = null; }
+    if (window._raidHomeTimer) { clearInterval(window._raidHomeTimer); window._raidHomeTimer = null; }
+
+    window._raidHomeUnsub = db.collection('raid_bosses')
+        .orderBy('startTime', 'desc').limit(1)
+        .onSnapshot(function(snap) {
+            if (snap.empty) { el.style.display = 'none'; return; }
+            var doc = snap.docs[0];
+            var boss = doc.data();
+            boss.id = doc.id;
+            _renderRaidHomeCard(el, boss);
+        }, function() { el.style.display = 'none'; });
+};
+
+function _renderRaidHomeCard(el, boss) {
+    if (window._raidHomeTimer) { clearInterval(window._raidHomeTimer); window._raidHomeTimer = null; }
+
+    var now = Date.now();
+    var startMs = boss.startTime && boss.startTime.toDate ? boss.startTime.toDate().getTime() : 0;
+    var endMs = boss.endTime && boss.endTime.toDate ? boss.endTime.toDate().getTime() : 0;
+    var isPlaceholder = boss.placeholder === true;
+    var isDefeated = boss.defeated === true;
+    var isActive = !isPlaceholder && !isDefeated && now >= startMs && now < endMs;
+
+    var pct = boss.target > 0 ? Math.min(100, Math.round((boss.current || 0) / boss.target * 100)) : 0;
+
+    // Determine countdown target
+    var countdownTarget = isPlaceholder ? startMs : endMs;
+    var countdownLabel = isPlaceholder ? 'Starts in' : 'Ends in';
+
+    function fmtCountdown() {
+        var diff = Math.max(0, countdownTarget - Date.now());
+        if (diff <= 0) return '\u23f3 Any moment now...';
+        var d = Math.floor(diff / 86400000);
+        var h = Math.floor((diff % 86400000) / 3600000);
+        var m = Math.floor((diff % 3600000) / 60000);
+        var s = Math.floor((diff % 60000) / 1000);
+        if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
+        if (h > 0) return h + 'h ' + m + 'm ' + s + 's';
+        return m + 'm ' + s + 's';
+    }
+
+    el.style.display = '';
+
+    if (isDefeated) {
+        // Defeated — show victory
+        el.innerHTML = '<div onclick="if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){if(typeof window._questHubTab!==\'undefined\'){window._questHubTab=\'raid\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();}},300)}" style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(22,163,74,0.04));border:1px solid #22c55e;border-radius:12px;padding:12px 16px;cursor:pointer;">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+                '<span style="font-size:1.3rem;">\u2694\ufe0f</span>' +
+                '<div style="flex:1;"><div style="color:#22c55e;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">\u2694\ufe0f RAID BOSS DEFEATED!</div>' +
+                '<div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + (boss.name || 'Raid Boss') + ' has been conquered!</div></div>' +
+                '<span style="font-size:1rem;color:var(--text-muted);">\u203a</span>' +
+            '</div></div>';
+        return;
+    }
+
+    if (isPlaceholder) {
+        // Upcoming — countdown to start
+        var startDate = boss.startTime && boss.startTime.toDate ? boss.startTime.toDate() : new Date();
+        var dateStr = startDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        el.innerHTML = '<div onclick="if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){if(typeof window._questHubTab!==\'undefined\'){window._questHubTab=\'raid\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();}},300)}" style="background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(109,40,217,0.04));border:1px solid #8b5cf6;border-radius:12px;padding:12px 16px;cursor:pointer;">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+                '<span style="font-size:1.3rem;">\u2694\ufe0f</span>' +
+                '<div style="flex:1;"><div style="color:#a78bfa;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">UPCOMING RAID BOSS</div>' +
+                '<div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + (boss.name || 'Next Boss') + ' \u2014 ' + dateStr + '</div>' +
+                '<div id="raidHomeCountdown" style="color:#8b5cf6;font-size:0.75rem;font-weight:700;margin-top:2px;">Starts in ' + fmtCountdown() + '</div></div>' +
+                '<span style="font-size:1rem;color:var(--text-muted);">\u203a</span>' +
+            '</div></div>';
+    } else if (isActive) {
+        // Active — show progress + countdown
+        el.innerHTML = '<div onclick="if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){if(typeof window._questHubTab!==\'undefined\'){window._questHubTab=\'raid\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();}},300)}" style="background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(109,40,217,0.04));border:1px solid #8b5cf6;border-radius:12px;padding:12px 16px;cursor:pointer;">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+                '<span style="font-size:1.3rem;">\u2694\ufe0f</span>' +
+                '<div style="flex:1;"><div style="color:#a78bfa;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">\u2694\ufe0f WEEKLY RAID BOSS</div>' +
+                '<div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + (boss.name || 'Raid Boss') + '</div>' +
+                '<div style="background:rgba(139,92,246,0.15);border-radius:6px;height:8px;margin-top:6px;overflow:hidden;"><div style="height:100%;background:#8b5cf6;border-radius:6px;width:' + pct + '%;transition:width 0.5s;"></div></div>' +
+                '<div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="color:#8b5cf6;font-size:0.7rem;font-weight:700;">' + pct + '% (' + (boss.current||0) + '/' + boss.target + ')</span>' +
+                '<span id="raidHomeCountdown" style="color:var(--text-faint);font-size:0.7rem;font-weight:600;">\u23f1 ' + fmtCountdown() + '</span></div></div>' +
+                '<span style="font-size:1rem;color:var(--text-muted);">\u203a</span>' +
+            '</div></div>';
+    } else {
+        el.style.display = 'none';
+        return;
+    }
+
+    // Update countdown every second
+    window._raidHomeTimer = setInterval(function() {
+        var cdEl = document.getElementById('raidHomeCountdown');
+        if (!cdEl) { clearInterval(window._raidHomeTimer); return; }
+        var prefix = isPlaceholder ? 'Starts in ' : '\u23f1 ';
+        cdEl.textContent = prefix + fmtCountdown();
+    }, 1000);
+}
+
 // Track channel visits for challenge — use a MutationObserver as backup
 // so wrapping order doesn't matter
 (function() {
@@ -19048,6 +19154,7 @@ function initMobileUX() {
         showStreakBanner();
         showWelcomeBack();
         renderDailyChallenge();
+        if (typeof renderRaidBossHome === 'function') renderRaidBossHome();
         if (typeof renderProgressRings === 'function') renderProgressRings();
     }, 2500);
 }
@@ -23718,6 +23825,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof renderDailyQuote === 'function') renderDailyQuote();
         if (typeof loadCommunityStats === 'function') loadCommunityStats();
+        // Raid Boss home card
+        if (typeof renderRaidBossHome === 'function') renderRaidBossHome();
         // Show guide return button if user navigated from the guide
         if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
             showGuideReturnBtn();

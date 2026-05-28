@@ -2748,6 +2748,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof renderDailyQuote === 'function') renderDailyQuote();
         if (typeof loadCommunityStats === 'function') loadCommunityStats();
+        // Raid Boss home card
+        if (typeof renderRaidBossHome === 'function') renderRaidBossHome();
         // Show guide return button if user navigated from the guide
         if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
             showGuideReturnBtn();
