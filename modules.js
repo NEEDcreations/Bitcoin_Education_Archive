@@ -240,34 +240,38 @@ window.renderModules = function(container) {
         html += '</div>';
     });
 
-    // ── Certifications ──
+    // ── Flashcards (before Certifications) ──
+    var _fbs = 'font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;';
     html += '<div style="margin-top:8px;margin-bottom:16px;">' +
+        '<div style="font-size:0.8rem;font-weight:800;color:var(--heading);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📚 Flashcards</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+            '<button onclick="startFlashcards(\'Bitcoin Basics\')" style="' + _fbs + '">₿ Basics</button>' +
+            '<button onclick="startFlashcards(\'Security & Storage\')" style="' + _fbs + '">🔑 Security</button>' +
+            '<button onclick="startFlashcards(\'Lightning Network\')" style="' + _fbs + '">⚡ Lightning</button>' +
+            '<button onclick="startFlashcards(\'Mining & Energy\')" style="' + _fbs + '">⛏️ Mining</button>' +
+            '<button onclick="startFlashcards(\'Economics & Money\')" style="' + _fbs + '">💰 Economics</button>' +
+        '</div>' +
+        '<div id="trailsMoreFlash" style="display:none;flex-wrap:wrap;gap:6px;margin-top:6px;">' +
+            '<button onclick="startFlashcards(\'Privacy & Sovereignty\')" style="' + _fbs + '">🕵️ Privacy</button>' +
+            '<button onclick="startFlashcards(\'History & Culture\')" style="' + _fbs + '">📜 History</button>' +
+            '<button onclick="startFlashcards(\'Technical Deep Dives\')" style="' + _fbs + '">🔬 Tech</button>' +
+            '<button onclick="startFlashcards(\'Nodes & P2P\')" style="' + _fbs + '">📡 Nodes</button>' +
+            '<button onclick="startFlashcards(\'Wallets & Tools\')" style="' + _fbs + '">💼 Wallets</button>' +
+            '<button onclick="startFlashcards(\'Common Myths\')" style="' + _fbs + '">🚫 Myths</button>' +
+            '<button onclick="startFlashcards(\'Satoshi Nakamoto\')" style="' + _fbs + '">🦸 Satoshi</button>' +
+            '<button onclick="startFlashcards(\'Global Impact\')" style="' + _fbs + '">🌍 Global</button>' +
+        '</div>' +
+        '<button onclick="var m=document.getElementById(\'trailsMoreFlash\');m.style.display=m.style.display===\'none\'?\'flex\':\'none\';this.textContent=m.style.display===\'none\'?\'\u25bc More Topics\':\'\u25b2 Less\'" style="width:100%;margin-top:8px;background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.72rem;font-weight:700;font-family:inherit;padding:4px;">▼ More Topics</button>' +
+    '</div>';
+
+    // ── Certifications ──
+    html += '<div style="margin-bottom:16px;">' +
         '<div style="font-size:0.8rem;font-weight:800;color:var(--heading);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">🎓 Certifications</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px;">' +
             '<button onclick="if(typeof startScholarQuest===\'function\')startScholarQuest(\'properties\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #f7931a;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🎓</span><div><div style="font-weight:800;">Properties Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s core properties — 2,100 XP reward</div></div></button>' +
             '<button onclick="if(typeof startScholarQuest===\'function\')startScholarQuest(\'technical\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #3b82f6;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🛠️</span><div><div style="font-weight:800;">Technical Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s technical side — 2,100 XP reward</div></div></button>' +
         '</div>' +
         '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:8px;text-align:center;">Take certifications anytime — no trail completion required!</div>' +
-    '</div>';
-
-    // ── Flashcards ──
-    html += '<div style="margin-bottom:16px;">' +
-        '<div style="font-size:0.8rem;font-weight:800;color:var(--heading);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📚 Flashcards</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
-            '<button onclick="startFlashcards(\'Bitcoin Basics\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">₿ Basics</button>' +
-            '<button onclick="startFlashcards(\'Security & Storage\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">🔑 Security</button>' +
-            '<button onclick="startFlashcards(\'Lightning Network\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">⚡ Lightning</button>' +
-            '<button onclick="startFlashcards(\'Mining & Energy\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">⛏️ Mining</button>' +
-            '<button onclick="startFlashcards(\'Economics & Money\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">💰 Economics</button>' +
-            '<button onclick="startFlashcards(\'Privacy & Sovereignty\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">🕵️ Privacy</button>' +
-            '<button onclick="startFlashcards(\'History & Culture\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">📜 History</button>' +
-            '<button onclick="startFlashcards(\'Technical Deep Dives\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">🔬 Tech</button>' +
-            '<button onclick="startFlashcards(\'Nodes & P2P\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">📡 Nodes</button>' +
-            '<button onclick="startFlashcards(\'Wallets & Tools\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">💼 Wallets</button>' +
-            '<button onclick="startFlashcards(\'Common Myths\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">🚫 Myths</button>' +
-            '<button onclick="startFlashcards(\'Satoshi Nakamoto\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">🦸 Satoshi</button>' +
-            '<button onclick="startFlashcards(\'Global Impact\')" class="flash-btn" style="font-size:0.75rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:inherit;font-weight:600;">🌍 Global</button>' +
-        '</div>' +
     '</div>';
 
     // Footer tip
