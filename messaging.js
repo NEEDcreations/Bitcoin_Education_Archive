@@ -1158,9 +1158,9 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     // Update conversation metadata + add message
     // Try update first (existing convo), fall back to create (new convo)
     convoRef.update(convoUpdateData).catch(function(updateErr) {
-        // Document doesn't exist yet — create it with full participant data
-        if (updateErr.code === 'not-found' || updateErr.message.indexOf('NOT_FOUND') !== -1 || updateErr.message.indexOf('No document to update') !== -1) {
-            return convoRef.set(convoCreateData);
+        // Document doesn't exist yet or permission denied (user not in participants yet) — create/overwrite with full participant data
+        if (updateErr.code === 'not-found' || updateErr.code === 'permission-denied' || updateErr.message.indexOf('NOT_FOUND') !== -1 || updateErr.message.indexOf('No document to update') !== -1 || updateErr.message.indexOf('PERMISSION_DENIED') !== -1) {
+            return convoRef.set(convoCreateData, { merge: true });
         }
         throw updateErr;
     }).then(function() {
