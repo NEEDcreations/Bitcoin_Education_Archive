@@ -4171,12 +4171,23 @@ window.nachoQuizAnswer = function(btn, correct) {
         var btnBase = 'padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;';
         var btnLocked = btnBase + 'opacity:0.45;filter:grayscale(0.8);cursor:help;';
 
+        var _appTooltips = {
+            'Nacho Mode': 'Chat with our AI Bitcoin tutor',
+            'PVP Battle': '1v1 Bitcoin trivia battles',
+            'Pleb Talk': 'Community discussion board for Bitcoin topics',
+            'Lightning Mart': 'Buy and sell with Lightning sats',
+            'IRL Sync': 'Find or host local Bitcoin meetups',
+            'Bitcoin Beats': 'Community music player',
+            'Timechain TV': '21 channels of Bitcoin video content',
+            'Proof of Walk': 'Earn XP by walking — connect Strava'
+        };
         function appBtn(emoji, label, action, locked, lockMsg) {
-            if (locked) {
-                return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/[\\'"]/g, "") + '\')" style="' + btnLocked + '" class="app-menu-item">' +
+            var tip = _appTooltips[label] || label;
+if (locked) {
+                return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/[\\'"]/g, "") + '\')" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnLocked + '" class="app-menu-item">' +
                     '<span style="font-size:1.8rem;">' + emoji + '</span><span>🔒 ' + label + '</span></button>';
             }
-            return '<button onclick="' + action + ';toggleAppsMenu()" style="' + btnBase + '" class="app-menu-item">' +
+            return '<button onclick="' + action + ';toggleAppsMenu()" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnBase + '" class="app-menu-item">' +
                 '<span style="font-size:1.8rem;">' + emoji + '</span><span>' + label + '</span></button>';
         }
 
