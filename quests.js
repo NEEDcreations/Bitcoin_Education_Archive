@@ -1437,7 +1437,7 @@ window.showQuestHub = function() {
     var overlay = document.createElement('div');
     overlay.id = 'questHubOverlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;animation:nachoPop 0.25s ease;';
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); overlay.remove(); } };
 
     var modal = document.createElement('div');
     modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
@@ -1448,12 +1448,13 @@ window.showQuestHub = function() {
     header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
         '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div></div>' +
-        '<button onclick="document.getElementById(\'questHubOverlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
+        '<button onclick="window._cleanupRaidBoss();document.getElementById(\'questHubOverlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
         // Tabs
         '<div id="questHubTabs" style="display:flex;gap:8px;margin-bottom:16px;">' +
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
         '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
+        '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '</div>';
 
     var body = document.createElement('div');
@@ -1471,21 +1472,26 @@ window.showQuestHub = function() {
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
     // Update active tab styles
-    ['Quiz', 'Trivia', 'Poll'].forEach(function(t) {
+    ['Quiz', 'Trivia', 'Poll', 'Raid'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
         if (!btn) return;
         var isActive = tab === t.toLowerCase();
-        btn.style.background = isActive ? 'var(--accent)' : 'none';
+        var raidActive = t === 'Raid' && isActive;
+        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : (isActive ? 'var(--accent)' : 'none');
         btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
-        btn.style.borderColor = isActive ? 'var(--accent)' : 'var(--border)';
+        btn.style.borderColor = raidActive ? '#8b5cf6' : (isActive ? 'var(--accent)' : 'var(--border)');
     });
 
     var body = document.getElementById('questHubBody');
     if (!body) return;
 
+    // Cleanup raid listeners when switching away
+    if (tab !== 'raid') window._cleanupRaidBoss();
+
     if (tab === 'quiz') _renderQuizTab(body);
     else if (tab === 'trivia') _renderTriviaTab(body);
     else if (tab === 'poll') _renderPollTab(body);
+    else if (tab === 'raid') _renderRaidTab(body);
 }
 
 // ── QUIZ TAB (existing system) ──
@@ -1786,6 +1792,277 @@ window.pollVote = function(chosenIdx) {
     }
 
     if (typeof showToast === 'function') showToast('📊 Vote recorded! +50 XP', 3000);
+};
+
+// ============================================================
+// RAID BOSS SYSTEM — Real-time collaborative boss fights
+// ============================================================
+
+// Cleanup state for raid boss listeners/intervals
+window._raidBossUnsub = null;
+window._raidParticipantsUnsub = null;
+window._raidTimerInterval = null;
+
+window._cleanupRaidBoss = function() {
+    if (window._raidBossUnsub) { window._raidBossUnsub(); window._raidBossUnsub = null; }
+    if (window._raidParticipantsUnsub) { window._raidParticipantsUnsub(); window._raidParticipantsUnsub = null; }
+    if (window._raidTimerInterval) { clearInterval(window._raidTimerInterval); window._raidTimerInterval = null; }
+};
+
+function _renderRaidTab(body) {
+    body.innerHTML = '<div id="raidBossContent" style="text-align:center;color:var(--text-muted);padding:20px;">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">⏳</div>Loading Raid Boss...</div>';
+    window._loadRaidBoss();
+}
+
+window._loadRaidBoss = function() {
+    // Cleanup previous listeners
+    window._cleanupRaidBoss();
+
+    var container = document.getElementById('raidBossContent');
+    if (!container) return;
+
+    if (typeof db === 'undefined') {
+        container.innerHTML = '<div style="padding:40px 0;color:var(--text-muted);">⚠️ Database not available</div>';
+        return;
+    }
+
+    // Listen to the latest raid boss in real-time
+    window._raidBossUnsub = db.collection('raid_bosses')
+        .orderBy('startTime', 'desc')
+        .limit(1)
+        .onSnapshot(function(snapshot) {
+            if (snapshot.empty) {
+                container.innerHTML = _raidEmptyState();
+                return;
+            }
+            var doc = snapshot.docs[0];
+            var boss = doc.data();
+            boss._id = doc.id;
+            window._currentRaidBoss = boss;
+            _renderRaidBossCard(container, boss);
+        }, function(err) {
+            console.error('[RAID] Boss listener error:', err);
+            container.innerHTML = '<div style="padding:40px 0;color:var(--text-muted);">⚠️ Failed to load raid boss</div>';
+        });
+};
+
+function _raidEmptyState() {
+    return '<div style="padding:30px 0;">' +
+        '<div style="font-size:3rem;margin-bottom:12px;">⚔️</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Raid Boss</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;">No active raid boss right now.</div>' +
+        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:8px;">Check back soon for community boss fights!</div>' +
+    '</div>';
+}
+
+function _renderRaidBossCard(container, boss) {
+    var now = Date.now();
+    var startMs = boss.startTime ? (boss.startTime.toMillis ? boss.startTime.toMillis() : boss.startTime) : 0;
+    var endMs = boss.endTime ? (boss.endTime.toMillis ? boss.endTime.toMillis() : boss.endTime) : 0;
+
+    // Case 1: Placeholder / upcoming boss
+    if (boss.placeholder) {
+        var startDate = startMs ? new Date(startMs) : null;
+        var dateStr = startDate ? startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Soon';
+        container.innerHTML = '<div style="padding:20px 0;">' +
+            '<div style="font-size:3rem;margin-bottom:12px;">⚔️</div>' +
+            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Upcoming Raid Boss!</div>' +
+            '<div style="color:#8b5cf6;font-size:0.95rem;font-weight:700;margin-bottom:12px;">' + (typeof escapeHtml === 'function' ? escapeHtml(dateStr) : dateStr) + '</div>' +
+            '<div id="raidCountdownPlaceholder" style="font-size:1.5rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;"></div>' +
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:12px;">Get ready to team up and take it down!</div>' +
+        '</div>';
+        _startRaidCountdown('raidCountdownPlaceholder', startMs);
+        return;
+    }
+
+    // Case 2: Defeated
+    if (boss.defeated) {
+        var winners = boss.winners || [];
+        var winnersHtml = '';
+        if (winners.length > 0) {
+            winnersHtml = '<div style="margin-top:16px;">' +
+                '<div style="font-size:0.75rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">🏆 Top Contributors</div>';
+            for (var w = 0; w < Math.min(winners.length, 5); w++) {
+                var name = typeof escapeHtml === 'function' ? escapeHtml(winners[w]) : winners[w];
+                winnersHtml += '<div style="padding:6px 12px;background:rgba(139,92,246,0.1);border-radius:8px;color:#8b5cf6;font-weight:700;font-size:0.82rem;margin-bottom:4px;">' +
+                    (w === 0 ? '👑 ' : '') + name + '</div>';
+            }
+            winnersHtml += '</div>';
+        }
+        container.innerHTML = '<div style="padding:20px 0;">' +
+            '<div style="font-size:3rem;margin-bottom:8px;">💀</div>' +
+            '<div style="padding:12px 24px;background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(34,197,94,0.05));border:2px solid #22c55e;border-radius:16px;margin-bottom:16px;">' +
+                '<div style="font-size:1.3rem;font-weight:900;color:#22c55e;letter-spacing:2px;">DEFEATED!</div>' +
+            '</div>' +
+            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss')) + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '')) + '</div>' +
+            winnersHtml +
+        '</div>';
+        return;
+    }
+
+    // Case 3: Active boss
+    var current = boss.currentHP !== undefined ? boss.currentHP : 0;
+    var target = boss.targetHP || 1;
+    var pct = Math.min(100, Math.round((current / target) * 100));
+    var bossName = typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss');
+    var bossDesc = typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '');
+    var bossEmoji = boss.emoji || '👹';
+
+    container.innerHTML = '<div style="padding:12px 0;">' +
+        // Boss header
+        '<div style="margin-bottom:16px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">' + bossEmoji + '</div>' +
+            '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + bossName + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;">' + bossDesc + '</div>' +
+        '</div>' +
+        // Progress bar
+        '<div style="margin-bottom:16px;">' +
+            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+                '<span style="font-size:0.72rem;font-weight:800;color:#8b5cf6;text-transform:uppercase;">Damage Dealt</span>' +
+                '<span style="font-size:0.72rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + current.toLocaleString() + ' / ' + target.toLocaleString() + '</span>' +
+            '</div>' +
+            '<div style="height:20px;background:rgba(139,92,246,0.1);border-radius:10px;overflow:hidden;border:1px solid rgba(139,92,246,0.2);">' +
+                '<div id="raidProgressBar" style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#8b5cf6,#a78bfa);border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
+                    '<div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:raidShimmer 2s infinite;"></div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="text-align:center;margin-top:4px;font-size:0.75rem;font-weight:800;color:#8b5cf6;">' + pct + '%</div>' +
+        '</div>' +
+        // Timer
+        '<div style="margin-bottom:16px;padding:12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:12px;">' +
+            '<div style="font-size:0.68rem;font-weight:800;color:#ef4444;text-transform:uppercase;margin-bottom:4px;">⏰ Time Remaining</div>' +
+            '<div id="raidTimer" style="font-size:1.3rem;font-weight:900;color:var(--heading);font-variant-numeric:tabular-nums;"></div>' +
+        '</div>' +
+        // Contribute button
+        '<button id="raidContributeBtn" onclick="window._contributeRaid()" style="width:100%;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;margin-bottom:16px;">⚔️ Attack Boss</button>' +
+        // Participants list
+        '<div>' +
+            '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">🏆 Top Raiders</div>' +
+            '<div id="raidParticipants" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;">Loading...</div>' +
+        '</div>' +
+    '</div>';
+
+    // Add shimmer animation
+    if (!document.getElementById('raidShimmerStyle')) {
+        var style = document.createElement('style');
+        style.id = 'raidShimmerStyle';
+        style.textContent = '@keyframes raidShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}';
+        document.head.appendChild(style);
+    }
+
+    // Start countdown timer
+    _startRaidCountdown('raidTimer', endMs);
+
+    // Listen to participants
+    _listenRaidParticipants(boss._id);
+}
+
+function _startRaidCountdown(elementId, targetMs) {
+    if (window._raidTimerInterval) clearInterval(window._raidTimerInterval);
+
+    function update() {
+        var el = document.getElementById(elementId);
+        if (!el) { clearInterval(window._raidTimerInterval); window._raidTimerInterval = null; return; }
+        var remaining = Math.max(0, targetMs - Date.now());
+        if (remaining <= 0) {
+            el.textContent = 'Time\'s up!';
+            clearInterval(window._raidTimerInterval);
+            window._raidTimerInterval = null;
+            return;
+        }
+        var h = Math.floor(remaining / 3600000);
+        var m = Math.floor((remaining % 3600000) / 60000);
+        var s = Math.floor((remaining % 60000) / 1000);
+        el.textContent = (h > 0 ? h + 'h ' : '') + (m < 10 ? '0' : '') + m + 'm ' + (s < 10 ? '0' : '') + s + 's';
+    }
+    update();
+    window._raidTimerInterval = setInterval(update, 1000);
+}
+
+function _listenRaidParticipants(bossId) {
+    if (window._raidParticipantsUnsub) { window._raidParticipantsUnsub(); window._raidParticipantsUnsub = null; }
+    if (typeof db === 'undefined') return;
+
+    window._raidParticipantsUnsub = db.collection('raid_bosses').doc(bossId)
+        .collection('participants')
+        .orderBy('contributed', 'desc')
+        .limit(20)
+        .onSnapshot(function(snapshot) {
+            var el = document.getElementById('raidParticipants');
+            if (!el) return;
+            if (snapshot.empty) {
+                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No raiders yet — be the first! ⚔️</div>';
+                return;
+            }
+            var html = '';
+            var rank = 0;
+            snapshot.docs.forEach(function(doc) {
+                rank++;
+                var p = doc.data();
+                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.displayName || p.username || 'Anonymous') : (p.displayName || p.username || 'Anonymous');
+                var contributed = p.contributed || 0;
+                var rankIcon = rank === 1 ? '👑' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : rank + '.'));
+                var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
+                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
+                        '<span style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : 'var(--text)') + ';">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                    '</div>' +
+                    '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
+                '</div>';
+            });
+            el.innerHTML = html;
+        }, function(err) {
+            console.error('[RAID] Participants listener error:', err);
+        });
+}
+
+window._contributeRaid = function() {
+    var boss = window._currentRaidBoss;
+    if (!boss || !boss._id) {
+        if (typeof showToast === 'function') showToast('⚠️ No active raid boss', 2000);
+        return;
+    }
+
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('⚠️ Sign in to attack the boss!', 2500);
+        return;
+    }
+
+    // Disable button while processing
+    var btn = document.getElementById('raidContributeBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⚔️ Attacking...';
+        btn.style.opacity = '0.6';
+    }
+
+    var contributeRaid = firebase.functions().httpsCallable('contributeRaid');
+    contributeRaid({ bossId: boss._id }).then(function(result) {
+        var data = result.data || {};
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '⚔️ Attack Boss';
+            btn.style.opacity = '1';
+        }
+        if (data.damage) {
+            if (typeof showToast === 'function') showToast('⚔️ Dealt ' + data.damage + ' damage!' + (data.xp ? ' +' + data.xp + ' XP' : ''), 2500);
+        }
+        if (data.defeated) {
+            if (typeof showToast === 'function') showToast('🎉 BOSS DEFEATED! Great work!', 4000);
+        }
+    }).catch(function(err) {
+        console.error('[RAID] Contribute error:', err);
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '⚔️ Attack Boss';
+            btn.style.opacity = '1';
+        }
+        var msg = (err && err.message) ? err.message : 'Attack failed';
+        if (typeof showToast === 'function') showToast('⚠️ ' + msg, 2500);
+    });
 };
 
 // ============================================================

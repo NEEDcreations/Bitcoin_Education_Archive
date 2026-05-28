@@ -1024,6 +1024,25 @@ service cloud.firestore {
         && request.resource.data.votes.size() == 4;
     }
 
+    // ===== RAID BOSS =====
+    // Boss documents — read-only for all, server (admin SDK) writes
+    match /raid_bosses/{bossId} {
+      allow read: if true;
+      allow create, update, delete: if false; // Admin SDK bypasses rules
+
+      // Participants — read-only for all, server writes
+      match /participants/{uid} {
+        allow read: if true;
+        allow write: if false; // Admin SDK bypasses rules
+      }
+
+      // Winners — read-only for all
+      match /winners/{winnerId} {
+        allow read: if true;
+        allow write: if false; // Admin SDK bypasses rules
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

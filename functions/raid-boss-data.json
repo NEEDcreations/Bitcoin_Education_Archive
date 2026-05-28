@@ -1,0 +1,17 @@
+[
+  {"name":"Channel-Crawler","description":"35 different users must each visit at least 5 learning topics.","metric":"uniqueUsers5Topics","target":35},
+  {"name":"Quiz-Crusader","description":"The community must complete 200 quiz quests.","metric":"quizCompletions","target":200},
+  {"name":"TV-Titan","description":"The community must watch 40 hours of Timechain TV.","metric":"watchMinutes","target":2400},
+  {"name":"Beats-Baron","description":"The community must listen to 30 hours of Bitcoin Beats.","metric":"beatsMinutes","target":1800},
+  {"name":"Flash-Flash","description":"Complete 150 flashcard sets across the community.","metric":"flashcardCompletions","target":150},
+  {"name":"XP-Hoarder","description":"The community must earn 75,000 XP collectively.","metric":"totalXP","target":75000},
+  {"name":"Poll-Patroller","description":"Cast 100 poll votes in the Quest Hub.","metric":"pollVotes","target":100},
+  {"name":"Chat-Charger","description":"Send 500 messages in Global Chat.","metric":"chatMessages","target":500},
+  {"name":"Badge-Builder","description":"25 distinct badges must be earned across the community.","metric":"badgesEarned","target":25},
+  {"name":"Streak-Sage","description":"10 users must maintain a 7-day daily visit streak.","metric":"streakUsers","target":10},
+  {"name":"Topic-Explorer","description":"Every learning topic must be visited at least once (collectively).","metric":"uniqueTopicsVisited","target":50},
+  {"name":"Lightning-Lancer","description":"50 Lightning tips sent across the community.","metric":"tipsSent","target":50},
+  {"name":"Forum-Forge","description":"30 new forum posts created.","metric":"forumPosts","target":30},
+  {"name":"Trivia-Tactician","description":"250 correct trivia answers across the community.","metric":"triviaCorrect","target":250},
+  {"name":"Content-Conqueror","description":"The community must read 500 total learning topics.","metric":"totalTopicReads","target":500}
+]

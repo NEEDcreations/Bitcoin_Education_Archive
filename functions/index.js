@@ -4188,3 +4188,9 @@ exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
         res.json({success: true, uid});
     } catch(e) { res.status(500).json({error:e.toString()});}
 });
+
+// ===== RAID BOSS =====
+const { scheduleRaidBoss } = require('./src/scheduleRaidBoss');
+const { contributeRaid } = require('./src/contributeRaid');
+exports.scheduleRaidBoss = scheduleRaidBoss;
+exports.contributeRaid = contributeRaid;
