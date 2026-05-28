@@ -498,6 +498,36 @@ let questCount = 0;
 const QUEST_TRIGGERS = [5, 15, 25, 40, 60, 80, 100];
 let currentQuest = null;
 let completedQuests = new Set();
+let weeklyCompleted = [];
+
+// Helper to get ISO week key (e.g., "2026-W17")
+function _getCurrentWeekKey(){
+    var now = new Date();
+    var onejan = new Date(now.getFullYear(),0,1);
+    var dayOfYear = Math.floor((now - onejan) / 86400000) + 1;
+    var week = Math.ceil((dayOfYear + onejan.getDay())/7);
+    return now.getFullYear() + '-W' + week;
+}
+
+function _loadWeeklyCompleted(){
+    var wk = safeJSON('btc_quest_week', {});
+    var cur = _getCurrentWeekKey();
+    if (wk.week !== cur) {
+        wk = {week: cur, completed: []};
+        localStorage.setItem('btc_quest_week', JSON.stringify(wk));
+    }
+    weeklyCompleted = wk.completed || [];
+}
+
+function _saveWeeklyCompleted(topicId){
+    var wk = safeJSON('btc_quest_week', {});
+    var cur = _getCurrentWeekKey();
+    if (wk.week !== cur) wk = {week: cur, completed: []};
+    if (!wk.completed) wk.completed = [];
+    if (wk.completed.indexOf(topicId)===-1) wk.completed.push(topicId);
+    localStorage.setItem('btc_quest_week', JSON.stringify(wk));
+    weeklyCompleted = wk.completed;
+}
 
 function initQuests() {
     // Load previously visited channels from localStorage
@@ -508,6 +538,7 @@ function initQuests() {
 
     if (typeof auth !== 'undefined' && auth.currentUser) {
         loadCompletedQuests(auth.currentUser.uid);
+        _loadWeeklyCompleted();
     } else {
         setTimeout(initQuests, 2000);
         return;
@@ -1075,7 +1106,7 @@ function _showQuestTopicPicker() {
         if (!qs || qs.length < 3) continue; // Need at least 3 questions
         var label = key.replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
         var emoji = topicEmojis[key] || '📖';
-        var done = completedQuests.has('quest_' + key) || completedQuests.has(key);
+        var done = completedQuests.has('quest_' + key) || completedQuests.has(key) || weeklyCompleted.indexOf(key) !== -1;
         topics.push({ key: key, label: label, emoji: emoji, count: qs.length, done: done });
     }
 
@@ -1106,8 +1137,11 @@ function _showQuestTopicPicker() {
     // Random option
     html += '<button onclick="_startQuestTopic(null)" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(247,147,26,0.03));border:1px solid var(--accent);border-radius:12px;color:var(--accent);font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:12px;transition:0.2s;">🎲 Random Topic</button>';
 
+    // Search field
+    html += '<input id="questSearch" type="text" placeholder="Search topics…" style="width:100%;padding:8px;margin-bottom:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:0.85rem;" />';
+
     // Topic grid
-    html += '<div style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px;">';
+    html += '<div id="questTopicList" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px;">'
     topics.forEach(function(t) {
         var bg = t.done ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)';
         var border = t.done ? 'rgba(34,197,94,0.2)' : 'var(--border)';
@@ -1124,6 +1158,26 @@ function _showQuestTopicPicker() {
     html += '<button onclick="closeQuest()" style="width:100%;margin-top:12px;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;">← Back</button>';
 
     box.innerHTML = html;
+    // Add data attributes and search functionality
+    setTimeout(function(){
+        var btns = document.querySelectorAll('#questTopicList button');
+        btns.forEach(function(b){
+            var onclick = b.getAttribute('onclick')||'';
+            var m = onclick.match(/_startQuestTopic\('([^']+)'\)/);
+            if(m) b.dataset.key = m[1];
+            b.dataset.label = b.textContent.trim();
+        });
+        var search = document.getElementById('questSearch');
+        if(search){
+            search.addEventListener('input', function(){
+                var val = this.value.toLowerCase();
+                btns.forEach(function(b){
+                    var lbl = b.dataset.label.toLowerCase();
+                    b.style.display = lbl.includes(val) ? '' : 'none';
+                });
+            });
+        }
+    },0);
     modal.classList.add('open');
 }
 
@@ -1138,7 +1192,7 @@ window._startQuestTopic = function(topicKey) {
         for (var key in QUESTION_BANK) {
             if (key === '_general') continue;
             if (QUESTION_BANK[key].length < 3) continue;
-            if (!completedQuests.has('quest_' + key) && !completedQuests.has(key)) incomplete.push(key);
+            if (!completedQuests.has('quest_' + key) && !completedQuests.has(key) && weeklyCompleted.indexOf(key) === -1) incomplete.push(key);
         }
         if (incomplete.length > 0) {
             topicKey = incomplete[Math.floor(Math.random() * incomplete.length)];
