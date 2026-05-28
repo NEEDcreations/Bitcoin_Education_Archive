@@ -3677,6 +3677,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         } catch(e) {}
 
+        // Raid Boss: track channel/topic visit
+        if (typeof window._raidContribute === 'function') window._raidContribute('channelVisit', 1, id);
+
         // --- SENTIMENT RATING ---
         if (d.msgs && d.msgs.length > 0) {
             const sentimentHtml = '<div id="sentiment-' + id + '" style="margin:40px 20px;padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +

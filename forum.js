@@ -650,6 +650,8 @@ window.forumSubmitPost = async function() {
             forumPosts: firebase.firestore.FieldValue.increment(1)
         }).catch(function(e) { console.error('[forum] Error:', e); });
         if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumPosts = (currentUser.forumPosts || 0) + 1;
+        // Raid Boss: forum post
+        if (typeof window._raidOnForumPost === 'function') window._raidOnForumPost();
         forumBack();
     } catch(e) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting. Try again.</span>';

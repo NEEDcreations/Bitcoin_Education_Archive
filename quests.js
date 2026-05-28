@@ -893,6 +893,9 @@ async function submitQuest() {
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
         // Log to local XP history for the Points notification tab
         if (typeof notifySelfPoints === 'function') notifySelfPoints(pts, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
+        // Raid Boss: quiz completion
+        if (typeof window._raidOnQuizComplete === 'function') window._raidOnQuizComplete();
+        if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(pts);
         var todayQ = new Date().toISOString().split('T')[0];
         var qLog = safeJSON('btc_quest_daily', {});
         if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
@@ -1615,6 +1618,9 @@ window.triviaAnswer = function(chosenIdx) {
 
     // Award XP
     if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt');
+    // Raid Boss: trivia + XP
+    if (isCorrect && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
+    if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(xp);
 
     // Also sync to Firestore for signed-in users
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
@@ -1752,6 +1758,9 @@ window.pollVote = function(chosenIdx) {
 
     // Award XP
     if (typeof awardPoints === 'function') awardPoints(50, '📊 Poll Quest vote');
+    // Raid Boss: poll vote + XP
+    if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
+    if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(50);
 
     // Record vote in Firestore
     var pollId = p.id || ('poll_day_' + todayKey);
@@ -2098,3 +2107,63 @@ if (typeof window._questHubRouteAdded === 'undefined') {
         setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 500);
     }
 }
+
+// =============================================
+// Raid Boss — Auto-contribution hooks
+// Fire-and-forget calls to contributeRaid Cloud Function
+// =============================================
+window._raidContribute = function(metric, amount, detail) {
+    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) return;
+    try {
+        var fn = firebase.functions().httpsCallable('contributeRaid');
+        fn({ metric: metric, amount: amount || 1, detail: detail || '' }).catch(function() {});
+    } catch(e) { /* silent */ }
+};
+
+// Hook: channel visit (called from go() in app.js after navigating to a topic)
+// Usage: window._raidContribute('channelVisit', 1, channelId)
+
+// Hook: quiz quest completion
+window._raidOnQuizComplete = function() {
+    window._raidContribute('quizCompleted', 1);
+};
+
+// Hook: trivia correct answer
+window._raidOnTriviaCorrect = function() {
+    window._raidContribute('triviaCorrect', 1);
+};
+
+// Hook: poll vote
+window._raidOnPollVote = function() {
+    window._raidContribute('pollVote', 1);
+};
+
+// Hook: flashcard set completion
+window._raidOnFlashcardComplete = function() {
+    window._raidContribute('flashcardCompleted', 1);
+};
+
+// Hook: XP earned (amount = XP gained)
+window._raidOnXPEarned = function(amount) {
+    window._raidContribute('xpEarned', amount || 1);
+};
+
+// Hook: chat message sent
+window._raidOnChatMessage = function() {
+    window._raidContribute('chatMessage', 1);
+};
+
+// Hook: badge earned
+window._raidOnBadgeEarned = function() {
+    window._raidContribute('badgeEarned', 1);
+};
+
+// Hook: tip sent
+window._raidOnTipSent = function() {
+    window._raidContribute('tipSent', 1);
+};
+
+// Hook: forum post created
+window._raidOnForumPost = function() {
+    window._raidContribute('forumPost', 1);
+};

@@ -814,6 +814,8 @@ window.sendGlobalChat = function() {
         try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_chat_sent_' + _t, 'true'); } catch(e) {}
         // Increment global chat counter
         db.collection('stats').doc('global').set({ chatMessages: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {});
+        // Raid Boss: chat message
+        if (typeof window._raidOnChatMessage === 'function') window._raidOnChatMessage();
         // Bridge to Telegram
         bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '' });
     }).catch(function(err) {
