@@ -3,12 +3,12 @@
  * Bitcoin Education Archive — TCTV Channel 0
  *
  * Two cron schedules:
- *   every 15 min — live stream detection (Cache API only, zero KV)
- *   daily 22:00 UTC (6 PM EST) — new upload sync (KV for pending queue)
+ *   Monday night window — live stream detection (Cache API only, zero KV)
+ *   Weekly Friday 7 PM EST (Sat 00:00 UTC) — new upload sync (KV for pending queue)
  *
  * KV Budget (free tier: 1,000 writes/day, 100,000 reads/day):
  *   Live detection: 0 KV ops — uses CF Cache API exclusively
- *   Daily upload sync: ~4 KV ops (2 reads + 2 writes)
+ *   Weekly upload sync: ~4 KV ops (2 reads + 2 writes)
  *   /live client polls: 0 KV ops — served from edge cache
  *   Target: <10 KV writes/day, <50 KV reads/day
  *
@@ -215,7 +215,9 @@ async function handleCron(event, env) {
   // Determine which cron fired based on time
   const now = new Date(event.scheduledTime);
   const hour = now.getUTCHours();
-  const isDailySync = (hour === 22);
+  const dayOfWeek = now.getUTCDay(); // 0=Sun, 6=Sat
+  // Weekly upload sync: Saturday 00:00 UTC = Friday 7 PM EST
+  const isWeeklySync = (hour === 0 && dayOfWeek === 6);
   const isLiveWindow = _isMonLiveWindow(now.toISOString());
 
   // Live check only during Monday night window (PU only streams Mon 8 PM EDT)
@@ -227,8 +229,8 @@ async function handleCron(event, env) {
     }
   }
 
-  // Upload check only on the daily sync run
-  if (isDailySync && kv) {
+  // Upload check only on the weekly Friday sync run
+  if (isWeeklySync && kv) {
     try {
       results.uploads = await checkNewUploads(apiKey, kv);
     } catch (e) {
