@@ -149,7 +149,7 @@
         var clickAttr = onclick ? ' onclick="' + onclick + '"' : '';
         return '<div' + clickAttr + ' style="padding:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:0.2s;">' +
             '<div style="width:42px;height:42px;border-radius:12px;background:' + iconBg + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + icon + '</div>' +
-            '<div style="flex:1;min-width:0;"><h4 style="font-size:0.88rem;font-weight:700;color:#fff;margin:0 0 2px;">' + title + '</h4><p style="font-size:0.75rem;color:#94a3b8;line-height:1.45;margin:0;">' + desc + '</p>' + tag + '</div>' +
+            '<div style="flex:1;min-width:0;"><div style="font-size:0.88rem;font-weight:700;color:#fff;margin:0 0 2px;display:block;">' + title + '</div><div style="font-size:0.75rem;color:#94a3b8;line-height:1.45;margin:0;display:block;">' + desc + '</div>' + tag + '</div>' +
             '<div style="color:#4b5563;font-size:0.8rem;margin-top:8px;flex-shrink:0;">›</div>' +
         '</div>';
     }

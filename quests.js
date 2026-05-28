@@ -1981,10 +1981,11 @@ function _startRaidCountdown(elementId, targetMs) {
             window._raidTimerInterval = null;
             return;
         }
-        var h = Math.floor(remaining / 3600000);
+        var d = Math.floor(remaining / 86400000);
+        var h = Math.floor((remaining % 86400000) / 3600000);
         var m = Math.floor((remaining % 3600000) / 60000);
         var s = Math.floor((remaining % 60000) / 1000);
-        el.textContent = (h > 0 ? h + 'h ' : '') + (m < 10 ? '0' : '') + m + 'm ' + (s < 10 ? '0' : '') + s + 's';
+        el.textContent = (d > 0 ? d + 'd ' : '') + (h > 0 ? h + 'h ' : '') + (m < 10 ? '0' : '') + m + 'm ' + (s < 10 ? '0' : '') + s + 's';
     }
     update();
     window._raidTimerInterval = setInterval(update, 1000);
