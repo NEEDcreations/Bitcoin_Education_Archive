@@ -461,19 +461,19 @@ const NACHO_KB = [
 
     // === SITE SPECIFIC ===
     { keys: ['how to use','how does this site','help','navigate','where do i start','tutorial','guide me'],
-      answer: "Start with <strong>Nacho's Trails</strong> — guided learning modules that walk you through Bitcoin step by step! 🦌🗺️ The Meadow (intro), The Mountain (intermediate), and The Summit (advanced). Each trail has curated topics to read and a 25-question exam at the end. Or browse the sidebar to explore topics by category. Earn points, take quests, collect badges!",
+      answer: "Start with <strong>Nacho's Trails</strong> — guided learning modules that walk you through Bitcoin step by step! 🦌🗺️ The Meadow (intro), The Mountain (intermediate), and The Summit (advanced). Each trail has curated topics to read and a 25-question exam at the end. Or browse the sidebar to explore topics by category. Earn XP, take quests, collect badges!",
       siteAction: "go('trails')", siteLabel: '🦌 Open Nacho\'s Trails', isSiteNav: true },
 
     { keys: ['trails','trail','modules','module','learning path','learning module','guided learning','meadow','mountain','summit','nacho trail','nachos trail'],
-      answer: "Nacho's Trails are guided learning modules, {name}! 🦌🗺️<br><br>🌿 <strong>The Meadow</strong> — Start here! 7 topics covering Bitcoin basics<br>⛰️ <strong>The Mountain</strong> — 8 topics going deeper into mining, Lightning, custody<br>🏔️ <strong>The Summit</strong> — 8 topics for advanced subjects like cryptography and maximalism<br><br>Read every topic in a trail, then pass the 25-question exam (80%) to earn badges, points, and tickets! Each trail unlocks the next. 🧡",
+      answer: "Nacho's Trails are guided learning modules, {name}! 🦌🗺️<br><br>🌿 <strong>The Meadow</strong> — Start here! 7 topics covering Bitcoin basics<br>⛰️ <strong>The Mountain</strong> — 8 topics going deeper into mining, Lightning, custody<br>🏔️ <strong>The Summit</strong> — 8 topics for advanced subjects like cryptography and maximalism<br><br>Read every topic in a trail, then pass the 25-question exam (80%) to earn badges, XP, and tickets! Each trail unlocks the next. 🧡",
       siteAction: "go('trails')", siteLabel: '🗺️ Start a Trail', isSiteNav: true },
 
     { keys: ['quest','quests','test','quiz','certification','exam','scholar'],
-      answer: "Try <strong>Nacho's Trails</strong> for guided learning modules with exams! 🦌🗺️ Or hit 'Start a Quest' in the sidebar for quick knowledge tests. The Bitcoin Scholar Certification is the ultimate challenge — pass it for the 🎓 badge + 300 points!",
+      answer: "Try <strong>Nacho's Trails</strong> for guided learning modules with exams! 🦌🗺️ Or hit 'Start a Quest' in the sidebar for quick knowledge tests. The Bitcoin Scholar Certification is the ultimate challenge — pass it for the 🎓 badge + 300 XP!",
       siteAction: "go('trails')", siteLabel: '🗺️ Open Trails', isSiteNav: true },
 
-    { keys: ['points','ranking','level','rank','how to earn','earn points','leaderboard'],
-      answer: "Earn points by: visiting daily (+5), opening new channels (+10), reading for 30sec (+15), quest bonuses, badges (25-1000), and Orange Tickets (5 pts each)! Check the leaderboard!",
+    { keys: ['xp','ranking','level','rank','how to earn','earn xp','earn points','leaderboard'],
+      answer: "Earn XP by: visiting daily (+5), opening new channels (+10), reading for 30sec (+15), quest bonuses, badges (25-1000), and Orange Tickets (5 XP each)! Check the leaderboard!",
       channel: null, channelName: null },
 
     { keys: ['ticket','tickets','orange ticket','giveaway','referral','refer','sats giveaway'],
@@ -481,7 +481,7 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     { keys: ['badge','badges','hidden badge','achievements','unlock'],
-      answer: "There are 9 hidden badges worth 25-1,000 points each! I can't tell you exactly how to get them... but explore the site, interact with me, take quests, and collect tickets! 🏅",
+      answer: "There are 9 hidden badges worth 25-1,000 XP each! I can't tell you exactly how to get them... but explore the site, interact with me, take quests, and collect tickets! 🏅",
       channel: null, channelName: null },
 
     // === MISC ===
@@ -491,7 +491,7 @@ const NACHO_KB = [
 
     // === SITE FEATURES ===
     { keys: ['dm','direct message','message','inbox','where to message','how to message','dm someone','message someone','private message','chat'],
-      answer: "Tap any user on the leaderboard to see their profile, then hit 💬 Message! Your inbox is in the DMs tab at the bottom. You need 50 points and a 24-hour-old account to send DMs (keeps scammers out). 🛡️",
+      answer: "Tap any user on the leaderboard to see their profile, then hit 💬 Message! Your inbox is in the DMs tab at the bottom. You need 50 XP and a 24-hour-old account to send DMs (keeps scammers out). 🛡️",
       channel: null, channelName: null },
     { keys: ['pvp','battle','fight','duel','versus','arena','trivia battle','bitcoin battle','1v1','pvppvp'],
       answer: "PVP Battle lets you challenge other players to real-time Bitcoin trivia duels! Match up, answer fast, and climb the PVP leaderboard. ⚔️",
@@ -2946,7 +2946,7 @@ function matchSiteNavigation(input) {
           answer: "Welcome! Here's what you can do: 📚 Read 146+ Bitcoin topics, ⚡ Take quests & earn certifications, 🗣️ PlebTalk (forum + articles), ⚡ LightningMart, 🎸 Bitcoin Beats, 🤝 IRL Sync meetups, ⚔️ PVP trivia battles, 💬 DMs, ⚡ Lightning tipping, 📝 Write articles, 📚 Flashcards, 🎓 Scholar Certifications, 🔔 Notifications when people interact with your content — and of course, talk to me! 🦌",
           action: "goHome()", label: "🏠 Explore the Archive" },
         { patterns: /where.*(dm|direct.*message|message|inbox|chat.*someone)|how.*(message|dm|send.*message|contact)|dm\b|direct message|inbox|message.*user|message.*someone/,
-          answer: "Tap any user on the leaderboard to see their profile, then hit 💬 Message! Your inbox is in the DMs tab at the bottom. You need 50 points and a 24-hour-old account to send DMs (keeps scammers out). You can also ⚡ tip users from their profile if they have a Lightning Address! 🛡️",
+          answer: "Tap any user on the leaderboard to see their profile, then hit 💬 Message! Your inbox is in the DMs tab at the bottom. You need 50 XP and a 24-hour-old account to send DMs (keeps scammers out). You can also ⚡ tip users from their profile if they have a Lightning Address! 🛡️",
           action: "showInbox()", label: "💬 Open Messages" },
         { patterns: /where.*(pvp|battle|fight|duel|versus|arena)|how.*(pvp|battle|fight|duel)|pvp|trivia.*battle|bitcoin.*battle|1v1/,
           answer: "PVP Battle lets you challenge other players to real-time Bitcoin trivia duels! Match up, answer fast, and climb the PVP leaderboard. ⚔️",

@@ -496,7 +496,7 @@ window.forumNewPost = function() {
                 '<div style="text-align:center;padding:40px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
                     '<div style="font-size:3rem;margin-bottom:12px;">🔒</div>' +
                     '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 8px;">Registration Required</h2>' +
-                    '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;max-width:360px;margin-left:auto;margin-right:auto;">Create a free account to post in the forum, join discussions, and earn points! It only takes a few seconds.</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;max-width:360px;margin-left:auto;margin-right:auto;">Create a free account to post in the forum, join discussions, and earn XP! It only takes a few seconds.</div>' +
                     '<button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:12px 28px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Create Free Account / Sign In</button>' +
                 '</div></div>';
         }
@@ -2035,7 +2035,7 @@ function mentionShowDropdown(textarea, users) {
         var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '🟢' };
         item.innerHTML = '<span style="font-size:0.85rem;">' + lv.emoji + '</span> ' +
             '<span style="font-weight:700;">' + fEsc(u.username) + '</span>' +
-            (u.points ? '<span style="color:var(--text-faint);font-size:0.7rem;margin-left:6px;">' + (u.points || 0).toLocaleString() + ' pts</span>' : '');
+            (u.points ? '<span style="color:var(--text-faint);font-size:0.7rem;margin-left:6px;">' + (u.points || 0).toLocaleString() + ' XP</span>' : '');
         item.style.cssText = 'padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text);transition:background 0.15s;' +
             (idx === 0 ? 'background:var(--accent-bg);' : '');
         item.onmouseenter = function() {

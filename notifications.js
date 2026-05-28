@@ -280,7 +280,7 @@ function createNotifOverlay() {
     '</div>' +
     '<div style="display:flex;gap:6px;padding:8px 16px 8px;">' +
         '<button id="notifTabAll" onclick="window._notifTab=\'all\';_setNotifTabActive();renderNotifList()" style="padding:5px 14px;border-radius:16px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">All</button>' +
-        '<button id="notifTabPts" onclick="window._notifTab=\'points\';_setNotifTabActive();_renderPointsTab()" style="padding:5px 14px;border-radius:16px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⭐ Points</button>' +
+        '<button id="notifTabPts" onclick="window._notifTab=\'points\';_setNotifTabActive();_renderPointsTab()" style="padding:5px 14px;border-radius:16px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ XP</button>' +
         '<button onclick="markAllNotifsRead();_markAllPointsRead();renderNotifList()" style="margin-left:auto;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.6rem;cursor:pointer;font-family:inherit;">Mark all read</button>' +
     '</div>';
 
@@ -670,7 +670,7 @@ function _renderPointsTab() {
     var log;
     try { log = JSON.parse(localStorage.getItem('btc_points_log') || '[]'); } catch(e) { log = []; }
     if (log.length === 0) {
-        body.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">⭐</div><div style="color:var(--text-muted);font-size:0.85rem;">No points earned yet!</div><div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Explore channels, answer quizzes, and chat with Nacho to earn points.</div></div>';
+        body.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">⭐</div><div style="color:var(--text-muted);font-size:0.85rem;">No XP earned yet!</div><div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Explore channels, answer quizzes, and chat with Nacho to earn XP.</div></div>';
         return;
     }
     // Mark all as read when viewing
@@ -682,7 +682,7 @@ function _renderPointsTab() {
     var todayTotal = 0;
     log.forEach(function(e) { if (new Date(e.ts).toDateString() === today) todayTotal += e.pts; });
     if (todayTotal > 0) {
-        html += '<div style="padding:10px 16px;background:rgba(247,147,26,0.06);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;">Today\'s earnings</span><span style="font-size:0.85rem;font-weight:800;color:var(--accent);">+' + todayTotal + ' pts</span></div>';
+        html += '<div style="padding:10px 16px;background:rgba(247,147,26,0.06);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;">Today\'s earnings</span><span style="font-size:0.85rem;font-weight:800;color:var(--accent);">+' + todayTotal + ' XP</span></div>';
     }
     for (var i = log.length - 1; i >= 0; i--) {
         var e = log[i];
@@ -691,13 +691,13 @@ function _renderPointsTab() {
             '<div style="display:flex;gap:10px;align-items:flex-start;">' +
                 '<span style="font-size:1.2rem;flex-shrink:0;">⭐</span>' +
                 '<div style="flex:1;min-width:0;">' +
-                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">+' + e.pts + ' pts — ' + (typeof escapeHtml === 'function' ? escapeHtml(e.reason) : e.reason) + '</div>' +
+                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">+' + e.pts + ' XP — ' + (typeof escapeHtml === 'function' ? escapeHtml(e.reason) : e.reason) + '</div>' +
                     '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + ts + '</div>' +
                 '</div>' +
             '</div>' +
         '</div>';
     }
-    html += '<div style="text-align:center;padding:12px;"><button onclick="if(confirm(\'Clear points history?\')){{localStorage.removeItem(\'btc_points_log\');_renderPointsTab()}}" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">Clear history</button></div>';
+    html += '<div style="text-align:center;padding:12px;"><button onclick="if(confirm(\'Clear XP history?\')){{localStorage.removeItem(\'btc_points_log\');_renderPointsTab()}}" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">Clear history</button></div>';
     body.innerHTML = html;
 }
 

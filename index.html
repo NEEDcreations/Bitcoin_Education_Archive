@@ -41,7 +41,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260528_0719" as="script">
+    <link rel="preload" href="bundle.js?v=20260528_1251" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -609,7 +609,7 @@
               "name": "Can I earn Bitcoin by learning?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes! Earn points by reading channels, completing quests, daily activities, and chatting. Convert 1,000 points into 100 sats (real Bitcoin) via Lightning Network. We even pay the network fees."
+                "text": "Yes! Earn XP by reading channels, completing quests, daily activities, and chatting. Convert 1,000 XP into 100 sats (real Bitcoin) via Lightning Network. We even pay the network fees."
               }
             },
             {
@@ -948,7 +948,7 @@
                             <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(168,85,247,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📜</div>
                             <div style="flex:1;min-width:0;">
                                 <div style="font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;">Your Quest Begins</div>
-                                <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">Everything you can do — how to earn points, unlock apps, and level up. Tap to open the full guide.</div>
+                                <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">Everything you can do — how to earn XP, unlock apps, and level up. Tap to open the full guide.</div>
                             </div>
                             <div style="color:var(--accent);font-size:1.2rem;flex-shrink:0;">→</div>
                         </div>
@@ -1014,7 +1014,7 @@
                                 <button onclick="go('irl-sync')" title="Find local Bitcoin meetups" data-tooltip="Find local Bitcoin meetups" data-tier="community" data-unlock-name="🤝 IRL Sync" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🤝 IRL Sync</button>
                                 <button onclick="go('bitcoin-beats')" title="Community music player" data-tooltip="Community music player" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🎵 Bitcoin Beats</button>
                                 <button onclick="go('timechain-tv')" title="Live Bitcoin television" data-tooltip="21 channels of Bitcoin video content" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">📺 Timechain TV</button>
-                                <button onclick="showProofOfWalk()" title="Earn points for steps via Strava" data-tooltip="Proof of Walk" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">👟 Proof of Walk</button>
+                                <button onclick="showProofOfWalk()" title="Earn XP for steps via Strava" data-tooltip="Proof of Walk" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">👟 Proof of Walk</button>
                             </div>
                         </div>
 
@@ -1135,7 +1135,7 @@
     <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
-            <p>Pick a username to start earning points as you explore the archive!</p>
+            <p>Pick a username to start earning XP as you explore the archive!</p>
             <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" onkeydown="if(event.key==='Enter')submitUsername()">
             <input type="email" id="emailInput" placeholder="📧 Email (optional)" style="margin-top:0;width:100%;box-sizing:border-box;">
             <p style="color:#475569;font-size:0.75rem;margin:-8px 0 16px;">We'll never spam you. Only used if we launch future Bitcoin education updates.</p>
@@ -1206,9 +1206,9 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260528_0719" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260528_1251" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
-    <script src="onboarding.js?v=20260526_0035" defer></script>
+    <script src="onboarding.js?v=20260528_1251" defer></script>
     <script src="timechain-tv.js?v=20260527_2300" defer></script>
     <script src="mobile-optimize.js?v=20260411" defer></script>
     <script src="audit-fixes-v2.js?v=20260307" defer></script>
@@ -1220,12 +1220,12 @@
     <script>
     (function(){
         var _lazyScripts = [
-            'nacho-qa.js?v=20260525_0009','scholar.js?v=20260503_2353','beats.js?v=20260525_1917',
+            'nacho-qa.js?v=20260528_1251','scholar.js?v=20260528_1251','beats.js?v=20260528_1251',
             'global-chat.js?v=20260526_2313','lightning.js?v=20260514_1424','lightning-tips.js?v=20260525_0009',
-            'notifications.js?v=20260525_0156','guide.js?v=20260526','modules.js?v=20260331',
+            'notifications.js?v=20260528_1251','guide.js?v=20260526','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260523_batch','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
-            'lightning-prompt.js?v=20260307','pvp.js?v=20260526_0016','pvp-enhance.js?v=20260405','irl-sync.js?v=20260511_1849',
+            'lightning-prompt.js?v=20260307','pvp.js?v=20260528_1251','pvp-enhance.js?v=20260405','irl-sync.js?v=20260511_1849',
             'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260411','timechain-tv.js?v=20260527_2300'
         ];
         var _loaded = false;

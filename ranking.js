@@ -1829,7 +1829,7 @@ async function awardVisitPoints() {
             showToast('🔥 STREAK MILESTONE! Day ' + newStreak + ': Earned +' + bonusTickets + ' Bonus Tickets! 🎟️');
         }, 3500);
     } else if (streakBonus) {
-        showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' pts');
+        showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' XP');
     }
     // Silent for non-streak daily visits — ticket toast covers it
     updateRankUI();
@@ -1929,7 +1929,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             var _overflowNotifKey = 'btc_overflow_notified_' + _today;
             if (!localStorage.getItem(_overflowNotifKey)) {
                 try { localStorage.setItem(_overflowNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' pts banked as overflow — they roll over tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow — they roll over tomorrow. Sign in to convert to sats.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         } else if (_dailyUsed + awarded >= DAILY_CAP) {
@@ -1937,7 +1937,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (500)! Further points today roll over to tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (500)! Further XP today rolls over to tomorrow. Sign in to convert to sats.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -1990,7 +1990,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
                 var _overflowKey = 'btc_overflow_notified_' + new Date().toISOString().split('T')[0];
                 if (!localStorage.getItem(_overflowKey)) {
                     localStorage.setItem(_overflowKey, '1');
-                    showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' pts banked as overflow — they roll over tomorrow.', 8000);
+                    showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow — they roll over tomorrow.', 8000);
                     _updateCapIndicator(true);
                 }
                 // Cache pendingOverflow locally for the CAP indicator tooltip
@@ -1999,7 +1999,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('🎯 Daily cap hit (500)! Further points today roll over to tomorrow.', 8000);
+                    showToast('🎯 Daily cap hit (500)! Further XP today rolls over to tomorrow.', 8000);
                     _updateCapIndicator(true);
                 }
             }
@@ -2007,7 +2007,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
     } catch (e) {
         // [SECURITY] No local fallback — server is the only source of truth for points
         console.warn('[POINTS] Cloud Function failed:', e.message);
-        if (typeof showToast === 'function') showToast('⏳ Points will sync when connection restores');
+        if (typeof showToast === 'function') showToast('⏳ XP will sync when connection restores');
     }
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
@@ -2026,7 +2026,7 @@ function _showPointsToast(pts, reason) {
     }
     if (_show && reason) {
         window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' pts — ' + reason, 2500);
+        showToast('+' + pts + ' XP — ' + reason, 2500);
     }
 }
 
@@ -2056,7 +2056,7 @@ function refreshLeaderboardIfOpen() {
         // In-place update: find the current user's row and update score
         var meRow = lb.querySelector('.lb-me .lb-score');
         if (meRow && currentUser) {
-            meRow.textContent = (currentUser.points || 0).toLocaleString() + ' pts';
+            meRow.textContent = (currentUser.points || 0).toLocaleString() + ' XP';
         }
     }
 }
@@ -2075,7 +2075,7 @@ async function onChannelOpen(channelId) {
         // Apply daily 2X boost
         if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
             ptsAwarded *= 2;
-            setTimeout(() => { showToast('⚡ 2X POINTS! Daily boost applied! +' + ptsAwarded + ' pts'); }, 2000);
+            setTimeout(() => { showToast('⚡ 2X XP! Daily boost applied! +' + ptsAwarded + ' XP'); }, 2000);
         }
 
         // Update local tracking
@@ -2273,9 +2273,9 @@ function updateGuestPointsBanner() {
         '<div style="display:flex;flex-direction:column;gap:2px;">' +
             '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<span style="font-size:1.2rem;">' + lv.emoji + '</span>' +
-                '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' pts</span>' +
+                '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' XP</span>' +
             '</div>' +
-            '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your points & get on the leaderboard!</div>' +
+            '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your XP & get on the leaderboard!</div>' +
         '</div>' +
         '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>' +
         '<button class="banner-toggle" aria-label="' + (isMin ? 'Expand' : 'Close') + ' sign-in banner" onclick="event.stopPropagation();toggleGuestPointsBanner()" style="' + (isMin ? 'background:rgba(0,0,0,0.35);border:none;border-radius:8px;color:#f7931a;font-weight:900;font-size:1.1rem;line-height:1;padding:6px 9px;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;' : 'position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#111;border:1.5px solid #f7931a;color:#f7931a;font-weight:900;font-size:0.8rem;line-height:1;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0;touch-action:manipulation;box-shadow:0 2px 6px rgba(0,0,0,0.5);') + '">' + (isMin ? '⚡' : '✕') + '</button>';
@@ -2302,7 +2302,7 @@ function _updateCapIndicator(atCap) {
     if (atCap || _dailyPts >= 500) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = '🎯 Daily point cap reached (500/500)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
+        el.title = '🎯 Daily XP cap reached (500/500)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -2371,7 +2371,7 @@ function updateRankUI() {
     if (lv.next) {
         const pct = Math.min(100, ((currentUser.points - lv.min) / (lv.next.min - lv.min)) * 100);
         progressHtml = '<div class="rank-progress"><div class="rank-progress-fill" style="width:' + pct + '%"></div></div>' +
-            '<div class="rank-next">' + (lv.next.min - currentUser.points) + ' pts to ' + lv.next.emoji + ' ' + lv.next.name + '</div>';
+            '<div class="rank-next">' + (lv.next.min - currentUser.points) + ' XP to ' + lv.next.emoji + ' ' + lv.next.name + '</div>';
     }
 
     const isAnon = auth.currentUser && auth.currentUser.isAnonymous;
@@ -2387,7 +2387,7 @@ function updateRankUI() {
         '<div class="rank-info" onclick="toggleLeaderboard()">' +
             '<span class="rank-level">' + lv.emoji + ' ' + lv.name + '</span>' +
             '<span class="rank-user">' + escapeHtml(currentUser.username || 'Anon') + '</span>' +
-            '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
+            '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' XP</span>' +
             streakHtml + ticketHtml +
         '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
@@ -2481,7 +2481,7 @@ function updateUserDisplay(lv) {
                     '<div style="display:flex;align-items:center;gap:6px;">' +
                         '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
                         '<span style="color:var(--text);font-weight:700;font-size:0.8rem;">GUEST</span>' +
-                        '<span style="color:#f7931a;font-weight:800;font-size:0.8rem;">' + pts.toLocaleString() + ' pts</span>' +
+                        '<span style="color:#f7931a;font-weight:800;font-size:0.8rem;">' + pts.toLocaleString() + ' XP</span>' +
                     '</div>' +
                 '</div>' +
                 (function() {
@@ -2495,7 +2495,7 @@ function updateUserDisplay(lv) {
                     if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:var(--text-muted);text-decoration:none;font-weight:700;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
                     return s + '</div>';
                 })() +
-                (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep points & enter giveaway!</div>' : '') +
+                (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep XP & enter giveaway!</div>' : '') +
             '</div>' +
             (!_isMob ? '<div id="notifBellPlaceholder" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;"></div>' : '') +
             (!_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 12px;border-radius:8px;font-weight:900;font-size:0.65rem;white-space:nowrap;cursor:pointer;">SIGN UP</div>' : '') +
@@ -2557,7 +2557,7 @@ function updateUserDisplay(lv) {
                     var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:12px;font-size:0.7rem;opacity:0.8;">';
                     if (cp) s += '<div style="display:flex;align-items:center;gap:4px;"><span style="color:#f7931a;font-weight:900;">₿</span> <span style="font-family:monospace;">$' + Math.round(cp).toLocaleString() + '</span></div>';
                     if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:#aaa;text-decoration:none;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
-                    s += '<span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' pts</span>';
+                    s += '<span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' XP</span>';
                     return s + '</div>';
                 })() +
             '</div>' +
@@ -2600,7 +2600,7 @@ function updateUserDisplay(lv) {
         var s = '<span style="cursor:pointer;" onclick="if(typeof showSettings===\'function\')showSettings()">' + mobileIcons + ' <b>' + nameStr + '</b></span>';
         if (_cp) s += ' <span style="color:#f7931a;font-weight:900;">₿</span> <span style="font-family:monospace;">$' + Math.round(_cp).toLocaleString() + '</span>';
         if (_ch) s += ' <span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + _ch.toLocaleString() + '</span>';
-        s += ' <span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' pts</span>';
+        s += ' <span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' XP</span>';
         mobileInfo.innerHTML = s;
         mobileInfo.style.display = 'inline';
         mobileInfo.style.maxWidth = 'none';
@@ -2617,7 +2617,7 @@ function updateUserDisplay(lv) {
         const streakText = (streak > 0 || wbBestStreak > 0) ? '<span style="color:#f97316;font-weight:700;"> · 🔥 ' + streak + (wbBestStreak > 0 ? '(' + wbBestStreak + ')' : '') + ' day streak</span>' : '';
         wb.innerHTML = '<span style="font-size:1.2rem;">' + lv.emoji + '</span> ' +
             '<span style="color:var(--heading);font-weight:700;">Welcome back, ' + escapeHtml(currentUser.username || 'Anon') + '!</span>' +
-            '<span style="color:var(--text-muted);font-size:0.85rem;"> · ' + lv.name + ' · ' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
+            '<span style="color:var(--text-muted);font-size:0.85rem;"> · ' + lv.name + ' · ' + (currentUser.points || 0).toLocaleString() + ' XP</span>' +
             streakText +
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">⚙️ Tap here for Account & Settings</div>';
         wb.style.display = 'block';
@@ -2721,7 +2721,7 @@ window.showDeleteAccountConfirm = function() {
             '</div>' +
             '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:14px;margin-bottom:16px;">' +
                 '<div style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;color:var(--text-muted);">' +
-                    '<div>❌ <strong>' + pts.toLocaleString() + ' points</strong> and all badges</div>' +
+                    '<div>❌ <strong>' + pts.toLocaleString() + ' XP</strong> and all badges</div>' +
                     (streak > 0 ? '<div>❌ <strong>' + streak + '-day streak</strong></div>' : '') +
                     '<div>❌ All forum posts and replies</div>' +
                     '<div>❌ Marketplace listings</div>' +
@@ -3017,7 +3017,7 @@ async function toggleLeaderboard() {
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + lv.emoji + '</span>' +
                 '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
-                '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
+                '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' XP</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
         });
@@ -3044,7 +3044,7 @@ async function toggleLeaderboard() {
 
         html += '<div class="lb-levels"><h4>Levels</h4>';
         for (const l of LEVELS) {
-            html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + (l.min === 0 ? '0 pts' : l.min + '+ pts') + '</span></div>';
+            html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + (l.min === 0 ? '0 XP' : l.min + '+ XP') + '</span></div>';
         }
         html += '</div>';
 
@@ -3365,7 +3365,7 @@ function showSettingsPage(tab) {
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
-            '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' pts</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP</div>' +
             '</div>';
 
         // Profile Picture upload
@@ -3822,7 +3822,7 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
                 '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (6,102+ pts). Verified automatically.<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
-                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
         }
@@ -3882,14 +3882,14 @@ function showSettingsPage(tab) {
         html += '<div style="text-align:center;margin-bottom:20px;">';
         html += '<div style="font-size:2.5rem;">⚡</div>';
         html += '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Real Sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Earn points → Convert to real Bitcoin over Lightning</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Earn XP → Convert to real Bitcoin over Lightning</div>';
         html += '</div>';
 
         // Balance card
         html += '<div style="background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,179,8,0.1));border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Your Balance</div>';
         html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' claimable sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availablePts.toLocaleString() + ' unclaimed pts of ' + userPts.toLocaleString() + ' total</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availablePts.toLocaleString() + ' unclaimed XP of ' + userPts.toLocaleString() + ' total</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
 
@@ -3899,7 +3899,7 @@ function showSettingsPage(tab) {
         } else if (onCooldown) {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
         } else if (!meetsMin && eligible) {
-            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' pts) to reach minimum claim</div>';
+            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' XP) to reach minimum claim</div>';
         } else {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Complete requirements below to claim</div>';
         }
@@ -3913,7 +3913,7 @@ function showSettingsPage(tab) {
             { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
             { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days — ' + (7 - acctAgeDays) + ' more to go' },
             { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics — read ' + (10 - channelsRead) + ' more' },
-            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats — earn ' + ((100 - satsBalance) * 10) + ' more points' }
+            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats — earn ' + ((100 - satsBalance) * 10) + ' more XP' }
         ];
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -3927,12 +3927,12 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">⚡ How It Works</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        html += '• <strong>1,000 points = 100 sats</strong> — earn points by reading, quests, and daily visits<br>';
-        html += '• <strong>Min claim: 100 sats</strong> (1,000 points)<br>';
+        html += '• <strong>1,000 XP = 100 sats</strong> — earn XP by reading, quests, and daily visits<br>';
+        html += '• <strong>Min claim: 100 sats</strong> (1,000 XP)<br>';
         html += '• <strong>Max claim: 500 sats/day</strong><br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
         html += '• <strong>Lifetime max: 10,000 sats</strong> per account<br>';
-        html += '• <strong>Daily points cap: 500 pts</strong> (50 sats worth) to prevent abuse<br>';
+        html += '• <strong>Daily XP cap: 500 XP</strong> (50 sats worth) to prevent abuse<br>';
         html += '• Unclaimed sats roll over — no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
         html += '</div>';
@@ -3942,11 +3942,11 @@ function showSettingsPage(tab) {
 
         // Earning guide (collapsible)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;">';
-        html += '<button onclick="event.stopPropagation();var c=document.getElementById(\'earnPointsContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
-        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);">🎯 How to Earn Points</span>';
+        html += '<button onclick="event.stopPropagation();var c=document.getElementById(\'earnXPContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
+        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);">🎯 How to Earn XP</span>';
         html += '<span class="earn-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>';
         html += '</button>';
-        html += '<div id="earnPointsContent" onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
+        html += '<div id="earnXPContent" onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
         var _es = function(id, title, items) {
             return '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
                 '<button onclick="event.stopPropagation();var c=document.getElementById(\'' + id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
@@ -3955,53 +3955,53 @@ function showSettingsPage(tab) {
                 '<div id="' + id + '" style="display:none;padding:8px 12px 10px;font-size:0.76rem;color:var(--text-muted);line-height:1.7;">' + items.join('<br>') + '</div></div>';
         };
         html += _es('ep_read', '📚 Reading & Exploring', [
-            '📖 Open a channel: <strong>10 pts</strong>',
-            '⏱️ Read for 30 sec: <strong>15 pts</strong>',
-            '🧭 Explore 10+ topics/session: <strong>50 pts</strong>',
-            '🗺️ Exploration milestones: <strong>50-500 pts</strong>'
+            '📖 Open a channel: <strong>10 XP</strong>',
+            '⏱️ Read for 30 sec: <strong>15 XP</strong>',
+            '🧭 Explore 10+ topics/session: <strong>50 XP</strong>',
+            '🗺️ Exploration milestones: <strong>50-500 XP</strong>'
         ]);
         html += _es('ep_daily', '✅ Daily Activities', [
-            '✅ Daily visit: <strong>5 pts</strong>',
-            '🔥 Streak bonus: <strong>100 pts/day</strong>',
-            '🎰 Daily spin: <strong>10-50 pts</strong>',
-            '📈 Price prediction: <strong>5 pts</strong> (25 if correct!)',
-            '📺 Watch Timechain TV: <strong>10 pts</strong> per 10 min watched'
+            '✅ Daily visit: <strong>5 XP</strong>',
+            '🔥 Streak bonus: <strong>100 XP/day</strong>',
+            '🎰 Daily spin: <strong>10-50 XP</strong>',
+            '📈 Price prediction: <strong>5 XP</strong> (25 if correct!)',
+            '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched'
         ]);
         html += _es('ep_quiz', '🧠 Quizzes & Learning', [
-            '🎯 Daily quests (perfect): <strong>100 pts</strong> (50 for 3+, 25 retry)',
-            '🧠 Nacho trivia pop-ups: <strong>10-15 pts</strong>',
-            '🎮 Channel quizzes: <strong>10 pts</strong>',
-            '🎯 Conversation quests: <strong>5 pts/correct</strong>',
-            '📖 Nacho\'s Trails chapters: <strong>25-50 pts</strong> (100 for all)',
-            '📖 Nacho\'s Story chapters: <strong>15 pts</strong> (50 final, 100 all)'
+            '🎯 Daily quests (perfect): <strong>100 XP</strong> (50 for 3+, 25 retry)',
+            '🧠 Nacho trivia pop-ups: <strong>10-15 XP</strong>',
+            '🎮 Channel quizzes: <strong>10 XP</strong>',
+            '🎯 Conversation quests: <strong>5 XP/correct</strong>',
+            '📖 Nacho\'s Trails chapters: <strong>25-50 XP</strong> (100 for all)',
+            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all)'
         ]);
         html += _es('ep_social', '💬 Community & Social', [
-            '📝 Forum post: <strong>10 pts</strong>',
-            '💬 Forum reply: <strong>5 pts</strong>',
-            '📝 Publish article: <strong>30 pts</strong>',
-            '📖 Read an article: <strong>5 pts</strong>',
-            '💬 Article comment: <strong>5 pts</strong>',
-            '🌍 Global Chat message: <strong>5 pts</strong>',
-            '🔥 Chat streaks: <strong>10-25 pts</strong> (3-day / 7-day)',
-            '🤝 Host IRL event: <strong>15 pts</strong>'
+            '📝 Forum post: <strong>10 XP</strong>',
+            '💬 Forum reply: <strong>5 XP</strong>',
+            '📝 Publish article: <strong>30 XP</strong>',
+            '📖 Read an article: <strong>5 XP</strong>',
+            '💬 Article comment: <strong>5 XP</strong>',
+            '🌍 Global Chat message: <strong>5 XP</strong>',
+            '🔥 Chat streaks: <strong>10-25 XP</strong> (3-day / 7-day)',
+            '🤝 Host IRL event: <strong>15 XP</strong>'
         ]);
         html += _es('ep_music', '🎵 Music & Content', [
-            '🎵 Upload a song: <strong>50 pts</strong>',
-            '🎧 Listen to full track: <strong>10 pts</strong>',
-            '💬 Comment on Beats: <strong>10 pts</strong>'
+            '🎵 Upload a song: <strong>50 XP</strong>',
+            '🎧 Listen to full track: <strong>10 XP</strong>',
+            '💬 Comment on Beats: <strong>10 XP</strong>'
         ]);
         html += _es('ep_pvp', '⚔️ PVP & Competitions', [
-            '⚔️ PVP victory: <strong>score-based pts</strong>',
-            '🧠 PVP practice: <strong>10 pts/correct</strong>',
-            '🏅 PVP badges: <strong>25-500 pts</strong>'
+            '⚔️ PVP victory: <strong>score-based XP</strong>',
+            '🧠 PVP practice: <strong>10 XP/correct</strong>',
+            '🏅 PVP badges: <strong>25-500 XP</strong>'
         ]);
         html += _es('ep_big', '🏆 Big Achievements', [
-            '🎓 Scholar Certification: <strong>2,100 pts</strong>',
-            '🛒 First Purchase guide: <strong>100 pts</strong>',
-            '⚡ Lightning wallet setup: <strong>100 pts</strong>',
-            '🎤 Music badges: <strong>50-100 pts</strong>',
+            '🎓 Scholar Certification: <strong>2,100 XP</strong>',
+            '🛒 First Purchase guide: <strong>100 XP</strong>',
+            '⚡ Lightning wallet setup: <strong>100 XP</strong>',
+            '🎤 Music badges: <strong>50-100 XP</strong>',
             '🔑 Hidden badges: <strong>varies</strong>',
-            '💬 Feedback bonus: <strong>5 pts</strong>'
+            '💬 Feedback bonus: <strong>5 XP</strong>'
         ]);
         html += '</div></div>';
 
@@ -4140,7 +4140,7 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📳 Haptic Feedback</div>' +
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-            '<div><span style="color:var(--text);font-size:0.85rem;">Vibration on actions</span><div style="color:var(--text-faint);font-size:0.7rem;">Vibrate on points, badges, and button taps</div></div>' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Vibration on actions</span><div style="color:var(--text-faint);font-size:0.7rem;">Vibrate on XP, badges, and button taps</div></div>' +
             '<button onclick="localStorage.setItem(\'btc_haptic\',localStorage.getItem(\'btc_haptic\')===\'false\'?\'true\':\'false\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (hapticOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (hapticOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (hapticOn ? 'ON' : 'OFF') + '</button></div></div>';
 
         // Online Status
@@ -4353,7 +4353,7 @@ function showSettingsPage(tab) {
         if (!user.isAnonymous) {
             html += '<div style="background:rgba(239,68,68,0.05);border:2px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;margin-top:24px;">' +
                 '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">⚠️ Danger Zone</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Permanently delete your account, all your data, points, badges, and progress. This action cannot be undone.</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Permanently delete your account, all your data, XP, badges, and progress. This action cannot be undone.</div>' +
                 '<button onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">🗑️ Delete My Account</button>' +
                 '</div>';
         }
@@ -4391,7 +4391,7 @@ function showSettingsPage(tab) {
 
         html += '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:2rem;margin-bottom:4px;">' + lvl.emoji + '</div>' +
-            '<div style="color:var(--heading);font-weight:700;font-size:1.3rem;">' + pts.toLocaleString() + ' pts</div>' +
+            '<div style="color:var(--heading);font-weight:700;font-size:1.3rem;">' + pts.toLocaleString() + ' XP</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;">' + lvl.name + '</div></div>';
 
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -4631,7 +4631,7 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
                 '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank.<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
-                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
         }
@@ -5481,7 +5481,7 @@ window.initSatsClaim = function() {
     console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
     if (maxClaim < 100) {
         console.log('[SATS] BLOCKED: maxClaim < 100');
-        showToast('⚡ Need at least 100 claimable sats (1,000 unclaimed points) to withdraw. Keep earning!', 5000);
+        showToast('⚡ Need at least 100 claimable sats (1,000 unclaimed XP) to withdraw. Keep earning!', 5000);
         return;
     }
     console.log('[SATS] Passed all checks, showing overlay');
@@ -5710,7 +5710,7 @@ function showLevelUpCelebration(lv) {
         '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + lv.emoji + '</div>' +
         '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">⬆️ LEVEL UP!</div>' +
         '<div style="color:var(--heading);font-size:1.6rem;font-weight:900;margin-bottom:8px;">' + lv.name + '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">You\'ve reached ' + lv.min.toLocaleString() + '+ points!</div>' +
+        '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">You\'ve reached ' + lv.min.toLocaleString() + '+ XP!</div>' +
         '<div style="color:var(--text-faint);font-size:0.85rem;margin-bottom:24px;">' + getLevelFlavor(lv.name) + '</div>' +
         '<button onclick="document.getElementById(\'levelUpModal\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Keep Going! 🚀</button>' +
         '</div>';

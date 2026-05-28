@@ -1617,7 +1617,7 @@ window.beatsRenderUpload = function() {
                 '<div style="color:var(--text-faint);font-size:0.75rem;line-height:1.5;">' +
                     '<p><strong>✅ Supported formats:</strong> MP3, WAV, FLAC, OGG, AAC (max 50MB each)</p>' +
                     '<p><strong>✅ Batch upload:</strong> Select up to 20 files and group as Album or EP</p>' +
-                    '<p><strong>✅ Rewards:</strong> +25 points + 🎟️ 10 Orange Tickets per track</p>' +
+                    '<p><strong>✅ Rewards:</strong> +25 XP + 🎟️ 10 Orange Tickets per track</p>' +
                     '<p><strong>✅ Visibility:</strong> Your tracks will be publicly available to all users</p>' +
                     '<p><strong>⚠️ Copyright:</strong> Only upload music you own or have permission to share</p>' +
                 '</div>' +
@@ -2463,7 +2463,7 @@ window.beatsShowArtistPage = function(uid) {
                     ? '<div style="width:80px;height:80px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Change artist image"' : '') + '><img src="' + escapeHtml(artistImage) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
                     : '<div style="font-size:2.5rem;margin-bottom:8px;' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Upload artist image"' : '') + '>' + lvl.emoji + (isOwner ? '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:2px;">📷 Add Photo</div>' : '') + '</div>') +
                 '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + escapeHtml(artistName) + '</div>' +
-                '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' pts</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
                 // Genre tags
                 (artistGenres.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px;">' +
                     artistGenres.map(function(g) { return '<span style="padding:2px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);border-radius:12px;font-size:0.7rem;color:var(--accent);font-weight:600;">' + escapeHtml(g) + '</span>'; }).join('') +

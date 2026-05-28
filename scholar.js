@@ -4169,7 +4169,7 @@ async function submitScholarQuest() {
         '<div style="font-size:4rem;margin-bottom:20px;">' + (passed ? '🎉' : '📝') + '</div>' +
         '<h2 style="color:var(--heading);">' + (passed ? 'Congratulations!' : 'Not quite there yet') + '</h2>' +
         '<div style="font-size:1.5rem;font-weight:800;color:' + (passed ? '#22c55e' : '#ef4444') + ';margin:15px 0;">' + score + ' / 25 Correct</div>' +
-        '<p style="color:var(--text-muted);margin-bottom:30px;">' + (passed ? "You've earned the " + (scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar') + " certification and 2,100 points!" : 'You needed 20 correct picks to pass. This quest is now locked for the day. Come back tomorrow for a fresh set of 25 questions!') + '</p>' +
+        '<p style="color:var(--text-muted);margin-bottom:30px;">' + (passed ? "You've earned the " + (scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar') + " certification and 2,100 XP!" : 'You needed 20 correct picks to pass. This quest is now locked for the day. Come back tomorrow for a fresh set of 25 questions!') + '</p>' +
         '<button onclick="closeQuest(); ' + (passed ? "showScholarCertificate('" + scholarType + "')" : "showSettingsPage('scholar')") + '" style="padding:14px 40px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:bold;cursor:pointer;">' + (passed ? 'View Certificate' : 'Continue Learning') + '</button>' +
     '</div>';
 }

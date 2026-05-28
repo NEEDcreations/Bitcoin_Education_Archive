@@ -1014,6 +1014,16 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    // Poll Quest votes — anyone can read, signed-in users can write
+    match /poll_votes/{pollId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+        && request.resource.data.keys().hasAll(['votes', 'lastUpdated'])
+        && request.resource.data.votes is list
+        && request.resource.data.votes.size() == 4;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

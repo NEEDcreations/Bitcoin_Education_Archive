@@ -783,7 +783,7 @@ function showQuest(quest, retry) {
     let html = '<div class="quest-header">';
     html += '<div class="quest-badge">⚡ QUEST</div>';
     html += '<h2>' + quest.title + '</h2>';
-    html += '<p>' + (retry ? 'Retry! Get 3+ correct for 25 pts!' : 'Answer 5 questions. 3+ correct = 50 pts. All 5 = 100 pts!') + '</p>';
+    html += '<p>' + (retry ? 'Retry! Get 3+ correct for 25 XP!' : 'Answer 5 questions. 3+ correct = 50 XP. All 5 = 100 XP!') + '</p>';
     html += '</div>';
     html += '<div class="quest-questions">';
 
@@ -866,7 +866,7 @@ async function submitQuest() {
     if (isRetry) {
         if (score >= 3) {
             if (!pts) pts = 25;
-            msg = '🎉 ' + score + '/5 correct on retry! +' + pts + ' pts!';
+            msg = '🎉 ' + score + '/5 correct on retry! +' + pts + ' XP!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else {
@@ -875,23 +875,23 @@ async function submitQuest() {
     } else {
         if (score === 5) {
             if (!pts) pts = 100;
-            msg = '🏆 PERFECT! 5/5! +' + pts + ' pts!';
+            msg = '🏆 PERFECT! 5/5! +' + pts + ' XP!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else if (score >= 3) {
             if (!pts) pts = 50;
-            msg = '🎉 ' + score + '/5 correct! +' + pts + ' pts!';
+            msg = '🎉 ' + score + '/5 correct! +' + pts + ' XP!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else {
-            msg = '😅 ' + score + '/5 — You can retry for 25 pts!';
+            msg = '😅 ' + score + '/5 — You can retry for 25 XP!';
         }
     }
 
     if (pts > 0) {
         // Points already awarded server-side by gradeQuest
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
-        // Log to local points history for the Points notification tab
+        // Log to local XP history for the Points notification tab
         if (typeof notifySelfPoints === 'function') notifySelfPoints(pts, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
         var todayQ = new Date().toISOString().split('T')[0];
         var qLog = safeJSON('btc_quest_daily', {});
@@ -1013,7 +1013,7 @@ function showQuestFinalResults() {
             '<div style="font-size:3rem;margin:20px 0;">' + (score === 5 ? '🏆' : score >= 3 ? '🎉' : '😅') + '</div>' +
             '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);margin-bottom:8px;">' + score + ' / 5 Correct</div>' +
             '<div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
-            (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' points earned!</div>' : '') +
+            (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' XP earned!</div>' : '') +
             (score < 3 ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retry Quest' + (isRetry ? '' : ' for 25 pts') + '</button>' : '') +
             '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
     }
@@ -1423,3 +1423,401 @@ for(const cat in NEW_BANK_QUESTIONS_2) {
 
 // ---- OPENCLAW EXPORTS ----
 if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;
+// ============================================================
+// QUEST HUB — Quiz / Trivia / Poll tabs
+// ============================================================
+
+window._questHubTab = 'quiz';
+
+window.showQuestHub = function() {
+    // Remove existing
+    var existing = document.getElementById('questHubOverlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'questHubOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;animation:nachoPop 0.25s ease;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
+
+    // Header
+    var header = document.createElement('div');
+    header.style.cssText = 'padding:20px 24px 0;flex-shrink:0;';
+    header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+        '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
+        '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div></div>' +
+        '<button onclick="document.getElementById(\'questHubOverlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
+        // Tabs
+        '<div id="questHubTabs" style="display:flex;gap:8px;margin-bottom:16px;">' +
+        '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
+        '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
+        '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
+        '</div>';
+
+    var body = document.createElement('div');
+    body.id = 'questHubBody';
+    body.style.cssText = 'padding:0 24px 24px;overflow-y:auto;flex:1;';
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    _renderQuestHubTab();
+};
+
+function _renderQuestHubTab() {
+    var tab = window._questHubTab || 'quiz';
+    // Update active tab styles
+    ['Quiz', 'Trivia', 'Poll'].forEach(function(t) {
+        var btn = document.getElementById('qhTab' + t);
+        if (!btn) return;
+        var isActive = tab === t.toLowerCase();
+        btn.style.background = isActive ? 'var(--accent)' : 'none';
+        btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
+        btn.style.borderColor = isActive ? 'var(--accent)' : 'var(--border)';
+    });
+
+    var body = document.getElementById('questHubBody');
+    if (!body) return;
+
+    if (tab === 'quiz') _renderQuizTab(body);
+    else if (tab === 'trivia') _renderTriviaTab(body);
+    else if (tab === 'poll') _renderPollTab(body);
+}
+
+// ── QUIZ TAB (existing system) ──
+function _renderQuizTab(body) {
+    var todayKey = new Date().toISOString().split('T')[0];
+    var qLog = safeJSON('btc_quest_daily', {});
+    var completedToday = (qLog.date === todayKey) ? qLog.count : 0;
+    var completed = completedQuests ? completedQuests.size : 0;
+
+    body.innerHTML = '<div style="text-align:center;padding:16px 0;">' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">📝</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Quiz Quests</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">5-question quizzes on Bitcoin topics</div>' +
+        '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' +
+            '<div style="text-align:center;"><div style="font-size:1.2rem;font-weight:800;color:var(--accent);">' + completedToday + '</div><div style="font-size:0.7rem;color:var(--text-faint);">Today</div></div>' +
+            '<div style="text-align:center;"><div style="font-size:1.2rem;font-weight:800;color:var(--heading);">' + completed + '</div><div style="font-size:0.7rem;color:var(--text-faint);">All Time</div></div>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:center;gap:12px;margin-bottom:12px;">' +
+            '<div style="padding:6px 14px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;">3+ correct = 50 XP</div>' +
+            '<div style="padding:6px 14px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;">Perfect = 100 XP</div>' +
+        '</div>' +
+        '<button onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){if(typeof _showQuestTopicPicker===\'function\')_showQuestTopicPicker();else if(typeof startQuestManual===\'function\')startQuestManual()},200)" style="padding:14px 32px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:0.2s;">Start Quiz Quest ⚔️</button>' +
+    '</div>';
+}
+
+// ============================================================
+// TRIVIA QUEST SYSTEM — 1 per day, standalone question
+// ============================================================
+
+function _getTriviaToday() {
+    if (typeof TRIVIA_BANK === 'undefined' || !TRIVIA_BANK || !TRIVIA_BANK.length) return null;
+    // Deterministic daily rotation: day-of-year * year seed
+    var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 0);
+    var dayOfYear = Math.floor((now - start) / 86400000);
+    var seed = (dayOfYear * 7 + now.getFullYear()) % TRIVIA_BANK.length;
+    return { index: seed, trivia: TRIVIA_BANK[seed] };
+}
+
+function _getTriviaState() {
+    try { return JSON.parse(localStorage.getItem('btc_trivia_state') || '{}'); } catch(e) { return {}; }
+}
+
+function _setTriviaState(state) {
+    try { localStorage.setItem('btc_trivia_state', JSON.stringify(state)); } catch(e) {}
+}
+
+function _renderTriviaTab(body) {
+    var today = _getTriviaToday();
+    if (!today || !today.trivia) {
+        body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Trivia questions loading...</div>';
+        return;
+    }
+
+    var state = _getTriviaState();
+    var todayKey = new Date().toISOString().split('T')[0];
+    var answered = state.date === todayKey;
+    var t = today.trivia;
+
+    var html = '<div style="text-align:center;padding:8px 0 16px;">' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">🧠</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Trivia Quest</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">1 new question every day</div>' +
+        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP correct · +10 XP for trying</div>' +
+    '</div>';
+
+    // Question card
+    html += '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">' +
+        '<div style="color:var(--text);font-size:0.95rem;font-weight:700;line-height:1.6;text-align:center;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.q) : t.q) + '</div>' +
+    '</div>';
+
+    // Options
+    html += '<div id="triviaOptions" style="display:flex;flex-direction:column;gap:8px;">';
+    for (var i = 0; i < t.options.length; i++) {
+        var optText = typeof escapeHtml === 'function' ? escapeHtml(t.options[i]) : t.options[i];
+        if (answered) {
+            var isCorrect = i === t.answer;
+            var wasChosen = i === state.chosen;
+            var bg = isCorrect ? 'rgba(34,197,94,0.15)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.15)' : 'var(--card-bg,#1a1a2e)');
+            var border = isCorrect ? '#22c55e' : (wasChosen && !isCorrect ? '#ef4444' : 'var(--border)');
+            var icon = isCorrect ? '✅' : (wasChosen && !isCorrect ? '❌' : '');
+            html += '<div style="padding:12px 16px;background:' + bg + ';border:2px solid ' + border + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:10px;opacity:' + (isCorrect || wasChosen ? '1' : '0.5') + ';">' +
+                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid ' + border + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
+                optText + (icon ? '<span style="margin-left:auto;">' + icon + '</span>' : '') +
+            '</div>';
+        } else {
+            html += '<button onclick="triviaAnswer(' + i + ')" style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
+                optText +
+            '</button>';
+        }
+    }
+    html += '</div>';
+
+    // Show explanation if answered
+    if (answered) {
+        html += '<div style="margin-top:16px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
+            '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
+            '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.explanation) : t.explanation) + '</div>' +
+        '</div>';
+        html += '<div style="text-align:center;margin-top:16px;color:var(--text-faint);font-size:0.75rem;">Come back tomorrow for a new trivia question! 🧠</div>';
+    }
+
+    body.innerHTML = html;
+}
+
+window.triviaAnswer = function(chosenIdx) {
+    var today = _getTriviaToday();
+    if (!today || !today.trivia) return;
+    var t = today.trivia;
+    var todayKey = new Date().toISOString().split('T')[0];
+    var state = _getTriviaState();
+    if (state.date === todayKey) return; // Already answered
+
+    var isCorrect = chosenIdx === t.answer;
+    var xp = isCorrect ? 50 : 10;
+
+    // Save state
+    state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: isCorrect };
+    _setTriviaState(state);
+
+    // Award XP
+    if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt');
+
+    // Also sync to Firestore for signed-in users
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({
+            lastTriviaDate: todayKey,
+            triviaAnswered: firebase.firestore.FieldValue.increment(1),
+            triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
+        }).catch(function() {});
+    }
+
+    // Re-render to show result
+    var body = document.getElementById('questHubBody');
+    if (body) _renderTriviaTab(body);
+
+    if (typeof showToast === 'function') {
+        showToast(isCorrect ? '✅ Correct! +50 XP 🧠' : '❌ Wrong — +10 XP for trying!', 3000);
+    }
+};
+
+// ============================================================
+// POLL QUEST SYSTEM — 1 per day, vote to see results
+// ============================================================
+
+function _getPollToday() {
+    if (typeof POLL_BANK === 'undefined' || !POLL_BANK || !POLL_BANK.length) return null;
+    var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 0);
+    var dayOfYear = Math.floor((now - start) / 86400000);
+    var seed = (dayOfYear * 13 + now.getFullYear()) % POLL_BANK.length;
+    return { index: seed, poll: POLL_BANK[seed] };
+}
+
+function _getPollState() {
+    try { return JSON.parse(localStorage.getItem('btc_poll_state') || '{}'); } catch(e) { return {}; }
+}
+
+function _setPollState(state) {
+    try { localStorage.setItem('btc_poll_state', JSON.stringify(state)); } catch(e) {}
+}
+
+function _renderPollTab(body) {
+    var today = _getPollToday();
+    if (!today || !today.poll) {
+        body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Polls loading...</div>';
+        return;
+    }
+
+    var state = _getPollState();
+    var todayKey = new Date().toISOString().split('T')[0];
+    var hasVoted = state.date === todayKey && typeof state.chosen === 'number';
+    var p = today.poll;
+
+    var html = '<div style="text-align:center;padding:8px 0 16px;">' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">📊</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Poll Quest</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">Vote daily — see what the community thinks</div>' +
+        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP for voting</div>' +
+    '</div>';
+
+    // Question
+    html += '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">' +
+        '<div style="color:var(--text);font-size:0.95rem;font-weight:700;line-height:1.6;text-align:center;">' + (typeof escapeHtml === 'function' ? escapeHtml(p.q) : p.q) + '</div>' +
+    '</div>';
+
+    if (hasVoted) {
+        // Show results with bars
+        _renderPollResults(body, html, p, state, todayKey);
+    } else {
+        // Show voting options
+        html += '<div id="pollOptions" style="display:flex;flex-direction:column;gap:8px;">';
+        for (var i = 0; i < p.options.length; i++) {
+            var optText = typeof escapeHtml === 'function' ? escapeHtml(p.options[i]) : p.options[i];
+            html += '<button onclick="pollVote(' + i + ')" style="padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
+                optText +
+            '</button>';
+        }
+        html += '</div>';
+        body.innerHTML = html;
+    }
+}
+
+function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
+    var pollId = poll.id || ('poll_day_' + todayKey);
+    // Fetch results from Firestore
+    if (typeof db !== 'undefined') {
+        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
+            var votes = doc.exists ? (doc.data().votes || [0, 0, 0, 0]) : [0, 0, 0, 0];
+            var total = votes.reduce(function(a, b) { return a + b; }, 0) || 1;
+            _drawPollResults(body, htmlPrefix, poll, votes, total, state.chosen);
+        }).catch(function() {
+            // Offline fallback
+            _drawPollResults(body, htmlPrefix, poll, [0, 0, 0, 0], 1, state.chosen);
+        });
+    } else {
+        _drawPollResults(body, htmlPrefix, poll, [0, 0, 0, 0], 1, state.chosen);
+    }
+}
+
+function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
+    var html = htmlPrefix;
+    var colors = ['#f7931a', '#3b82f6', '#22c55e', '#8b5cf6'];
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+    for (var i = 0; i < poll.options.length; i++) {
+        var optText = typeof escapeHtml === 'function' ? escapeHtml(poll.options[i]) : poll.options[i];
+        var pct = Math.round((votes[i] / total) * 100);
+        var isChosen = i === chosen;
+        html += '<div style="position:relative;padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';border-radius:12px;overflow:hidden;">' +
+            '<div style="position:absolute;top:0;left:0;height:100%;width:' + pct + '%;background:' + colors[i] + ';opacity:0.12;transition:width 0.8s ease;border-radius:10px;"></div>' +
+            '<div style="position:relative;display:flex;justify-content:space-between;align-items:center;">' +
+                '<div style="display:flex;align-items:center;gap:10px;">' +
+                    '<span style="min-width:22px;height:22px;border-radius:50%;background:' + (isChosen ? colors[i] : 'transparent') + ';border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + (isChosen ? '#fff' : 'var(--text-faint)') + ';">' + (isChosen ? '✓' : String.fromCharCode(65 + i)) + '</span>' +
+                    '<span style="color:var(--text);font-size:0.85rem;font-weight:' + (isChosen ? '700' : '600') + ';">' + optText + '</span>' +
+                '</div>' +
+                '<span style="font-size:0.85rem;font-weight:800;color:' + colors[i] + ';">' + pct + '%</span>' +
+            '</div>' +
+        '</div>';
+    }
+    html += '</div>';
+    html += '<div style="text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;">' + total + ' total vote' + (total !== 1 ? 's' : '') + ' · Come back tomorrow for a new poll!</div>';
+    body.innerHTML = html;
+}
+
+window.pollVote = function(chosenIdx) {
+    var today = _getPollToday();
+    if (!today || !today.poll) return;
+    var p = today.poll;
+    var todayKey = new Date().toISOString().split('T')[0];
+    var state = _getPollState();
+    if (state.date === todayKey && typeof state.chosen === 'number') return; // Already voted
+
+    // Save state
+    state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+    _setPollState(state);
+
+    // Award XP
+    if (typeof awardPoints === 'function') awardPoints(50, '📊 Poll Quest vote');
+
+    // Record vote in Firestore
+    var pollId = p.id || ('poll_day_' + todayKey);
+    if (typeof db !== 'undefined') {
+        var voteField = 'votes';
+        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
+            var votes = doc.exists ? (doc.data().votes || [0, 0, 0, 0]) : [0, 0, 0, 0];
+            votes[chosenIdx] = (votes[chosenIdx] || 0) + 1;
+            return db.collection('poll_votes').doc(pollId).set({
+                pollId: pollId,
+                question: p.q,
+                options: p.options,
+                votes: votes,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }).then(function() {
+            // Re-render with results
+            var body = document.getElementById('questHubBody');
+            if (body) _renderPollTab(body);
+        }).catch(function(e) {
+            console.error('[POLL] Vote save failed:', e);
+            // Still show results from local state
+            var body = document.getElementById('questHubBody');
+            if (body) _renderPollTab(body);
+        });
+
+        // Also track on user doc
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                lastPollDate: todayKey,
+                pollsVoted: firebase.firestore.FieldValue.increment(1)
+            }).catch(function() {});
+        }
+    } else {
+        // Offline — just re-render
+        var body = document.getElementById('questHubBody');
+        if (body) _renderPollTab(body);
+    }
+
+    if (typeof showToast === 'function') showToast('📊 Vote recorded! +50 XP', 3000);
+};
+
+// ============================================================
+// LOAD DATA BANKS (trivia + polls)
+// ============================================================
+
+(function _loadQuestBanks() {
+    // Load trivia bank
+    if (typeof TRIVIA_BANK === 'undefined') {
+        var ts = document.createElement('script');
+        ts.src = 'data/trivia-bank.js?v=20260528';
+        ts.onerror = function() { console.warn('[QUEST] Trivia bank failed to load'); };
+        document.head.appendChild(ts);
+    }
+    // Load poll bank
+    if (typeof POLL_BANK === 'undefined') {
+        var ps = document.createElement('script');
+        ps.src = 'data/poll-bank.js?v=20260528';
+        ps.onerror = function() { console.warn('[QUEST] Poll bank failed to load'); };
+        document.head.appendChild(ps);
+    }
+})();
+
+// Hash route support
+if (typeof window._questHubRouteAdded === 'undefined') {
+    window._questHubRouteAdded = true;
+    window.addEventListener('hashchange', function() {
+        if (location.hash === '#quests') {
+            setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 100);
+        }
+    });
+    if (location.hash === '#quests') {
+        setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 500);
+    }
+}

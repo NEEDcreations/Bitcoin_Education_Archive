@@ -44,7 +44,7 @@ const HIDDEN_BADGES = [
     const ENGAGEMENT_TEMPLATES = [
         // Quests & Learning
         "🎓 Someone just passed the Bitcoin Basics Certification! Can you?",
-        "⚡ A pleb just completed a Lightning Network quest — 50 pts earned!",
+        "⚡ A pleb just completed a Lightning Network quest — 50 XP earned!",
         "🗺️ Someone just finished all 10 steps of the Bitcoin Journey!",
         "🎮 A Bitcoiner just aced a quiz in Nacho Mode — 10/10!",
         "📚 A new user just explored their first 3 topics — features unlocking!",
@@ -54,15 +54,15 @@ const HIDDEN_BADGES = [
         // Streaks & Points
         "🔥 A Bitcoiner just hit a 30-day streak! Legendary dedication!",
         "🔥 Someone just started a 7-day streak — can you beat them?",
-        "🏆 A pleb just crossed 5,000 points! Climbing the leaderboard!",
-        "⭐ Someone just earned 200 points in a single session!",
+        "🏆 A pleb just crossed 5,000 XP! Climbing the leaderboard!",
+        "⭐ Someone just earned 200 XP in a single session!",
         "🔥 A user just protected their streak with a Freeze Ticket! Smart move.",
         // Leaderboard & Levels
         "📈 Someone just jumped 10 spots on the Leaderboard!",
         "🧡 A Bitcoiner just leveled up to Bitcoin Believer!",
         "🏔 Someone just reached Maxi status — top of the mountain!",
         "👑 A pleb just entered the Top 25 on the Leaderboard!",
-        "🌱 A brand new user just earned their first 50 points! Welcome!",
+        "🌱 A brand new user just earned their first 50 XP! Welcome!",
         // Spin & Tickets
         "🎡 Someone just spun the daily wheel and won 5 Orange Tickets!",
         "🎟️ A pleb just earned bonus tickets from a referral!",
@@ -382,7 +382,7 @@ window.showNachoStory = function(chapterOverride) {
         localStorage.setItem('btc_nacho_story_awarded', JSON.stringify(awardedChapters));
         var _chPts = (chIdx === CHAPTERS.length - 1) ? 50 : 15; // Last chapter = 50pts, others = 15pts
         awardPoints(_chPts, '📖 Completed Chapter ' + (chIdx + 1));
-        if (typeof showToast === 'function') showToast('📖 +' + _chPts + ' pts — Chapter ' + (chIdx + 1) + ' complete!');
+        if (typeof showToast === 'function') showToast('📖 +' + _chPts + ' XP — Chapter ' + (chIdx + 1) + ' complete!');
 
         // Check if ALL 7 chapters are now completed
         if (awardedChapters.length === CHAPTERS.length) {
@@ -509,7 +509,7 @@ window.showPricePrediction = function() {
             '<p>You predicted <b style="color:' + (saved.direction === 'up' ? '#22c55e' : '#ef4444') + '">' + (saved.direction === 'up' ? '📈 UP' : '📉 DOWN') + '</b></p>' +
             '<p>Price when predicted: <b>$' + Math.round(saved.price).toLocaleString() + '</b></p>' +
             '<p>Current price: <b>$' + Math.round(currentPrice).toLocaleString() + '</b> (' + (diff >= 0 ? '+' : '') + pct + '%)</p>' +
-            '<p style="font-size:1.2rem;margin-top:12px;">' + (correct ? '✅ You were RIGHT! +25 points' : '❌ Not this time!') + '</p>' +
+            '<p style="font-size:1.2rem;margin-top:12px;">' + (correct ? '✅ You were RIGHT! +25 XP' : '❌ Not this time!') + '</p>' +
             (correct && streak >= 2 ? '<p style="font-size:0.9rem;color:#f7931a;">🔥 ' + streak + ' correct in a row!</p>' : '') +
             '<div style="margin-top:16px;font-size:0.8rem;color:var(--text-muted,#94a3b8);">Come back tomorrow for a new prediction!</div>' +
             '<div id="globalPredStatsResult" style="margin-top:12px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">Loading community stats...</div>' +
@@ -601,7 +601,7 @@ window.checkPredictionResult = function() {
         }
     } catch(e) {}
 
-    // Award bonus points for correct prediction
+    // Award bonus XP for correct prediction
     if (correct) {
         if (typeof awardPoints === 'function') awardPoints(25, '🎯 Correct price prediction!');
         // Track streak
@@ -609,7 +609,7 @@ window.checkPredictionResult = function() {
         localStorage.setItem('btc_predict_streak', streak.toString());
         setTimeout(function() {
             if (typeof showToast === 'function') {
-                showToast('🎉 Your prediction was RIGHT! Bitcoin went ' + (diff > 0 ? 'UP' : 'DOWN') + ' ' + (diff > 0 ? '+' : '') + pct + '% — +25 points!' + (streak >= 3 ? ' 🔥 ' + streak + ' correct in a row!' : ''));
+                showToast('🎉 Your prediction was RIGHT! Bitcoin went ' + (diff > 0 ? 'UP' : 'DOWN') + ' ' + (diff > 0 ? '+' : '') + pct + '% — +25 XP!' + (streak >= 3 ? ' 🔥 ' + streak + ' correct in a row!' : ''));
             }
         }, 2000);
     } else {
@@ -1080,7 +1080,7 @@ window.checkHiddenBadges = function() {
             if (badge.check && badge.check()) {
                 earned.push(badge.id);
                 changed = true;
-                if (typeof showToast === 'function') showToast(badge.emoji + ' Secret Badge: ' + (badge.revealName || badge.name) + '! +' + badge.pts + ' pts');
+                if (typeof showToast === 'function') showToast(badge.emoji + ' Secret Badge: ' + (badge.revealName || badge.name) + '! +' + badge.pts + ' XP');
                 if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Hidden Badge: ' + (badge.revealName || badge.name));
                 // Sync to Firebase
                 if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
@@ -1264,7 +1264,7 @@ window.showCelebration = function(opts) {
                 if (typeof showToast === 'function') showToast('🏆 PERFECT SCORE! You nailed every question!');
                 if (typeof launchConfetti === 'function') setTimeout(launchConfetti, 300);
             } else if (score >= 3) {
-                if (typeof showToast === 'function') showToast('⚡ Quest passed! +' + (window._questPts || 0) + ' pts earned!');
+                if (typeof showToast === 'function') showToast('⚡ Quest passed! +' + (window._questPts || 0) + ' XP earned!');
             }
         };
     }

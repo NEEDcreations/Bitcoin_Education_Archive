@@ -245,7 +245,7 @@ function renderDailyChallenge() {
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.3rem;">✅</span>' +
             '<div><div style="color:#22c55e;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Today\'s Challenge ✔️</div>' +
-            '<div style="color:var(--text-faint);font-size:0.8rem;"><s>' + challenge.text + '</s> — Done! +100 pts 🎉</div></div></div>';
+            '<div style="color:var(--text-faint);font-size:0.8rem;"><s>' + challenge.text + '</s> — Done! +100 XP 🎉</div></div></div>';
     } else {
         el.style.borderColor = 'var(--border)';
         el.style.background = 'var(--card-bg)';
@@ -266,7 +266,7 @@ window.checkDailyChallenge = function() {
         localStorage.setItem('btc_challenge_done', today);
         if (typeof awardPoints === 'function') awardPoints(100, '🎯 Daily challenge!');
         if (typeof awardOrangeTickets === 'function') awardOrangeTickets(5, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 pts + 🎟️ 5 tickets!');
+        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 XP + 🎟️ 5 tickets!');
         haptic('success');
         renderDailyChallenge();
         // Pulse the card to draw attention
@@ -378,7 +378,7 @@ window.renderProgressRings = function() {
     el.innerHTML = '<div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">' +
         ring(Math.min(100, (visited / totalChannels) * 100), '#f7931a', 'Channels', visited + '/' + totalChannels) +
         ring(Math.min(100, streak * 5), '#22c55e', 'Streak', '🔥' + streak) +
-        ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'Points', points > 999 ? Math.floor(points/1000) + 'k' : points) +
+        ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'XP', points > 999 ? Math.floor(points/1000) + 'k' : points) +
         ring(Math.min(100, interactions * 2), '#3B82F6', 'Nacho', interactions) +
     '</div>';
 };

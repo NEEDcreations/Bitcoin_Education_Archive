@@ -1977,7 +1977,7 @@ async function awardVisitPoints() {
             showToast('🔥 STREAK MILESTONE! Day ' + newStreak + ': Earned +' + bonusTickets + ' Bonus Tickets! 🎟️');
         }, 3500);
     } else if (streakBonus) {
-        showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' pts');
+        showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' XP');
     }
     // Silent for non-streak daily visits — ticket toast covers it
     updateRankUI();
@@ -2077,7 +2077,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             var _overflowNotifKey = 'btc_overflow_notified_' + _today;
             if (!localStorage.getItem(_overflowNotifKey)) {
                 try { localStorage.setItem(_overflowNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' pts banked as overflow — they roll over tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow — they roll over tomorrow. Sign in to convert to sats.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         } else if (_dailyUsed + awarded >= DAILY_CAP) {
@@ -2085,7 +2085,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (500)! Further points today roll over to tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (500)! Further XP today rolls over to tomorrow. Sign in to convert to sats.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -2138,7 +2138,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
                 var _overflowKey = 'btc_overflow_notified_' + new Date().toISOString().split('T')[0];
                 if (!localStorage.getItem(_overflowKey)) {
                     localStorage.setItem(_overflowKey, '1');
-                    showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' pts banked as overflow — they roll over tomorrow.', 8000);
+                    showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow — they roll over tomorrow.', 8000);
                     _updateCapIndicator(true);
                 }
                 // Cache pendingOverflow locally for the CAP indicator tooltip
@@ -2147,7 +2147,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('🎯 Daily cap hit (500)! Further points today roll over to tomorrow.', 8000);
+                    showToast('🎯 Daily cap hit (500)! Further XP today rolls over to tomorrow.', 8000);
                     _updateCapIndicator(true);
                 }
             }
@@ -2155,7 +2155,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
     } catch (e) {
         // [SECURITY] No local fallback — server is the only source of truth for points
         console.warn('[POINTS] Cloud Function failed:', e.message);
-        if (typeof showToast === 'function') showToast('⏳ Points will sync when connection restores');
+        if (typeof showToast === 'function') showToast('⏳ XP will sync when connection restores');
     }
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
@@ -2174,7 +2174,7 @@ function _showPointsToast(pts, reason) {
     }
     if (_show && reason) {
         window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' pts — ' + reason, 2500);
+        showToast('+' + pts + ' XP — ' + reason, 2500);
     }
 }
 
@@ -2204,7 +2204,7 @@ function refreshLeaderboardIfOpen() {
         // In-place update: find the current user's row and update score
         var meRow = lb.querySelector('.lb-me .lb-score');
         if (meRow && currentUser) {
-            meRow.textContent = (currentUser.points || 0).toLocaleString() + ' pts';
+            meRow.textContent = (currentUser.points || 0).toLocaleString() + ' XP';
         }
     }
 }
@@ -2223,7 +2223,7 @@ async function onChannelOpen(channelId) {
         // Apply daily 2X boost
         if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
             ptsAwarded *= 2;
-            setTimeout(() => { showToast('⚡ 2X POINTS! Daily boost applied! +' + ptsAwarded + ' pts'); }, 2000);
+            setTimeout(() => { showToast('⚡ 2X XP! Daily boost applied! +' + ptsAwarded + ' XP'); }, 2000);
         }
 
         // Update local tracking
@@ -2421,9 +2421,9 @@ function updateGuestPointsBanner() {
         '<div style="display:flex;flex-direction:column;gap:2px;">' +
             '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<span style="font-size:1.2rem;">' + lv.emoji + '</span>' +
-                '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' pts</span>' +
+                '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' XP</span>' +
             '</div>' +
-            '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your points & get on the leaderboard!</div>' +
+            '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your XP & get on the leaderboard!</div>' +
         '</div>' +
         '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>' +
         '<button class="banner-toggle" aria-label="' + (isMin ? 'Expand' : 'Close') + ' sign-in banner" onclick="event.stopPropagation();toggleGuestPointsBanner()" style="' + (isMin ? 'background:rgba(0,0,0,0.35);border:none;border-radius:8px;color:#f7931a;font-weight:900;font-size:1.1rem;line-height:1;padding:6px 9px;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;' : 'position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#111;border:1.5px solid #f7931a;color:#f7931a;font-weight:900;font-size:0.8rem;line-height:1;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0;touch-action:manipulation;box-shadow:0 2px 6px rgba(0,0,0,0.5);') + '">' + (isMin ? '⚡' : '✕') + '</button>';
@@ -2450,7 +2450,7 @@ function _updateCapIndicator(atCap) {
     if (atCap || _dailyPts >= 500) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = '🎯 Daily point cap reached (500/500)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
+        el.title = '🎯 Daily XP cap reached (500/500)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -2519,7 +2519,7 @@ function updateRankUI() {
     if (lv.next) {
         const pct = Math.min(100, ((currentUser.points - lv.min) / (lv.next.min - lv.min)) * 100);
         progressHtml = '<div class="rank-progress"><div class="rank-progress-fill" style="width:' + pct + '%"></div></div>' +
-            '<div class="rank-next">' + (lv.next.min - currentUser.points) + ' pts to ' + lv.next.emoji + ' ' + lv.next.name + '</div>';
+            '<div class="rank-next">' + (lv.next.min - currentUser.points) + ' XP to ' + lv.next.emoji + ' ' + lv.next.name + '</div>';
     }
 
     const isAnon = auth.currentUser && auth.currentUser.isAnonymous;
@@ -2535,7 +2535,7 @@ function updateRankUI() {
         '<div class="rank-info" onclick="toggleLeaderboard()">' +
             '<span class="rank-level">' + lv.emoji + ' ' + lv.name + '</span>' +
             '<span class="rank-user">' + escapeHtml(currentUser.username || 'Anon') + '</span>' +
-            '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
+            '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' XP</span>' +
             streakHtml + ticketHtml +
         '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
@@ -2629,7 +2629,7 @@ function updateUserDisplay(lv) {
                     '<div style="display:flex;align-items:center;gap:6px;">' +
                         '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
                         '<span style="color:var(--text);font-weight:700;font-size:0.8rem;">GUEST</span>' +
-                        '<span style="color:#f7931a;font-weight:800;font-size:0.8rem;">' + pts.toLocaleString() + ' pts</span>' +
+                        '<span style="color:#f7931a;font-weight:800;font-size:0.8rem;">' + pts.toLocaleString() + ' XP</span>' +
                     '</div>' +
                 '</div>' +
                 (function() {
@@ -2643,7 +2643,7 @@ function updateUserDisplay(lv) {
                     if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:var(--text-muted);text-decoration:none;font-weight:700;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
                     return s + '</div>';
                 })() +
-                (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep points & enter giveaway!</div>' : '') +
+                (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep XP & enter giveaway!</div>' : '') +
             '</div>' +
             (!_isMob ? '<div id="notifBellPlaceholder" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;"></div>' : '') +
             (!_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 12px;border-radius:8px;font-weight:900;font-size:0.65rem;white-space:nowrap;cursor:pointer;">SIGN UP</div>' : '') +
@@ -2705,7 +2705,7 @@ function updateUserDisplay(lv) {
                     var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:12px;font-size:0.7rem;opacity:0.8;">';
                     if (cp) s += '<div style="display:flex;align-items:center;gap:4px;"><span style="color:#f7931a;font-weight:900;">₿</span> <span style="font-family:monospace;">$' + Math.round(cp).toLocaleString() + '</span></div>';
                     if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:#aaa;text-decoration:none;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
-                    s += '<span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' pts</span>';
+                    s += '<span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' XP</span>';
                     return s + '</div>';
                 })() +
             '</div>' +
@@ -2748,7 +2748,7 @@ function updateUserDisplay(lv) {
         var s = '<span style="cursor:pointer;" onclick="if(typeof showSettings===\'function\')showSettings()">' + mobileIcons + ' <b>' + nameStr + '</b></span>';
         if (_cp) s += ' <span style="color:#f7931a;font-weight:900;">₿</span> <span style="font-family:monospace;">$' + Math.round(_cp).toLocaleString() + '</span>';
         if (_ch) s += ' <span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + _ch.toLocaleString() + '</span>';
-        s += ' <span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' pts</span>';
+        s += ' <span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' XP</span>';
         mobileInfo.innerHTML = s;
         mobileInfo.style.display = 'inline';
         mobileInfo.style.maxWidth = 'none';
@@ -2765,7 +2765,7 @@ function updateUserDisplay(lv) {
         const streakText = (streak > 0 || wbBestStreak > 0) ? '<span style="color:#f97316;font-weight:700;"> · 🔥 ' + streak + (wbBestStreak > 0 ? '(' + wbBestStreak + ')' : '') + ' day streak</span>' : '';
         wb.innerHTML = '<span style="font-size:1.2rem;">' + lv.emoji + '</span> ' +
             '<span style="color:var(--heading);font-weight:700;">Welcome back, ' + escapeHtml(currentUser.username || 'Anon') + '!</span>' +
-            '<span style="color:var(--text-muted);font-size:0.85rem;"> · ' + lv.name + ' · ' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
+            '<span style="color:var(--text-muted);font-size:0.85rem;"> · ' + lv.name + ' · ' + (currentUser.points || 0).toLocaleString() + ' XP</span>' +
             streakText +
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">⚙️ Tap here for Account & Settings</div>';
         wb.style.display = 'block';
@@ -2869,7 +2869,7 @@ window.showDeleteAccountConfirm = function() {
             '</div>' +
             '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:14px;margin-bottom:16px;">' +
                 '<div style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;color:var(--text-muted);">' +
-                    '<div>❌ <strong>' + pts.toLocaleString() + ' points</strong> and all badges</div>' +
+                    '<div>❌ <strong>' + pts.toLocaleString() + ' XP</strong> and all badges</div>' +
                     (streak > 0 ? '<div>❌ <strong>' + streak + '-day streak</strong></div>' : '') +
                     '<div>❌ All forum posts and replies</div>' +
                     '<div>❌ Marketplace listings</div>' +
@@ -3165,7 +3165,7 @@ async function toggleLeaderboard() {
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + lv.emoji + '</span>' +
                 '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
-                '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
+                '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' XP</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
         });
@@ -3192,7 +3192,7 @@ async function toggleLeaderboard() {
 
         html += '<div class="lb-levels"><h4>Levels</h4>';
         for (const l of LEVELS) {
-            html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + (l.min === 0 ? '0 pts' : l.min + '+ pts') + '</span></div>';
+            html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + (l.min === 0 ? '0 XP' : l.min + '+ XP') + '</span></div>';
         }
         html += '</div>';
 
@@ -3513,7 +3513,7 @@ function showSettingsPage(tab) {
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
-            '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' pts</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP</div>' +
             '</div>';
 
         // Profile Picture upload
@@ -3970,7 +3970,7 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
                 '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (6,102+ pts). Verified automatically.<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
-                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
         }
@@ -4030,14 +4030,14 @@ function showSettingsPage(tab) {
         html += '<div style="text-align:center;margin-bottom:20px;">';
         html += '<div style="font-size:2.5rem;">⚡</div>';
         html += '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Real Sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Earn points → Convert to real Bitcoin over Lightning</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Earn XP → Convert to real Bitcoin over Lightning</div>';
         html += '</div>';
 
         // Balance card
         html += '<div style="background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,179,8,0.1));border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Your Balance</div>';
         html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' claimable sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availablePts.toLocaleString() + ' unclaimed pts of ' + userPts.toLocaleString() + ' total</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availablePts.toLocaleString() + ' unclaimed XP of ' + userPts.toLocaleString() + ' total</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
 
@@ -4047,7 +4047,7 @@ function showSettingsPage(tab) {
         } else if (onCooldown) {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
         } else if (!meetsMin && eligible) {
-            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' pts) to reach minimum claim</div>';
+            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' XP) to reach minimum claim</div>';
         } else {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Complete requirements below to claim</div>';
         }
@@ -4061,7 +4061,7 @@ function showSettingsPage(tab) {
             { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
             { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days — ' + (7 - acctAgeDays) + ' more to go' },
             { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics — read ' + (10 - channelsRead) + ' more' },
-            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats — earn ' + ((100 - satsBalance) * 10) + ' more points' }
+            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats — earn ' + ((100 - satsBalance) * 10) + ' more XP' }
         ];
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -4075,12 +4075,12 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">⚡ How It Works</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        html += '• <strong>1,000 points = 100 sats</strong> — earn points by reading, quests, and daily visits<br>';
-        html += '• <strong>Min claim: 100 sats</strong> (1,000 points)<br>';
+        html += '• <strong>1,000 XP = 100 sats</strong> — earn XP by reading, quests, and daily visits<br>';
+        html += '• <strong>Min claim: 100 sats</strong> (1,000 XP)<br>';
         html += '• <strong>Max claim: 500 sats/day</strong><br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
         html += '• <strong>Lifetime max: 10,000 sats</strong> per account<br>';
-        html += '• <strong>Daily points cap: 500 pts</strong> (50 sats worth) to prevent abuse<br>';
+        html += '• <strong>Daily XP cap: 500 XP</strong> (50 sats worth) to prevent abuse<br>';
         html += '• Unclaimed sats roll over — no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
         html += '</div>';
@@ -4090,11 +4090,11 @@ function showSettingsPage(tab) {
 
         // Earning guide (collapsible)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;">';
-        html += '<button onclick="event.stopPropagation();var c=document.getElementById(\'earnPointsContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
-        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);">🎯 How to Earn Points</span>';
+        html += '<button onclick="event.stopPropagation();var c=document.getElementById(\'earnXPContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
+        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);">🎯 How to Earn XP</span>';
         html += '<span class="earn-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>';
         html += '</button>';
-        html += '<div id="earnPointsContent" onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
+        html += '<div id="earnXPContent" onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
         var _es = function(id, title, items) {
             return '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
                 '<button onclick="event.stopPropagation();var c=document.getElementById(\'' + id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
@@ -4103,53 +4103,53 @@ function showSettingsPage(tab) {
                 '<div id="' + id + '" style="display:none;padding:8px 12px 10px;font-size:0.76rem;color:var(--text-muted);line-height:1.7;">' + items.join('<br>') + '</div></div>';
         };
         html += _es('ep_read', '📚 Reading & Exploring', [
-            '📖 Open a channel: <strong>10 pts</strong>',
-            '⏱️ Read for 30 sec: <strong>15 pts</strong>',
-            '🧭 Explore 10+ topics/session: <strong>50 pts</strong>',
-            '🗺️ Exploration milestones: <strong>50-500 pts</strong>'
+            '📖 Open a channel: <strong>10 XP</strong>',
+            '⏱️ Read for 30 sec: <strong>15 XP</strong>',
+            '🧭 Explore 10+ topics/session: <strong>50 XP</strong>',
+            '🗺️ Exploration milestones: <strong>50-500 XP</strong>'
         ]);
         html += _es('ep_daily', '✅ Daily Activities', [
-            '✅ Daily visit: <strong>5 pts</strong>',
-            '🔥 Streak bonus: <strong>100 pts/day</strong>',
-            '🎰 Daily spin: <strong>10-50 pts</strong>',
-            '📈 Price prediction: <strong>5 pts</strong> (25 if correct!)',
-            '📺 Watch Timechain TV: <strong>10 pts</strong> per 10 min watched'
+            '✅ Daily visit: <strong>5 XP</strong>',
+            '🔥 Streak bonus: <strong>100 XP/day</strong>',
+            '🎰 Daily spin: <strong>10-50 XP</strong>',
+            '📈 Price prediction: <strong>5 XP</strong> (25 if correct!)',
+            '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched'
         ]);
         html += _es('ep_quiz', '🧠 Quizzes & Learning', [
-            '🎯 Daily quests (perfect): <strong>100 pts</strong> (50 for 3+, 25 retry)',
-            '🧠 Nacho trivia pop-ups: <strong>10-15 pts</strong>',
-            '🎮 Channel quizzes: <strong>10 pts</strong>',
-            '🎯 Conversation quests: <strong>5 pts/correct</strong>',
-            '📖 Nacho\'s Trails chapters: <strong>25-50 pts</strong> (100 for all)',
-            '📖 Nacho\'s Story chapters: <strong>15 pts</strong> (50 final, 100 all)'
+            '🎯 Daily quests (perfect): <strong>100 XP</strong> (50 for 3+, 25 retry)',
+            '🧠 Nacho trivia pop-ups: <strong>10-15 XP</strong>',
+            '🎮 Channel quizzes: <strong>10 XP</strong>',
+            '🎯 Conversation quests: <strong>5 XP/correct</strong>',
+            '📖 Nacho\'s Trails chapters: <strong>25-50 XP</strong> (100 for all)',
+            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all)'
         ]);
         html += _es('ep_social', '💬 Community & Social', [
-            '📝 Forum post: <strong>10 pts</strong>',
-            '💬 Forum reply: <strong>5 pts</strong>',
-            '📝 Publish article: <strong>30 pts</strong>',
-            '📖 Read an article: <strong>5 pts</strong>',
-            '💬 Article comment: <strong>5 pts</strong>',
-            '🌍 Global Chat message: <strong>5 pts</strong>',
-            '🔥 Chat streaks: <strong>10-25 pts</strong> (3-day / 7-day)',
-            '🤝 Host IRL event: <strong>15 pts</strong>'
+            '📝 Forum post: <strong>10 XP</strong>',
+            '💬 Forum reply: <strong>5 XP</strong>',
+            '📝 Publish article: <strong>30 XP</strong>',
+            '📖 Read an article: <strong>5 XP</strong>',
+            '💬 Article comment: <strong>5 XP</strong>',
+            '🌍 Global Chat message: <strong>5 XP</strong>',
+            '🔥 Chat streaks: <strong>10-25 XP</strong> (3-day / 7-day)',
+            '🤝 Host IRL event: <strong>15 XP</strong>'
         ]);
         html += _es('ep_music', '🎵 Music & Content', [
-            '🎵 Upload a song: <strong>50 pts</strong>',
-            '🎧 Listen to full track: <strong>10 pts</strong>',
-            '💬 Comment on Beats: <strong>10 pts</strong>'
+            '🎵 Upload a song: <strong>50 XP</strong>',
+            '🎧 Listen to full track: <strong>10 XP</strong>',
+            '💬 Comment on Beats: <strong>10 XP</strong>'
         ]);
         html += _es('ep_pvp', '⚔️ PVP & Competitions', [
-            '⚔️ PVP victory: <strong>score-based pts</strong>',
-            '🧠 PVP practice: <strong>10 pts/correct</strong>',
-            '🏅 PVP badges: <strong>25-500 pts</strong>'
+            '⚔️ PVP victory: <strong>score-based XP</strong>',
+            '🧠 PVP practice: <strong>10 XP/correct</strong>',
+            '🏅 PVP badges: <strong>25-500 XP</strong>'
         ]);
         html += _es('ep_big', '🏆 Big Achievements', [
-            '🎓 Scholar Certification: <strong>2,100 pts</strong>',
-            '🛒 First Purchase guide: <strong>100 pts</strong>',
-            '⚡ Lightning wallet setup: <strong>100 pts</strong>',
-            '🎤 Music badges: <strong>50-100 pts</strong>',
+            '🎓 Scholar Certification: <strong>2,100 XP</strong>',
+            '🛒 First Purchase guide: <strong>100 XP</strong>',
+            '⚡ Lightning wallet setup: <strong>100 XP</strong>',
+            '🎤 Music badges: <strong>50-100 XP</strong>',
             '🔑 Hidden badges: <strong>varies</strong>',
-            '💬 Feedback bonus: <strong>5 pts</strong>'
+            '💬 Feedback bonus: <strong>5 XP</strong>'
         ]);
         html += '</div></div>';
 
@@ -4288,7 +4288,7 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📳 Haptic Feedback</div>' +
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-            '<div><span style="color:var(--text);font-size:0.85rem;">Vibration on actions</span><div style="color:var(--text-faint);font-size:0.7rem;">Vibrate on points, badges, and button taps</div></div>' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Vibration on actions</span><div style="color:var(--text-faint);font-size:0.7rem;">Vibrate on XP, badges, and button taps</div></div>' +
             '<button onclick="localStorage.setItem(\'btc_haptic\',localStorage.getItem(\'btc_haptic\')===\'false\'?\'true\':\'false\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (hapticOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (hapticOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (hapticOn ? 'ON' : 'OFF') + '</button></div></div>';
 
         // Online Status
@@ -4501,7 +4501,7 @@ function showSettingsPage(tab) {
         if (!user.isAnonymous) {
             html += '<div style="background:rgba(239,68,68,0.05);border:2px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;margin-top:24px;">' +
                 '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">⚠️ Danger Zone</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Permanently delete your account, all your data, points, badges, and progress. This action cannot be undone.</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Permanently delete your account, all your data, XP, badges, and progress. This action cannot be undone.</div>' +
                 '<button onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">🗑️ Delete My Account</button>' +
                 '</div>';
         }
@@ -4539,7 +4539,7 @@ function showSettingsPage(tab) {
 
         html += '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:2rem;margin-bottom:4px;">' + lvl.emoji + '</div>' +
-            '<div style="color:var(--heading);font-weight:700;font-size:1.3rem;">' + pts.toLocaleString() + ' pts</div>' +
+            '<div style="color:var(--heading);font-weight:700;font-size:1.3rem;">' + pts.toLocaleString() + ' XP</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;">' + lvl.name + '</div></div>';
 
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -4779,7 +4779,7 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
                 '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank.<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
-                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
         }
@@ -5629,7 +5629,7 @@ window.initSatsClaim = function() {
     console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
     if (maxClaim < 100) {
         console.log('[SATS] BLOCKED: maxClaim < 100');
-        showToast('⚡ Need at least 100 claimable sats (1,000 unclaimed points) to withdraw. Keep earning!', 5000);
+        showToast('⚡ Need at least 100 claimable sats (1,000 unclaimed XP) to withdraw. Keep earning!', 5000);
         return;
     }
     console.log('[SATS] Passed all checks, showing overlay');
@@ -5858,7 +5858,7 @@ function showLevelUpCelebration(lv) {
         '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + lv.emoji + '</div>' +
         '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">⬆️ LEVEL UP!</div>' +
         '<div style="color:var(--heading);font-size:1.6rem;font-weight:900;margin-bottom:8px;">' + lv.name + '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">You\'ve reached ' + lv.min.toLocaleString() + '+ points!</div>' +
+        '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">You\'ve reached ' + lv.min.toLocaleString() + '+ XP!</div>' +
         '<div style="color:var(--text-faint);font-size:0.85rem;margin-bottom:24px;">' + getLevelFlavor(lv.name) + '</div>' +
         '<button onclick="document.getElementById(\'levelUpModal\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Keep Going! 🚀</button>' +
         '</div>';
@@ -6161,7 +6161,7 @@ function showBadgeToast(badge) {
     // Minor badges: just a small toast, no fullscreen overlay
     if (!isMajor) {
         if (typeof showToast === 'function') {
-            showToast(badge.emoji + ' Badge: ' + badge.name + ' (+' + (badge.pts || 20) + ' pts)');
+            showToast(badge.emoji + ' Badge: ' + badge.name + ' (+' + (badge.pts || 20) + ' XP)');
         }
         return;
     }
@@ -6199,7 +6199,7 @@ function showBadgeToast(badge) {
         '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">🎉 Badge Earned!</div>' +
         '<div style="color:var(--heading);font-size:1.4rem;font-weight:900;margin-bottom:8px;">' + badge.name + '</div>' +
         '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">' + badge.desc + '</div>' +
-        '<div style="color:var(--accent);font-size:0.9rem;font-weight:700;">+20 points</div>' +
+        '<div style="color:var(--accent);font-size:0.9rem;font-weight:700;">+20 XP</div>' +
         shareHtml +
         '<button onclick="document.getElementById(\'badgeCelebration\').remove()" style="margin-top:20px;padding:10px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Awesome! ✨</button>' +
         '</div>';
@@ -6359,7 +6359,7 @@ function getBadgeHTML() {
             const earned = earnedBadges.has(badge.id);
             const pts = badge.pts || 20;
             const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
-            const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' pts)' : '🔒 Locked — ' + badge.desc;
+            const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' XP)' : '🔒 Locked — ' + badge.desc;
             
             html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" title="' + escapeHtml(badge.desc) + '" onclick="this.classList.toggle(\'tapped\')" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
                 '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
@@ -6398,7 +6398,7 @@ function getBadgeHTML() {
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '🔒') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + badge.name + '</div>' +
                     (progressText ? '<div style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">' + progressText + '</div>' : '') +
-                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' pts)' : '🔒 ' + badge.desc + (hintText ? ' — ' + hintText : '')) + '</div>' +
+                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 ' + badge.desc + (hintText ? ' — ' + hintText : '')) + '</div>' +
                 '</div>';
             }
             html += '</div></div>';
@@ -6426,7 +6426,7 @@ function getBadgeHTML() {
                 html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" onclick="this.classList.toggle(\'tapped\')" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '❓') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (unlocked ? badge.name : '???') + '</div>' +
-                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' pts)' : '🔒 Keep exploring!') + '</div>' +
+                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 Keep exploring!') + '</div>' +
                 '</div>';
             }
         } else {
@@ -7259,16 +7259,16 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Your Exploration Map on the homepage shows every channel you've visited. Try to light them all up! 🗺️" },
     { pose: 'point', text: "💡 Tip: Channels you've already read get a ✓ checkmark in the sidebar. Track your progress!" },
     // Points & Ranking
-    { pose: 'brain', text: "💡 Tip: You earn points by visiting daily (+5), opening new topics (+10), and reading (+15 per 30 sec)!" },
+    { pose: 'brain', text: "💡 Tip: You earn XP by visiting daily (+5), opening new topics (+10), and reading (+15 per 30 sec)!" },
     { pose: 'point', text: "💡 Tip: Check the leaderboard to see how you rank against other Bitcoiners! Click your rank bar at the bottom." },
     { pose: 'fire', text: "💡 Tip: Keep a daily streak going! Every 5 days in a row = bonus 100 points! 🔥" },
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
     // Tickets & Rewards
     { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in! More tickets = higher giveaway chances! 🎟️" },
     { pose: 'point', text: "💡 Tip: Share your referral link (Settings → Tickets) and earn 50 tickets for each verified friend!" },
-    { pose: 'celebrate', text: "💡 Tip: Each Orange Ticket also gives you 5 bonus points! Tickets + points = double reward! 🎟️⭐" },
+    { pose: 'celebrate', text: "💡 Tip: Each Orange Ticket also gives you 5 bonus XP! Tickets + points = double reward! 🎟️⭐" },
     // Quests & Scholar
-    { pose: 'brain', text: "💡 Tip: Hit 'Start a Quest' in the sidebar to test your Bitcoin knowledge and earn points! ⚡" },
+    { pose: 'brain', text: "💡 Tip: Hit 'Start a Quest' in the sidebar to test your Bitcoin knowledge and earn XP! ⚡" },
     { pose: 'fire', text: "💡 Tip: The Bitcoin Scholar Certification Quest is the ultimate test — pass it to earn the 🎓 badge + 300 points!" },
     // Badges
     { pose: 'eyes', text: "💡 Tip: There are 9 hidden badges to unlock! Each one awards points. Explore the site to discover them all! 🏅" },
@@ -7306,7 +7306,7 @@ const TIPS = [
     { pose: 'brain', text: "💡 Tip: Nacho Mode shows the live Bitcoin price in the header! Check it anytime! ₿" },
     { pose: 'point', text: "💡 Tip: Tap the 🧒 button in Nacho Mode to toggle ELI5 mode — I'll explain everything in super simple language!" },
     { pose: 'celebrate', text: "💡 Tip: In Nacho Mode, tap '🗺️ Start Bitcoin Journey' for a guided 10-step learning path from beginner to pro!" },
-    { pose: 'point', text: "💡 Tip: Tap '🎮 Quiz Me' in Nacho Mode to test your knowledge and earn points! 🏆" },
+    { pose: 'point', text: "💡 Tip: Tap '🎮 Quiz Me' in Nacho Mode to test your knowledge and earn XP! 🏆" },
     { pose: 'point', text: "💡 Tip: Nacho Mode has topic chips — tap them if you don't know what to ask! ⚡ Lightning, ⛏️ Mining, and more!" },
     { pose: 'brain', text: "💡 Tip: Every answer in Nacho Mode has 👍👎 buttons — your feedback helps me get smarter!" },
     { pose: 'point', text: "💡 Tip: You can share any Nacho answer with the 📤 Share button — spread the Bitcoin knowledge! 🌍" },
@@ -8132,7 +8132,7 @@ function createNacho() {
                 localStorage.setItem('btc_nacho_onboarding', '2');
             } else if (tourStep === 2 && exploredCount >= 1) {
                 forceShowBubble('<div style="line-height:1.6;">Nice, you explored your first channel! 🎉<br><br>' +
-                    'Keep going — every channel you read earns you <strong style="color:#f7931a;">+10 points</strong>. Here are some popular ones:<br><br>' +
+                    'Keep going — every channel you read earns you <strong style="color:#f7931a;">+10 XP</strong>. Here are some popular ones:<br><br>' +
                     '<button onclick="hideBubble(true);go(\'whitepaper\')" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:0.85rem;margin-bottom:4px;">📄 The Bitcoin Whitepaper</button>' +
                     '<button onclick="hideBubble(true);go(\'maximalism\')" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:0.85rem;margin-bottom:4px;">💯 Bitcoin Maximalism</button>' +
                     '<button onclick="hideBubble(true);go(\'self-custody\')" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:0.85rem;">🔑 Self-Custody</button></div>');
@@ -9715,13 +9715,13 @@ window.nachoCheckMilestone = function() {
         for (var j = 1; j < pending.length; j++) {
             (function(milestone, delay) {
                 setTimeout(function() {
-                    forceShowBubble("🎉 " + milestone.toLocaleString() + " points" + n + "! Keep going! 🦌💪");
+                    forceShowBubble("🎉 " + milestone.toLocaleString() + " XP" + n + "! Keep going! 🦌💪");
                 }, delay);
             })(pending[j], j * 4000);
         }
     }
 
-    return { pose: 'celebrate', text: "🎉 " + first.toLocaleString() + " points" + n + "!" + rank + " Incredible progress! 🦌💪" };
+    return { pose: 'celebrate', text: "🎉 " + first.toLocaleString() + " XP" + n + "!" + rank + " Incredible progress! 🦌💪" };
 };
 
 // ---- Category Completion Celebrations ----
@@ -9785,7 +9785,7 @@ window.nachoChannelIntro = function(channelId) {
     return { pose: 'point', text: "📍 " + CHANNEL_INTROS[channelId] };
 };
 
-// ---- Random Trivia Pop-ups (bonus points!) ----
+// ---- Random Trivia Pop-ups (bonus XP!) ----
 const TRIVIA = [
     { q: "How many satoshis are in 1 Bitcoin?", options: ['1 million', '10 million', '100 million', '1 billion'], correct: 2, pts: 15 },
     { q: "What year was Bitcoin created?", options: ['2007', '2008', '2009', '2010'], correct: 2, pts: 10 },
@@ -10998,7 +10998,7 @@ function showQuest(quest, retry) {
     let html = '<div class="quest-header">';
     html += '<div class="quest-badge">⚡ QUEST</div>';
     html += '<h2>' + quest.title + '</h2>';
-    html += '<p>' + (retry ? 'Retry! Get 3+ correct for 25 pts!' : 'Answer 5 questions. 3+ correct = 50 pts. All 5 = 100 pts!') + '</p>';
+    html += '<p>' + (retry ? 'Retry! Get 3+ correct for 25 XP!' : 'Answer 5 questions. 3+ correct = 50 XP. All 5 = 100 XP!') + '</p>';
     html += '</div>';
     html += '<div class="quest-questions">';
 
@@ -11081,7 +11081,7 @@ async function submitQuest() {
     if (isRetry) {
         if (score >= 3) {
             if (!pts) pts = 25;
-            msg = '🎉 ' + score + '/5 correct on retry! +' + pts + ' pts!';
+            msg = '🎉 ' + score + '/5 correct on retry! +' + pts + ' XP!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else {
@@ -11090,23 +11090,23 @@ async function submitQuest() {
     } else {
         if (score === 5) {
             if (!pts) pts = 100;
-            msg = '🏆 PERFECT! 5/5! +' + pts + ' pts!';
+            msg = '🏆 PERFECT! 5/5! +' + pts + ' XP!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else if (score >= 3) {
             if (!pts) pts = 50;
-            msg = '🎉 ' + score + '/5 correct! +' + pts + ' pts!';
+            msg = '🎉 ' + score + '/5 correct! +' + pts + ' XP!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else {
-            msg = '😅 ' + score + '/5 — You can retry for 25 pts!';
+            msg = '😅 ' + score + '/5 — You can retry for 25 XP!';
         }
     }
 
     if (pts > 0) {
         // Points already awarded server-side by gradeQuest
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
-        // Log to local points history for the Points notification tab
+        // Log to local XP history for the Points notification tab
         if (typeof notifySelfPoints === 'function') notifySelfPoints(pts, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
         var todayQ = new Date().toISOString().split('T')[0];
         var qLog = safeJSON('btc_quest_daily', {});
@@ -11228,7 +11228,7 @@ function showQuestFinalResults() {
             '<div style="font-size:3rem;margin:20px 0;">' + (score === 5 ? '🏆' : score >= 3 ? '🎉' : '😅') + '</div>' +
             '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);margin-bottom:8px;">' + score + ' / 5 Correct</div>' +
             '<div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
-            (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' points earned!</div>' : '') +
+            (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' XP earned!</div>' : '') +
             (score < 3 ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retry Quest' + (isRetry ? '' : ' for 25 pts') + '</button>' : '') +
             '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
     }
@@ -11637,7 +11637,406 @@ for(const cat in NEW_BANK_QUESTIONS_2) {
 }
 
 // ---- OPENCLAW EXPORTS ----
-if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;// © 2024-2026 603BTC LLC. All rights reserved.
+if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;
+// ============================================================
+// QUEST HUB — Quiz / Trivia / Poll tabs
+// ============================================================
+
+window._questHubTab = 'quiz';
+
+window.showQuestHub = function() {
+    // Remove existing
+    var existing = document.getElementById('questHubOverlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'questHubOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;animation:nachoPop 0.25s ease;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
+
+    // Header
+    var header = document.createElement('div');
+    header.style.cssText = 'padding:20px 24px 0;flex-shrink:0;';
+    header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+        '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
+        '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div></div>' +
+        '<button onclick="document.getElementById(\'questHubOverlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
+        // Tabs
+        '<div id="questHubTabs" style="display:flex;gap:8px;margin-bottom:16px;">' +
+        '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
+        '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
+        '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
+        '</div>';
+
+    var body = document.createElement('div');
+    body.id = 'questHubBody';
+    body.style.cssText = 'padding:0 24px 24px;overflow-y:auto;flex:1;';
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    _renderQuestHubTab();
+};
+
+function _renderQuestHubTab() {
+    var tab = window._questHubTab || 'quiz';
+    // Update active tab styles
+    ['Quiz', 'Trivia', 'Poll'].forEach(function(t) {
+        var btn = document.getElementById('qhTab' + t);
+        if (!btn) return;
+        var isActive = tab === t.toLowerCase();
+        btn.style.background = isActive ? 'var(--accent)' : 'none';
+        btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
+        btn.style.borderColor = isActive ? 'var(--accent)' : 'var(--border)';
+    });
+
+    var body = document.getElementById('questHubBody');
+    if (!body) return;
+
+    if (tab === 'quiz') _renderQuizTab(body);
+    else if (tab === 'trivia') _renderTriviaTab(body);
+    else if (tab === 'poll') _renderPollTab(body);
+}
+
+// ── QUIZ TAB (existing system) ──
+function _renderQuizTab(body) {
+    var todayKey = new Date().toISOString().split('T')[0];
+    var qLog = safeJSON('btc_quest_daily', {});
+    var completedToday = (qLog.date === todayKey) ? qLog.count : 0;
+    var completed = completedQuests ? completedQuests.size : 0;
+
+    body.innerHTML = '<div style="text-align:center;padding:16px 0;">' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">📝</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Quiz Quests</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">5-question quizzes on Bitcoin topics</div>' +
+        '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' +
+            '<div style="text-align:center;"><div style="font-size:1.2rem;font-weight:800;color:var(--accent);">' + completedToday + '</div><div style="font-size:0.7rem;color:var(--text-faint);">Today</div></div>' +
+            '<div style="text-align:center;"><div style="font-size:1.2rem;font-weight:800;color:var(--heading);">' + completed + '</div><div style="font-size:0.7rem;color:var(--text-faint);">All Time</div></div>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:center;gap:12px;margin-bottom:12px;">' +
+            '<div style="padding:6px 14px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;">3+ correct = 50 XP</div>' +
+            '<div style="padding:6px 14px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;">Perfect = 100 XP</div>' +
+        '</div>' +
+        '<button onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){if(typeof _showQuestTopicPicker===\'function\')_showQuestTopicPicker();else if(typeof startQuestManual===\'function\')startQuestManual()},200)" style="padding:14px 32px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:0.2s;">Start Quiz Quest ⚔️</button>' +
+    '</div>';
+}
+
+// ============================================================
+// TRIVIA QUEST SYSTEM — 1 per day, standalone question
+// ============================================================
+
+function _getTriviaToday() {
+    if (typeof TRIVIA_BANK === 'undefined' || !TRIVIA_BANK || !TRIVIA_BANK.length) return null;
+    // Deterministic daily rotation: day-of-year * year seed
+    var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 0);
+    var dayOfYear = Math.floor((now - start) / 86400000);
+    var seed = (dayOfYear * 7 + now.getFullYear()) % TRIVIA_BANK.length;
+    return { index: seed, trivia: TRIVIA_BANK[seed] };
+}
+
+function _getTriviaState() {
+    try { return JSON.parse(localStorage.getItem('btc_trivia_state') || '{}'); } catch(e) { return {}; }
+}
+
+function _setTriviaState(state) {
+    try { localStorage.setItem('btc_trivia_state', JSON.stringify(state)); } catch(e) {}
+}
+
+function _renderTriviaTab(body) {
+    var today = _getTriviaToday();
+    if (!today || !today.trivia) {
+        body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Trivia questions loading...</div>';
+        return;
+    }
+
+    var state = _getTriviaState();
+    var todayKey = new Date().toISOString().split('T')[0];
+    var answered = state.date === todayKey;
+    var t = today.trivia;
+
+    var html = '<div style="text-align:center;padding:8px 0 16px;">' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">🧠</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Trivia Quest</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">1 new question every day</div>' +
+        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP correct · +10 XP for trying</div>' +
+    '</div>';
+
+    // Question card
+    html += '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">' +
+        '<div style="color:var(--text);font-size:0.95rem;font-weight:700;line-height:1.6;text-align:center;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.q) : t.q) + '</div>' +
+    '</div>';
+
+    // Options
+    html += '<div id="triviaOptions" style="display:flex;flex-direction:column;gap:8px;">';
+    for (var i = 0; i < t.options.length; i++) {
+        var optText = typeof escapeHtml === 'function' ? escapeHtml(t.options[i]) : t.options[i];
+        if (answered) {
+            var isCorrect = i === t.answer;
+            var wasChosen = i === state.chosen;
+            var bg = isCorrect ? 'rgba(34,197,94,0.15)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.15)' : 'var(--card-bg,#1a1a2e)');
+            var border = isCorrect ? '#22c55e' : (wasChosen && !isCorrect ? '#ef4444' : 'var(--border)');
+            var icon = isCorrect ? '✅' : (wasChosen && !isCorrect ? '❌' : '');
+            html += '<div style="padding:12px 16px;background:' + bg + ';border:2px solid ' + border + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:10px;opacity:' + (isCorrect || wasChosen ? '1' : '0.5') + ';">' +
+                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid ' + border + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
+                optText + (icon ? '<span style="margin-left:auto;">' + icon + '</span>' : '') +
+            '</div>';
+        } else {
+            html += '<button onclick="triviaAnswer(' + i + ')" style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
+                optText +
+            '</button>';
+        }
+    }
+    html += '</div>';
+
+    // Show explanation if answered
+    if (answered) {
+        html += '<div style="margin-top:16px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
+            '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
+            '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.explanation) : t.explanation) + '</div>' +
+        '</div>';
+        html += '<div style="text-align:center;margin-top:16px;color:var(--text-faint);font-size:0.75rem;">Come back tomorrow for a new trivia question! 🧠</div>';
+    }
+
+    body.innerHTML = html;
+}
+
+window.triviaAnswer = function(chosenIdx) {
+    var today = _getTriviaToday();
+    if (!today || !today.trivia) return;
+    var t = today.trivia;
+    var todayKey = new Date().toISOString().split('T')[0];
+    var state = _getTriviaState();
+    if (state.date === todayKey) return; // Already answered
+
+    var isCorrect = chosenIdx === t.answer;
+    var xp = isCorrect ? 50 : 10;
+
+    // Save state
+    state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: isCorrect };
+    _setTriviaState(state);
+
+    // Award XP
+    if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt');
+
+    // Also sync to Firestore for signed-in users
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({
+            lastTriviaDate: todayKey,
+            triviaAnswered: firebase.firestore.FieldValue.increment(1),
+            triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
+        }).catch(function() {});
+    }
+
+    // Re-render to show result
+    var body = document.getElementById('questHubBody');
+    if (body) _renderTriviaTab(body);
+
+    if (typeof showToast === 'function') {
+        showToast(isCorrect ? '✅ Correct! +50 XP 🧠' : '❌ Wrong — +10 XP for trying!', 3000);
+    }
+};
+
+// ============================================================
+// POLL QUEST SYSTEM — 1 per day, vote to see results
+// ============================================================
+
+function _getPollToday() {
+    if (typeof POLL_BANK === 'undefined' || !POLL_BANK || !POLL_BANK.length) return null;
+    var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 0);
+    var dayOfYear = Math.floor((now - start) / 86400000);
+    var seed = (dayOfYear * 13 + now.getFullYear()) % POLL_BANK.length;
+    return { index: seed, poll: POLL_BANK[seed] };
+}
+
+function _getPollState() {
+    try { return JSON.parse(localStorage.getItem('btc_poll_state') || '{}'); } catch(e) { return {}; }
+}
+
+function _setPollState(state) {
+    try { localStorage.setItem('btc_poll_state', JSON.stringify(state)); } catch(e) {}
+}
+
+function _renderPollTab(body) {
+    var today = _getPollToday();
+    if (!today || !today.poll) {
+        body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Polls loading...</div>';
+        return;
+    }
+
+    var state = _getPollState();
+    var todayKey = new Date().toISOString().split('T')[0];
+    var hasVoted = state.date === todayKey && typeof state.chosen === 'number';
+    var p = today.poll;
+
+    var html = '<div style="text-align:center;padding:8px 0 16px;">' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">📊</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Poll Quest</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">Vote daily — see what the community thinks</div>' +
+        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP for voting</div>' +
+    '</div>';
+
+    // Question
+    html += '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">' +
+        '<div style="color:var(--text);font-size:0.95rem;font-weight:700;line-height:1.6;text-align:center;">' + (typeof escapeHtml === 'function' ? escapeHtml(p.q) : p.q) + '</div>' +
+    '</div>';
+
+    if (hasVoted) {
+        // Show results with bars
+        _renderPollResults(body, html, p, state, todayKey);
+    } else {
+        // Show voting options
+        html += '<div id="pollOptions" style="display:flex;flex-direction:column;gap:8px;">';
+        for (var i = 0; i < p.options.length; i++) {
+            var optText = typeof escapeHtml === 'function' ? escapeHtml(p.options[i]) : p.options[i];
+            html += '<button onclick="pollVote(' + i + ')" style="padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
+                optText +
+            '</button>';
+        }
+        html += '</div>';
+        body.innerHTML = html;
+    }
+}
+
+function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
+    var pollId = poll.id || ('poll_day_' + todayKey);
+    // Fetch results from Firestore
+    if (typeof db !== 'undefined') {
+        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
+            var votes = doc.exists ? (doc.data().votes || [0, 0, 0, 0]) : [0, 0, 0, 0];
+            var total = votes.reduce(function(a, b) { return a + b; }, 0) || 1;
+            _drawPollResults(body, htmlPrefix, poll, votes, total, state.chosen);
+        }).catch(function() {
+            // Offline fallback
+            _drawPollResults(body, htmlPrefix, poll, [0, 0, 0, 0], 1, state.chosen);
+        });
+    } else {
+        _drawPollResults(body, htmlPrefix, poll, [0, 0, 0, 0], 1, state.chosen);
+    }
+}
+
+function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
+    var html = htmlPrefix;
+    var colors = ['#f7931a', '#3b82f6', '#22c55e', '#8b5cf6'];
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+    for (var i = 0; i < poll.options.length; i++) {
+        var optText = typeof escapeHtml === 'function' ? escapeHtml(poll.options[i]) : poll.options[i];
+        var pct = Math.round((votes[i] / total) * 100);
+        var isChosen = i === chosen;
+        html += '<div style="position:relative;padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';border-radius:12px;overflow:hidden;">' +
+            '<div style="position:absolute;top:0;left:0;height:100%;width:' + pct + '%;background:' + colors[i] + ';opacity:0.12;transition:width 0.8s ease;border-radius:10px;"></div>' +
+            '<div style="position:relative;display:flex;justify-content:space-between;align-items:center;">' +
+                '<div style="display:flex;align-items:center;gap:10px;">' +
+                    '<span style="min-width:22px;height:22px;border-radius:50%;background:' + (isChosen ? colors[i] : 'transparent') + ';border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + (isChosen ? '#fff' : 'var(--text-faint)') + ';">' + (isChosen ? '✓' : String.fromCharCode(65 + i)) + '</span>' +
+                    '<span style="color:var(--text);font-size:0.85rem;font-weight:' + (isChosen ? '700' : '600') + ';">' + optText + '</span>' +
+                '</div>' +
+                '<span style="font-size:0.85rem;font-weight:800;color:' + colors[i] + ';">' + pct + '%</span>' +
+            '</div>' +
+        '</div>';
+    }
+    html += '</div>';
+    html += '<div style="text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;">' + total + ' total vote' + (total !== 1 ? 's' : '') + ' · Come back tomorrow for a new poll!</div>';
+    body.innerHTML = html;
+}
+
+window.pollVote = function(chosenIdx) {
+    var today = _getPollToday();
+    if (!today || !today.poll) return;
+    var p = today.poll;
+    var todayKey = new Date().toISOString().split('T')[0];
+    var state = _getPollState();
+    if (state.date === todayKey && typeof state.chosen === 'number') return; // Already voted
+
+    // Save state
+    state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+    _setPollState(state);
+
+    // Award XP
+    if (typeof awardPoints === 'function') awardPoints(50, '📊 Poll Quest vote');
+
+    // Record vote in Firestore
+    var pollId = p.id || ('poll_day_' + todayKey);
+    if (typeof db !== 'undefined') {
+        var voteField = 'votes';
+        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
+            var votes = doc.exists ? (doc.data().votes || [0, 0, 0, 0]) : [0, 0, 0, 0];
+            votes[chosenIdx] = (votes[chosenIdx] || 0) + 1;
+            return db.collection('poll_votes').doc(pollId).set({
+                pollId: pollId,
+                question: p.q,
+                options: p.options,
+                votes: votes,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }).then(function() {
+            // Re-render with results
+            var body = document.getElementById('questHubBody');
+            if (body) _renderPollTab(body);
+        }).catch(function(e) {
+            console.error('[POLL] Vote save failed:', e);
+            // Still show results from local state
+            var body = document.getElementById('questHubBody');
+            if (body) _renderPollTab(body);
+        });
+
+        // Also track on user doc
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                lastPollDate: todayKey,
+                pollsVoted: firebase.firestore.FieldValue.increment(1)
+            }).catch(function() {});
+        }
+    } else {
+        // Offline — just re-render
+        var body = document.getElementById('questHubBody');
+        if (body) _renderPollTab(body);
+    }
+
+    if (typeof showToast === 'function') showToast('📊 Vote recorded! +50 XP', 3000);
+};
+
+// ============================================================
+// LOAD DATA BANKS (trivia + polls)
+// ============================================================
+
+(function _loadQuestBanks() {
+    // Load trivia bank
+    if (typeof TRIVIA_BANK === 'undefined') {
+        var ts = document.createElement('script');
+        ts.src = 'data/trivia-bank.js?v=20260528';
+        ts.onerror = function() { console.warn('[QUEST] Trivia bank failed to load'); };
+        document.head.appendChild(ts);
+    }
+    // Load poll bank
+    if (typeof POLL_BANK === 'undefined') {
+        var ps = document.createElement('script');
+        ps.src = 'data/poll-bank.js?v=20260528';
+        ps.onerror = function() { console.warn('[QUEST] Poll bank failed to load'); };
+        document.head.appendChild(ps);
+    }
+})();
+
+// Hash route support
+if (typeof window._questHubRouteAdded === 'undefined') {
+    window._questHubRouteAdded = true;
+    window.addEventListener('hashchange', function() {
+        if (location.hash === '#quests') {
+            setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 100);
+        }
+    });
+    if (location.hash === '#quests') {
+        setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 500);
+    }
+}
+// © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
 // 🗣️ Bitcoin Education Archive — PlebTalk
@@ -12135,7 +12534,7 @@ window.forumNewPost = function() {
                 '<div style="text-align:center;padding:40px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
                     '<div style="font-size:3rem;margin-bottom:12px;">🔒</div>' +
                     '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 8px;">Registration Required</h2>' +
-                    '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;max-width:360px;margin-left:auto;margin-right:auto;">Create a free account to post in the forum, join discussions, and earn points! It only takes a few seconds.</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;max-width:360px;margin-left:auto;margin-right:auto;">Create a free account to post in the forum, join discussions, and earn XP! It only takes a few seconds.</div>' +
                     '<button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:12px 28px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Create Free Account / Sign In</button>' +
                 '</div></div>';
         }
@@ -13674,7 +14073,7 @@ function mentionShowDropdown(textarea, users) {
         var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '🟢' };
         item.innerHTML = '<span style="font-size:0.85rem;">' + lv.emoji + '</span> ' +
             '<span style="font-weight:700;">' + fEsc(u.username) + '</span>' +
-            (u.points ? '<span style="color:var(--text-faint);font-size:0.7rem;margin-left:6px;">' + (u.points || 0).toLocaleString() + ' pts</span>' : '');
+            (u.points ? '<span style="color:var(--text-faint);font-size:0.7rem;margin-left:6px;">' + (u.points || 0).toLocaleString() + ' XP</span>' : '');
         item.style.cssText = 'padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text);transition:background 0.15s;' +
             (idx === 0 ? 'background:var(--accent-bg);' : '');
         item.onmouseenter = function() {
@@ -15499,7 +15898,7 @@ window.showUserProfile = function(uid) {
                 '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">' + escapeHtml(u.username || 'Bitcoiner') +
                     '<span title="' + status.label + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + status.color + ';margin-left:6px;vertical-align:middle;' + (status.status === 'online' ? 'box-shadow:0 0 8px ' + status.color + ';' : '') + '"></span>' +
                 '</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' pts</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
             '</div>' +
             // Bio
@@ -16460,7 +16859,7 @@ const HIDDEN_BADGES = [
     const ENGAGEMENT_TEMPLATES = [
         // Quests & Learning
         "🎓 Someone just passed the Bitcoin Basics Certification! Can you?",
-        "⚡ A pleb just completed a Lightning Network quest — 50 pts earned!",
+        "⚡ A pleb just completed a Lightning Network quest — 50 XP earned!",
         "🗺️ Someone just finished all 10 steps of the Bitcoin Journey!",
         "🎮 A Bitcoiner just aced a quiz in Nacho Mode — 10/10!",
         "📚 A new user just explored their first 3 topics — features unlocking!",
@@ -16470,15 +16869,15 @@ const HIDDEN_BADGES = [
         // Streaks & Points
         "🔥 A Bitcoiner just hit a 30-day streak! Legendary dedication!",
         "🔥 Someone just started a 7-day streak — can you beat them?",
-        "🏆 A pleb just crossed 5,000 points! Climbing the leaderboard!",
-        "⭐ Someone just earned 200 points in a single session!",
+        "🏆 A pleb just crossed 5,000 XP! Climbing the leaderboard!",
+        "⭐ Someone just earned 200 XP in a single session!",
         "🔥 A user just protected their streak with a Freeze Ticket! Smart move.",
         // Leaderboard & Levels
         "📈 Someone just jumped 10 spots on the Leaderboard!",
         "🧡 A Bitcoiner just leveled up to Bitcoin Believer!",
         "🏔 Someone just reached Maxi status — top of the mountain!",
         "👑 A pleb just entered the Top 25 on the Leaderboard!",
-        "🌱 A brand new user just earned their first 50 points! Welcome!",
+        "🌱 A brand new user just earned their first 50 XP! Welcome!",
         // Spin & Tickets
         "🎡 Someone just spun the daily wheel and won 5 Orange Tickets!",
         "🎟️ A pleb just earned bonus tickets from a referral!",
@@ -16798,7 +17197,7 @@ window.showNachoStory = function(chapterOverride) {
         localStorage.setItem('btc_nacho_story_awarded', JSON.stringify(awardedChapters));
         var _chPts = (chIdx === CHAPTERS.length - 1) ? 50 : 15; // Last chapter = 50pts, others = 15pts
         awardPoints(_chPts, '📖 Completed Chapter ' + (chIdx + 1));
-        if (typeof showToast === 'function') showToast('📖 +' + _chPts + ' pts — Chapter ' + (chIdx + 1) + ' complete!');
+        if (typeof showToast === 'function') showToast('📖 +' + _chPts + ' XP — Chapter ' + (chIdx + 1) + ' complete!');
 
         // Check if ALL 7 chapters are now completed
         if (awardedChapters.length === CHAPTERS.length) {
@@ -16925,7 +17324,7 @@ window.showPricePrediction = function() {
             '<p>You predicted <b style="color:' + (saved.direction === 'up' ? '#22c55e' : '#ef4444') + '">' + (saved.direction === 'up' ? '📈 UP' : '📉 DOWN') + '</b></p>' +
             '<p>Price when predicted: <b>$' + Math.round(saved.price).toLocaleString() + '</b></p>' +
             '<p>Current price: <b>$' + Math.round(currentPrice).toLocaleString() + '</b> (' + (diff >= 0 ? '+' : '') + pct + '%)</p>' +
-            '<p style="font-size:1.2rem;margin-top:12px;">' + (correct ? '✅ You were RIGHT! +25 points' : '❌ Not this time!') + '</p>' +
+            '<p style="font-size:1.2rem;margin-top:12px;">' + (correct ? '✅ You were RIGHT! +25 XP' : '❌ Not this time!') + '</p>' +
             (correct && streak >= 2 ? '<p style="font-size:0.9rem;color:#f7931a;">🔥 ' + streak + ' correct in a row!</p>' : '') +
             '<div style="margin-top:16px;font-size:0.8rem;color:var(--text-muted,#94a3b8);">Come back tomorrow for a new prediction!</div>' +
             '<div id="globalPredStatsResult" style="margin-top:12px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">Loading community stats...</div>' +
@@ -17017,7 +17416,7 @@ window.checkPredictionResult = function() {
         }
     } catch(e) {}
 
-    // Award bonus points for correct prediction
+    // Award bonus XP for correct prediction
     if (correct) {
         if (typeof awardPoints === 'function') awardPoints(25, '🎯 Correct price prediction!');
         // Track streak
@@ -17025,7 +17424,7 @@ window.checkPredictionResult = function() {
         localStorage.setItem('btc_predict_streak', streak.toString());
         setTimeout(function() {
             if (typeof showToast === 'function') {
-                showToast('🎉 Your prediction was RIGHT! Bitcoin went ' + (diff > 0 ? 'UP' : 'DOWN') + ' ' + (diff > 0 ? '+' : '') + pct + '% — +25 points!' + (streak >= 3 ? ' 🔥 ' + streak + ' correct in a row!' : ''));
+                showToast('🎉 Your prediction was RIGHT! Bitcoin went ' + (diff > 0 ? 'UP' : 'DOWN') + ' ' + (diff > 0 ? '+' : '') + pct + '% — +25 XP!' + (streak >= 3 ? ' 🔥 ' + streak + ' correct in a row!' : ''));
             }
         }, 2000);
     } else {
@@ -17496,7 +17895,7 @@ window.checkHiddenBadges = function() {
             if (badge.check && badge.check()) {
                 earned.push(badge.id);
                 changed = true;
-                if (typeof showToast === 'function') showToast(badge.emoji + ' Secret Badge: ' + (badge.revealName || badge.name) + '! +' + badge.pts + ' pts');
+                if (typeof showToast === 'function') showToast(badge.emoji + ' Secret Badge: ' + (badge.revealName || badge.name) + '! +' + badge.pts + ' XP');
                 if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Hidden Badge: ' + (badge.revealName || badge.name));
                 // Sync to Firebase
                 if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
@@ -17680,7 +18079,7 @@ window.showCelebration = function(opts) {
                 if (typeof showToast === 'function') showToast('🏆 PERFECT SCORE! You nailed every question!');
                 if (typeof launchConfetti === 'function') setTimeout(launchConfetti, 300);
             } else if (score >= 3) {
-                if (typeof showToast === 'function') showToast('⚡ Quest passed! +' + (window._questPts || 0) + ' pts earned!');
+                if (typeof showToast === 'function') showToast('⚡ Quest passed! +' + (window._questPts || 0) + ' XP earned!');
             }
         };
     }
@@ -17952,7 +18351,7 @@ function renderDailyChallenge() {
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.3rem;">✅</span>' +
             '<div><div style="color:#22c55e;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Today\'s Challenge ✔️</div>' +
-            '<div style="color:var(--text-faint);font-size:0.8rem;"><s>' + challenge.text + '</s> — Done! +100 pts 🎉</div></div></div>';
+            '<div style="color:var(--text-faint);font-size:0.8rem;"><s>' + challenge.text + '</s> — Done! +100 XP 🎉</div></div></div>';
     } else {
         el.style.borderColor = 'var(--border)';
         el.style.background = 'var(--card-bg)';
@@ -17973,7 +18372,7 @@ window.checkDailyChallenge = function() {
         localStorage.setItem('btc_challenge_done', today);
         if (typeof awardPoints === 'function') awardPoints(100, '🎯 Daily challenge!');
         if (typeof awardOrangeTickets === 'function') awardOrangeTickets(5, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 pts + 🎟️ 5 tickets!');
+        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 XP + 🎟️ 5 tickets!');
         haptic('success');
         renderDailyChallenge();
         // Pulse the card to draw attention
@@ -18085,7 +18484,7 @@ window.renderProgressRings = function() {
     el.innerHTML = '<div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">' +
         ring(Math.min(100, (visited / totalChannels) * 100), '#f7931a', 'Channels', visited + '/' + totalChannels) +
         ring(Math.min(100, streak * 5), '#22c55e', 'Streak', '🔥' + streak) +
-        ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'Points', points > 999 ? Math.floor(points/1000) + 'k' : points) +
+        ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'XP', points > 999 ? Math.floor(points/1000) + 'k' : points) +
         ring(Math.min(100, interactions * 2), '#3B82F6', 'Nacho', interactions) +
     '</div>';
 };
@@ -20254,7 +20653,7 @@ window._startHalvingTicker = function() {
     var nachoLiveData = { price: null, blockHeight: null };
 
     // ---- Clean URL helpers ----
-    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho'];
+    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho','quests'];
     window._cleanUrl = function(id) {
         if (!id) return '/';
         // If we're already on the clean URL path, don't add a hash
@@ -20837,12 +21236,12 @@ window._startHalvingTicker = function() {
         var segments = [
             { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
             { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
-            { label: '⭐ 25 pts', value: 'points_25', weight: 18, color: '#22c55e' },
+            { label: '⭐ 25 XP', value: 'points_25', weight: 18, color: '#22c55e' },
             { label: '🎟️ 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
-            { label: '⭐ 50 pts', value: 'points_50', weight: 8, color: '#3b82f6' },
+            { label: '⭐ 50 XP', value: 'points_50', weight: 8, color: '#3b82f6' },
             { label: '👔 Closet!', value: 'closet_item', weight: 5, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
-            { label: '⭐ 100 pts', value: 'points_100', weight: 3, color: '#8b5cf6' },
+            { label: '⭐ 100 XP', value: 'points_100', weight: 3, color: '#8b5cf6' },
             { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
             { label: '💎 RARE!', value: 'rare_drop', weight: 1.5, color: '#ef4444' }
         ];
@@ -20865,7 +21264,7 @@ window._startHalvingTicker = function() {
                 '<button onclick="document.getElementById(\'spinModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
                 '<div style="font-size:2.5rem;margin-bottom:8px;">🎡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:4px;">Daily Spin</div>' +
-                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, points, Nacho Closet items, and rare Freeze Tickets!</p>' +
+                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, XP, Nacho Closet items, and rare Freeze Tickets!</p>' +
                 '<div id="spinWheelContainer" style="position:relative;width:250px;height:250px;margin:0 auto 20px;">' +
                     '<canvas id="spinCanvas" width="250" height="250" style="border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4);"></canvas>' +
                     '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ef4444;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>' +
@@ -21052,7 +21451,7 @@ window._startHalvingTicker = function() {
                             var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
                             rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
                         } else {
-                            rewardText = '👔 You already own all spin closet items! +25 bonus points instead!';
+                            rewardText = '👔 You already own all spin closet items! +25 bonus XP instead!';
                             if (typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
                         }
                     } else if (rewardType === 'freeze') {
@@ -21075,7 +21474,7 @@ window._startHalvingTicker = function() {
                             localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
                         }
                     } else if (rewardType === 'points') {
-                        rewardText = '⭐ You won ' + rewardAmount + ' points!';
+                        rewardText = '⭐ You won ' + rewardAmount + ' XP!';
                         if (typeof awardPoints === 'function') {
                             awardPoints(rewardAmount, 'Daily Spin');
                         } else {
@@ -22308,7 +22707,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!');
         var resultDiv = document.createElement('div');
         resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
-        resultDiv.textContent = '✅ Correct! +10 pts';
+        resultDiv.textContent = '✅ Correct! +10 XP';
         btn.parentElement.appendChild(resultDiv);
     } else {
         btn.style.background = '#ef4444';
@@ -22576,13 +22975,13 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">Conversation Quest Complete!</div>' +
             '<div style="font-size:1.2rem;font-weight:900;color:var(--accent);margin-bottom:4px;">' + score + '/' + total + ' correct</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">' + msg + '</div>' +
-            (pts > 0 ? '<div style="color:#22c55e;font-weight:700;font-size:0.9rem;">+' + pts + ' pts earned! 🎉</div>' : '') +
+            (pts > 0 ? '<div style="color:#22c55e;font-weight:700;font-size:0.9rem;">+' + pts + ' XP earned! 🎉</div>' : '') +
         '</div>';
         nachoChatAppend('nacho', '', html);
 
         if (pts > 0) {
             if (typeof awardPoints === 'function') awardPoints(pts, '🎯 Conversation Quest!');
-            if (typeof showToast === 'function') showToast('🎯 +' + pts + ' pts — Conversation Quest!');
+            if (typeof showToast === 'function') showToast('🎯 +' + pts + ' XP — Conversation Quest!');
         }
     }
 
@@ -22909,7 +23308,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 var parts = [];
                 if (timeSpent > 0) parts.push('⏱️ ' + timeSpent + ' min');
                 if (e && e.interactions > 0) parts.push('🦌 ' + e.interactions + ' interactions');
-                if (e && e.points > 0) parts.push('+' + e.points + ' pts');
+                if (e && e.points > 0) parts.push('+' + e.points + ' XP');
                 var bc = e ? (Array.isArray(e.badges) ? e.badges.length : (e.badges || 0)) : 0;
                 if (bc > 0) parts.push('🏅 ' + bc + ' badge' + (bc > 1 ? 's' : ''));
                 if (parts.length > 0) {
@@ -23976,7 +24375,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
         { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
         { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
-        { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
+        { id: '_quest', title: '⚔️ Quest Hub', desc: 'Quiz, Trivia, and Poll quests — earn XP!', keywords: 'quest mission journey learn guided start challenge quiz trivia poll hub', action: 'showQuestHub()' },
         { id: '_scholar', title: '🎓 Scholar Certification', desc: 'Bitcoin Scholar & Protocol Expert Certifications', keywords: 'scholar certification exam test certificate diploma bitcoin technical protocol', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_signal', title: '📡 The Signal', desc: 'Weekly curated Bitcoin insights newsletter', keywords: 'signal newsletter weekly email updates curated insights', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep memorize practice drill test', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
@@ -24014,7 +24413,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_satsvbits', title: '⚡ Sats vs Bits', desc: 'Live community vote — sats or bits for the Bitcoin denomination?', keywords: 'sats bits vote poll denomination unit satoshi community debate live', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_newbie', title: '🟢 Brand New to Bitcoin?', desc: 'Quick introduction for absolute beginners', keywords: 'new beginner brand new start zero nothing know nothing introduction first time newbie noob', action: "go('one-stop-shop')" },
         { id: '_meetupbuilder', title: '🔨 Meetup Builder', desc: 'Plan, share, and discover Bitcoin meetups — resources, venues & guides', keywords: 'meetup builder create plan share venue platform resource guide community', action: "go('meetup-builder')" },
-        { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw cashout bitcoin lightning faucet earn points convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
+        { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw cashout bitcoin lightning faucet earn XP convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
         { id: '_tips', title: '⚡ Lightning Tips', desc: 'Tip other users with Lightning sats', keywords: 'tip tips lightning send sats zap reward give appreciation', action: "if(typeof showTipOverlay==='function')showTipOverlay()" },
         { id: '_network', title: '📡 Bitcoin Network', desc: 'Live mempool, hashrate, difficulty, fees, and block explorer', keywords: 'network mempool hashrate difficulty fees block explorer transaction confirmations bitcoin network stats', action: "go('bitcoin-dashboard')" },
         { id: '_notifications', title: '🔔 Notifications', desc: 'Enable push notifications for updates and alerts', keywords: 'notifications push alerts notify bell updates permission enable disable', action: "if(typeof requestNotificationPermission==='function')requestNotificationPermission();else showSettings()" },
@@ -24848,6 +25247,9 @@ window.nachoQuizAnswer = function(btn, correct) {
                     break;
                 case 'pow-support':
                     if (typeof renderPOWSupport === 'function') { renderPOWSupport(); return; }
+                    break;
+                case 'quests':
+                    if (typeof showQuestHub === 'function') { showQuestHub(); return; }
                     break;
                 case 'dashboard':
                 case 'bitcoin-dashboard':

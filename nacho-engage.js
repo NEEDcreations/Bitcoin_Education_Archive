@@ -73,13 +73,13 @@ window.nachoCheckMilestone = function() {
         for (var j = 1; j < pending.length; j++) {
             (function(milestone, delay) {
                 setTimeout(function() {
-                    forceShowBubble("🎉 " + milestone.toLocaleString() + " points" + n + "! Keep going! 🦌💪");
+                    forceShowBubble("🎉 " + milestone.toLocaleString() + " XP" + n + "! Keep going! 🦌💪");
                 }, delay);
             })(pending[j], j * 4000);
         }
     }
 
-    return { pose: 'celebrate', text: "🎉 " + first.toLocaleString() + " points" + n + "!" + rank + " Incredible progress! 🦌💪" };
+    return { pose: 'celebrate', text: "🎉 " + first.toLocaleString() + " XP" + n + "!" + rank + " Incredible progress! 🦌💪" };
 };
 
 // ---- Category Completion Celebrations ----
@@ -143,7 +143,7 @@ window.nachoChannelIntro = function(channelId) {
     return { pose: 'point', text: "📍 " + CHANNEL_INTROS[channelId] };
 };
 
-// ---- Random Trivia Pop-ups (bonus points!) ----
+// ---- Random Trivia Pop-ups (bonus XP!) ----
 const TRIVIA = [
     { q: "How many satoshis are in 1 Bitcoin?", options: ['1 million', '10 million', '100 million', '1 billion'], correct: 2, pts: 15 },
     { q: "What year was Bitcoin created?", options: ['2007', '2008', '2009', '2010'], correct: 2, pts: 10 },

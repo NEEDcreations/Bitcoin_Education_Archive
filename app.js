@@ -5,7 +5,7 @@
     var nachoLiveData = { price: null, blockHeight: null };
 
     // ---- Clean URL helpers ----
-    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho'];
+    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho','quests'];
     window._cleanUrl = function(id) {
         if (!id) return '/';
         // If we're already on the clean URL path, don't add a hash
@@ -588,12 +588,12 @@
         var segments = [
             { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
             { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
-            { label: '⭐ 25 pts', value: 'points_25', weight: 18, color: '#22c55e' },
+            { label: '⭐ 25 XP', value: 'points_25', weight: 18, color: '#22c55e' },
             { label: '🎟️ 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
-            { label: '⭐ 50 pts', value: 'points_50', weight: 8, color: '#3b82f6' },
+            { label: '⭐ 50 XP', value: 'points_50', weight: 8, color: '#3b82f6' },
             { label: '👔 Closet!', value: 'closet_item', weight: 5, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
-            { label: '⭐ 100 pts', value: 'points_100', weight: 3, color: '#8b5cf6' },
+            { label: '⭐ 100 XP', value: 'points_100', weight: 3, color: '#8b5cf6' },
             { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
             { label: '💎 RARE!', value: 'rare_drop', weight: 1.5, color: '#ef4444' }
         ];
@@ -616,7 +616,7 @@
                 '<button onclick="document.getElementById(\'spinModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
                 '<div style="font-size:2.5rem;margin-bottom:8px;">🎡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:4px;">Daily Spin</div>' +
-                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, points, Nacho Closet items, and rare Freeze Tickets!</p>' +
+                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, XP, Nacho Closet items, and rare Freeze Tickets!</p>' +
                 '<div id="spinWheelContainer" style="position:relative;width:250px;height:250px;margin:0 auto 20px;">' +
                     '<canvas id="spinCanvas" width="250" height="250" style="border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4);"></canvas>' +
                     '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ef4444;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>' +
@@ -803,7 +803,7 @@
                             var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
                             rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
                         } else {
-                            rewardText = '👔 You already own all spin closet items! +25 bonus points instead!';
+                            rewardText = '👔 You already own all spin closet items! +25 bonus XP instead!';
                             if (typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
                         }
                     } else if (rewardType === 'freeze') {
@@ -826,7 +826,7 @@
                             localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
                         }
                     } else if (rewardType === 'points') {
-                        rewardText = '⭐ You won ' + rewardAmount + ' points!';
+                        rewardText = '⭐ You won ' + rewardAmount + ' XP!';
                         if (typeof awardPoints === 'function') {
                             awardPoints(rewardAmount, 'Daily Spin');
                         } else {
@@ -2059,7 +2059,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!');
         var resultDiv = document.createElement('div');
         resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
-        resultDiv.textContent = '✅ Correct! +10 pts';
+        resultDiv.textContent = '✅ Correct! +10 XP';
         btn.parentElement.appendChild(resultDiv);
     } else {
         btn.style.background = '#ef4444';
@@ -2327,13 +2327,13 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">Conversation Quest Complete!</div>' +
             '<div style="font-size:1.2rem;font-weight:900;color:var(--accent);margin-bottom:4px;">' + score + '/' + total + ' correct</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">' + msg + '</div>' +
-            (pts > 0 ? '<div style="color:#22c55e;font-weight:700;font-size:0.9rem;">+' + pts + ' pts earned! 🎉</div>' : '') +
+            (pts > 0 ? '<div style="color:#22c55e;font-weight:700;font-size:0.9rem;">+' + pts + ' XP earned! 🎉</div>' : '') +
         '</div>';
         nachoChatAppend('nacho', '', html);
 
         if (pts > 0) {
             if (typeof awardPoints === 'function') awardPoints(pts, '🎯 Conversation Quest!');
-            if (typeof showToast === 'function') showToast('🎯 +' + pts + ' pts — Conversation Quest!');
+            if (typeof showToast === 'function') showToast('🎯 +' + pts + ' XP — Conversation Quest!');
         }
     }
 
@@ -2660,7 +2660,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 var parts = [];
                 if (timeSpent > 0) parts.push('⏱️ ' + timeSpent + ' min');
                 if (e && e.interactions > 0) parts.push('🦌 ' + e.interactions + ' interactions');
-                if (e && e.points > 0) parts.push('+' + e.points + ' pts');
+                if (e && e.points > 0) parts.push('+' + e.points + ' XP');
                 var bc = e ? (Array.isArray(e.badges) ? e.badges.length : (e.badges || 0)) : 0;
                 if (bc > 0) parts.push('🏅 ' + bc + ' badge' + (bc > 1 ? 's' : ''));
                 if (parts.length > 0) {
@@ -3727,7 +3727,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
         { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
         { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
-        { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
+        { id: '_quest', title: '⚔️ Quest Hub', desc: 'Quiz, Trivia, and Poll quests — earn XP!', keywords: 'quest mission journey learn guided start challenge quiz trivia poll hub', action: 'showQuestHub()' },
         { id: '_scholar', title: '🎓 Scholar Certification', desc: 'Bitcoin Scholar & Protocol Expert Certifications', keywords: 'scholar certification exam test certificate diploma bitcoin technical protocol', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_signal', title: '📡 The Signal', desc: 'Weekly curated Bitcoin insights newsletter', keywords: 'signal newsletter weekly email updates curated insights', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep memorize practice drill test', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
@@ -3765,7 +3765,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_satsvbits', title: '⚡ Sats vs Bits', desc: 'Live community vote — sats or bits for the Bitcoin denomination?', keywords: 'sats bits vote poll denomination unit satoshi community debate live', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_newbie', title: '🟢 Brand New to Bitcoin?', desc: 'Quick introduction for absolute beginners', keywords: 'new beginner brand new start zero nothing know nothing introduction first time newbie noob', action: "go('one-stop-shop')" },
         { id: '_meetupbuilder', title: '🔨 Meetup Builder', desc: 'Plan, share, and discover Bitcoin meetups — resources, venues & guides', keywords: 'meetup builder create plan share venue platform resource guide community', action: "go('meetup-builder')" },
-        { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw cashout bitcoin lightning faucet earn points convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
+        { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw cashout bitcoin lightning faucet earn XP convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
         { id: '_tips', title: '⚡ Lightning Tips', desc: 'Tip other users with Lightning sats', keywords: 'tip tips lightning send sats zap reward give appreciation', action: "if(typeof showTipOverlay==='function')showTipOverlay()" },
         { id: '_network', title: '📡 Bitcoin Network', desc: 'Live mempool, hashrate, difficulty, fees, and block explorer', keywords: 'network mempool hashrate difficulty fees block explorer transaction confirmations bitcoin network stats', action: "go('bitcoin-dashboard')" },
         { id: '_notifications', title: '🔔 Notifications', desc: 'Enable push notifications for updates and alerts', keywords: 'notifications push alerts notify bell updates permission enable disable', action: "if(typeof requestNotificationPermission==='function')requestNotificationPermission();else showSettings()" },
@@ -4599,6 +4599,9 @@ window.nachoQuizAnswer = function(btn, correct) {
                     break;
                 case 'pow-support':
                     if (typeof renderPOWSupport === 'function') { renderPOWSupport(); return; }
+                    break;
+                case 'quests':
+                    if (typeof showQuestHub === 'function') { showQuestHub(); return; }
                     break;
                 case 'dashboard':
                 case 'bitcoin-dashboard':

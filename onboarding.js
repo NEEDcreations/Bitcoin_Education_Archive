@@ -274,7 +274,7 @@ window.showOnboardingWizard = function() {
             // ---- STEP 1: Welcome + Level Pick ----
             html += '<div style="font-size:4rem;margin-bottom:8px;">🦌</div>' +
                 '<h1 style="color:#fff;font-size:1.5rem;font-weight:900;margin:0 0 6px;">Welcome to Bitcoin Education</h1>' +
-                '<p style="color:#94a3b8;font-size:0.92rem;line-height:1.5;margin:0 0 6px;">146 channels of organized Bitcoin knowledge. Read channels, earn points, stack bitcoin, &amp; level up. 7 embedded mini-apps make learning about Bitcoin fun and interactive.</p>' +
+                '<p style="color:#94a3b8;font-size:0.92rem;line-height:1.5;margin:0 0 6px;">146 channels of organized Bitcoin knowledge. Read channels, earn XP, stack bitcoin, &amp; level up. 7 embedded mini-apps make learning about Bitcoin fun and interactive.</p>' +
                 '<p style="color:#475569;font-size:0.8rem;margin:0 0 20px;">Free forever. No account needed. No ads.</p>' +
 
                 // How it works
@@ -287,7 +287,7 @@ window.showOnboardingWizard = function() {
                     '<div style="flex:1;padding:12px 8px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;">' +
                         '<div style="font-size:1.3rem;">⭐</div>' +
                         '<div style="color:#22c55e;font-size:0.7rem;font-weight:800;margin-top:4px;">EARN</div>' +
-                        '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Get points & badges</div>' +
+                        '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Get XP & badges</div>' +
                     '</div>' +
                     '<div style="flex:1;padding:12px 8px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;">' +
                         '<div style="font-size:1.3rem;">🏆</div>' +
@@ -301,7 +301,7 @@ window.showOnboardingWizard = function() {
                     '<div style="font-size:1.8rem;flex-shrink:0;">⚡</div>' +
                     '<div>' +
                         '<div style="color:#f7931a;font-size:0.85rem;font-weight:800;">Earn Real Bitcoin</div>' +
-                        '<div style="color:#94a3b8;font-size:0.72rem;line-height:1.5;margin-top:2px;">Your points convert to real sats. Read, learn, and claim Bitcoin directly to your Lightning wallet. 1,000 points = 100 sats.</div>' +
+                        '<div style="color:#94a3b8;font-size:0.72rem;line-height:1.5;margin-top:2px;">Your XP converts to real sats. Read, learn, and claim Bitcoin directly to your Lightning wallet. 1,000 XP = 100 sats.</div>' +
                     '</div>' +
                 '</div>' +
 
@@ -505,7 +505,7 @@ window.applySimplifiedHome = function() {
     if (level === 'beginner' && visited.length < 3) {
         shtml += '<div style="background:linear-gradient(135deg,rgba(249,115,22,0.08),rgba(249,115,22,0.02));border:2px solid rgba(249,115,22,0.3);border-radius:16px;padding:16px 18px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:6px;">📖 → ⭐ → 🏆</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:0.95rem;">Read channels. Earn points. Level up.</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:0.95rem;">Read channels. Earn XP. Level up.</div>' +
             '<div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">Tap any channel below to start your journey!</div>' +
             '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;justify-content:center;">' +
                 '<div style="flex:1;max-width:200px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">' +
