@@ -6075,16 +6075,18 @@ window.markVisibleBadgesReady = function() {
     var questsDone = typeof completedQuests !== 'undefined' ? completedQuests.size : 0;
     var migrated = false;
 
-    for (var i = 0; i < BADGE_DEFS.length; i++) {
-        var badge = BADGE_DEFS[i];
-        if (earnedBadges.has(badge.id)) continue;
-        try {
-            if (badge.check(visited, totalChannels, questsDone)) {
-                // Silently add — NO popup, NO sound, NO points
-                earnedBadges.add(badge.id);
-                migrated = true;
-            }
-        } catch(e) {}
+    // Only silently migrate badges that are confirmed in Firestore
+    // Badges NOT in Firestore but whose conditions are met will be
+    // handled by checkBadges() with full toast + points
+    var firebaseBadges = [];
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.visibleBadges) {
+        firebaseBadges = currentUser.visibleBadges;
+    }
+    for (var i = 0; i < firebaseBadges.length; i++) {
+        if (!earnedBadges.has(firebaseBadges[i])) {
+            earnedBadges.add(firebaseBadges[i]);
+            migrated = true;
+        }
     }
 
     if (migrated) {
@@ -17195,6 +17197,7 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
             loadDMMessages(convoId, myUid, recipientUid, recipientName);
         }
         var _dmc = parseInt(localStorage.getItem('btc_dms_sent') || '0'); localStorage.setItem('btc_dms_sent', String(_dmc + 1));
+        if (typeof checkBadges === 'function') setTimeout(checkBadges, 500);
     }).catch(function(err) {
         console.error('DM send error:', err);
         if (typeof showToast === 'function') showToast('Failed to send: ' + (err.code || err.message || 'Unknown error'));

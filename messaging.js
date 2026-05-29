@@ -1175,6 +1175,7 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
             loadDMMessages(convoId, myUid, recipientUid, recipientName);
         }
         var _dmc = parseInt(localStorage.getItem('btc_dms_sent') || '0'); localStorage.setItem('btc_dms_sent', String(_dmc + 1));
+        if (typeof checkBadges === 'function') setTimeout(checkBadges, 500);
     }).catch(function(err) {
         console.error('DM send error:', err);
         if (typeof showToast === 'function') showToast('Failed to send: ' + (err.code || err.message || 'Unknown error'));
