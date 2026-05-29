@@ -1349,6 +1349,12 @@ async function submitQuest() {
             msg = '🏆 PERFECT! 5/5! +' + pts + ' XP!';
             completedQuests.add(currentQuest.id);
             questCount++;
+            // Nacho celebrates perfect scores in global chat
+            if (typeof window.nachoGlobalAnnounce === 'function' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                var _pqName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) || (auth.currentUser.displayName) || 'A mystery Bitcoiner';
+                var _pqTopic = currentQuest.title || 'a Quiz Quest';
+                window.nachoGlobalAnnounce('🏆 @' + _pqName + ' just aced ' + _pqTopic + ' with a PERFECT 5/5! Think you can do the same? ➡️ [Quest Hub](#quests)', auth.currentUser.uid);
+            }
         } else if (score >= 3) {
             if (!pts) pts = 50;
             msg = '🎉 ' + score + '/5 correct! +' + pts + ' XP!';
