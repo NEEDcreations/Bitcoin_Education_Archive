@@ -24517,6 +24517,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             const name = btn.getAttribute('data-unlock-name') || btn.textContent.trim();
             const origOnclick = btn.getAttribute('data-onclick') || btn.getAttribute('onclick');
             if (!btn.getAttribute('data-onclick') && origOnclick) btn.setAttribute('data-onclick', typeof origOnclick === 'string' ? origOnclick : origOnclick.toString());
+            if (!btn.getAttribute('data-orig-tooltip') && btn.getAttribute('data-tooltip')) btn.setAttribute('data-orig-tooltip', btn.getAttribute('data-tooltip'));
 
             let unlocked = false;
             let reqMsg = '';
@@ -24537,6 +24538,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 btn.style.filter = 'grayscale(0.8)';
                 btn.style.cursor = 'help';
                 btn.title = reqMsg;
+                btn.setAttribute('data-tooltip', reqMsg);
                 btn.onclick = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -24546,6 +24548,9 @@ window.nachoQuizAnswer = function(btn, correct) {
                 btn.innerHTML = name;
                 btn.style.opacity = '1';
                 btn.style.filter = 'none';
+                var origTip = btn.getAttribute('data-orig-tooltip') || btn.getAttribute('data-tooltip');
+                if (origTip) { btn.title = origTip; btn.setAttribute('data-tooltip', origTip); }
+                else btn.title = name;
                 btn.style.cursor = 'pointer';
                 btn.title = '';
                 var action = btn.getAttribute('data-onclick');
