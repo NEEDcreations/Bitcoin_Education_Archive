@@ -152,9 +152,9 @@ const QUESTION_BANK = {
     ],
 
     'mining_pt4': [
-        { q: 'What is the "nonce" in Bitcoin mining?', a: 'A number miners change each guess to find a hash below the target', wrong: ['The name for a new block', 'A fee paid to the network', 'A type of mining hardware'] },
+        { q: 'What happens when a miner finds a valid block hash?', a: 'They broadcast the block to the network, collect the block reward and transaction fees', wrong: ['They must wait for government approval before adding it', 'The block is sent to Satoshi for verification', 'All other miners must restart their hardware'] },
         { q: 'Why does Bitcoin mining use so much energy?', a: 'Energy expenditure is what gives Bitcoin its security — it makes attacks prohibitively expensive', wrong: ['The code is poorly optimized', 'Miners are required to run 24/7 by law', 'Each transaction requires its own mining operation'] },
-        { q: 'What is a mining pool?', a: 'A group of miners who combine hash power and share rewards proportionally', wrong: ['A physical pool where mining hardware is cooled', 'A government-regulated mining operation', 'A savings account for miners'] },
+        { q: 'What is "hash rate" in Bitcoin mining?', a: 'The total computational power being used to process transactions and secure the network', wrong: ['The speed at which new coins are printed', 'The rate at which transactions are deleted', 'The number of miners currently online'] },
         { q: 'What is "stranded energy" and why do Bitcoin miners seek it?', a: 'Energy produced in remote locations with no local demand — miners can monetize it at low cost', wrong: ['Energy that has been stored in batteries', 'Solar power generated at night', 'Electricity from decommissioned plants only'] },
         { q: 'What is a mining "share" in a pool?', a: 'Proof that a miner contributed valid work toward finding a block, used to split rewards proportionally', wrong: ['A stock in the mining company', 'A partial Bitcoin sent to the miner', 'A vote on which transactions to include'] },
     ],
@@ -420,7 +420,7 @@ const QUESTION_BANK = {
         { q: 'Taproot was activated in:', a: 'November 2021', wrong: ['January 2009', 'March 2015', 'June 2023'] },
         { q: 'Taproot uses Schnorr signatures which:', a: 'Make multi-sig transactions look like regular ones', wrong: ['Speed up mining', 'Create new coins', 'Delete old blocks'] },
         { q: 'Taproot improves:', a: 'Privacy, efficiency, and smart contract capabilities', wrong: ['Mining speed only', 'Block size only', 'Transaction fees only'] },
-        { q: 'Taproot was activated on Bitcoin in:', a: 'November 2021', wrong: ['January 2009', 'August 2017', 'April 2024'] },
+        { q: 'What type of signature scheme did Taproot introduce to Bitcoin?', a: 'Schnorr signatures', wrong: ['RSA signatures', 'Ring signatures', 'Lamport signatures'] },
     ],
 
     'taproot_pt2': [
@@ -530,7 +530,7 @@ const QUESTION_BANK = {
     'books_pt2': [
         { q: 'Gigi\'s "21 Lessons" is structured around:', a: '21 philosophical, economic, and technical lessons learned from Bitcoin', wrong: ['A 21-day guide to becoming a Bitcoin trader', 'The 21 richest Bitcoin holders and their strategies', 'The history of 21 failed cryptocurrencies'] },
         { q: 'Who wrote "The Bitcoin Standard"?', a: 'Saifedean Ammous', wrong: ['Andreas Antonopoulos', 'Satoshi Nakamoto', 'Michael Saylor'] },
-        { q: 'What is "Mastering Bitcoin" by Andreas Antonopoulos primarily about?', a: 'A technical deep-dive into how Bitcoin works at the protocol level', wrong: ['Investment strategies for maximizing Bitcoin returns', 'The political philosophy behind cryptocurrency', 'A beginner\'s guide to buying Bitcoin on exchanges'] },
+        { q: 'What book by Jimmy Song teaches Bitcoin programming and development?', a: 'Programming Bitcoin', wrong: ['The Bitcoin Standard', 'Digital Gold', 'Cryptoassets'] },
         { q: 'What book by Lyn Alden provides a broad investment perspective including Bitcoin?', a: 'Broken Money', wrong: ['The Bitcoin Standard', 'Digital Gold', 'The Internet of Money'] },
         { q: 'What is "The Blocksize War" by Jonathan Bier about?', a: 'The history of Bitcoin\'s scaling debate, SegWit activation, and the BCH fork', wrong: ['How to increase your Bitcoin block rewards', 'A fiction novel about cryptocurrency battles', 'Military applications of blockchain technology'] },
     ],
@@ -553,7 +553,7 @@ const QUESTION_BANK = {
 
     'satoshi-nakamoto_pt2': [
         { q: 'Why is it important that Satoshi Nakamoto disappeared?', a: 'Bitcoin has no leader who can be arrested, corrupted, or pressured', wrong: ['Because they were wanted by law enforcement', 'So they could secretly accumulate more Bitcoin', 'Because the code was finished and needed no more work'] },
-        { q: 'Satoshi\'s estimated Bitcoin holdings are approximately:', a: '~1 million BTC, which have never been moved', wrong: ['50,000 BTC, all of which were donated', 'Zero — Satoshi gave away all their coins', '10 million BTC stored in a special wallet'] },
+        { q: 'What evidence suggests Satoshi Nakamoto was likely one person rather than a team?', a: 'Consistent writing style, coding patterns, and posting times across years of activity', wrong: ['A signed confession published on the Bitcoin Talk forum', 'DNA evidence found on the original Bitcoin server hardware', 'A government investigation that confirmed a single identity'] },
         { q: 'When did Satoshi Nakamoto stop posting publicly?', a: 'Around December 2010, with a final known post in April 2011', wrong: ['January 2009 right after launching Bitcoin', 'They never stopped and still post today', 'In 2015 during the block size debate'] },
         { q: 'How many Bitcoin did Satoshi Nakamoto reportedly mine?', a: 'Approximately 1 million BTC based on analysis of early mining patterns', wrong: ['Exactly 21 million (the entire supply)', 'Zero — Satoshi never mined', 'About 100 BTC from the genesis block only'] },
         { q: 'What famous message did Satoshi embed in the Bitcoin genesis block?', a: '"The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"', wrong: ['"Hello World — Bitcoin is born"', '"In code we trust"', '"The revolution will not be centralized"'] },
@@ -729,7 +729,7 @@ const QUESTION_BANK = {
         { q: '\'Orange-pilling\' someone means:', a: 'Convincing them to understand and adopt Bitcoin', wrong: ['Selling them altcoins', 'Giving them free Bitcoin', 'Signing them up for an exchange'] },
         { q: 'The most effective way to orange-pill someone is often:', a: 'Starting with the problem Bitcoin solves (broken money) rather than technical details', wrong: ['Showing them price charts', 'Explaining SHA-256 hashing', 'Telling them to buy immediately'] },
         { q: 'What does "orange pilling" someone mean?', a: 'Educating them about Bitcoin until they understand its importance', wrong: ['Giving them actual pills', 'Selling them mining equipment', 'Creating a Bitcoin wallet for them'] },
-        { q: '"Orange-pilling" someone means:', a: 'Helping them understand why Bitcoin matters', wrong: ['Forcing them to buy Bitcoin immediately', 'Sending them unsolicited Bitcoin transactions', 'Signing them up for a Bitcoin exchange without consent'] },
+        { q: 'What is the best approach when orange-pilling a skeptic?', a: 'Start with their specific pain point (inflation, remittances, censorship) rather than technical details', wrong: ['Show them price charts and promise guaranteed returns', 'Pressure them into buying immediately before the next halving', 'Explain the full UTXO model and Merkle trees first'] },
         { q: 'The most effective orange-pilling strategy is:', a: 'Meeting people where they are and addressing their specific concerns', wrong: ['Posting price predictions on social media', 'Telling people they are stupid for not buying', 'Promising guaranteed financial returns'] },
     ],
 
@@ -746,7 +746,7 @@ const QUESTION_BANK = {
         { q: 'Contributing to Bitcoin open source requires:', a: 'Anyone can propose changes — no permission needed', wrong: ['A computer science degree', 'Approval from the Bitcoin Foundation', 'Purchasing a developer license'] },
         { q: 'Who is considered Bitcoin\\\'s lead maintainer as of recent years?', a: 'There is no formal leader; Bitcoin Core has multiple maintainers', wrong: ['Satoshi Nakamoto', 'Vitalik Buterin', 'Elon Musk'] },
         { q: 'What organization has historically funded Bitcoin Core development?', a: 'MIT Digital Currency Initiative, Chaincode Labs, Brink, Spiral', wrong: ['World Bank', 'Federal Reserve', 'Goldman Sachs'] },
-        { q: 'What programming language is Bitcoin Core primarily written in?', a: 'C++', wrong: ['Python', 'Java', 'Solidity'] },
+        { q: 'Which version control system hosts Bitcoin Core’s source code?', a: 'Git', wrong: ['SVN', 'Mercurial', 'Bazaar'] },
     ],
 
     'ham_radio': [
@@ -786,7 +786,7 @@ const QUESTION_BANK = {
         { q: 'What license is Bitcoin Core released under?', a: 'MIT License (open source)', wrong: ['Proprietary commercial license', 'GPL v3 only', 'Patent-encumbered license'] },
         { q: 'How can anyone contribute to Bitcoin Core?', a: 'Submit pull requests on GitHub after code review', wrong: ['Pay a developer fee', 'Get hired by a bank', 'Apply for a license'] },
         { q: 'What is the purpose of code review in Bitcoin development?', a: 'To catch bugs and security issues before deployment', wrong: ['To slow down development', 'To charge developers money', 'To keep the code secret'] },
-        { q: 'Bitcoin\'s code being open source means:', a: 'Anyone can read, audit, copy, and propose changes to the code', wrong: ['Anyone can change the live network\'s rules', 'The code has no copyright protection', 'Only open-source developers can own Bitcoin'] },
+        { q: 'Why is peer review critical in Bitcoin Core development?', a: 'It catches bugs and vulnerabilities before they reach production, since changes affect billions in value', wrong: ['It is just a formality required by the MIT license', 'Only one reviewer is needed for minor patches', 'Peer review slows down development unnecessarily'] },
     ],
 
     'coin_mixing_coinjoin_coin_control_utxo': [
@@ -794,7 +794,7 @@ const QUESTION_BANK = {
         { q: 'What is CoinJoin?', a: 'A privacy technique combining multiple users\\\' transactions to break heuristics', wrong: ['A cryptocurrency mixer token', 'A type of hardware wallet', 'An exchange withdrawal method'] },
         { q: 'What does coin control allow Bitcoin users to do?', a: 'Manually select which UTXOs to spend in a transaction', wrong: ['Control the price of bitcoin', 'Limit mining difficulty', 'Set transaction speed'] },
         { q: 'What privacy benefit does proper UTXO management provide?', a: 'Preventing address clustering and transaction graph analysis', wrong: ['Increasing mining rewards', 'Reducing transaction fees', 'Speeding up confirmations'] },
-        { q: 'A CoinJoin transaction improves privacy by:', a: 'Combining multiple users\' inputs and outputs so links between them are broken', wrong: ['Encrypting the Bitcoin blockchain so nobody can read it', 'Sending Bitcoin through a centralized mixing server', 'Converting Bitcoin to a different cryptocurrency and back'] },
+        { q: 'What is "coin control" in a Bitcoin wallet?', a: 'The ability to manually select which UTXOs to spend in a transaction for better privacy', wrong: ['A government program to regulate Bitcoin spending', 'Software that limits how much Bitcoin you can buy', 'A mining feature that controls block production'] },
     ],
 
     'environment___energy': [
@@ -826,7 +826,7 @@ const QUESTION_BANK = {
         { q: 'Who authored the "Softwar" thesis about Bitcoin?', a: 'Major Jason Lowery of the US Space Force', wrong: ['Michael Saylor', 'Nick Szabo', 'Elizabeth Warren'] },
         { q: 'What is the core argument of the Softwar thesis?', a: 'Proof-of-work is a form of kinetic power projection for cyberspace', wrong: ['Bitcoin should be banned', 'Proof of stake is superior', 'Bitcoin is a company'] },
         { q: 'What does Softwar compare Bitcoin\\\'s hash rate to?', a: 'Physical military power projection and deterrence', wrong: ['Social media likes', 'Stock market volume', 'Bank transaction counts'] },
-        { q: 'Jason Lowery\'s "Softwar" thesis argues that:', a: 'Proof of Work is a form of power projection in cyberspace, analogous to physical warfare', wrong: ['Bitcoin should be used to fund military operations', 'Proof of Stake is militarily superior to Proof of Work', 'Software companies should replace national armies'] },
+        { q: 'How does the Softwar thesis view Bitcoin mining in terms of national security?', a: 'As a strategic asset that projects power in cyberspace, similar to how militaries project power in physical space', wrong: ['As a threat to national security that should be banned', 'As purely an economic activity with no geopolitical significance', 'As a replacement for nuclear deterrence'] },
     ],
 
     'sidechains': [
@@ -842,7 +842,7 @@ const QUESTION_BANK = {
         { q: 'What is a submarine swap?', a: 'An atomic swap between on-chain Bitcoin and Lightning Network off-chain', wrong: ['A type of mining pool payout', 'A DeFi lending protocol', 'An underwater transaction method'] },
         { q: 'What enables submarine swaps to be trustless?', a: 'HTLCs (Hash Time Locked Contracts)', wrong: ['Centralized exchange custody', 'Bank wire confirmation', 'Social media verification'] },
         { q: 'What problem do submarine swaps solve?', a: 'Moving funds between on-chain and Lightning without closing channels', wrong: ['Mining difficulty adjustment', 'Exchange rate volatility', 'Wallet password recovery'] },
-        { q: 'A submarine swap allows:', a: 'Trustlessly exchanging on-chain Bitcoin for Lightning Bitcoin', wrong: ['Mining Bitcoin underwater for cooling efficiency', 'Sending Bitcoin without an internet connection', 'Converting Bitcoin into a different cryptocurrency'] },
+        { q: 'What technology makes submarine swaps trustless?', a: 'Hash Time-Locked Contracts (HTLCs) that ensure both sides complete or neither does', wrong: ['A centralized escrow service that holds funds during the swap', 'Blockchain validators who verify the exchange manually', 'Smart contracts on Ethereum that bridge to Bitcoin'] },
     ],
 
     'supranational': [
@@ -926,10 +926,6 @@ const QUESTION_BANK = {
     ],
 
 };
-;
-let isRetry = false;
-let visitedForQuest = []; // Track channel visit order for quiz generation
-let questCount = 0;
 
 // Quest triggers: after visiting X channels
 const QUEST_TRIGGERS = [5, 15, 25, 40, 60, 80, 100];
