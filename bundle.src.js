@@ -1784,7 +1784,7 @@ function containsProfanity(str) {
     return false;
 }
 
-async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
+async function createUser(username, email, enteredGiveaway, giveawayLnAddress, country) {
     // Wait for auth to be ready if not yet
     if (typeof auth === 'undefined' || !auth) {
         showToast('⏳ Loading... please try again in a moment.');
@@ -1839,6 +1839,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
         created: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (email) userData.email = email;
+    if (country) userData.country = country;
     if (enteredGiveaway && giveawayLnAddress) {
         userData.lightningAddress = giveawayLnAddress;
         userData.giveaway = {
@@ -3475,6 +3476,12 @@ window.showSettings = function() {
     showUsernamePrompt();
 };
 
+// Country list for autocomplete (ISO 3166-1)
+window._countryOptions = (function() {
+    var c = ['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia','Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Ivory Coast','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kosovo','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'];
+    return c.map(function(n) { return '<option value="' + n + '">'; }).join('');
+})();
+
 function showSettingsPage(tab) {
     try {
     settingsTab = tab || 'account';
@@ -3516,6 +3523,17 @@ function showSettingsPage(tab) {
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP</div>' +
             '</div>';
 
+        // Country selector
+        var _userCountry = currentUser ? currentUser.country || '' : '';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌍 Country</div>' +
+            '<div style="position:relative;">' +
+            '<input type="text" id="countryInput" list="countryList" value="' + escapeHtml(_userCountry) + '" placeholder="Start typing your country..." autocomplete="off" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<datalist id="countryList">' + window._countryOptions + '</datalist>' +
+            '</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Optional · Shown on your public profile</div>' +
+            '</div>';
+
         // Profile Picture upload
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📷 Profile Picture</div>' +
@@ -3533,7 +3551,10 @@ function showSettingsPage(tab) {
             '<div id="pfpUploadStatus" style="margin-top:8px;font-size:0.8rem;"></div>' +
         '</div>';
 
-        // --- Account Details (will go inside Advanced Account) ---
+        // Build Advanced Account content (will be rendered AFTER visible sections)
+        var _advHtml = '';
+
+        // --- Account Details ---
         var _acctDetailsHtml = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Account Details</div>';
         if (user.email) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Email</span><span style="color:var(--text);font-size:0.85rem;">' + user.email + '</span></div>';
@@ -3558,9 +3579,7 @@ function showSettingsPage(tab) {
         }
         _acctDetailsHtml += '</div>';
 
-        // --- START: content that goes inside Advanced Account ---
-        html += '<div id="advAcctContent" style="display:none;">';
-        html += _acctDetailsHtml;
+        _advHtml += _acctDetailsHtml;
         // Display Badge chooser (collapsible)
         if (!isAnon) {
             var chosenBadge = (currentUser && currentUser.displayBadge) || '';
@@ -3577,37 +3596,38 @@ function showSettingsPage(tab) {
                     var found = allEarned.find(function(b) { return b.id === chosenBadge; });
                     if (found) currentBadgeDisplay = found.emoji + ' ' + found.name;
                 }
-                html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                _advHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                     '<div onclick="window._expanded_badges=!window._expanded_badges;showSettingsPage(\'account\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
                     '<div><div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🏅 Display Badge</div>' +
                     '<div style="color:var(--text);font-size:0.85rem;margin-top:4px;">' + currentBadgeDisplay + '</div></div>' +
                     '<span style="color:var(--text-faint);font-size:1rem;transition:0.2s;">' + (window._expanded_badges ? '▾' : '▸') + '</span></div>';
                 if (window._expanded_badges) {
-                    html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
+                    _advHtml += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
                         '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
                         '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
-                    html += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!chosenBadge ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+                    _advHtml += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!chosenBadge ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
                     for (var bi = 0; bi < allEarned.length; bi++) {
                         var b = allEarned[bi];
                         var isChosen = chosenBadge === b.id;
-                        html += '<div onclick="setDisplayBadge(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + b.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + b.name + '</div></div>' + (isChosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+                        _advHtml += '<div onclick="setDisplayBadge(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + b.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + b.name + '</div></div>' + (isChosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
                     }
-                    html += '</div>';
+                    _advHtml += '</div>';
                 }
-                html += '</div>';
+                _advHtml += '</div>';
             }
         }
 
         // Change username
         const currentName = currentUser ? currentUser.username || '' : '';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        _advHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Change Username</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Current username: <span style="color:var(--accent);font-weight:700;">' + currentName + '</span></div>' +
             '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
             '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
             '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
 
-        html += '</div>'; // close advAcctContent — Account Details + Badge chooser + Change username are inside
+        // Artist Profile (inside Advanced Account)
+        _advHtml += '<button onclick="showArtistProfileModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--accent);font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">🎸 Artist Profile</button>';
 
         // Profile section (OUTSIDE advAcctContent — always visible)
         var bio = currentUser ? currentUser.bio || '' : '';
@@ -3674,11 +3694,11 @@ function showSettingsPage(tab) {
                 '<span style="color:var(--accent);font-size:1.1rem;margin-left:auto;">→</span></div>';
         }
 
-        // Artist Profile button
-        html += '<button onclick="showArtistProfileModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--accent);font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">🎸 Artist Profile</button>';
-
-        // Advanced Account toggle (content is rendered above but hidden)
+        // Advanced Account toggle — content renders BELOW this button
         html += '<button onclick="var p=document.getElementById(\'advAcctContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Account <span>▼</span></button>';
+
+        // Advanced Account content (hidden, appears at bottom when toggled)
+        html += '<div id="advAcctContent" style="display:none;">' + _advHtml + '</div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
@@ -5042,7 +5062,9 @@ async function saveProfile() {
     var uid = auth.currentUser.uid;
     var bio = document.getElementById('profileBio') ? document.getElementById('profileBio').value.trim() : '';
     
-    var updateData = { bio: bio };
+    var countryEl = document.getElementById('countryInput');
+    var country = countryEl ? countryEl.value.trim().substring(0, 60) : '';
+    var updateData = { bio: bio, country: country };
     
     // Social links mapping
     var links = ['website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail', 'lightning'];
@@ -5114,7 +5136,7 @@ window.showArtistProfileModal = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'artistProfileModal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:500000;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:24px;padding:28px;max-width:440px;width:100%;margin:40px auto;animation:fadeSlideIn 0.3s ease-out;">' +
@@ -5342,6 +5364,8 @@ window.submitUsername = async function() {
     if (document.getElementById('usernameInput')) {
         var emailInput = document.getElementById('emailInput');
         var email = emailInput ? emailInput.value.trim() : '';
+        var signupCountryEl = document.getElementById('signupCountryInput');
+        var signupCountry = signupCountryEl ? signupCountryEl.value.trim().substring(0, 60) : '';
         var giveawayCheckbox = document.getElementById('giveawayCheckbox');
         var giveawayLn = document.getElementById('giveawayLnAddress');
         var enteredGiveaway = giveawayCheckbox && giveawayCheckbox.checked;
@@ -5366,13 +5390,13 @@ window.submitUsername = async function() {
                 showToast('📧 Check your email for a verification link!');
                 hideUsernamePrompt();
                 // Also create the anonymous user immediately so they can start using the site
-                await createUser(name, email, enteredGiveaway, lnAddress);
+                await createUser(name, email, enteredGiveaway, lnAddress, signupCountry);
                 return;
             }
         }
 
         // No email — create user directly (anonymous)
-        await createUser(name, email, enteredGiveaway, lnAddress);
+        await createUser(name, email, enteredGiveaway, lnAddress, signupCountry);
         return;
     }
 
