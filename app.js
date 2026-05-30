@@ -2674,6 +2674,8 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        // Dismiss keyboard on mobile
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         // Close settings modal if open
         if (typeof hideUsernamePrompt === 'function') {
             var _um = document.getElementById('usernameModal');
