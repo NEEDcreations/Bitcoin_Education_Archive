@@ -11921,6 +11921,11 @@ if (typeof startQuestManual !== "undefined") window.startQuestManual = startQues
 window._questHubTab = 'quiz';
 
 window.showQuestHub = function() {
+    // Minimize global chat if open (so Quest Hub is visible on mobile)
+    if (window._chatOverlayOpen && typeof toggleChatOverlay === 'function') {
+        toggleChatOverlay();
+    }
+
     // Remove existing
     var existing = document.getElementById('questHubOverlay');
     if (existing) existing.remove();
