@@ -2128,7 +2128,12 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
                 _showPointsToast(awarded, reason);
-                if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, reason);
+                // Skip notification if spin already logged it eagerly
+                if (window._spinPointsNotified && reason === 'Daily Spin') {
+                    window._spinPointsNotified = false;
+                } else if (typeof notifySelfPoints === 'function') {
+                    notifySelfPoints(awarded, reason);
+                }
                 if (overflowRedeemed > 0) {
                     setTimeout(function() {
                         showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
@@ -22175,6 +22180,12 @@ window._startHalvingTicker = function() {
                         }
                     } else if (rewardType === 'points') {
                         rewardText = '⭐ You won ' + rewardAmount + ' XP!';
+                        // Log to notification tracker immediately so it shows in 🔔 Alerts
+                        // (awardPoints CF is async and may not complete before user navigates away)
+                        if (typeof notifySelfPoints === 'function') {
+                            notifySelfPoints(rewardAmount, 'Daily Spin');
+                            window._spinPointsNotified = true;
+                        }
                         if (typeof awardPoints === 'function') {
                             awardPoints(rewardAmount, 'Daily Spin');
                         } else {

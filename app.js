@@ -827,6 +827,12 @@
                         }
                     } else if (rewardType === 'points') {
                         rewardText = '⭐ You won ' + rewardAmount + ' XP!';
+                        // Log to notification tracker immediately so it shows in 🔔 Alerts
+                        // (awardPoints CF is async and may not complete before user navigates away)
+                        if (typeof notifySelfPoints === 'function') {
+                            notifySelfPoints(rewardAmount, 'Daily Spin');
+                            window._spinPointsNotified = true;
+                        }
                         if (typeof awardPoints === 'function') {
                             awardPoints(rewardAmount, 'Daily Spin');
                         } else {
