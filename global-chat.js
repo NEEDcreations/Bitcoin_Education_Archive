@@ -511,6 +511,7 @@ function formatChatText(text, mentionUid) {
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(match, label, route) {
         var _action = route === 'pvp' ? "event.preventDefault();if(typeof enterPVPMode==='function')enterPVPMode();"
                      : route === 'nacho' ? "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();"
+                     : route === 'quests' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();"
                      : "event.preventDefault();if(typeof go==='function')go('" + route + "');";
         var placeholder = '%%INAPPLINK_' + _inAppLinks.length + '%%';
         _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>');
