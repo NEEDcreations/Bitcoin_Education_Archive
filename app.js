@@ -2674,6 +2674,11 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        // Close settings modal if open
+        if (typeof hideUsernamePrompt === 'function') {
+            var _um = document.getElementById('usernameModal');
+            if (_um && _um.classList.contains('open')) hideUsernamePrompt();
+        }
         if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         
         // Ensure bottom nav is visible on home
