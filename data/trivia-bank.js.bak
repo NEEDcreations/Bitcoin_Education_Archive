@@ -339,7 +339,7 @@ var TRIVIA_BANK = [
     },
     {
         q: "What is the term for Bitcoin that has been sent to an unspendable address, permanently removing it from circulation?",
-        options: ["Burned", "Permanently staked", "Vault locked", "Protocol bonded"],
+        options: ["Burned", "Staked", "Locked", "Bonded"],
         answer: 0,
         explanation: "Burning Bitcoin means sending it to a provably unspendable address (like an address with no known private key), permanently reducing the circulating supply."
     },
@@ -349,9 +349,9 @@ var TRIVIA_BANK = [
         q: "Where does the term 'HODL' originate?",
         options: [
             "A misspelled forum post on BitcoinTalk in 2013",
-            "An acronym coined by Satoshi Nakamoto in the whitepaper",
+            "An acronym coined by Satoshi Nakamoto",
             "A Wall Street trading strategy adapted for crypto",
-            "A meme that first appeared on Reddit in early 2015"
+            "A meme created on Reddit in 2015"
         ],
         answer: 0,
         explanation: "HODL originated from a typo in a 2013 BitcoinTalk forum post titled 'I AM HODLING' by user GameKyuubi during a price crash."
@@ -371,9 +371,9 @@ var TRIVIA_BANK = [
         q: "What does it mean when someone says they have 'laser eyes' on social media?",
         options: [
             "They are bullish on Bitcoin and showing support for a BTC price target",
-            "They are a Bitcoin Core developer who has contributed code to the protocol",
-            "They run a large-scale Bitcoin mining operation using proof-of-work hardware",
-            "They have completed an on-chain identity verification through a smart contract"
+            "They are a Bitcoin developer",
+            "They run a Bitcoin mining operation",
+            "They have verified their identity on the blockchain"
         ],
         answer: 0,
         explanation: "Laser eyes became a Bitcoin meme in 2021, with supporters adding laser eyes to profile photos to signal bullishness and support for Bitcoin reaching $100K."
@@ -382,9 +382,9 @@ var TRIVIA_BANK = [
         q: "What is a 'Bitcoin Maximalist'?",
         options: [
             "Someone who believes Bitcoin is the only cryptocurrency that matters",
-            "A person who owns the maximum possible amount of Bitcoin in a single wallet",
-            "A miner running the most powerful hardware available for proof of work",
-            "A developer who has contributed the most lines of code to Bitcoin Core software"
+            "A person who owns the maximum possible amount of Bitcoin",
+            "A miner running the most powerful hardware",
+            "A developer who has contributed the most code to Bitcoin Core"
         ],
         answer: 0,
         explanation: "Bitcoin Maximalists (or 'maxis') believe Bitcoin is the only legitimate cryptocurrency and that altcoins are unnecessary or harmful."
@@ -393,9 +393,9 @@ var TRIVIA_BANK = [
         q: "What does 'number go up' (NGU) technology refer to in Bitcoin culture?",
         options: [
             "The humorous observation that Bitcoin's price trends upward over long periods",
-            "A proposed technical improvement to increase Bitcoin transaction throughput speed",
-            "An algorithm designed to automatically increase the mining difficulty over time",
-            "A data compression method for reducing the size of the blockchain on full nodes"
+            "A technical improvement to Bitcoin's transaction throughput",
+            "An algorithm that increases mining difficulty",
+            "A method of compressing blockchain data"
         ],
         answer: 0,
         explanation: "'NGU technology' is a tongue-in-cheek meme celebrating Bitcoin's long-term price appreciation as if it were a feature of the protocol."
@@ -404,16 +404,16 @@ var TRIVIA_BANK = [
         q: "What does 'stacking sats' mean?",
         options: [
             "Accumulating small amounts of Bitcoin over time",
-            "Building a physical stack of ASIC mining rigs for profit",
+            "Building a stack of mining rigs",
             "Organizing satellite nodes for the Bitcoin network",
-            "Compiling and organizing Bitcoin transaction data locally"
+            "Compiling Bitcoin transaction data"
         ],
         answer: 0,
         explanation: "Stacking sats means regularly buying small amounts of Bitcoin (measured in satoshis), often through dollar-cost averaging."
     },
     {
         q: "Who is often credited with conceptualizing digital cash and 'bit gold' before Bitcoin?",
-        options: ["Nick Szabo", "Satoshi Nakamoto", "David Chaum", "Hal Finney Jr."],
+        options: ["Nick Szabo", "Satoshi Nakamoto", "David Chaum", "Hal Finney"],
         answer: 0,
         explanation: "Nick Szabo proposed 'Bit Gold' in 1998, a decentralized digital currency concept that shares many similarities with Bitcoin."
     },
@@ -421,9 +421,9 @@ var TRIVIA_BANK = [
         q: "What is the 'Citadel' meme in Bitcoin culture?",
         options: [
             "A future scenario where early Bitcoin adopters live in fortified communities",
-            "A type of ultra-secure cold storage Bitcoin vault system with multisig protection",
-            "The rumored physical headquarters of the anonymous Bitcoin Foundation leadership",
-            "A well-known cooperative Bitcoin mining pool that early adopters frequently joined"
+            "A type of secure Bitcoin vault",
+            "The headquarters of the Bitcoin Foundation",
+            "A popular Bitcoin mining pool"
         ],
         answer: 0,
         explanation: "The Citadel meme imagines a hyperbitcoinized future where early adopters live in citadels, originating from a famous Reddit post claiming to be from the year 2025."
@@ -433,7 +433,7 @@ var TRIVIA_BANK = [
         options: [
             "Fear, Uncertainty, and Doubt",
             "Fully Utilized Decentralization",
-            "Future Unlimited Digital Dividends",
+            "Future Unlimited Dividends",
             "Fundamentally Unverified Data"
         ],
         answer: 0,
@@ -444,7 +444,7 @@ var TRIVIA_BANK = [
         options: [
             "Someone who owns at least 1 full Bitcoin",
             "A miner who has mined an entire block solo",
-            "A full node operator running the Bitcoin Core software",
+            "A node operator running Bitcoin Core",
             "Someone who has read the entire Bitcoin whitepaper"
         ],
         answer: 0,
@@ -452,15 +452,16 @@ var TRIVIA_BANK = [
     },
     {
         q: "Who wrote 'The Bitcoin Standard,' an influential book on Bitcoin's monetary properties?",
-        options: ["Saifedean Ammous", "Andreas Antonopoulos", "Jameson Lopp, Jr.", "Michael J. Saylor"],
+        options: ["Saifedean Ammous", "Andreas Antonopoulos", "Jameson Lopp", "Michael Saylor"],
         answer: 0,
         explanation: "Saifedean Ammous published 'The Bitcoin Standard' in 2018, arguing for Bitcoin as sound money through the lens of Austrian economics."
     },
     {
         q: "What does 'HFSP' stand for in Bitcoin Twitter culture?",
+        options: [
             "Have Fun Staying Poor",
-            "Hyper-Funded Protocol",
-            "Hash Function Security Protocol for Blockchain Networks",
+            "Highly Funded Startup Protocol",
+            "Hash Function Security Protocol",
             "Halving Follows Supply Pattern"
         ],
         answer: 0,
@@ -479,7 +480,7 @@ var TRIVIA_BANK = [
     },
     {
         q: "What annual event celebrates the first real-world Bitcoin purchase?",
-        options: ["Bitcoin Pizza Day (May 22)", "Genesis Day", "Bitcoin Freedom Celebration Day (August 1)", "Bitcoin Halving Day"],
+        options: ["Bitcoin Pizza Day (May 22)", "Bitcoin Genesis Day (January 3)", "Bitcoin Freedom Day (August 1)", "Bitcoin Halving Day"],
         answer: 0,
         explanation: "Bitcoin Pizza Day on May 22 commemorates Laszlo Hanyecz's 2010 purchase of two pizzas for 10,000 BTC, the first known commercial Bitcoin transaction."
     },
@@ -498,7 +499,7 @@ var TRIVIA_BANK = [
     },
     {
         q: "What must two parties open to transact on the Lightning Network?",
-        options: ["A payment channel", "A shared mining operation pool", "A dedicated smart contract address", "An independent Bitcoin sidechain connection"],
+        options: ["A payment channel", "A mining pool", "A smart contract", "A sidechain"],
         answer: 0,
         explanation: "Lightning Network participants open payment channels by locking Bitcoin in a 2-of-2 multisig on-chain transaction, then transact off-chain within that channel."
     },
@@ -506,9 +507,9 @@ var TRIVIA_BANK = [
         q: "Who authored the original Lightning Network whitepaper?",
         options: [
             "Joseph Poon and Thaddeus Dryja",
-            "Nakamoto and Finney",
-            "Gregory Maxwell and Adam Back together",
-            "Elizabeth Stark with Olaoluwa Osuntokun"
+            "Satoshi Nakamoto and Hal Finney",
+            "Adam Back and Gregory Maxwell",
+            "Elizabeth Stark and Olaoluwa Osuntokun"
         ],
         answer: 0,
         explanation: "Joseph Poon and Thaddeus Dryja published 'The Bitcoin Lightning Network' paper in 2015, describing the off-chain payment channel network."
@@ -517,9 +518,9 @@ var TRIVIA_BANK = [
         q: "What Bitcoin feature was essential for the Lightning Network to work safely?",
         options: [
             "Segregated Witness (SegWit)",
-            "The Taproot soft fork upgrade",
-            "Bitcoin's Replace-by-Fee transaction mechanism",
-            "The OP_RETURN data embedding function"
+            "Taproot",
+            "Replace-by-Fee (RBF)",
+            "OP_RETURN"
         ],
         answer: 0,
         explanation: "SegWit fixed the transaction malleability problem, which was essential because Lightning relies on pre-signed transactions referencing specific transaction IDs."
@@ -528,9 +529,9 @@ var TRIVIA_BANK = [
         q: "What happens when a Lightning Network channel is closed?",
         options: [
             "The final balance is settled on the Bitcoin blockchain",
-            "Every individual transaction from the channel is permanently recorded on-chain in full detail",
-            "All locked funds are completely destroyed and then freshly re-minted as new coins",
-            "It reopens"
+            "All transaction history is recorded on-chain",
+            "The funds are destroyed and re-minted",
+            "The channel automatically reopens with new terms"
         ],
         answer: 0,
         explanation: "When a Lightning channel closes, a final settlement transaction is broadcast to the Bitcoin blockchain reflecting the latest balance between the two parties."
@@ -561,9 +562,9 @@ var TRIVIA_BANK = [
         q: "What is 'channel capacity' on the Lightning Network?",
         options: [
             "The total amount of Bitcoin locked in a payment channel",
-            "Maximum transactions processed",
-            "The total bandwidth and speed capacity of a Lightning node's dedicated internet connection",
-            "How many simultaneous channels one node opens"
+            "The maximum number of transactions per second",
+            "The bandwidth of a Lightning node's internet connection",
+            "The number of channels a node can open simultaneously"
         ],
         answer: 0,
         explanation: "Channel capacity is the total Bitcoin locked in the channel's funding transaction. Payments within the channel cannot exceed this amount."
@@ -572,22 +573,22 @@ var TRIVIA_BANK = [
         q: "What is a 'watchtower' in the context of Lightning Network?",
         options: [
             "A service that monitors channels and broadcasts penalty transactions if a counterparty cheats",
-            "Enhanced full nodes",
-            "A mandatory government-run surveillance tool used for actively monitoring and tracking all Bitcoin transactions on the public network",
-            "A node that validates Lightning invoices"
+            "A type of full node with enhanced security",
+            "A government monitoring tool for Bitcoin transactions",
+            "A node that validates all Lightning invoices"
         ],
         answer: 0,
         explanation: "Watchtowers protect Lightning users by monitoring the blockchain for fraudulent channel closes and broadcasting penalty transactions on their behalf."
     },
     {
         q: "What is the unit typically used for Lightning Network payments?",
-        options: ["Satoshis (sats)", "Millisatoshis or msats", "Whole Bitcoin units only", "Special Lightning network credits"],
+        options: ["Satoshis (sats)", "Millisatoshis (msats)", "Bitcoin (BTC)", "Lightning credits"],
         answer: 0,
         explanation: "While the Lightning Network internally tracks millisatoshis (1/1000th of a sat), payments are typically denominated in satoshis."
     },
     {
         q: "Which popular Lightning Network implementation is developed by Lightning Labs?",
-        options: ["LND", "Core Lightning (CLN)", "The Eclair implementation", "Electrum Lightning Extension"],
+        options: ["LND", "c-lightning (CLN)", "Eclair", "Electrum"],
         answer: 0,
         explanation: "LND (Lightning Network Daemon) is developed by Lightning Labs and is one of the most widely used Lightning implementations."
     },
@@ -595,9 +596,9 @@ var TRIVIA_BANK = [
         q: "What is a 'submarine swap' in Bitcoin's Lightning ecosystem?",
         options: [
             "An atomic swap between on-chain Bitcoin and Lightning Bitcoin",
-            "Cross-blockchain token swapping",
-            "A privacy method for concealing Lightning payment amounts from observers",
-            "A technique for merging channels together"
+            "An exchange of Bitcoin between two different blockchains",
+            "A method of hiding transaction amounts on Lightning",
+            "A technique for merging multiple Lightning channels"
         ],
         answer: 0,
         explanation: "Submarine swaps allow trustless exchanges between on-chain and off-chain (Lightning) Bitcoin, useful for channel rebalancing and liquidity management."
@@ -617,9 +618,9 @@ var TRIVIA_BANK = [
         q: "What is BOLT in the context of Lightning Network?",
         options: [
             "Basis of Lightning Technology — the specification documents for Lightning",
-            "Off-chain Ledger Technology",
-            "A popular and widely-used mobile wallet application designed for everyday Lightning payments",
-            "Binary Optimized Lightning Transfer protocol specifications"
+            "Bitcoin Off-chain Ledger Technology",
+            "A Lightning wallet application",
+            "Binary Optimized Lightning Transfer protocol"
         ],
         answer: 0,
         explanation: "BOLT (Basis of Lightning Technology) is the set of specification documents that define how Lightning Network implementations should operate and interoperate."
@@ -652,9 +653,9 @@ var TRIVIA_BANK = [
         q: "What is multisignature (multisig) in Bitcoin?",
         options: [
             "A setup requiring multiple private keys to authorize a transaction",
-            "Miner-signed transactions",
-            "The requirement for multiple blockchain confirmations before considering a transaction valid",
-            "A multi-cryptocurrency wallet supporting various coins"
+            "A transaction signed by multiple miners",
+            "Multiple confirmations required before a transaction is valid",
+            "A wallet that supports multiple cryptocurrencies"
         ],
         answer: 0,
         explanation: "Multisig requires M-of-N private keys to spend (e.g., 2-of-3), adding security by ensuring no single key compromise can move funds."
@@ -663,9 +664,9 @@ var TRIVIA_BANK = [
         q: "What is CoinJoin?",
         options: [
             "A privacy technique that combines multiple users' transactions into one",
-            "Wallet merging protocol",
-            "A standard protocol used for joining and coordinating mining pools together",
-            "Consolidating multiple UTXOs into a single output"
+            "A method of merging two Bitcoin wallets",
+            "A protocol for joining mining pools",
+            "A way to combine multiple UTXOs into one"
         ],
         answer: 0,
         explanation: "CoinJoin mixes multiple users' inputs and outputs in a single transaction, making it harder to trace which input corresponds to which output."
@@ -685,9 +686,9 @@ var TRIVIA_BANK = [
         q: "What is a hardware wallet?",
         options: [
             "A physical device that stores private keys offline and signs transactions securely",
-            "A dedicated full-node computer",
-            "A specialized USB drive that contains a fully complete and synchronized copy of the entire Bitcoin blockchain",
-            "Specialized mining rig hardware"
+            "A computer dedicated to running a Bitcoin full node",
+            "A USB drive containing a copy of the blockchain",
+            "A mining rig optimized for Bitcoin"
         ],
         answer: 0,
         explanation: "Hardware wallets (like Ledger, Trezor, Coldcard) store private keys in secure hardware, signing transactions without exposing keys to potentially compromised computers."
@@ -696,9 +697,9 @@ var TRIVIA_BANK = [
         q: "What is a 'dusting attack' in Bitcoin?",
         options: [
             "Sending tiny amounts of BTC to many addresses to track spending patterns",
-            "Network spam flooding",
-            "Simultaneously stealing very small fractional amounts from thousands of different wallets at once",
-            "Mining intentionally empty blocks to slow network"
+            "Flooding the network with spam transactions to increase fees",
+            "Stealing small amounts from many wallets simultaneously",
+            "Mining empty blocks to slow down the network"
         ],
         answer: 0,
         explanation: "In a dusting attack, tiny amounts of BTC (dust) are sent to many addresses. If recipients spend the dust, analysts can link addresses and deanonymize users."
@@ -707,9 +708,9 @@ var TRIVIA_BANK = [
         q: "What does BIP-39 define?",
         options: [
             "The mnemonic code standard for generating deterministic wallets",
-            "SegWit format",
-            "The Lightning Network's standardized routing and payment channel protocol specification document",
-            "Bitcoin's mining difficulty adjustment algorithm"
+            "The SegWit transaction format",
+            "The Lightning Network routing protocol",
+            "The Bitcoin mining difficulty algorithm"
         ],
         answer: 0,
         explanation: "BIP-39 defines the standard for mnemonic seed phrases (12/24 words from a 2048-word list) used to generate deterministic wallet keys."
@@ -729,9 +730,9 @@ var TRIVIA_BANK = [
         q: "What is the purpose of a Bitcoin 'watch-only' wallet?",
         options: [
             "To monitor a wallet's balance and transactions without the ability to spend",
-            "Real-time price observation",
-            "A tool for monitoring the full mempool for any specific pending transaction activity",
-            "Watching other users' blockchain activity"
+            "To observe Bitcoin's price in real-time",
+            "To monitor the mempool for specific transactions",
+            "To watch other users' transactions on the blockchain"
         ],
         answer: 0,
         explanation: "Watch-only wallets import only public keys (xpub), allowing balance monitoring without the private keys needed to spend — useful for tracking cold storage."
@@ -751,9 +752,9 @@ var TRIVIA_BANK = [
         q: "Why is address reuse considered bad practice in Bitcoin?",
         options: [
             "It reduces privacy by linking multiple transactions to the same address",
-            "Address expiration",
-            "It significantly and noticeably increases the transaction fees that are charged by the entire Bitcoin network",
-            "It directly violates Bitcoin protocol rules"
+            "It causes the address to expire after too many uses",
+            "It increases transaction fees",
+            "It violates the Bitcoin protocol rules"
         ],
         answer: 0,
         explanation: "Reusing addresses makes it easy for blockchain analysts to link your transactions and build a profile of your spending habits, reducing financial privacy."
@@ -762,9 +763,9 @@ var TRIVIA_BANK = [
         q: "What is a 'brain wallet' and why is it dangerous?",
         options: [
             "A wallet generated from a memorized passphrase, vulnerable to brute-force attacks",
-            "AI-powered trading wallet",
-            "A wallet securely stored and distributed across multiple cloud-based neural network infrastructure systems worldwide",
-            "Quantum-resistant wallet design"
+            "An AI-powered wallet that predicts market trends",
+            "A wallet stored in cloud-based neural networks",
+            "A quantum-computing-resistant wallet design"
         ],
         answer: 0,
         explanation: "Brain wallets derive private keys from memorized phrases, but humans choose predictable phrases. Attackers pre-compute keys from common phrases and steal funds."
@@ -784,13 +785,13 @@ var TRIVIA_BANK = [
     // ===== CURRENT EVENTS & ADOPTION (14 questions) =====
     {
         q: "Which country became the first to adopt Bitcoin as legal tender in 2021?",
-        options: ["El Salvador", "The Republic of Paraguay", "The nation of Panama", "Central American Honduras"],
+        options: ["El Salvador", "Paraguay", "Panama", "Honduras"],
         answer: 0,
         explanation: "El Salvador, under President Nayib Bukele, passed the Bitcoin Law in June 2021, making Bitcoin legal tender alongside the US dollar."
     },
     {
         q: "What is El Salvador's government-backed Bitcoin wallet called?",
-        options: ["Chivo", "Muun Wallet", "BlueWallet Lightning", "Strike Global"],
+        options: ["Chivo", "Muun", "BlueWallet", "Strike"],
         answer: 0,
         explanation: "Chivo Wallet was launched by the Salvadoran government in September 2021 to facilitate Bitcoin and dollar transactions for citizens."
     },
@@ -798,22 +799,22 @@ var TRIVIA_BANK = [
         q: "In January 2024, the SEC approved which type of Bitcoin investment product?",
         options: [
             "Spot Bitcoin ETFs",
-            "Bitcoin futures exchange-traded funds",
-            "Standardized Bitcoin options trading contracts",
-            "Government-backed Bitcoin savings bonds"
+            "Bitcoin futures ETFs",
+            "Bitcoin options contracts",
+            "Bitcoin savings bonds"
         ],
         answer: 0,
         explanation: "The SEC approved 11 spot Bitcoin ETFs on January 10, 2024, allowing traditional investors to gain exposure to Bitcoin through regulated brokerage accounts."
     },
     {
         q: "Which company, led by Michael Saylor, became famous for its massive Bitcoin treasury holdings?",
-        options: ["MicroStrategy", "Tesla Motors Inc", "Block (formerly Square)", "Galaxy Digital Holdings"],
+        options: ["MicroStrategy", "Tesla", "Block (Square)", "Galaxy Digital"],
         answer: 0,
         explanation: "MicroStrategy (now Strategy), under CEO Michael Saylor, began buying Bitcoin in August 2020 and accumulated hundreds of thousands of BTC as a treasury reserve."
     },
     {
         q: "Which major electric vehicle company announced a $1.5 billion Bitcoin purchase in February 2021?",
-        options: ["Tesla", "Rivian Automotive", "Lucid Motors Group", "NIO Electric Vehicles"],
+        options: ["Tesla", "Rivian", "Lucid Motors", "NIO"],
         answer: 0,
         explanation: "Tesla disclosed a $1.5 billion Bitcoin purchase in an SEC filing in February 2021, briefly accepting BTC for vehicle purchases."
     },
@@ -821,9 +822,9 @@ var TRIVIA_BANK = [
         q: "What is the primary environmental criticism of Bitcoin mining?",
         options: [
             "High energy consumption from proof-of-work mining",
-            "E-waste",
-            "Excessive industrial water usage needed for cooling large mining facility operations",
-            "Deforestation to build mining farms"
+            "Electronic waste from obsolete mining hardware",
+            "Water usage for cooling mining facilities",
+            "Deforestation for building mining farms"
         ],
         answer: 0,
         explanation: "Critics argue Bitcoin's proof-of-work consensus requires significant electricity. Proponents counter that a growing portion comes from renewable sources and stranded energy."
@@ -832,16 +833,16 @@ var TRIVIA_BANK = [
         q: "What is the Bitcoin Mining Council?",
         options: [
             "A voluntary group of mining companies that promotes transparency about energy usage",
-            "Government mining regulator",
-            "An official centralized government organization that directly allocates and controls Bitcoin mining difficulty adjustment settings",
-            "A consortium controlling Bitcoin hash rate"
+            "A government body regulating Bitcoin mining",
+            "An organization that allocates mining difficulty",
+            "A consortium that controls Bitcoin's hash rate"
         ],
         answer: 0,
         explanation: "The Bitcoin Mining Council, formed in 2021, is a voluntary forum of mining companies that collects and shares data on Bitcoin mining's energy mix and sustainability."
     },
     {
         q: "Which African country's central bank issued warnings about Bitcoin while the country saw rapid grassroots adoption?",
-        options: ["Nigeria", "East African Kenya", "Republic of South Africa", "West African Ghana"],
+        options: ["Nigeria", "Kenya", "South Africa", "Ghana"],
         answer: 0,
         explanation: "Nigeria's central bank restricted bank-to-crypto transactions in 2021, yet Nigeria remained one of the top countries for Bitcoin peer-to-peer trading volume."
     },
@@ -849,9 +850,9 @@ var TRIVIA_BANK = [
         q: "What Bitcoin-related technology does Jack Dorsey's company Block (formerly Square) develop?",
         options: [
             "Bitcoin mining hardware and the TBD decentralized identity platform",
-            "Cash App exchange",
-            "A specialized bridge technology connecting Ethereum transactions to Bitcoin's blockchain network",
-            "A proprietary forked Bitcoin blockchain"
+            "A Bitcoin-only exchange called Cash App",
+            "Ethereum-to-Bitcoin bridge technology",
+            "A proprietary Bitcoin blockchain fork"
         ],
         answer: 0,
         explanation: "Block (formerly Square) invested in Bitcoin mining ASIC development and created TBD for decentralized identity and Bitcoin-based financial services."
@@ -871,16 +872,16 @@ var TRIVIA_BANK = [
         q: "What did El Salvador build to mine Bitcoin using geothermal energy?",
         options: [
             "A Bitcoin mining facility powered by a volcano",
-            "Hydroelectric mining dam",
-            "A large dedicated solar-powered cryptocurrency mining farm operation built in the desert",
-            "A wind operation"
+            "A hydroelectric dam dedicated to mining",
+            "A solar-powered mining farm",
+            "A wind-powered mining operation"
         ],
         answer: 0,
         explanation: "El Salvador announced plans to use geothermal energy from volcanoes to power Bitcoin mining, setting up initial mining operations near the Tecapa volcano."
     },
     {
         q: "Which payment company launched Bitcoin buying and selling for its hundreds of millions of users in 2020?",
-        options: ["PayPal", "Venmo Mobile Payments", "Stripe Payment Processing", "Zelle Bank Transfers"],
+        options: ["PayPal", "Venmo", "Stripe", "Zelle"],
         answer: 0,
         explanation: "PayPal announced Bitcoin buying, selling, and holding for US users in October 2020, later expanding to Venmo and international markets."
     },
@@ -888,9 +889,9 @@ var TRIVIA_BANK = [
         q: "What is a 'Bitcoin bond' as proposed by El Salvador?",
         options: [
             "A government bond partially backed by Bitcoin, aimed at funding Bitcoin City",
-            "Interest-in-Bitcoin corporate bond",
-            "A bond instrument that automatically converts its full face value to Bitcoin at maturity",
-            "A decentralized finance lending instrument"
+            "A corporate bond that pays interest in Bitcoin",
+            "A bond that automatically converts to Bitcoin at maturity",
+            "A DeFi instrument for lending Bitcoin"
         ],
         answer: 0,
         explanation: "El Salvador proposed 'Volcano Bonds' — government securities partially backed by Bitcoin — to fund Bitcoin City and Bitcoin purchases, structured with Blockstream."
@@ -899,9 +900,9 @@ var TRIVIA_BANK = [
         q: "What is the significance of the 'HODL Waves' chart?",
         options: [
             "It shows the age distribution of all UTXOs, revealing holding behavior patterns",
-            "Social media HODL tracking",
-            "A chart measuring the precise frequency and intensity of price volatility during market cycles",
-            "New wallet creation trends over time"
+            "It tracks the frequency of the word HODL on social media",
+            "It measures price volatility during market cycles",
+            "It shows the number of new wallets created over time"
         ],
         answer: 0,
         explanation: "HODL Waves visualize what percentage of Bitcoin supply has remained unmoved for various time periods, revealing long-term holding conviction during market cycles."
