@@ -1958,6 +1958,11 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
     }
 
     // ── Signed-in users: Cloud Function enforces daily cap server-side ──
+    // Eagerly log to notification tracker so it always appears in 🔔 Alerts
+    // (CF is async — user may navigate away before it returns)
+    if (pts > 0 && reason && typeof notifySelfPoints === 'function') {
+        notifySelfPoints(pts, reason);
+    }
     try {
         var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
         var payload = { pts: pts, action: reason || '', reason: reason || '' };
@@ -1980,12 +1985,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
                 _showPointsToast(awarded, reason);
-                // Skip notification if spin already logged it eagerly
-                if (window._spinPointsNotified && reason === 'Daily Spin') {
-                    window._spinPointsNotified = false;
-                } else if (typeof notifySelfPoints === 'function') {
-                    notifySelfPoints(awarded, reason);
-                }
+                // Notification already logged eagerly before CF call
                 if (overflowRedeemed > 0) {
                     setTimeout(function() {
                         showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
