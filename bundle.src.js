@@ -11566,8 +11566,11 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
 // Quest triggers: after visiting X channels
 const QUEST_TRIGGERS = [5, 15, 25, 40, 60, 80, 100];
 let currentQuest = null;
+let isRetry = false;
 let completedQuests = new Set();
 let weeklyCompleted = [];
+let visitedForQuest = [];
+let questCount = 0;
 
 // Helper to get ISO week key (e.g., "2026-W17")
 function _getCurrentWeekKey(){
@@ -12327,6 +12330,8 @@ if (typeof showQuest !== "undefined") window.showQuest = showQuest;
 if (typeof generateAndShowQuest !== "undefined") window.generateAndShowQuest = generateAndShowQuest;
 if (typeof _showQuestTopicPicker !== "undefined") window._showQuestTopicPicker = _showQuestTopicPicker;
 if (typeof showQuestFinalResults !== "undefined") window.showQuestFinalResults = showQuestFinalResults;
+if (typeof retryQuest !== "undefined") window.retryQuest = retryQuest;
+if (typeof _renderQuestHubTab !== "undefined") window._renderQuestHubTab = _renderQuestHubTab;
 // ============================================================
 // QUEST HUB — Quiz / Trivia / Poll tabs
 // ============================================================
