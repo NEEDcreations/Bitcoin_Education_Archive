@@ -185,7 +185,13 @@ async function fetchDashboardData() {
 
     // 1. mempool.space — block height, fees, hashrate, difficulty, mempool
     promises.push(
-        fetch('https://mempool.space/api/blocks/tip/height').then(r => r.text()).then(h => { data.blockHeight = parseInt(h); try { localStorage.setItem('btc_last_height', data.blockHeight.toString()); } catch(e) {} }).catch(() => {})
+        fetch('https://mempool.space/api/blocks/tip/height').then(r => r.text()).then(h => {
+            data.blockHeight = parseInt(h);
+            try { localStorage.setItem('btc_last_height', data.blockHeight.toString()); } catch(e) {}
+            // Progressive render: show block data immediately on cold load
+            var _c = document.getElementById('btcDashCard');
+            if (_c && !data.price && data.blockHeight) _c.innerHTML = renderDashboard(data);
+        }).catch(() => {})
     );
     promises.push(
         fetch('https://mempool.space/api/v1/fees/recommended').then(r => r.json()).then(f => {
@@ -226,25 +232,35 @@ async function fetchDashboardData() {
         }).catch(() => {})
     );
 
-    // 2. CoinGecko — price, market cap, volume, supply, 24h change
+    // 2. CoinGecko — serialized to avoid rate limiting (free tier is aggressive)
+    // First call: price basics (most important)
     promises.push(
-        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true').then(r => r.json()).then(d => {
+        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true').then(r => {
+            if (r.status === 429) throw new Error('rate-limited');
+            return r.json();
+        }).then(d => {
             if (d.bitcoin) {
                 data.price = d.bitcoin.usd;
                 try { localStorage.setItem('btc_last_price', d.bitcoin.usd.toString()); } catch(e) {}
                 data.change24h = d.bitcoin.usd_24h_change;
                 data.volume24h = d.bitcoin.usd_24h_vol;
                 data.marketCap = d.bitcoin.usd_market_cap;
-                // Seed WS open price for % calc
                 if (!_wsOpenPrice && data.price && data.change24h) {
                     _wsOpenPrice = data.price / (1 + data.change24h / 100);
                     _lastWsChange = data.change24h;
                 }
             }
-        }).catch(() => {})
-    );
-    promises.push(
-        fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false').then(r => r.json()).then(d => {
+            // Progressive re-render after price arrives
+            var _c = document.getElementById('btcDashCard');
+            if (_c && data.price) _c.innerHTML = renderDashboard(data);
+            // Second call: detailed data — delayed 1.5s to dodge rate limit
+            return new Promise(function(r) { setTimeout(r, 1500); });
+        }).then(function() {
+            return fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false');
+        }).then(r => {
+            if (r.status === 429) throw new Error('rate-limited');
+            return r.json();
+        }).then(d => {
             if (d.market_data) {
                 data.supply = d.market_data.circulating_supply;
                 data.ath = d.market_data.ath ? d.market_data.ath.usd : null;
@@ -278,10 +294,10 @@ async function fetchDashboardData() {
         }).catch(() => {})
     );
 
-    // Race: all fetches vs 8-second timeout
+    // Race: all fetches vs 12-second timeout (allows serialized CoinGecko calls)
     await Promise.race([
         Promise.all(promises),
-        new Promise(resolve => setTimeout(resolve, 8000))
+        new Promise(resolve => setTimeout(resolve, 12000))
     ]);
 
     // Fill any missing fields from WS price, then stale cache — user should NEVER see blanks
