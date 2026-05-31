@@ -12319,6 +12319,14 @@ setTimeout(initQuests, 3000);
 
 // ---- OPENCLAW EXPORTS ----
 if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;
+if (typeof selectAnswer !== "undefined") window.selectAnswer = selectAnswer;
+if (typeof submitQuest !== "undefined") window.submitQuest = submitQuest;
+if (typeof skipQuest !== "undefined") window.skipQuest = skipQuest;
+if (typeof closeQuest !== "undefined") window.closeQuest = closeQuest;
+if (typeof showQuest !== "undefined") window.showQuest = showQuest;
+if (typeof generateAndShowQuest !== "undefined") window.generateAndShowQuest = generateAndShowQuest;
+if (typeof _showQuestTopicPicker !== "undefined") window._showQuestTopicPicker = _showQuestTopicPicker;
+if (typeof showQuestFinalResults !== "undefined") window.showQuestFinalResults = showQuestFinalResults;
 // ============================================================
 // QUEST HUB — Quiz / Trivia / Poll tabs
 // ============================================================
