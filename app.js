@@ -3181,7 +3181,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Sidebar Action Buttons (exclude buttons inside appsMenu — those have their own formatting)
         sidebarButtons.forEach(btn => {
-            if (btn.closest('#appsMenu')) return;
+            if (btn.closest('#appsMenu') || btn.closest('#guideOverlay') || btn.closest('#questHubOverlay')) return;
             const txt = btn.getAttribute('data-name') || btn.textContent.replace('🔒 ', '').trim();
             if (!btn.getAttribute('data-name')) btn.setAttribute('data-name', txt);
             
