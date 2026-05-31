@@ -3030,12 +3030,25 @@ exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
 exports.startQuest = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
-    const { questions } = data || {};
-    if (!questions || !Array.isArray(questions) || questions.length !== 5) {
-        throw new functions.https.HttpsError('invalid-argument', 'Must have exactly 5 questions');
+    const { questions, topicKey } = data || {};
+    if (!questions || !Array.isArray(questions) || questions.length < 3 || questions.length > 5) {
+        throw new functions.https.HttpsError('invalid-argument', 'Must have 3-5 questions');
     }
 
     const uid = context.auth.uid;
+
+    // Server-side guard: reject if user already perfected this topic
+    if (topicKey) {
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (userDoc.exists) {
+            const completed = userDoc.data().completedQuests || [];
+            if (completed.includes('quest_' + topicKey)) {
+                throw new functions.https.HttpsError('already-exists',
+                    'You already got a perfect score on this topic!');
+            }
+        }
+    }
+
     const questId = uid + '_quest_' + Date.now();
 
     // Store answer keys server-side
@@ -3044,6 +3057,7 @@ exports.startQuest = functions.https.onCall(async (data, context) => {
     await db.collection('quest_answer_keys').doc(questId).set({
         uid,
         keys: answerKeys,
+        topicKey: topicKey || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         graded: false,
     });
@@ -3154,6 +3168,13 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
             graded: true, score, pts, awarded,
             gradedAt: admin.firestore.FieldValue.serverTimestamp()
         });
+
+        // Perfect 5/5 on a topic quest: persist topic-based completion server-side
+        if (score === 5 && quest.topicKey) {
+            tx.update(userRef, {
+                completedQuests: admin.firestore.FieldValue.arrayUnion('quest_' + quest.topicKey)
+            });
+        }
 
         return { score, pts, awarded, capped, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
     });

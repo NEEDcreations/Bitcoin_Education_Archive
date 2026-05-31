@@ -1121,8 +1121,14 @@ function generateAndShowQuest(manual, targetChannelId) {
         }
     }
 
-    const questId = 'quest_dynamic_' + questCount;
-    if (completedQuests.has(questId)) return;
+    // Use topic-based ID so perfect scores are tracked per topic
+    var questId = targetChannelId ? ('quest_' + targetChannelId) : ('quest_dynamic_' + questCount);
+    // Block retake if user already got a perfect 5/5 on this topic
+    if (targetChannelId && completedQuests.has(questId)) {
+        if (typeof showToast === 'function') showToast('\u2705 You already aced ' + targetChannelId.replace(/[-_]+/g, ' ') + ' with a perfect score!');
+        return;
+    }
+    if (!targetChannelId && completedQuests.has(questId)) return;
 
     // Track these questions as asked
     const newAsked = [...askedQuestions, ...selected.map(q => q.q)];
@@ -1135,13 +1141,14 @@ function generateAndShowQuest(manual, targetChannelId) {
         return { q: q.q, options, answer: correctIdx };
     });
 
-    currentQuest = { id: questId, title: getQuestTitle(questCount, targetChannelId), questions };
+    currentQuest = { id: questId, topicKey: targetChannelId || null, title: getQuestTitle(questCount, targetChannelId), questions };
 
     // Register quest server-side for secure grading
     window._currentQuestServerId = null;
     if (typeof firebase !== 'undefined' && firebase.functions) {
         firebase.functions().httpsCallable('startQuest')({
-            questions: questions.map(function(q) { return { answer: q.answer }; })
+            questions: questions.map(function(q) { return { answer: q.answer }; }),
+            topicKey: targetChannelId || null
         }).then(function(res) {
             window._currentQuestServerId = res.data.questId;
         }).catch(function(e) { console.warn('Quest registration failed:', e); });
@@ -1330,17 +1337,22 @@ async function submitQuest() {
     });
 
     let msg = '';
+    var isPerfect = score === 5;
+    var isTopicQuest = !!(currentQuest.topicKey);
     if (isRetry) {
         if (score >= 3) {
             if (!pts) pts = 25;
             msg = '🎉 ' + score + '/5 correct on retry! +' + pts + ' XP!';
-            completedQuests.add(currentQuest.id);
+            // Only permanently lock on perfect 5/5 for topic quests
+            if (isPerfect || !isTopicQuest) {
+                completedQuests.add(currentQuest.id);
+            }
             questCount++;
         } else {
             msg = '😅 ' + score + '/5 — Better luck next time! Keep reading and try again.';
         }
     } else {
-        if (score === 5) {
+        if (isPerfect) {
             if (!pts) pts = 100;
             msg = '🏆 PERFECT! 5/5! +' + pts + ' XP!';
             completedQuests.add(currentQuest.id);
@@ -1354,7 +1366,10 @@ async function submitQuest() {
         } else if (score >= 3) {
             if (!pts) pts = 50;
             msg = '🎉 ' + score + '/5 correct! +' + pts + ' XP!';
-            completedQuests.add(currentQuest.id);
+            // Non-perfect: award XP but DON'T lock topic quest (allow retake for 5/5)
+            if (!isTopicQuest) {
+                completedQuests.add(currentQuest.id);
+            }
             questCount++;
         } else {
             msg = '😅 ' + score + '/5 — You can retry for 25 XP!';
