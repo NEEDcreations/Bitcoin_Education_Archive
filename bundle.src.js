@@ -12182,18 +12182,40 @@ function _renderPollTab(body) {
         // Show results with bars
         _renderPollResults(body, html, p, state, todayKey);
     } else {
-        // Show voting options
-        html += '<div id="pollOptions" style="display:flex;flex-direction:column;gap:8px;">';
-        for (var i = 0; i < p.options.length; i++) {
-            var optText = typeof escapeHtml === 'function' ? escapeHtml(p.options[i]) : p.options[i];
-            html += '<button onclick="pollVote(' + i + ')" style="padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
-                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
-                optText +
-            '</button>';
+        // Check server-side if user already voted (covers localStorage cleared / different device)
+        var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+        var pollId = p.id || ('poll_day_' + todayKey);
+        if (uid && typeof db !== 'undefined') {
+            db.collection('poll_votes').doc(pollId).get().then(function(doc) {
+                if (doc.exists && doc.data().voters && doc.data().voters.indexOf(uid) !== -1) {
+                    // User already voted server-side — sync local state and show results
+                    var serverVoterIdx = state.chosen; // May not have local chosen
+                    state = { date: todayKey, index: today.index, chosen: typeof serverVoterIdx === 'number' ? serverVoterIdx : -1, pollId: p.id };
+                    _setPollState(state);
+                    _renderPollResults(body, html, p, state, todayKey);
+                } else {
+                    _showPollVoteButtons(body, html, p);
+                }
+            }).catch(function() {
+                _showPollVoteButtons(body, html, p);
+            });
+        } else {
+            _showPollVoteButtons(body, html, p);
         }
-        html += '</div>';
-        body.innerHTML = html;
     }
+}
+
+function _showPollVoteButtons(body, html, p) {
+    html += '<div id="pollOptions" style="display:flex;flex-direction:column;gap:8px;">';
+    for (var i = 0; i < p.options.length; i++) {
+        var optText = typeof escapeHtml === 'function' ? escapeHtml(p.options[i]) : p.options[i];
+        html += '<button onclick="pollVote(' + i + ')" style="padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+            '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
+            optText +
+        '</button>';
+    }
+    html += '</div>';
+    body.innerHTML = html;
 }
 
 function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
@@ -12243,57 +12265,81 @@ window.pollVote = function(chosenIdx) {
     var p = today.poll;
     var todayKey = new Date().toISOString().split('T')[0];
     var state = _getPollState();
-    if (state.date === todayKey && typeof state.chosen === 'number') return; // Already voted
+    if (state.date === todayKey && typeof state.chosen === 'number') return; // Already voted (local)
 
-    // Save state
-    state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-    _setPollState(state);
+    // Disable buttons immediately to prevent double-tap
+    var pollBtns = document.querySelectorAll('#pollOptions button');
+    pollBtns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; b.style.cursor = 'default'; });
 
-    // Award XP
-    if (typeof awardPoints === 'function') awardPoints(50, '📊 Poll Quest vote');
-    // Raid Boss: poll vote + XP
-    if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
-    if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(50);
-
-    // Record vote in Firestore
     var pollId = p.id || ('poll_day_' + todayKey);
-    if (typeof db !== 'undefined') {
-        var voteField = 'votes';
-        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
-            var votes = doc.exists ? (doc.data().votes || [0, 0, 0, 0]) : [0, 0, 0, 0];
-            votes[chosenIdx] = (votes[chosenIdx] || 0) + 1;
-            return db.collection('poll_votes').doc(pollId).set({
-                pollId: pollId,
-                question: p.q,
-                options: p.options,
-                votes: votes,
-                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+
+    // Server-side duplicate check + atomic vote via transaction
+    if (typeof db !== 'undefined' && uid) {
+        var pollRef = db.collection('poll_votes').doc(pollId);
+        db.runTransaction(function(tx) {
+            return tx.get(pollRef).then(function(doc) {
+                var data = doc.exists ? doc.data() : {};
+                var voters = data.voters || [];
+                // Server-side: reject if this user already voted on this poll
+                if (voters.indexOf(uid) !== -1) {
+                    return Promise.reject({ code: 'already-voted' });
+                }
+                var votes = data.votes || [0, 0, 0, 0];
+                votes[chosenIdx] = (votes[chosenIdx] || 0) + 1;
+                voters.push(uid);
+                tx.set(pollRef, {
+                    pollId: pollId,
+                    question: p.q,
+                    options: p.options,
+                    votes: votes,
+                    voters: voters,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            });
         }).then(function() {
-            // Re-render with results
+            // Vote succeeded — save local state + award XP
+            state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+            _setPollState(state);
+            if (typeof awardPoints === 'function') awardPoints(50, '📊 Poll Quest vote');
+            if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
+            if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(50);
+            if (typeof showToast === 'function') showToast('📊 Vote recorded! +50 XP', 3000);
+
+            // Track on user doc
+            if (!auth.currentUser.isAnonymous) {
+                db.collection('users').doc(uid).update({
+                    lastPollDate: todayKey,
+                    pollsVoted: firebase.firestore.FieldValue.increment(1)
+                }).catch(function() {});
+            }
+
             var body = document.getElementById('questHubBody');
             if (body) _renderPollTab(body);
         }).catch(function(e) {
-            console.error('[POLL] Vote save failed:', e);
-            // Still show results from local state
+            if (e && e.code === 'already-voted') {
+                // Already voted server-side — sync local state
+                state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+                _setPollState(state);
+                if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
+            } else {
+                console.error('[POLL] Vote failed:', e);
+                if (typeof showToast === 'function') showToast('⚠️ Vote failed — try again', 3000);
+                // Re-enable buttons on error
+                pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
+                return;
+            }
             var body = document.getElementById('questHubBody');
             if (body) _renderPollTab(body);
         });
-
-        // Also track on user doc
-        if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            db.collection('users').doc(auth.currentUser.uid).update({
-                lastPollDate: todayKey,
-                pollsVoted: firebase.firestore.FieldValue.increment(1)
-            }).catch(function() {});
-        }
     } else {
-        // Offline — just re-render
+        // No auth or offline — local-only vote (no XP, no server record)
+        state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+        _setPollState(state);
+        if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
         var body = document.getElementById('questHubBody');
         if (body) _renderPollTab(body);
     }
-
-    if (typeof showToast === 'function') showToast('📊 Vote recorded! +50 XP', 3000);
 };
 
 // ============================================================

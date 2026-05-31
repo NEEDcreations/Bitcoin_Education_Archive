@@ -458,6 +458,7 @@ var TRIVIA_BANK = [
     },
     {
         q: "What does 'HFSP' stand for in Bitcoin Twitter culture?",
+        options: [
             "Have Fun Staying Poor",
             "Hyper-Funded Protocol",
             "Hash Function Security Protocol for Blockchain Networks",
