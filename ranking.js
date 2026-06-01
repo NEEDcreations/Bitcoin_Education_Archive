@@ -2366,6 +2366,27 @@ function updateRankUI() {
         if (_luName && typeof window.nachoGlobalAnnounce === 'function') {
             window.nachoGlobalAnnounce(lv.emoji + ' @' + _luName + ' just leveled up to ' + lv.emoji + ' ' + lv.name + '! Congrats! \uD83C\uDF89', _luUid);
         }
+
+        // Satoshi's Favor contribution for level-ups
+        if (typeof window.contributeSatoshiFavor === 'function') {
+            var levelName = lv.name || '';
+            var source = null;
+            // Check rank tier
+            if (['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'].includes(levelName)) {
+                source = 'level_up';
+            } else if (['Maxi','Maxi II','Maxi III','Papa John'].includes(levelName)) {
+                source = 'level_up_5';
+            } else if (['Cyberhornet','Honey Badger','Sovereign','Satoshi'].includes(levelName)) {
+                source = 'level_up_10';
+            }
+            if (source) {
+                window.contributeSatoshiFavor(source, levelName);
+                if (typeof window.announceSatoshiFavorProgress === 'function') {
+                    var _ptsRem = 21 - ((window._resolveFavorState && window._resolveFavorState().points) || 0);
+                    window.announceSatoshiFavorProgress(_ptsRem);
+                }
+            }
+        }
     }
     lastLevelName = lv.name;
     lastLevelMin = lv.min;

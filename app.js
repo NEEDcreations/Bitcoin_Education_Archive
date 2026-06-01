@@ -2740,6 +2740,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
+        // Render Satoshi's Favor banner on home
+        if (typeof window._renderSatoshiFavorHome === 'function') window._renderSatoshiFavorHome();
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
             setFloatingElementsVisible(true);

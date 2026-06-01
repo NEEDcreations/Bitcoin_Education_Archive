@@ -1030,12 +1030,18 @@ function createChatOverlay() {
             '<button onclick="toggleChatOverlay()" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
         '</div></div>';
 
+    // Satoshi's Favor banner above chat
+    var favorBanner = document.createElement('div');
+    favorBanner.id = 'satoshiFavorChatBanner';
+    favorBanner.style.cssText = 'flex-shrink:0;';
+
     // Chat content container
     var body = document.createElement('div');
     body.id = 'chatOverlayBody';
     body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;';
 
     panel.appendChild(header);
+    panel.appendChild(favorBanner);
     panel.appendChild(body);
     document.body.appendChild(panel);
 
@@ -1065,6 +1071,8 @@ window.toggleChatOverlay = function() {
     if (_lbFab) { if (_overlayOpen) _lbFab.classList.add('chat-shifted'); else _lbFab.classList.remove('chat-shifted'); }
     if (_overlayOpen) {
         localStorage.setItem('hasUsedChat', '1');
+        // Render Satoshi's Favor banner
+        if (typeof window._renderFavorChatBanner === 'function') window._renderFavorChatBanner();
         if (!_bgChatUnsub && typeof db !== 'undefined' && db) startUnreadTracker();
         history.pushState({ modal: 'chat' }, '', window.location.pathname + window.location.hash);
     }

@@ -2514,6 +2514,27 @@ function updateRankUI() {
         if (_luName && typeof window.nachoGlobalAnnounce === 'function') {
             window.nachoGlobalAnnounce(lv.emoji + ' @' + _luName + ' just leveled up to ' + lv.emoji + ' ' + lv.name + '! Congrats! \uD83C\uDF89', _luUid);
         }
+
+        // Satoshi's Favor contribution for level-ups
+        if (typeof window.contributeSatoshiFavor === 'function') {
+            var levelName = lv.name || '';
+            var source = null;
+            // Check rank tier
+            if (['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'].includes(levelName)) {
+                source = 'level_up';
+            } else if (['Maxi','Maxi II','Maxi III','Papa John'].includes(levelName)) {
+                source = 'level_up_5';
+            } else if (['Cyberhornet','Honey Badger','Sovereign','Satoshi'].includes(levelName)) {
+                source = 'level_up_10';
+            }
+            if (source) {
+                window.contributeSatoshiFavor(source, levelName);
+                if (typeof window.announceSatoshiFavorProgress === 'function') {
+                    var _ptsRem = 21 - ((window._resolveFavorState && window._resolveFavorState().points) || 0);
+                    window.announceSatoshiFavorProgress(_ptsRem);
+                }
+            }
+        }
     }
     lastLevelName = lv.name;
     lastLevelMin = lv.min;
@@ -12028,6 +12049,18 @@ async function submitQuest() {
         if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
         qLog.count++;
         localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
+
+        // Satoshi's Favor: 3 daily quests completed = 1 point
+        if (qLog.count === 3) {
+            var pointsRemaining = 21 - ((window._resolveFavorState && window._resolveFavorState().points) || 0);
+            if (typeof window.announceSatoshiFavorCompleted === 'function') {
+                window.announceSatoshiFavorCompleted(pointsRemaining);
+            }
+            if (typeof window.contributeSatoshiFavor === 'function') {
+                window.contributeSatoshiFavor('quiz_daily_3');
+            }
+        }
+
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
                 questsCompletedToday: (qLog.count || 0),
@@ -12374,6 +12407,87 @@ setTimeout(initQuests, 3000);
 
 
 
+// ── FAVOR TAB (Satoshi's Favor) ──
+function _renderFavorTab(body) {
+    if (!body) return;
+
+    // Get current state from window._resolveFavorState if available
+    var state = typeof window._resolveFavorState === 'function' ? window._resolveFavorState() : null;
+    var isActive = state && state.favorActive;
+    var points = state ? (state.points || 0) : 0;
+    var pct = Math.min(100, (points / 21) * 100);
+
+    var html = '<div style="text-align:center;padding:16px 0;">' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">⛏️</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Satoshi\'s Favor</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Community mining when the community earns 21 points</div>';
+
+    if (isActive) {
+        var endBase = state.favorEndBase ? state.favorEndBase.toMillis() : 0;
+        var bonusMs = (state.bonusMinutes || 0) * 60 * 1000;
+        var remainingMs = (endBase + bonusMs) - Date.now();
+        var remainingMin = Math.floor(remainingMs / 60000);
+        var remainingSec = Math.floor((remainingMs % 60000) / 1000);
+
+        html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:16px;animation:favorPulse 2s ease-in-out infinite;">' +
+            '<div style="font-size:1.2rem;font-weight:800;color:var(--accent);margin-bottom:8px;">🎉 SATOSHI\'S FAVOR IS ACTIVE!</div>' +
+            '<div style="font-size:2rem;font-weight:900;color:#fff;font-family:monospace;" id="favorTabTimer">' + remainingMin + 'm ' + remainingSec + 's</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Mine below 1,000 to win 21,000 sats!</div>' +
+            '</div>' +
+            '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
+
+        html += '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">⛏️ Start Mining</button>';
+    } else {
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">' +
+                '<span style="font-size:1.1rem;font-weight:800;color:var(--heading);">' + points + '/21 points</span>' +
+            '</div>' +
+            '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">' +
+                '<div style="height:100%;background:linear-gradient(90deg,var(--accent),#ffd700);width:' + pct + '%;transition:width 0.5s;border-radius:4px;"></div>' +
+            '</div>' +
+            '<div style="margin-top:8px;font-size:0.75rem;color:var(--text-muted);">' + (21 - points) + ' more points to activate</div>' +
+        '</div>';
+    }
+
+    html += '<div style="background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;text-align:left;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">' +
+        '<strong style="color:var(--accent);">How it works:</strong><br>' +
+        '• Complete 3 daily quiz quests = 1 point<br>' +
+        '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
+        '• Level up to Maxi ranks = 5 points each<br>' +
+        '• Level up to Cyberhornet+ = 10 points each<br>' +
+        '• At 21 points, mining opens for 60 minutes (+3 min per extra point)<br>' +
+        '• Generate a random hash. Below 1,000 = win 21,000 sats!<br>' +
+        '• 1 hash per minute cooldown'
+    '</div>';
+
+    html += '</div>';
+    body.innerHTML = html;
+
+    // Start timer if active
+    if (isActive) {
+        var timerEl = document.getElementById('favorTabTimer');
+        if (timerEl) {
+            var interval = setInterval(function() {
+                if (!timerEl) { clearInterval(interval); return; }
+                if (!state || !state.favorActive) { timerEl.textContent = 'EXPIRED'; clearInterval(interval); return; }
+                var endBase = state.favorEndBase ? state.favorEndBase.toMillis() : 0;
+                var bonusMs = (state.bonusMinutes || 0) * 60 * 1000;
+                var remaining = (endBase + bonusMs) - Date.now();
+                if (remaining <= 0) { timerEl.textContent = '00:00'; return; }
+                var mins = Math.floor(remaining / 60000);
+                var secs = Math.floor((remaining % 60000) / 1000);
+                timerEl.textContent = mins + 'm ' + secs + 's';
+            }, 1000);
+        }
+    }
+}
+
+window.closeQuestHubForFavor = function() {
+    var overlay = document.getElementById('questHubOverlay');
+    if (overlay) overlay.remove();
+    window._cleanupRaidBoss && window._cleanupRaidBoss();
+};
+
 // ---- OPENCLAW EXPORTS ----
 if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;
 if (typeof selectAnswer !== "undefined") window.selectAnswer = selectAnswer;
@@ -12423,6 +12537,7 @@ window.showQuestHub = function() {
         '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
+        '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⛏️ Favor</button>' +
         '</div>';
 
     var body = document.createElement('div');
@@ -12460,6 +12575,7 @@ function _renderQuestHubTab() {
     else if (tab === 'trivia') _renderTriviaTab(body);
     else if (tab === 'poll') _renderPollTab(body);
     else if (tab === 'raid') _renderRaidTab(body);
+    else if (tab === 'favor') _renderFavorTab(body);
 }
 
 // ── QUIZ TAB (existing system) ──
@@ -24632,6 +24748,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
+        // Render Satoshi's Favor banner on home
+        if (typeof window._renderSatoshiFavorHome === 'function') window._renderSatoshiFavorHome();
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
             setFloatingElementsVisible(true);

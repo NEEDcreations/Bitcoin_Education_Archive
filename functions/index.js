@@ -4215,3 +4215,10 @@ const { scheduleRaidBoss } = require('./src/scheduleRaidBoss');
 const { contributeRaid } = require('./src/contributeRaid');
 exports.scheduleRaidBoss = scheduleRaidBoss;
 exports.contributeRaid = contributeRaid;
+
+// ===== SATOSHI'S FAVOR =====
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes } = require('./src/satoshiFavor');
+exports.contributeFavor = contributeFavor;
+exports.hashForFavor = hashForFavor;
+exports.checkFavorState = checkFavorState;
+exports.getFavorHashes = getFavorHashes;
