@@ -46,39 +46,23 @@
     }
 
     function renderHomeBanner() {
-        const home = document.getElementById('home');
-        if (!home) { console.log('[FAVOR] No home element'); return; }
+        const homeInner = document.querySelector('#home .home-inner');
+        if (!homeInner) return;
 
         let banner = document.getElementById('satoshiFavorHomeBanner');
         if (!banner) {
-            // Create wrapper for proper centering
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'width:100%;text-align:center;box-sizing:border-box;padding:0 16px;margin:16px 0;';
-            
             banner = document.createElement('div');
             banner.id = 'satoshiFavorHomeBanner';
-            banner.style.cssText = 'margin:0 auto;max-width:600px;display:inline-block;width:100%;';
+            // Explicit centering
+            banner.style.cssText = 'width: 100%; margin: 0 0 20px 0; box-sizing: border-box; align-self: center;';
             
-            wrapper.appendChild(banner);
-            
-            // Insert at the top of home content, after any fixed headers
-            const firstContent = home.querySelector('.ch-btn, #searchContainer, #welcomeBox');
-            if (firstContent && firstContent.parentNode === home) {
-                home.insertBefore(wrapper, firstContent);
-            } else if (home.firstChild) {
-                home.insertBefore(wrapper, home.firstChild);
-            } else {
-                home.appendChild(wrapper);
-            }
-            console.log('[FAVOR] Created home banner');
-        } else {
-            // Get the wrapper if it exists
-            banner = document.getElementById('satoshiFavorHomeBanner');
+            // Insert at the VERY top of home-inner
+            homeInner.prepend(banner);
+            console.log('[FAVOR] Injected banner at top of home-inner');
         }
 
         banner.innerHTML = buildBannerHTML('home');
         if (favorState && favorState.favorActive) startCountdown('homeCountdown');
-        console.log('[FAVOR] Rendered home banner, points:', favorState ? favorState.points : 'null');
     }
 
     function renderChatBanner() {
