@@ -51,27 +51,29 @@
 
         let banner = document.getElementById('satoshiFavorHomeBanner');
         if (!banner) {
+            // Create wrapper for proper centering
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'width:100%;text-align:center;box-sizing:border-box;padding:0 16px;margin:16px 0;';
+            
             banner = document.createElement('div');
             banner.id = 'satoshiFavorHomeBanner';
-            // Center the banner, max-width, margin auto
-            banner.style.cssText = 'margin:16px auto;max-width:600px;padding:0 16px;';
+            banner.style.cssText = 'margin:0 auto;max-width:600px;display:inline-block;width:100%;';
             
-            // Find the raid boss banner to insert before it
-            const raidBanner = document.getElementById('activeRaidBanner') || document.getElementById('raidBannerContainer');
-            if (raidBanner && raidBanner.parentNode === home) {
-                home.insertBefore(banner, raidBanner);
+            wrapper.appendChild(banner);
+            
+            // Insert at the top of home content, after any fixed headers
+            const firstContent = home.querySelector('.ch-btn, #searchContainer, #welcomeBox');
+            if (firstContent && firstContent.parentNode === home) {
+                home.insertBefore(wrapper, firstContent);
+            } else if (home.firstChild) {
+                home.insertBefore(wrapper, home.firstChild);
             } else {
-                // Fallback: find welcome box or insert after search
-                const welcome = document.getElementById('welcomeBox') || document.getElementById('searchContainer');
-                if (welcome && welcome.nextSibling && welcome.parentNode === home) {
-                    home.insertBefore(banner, welcome.nextSibling);
-                } else if (home.firstChild) {
-                    home.insertBefore(banner, home.firstChild);
-                } else {
-                    home.appendChild(banner);
-                }
+                home.appendChild(wrapper);
             }
             console.log('[FAVOR] Created home banner');
+        } else {
+            // Get the wrapper if it exists
+            banner = document.getElementById('satoshiFavorHomeBanner');
         }
 
         banner.innerHTML = buildBannerHTML('home');
