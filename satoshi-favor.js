@@ -28,9 +28,12 @@
 
     // ─── LISTENER ───
     function listenToFavorState() {
+        console.log('[FAVOR] Starting listener...');
         const stateRef = db.collection('satoshiFavor').doc('current');
         favorUnsub = stateRef.onSnapshot((doc) => {
+            console.log('[FAVOR] Got state update, exists:', doc.exists);
             favorState = doc.exists ? doc.data() : { points: 0, favorActive: false };
+            console.log('[FAVOR] State:', favorState);
             updateAllUIs();
         }, (err) => console.error('[FAVOR] Listener error:', err));
     }
@@ -44,23 +47,25 @@
 
     function renderHomeBanner() {
         const home = document.getElementById('home');
-        if (!home || home.classList.contains('hidden')) return;
+        if (!home) { console.log('[FAVOR] No home element'); return; }
 
         let banner = document.getElementById('satoshiFavorHomeBanner');
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'satoshiFavorHomeBanner';
-            // Insert after search container if it exists, otherwise at top
-            const search = document.getElementById('searchContainer');
-            if (search && search.parentNode === home) {
-                home.insertBefore(banner, search.nextSibling);
-            } else {
+            banner.style.cssText = 'margin:16px;';
+            // Insert at top of home
+            if (home.firstChild) {
                 home.insertBefore(banner, home.firstChild);
+            } else {
+                home.appendChild(banner);
             }
+            console.log('[FAVOR] Created home banner');
         }
 
         banner.innerHTML = buildBannerHTML('home');
-        if (favorState.favorActive) startCountdown('homeCountdown');
+        if (favorState && favorState.favorActive) startCountdown('homeCountdown');
+        console.log('[FAVOR] Rendered home banner, points:', favorState ? favorState.points : 'null');
     }
 
     function renderChatBanner() {
@@ -424,6 +429,7 @@
     // ─── EXPORTS ───
     window._resolveFavorState = () => favorState;
     window._renderFavorChatBanner = renderChatBanner;
+    window._renderSatoshiFavorHome = renderHomeBanner;
 
     // ─── START ───
     if (document.readyState === 'loading') {
