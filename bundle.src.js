@@ -12462,7 +12462,7 @@ function _renderFavorTab(body) {
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
         '• Level up to Maxi ranks = 5 points each<br>' +
         '• Level up to Cyberhornet+ = 10 points each<br>' +
-        '• At 21 points, mining opens for 60 minutes (+3 min per extra point)<br>' +
+        '• At 21 points, a mining competition opens for 60 minutes (+3 min per extra point)<br>' +
         '• Generate a random hash. Below 1,000 = win 21,000 sats!<br>' +
         '• 10 hashes per minute (6 sec cooldown)'
     '</div>';
