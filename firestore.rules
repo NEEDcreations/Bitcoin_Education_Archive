@@ -1043,6 +1043,27 @@ service cloud.firestore {
       }
     }
 
+    // ===== SATOSHI'S FAVOR =====
+    // Main state document — public read, server writes
+    match /satoshiFavor/current {
+      allow read: if true;
+      allow write: if false; // Cloud Functions only
+
+      // Contributors subcollection — server writes only
+      match /contributors/{docId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      // Hashes subcollection — public read, server writes
+      match /hashes/{hashId} {
+        allow read: if true;
+        allow create: if request.auth != null
+                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+        allow update, delete: if false;
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
