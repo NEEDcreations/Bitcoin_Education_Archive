@@ -43,14 +43,20 @@
     }
 
     function renderHomeBanner() {
-        const container = document.getElementById('homeContent') || document.getElementById('content');
-        if (!container) return;
+        const home = document.getElementById('home');
+        if (!home || home.classList.contains('hidden')) return;
 
         let banner = document.getElementById('satoshiFavorHomeBanner');
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'satoshiFavorHomeBanner';
-            container.insertBefore(banner, container.firstChild);
+            // Insert after search container if it exists, otherwise at top
+            const search = document.getElementById('searchContainer');
+            if (search && search.parentNode === home) {
+                home.insertBefore(banner, search.nextSibling);
+            } else {
+                home.insertBefore(banner, home.firstChild);
+            }
         }
 
         banner.innerHTML = buildBannerHTML('home');
@@ -59,9 +65,12 @@
 
     function renderChatBanner() {
         const existing = document.getElementById('satoshiFavorChatBanner');
-        if (existing) {
+        if (!existing) return;
+        try {
             existing.innerHTML = buildBannerHTML('chat');
             if (favorState.favorActive) startCountdown('chatCountdown');
+        } catch(e) {
+            console.error('[FAVOR] Chat banner render error:', e);
         }
     }
 
