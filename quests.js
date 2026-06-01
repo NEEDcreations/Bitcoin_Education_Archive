@@ -1877,6 +1877,41 @@ function playHooraySound() {
     } catch(e) {}
 }
 
+// ── Topic recommendation mapping ──
+// Maps quest topicKeys to CHANNELS keys for the "study more" recommendation.
+// Handles _ptN suffixes, alternate naming, and fallbacks for orphan topics.
+function _resolveQuestChannel(topicKey) {
+    if (!topicKey || typeof CHANNELS === 'undefined') return null;
+
+    // Direct match
+    if (CHANNELS[topicKey]) return topicKey;
+
+    // Strip _ptN suffix and try base key
+    var base = topicKey.replace(/_pt\d+$/, '');
+    if (CHANNELS[base]) return base;
+
+    // Manual mapping for orphan quest topics
+    var ORPHAN_MAP = {
+        'cycles':               'cyles',                              // typo in channel_index
+        'dlcs':                 'discrete_log_contracts__dlcs',
+        'first_principles':     '1_first_principles',
+        'foss':                 'free_and_open_source_software__foss',
+        'ordinals_inscriptions':'ordinals',
+        'spv':                  'simplified_payment_verification__spv',
+        'halving':              'scarce',                             // scarcity / supply schedule
+        'el-salvador':          'regulation'                          // nation-state adoption / policy
+    };
+    if (ORPHAN_MAP[topicKey] && CHANNELS[ORPHAN_MAP[topicKey]]) return ORPHAN_MAP[topicKey];
+    if (ORPHAN_MAP[base] && CHANNELS[ORPHAN_MAP[base]]) return ORPHAN_MAP[base];
+
+    // Last resort: pick a random popular channel so there's always a recommendation
+    var fallbacks = ['history','mining','layer-2-lightning','self-custody','problems-of-money','whitepaper'];
+    for (var i = 0; i < fallbacks.length; i++) {
+        if (CHANNELS[fallbacks[i]]) return fallbacks[i];
+    }
+    return null;
+}
+
 function showQuestFinalResults() {
     const score = window._questScore;
     const msg = window._questMsg;
@@ -1889,6 +1924,24 @@ function showQuestFinalResults() {
     const questionsDiv = document.querySelector('.quest-questions');
     if (questionsDiv) questionsDiv.style.display = 'none';
 
+    // Resolve a topic to recommend (for null/general quests, pick a random popular topic)
+    var recChannel = _resolveQuestChannel(currentQuest ? currentQuest.topicKey : null);
+    if (!recChannel && typeof CHANNELS !== 'undefined') {
+        var popular = ['history','mining','layer-2-lightning','self-custody','problems-of-money','whitepaper','cryptography','philosophy','energy','nodes'];
+        var shuffled = popular.filter(function(k){ return !!CHANNELS[k]; }).sort(function(){ return Math.random() - 0.5; });
+        if (shuffled.length) recChannel = shuffled[0];
+    }
+    var recHtml = '';
+    if (recChannel && typeof CHANNELS !== 'undefined' && CHANNELS[recChannel]) {
+        var recTitle = CHANNELS[recChannel].title;
+        var isDirectMatch = currentQuest && currentQuest.topicKey && _resolveQuestChannel(currentQuest.topicKey);
+        var recVerb = isDirectMatch ? (score === 5 ? '📚 Keep learning' : '📖 Study up on') : '🔍 Explore next';
+        recHtml = '<div style="margin:16px auto 0;max-width:320px;padding:12px 16px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:12px;cursor:pointer;transition:0.2s;" onclick="closeQuest();setTimeout(function(){go(\'' + recChannel + '\')},200)" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' +
+            '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">' + recVerb + '</div>' +
+            '<div style="font-size:0.9rem;font-weight:700;color:var(--heading);">' + recTitle + ' →</div>' +
+        '</div>';
+    }
+
     // Show final results screen
     const header = document.querySelector('.quest-header');
     if (header) {
@@ -1898,6 +1951,7 @@ function showQuestFinalResults() {
             '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);margin-bottom:8px;">' + score + ' / 5 Correct</div>' +
             '<div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
             (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' XP earned!</div>' : '') +
+            recHtml +
             (score < 3 ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retry Quest' + (isRetry ? '' : ' for 25 pts') + '</button>' : '') +
             '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
     }
