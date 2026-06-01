@@ -12451,13 +12451,14 @@ function _renderFavorTab(body) {
 
     html += '<div style="background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;text-align:left;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">' +
         '<strong style="color:var(--accent);">How it works:</strong><br>' +
+        'This is a <strong>community challenge</strong> — everyone\'s points combine!<br><br>' +
         '• Complete 3 daily quiz quests = 1 point<br>' +
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
         '• Level up to Maxi ranks = 5 points each<br>' +
         '• Level up to Cyberhornet+ = 10 points each<br>' +
         '• At 21 points, mining opens for 60 minutes (+3 min per extra point)<br>' +
         '• Generate a random hash. Below 1,000 = win 21,000 sats!<br>' +
-        '• 1 hash per minute cooldown'
+        '• 10 hashes per minute (6 sec cooldown)'
     '</div>';
 
     html += '</div>';
