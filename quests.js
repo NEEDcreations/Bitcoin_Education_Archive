@@ -1785,8 +1785,11 @@ async function submitQuest() {
 
         // Satoshi's Favor: 3 daily quests completed = 1 point
         if (qLog.count === 3) {
-            var pointsRemaining = 21 - ((window._resolveFavorState && window._resolveFavorState().points) || 0);
-            if (typeof window.announceSatoshiFavorCompleted === 'function') {
+            var _favorState = typeof window._resolveFavorState === 'function' ? window._resolveFavorState() : null;
+            var _favorActive = _favorState && _favorState.favorActive;
+            // Only announce progress separately when favor is NOT active (extension announcements handled inside contributeSatoshiFavor)
+            if (!_favorActive && typeof window.announceSatoshiFavorCompleted === 'function') {
+                var pointsRemaining = 21 - ((_favorState && _favorState.points) || 0);
                 window.announceSatoshiFavorCompleted(pointsRemaining);
             }
             if (typeof window.contributeSatoshiFavor === 'function') {

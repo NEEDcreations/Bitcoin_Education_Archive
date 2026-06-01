@@ -372,20 +372,35 @@
     // ─── CONTRIBUTION HOOKS ───
     window.contributeSatoshiFavor = async function(source, detail) {
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        var wasFavorActive = favorState && favorState.favorActive;
+        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'A community member';
 
         try {
             const fn = firebase.functions().httpsCallable('contributeFavor');
             const result = await fn({ source, detail });
             const data = result.data;
 
-            if (data.favorActive && !favorState.favorActive) {
+            if (data.favorActive && !wasFavorActive) {
                 // Just activated!
                 window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(
                     `⛏️ SATOSHI'S FAVOR IS NOW ACTIVE! The community earned enough points! Mine now for 60 minutes!`,
                     ''
                 );
-            } else if (data.favorActive && data.bonusMinutes > 0) {
-                // Extension (though we announce points separately now)
+            } else if (data.favorActive && wasFavorActive) {
+                // Extension — announce how the point was earned
+                var howEarned = '';
+                if (source === 'quiz_daily_3') {
+                    howEarned = '🦌 @' + username + ' completed all 3 daily quests!';
+                } else if (source === 'level_up') {
+                    howEarned = '🦌 @' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
+                } else if (source === 'level_up_5') {
+                    howEarned = '🦌 @' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+5 points)';
+                } else if (source === 'level_up_10') {
+                    howEarned = '🦌 @' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
+                }
+                if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
+                    window.nachoGlobalAnnounce(howEarned + ' Satoshi extends his blessing. +3 minutes ⏳', '');
+                }
             }
 
             return data;
