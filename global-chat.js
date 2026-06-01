@@ -1022,20 +1022,16 @@ function createChatOverlay() {
     var _isMobChat = window.innerWidth <= 900;
     panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:250000;height:' + (_isMobChat ? '92vh' : '80vh') + ';max-height:' + (_isMobChat ? '100vh' : '700px') + ';background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
 
-    // Header bar with drag handle
+    // Combined header: Satoshi's Favor + Minimize on one line
     var header = document.createElement('div');
-    header.style.cssText = 'flex-shrink:0;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);';
-    header.innerHTML = '<div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 4px;"></div>';
-    header.innerHTML += '<div style="display:flex;width:100%;align-items:center;justify-content:space-between;">' +
-        '<span id="chatOverlayTitle" style="font-weight:700;font-size:0.85rem;color:var(--heading,#fff);">🌍 Global Chat</span>' +
-        '<div style="display:flex;align-items:center;gap:4px;">' +
-            '<button onclick="toggleChatOverlay()" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
-        '</div></div>';
-
-    // Satoshi's Favor banner above chat
-    var favorBanner = document.createElement('div');
-    favorBanner.id = 'satoshiFavorChatBanner';
-    favorBanner.style.cssText = 'flex-shrink:0;';
+    header.style.cssText = 'flex-shrink:0;padding:6px 12px;border-bottom:1px solid var(--border);';
+    // Drag handle
+    header.innerHTML = '<div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 6px;"></div>';
+    // Satoshi's Favor banner + minimize button on same line
+    header.innerHTML += '<div style="display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;">' +
+        '<div id="satoshiFavorChatBanner" style="flex:1;min-width:0;"></div>' +
+        '<button onclick="toggleChatOverlay()" style="flex-shrink:0;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">▼ Minimize</button>' +
+    '</div>';
 
     // Chat content container
     var body = document.createElement('div');
@@ -1043,7 +1039,6 @@ function createChatOverlay() {
     body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;';
 
     panel.appendChild(header);
-    panel.appendChild(favorBanner);
     panel.appendChild(body);
     document.body.appendChild(panel);
 
@@ -2481,16 +2476,10 @@ function updateOnlineCount(count) {
         }
     }
 
-    // Update chat hub header if visible
+    // Update chat hub "Global" tab with online count
     var globalTab = document.getElementById('chatTabGlobal');
     if (globalTab) {
-        globalTab.innerHTML = '🌍 Global Chat' + (count > 0 ? ' <span style="font-size:0.65rem;color:#22c55e;font-weight:400;">● ' + count + '</span>' : '');
-    }
-
-    // Update overlay panel header title
-    var overlayTitle = document.getElementById('chatOverlayTitle');
-    if (overlayTitle) {
-        overlayTitle.innerHTML = '🌍 Global Chat' + (count > 0 ? ' <span style="font-size:0.65rem;color:#22c55e;font-weight:400;">● ' + count + ' online</span>' : '');
+        globalTab.innerHTML = '🌍 Global' + (count > 0 ? ' <span style="font-size:0.65rem;color:#22c55e;font-weight:400;">● ' + count + '</span>' : '');
     }
 }
 
