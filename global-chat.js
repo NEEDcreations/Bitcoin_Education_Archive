@@ -819,15 +819,17 @@ window.sendGlobalChat = function() {
     // Write to Firestore
     var msgData = {uid: uid, name: username, text: text, ts: firebase.firestore.FieldValue.serverTimestamp()};
     if (replyData.replyTo) { msgData.replyTo = replyData.replyTo; msgData.replyToName = replyData.replyToName; msgData.replyToText = replyData.replyToText; }
-    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+    db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
         // Track for daily challenge
         try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_chat_sent_' + _t, 'true'); } catch(e) {}
         // Increment global chat counter
         db.collection('stats').doc('global').set({ chatMessages: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {});
         // Raid Boss: chat message
         if (typeof window._raidOnChatMessage === 'function') window._raidOnChatMessage();
-        // Bridge to Telegram
-        bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '' });
+        // Bridge to Telegram with messageId for reaction sync
+        if (docRef && docRef.id) {
+            bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '', messageId: docRef.id });
+        }
     }).catch(function(err) {
         console.error('[CHAT] Send error:', err);
         if (typeof showToast === 'function') showToast('Failed to send: ' + (err.message || 'Unknown error'));

@@ -53,12 +53,23 @@
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'satoshiFavorHomeBanner';
-            banner.style.cssText = 'margin:16px;';
-            // Insert at top of home
-            if (home.firstChild) {
-                home.insertBefore(banner, home.firstChild);
+            // Center the banner, max-width, margin auto
+            banner.style.cssText = 'margin:16px auto;max-width:600px;padding:0 16px;';
+            
+            // Find the raid boss banner to insert before it
+            const raidBanner = document.getElementById('activeRaidBanner') || document.getElementById('raidBannerContainer');
+            if (raidBanner && raidBanner.parentNode === home) {
+                home.insertBefore(banner, raidBanner);
             } else {
-                home.appendChild(banner);
+                // Fallback: find welcome box or insert after search
+                const welcome = document.getElementById('welcomeBox') || document.getElementById('searchContainer');
+                if (welcome && welcome.nextSibling && welcome.parentNode === home) {
+                    home.insertBefore(banner, welcome.nextSibling);
+                } else if (home.firstChild) {
+                    home.insertBefore(banner, home.firstChild);
+                } else {
+                    home.appendChild(banner);
+                }
             }
             console.log('[FAVOR] Created home banner');
         }

@@ -1407,7 +1407,23 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
             })
         });
         const json = await resp.json();
-        return { ok: json.ok || false };
+        
+        // Store telegramMsgId if returned by bridge worker
+        if (json.telegramMsgId && json.chatId) {
+            try {
+                // The caller should pass the Firestore message ID as data.messageId
+                if (data.messageId) {
+                    await db.collection('global_chat').doc(data.messageId).update({
+                        telegramMsgId: json.telegramMsgId.toString(),
+                        telegramChatId: json.chatId.toString()
+                    });
+                }
+            } catch (e) {
+                console.log('[BRIDGE] Could not store telegramMsgId:', e.message);
+            }
+        }
+        
+        return { ok: json.ok || false, telegramMsgId: json.telegramMsgId };
     } catch(e) {
         console.error('[BRIDGE] Error:', e.message);
         return { ok: false };
@@ -4222,3 +4238,8 @@ exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
 exports.getFavorHashes = getFavorHashes;
+
+// ===== TELEGRAM REACTION BRIDGE =====
+const { handleTelegramReaction, setTelegramWebhook } = require('./src/handleTelegramReaction');
+exports.handleTelegramWebhook = handleTelegramReaction;
+exports.setTelegramWebhook = setTelegramWebhook;
