@@ -2372,7 +2372,7 @@ function updateRankUI() {
             var levelName = lv.name || '';
             var source = null;
             // Check rank tier
-            if (['Normie','Curious','Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'].includes(levelName)) {
+            if (['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'].includes(levelName)) {
                 source = 'level_up';
             } else if (['Maxi','Maxi II','Maxi III'].includes(levelName)) {
                 source = 'level_up_5';

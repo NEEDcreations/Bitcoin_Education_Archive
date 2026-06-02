@@ -38,25 +38,24 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
 
   const now = admin.firestore.Timestamp.now();
 
-  // Find active boss: startTime <= now, endTime > now, not defeated, not placeholder
+  // Find active boss: fetch recent docs and filter in code (avoids composite index)
   const bossQuery = await db.collection('raid_bosses')
-    .where('defeated', '==', false)
-    .where('placeholder', '==', false)
-    .where('startTime', '<=', now)
     .orderBy('startTime', 'desc')
     .limit(5)
     .get();
 
-  // Filter for endTime > now (Firestore can't do two inequality filters on different fields)
   let activeBoss = null;
   let activeBossRef = null;
+  const nowMs = now.toDate().getTime();
   bossQuery.forEach((doc) => {
-    if (!activeBoss) {
-      const d = doc.data();
-      if (d.endTime && d.endTime.toDate() > now.toDate()) {
-        activeBoss = d;
-        activeBossRef = doc.ref;
-      }
+    if (activeBoss) return;
+    const d = doc.data();
+    if (d.defeated || d.placeholder) return;
+    const startMs = d.startTime ? d.startTime.toDate().getTime() : 0;
+    const endMs = d.endTime ? d.endTime.toDate().getTime() : 0;
+    if (startMs <= nowMs && endMs > nowMs) {
+      activeBoss = d;
+      activeBossRef = doc.ref;
     }
   });
 
