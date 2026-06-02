@@ -2191,9 +2191,9 @@ function _renderFavorTab(body) {
         '• Complete 3 daily quiz quests = 1 point<br>' +
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
         '• Level up to Maxi ranks = 5 points each<br>' +
-        '• Level up to Cyberhornet+ = 10 points each<br>' +
+        '• Level up to Papa John or higher = 10 points<br>' +
         '• At 21 points, a mining competition opens for 60 minutes (+3 min per extra point)<br>' +
-        '• 10 hashes per minute (60 sec cooldown)<br>' +
+        '• 10 hashes max per minute per user (60 second cooldown)<br>' +
         '• Generate a random hash. Below 1,000 = win 21,000 sats!'
     '</div>';
 

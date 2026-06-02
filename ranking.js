@@ -2374,9 +2374,9 @@ function updateRankUI() {
             // Check rank tier
             if (['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'].includes(levelName)) {
                 source = 'level_up';
-            } else if (['Maxi','Maxi II','Maxi III','Papa John'].includes(levelName)) {
+            } else if (['Maxi','Maxi II','Maxi III'].includes(levelName)) {
                 source = 'level_up_5';
-            } else if (['Cyberhornet','Honey Badger','Sovereign','Satoshi'].includes(levelName)) {
+            } else if (['Papa John','Cyberhornet','Honey Badger','Sovereign','Satoshi'].includes(levelName)) {
                 source = 'level_up_10';
             }
             if (source) {
