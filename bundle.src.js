@@ -13047,6 +13047,10 @@ function _renderRaidBossCard(container, boss) {
             '<div style="color:#8b5cf6;font-size:0.95rem;font-weight:700;margin-bottom:12px;">' + (typeof escapeHtml === 'function' ? escapeHtml(dateStr) : dateStr) + '</div>' +
             '<div id="raidCountdownPlaceholder" style="font-size:1.5rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;"></div>' +
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:12px;">Get ready to team up and take it down!</div>' +
+            '<div style="margin-top:14px;padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;">' +
+                '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">\uD83C\uDFC6 Community Prize</div>' +
+                '<div style="font-size:0.78rem;color:var(--text);line-height:1.4;">Defeat the boss = extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
+            '</div>' +
         '</div>';
         _startRaidCountdown('raidCountdownPlaceholder', startMs);
         return;
@@ -13073,6 +13077,10 @@ function _renderRaidBossCard(container, boss) {
             '</div>' +
             '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss')) + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '')) + '</div>' +
+            '<div style="margin-top:14px;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;text-align:center;">' +
+                '<div style="font-size:0.85rem;font-weight:800;color:#22c55e;">\uD83C\uDF89 Community reward unlocked!</div>' +
+                '<div style="font-size:0.78rem;color:var(--text);margin-top:2px;">Extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
+            '</div>' +
             winnersHtml +
         '</div>';
         return;
@@ -13112,7 +13120,12 @@ function _renderRaidBossCard(container, boss) {
             '<div id="raidTimer" style="font-size:1.3rem;font-weight:900;color:var(--heading);font-variant-numeric:tabular-nums;"></div>' +
         '</div>' +
         // Contribute button
-        '<button id="raidContributeBtn" onclick="window._contributeRaid()" style="width:100%;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;margin-bottom:16px;">⚔️ Attack Boss</button>' +
+        '<button id="raidContributeBtn" onclick="window._contributeRaid()" style="width:100%;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;margin-bottom:12px;">⚔️ How to Deal Damage</button>' +
+        // Prize note
+        '<div style="padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;margin-bottom:16px;text-align:center;">' +
+            '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">🏆 Community Prize</div>' +
+            '<div style="font-size:0.8rem;color:var(--text);line-height:1.4;">Defeat the boss and the community earns an <strong style="color:var(--accent);">extra orange ticket giveaway for 21,000 sats!</strong></div>' +
+        '</div>' +
         // Participants list
         '<div>' +
             '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">🏆 Top Raiders</div>' +
@@ -13197,50 +13210,71 @@ function _listenRaidParticipants(bossId) {
         });
 }
 
+// Metric → user guidance: how to deal damage to this boss
+var RAID_GUIDANCE = {
+    'uniqueUsers5Topics': { action: 'Visit 5+ learning topics to deal damage!', nav: 'home' },
+    'quizCompletions': { action: 'Complete quiz quests to deal damage!', nav: 'quests' },
+    'watchMinutes': { action: 'Watch Timechain TV to deal damage!', nav: 'tctv' },
+    'beatsMinutes': { action: 'Listen to Bitcoin Beats to deal damage!', nav: 'beats' },
+    'flashcardCompletions': { action: 'Complete flashcard sets to deal damage!', nav: 'quests' },
+    'totalXP': { action: 'Earn XP from any activity to deal damage!', nav: 'home' },
+    'pollVotes': { action: 'Vote in Quest Hub polls to deal damage!', nav: 'quests' },
+    'chatMessages': { action: 'Send messages in Global Chat to deal damage!', nav: 'chat' },
+    'badgesEarned': { action: 'Earn badges to deal damage! Check the Badges tab for ones you haven\'t unlocked yet.', nav: 'badges' },
+    'streakUsers': { action: 'Maintain a 7-day daily visit streak to deal damage!', nav: 'home' },
+    'uniqueTopicsVisited': { action: 'Visit learning topics you haven\'t read yet!', nav: 'home' },
+    'tipsSent': { action: 'Send Lightning tips to deal damage!', nav: 'home' },
+    'forumPosts': { action: 'Create forum posts to deal damage!', nav: 'forum' },
+    'triviaCorrect': { action: 'Answer trivia correctly in Quest Hub to deal damage!', nav: 'quests' },
+    'totalTopicReads': { action: 'Read learning topics to deal damage!', nav: 'home' }
+};
+
 window._contributeRaid = function() {
     var boss = window._currentRaidBoss;
-    if (!boss || !boss._id) {
+    if (!boss) {
         if (typeof showToast === 'function') showToast('⚠️ No active raid boss', 2000);
         return;
     }
 
-    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('⚠️ Sign in to attack the boss!', 2500);
-        return;
-    }
+    var guidance = RAID_GUIDANCE[boss.metric] || { action: 'Complete activities on the site to deal damage!', nav: 'home' };
 
-    // Disable button while processing
-    var btn = document.getElementById('raidContributeBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = '⚔️ Attacking...';
-        btn.style.opacity = '0.6';
-    }
+    // Show guidance toast
+    if (typeof showToast === 'function') showToast('⚔️ ' + guidance.action, 3500);
 
-    var contributeRaid = firebase.functions().httpsCallable('contributeRaid');
-    contributeRaid({ metric: boss.metric, amount: 1 }).then(function(result) {
-        var data = result.data || {};
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = '⚔️ Attack Boss';
-            btn.style.opacity = '1';
+    // Close Quest Hub and navigate to the relevant section
+    var overlay = document.getElementById('questHubOverlay');
+    if (overlay) overlay.remove();
+
+    if (guidance.nav === 'badges') {
+        // Navigate to leaderboard badges tab
+        if (typeof showLeaderboard === 'function') {
+            showLeaderboard();
+            // Switch to badges tab after a brief render delay
+            setTimeout(function() {
+                var badgesTab = document.querySelector('[onclick*="lbBadges"], [onclick*="badges"]');
+                if (badgesTab) badgesTab.click();
+            }, 300);
         }
-        if (data.success) {
-            if (typeof showToast === 'function') showToast('⚔️ +1 damage! (' + (data.current || 0) + '/' + (data.target || '?') + ')', 2500);
-        }
-        if (data.defeated) {
-            if (typeof showToast === 'function') showToast('🎉 BOSS DEFEATED! Great work!', 4000);
-        }
-    }).catch(function(err) {
-        console.error('[RAID] Contribute error:', err);
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = '⚔️ Attack Boss';
-            btn.style.opacity = '1';
-        }
-        var msg = (err && err.message) ? err.message : 'Attack failed';
-        if (typeof showToast === 'function') showToast('⚠️ ' + msg, 2500);
-    });
+    } else if (guidance.nav === 'chat') {
+        if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+    } else if (guidance.nav === 'tctv') {
+        if (typeof go === 'function') go('timechain-tv');
+    } else if (guidance.nav === 'beats') {
+        if (typeof go === 'function') go('bitcoin-beats');
+    } else if (guidance.nav === 'forum') {
+        if (typeof go === 'function') go('forum');
+    } else if (guidance.nav === 'quests') {
+        // Re-open quest hub on the quests tab
+        setTimeout(function() {
+            if (typeof showQuestHub === 'function') {
+                showQuestHub();
+                window._questHubTab = 'quests';
+                if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+            }
+        }, 300);
+    } else {
+        if (typeof goHome === 'function') goHome();
+    }
 };
 
 // ============================================================
