@@ -297,34 +297,43 @@ window.renderRaidBossHome = function() {
     if (window._raidHomeTimer) { clearInterval(window._raidHomeTimer); window._raidHomeTimer = null; }
 
     window._raidHomeUnsub = db.collection('raid_bosses')
-        .orderBy('startTime', 'desc').limit(1)
+        .orderBy('startTime', 'desc').limit(5)
         .onSnapshot(function(snap) {
             if (snap.empty) { el.style.display = 'none'; return; }
-            var doc = snap.docs[0];
-            var boss = doc.data();
-            boss.id = doc.id;
-            _renderRaidHomeCard(el, boss);
+            var now = Date.now();
+            var activeBoss = null;
+            var upcomingBoss = null;
+
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                d.id = doc.id;
+                var startMs = d.startTime && d.startTime.toDate ? d.startTime.toDate().getTime() : 0;
+                var endMs = d.endTime && d.endTime.toDate ? d.endTime.toDate().getTime() : 0;
+                if (!d.placeholder && !d.defeated && startMs <= now && endMs > now) {
+                    if (!activeBoss) activeBoss = d;
+                } else if (d.placeholder && startMs > now) {
+                    if (!upcomingBoss || startMs < (upcomingBoss.startTime && upcomingBoss.startTime.toDate ? upcomingBoss.startTime.toDate().getTime() : 0)) {
+                        upcomingBoss = d;
+                    }
+                }
+            });
+
+            _renderRaidHomeCard(el, activeBoss, upcomingBoss);
         }, function() { el.style.display = 'none'; });
 };
 
-function _renderRaidHomeCard(el, boss) {
+function _renderRaidHomeCard(el, activeBoss, upcomingBoss) {
     if (window._raidHomeTimer) { clearInterval(window._raidHomeTimer); window._raidHomeTimer = null; }
 
-    var now = Date.now();
-    var startMs = boss.startTime && boss.startTime.toDate ? boss.startTime.toDate().getTime() : 0;
-    var endMs = boss.endTime && boss.endTime.toDate ? boss.endTime.toDate().getTime() : 0;
-    var isPlaceholder = boss.placeholder === true;
-    var isDefeated = boss.defeated === true;
-    var isActive = !isPlaceholder && !isDefeated && now >= startMs && now < endMs;
+    if (!activeBoss && !upcomingBoss) { el.style.display = 'none'; return; }
+    el.style.display = '';
 
-    var pct = boss.target > 0 ? Math.min(100, Math.round((boss.current || 0) / boss.target * 100)) : 0;
+    var openQH = "if(typeof showQuestHub==='function'){showQuestHub();setTimeout(function(){if(typeof window._questHubTab!=='undefined'){window._questHubTab='raid';if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();}},300)}";
+    var html = '';
 
-    // Determine countdown target
-    var countdownTarget = isPlaceholder ? startMs : endMs;
-    var countdownLabel = isPlaceholder ? 'Starts in' : 'Ends in';
-
-    function fmtCountdown() {
-        var diff = Math.max(0, countdownTarget - Date.now());
+    // Helper: format remaining time
+    function _fmtDiff(targetMs) {
+        var diff = Math.max(0, targetMs - Date.now());
         if (diff <= 0) return '\u23f3 Any moment now...';
         var d = Math.floor(diff / 86400000);
         var h = Math.floor((diff % 86400000) / 3600000);
@@ -335,55 +344,59 @@ function _renderRaidHomeCard(el, boss) {
         return m + 'm ' + s + 's';
     }
 
-    el.style.display = '';
+    if (activeBoss) {
+        var endMs = activeBoss.endTime && activeBoss.endTime.toDate ? activeBoss.endTime.toDate().getTime() : 0;
+        var pct = activeBoss.target > 0 ? Math.min(100, Math.round((activeBoss.current || 0) / activeBoss.target * 100)) : 0;
+        var remainingHP = Math.max(0, (activeBoss.target || 0) - (activeBoss.current || 0));
+        var hpPct = Math.max(0, 100 - pct);
+        var hpColor = hpPct <= 25 ? '#ef4444' : hpPct <= 50 ? '#f59e0b' : '#22c55e';
+        var bossImg = activeBoss.image || '';
+        // Client-side image fallback
+        if (!bossImg) { var _imgMap = {'Channel-Crawler':'channel-crawler','Quiz-Crusader':'quiz-crusader','TV-Titan':'tv-titan','Beats-Baron':'beats-baron','Flash-Flash':'flash-flash','XP-Hoarder':'xp-hoarder','Poll-Patroller':'poll-patroller','Chat-Charger':'chat-charger','Badge-Builder':'badge-builder','Streak-Sage':'streak-sage','Topic-Explorer':'topic-explorer','Lightning-Lancer':'lightning-lancer','Forum-Forge':'forum-forge','Trivia-Tactician':'trivia-tactician','Content-Conqueror':'content-conqueror'}; if (_imgMap[activeBoss.name]) bossImg = 'images/raid-bosses/' + _imgMap[activeBoss.name] + '.png'; }
 
-    if (isDefeated) {
-        // Defeated — show victory
-        el.innerHTML = '<div onclick="if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){if(typeof window._questHubTab!==\'undefined\'){window._questHubTab=\'raid\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();}},300)}" style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(22,163,74,0.04));border:1px solid #22c55e;border-radius:12px;padding:12px 16px;cursor:pointer;">' +
+        html += '<div onclick="' + openQH + '" style="background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(109,40,217,0.04));border:1px solid #8b5cf6;border-radius:12px;padding:12px 16px;cursor:pointer;">' +
             '<div style="display:flex;align-items:center;gap:10px;">' +
-                '<span style="font-size:1.3rem;">\u2694\ufe0f</span>' +
-                '<div style="flex:1;"><div style="color:#22c55e;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">\u2694\ufe0f RAID BOSS DEFEATED!</div>' +
-                '<div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + (boss.name || 'Raid Boss') + ' has been conquered!</div></div>' +
-                '<span style="font-size:1rem;color:var(--text-muted);">\u203a</span>' +
+                (bossImg ? '<img src="' + bossImg + '" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid rgba(139,92,246,0.3);flex-shrink:0;">' : '<span style="font-size:1.3rem;">\u2694\uFE0F</span>') +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="color:#a78bfa;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">\u2694\uFE0F CURRENT RAID BOSS</div>' +
+                    '<div style="color:var(--text);font-size:0.85rem;font-weight:700;">' + (activeBoss.name || 'Raid Boss') + '</div>' +
+                    '<div style="background:rgba(100,100,100,0.15);border-radius:6px;height:8px;margin-top:5px;overflow:hidden;"><div style="height:100%;background:' + hpColor + ';border-radius:6px;width:' + hpPct + '%;transition:width 0.5s;"></div></div>' +
+                    '<div style="display:flex;justify-content:space-between;margin-top:3px;">' +
+                        '<span style="color:' + hpColor + ';font-size:0.68rem;font-weight:700;">\u2764\uFE0F ' + remainingHP + '/' + activeBoss.target + ' HP</span>' +
+                        '<span id="raidHomeCountdown" style="color:var(--text-faint);font-size:0.68rem;font-weight:600;">\u23F1 ' + _fmtDiff(endMs) + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<span style="font-size:1rem;color:var(--text-muted);flex-shrink:0;">\u203A</span>' +
             '</div></div>';
-        return;
+
+        window._raidActiveEndMs = endMs;
     }
 
-    if (isPlaceholder) {
-        // Upcoming — countdown to start
-        var startDate = boss.startTime && boss.startTime.toDate ? boss.startTime.toDate() : new Date();
-        var dateStr = startDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-        el.innerHTML = '<div onclick="if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){if(typeof window._questHubTab!==\'undefined\'){window._questHubTab=\'raid\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();}},300)}" style="background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(109,40,217,0.04));border:1px solid #8b5cf6;border-radius:12px;padding:12px 16px;cursor:pointer;">' +
-            '<div style="display:flex;align-items:center;gap:10px;">' +
-                '<span style="font-size:1.3rem;">\u2694\ufe0f</span>' +
-                '<div style="flex:1;"><div style="color:#a78bfa;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">UPCOMING RAID BOSS</div>' +
-                '<div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + (boss.name || 'Next Boss') + ' \u2014 ' + dateStr + '</div>' +
-                '<div id="raidHomeCountdown" style="color:#8b5cf6;font-size:0.75rem;font-weight:700;margin-top:2px;">Starts in ' + fmtCountdown() + '</div></div>' +
-                '<span style="font-size:1rem;color:var(--text-muted);">\u203a</span>' +
+    if (upcomingBoss) {
+        var startMs2 = upcomingBoss.startTime && upcomingBoss.startTime.toDate ? upcomingBoss.startTime.toDate().getTime() : 0;
+        var dateStr = new Date(startMs2).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+        html += '<div onclick="' + openQH + '" style="' + (activeBoss ? 'margin-top:8px;' : '') + 'background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:8px 14px;cursor:pointer;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span style="font-size:1rem;">\u2694\uFE0F</span>' +
+                '<div style="flex:1;"><div style="color:var(--text-muted);font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">NEXT BOSS</div>' +
+                '<div style="color:var(--text);font-size:0.8rem;font-weight:600;">' + (upcomingBoss.name || 'TBD') + ' \u2014 ' + dateStr + '</div>' +
+                '<div id="raidHomeUpcomingCountdown" style="color:#8b5cf6;font-size:0.7rem;font-weight:600;margin-top:1px;">Starts in ' + _fmtDiff(startMs2) + '</div></div>' +
+                '<span style="font-size:0.9rem;color:var(--text-faint);">\u203A</span>' +
             '</div></div>';
-    } else if (isActive) {
-        // Active — show progress + countdown
-        el.innerHTML = '<div onclick="if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){if(typeof window._questHubTab!==\'undefined\'){window._questHubTab=\'raid\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();}},300)}" style="background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(109,40,217,0.04));border:1px solid #8b5cf6;border-radius:12px;padding:12px 16px;cursor:pointer;">' +
-            '<div style="display:flex;align-items:center;gap:10px;">' +
-                '<span style="font-size:1.3rem;">\u2694\ufe0f</span>' +
-                '<div style="flex:1;"><div style="color:#a78bfa;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">\u2694\ufe0f WEEKLY RAID BOSS</div>' +
-                '<div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + (boss.name || 'Raid Boss') + '</div>' +
-                '<div style="background:rgba(139,92,246,0.15);border-radius:6px;height:8px;margin-top:6px;overflow:hidden;"><div style="height:100%;background:#8b5cf6;border-radius:6px;width:' + pct + '%;transition:width 0.5s;"></div></div>' +
-                '<div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="color:#8b5cf6;font-size:0.7rem;font-weight:700;">' + pct + '% (' + (boss.current||0) + '/' + boss.target + ')</span>' +
-                '<span id="raidHomeCountdown" style="color:var(--text-faint);font-size:0.7rem;font-weight:600;">\u23f1 ' + fmtCountdown() + '</span></div></div>' +
-                '<span style="font-size:1rem;color:var(--text-muted);">\u203a</span>' +
-            '</div></div>';
-    } else {
-        el.style.display = 'none';
-        return;
+
+        window._raidUpcomingStartMs = startMs2;
     }
 
-    // Update countdown every second
+    el.innerHTML = html;
+
+    // Update countdowns every second
     window._raidHomeTimer = setInterval(function() {
-        var cdEl = document.getElementById('raidHomeCountdown');
-        if (!cdEl) { clearInterval(window._raidHomeTimer); return; }
-        var prefix = isPlaceholder ? 'Starts in ' : '\u23f1 ';
-        cdEl.textContent = prefix + fmtCountdown();
+        var cdActive = document.getElementById('raidHomeCountdown');
+        if (cdActive && window._raidActiveEndMs) cdActive.textContent = '\u23F1 ' + _fmtDiff(window._raidActiveEndMs);
+        var cdUp = document.getElementById('raidHomeUpcomingCountdown');
+        if (cdUp && window._raidUpcomingStartMs) cdUp.textContent = 'Starts in ' + _fmtDiff(window._raidUpcomingStartMs);
+        if (!cdActive && !cdUp) { clearInterval(window._raidHomeTimer); window._raidHomeTimer = null; }
     }, 1000);
 }
 
