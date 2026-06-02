@@ -12,7 +12,8 @@ const crypto = require('crypto');
 const db = admin.firestore();
 
 const DIFFICULTY_TARGET = 1000;
-const HASH_COOLDOWN_SECONDS = 6; // 10 hashes per minute = 1 every 6 seconds
+const HASHES_PER_MINUTE = 10;
+const HASH_WINDOW_MS = 60000; // 60 seconds
 const FAVOR_DURATION_MINUTES = 60;
 const BONUS_MINUTES_PER_POINT = 3;
 const POINTS_TO_ACTIVATE = 21;
@@ -243,21 +244,24 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
 
   // Check cooldown via per-user cooldown doc (avoids composite index on hashes subcollection)
   const hashesRef = stateRef.collection('hashes');
+  // Rate limit: 10 hashes per 60 seconds per user (rolling window via cooldown doc)
   const cooldownRef = stateRef.collection('cooldowns').doc(uid);
   const cooldownDoc = await cooldownRef.get();
+  let timestamps = [];
 
   if (cooldownDoc.exists) {
-    const lastTime = cooldownDoc.data().lastHash;
-    if (lastTime) {
-      const lastMs = lastTime.toMillis ? lastTime.toMillis() : lastTime;
-      const elapsed = (now - lastMs) / 1000;
-      if (elapsed < HASH_COOLDOWN_SECONDS) {
-        const remaining = Math.ceil(HASH_COOLDOWN_SECONDS - elapsed);
-        throw new functions.https.HttpsError(
-          'resource-exhausted',
-          `Cooldown active. Wait ${remaining} more seconds.`
-        );
-      }
+    const data = cooldownDoc.data();
+    timestamps = (data.timestamps || []).filter(t => {
+      const ms = t.toMillis ? t.toMillis() : t;
+      return now - ms < HASH_WINDOW_MS;
+    });
+    if (timestamps.length >= HASHES_PER_MINUTE) {
+      const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
+      const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
+      throw new functions.https.HttpsError(
+        'resource-exhausted',
+        `Rate limit: ${waitSec}s until next hash (10/min).`
+      );
     }
   }
 
@@ -287,9 +291,10 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     cycleId: stateData.currentCycleId || null,
   });
 
-  // Update cooldown doc for fast lookup next time
+  // Update cooldown doc — store rolling window of timestamps
+  timestamps.push(admin.firestore.Timestamp.now());
   await cooldownRef.set({
-    lastHash: admin.firestore.FieldValue.serverTimestamp(),
+    timestamps: timestamps,
   });
 
   return {

@@ -6,7 +6,8 @@
 
     const DIFFICULTY_TARGET = 1000;
     const HASH_MAX = 100000000;
-    const COOLDOWN_SECONDS = 6; // 10 hashes per minute = 1 every 6 seconds
+    const HASHES_PER_MINUTE = 10;
+    const HASH_WINDOW_MS = 60000; // 60 seconds
     const POINTS_TARGET = 21;
 
     let favorState = null;
@@ -14,7 +15,7 @@
     let countdownInterval = null;
     let minerCountdownInterval = null;
     let hashListener = null;
-    let lastHashTime = 0;
+    let hashTimestamps = []; // rolling window of recent hash times
 
     // ─── INIT ───
     function initSatoshiFavor() {
@@ -237,9 +238,13 @@
             return;
         }
 
-        const elapsed = (Date.now() - lastHashTime) / 1000;
-        if (elapsed < COOLDOWN_SECONDS) {
-            showToast(`Cooldown: wait ${Math.ceil(COOLDOWN_SECONDS - elapsed)}s`);
+        // Enforce 10 hashes per 60 seconds (rolling window)
+        const now60 = Date.now();
+        hashTimestamps = hashTimestamps.filter(t => now60 - t < HASH_WINDOW_MS);
+        if (hashTimestamps.length >= HASHES_PER_MINUTE) {
+            const oldestInWindow = hashTimestamps[0];
+            const waitMs = HASH_WINDOW_MS - (now60 - oldestInWindow);
+            showToast(`Rate limit: ${Math.ceil(waitMs / 1000)}s until next hash (10/min)`);
             return;
         }
 
@@ -259,7 +264,7 @@
             clearInterval(shake);
 
             const { value, isWinner, hashId } = result.data;
-            lastHashTime = Date.now();
+            hashTimestamps.push(Date.now());
 
             visual.style.transform = 'scale(1)';
             output.textContent = value.toLocaleString();
@@ -295,16 +300,19 @@
         if (!el) return;
 
         const update = () => {
-            const elapsed = (Date.now() - lastHashTime) / 1000;
-            const remaining = COOLDOWN_SECONDS - elapsed;
-            if (remaining <= 0) {
-                el.textContent = 'Ready';
-                el.style.color = '#22c55e';
-                return;
+            const now2 = Date.now();
+            const recent = hashTimestamps.filter(t => now2 - t < HASH_WINDOW_MS);
+            const remaining = HASHES_PER_MINUTE - recent.length;
+            if (remaining > 0) {
+                el.textContent = remaining + '/' + HASHES_PER_MINUTE + ' left';
+                el.style.color = remaining <= 2 ? 'var(--accent)' : '#22c55e';
+            } else {
+                const oldest = recent[0];
+                const waitSec = Math.ceil((HASH_WINDOW_MS - (now2 - oldest)) / 1000);
+                el.textContent = waitSec + 's';
+                el.style.color = '#ef4444';
             }
-            el.textContent = `${Math.ceil(remaining)}s`;
-            el.style.color = 'var(--accent)';
-            setTimeout(update, 500);
+            setTimeout(update, 1000);
         };
         update();
     }
@@ -382,28 +390,36 @@
             const result = await fn({ source, detail });
             const data = result.data;
 
+            // Build description of what earned the point
+            var howEarned = '';
+            if (source === 'quiz_daily_3') {
+                howEarned = '@' + username + ' completed all 3 daily quests!';
+            } else if (source === 'level_up') {
+                howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
+            } else if (source === 'level_up_5') {
+                howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+5 points)';
+            } else if (source === 'level_up_10') {
+                howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
+            } else if (source === 'badge_earned') {
+                howEarned = '@' + username + ' earned a badge: ' + (detail || '\uD83C\uDFC5') + '!';
+            }
+
             if (data.favorActive && !wasFavorActive) {
                 // Just activated!
-                window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(
-                    `\u26CF\uFE0F SATOSHI'S FAVOR IS NOW ACTIVE! The community earned enough points! Mine now for 60 minutes! \u27A1\uFE0F [Open Quest Hub](#quests)`,
-                    ''
-                );
+                var activateMsg = '\u26CF\uFE0F SATOSHI\'S FAVOR IS NOW ACTIVE!';
+                if (howEarned) activateMsg += ' ' + howEarned;
+                activateMsg += ' Mine now for 60 minutes! \u27A1\uFE0F [Open Quest Hub](#quests)';
+                window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, '');
             } else if (data.favorActive && wasFavorActive) {
-                // Extension — announce how the point was earned
-                var howEarned = '';
-                if (source === 'quiz_daily_3') {
-                    howEarned = '\uD83E\uDD8C @' + username + ' completed all 3 daily quests!';
-                } else if (source === 'level_up') {
-                    howEarned = '\uD83E\uDD8C @' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
-                } else if (source === 'level_up_5') {
-                    howEarned = '\uD83E\uDD8C @' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+5 points)';
-                } else if (source === 'level_up_10') {
-                    howEarned = '\uD83E\uDD8C @' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
-                } else if (source === 'badge_earned') {
-                    howEarned = '\uD83E\uDD8C @' + username + ' earned a badge: ' + (detail || '\uD83C\uDFC5') + '!';
-                }
+                // Extension while active
                 if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce(howEarned + ' Satoshi extended his blessing! +3 minutes \u23F3', '');
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +' + (data.bonusMinutes || 3) + ' bonus minutes \u23F3', '');
+                }
+            } else if (!data.favorActive) {
+                // Not active yet — announce progress toward activation
+                var ptsRem = 21 - (data.points || 0);
+                if (ptsRem > 0 && howEarned && typeof window.nachoGlobalAnnounce === 'function') {
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' +1 toward Satoshi\'s Favor! ' + ptsRem + ' more to go \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)', '');
                 }
             }
 

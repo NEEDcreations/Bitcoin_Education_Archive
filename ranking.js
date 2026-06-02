@@ -2380,14 +2380,8 @@ function updateRankUI() {
                 source = 'level_up_10';
             }
             if (source) {
-                var _fState = typeof window._resolveFavorState === 'function' ? window._resolveFavorState() : null;
-                var _fActive = _fState && _fState.favorActive;
+                // contributeSatoshiFavor handles all Nacho announcements internally
                 window.contributeSatoshiFavor(source, levelName);
-                // Only announce progress separately when favor is NOT active
-                if (!_fActive && typeof window.announceSatoshiFavorProgress === 'function') {
-                    var _ptsRem = 21 - ((_fState && _fState.points) || 0);
-                    window.announceSatoshiFavorProgress(_ptsRem);
-                }
             }
         }
     }
