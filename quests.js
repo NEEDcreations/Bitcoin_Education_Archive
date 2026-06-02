@@ -2154,7 +2154,7 @@ function _renderFavorTab(body) {
     var pct = Math.min(100, (points / 21) * 100);
 
     var html = '<div style="text-align:center;padding:16px 0;">' +
-        '<div style="font-size:2.5rem;margin-bottom:8px;">⛏️</div>' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">✨⛏️</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Satoshi\'s Favor</div>' +
         '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Community mining when the community earns 21 points</div>';
 
@@ -2172,7 +2172,7 @@ function _renderFavorTab(body) {
             '</div>' +
             '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
 
-        html += '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">⛏️ Start Mining</button>';
+        html += '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">✨⛏️ Start Mining</button>';
     } else {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">' +
@@ -2193,8 +2193,8 @@ function _renderFavorTab(body) {
         '• Level up to Maxi ranks = 5 points each<br>' +
         '• Level up to Cyberhornet+ = 10 points each<br>' +
         '• At 21 points, a mining competition opens for 60 minutes (+3 min per extra point)<br>' +
-        '• Generate a random hash. Below 1,000 = win 21,000 sats!<br>' +
-        '• 10 hashes per minute (60 sec cooldown)'
+        '• 10 hashes per minute (60 sec cooldown)<br>' +
+        '• Generate a random hash. Below 1,000 = win 21,000 sats!'
     '</div>';
 
     html += '</div>';
@@ -2274,7 +2274,7 @@ window.showQuestHub = function() {
         '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
-        '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⛏️ Favor</button>' +
+        '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
         '</div>';
 
     var body = document.createElement('div');
