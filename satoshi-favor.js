@@ -413,7 +413,7 @@
             } else if (data.favorActive && wasFavorActive) {
                 // Extension while active
                 if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +' + (data.bonusMinutes || 3) + ' bonus minutes \u23F3', '');
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +3 bonus minutes \u23F3', '');
                 }
             } else if (!data.favorActive) {
                 // Not active yet — announce progress toward activation
