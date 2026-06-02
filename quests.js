@@ -2759,18 +2759,44 @@ function _raidEmptyState() {
     '</div>';
 }
 
+// Boss name → image path fallback (for bosses created before image field was added)
+var RAID_BOSS_IMAGES = {
+    'Channel-Crawler': 'images/raid-bosses/channel-crawler.png',
+    'Quiz-Crusader': 'images/raid-bosses/quiz-crusader.png',
+    'TV-Titan': 'images/raid-bosses/tv-titan.png',
+    'Beats-Baron': 'images/raid-bosses/beats-baron.png',
+    'Flash-Flash': 'images/raid-bosses/flash-flash.png',
+    'XP-Hoarder': 'images/raid-bosses/xp-hoarder.png',
+    'Poll-Patroller': 'images/raid-bosses/poll-patroller.png',
+    'Chat-Charger': 'images/raid-bosses/chat-charger.png',
+    'Badge-Builder': 'images/raid-bosses/badge-builder.png',
+    'Streak-Sage': 'images/raid-bosses/streak-sage.png',
+    'Topic-Explorer': 'images/raid-bosses/topic-explorer.png',
+    'Lightning-Lancer': 'images/raid-bosses/lightning-lancer.png',
+    'Forum-Forge': 'images/raid-bosses/forum-forge.png',
+    'Trivia-Tactician': 'images/raid-bosses/trivia-tactician.png',
+    'Content-Conqueror': 'images/raid-bosses/content-conqueror.png'
+};
+
+function _getRaidBossImage(boss) {
+    return boss.image || RAID_BOSS_IMAGES[boss.name] || '';
+}
+
 function _renderRaidBossCard(container, boss) {
     var now = Date.now();
     var startMs = boss.startTime ? (boss.startTime.toMillis ? boss.startTime.toMillis() : boss.startTime) : 0;
     var endMs = boss.endTime ? (boss.endTime.toMillis ? boss.endTime.toMillis() : boss.endTime) : 0;
+    var bossImage = _getRaidBossImage(boss);
 
     // Case 1: Placeholder / upcoming boss
     if (boss.placeholder) {
         var startDate = startMs ? new Date(startMs) : null;
         var dateStr = startDate ? startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Soon';
+        var upcomingImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;">' : '<div style="font-size:3rem;margin-bottom:12px;">\u2694\uFE0F</div>';
         container.innerHTML = '<div style="padding:20px 0;">' +
-            '<div style="font-size:3rem;margin-bottom:12px;">⚔️</div>' +
-            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Upcoming Raid Boss!</div>' +
+            upcomingImgHtml +
+            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss')) + '</div>' +
+            '<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:8px;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '')) + '</div>' +
             '<div style="color:#8b5cf6;font-size:0.95rem;font-weight:700;margin-bottom:12px;">' + (typeof escapeHtml === 'function' ? escapeHtml(dateStr) : dateStr) + '</div>' +
             '<div id="raidCountdownPlaceholder" style="font-size:1.5rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;"></div>' +
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:12px;">Get ready to team up and take it down!</div>' +
@@ -2797,8 +2823,9 @@ function _renderRaidBossCard(container, boss) {
             }
             winnersHtml += '</div>';
         }
+        var defeatedImgHtml = bossImage ? '<div style="position:relative;display:inline-block;margin-bottom:12px;"><img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid #22c55e;opacity:0.6;filter:grayscale(50%);"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;">\uD83D\uDC80</div></div>' : '<div style="font-size:3rem;margin-bottom:8px;">\uD83D\uDC80</div>';
         container.innerHTML = '<div style="padding:20px 0;">' +
-            '<div style="font-size:3rem;margin-bottom:8px;">💀</div>' +
+            defeatedImgHtml +
             '<div style="padding:12px 24px;background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(34,197,94,0.05));border:2px solid #22c55e;border-radius:16px;margin-bottom:16px;">' +
                 '<div style="font-size:1.3rem;font-weight:900;color:#22c55e;letter-spacing:2px;">DEFEATED!</div>' +
             '</div>' +
@@ -2819,12 +2846,12 @@ function _renderRaidBossCard(container, boss) {
     var pct = Math.min(100, Math.round((current / target) * 100));
     var bossName = typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss');
     var bossDesc = typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '');
-    var bossEmoji = boss.emoji || '👹';
+    var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">\uD83D\uDC79</div>';
 
     container.innerHTML = '<div style="padding:12px 0;">' +
         // Boss header
         '<div style="margin-bottom:16px;">' +
-            '<div style="font-size:2.5rem;margin-bottom:8px;">' + bossEmoji + '</div>' +
+            activeImgHtml +
             '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + bossName + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;">' + bossDesc + '</div>' +
         '</div>' +
