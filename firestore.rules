@@ -1069,6 +1069,18 @@ service cloud.firestore {
       }
     }
 
+    // Top hashes leaderboard — public read, server writes
+    match /satoshiFavor/topHashes {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Personal bests — public read, server writes
+    match /satoshiFavor/personalBests {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

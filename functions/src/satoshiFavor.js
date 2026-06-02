@@ -297,6 +297,46 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     timestamps: timestamps,
   });
 
+  // Update personal best (all-time lowest hash for this user)
+  const pbRef = db.collection('satoshiFavor').doc('personalBests');
+  const pbFieldKey = `users.${uid}`;
+  try {
+    const pbDoc = await pbRef.get();
+    const pbData = pbDoc.exists ? pbDoc.data() : {};
+    const users = pbData.users || {};
+    const prev = users[uid];
+    if (!prev || value < prev.value) {
+      await pbRef.set({
+        users: { ...users, [uid]: { value, username, timestamp: admin.firestore.FieldValue.serverTimestamp() } }
+      }, { merge: true });
+    }
+  } catch (e) {
+    console.warn('[FAVOR] Personal best update failed:', e.message);
+  }
+
+  // Update community top 10 lowest hashes (all-time leaderboard)
+  const lbRef = db.collection('satoshiFavor').doc('topHashes');
+  try {
+    const lbDoc = await lbRef.get();
+    const lbData = lbDoc.exists ? lbDoc.data() : {};
+    let entries = lbData.entries || [];
+    // Check if this hash qualifies for top 10
+    if (entries.length < 10 || value < entries[entries.length - 1].value) {
+      // Check if user already has an entry — keep only their best
+      entries = entries.filter(e => e.uid !== uid || e.value < value);
+      // Only add if user doesn't already have a better entry
+      const userHasBetter = entries.some(e => e.uid === uid && e.value <= value);
+      if (!userHasBetter) {
+        entries.push({ uid, username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+      }
+      entries.sort((a, b) => a.value - b.value);
+      entries = entries.slice(0, 10);
+      await lbRef.set({ entries });
+    }
+  } catch (e) {
+    console.warn('[FAVOR] Top hashes update failed:', e.message);
+  }
+
   return {
     value,
     isWinner,
