@@ -6180,6 +6180,20 @@ function checkBadges() {
                 // Raid Boss contribution
                 if (typeof window._raidOnBadgeEarned === 'function') window._raidOnBadgeEarned();
 
+                // Satoshi's Favor contribution (1 point per badge)
+                // contributeSatoshiFavor handles Nacho announcements for activation/extension.
+                // We announce the badge + SF progress separately for the "not yet active" case.
+                if (typeof window.contributeSatoshiFavor === 'function') {
+                    var _badgeUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+                    window.contributeSatoshiFavor('badge_earned', badge.emoji + ' ' + badge.name).then(function(data) {
+                        if (!data) return;
+                        if (!data.favorActive && _badgeUsername && typeof window.nachoGlobalAnnounce === 'function') {
+                            var _ptsRem = 21 - (data.points || 0);
+                            window.nachoGlobalAnnounce('\uD83C\uDFC5 @' + _badgeUsername + ' earned the ' + badge.emoji + ' ' + badge.name + ' badge! +1 point toward Satoshi\'s Favor (' + _ptsRem + ' to go) \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)', '');
+                        }
+                    }).catch(function() {});
+                }
+
                 // Queue badge popup if Nacho is busy or bubble is open
                 var bubble = document.getElementById('nacho-bubble');
                 if (window._nachoBusy || (bubble && bubble.classList.contains('show'))) {
@@ -12462,10 +12476,12 @@ function _renderFavorTab(body) {
         '<strong style="color:var(--accent);">How it works:</strong><br>' +
         'This is a <strong>community challenge</strong> — everyone\'s points combine!<br><br>' +
         '• Complete 3 daily quiz quests = 1 point<br>' +
+        '• Earn a badge = 1 point<br>' +
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
         '• Level up to Maxi ranks = 5 points each<br>' +
         '• Level up to Papa John or higher = 10 points<br>' +
-        '• At 21 points, a mining competition opens for 60 minutes (+3 min per extra point)<br>' +
+        '• At 21 points, a mining competition opens for 60 minutes<br>' +
+        '• Extra points beyond 21 add +3 min each (even while active!)<br>' +
         '• 10 hashes max per minute per user (60 second cooldown)<br>' +
         '• Generate a random hash. Below 1,000 = win 21,000 sats!'
     '</div>';

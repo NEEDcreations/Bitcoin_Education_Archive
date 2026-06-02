@@ -1062,6 +1062,11 @@ service cloud.firestore {
                      && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
         allow update, delete: if false;
       }
+
+      // Cooldowns subcollection — server writes only
+      match /cooldowns/{uid} {
+        allow read, write: if false; // Admin SDK bypasses rules
+      }
     }
 
     match /{document=**} {

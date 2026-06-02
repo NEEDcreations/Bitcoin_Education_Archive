@@ -383,23 +383,25 @@
             if (data.favorActive && !wasFavorActive) {
                 // Just activated!
                 window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(
-                    `⛏️ SATOSHI'S FAVOR IS NOW ACTIVE! The community earned enough points! Mine now for 60 minutes!`,
+                    `\u26CF\uFE0F SATOSHI'S FAVOR IS NOW ACTIVE! The community earned enough points! Mine now for 60 minutes! \u27A1\uFE0F [Open Quest Hub](#quests)`,
                     ''
                 );
             } else if (data.favorActive && wasFavorActive) {
                 // Extension — announce how the point was earned
                 var howEarned = '';
                 if (source === 'quiz_daily_3') {
-                    howEarned = '🦌 @' + username + ' completed all 3 daily quests!';
+                    howEarned = '\uD83E\uDD8C @' + username + ' completed all 3 daily quests!';
                 } else if (source === 'level_up') {
-                    howEarned = '🦌 @' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
+                    howEarned = '\uD83E\uDD8C @' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
                 } else if (source === 'level_up_5') {
-                    howEarned = '🦌 @' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+5 points)';
+                    howEarned = '\uD83E\uDD8C @' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+5 points)';
                 } else if (source === 'level_up_10') {
-                    howEarned = '🦌 @' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
+                    howEarned = '\uD83E\uDD8C @' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
+                } else if (source === 'badge_earned') {
+                    howEarned = '\uD83E\uDD8C @' + username + ' earned a badge: ' + (detail || '\uD83C\uDFC5') + '!';
                 }
                 if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce(howEarned + ' Satoshi extends his blessing. +3 minutes ⏳', '');
+                    window.nachoGlobalAnnounce(howEarned + ' Satoshi extended his blessing! +3 minutes \u23F3', '');
                 }
             }
 
@@ -415,9 +417,9 @@
         if (typeof window.nachoGlobalAnnounce !== 'function') return;
 
         const msgs = [
-            `🦌 The community just earned a Satoshi's Favor point! ${pointsRemaining} more to activate mining! ⛏️`,
-            `🦌 +1 to Satoshi's Favor! Only ${pointsRemaining} points needed to start mining! ⛏️`,
-            `🦌 Getting closer! ${pointsRemaining} more points and Satoshi's Favor activates! ⛏️`
+            `\uD83E\uDD8C The community just earned a Satoshi's Favor point! ${pointsRemaining} more to activate mining! \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)`,
+            `\uD83E\uDD8C +1 to Satoshi's Favor! Only ${pointsRemaining} points needed to start mining! \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)`,
+            `\uD83E\uDD8C Getting closer! ${pointsRemaining} more points and Satoshi's Favor activates! \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)`
         ];
         const msg = msgs[Math.floor(Math.random() * msgs.length)];
         window.nachoGlobalAnnounce(msg, '');
@@ -425,7 +427,7 @@
 
     window.announceSatoshiFavorCompleted = function(pointsRemaining) {
         if (typeof window.nachoGlobalAnnounce !== 'function') return;
-        window.nachoGlobalAnnounce(`🦌 Daily quests completed! ${pointsRemaining} more points needed for Satoshi's Favor! ⛏️`, '');
+        window.nachoGlobalAnnounce(`\uD83E\uDD8C Daily quests completed! ${pointsRemaining} more points needed for Satoshi's Favor! \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)`, '');
     };
 
     // ─── UTILS ───

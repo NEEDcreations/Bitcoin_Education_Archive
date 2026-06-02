@@ -23,6 +23,7 @@ const POINT_VALUES = {
   'level_up': 1,
   'level_up_5': 5,
   'level_up_10': 10,
+  'badge_earned': 1,
 };
 
 /**
@@ -163,7 +164,9 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
       const newPoints = (stateData.points || 0) + pointsToAdd;
 
       if (newPoints >= POINTS_TO_ACTIVATE) {
-        // Activate favor!
+        // Activate favor! Extra points beyond 21 become bonus minutes
+        const overflowPoints = newPoints - POINTS_TO_ACTIVATE;
+        const overflowBonus = overflowPoints * BONUS_MINUTES_PER_POINT;
         const now = admin.firestore.Timestamp.now();
         const endBase = admin.firestore.Timestamp.fromMillis(
           now.toMillis() + FAVOR_DURATION_MINUTES * 60 * 1000
@@ -174,7 +177,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
           favorActive: true,
           favorStart: now,
           favorEndBase: endBase,
-          bonusMinutes: 0,
+          bonusMinutes: overflowBonus,
           lastReset: stateData.lastReset || null,
           currentCycleId: newCycleId,
         };
@@ -238,19 +241,16 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('failed-precondition', 'Satoshi\'s Favor has expired.');
   }
 
-  // Check cooldown — user's last hash must be >= 60 seconds ago
+  // Check cooldown via per-user cooldown doc (avoids composite index on hashes subcollection)
   const hashesRef = stateRef.collection('hashes');
-  const lastHashQuery = await hashesRef
-    .where('uid', '==', uid)
-    .orderBy('timestamp', 'desc')
-    .limit(1)
-    .get();
+  const cooldownRef = stateRef.collection('cooldowns').doc(uid);
+  const cooldownDoc = await cooldownRef.get();
 
-  if (!lastHashQuery.empty) {
-    const lastHash = lastHashQuery.docs[0].data();
-    if (lastHash.timestamp) {
-      const lastTime = lastHash.timestamp.toMillis();
-      const elapsed = (now - lastTime) / 1000;
+  if (cooldownDoc.exists) {
+    const lastTime = cooldownDoc.data().lastHash;
+    if (lastTime) {
+      const lastMs = lastTime.toMillis ? lastTime.toMillis() : lastTime;
+      const elapsed = (now - lastMs) / 1000;
       if (elapsed < HASH_COOLDOWN_SECONDS) {
         const remaining = Math.ceil(HASH_COOLDOWN_SECONDS - elapsed);
         throw new functions.https.HttpsError(
@@ -277,7 +277,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   const value = crypto.randomInt(0, 100000001);
   const isWinner = value < DIFFICULTY_TARGET;
 
-  // Write hash to subcollection
+  // Write hash to subcollection + update cooldown doc
   const hashDoc = await hashesRef.add({
     uid,
     username,
@@ -285,6 +285,11 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
     isWinner,
     cycleId: stateData.currentCycleId || null,
+  });
+
+  // Update cooldown doc for fast lookup next time
+  await cooldownRef.set({
+    lastHash: admin.firestore.FieldValue.serverTimestamp(),
   });
 
   return {
