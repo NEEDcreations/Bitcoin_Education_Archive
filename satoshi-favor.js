@@ -6,7 +6,7 @@
 
     const DIFFICULTY_TARGET = 1000;
     const HASH_MAX = 100000000;
-    const COOLDOWN_SECONDS = 6; // 10 hashes per 60 seconds = 1 every 6 seconds
+    const COOLDOWN_SECONDS = 60; // 10 hashes per 60 seconds = 1 every 60 seconds (max 10 per minute enforced by server)
     const POINTS_TARGET = 21;
 
     let favorState = null;

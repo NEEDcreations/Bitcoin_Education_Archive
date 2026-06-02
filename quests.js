@@ -2194,7 +2194,7 @@ function _renderFavorTab(body) {
         '• Level up to Cyberhornet+ = 10 points each<br>' +
         '• At 21 points, a mining competition opens for 60 minutes (+3 min per extra point)<br>' +
         '• Generate a random hash. Below 1,000 = win 21,000 sats!<br>' +
-        '• 10 hashes per minute (6 sec cooldown)'
+        '• 10 hashes per minute (60 sec cooldown)'
     '</div>';
 
     html += '</div>';
