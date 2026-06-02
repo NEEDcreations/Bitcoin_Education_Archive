@@ -6183,7 +6183,7 @@ function checkBadges() {
                         if (!data) return;
                         if (!data.favorActive && _badgeUsername && typeof window.nachoGlobalAnnounce === 'function') {
                             var _ptsRem = 21 - (data.points || 0);
-                            window.nachoGlobalAnnounce('\uD83C\uDFC5 @' + _badgeUsername + ' earned the ' + badge.emoji + ' ' + badge.name + ' badge! +1 point toward Satoshi\'s Favor (' + _ptsRem + ' to go) \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)', '');
+                            window.nachoGlobalAnnounce('\uD83C\uDFC5 @' + _badgeUsername + ' earned the ' + badge.emoji + ' ' + badge.name + ' badge! +1 point toward Satoshi\'s Favor (' + _ptsRem + ' to go) \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                         }
                     }).catch(function() {});
                 }
@@ -13359,10 +13359,22 @@ if (typeof window._questHubRouteAdded === 'undefined') {
     window.addEventListener('hashchange', function() {
         if (location.hash === '#quests') {
             setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 100);
+        } else if (location.hash === '#favor') {
+            setTimeout(function() {
+                if (typeof showQuestHub === 'function') showQuestHub();
+                window._questHubTab = 'favor';
+                setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
+            }, 100);
         }
     });
     if (location.hash === '#quests') {
         setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 500);
+    } else if (location.hash === '#favor') {
+        setTimeout(function() {
+            if (typeof showQuestHub === 'function') showQuestHub();
+            window._questHubTab = 'favor';
+            setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
+        }, 500);
     }
 }
 

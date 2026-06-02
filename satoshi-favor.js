@@ -376,7 +376,7 @@
     function announceWinner(value) {
         if (typeof window.nachoGlobalAnnounce !== 'function') return;
         const name = currentUser && currentUser.username ? currentUser.username : 'Someone';
-        window.nachoGlobalAnnounce(`🏆 @${name} SOLVED A BLOCK with hash ${value.toLocaleString()}! 21,000 sats earned! ⛏️ Satoshi's Favor active now!`, auth.currentUser ? auth.currentUser.uid : '');
+        window.nachoGlobalAnnounce(`\uD83C\uDFC6 @${name} SOLVED A BLOCK with hash ${value.toLocaleString()}! 21,000 sats earned! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`, auth.currentUser ? auth.currentUser.uid : '');
     }
 
     // ─── CONTRIBUTION HOOKS ───
@@ -408,18 +408,18 @@
                 // Just activated!
                 var activateMsg = '\u26CF\uFE0F SATOSHI\'S FAVOR IS NOW ACTIVE!';
                 if (howEarned) activateMsg += ' ' + howEarned;
-                activateMsg += ' Mine now for 60 minutes! \u27A1\uFE0F [Open Quest Hub](#quests)';
+                activateMsg += ' Mine now for 60 minutes! \u27A1\uFE0F [Satoshi\'s Favor](#favor)';
                 window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, '');
             } else if (data.favorActive && wasFavorActive) {
                 // Extension while active
                 if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +3 bonus minutes \u23F3', '');
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +3 bonus minutes \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                 }
             } else if (!data.favorActive) {
                 // Not active yet — announce progress toward activation
                 var ptsRem = 21 - (data.points || 0);
                 if (ptsRem > 0 && howEarned && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' +1 toward Satoshi\'s Favor! ' + ptsRem + ' more to go \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)', '');
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' +1 toward Satoshi\'s Favor! ' + ptsRem + ' more to go \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                 }
             }
 
@@ -435,9 +435,9 @@
         if (typeof window.nachoGlobalAnnounce !== 'function') return;
 
         const msgs = [
-            `\uD83E\uDD8C The community just earned a Satoshi's Favor point! ${pointsRemaining} more to activate mining! \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)`,
-            `\uD83E\uDD8C +1 to Satoshi's Favor! Only ${pointsRemaining} points needed to start mining! \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)`,
-            `\uD83E\uDD8C Getting closer! ${pointsRemaining} more points and Satoshi's Favor activates! \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)`
+            `\uD83E\uDD8C The community just earned a Satoshi's Favor point! ${pointsRemaining} more to activate mining! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`,
+            `\uD83E\uDD8C +1 to Satoshi's Favor! Only ${pointsRemaining} points needed to start mining! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`,
+            `\uD83E\uDD8C Getting closer! ${pointsRemaining} more points and Satoshi's Favor activates! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`
         ];
         const msg = msgs[Math.floor(Math.random() * msgs.length)];
         window.nachoGlobalAnnounce(msg, '');
@@ -445,7 +445,7 @@
 
     window.announceSatoshiFavorCompleted = function(pointsRemaining) {
         if (typeof window.nachoGlobalAnnounce !== 'function') return;
-        window.nachoGlobalAnnounce(`\uD83E\uDD8C Daily quests completed! ${pointsRemaining} more points needed for Satoshi's Favor! \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)`, '');
+        window.nachoGlobalAnnounce(`\uD83E\uDD8C Daily quests completed! ${pointsRemaining} more points needed for Satoshi's Favor! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`, '');
     };
 
     // ─── UTILS ───

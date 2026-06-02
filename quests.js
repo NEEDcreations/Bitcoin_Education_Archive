@@ -3078,10 +3078,22 @@ if (typeof window._questHubRouteAdded === 'undefined') {
     window.addEventListener('hashchange', function() {
         if (location.hash === '#quests') {
             setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 100);
+        } else if (location.hash === '#favor') {
+            setTimeout(function() {
+                if (typeof showQuestHub === 'function') showQuestHub();
+                window._questHubTab = 'favor';
+                setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
+            }, 100);
         }
     });
     if (location.hash === '#quests') {
         setTimeout(function() { if (typeof showQuestHub === 'function') showQuestHub(); }, 500);
+    } else if (location.hash === '#favor') {
+        setTimeout(function() {
+            if (typeof showQuestHub === 'function') showQuestHub();
+            window._questHubTab = 'favor';
+            setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
+        }, 500);
     }
 }
 

@@ -247,7 +247,7 @@ function checkBadges() {
                         if (!data) return;
                         if (!data.favorActive && _badgeUsername && typeof window.nachoGlobalAnnounce === 'function') {
                             var _ptsRem = 21 - (data.points || 0);
-                            window.nachoGlobalAnnounce('\uD83C\uDFC5 @' + _badgeUsername + ' earned the ' + badge.emoji + ' ' + badge.name + ' badge! +1 point toward Satoshi\'s Favor (' + _ptsRem + ' to go) \u26CF\uFE0F \u27A1\uFE0F [Quest Hub](#quests)', '');
+                            window.nachoGlobalAnnounce('\uD83C\uDFC5 @' + _badgeUsername + ' earned the ' + badge.emoji + ' ' + badge.name + ' badge! +1 point toward Satoshi\'s Favor (' + _ptsRem + ' to go) \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                         }
                     }).catch(function() {});
                 }
