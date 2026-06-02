@@ -13137,11 +13137,11 @@ function _renderRaidBossCard(container, boss) {
         // Boss Health bar (depletes as damage is dealt)
         '<div style="margin-bottom:16px;">' +
             '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-                '<span style="font-size:0.72rem;font-weight:800;color:' + (hpPct < 25 ? '#ef4444' : hpPct < 50 ? '#f59e0b' : '#ef4444') + ';text-transform:uppercase;">\u2764\uFE0F Boss Health</span>' +
+                '<span style="font-size:0.72rem;font-weight:800;color:' + (hpPct <= 25 ? '#ef4444' : hpPct <= 50 ? '#f59e0b' : '#22c55e') + ';text-transform:uppercase;">\u2764\uFE0F Boss Health</span>' +
                 '<span style="font-size:0.72rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + remainingHP.toLocaleString() + ' / ' + target.toLocaleString() + ' HP</span>' +
             '</div>' +
-            '<div style="height:20px;background:rgba(239,68,68,0.08);border-radius:10px;overflow:hidden;border:1px solid rgba(239,68,68,0.2);">' +
-                '<div id="raidProgressBar" style="height:100%;width:' + hpPct + '%;background:' + (hpPct < 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hpPct < 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#ef4444,#f87171)') + ';border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
+            '<div style="height:20px;background:rgba(100,100,100,0.1);border-radius:10px;overflow:hidden;border:1px solid ' + (hpPct <= 25 ? 'rgba(239,68,68,0.3)' : hpPct <= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)') + ';">' +
+                '<div id="raidProgressBar" style="height:100%;width:' + hpPct + '%;background:' + (hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)') + ';border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
                     '<div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:raidShimmer 2s infinite;"></div>' +
                 '</div>' +
             '</div>' +

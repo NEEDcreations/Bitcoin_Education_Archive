@@ -166,7 +166,7 @@
                 </div>
                 <div style="padding:16px 20px;overflow-y:auto;">
                     <div style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">
-                        Generate a hash (0–100,000,000). If below ${DIFFICULTY_TARGET}, you win! That's a <strong style="color:var(--accent);">1 in 100,000</strong> chance. 10 hashes per minute (1 every 6 sec).
+                        Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">${DIFFICULTY_TARGET.toLocaleString()}</strong> (the difficulty target), you win <strong style="color:var(--accent);">21,000 sats!</strong> That's a 1 in 100,000 chance per hash. You get 10 hashes per minute.
                     </div>
 
                     <div style="text-align:center;margin-bottom:16px;">
