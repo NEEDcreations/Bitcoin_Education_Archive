@@ -6,7 +6,7 @@
 
     const DIFFICULTY_TARGET = 1000;
     const HASH_MAX = 100000000;
-    const COOLDOWN_SECONDS = 60; // 10 hashes per 60 seconds = 1 every 60 seconds (max 10 per minute enforced by server)
+    const COOLDOWN_SECONDS = 6; // 10 hashes per minute = 1 every 6 seconds
     const POINTS_TARGET = 21;
 
     let favorState = null;
@@ -188,8 +188,8 @@
                     <button id="minerHashBtn" onclick="window.minerDoHash()" style="width:100%;padding:16px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:12px;color:#fff;font-size:1.1rem;font-weight:800;cursor:pointer;margin-bottom:16px;">⛏️ HASH</button>
 
                     <div style="border-top:1px solid var(--border);padding-top:12px;">
-                        <div style="font-weight:700;color:var(--heading);margin-bottom:8px;">Recent Hashes</div>
-                        <div id="hashList" style="max-height:160px;overflow-y:auto;"><div style="color:var(--text-muted);text-align:center;padding:12px;font-size:0.8rem;">Loading...</div></div>
+                        <div style="font-weight:700;color:var(--heading);margin-bottom:8px;">⛏️ Community Hashes</div>
+                        <div id="hashList" style="max-height:300px;overflow-y:auto;"><div style="color:var(--text-muted);text-align:center;padding:12px;font-size:0.8rem;">Loading...</div></div>
                     </div>
                 </div>
             </div>`;
@@ -304,7 +304,7 @@
             }
             el.textContent = `${Math.ceil(remaining)}s`;
             el.style.color = 'var(--accent)';
-            setTimeout(update, 1000);
+            setTimeout(update, 500);
         };
         update();
     }
@@ -330,7 +330,7 @@
         const q = db.collection('satoshiFavor').doc('current').collection('hashes')
             .where('cycleId', '==', cycleId)
             .orderBy('timestamp', 'desc')
-            .limit(20);
+            .limit(50);
 
         hashListener = q.onSnapshot((snap) => {
             if (snap.empty) {
@@ -346,14 +346,16 @@
                 const isMe = h.uid === myUid;
                 const isWin = h.isWinner;
                 const val = h.value.toLocaleString();
-                const time = h.timestamp ? new Date(h.timestamp.toMillis()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '--:--';
+                const time = h.timestamp ? new Date(h.timestamp.toMillis()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '--:--';
+                const name = escapeHtml(h.username || 'Anon');
 
-                const bg = isWin ? 'rgba(34,197,94,0.15)' : (isMe ? 'rgba(247,147,26,0.1)' : 'transparent');
-                const border = isWin ? '#22c55e' : (isMe ? 'var(--accent)' : 'var(--border)');
-                const bold = isMe ? 'font-weight:700;' : '';
-                const icon = isWin ? '🏆 ' : '';
-
-                html += `<div style="padding:8px 12px;margin-bottom:4px;background:${bg};border:1px solid ${border};border-radius:8px;display:flex;justify-content:space-between;align-items:center;${bold}"><span>${icon}${escapeHtml(h.username || 'Anon')}</span><span style="font-family:monospace;font-size:0.9rem;">${val}</span><span style="color:var(--text-faint);font-size:0.7rem;">${time}</span></div>`;
+                if (isWin) {
+                    html += `<div style="padding:12px 14px;margin-bottom:6px;background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.08));border:2px solid #22c55e;border-radius:10px;animation:favorPulse 2s ease-in-out infinite;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="font-weight:900;font-size:0.95rem;color:#22c55e;">🏆 WINNER — ${name}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div><div style="font-family:monospace;font-size:1.1rem;font-weight:900;color:#22c55e;text-align:center;">${val}</div></div>`;
+                } else if (isMe) {
+                    html += `<div style="padding:6px 12px;margin-bottom:3px;background:rgba(247,147,26,0.1);border:1px solid var(--accent);border-radius:8px;display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:700;color:var(--accent);font-size:0.82rem;">@${name}</span><span style="font-family:monospace;font-size:0.85rem;font-weight:700;color:var(--heading);">${val}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div>`;
+                } else {
+                    html += `<div style="padding:5px 12px;margin-bottom:2px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text-muted);font-size:0.8rem;">@${name}</span><span style="font-family:monospace;font-size:0.82rem;color:var(--text);">${val}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div>`;
+                }
             });
 
             list.innerHTML = html;

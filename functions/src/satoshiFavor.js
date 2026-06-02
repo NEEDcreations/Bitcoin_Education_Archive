@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const db = admin.firestore();
 
 const DIFFICULTY_TARGET = 1000;
-const HASH_COOLDOWN_SECONDS = 60; // max 10 hashes per 60 seconds (rate limit enforced server‑side)
+const HASH_COOLDOWN_SECONDS = 6; // 10 hashes per minute = 1 every 6 seconds
 const FAVOR_DURATION_MINUTES = 60;
 const BONUS_MINUTES_PER_POINT = 3;
 const POINTS_TO_ACTIVATE = 21;
