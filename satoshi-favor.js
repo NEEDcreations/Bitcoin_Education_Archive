@@ -39,6 +39,25 @@
         }, (err) => console.error('[FAVOR] Listener error:', err));
     }
 
+    // ─── EXPIRY CHECK ───
+    // Returns true if favor is active and NOT expired client-side
+    function isFavorEffectivelyActive() {
+        if (!favorState || !favorState.favorActive) return false;
+        var endBase = favorState.favorEndBase ? favorState.favorEndBase.toMillis() : 0;
+        var bonusMs = (favorState.bonusMinutes || 0) * 60 * 1000;
+        return (endBase + bonusMs) > Date.now();
+    }
+
+    // Expose for Quest Hub tab
+    window._resolveFavorState = function() {
+        if (!favorState) return null;
+        // Return a copy that reflects client-side expiry
+        if (favorState.favorActive && !isFavorEffectivelyActive()) {
+            return { points: 0, favorActive: false, bonusMinutes: 0 };
+        }
+        return favorState;
+    };
+
     // ─── UI UPDATES ───
     function updateAllUIs() {
         renderHomeBanner();
@@ -78,8 +97,8 @@
     }
 
     function buildBannerHTML(context) {
-        const isActive = favorState.favorActive;
-        const points = favorState.points || 0;
+        const isActive = isFavorEffectivelyActive();
+        const points = isActive ? (favorState.points || 0) : 0;
         const isCompact = context === 'chat';
 
         if (isActive) {
@@ -105,8 +124,10 @@
             const remaining = (endBase + bonusMs) - Date.now();
 
             if (remaining <= 0) {
-                el.textContent = '00:00:00';
-                el.style.color = '#ef4444';
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+                // Re-render all UIs to show the reset /21 progress state
+                updateAllUIs();
                 return;
             }
             const hrs = Math.floor(remaining / 3600000);
@@ -467,7 +488,7 @@
     };
 
     // ─── EXPORTS ───
-    window._resolveFavorState = () => favorState;
+    // _resolveFavorState is defined earlier with client-side expiry check
     window._renderFavorChatBanner = renderChatBanner;
     window._renderSatoshiFavorHome = renderHomeBanner;
 
