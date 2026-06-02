@@ -13384,10 +13384,14 @@ if (typeof window._questHubRouteAdded === 'undefined') {
 // =============================================
 window._raidContribute = function(metric, amount, detail) {
     if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) return;
+    if (firebase.auth().currentUser.isAnonymous) return;
     try {
+        console.log('[RAID] Contributing:', metric, amount || 1);
         var fn = firebase.functions().httpsCallable('contributeRaid');
-        fn({ metric: metric, amount: amount || 1, detail: detail || '' }).catch(function() {});
-    } catch(e) { /* silent */ }
+        fn({ metric: metric, amount: amount || 1, detail: detail || '' }).then(function(r) {
+            if (r && r.data) console.log('[RAID] Result:', r.data.success, r.data.current + '/' + r.data.target, r.data.message || '');
+        }).catch(function(e) { console.error('[RAID] Error:', e.message); });
+    } catch(e) { console.error('[RAID] Exception:', e); }
 };
 
 // Hook: channel visit (called from go() in app.js after navigating to a topic)
@@ -13425,6 +13429,7 @@ window._raidOnChatMessage = function() {
 
 // Hook: badge earned
 window._raidOnBadgeEarned = function() {
+    console.log('[RAID] Badge earned hook fired!');
     window._raidContribute('badgesEarned', 1);
 };
 
