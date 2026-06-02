@@ -167,6 +167,14 @@ function containsPII(text) {
     return false;
 }
 
+// ---- LINKIFY URLs in messages ----
+function linkifyText(html) {
+    // Match URLs that aren't already inside an href or src attribute
+    return html.replace(/(https?:\/\/[^\s<>"']+)/gi, function(url) {
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;word-break:break-all;" onclick="event.stopPropagation()">' + url + '</a>';
+    });
+}
+
 // ---- ANTI-BLAST: Track unique recipients per day ----
 function _getDailyConvoLog() {
     try {
@@ -738,7 +746,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 var bubbleBorder = isNacho ? '1px solid rgba(34,197,94,0.25)' : 'none';
                 var bubbleColor = isNacho ? 'var(--text)' : isMe ? '#fff' : 'var(--text)';
                 var nachoLabel = isNacho ? '<div style="font-size:0.65rem;color:#22c55e;font-weight:700;margin-bottom:3px;">🦌 Nacho</div>' : '';
-                var msgText = escapeHtml(m.text).replace(/\n/g, '<br>');
+                var msgText = linkifyText(escapeHtml(m.text)).replace(/\n/g, '<br>');
                 // Image support
                 var imgHtml = '';
                 if (m.imageUrl) {
@@ -1149,7 +1157,7 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
         }
         container.innerHTML += '<div data-optimistic style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
             '<div style="max-width:85%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--accent);color:#fff;font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
-                escapeHtml(text) +
+                linkifyText(escapeHtml(text)) +
                 '<div style="font-size:0.6rem;color:rgba(255,255,255,0.6);margin-top:4px;text-align:right;">' + nowStr + '</div>' +
             '</div></div>';
         container.scrollTop = container.scrollHeight;
