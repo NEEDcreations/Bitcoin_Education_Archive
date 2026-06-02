@@ -355,7 +355,7 @@ window.submitBuddyRequest = async function() {
 
         } else {
             // No match available — add to pool
-            await _db.collection(COLLECTION).add({
+            await _db.collection(COLLECTION).doc(uid).set({
                 uid: uid,
                 username: username,
                 level: level,
