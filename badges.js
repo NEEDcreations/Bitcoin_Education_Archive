@@ -235,6 +235,9 @@ function checkBadges() {
                 earnedBadges.add(badge.id);
                 localStorage.setItem('btc_badges', JSON.stringify([...earnedBadges]));
 
+                // Raid Boss contribution
+                if (typeof window._raidOnBadgeEarned === 'function') window._raidOnBadgeEarned();
+
                 // Queue badge popup if Nacho is busy or bubble is open
                 var bubble = document.getElementById('nacho-bubble');
                 if (window._nachoBusy || (bubble && bubble.classList.contains('show'))) {

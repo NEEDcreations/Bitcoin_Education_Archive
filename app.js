@@ -3601,6 +3601,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         window.currentChannelId = id; // Expose for inline onclick handlers
         galleryMode = false;
 
+        // Raid Boss contribution for channel visits
+        if (typeof window._raidOnChannelVisit === 'function') window._raidOnChannelVisit(id);
+
         // Update SEO metrics (id, title, desc)
         if (typeof _updateSEO === 'function' && typeof CHANNELS !== 'undefined' && CHANNELS[id]) {
             var ch = CHANNELS[id];

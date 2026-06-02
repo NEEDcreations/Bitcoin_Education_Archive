@@ -2700,18 +2700,48 @@ window._loadRaidBoss = function() {
         return;
     }
 
-    // Listen to the latest raid boss in real-time
+    // Listen to recent raid bosses and pick the best one to display:
+    // Priority: active (non-placeholder, started, not expired, not defeated)
+    //           → next upcoming placeholder
+    //           → most recently defeated
+    //           → empty state
     window._raidBossUnsub = db.collection('raid_bosses')
         .orderBy('startTime', 'desc')
-        .limit(1)
+        .limit(5)
         .onSnapshot(function(snapshot) {
             if (snapshot.empty) {
                 container.innerHTML = _raidEmptyState();
                 return;
             }
-            var doc = snapshot.docs[0];
-            var boss = doc.data();
-            boss._id = doc.id;
+            var now = Date.now();
+            var activeBoss = null;
+            var upcomingBoss = null;
+            var defeatedBoss = null;
+
+            snapshot.forEach(function(doc) {
+                var d = doc.data();
+                d._id = doc.id;
+                var startMs = d.startTime ? (d.startTime.toMillis ? d.startTime.toMillis() : d.startTime) : 0;
+                var endMs = d.endTime ? (d.endTime.toMillis ? d.endTime.toMillis() : d.endTime) : 0;
+
+                if (!d.placeholder && !d.defeated && startMs <= now && endMs > now) {
+                    // Active boss — non-placeholder, started, not expired
+                    if (!activeBoss) activeBoss = d;
+                } else if (d.placeholder && startMs > now) {
+                    // Upcoming placeholder — pick the soonest
+                    if (!upcomingBoss || startMs < (upcomingBoss.startTime ? (upcomingBoss.startTime.toMillis ? upcomingBoss.startTime.toMillis() : upcomingBoss.startTime) : 0)) {
+                        upcomingBoss = d;
+                    }
+                } else if (d.defeated) {
+                    if (!defeatedBoss) defeatedBoss = d;
+                }
+            });
+
+            var boss = activeBoss || upcomingBoss || defeatedBoss;
+            if (!boss) {
+                container.innerHTML = _raidEmptyState();
+                return;
+            }
             window._currentRaidBoss = boss;
             _renderRaidBossCard(container, boss);
         }, function(err) {
@@ -2915,15 +2945,15 @@ window._contributeRaid = function() {
     }
 
     var contributeRaid = firebase.functions().httpsCallable('contributeRaid');
-    contributeRaid({ bossId: boss._id }).then(function(result) {
+    contributeRaid({ metric: boss.metric, amount: 1 }).then(function(result) {
         var data = result.data || {};
         if (btn) {
             btn.disabled = false;
             btn.textContent = '⚔️ Attack Boss';
             btn.style.opacity = '1';
         }
-        if (data.damage) {
-            if (typeof showToast === 'function') showToast('⚔️ Dealt ' + data.damage + ' damage!' + (data.xp ? ' +' + data.xp + ' XP' : ''), 2500);
+        if (data.success) {
+            if (typeof showToast === 'function') showToast('⚔️ +1 damage! (' + (data.current || 0) + '/' + (data.target || '?') + ')', 2500);
         }
         if (data.defeated) {
             if (typeof showToast === 'function') showToast('🎉 BOSS DEFEATED! Great work!', 4000);
@@ -2991,7 +3021,7 @@ window._raidContribute = function(metric, amount, detail) {
 
 // Hook: quiz quest completion
 window._raidOnQuizComplete = function() {
-    window._raidContribute('quizCompleted', 1);
+    window._raidContribute('quizCompletions', 1);
 };
 
 // Hook: trivia correct answer
@@ -3001,35 +3031,42 @@ window._raidOnTriviaCorrect = function() {
 
 // Hook: poll vote
 window._raidOnPollVote = function() {
-    window._raidContribute('pollVote', 1);
+    window._raidContribute('pollVotes', 1);
 };
 
 // Hook: flashcard set completion
 window._raidOnFlashcardComplete = function() {
-    window._raidContribute('flashcardCompleted', 1);
+    window._raidContribute('flashcardCompletions', 1);
 };
 
 // Hook: XP earned (amount = XP gained)
 window._raidOnXPEarned = function(amount) {
-    window._raidContribute('xpEarned', amount || 1);
+    window._raidContribute('totalXP', amount || 1);
 };
 
 // Hook: chat message sent
 window._raidOnChatMessage = function() {
-    window._raidContribute('chatMessage', 1);
+    window._raidContribute('chatMessages', 1);
 };
 
 // Hook: badge earned
 window._raidOnBadgeEarned = function() {
-    window._raidContribute('badgeEarned', 1);
+    window._raidContribute('badgesEarned', 1);
 };
 
 // Hook: tip sent
 window._raidOnTipSent = function() {
-    window._raidContribute('tipSent', 1);
+    window._raidContribute('tipsSent', 1);
 };
 
 // Hook: forum post created
 window._raidOnForumPost = function() {
-    window._raidContribute('forumPost', 1);
+    window._raidContribute('forumPosts', 1);
+};
+
+// Hook: channel/topic visit (contributes to multiple boss metrics)
+window._raidOnChannelVisit = function(channelId) {
+    window._raidContribute('totalTopicReads', 1, channelId);
+    window._raidContribute('uniqueTopicsVisited', 1, channelId);
+    window._raidContribute('uniqueUsers5Topics', 1, channelId);
 };
