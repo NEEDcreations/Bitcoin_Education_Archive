@@ -13133,6 +13133,8 @@ function _renderRaidBossCard(container, boss) {
     var current = boss.current !== undefined ? boss.current : (boss.currentHP !== undefined ? boss.currentHP : 0);
     var target = boss.target || boss.targetHP || 1;
     var pct = Math.min(100, Math.round((current / target) * 100));
+    var remainingHP = Math.max(0, target - current);
+    var hpPct = Math.max(0, 100 - pct);
     var bossName = typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss');
     var bossDesc = typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '');
     var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">\uD83D\uDC79</div>';
@@ -13144,18 +13146,18 @@ function _renderRaidBossCard(container, boss) {
             '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + bossName + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;">' + bossDesc + '</div>' +
         '</div>' +
-        // Progress bar
+        // Boss Health bar (depletes as damage is dealt)
         '<div style="margin-bottom:16px;">' +
             '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-                '<span style="font-size:0.72rem;font-weight:800;color:#8b5cf6;text-transform:uppercase;">Damage Dealt</span>' +
-                '<span style="font-size:0.72rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + current.toLocaleString() + ' / ' + target.toLocaleString() + '</span>' +
+                '<span style="font-size:0.72rem;font-weight:800;color:' + (hpPct < 25 ? '#ef4444' : hpPct < 50 ? '#f59e0b' : '#ef4444') + ';text-transform:uppercase;">\u2764\uFE0F Boss Health</span>' +
+                '<span style="font-size:0.72rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + remainingHP.toLocaleString() + ' / ' + target.toLocaleString() + ' HP</span>' +
             '</div>' +
-            '<div style="height:20px;background:rgba(139,92,246,0.1);border-radius:10px;overflow:hidden;border:1px solid rgba(139,92,246,0.2);">' +
-                '<div id="raidProgressBar" style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#8b5cf6,#a78bfa);border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
+            '<div style="height:20px;background:rgba(239,68,68,0.08);border-radius:10px;overflow:hidden;border:1px solid rgba(239,68,68,0.2);">' +
+                '<div id="raidProgressBar" style="height:100%;width:' + hpPct + '%;background:' + (hpPct < 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hpPct < 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#ef4444,#f87171)') + ';border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
                     '<div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:raidShimmer 2s infinite;"></div>' +
                 '</div>' +
             '</div>' +
-            '<div style="text-align:center;margin-top:4px;font-size:0.75rem;font-weight:800;color:#8b5cf6;">' + pct + '%</div>' +
+            '<div style="text-align:center;margin-top:4px;font-size:0.75rem;font-weight:800;color:#8b5cf6;">' + pct + '% damage dealt</div>' +
         '</div>' +
         // Timer
         '<div style="margin-bottom:16px;padding:12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:12px;">' +
@@ -13263,7 +13265,7 @@ var RAID_GUIDANCE = {
     'totalXP': { action: 'Earn XP from any activity to deal damage!', nav: 'home' },
     'pollVotes': { action: 'Vote in Quest Hub polls to deal damage!', nav: 'quests' },
     'chatMessages': { action: 'Send messages in Global Chat to deal damage!', nav: 'chat' },
-    'badgesEarned': { action: 'Earn badges to deal damage! Check the Badges tab for ones you haven\'t unlocked yet.', nav: 'badges' },
+    'badgesEarned': { action: 'Earn badges to deal damage! Find them in the Leaderboard button \uD83C\uDFC6', nav: 'badges' },
     'streakUsers': { action: 'Maintain a 7-day daily visit streak to deal damage!', nav: 'home' },
     'uniqueTopicsVisited': { action: 'Visit learning topics you haven\'t read yet!', nav: 'home' },
     'tipsSent': { action: 'Send Lightning tips to deal damage!', nav: 'home' },
@@ -13289,14 +13291,36 @@ window._contributeRaid = function() {
     if (overlay) overlay.remove();
 
     if (guidance.nav === 'badges') {
-        // Navigate to leaderboard badges tab
-        if (typeof showLeaderboard === 'function') {
-            showLeaderboard();
-            // Switch to badges tab after a brief render delay
+        // Open leaderboard and scroll to badges section
+        if (typeof toggleLeaderboard === 'function') {
+            var lb = document.getElementById('leaderboard');
+            // If leaderboard is already open, close it first so toggleLeaderboard reopens fresh
+            if (lb && lb.classList.contains('open')) {
+                lb.classList.remove('open');
+                var _fab = document.getElementById('lbFloatBtn');
+                if (_fab) _fab.style.display = 'flex';
+            }
+            toggleLeaderboard();
+            // Scroll to badges section after leaderboard loads
             setTimeout(function() {
-                var badgesTab = document.querySelector('[onclick*="lbBadges"], [onclick*="badges"]');
-                if (badgesTab) badgesTab.click();
-            }, 300);
+                var lb2 = document.getElementById('leaderboard');
+                if (!lb2) return;
+                // Find the "Your Badges" heading
+                var headings = lb2.querySelectorAll('h4');
+                for (var i = 0; i < headings.length; i++) {
+                    if (headings[i].textContent.indexOf('Badge') !== -1) {
+                        headings[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // Flash highlight
+                        var parent = headings[i].parentElement;
+                        if (parent) {
+                            parent.style.transition = 'box-shadow 0.3s';
+                            parent.style.boxShadow = '0 0 20px rgba(247,147,26,0.5)';
+                            setTimeout(function() { parent.style.boxShadow = ''; }, 2000);
+                        }
+                        break;
+                    }
+                }
+            }, 800);
         }
     } else if (guidance.nav === 'chat') {
         if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
