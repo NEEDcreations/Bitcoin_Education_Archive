@@ -512,6 +512,7 @@ function formatChatText(text, mentionUid) {
         var _action = route === 'pvp' ? "event.preventDefault();if(typeof enterPVPMode==='function')enterPVPMode();"
                      : route === 'nacho' ? "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();"
                      : route === 'quests' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();"
+                     : route === 'favor' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();},100);"
                      : "event.preventDefault();if(typeof go==='function')go('" + route + "');";
         var placeholder = '%%INAPPLINK_' + _inAppLinks.length + '%%';
         _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>');
