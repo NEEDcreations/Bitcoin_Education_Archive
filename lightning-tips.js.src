@@ -221,10 +221,16 @@ window.executeTip = async function() {
                             var cbResp = await fetch(cbUrl);
                             var cbData = await cbResp.json();
                             if (cbData.pr) {
+                                window._tipVerifyUrl = cbData.verify || null;
                                 if (method && typeof window.lnSendPaymentDirect === 'function') {
-                                    await window.lnSendPaymentDirect(cbData.pr);
-                                    showTipSuccess(amount, opts);
-                                    return;
+                                    try {
+                                        var payResult = await window.lnSendPaymentDirect(cbData.pr);
+                                        showTipSuccess(amount, opts, payResult && payResult.preimage || null);
+                                        return;
+                                    } catch(walletErr) {
+                                        console.warn('[TIP] Direct wallet payment failed, falling back to QR:', walletErr);
+                                        // Fall through to show QR code instead of "Can't tip yet"
+                                    }
                                 }
                                 showInvoiceCopy(cbData.pr, amount, opts);
                                 return;
