@@ -4931,7 +4931,7 @@ window.toggleAITools = function() {
         if (!style) {
             style = document.createElement('style');
             style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:72px!important;}}';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:84px!important;right:72px!important;}}';
             document.head.appendChild(style);
         }
     }
