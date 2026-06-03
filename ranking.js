@@ -3387,10 +3387,89 @@ window.showSettings = function() {
 };
 
 // Country list for autocomplete (ISO 3166-1)
-window._countryOptions = (function() {
-    var c = ['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia','Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Ivory Coast','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kosovo','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'];
-    return c.map(function(n) { return '<option value="' + n + '">'; }).join('');
-})();
+window._countryList = ['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia','Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Ivory Coast','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kosovo','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'];
+
+// Custom country autocomplete (datalist broken on iOS Safari)
+window._filterCountryList = function() {
+    var input = document.getElementById('countryInput');
+    var dropdown = document.getElementById('countryDropdown');
+    if (!input || !dropdown) return;
+    var query = input.value.trim().toLowerCase();
+    if (query.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+    }
+    var matches = window._countryList.filter(function(c) {
+        return c.toLowerCase().indexOf(query) !== -1;
+    });
+    if (matches.length === 0 || (matches.length === 1 && matches[0].toLowerCase() === query)) {
+        dropdown.style.display = 'none';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < Math.min(matches.length, 8); i++) {
+        var m = matches[i];
+        // Highlight the matching portion
+        var idx = m.toLowerCase().indexOf(query);
+        var highlighted = (typeof escapeHtml === 'function' ? escapeHtml(m.substring(0, idx)) : m.substring(0, idx)) +
+            '<strong style="color:var(--accent);">' + (typeof escapeHtml === 'function' ? escapeHtml(m.substring(idx, idx + query.length)) : m.substring(idx, idx + query.length)) + '</strong>' +
+            (typeof escapeHtml === 'function' ? escapeHtml(m.substring(idx + query.length)) : m.substring(idx + query.length));
+        html += '<div onmousedown="window._selectCountry(\'' + m.replace(/'/g, "\\'") + '\')" style="padding:10px 14px;color:var(--text);font-size:0.9rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;" ontouchstart="this.style.background=\'rgba(247,147,26,0.15)\'" ontouchend="this.style.background=\'none\'" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="this.style.background=\'none\'">' + highlighted + '</div>';
+    }
+    if (matches.length > 8) {
+        html += '<div style="padding:8px 14px;color:var(--text-faint);font-size:0.75rem;text-align:center;">+' + (matches.length - 8) + ' more — keep typing</div>';
+    }
+    dropdown.innerHTML = html;
+    dropdown.style.display = 'block';
+};
+
+window._selectCountry = function(name) {
+    var input = document.getElementById('countryInput');
+    var dropdown = document.getElementById('countryDropdown');
+    if (input) input.value = name;
+    if (dropdown) dropdown.style.display = 'none';
+};
+
+// Signup country autocomplete (reuses _countryList)
+window._filterSignupCountry = function() {
+    var input = document.getElementById('signupCountryInput');
+    var dropdown = document.getElementById('signupCountryDropdown');
+    if (!input || !dropdown) return;
+    var query = input.value.trim().toLowerCase();
+    if (query.length === 0) { dropdown.style.display = 'none'; return; }
+    var matches = window._countryList.filter(function(c) { return c.toLowerCase().indexOf(query) !== -1; });
+    if (matches.length === 0 || (matches.length === 1 && matches[0].toLowerCase() === query)) { dropdown.style.display = 'none'; return; }
+    var html = '';
+    for (var i = 0; i < Math.min(matches.length, 8); i++) {
+        var m = matches[i];
+        var idx = m.toLowerCase().indexOf(query);
+        var highlighted = (typeof escapeHtml === 'function' ? escapeHtml(m.substring(0, idx)) : m.substring(0, idx)) +
+            '<strong style="color:var(--accent);">' + (typeof escapeHtml === 'function' ? escapeHtml(m.substring(idx, idx + query.length)) : m.substring(idx, idx + query.length)) + '</strong>' +
+            (typeof escapeHtml === 'function' ? escapeHtml(m.substring(idx + query.length)) : m.substring(idx + query.length));
+        html += '<div onmousedown="window._selectSignupCountry(\'' + m.replace(/'/g, "\\'") + '\')" style="padding:10px 14px;color:var(--text);font-size:0.9rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;" ontouchstart="this.style.background=\'rgba(247,147,26,0.15)\'" ontouchend="this.style.background=\'none\'" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="this.style.background=\'none\'">' + highlighted + '</div>';
+    }
+    if (matches.length > 8) html += '<div style="padding:8px 14px;color:var(--text-faint);font-size:0.75rem;text-align:center;">+' + (matches.length - 8) + ' more \u2014 keep typing</div>';
+    dropdown.innerHTML = html;
+    dropdown.style.display = 'block';
+};
+
+window._selectSignupCountry = function(name) {
+    var input = document.getElementById('signupCountryInput');
+    var dropdown = document.getElementById('signupCountryDropdown');
+    if (input) input.value = name;
+    if (dropdown) dropdown.style.display = 'none';
+};
+
+// Close country dropdowns when tapping outside
+document.addEventListener('click', function(e) {
+    [['countryDropdown','countryAutocomplete'],['signupCountryDropdown','signupCountryAutocomplete']].forEach(function(pair) {
+        var dropdown = document.getElementById(pair[0]);
+        var wrapper = document.getElementById(pair[1]);
+        if (dropdown && wrapper && !wrapper.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+});
 
 function showSettingsPage(tab) {
     try {
@@ -3433,13 +3512,13 @@ function showSettingsPage(tab) {
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP</div>' +
             '</div>';
 
-        // Country selector
+        // Country selector (custom autocomplete — datalist broken on iOS Safari)
         var _userCountry = currentUser ? currentUser.country || '' : '';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌍 Country</div>' +
-            '<div style="position:relative;">' +
-            '<input type="text" id="countryInput" list="countryList" value="' + escapeHtml(_userCountry) + '" placeholder="Start typing your country..." autocomplete="off" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
-            '<datalist id="countryList">' + window._countryOptions + '</datalist>' +
+            '<div style="position:relative;" id="countryAutocomplete">' +
+            '<input type="text" id="countryInput" value="' + escapeHtml(_userCountry) + '" placeholder="Start typing your country..." autocomplete="off" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="window._filterCountryList()" onfocus="window._filterCountryList()">' +
+            '<div id="countryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>' +
             '</div>' +
             '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Optional · Shown on your public profile</div>' +
             '</div>';
@@ -4974,6 +5053,12 @@ async function saveProfile() {
     
     var countryEl = document.getElementById('countryInput');
     var country = countryEl ? countryEl.value.trim().substring(0, 60) : '';
+    // Validate country against the known list — reject freeform text
+    if (country && window._countryList && window._countryList.indexOf(country) === -1) {
+        if (typeof showToast === 'function') showToast('\u26a0\ufe0f Please select a valid country from the dropdown list.');
+        countryEl.focus();
+        return;
+    }
     var updateData = { bio: bio, country: country };
     
     // Social links mapping
@@ -5276,6 +5361,12 @@ window.submitUsername = async function() {
         var email = emailInput ? emailInput.value.trim() : '';
         var signupCountryEl = document.getElementById('signupCountryInput');
         var signupCountry = signupCountryEl ? signupCountryEl.value.trim().substring(0, 60) : '';
+        // Validate country against the known list
+        if (signupCountry && window._countryList && window._countryList.indexOf(signupCountry) === -1) {
+            if (typeof showToast === 'function') showToast('\u26a0\ufe0f Please select a valid country from the dropdown list.');
+            signupCountryEl.focus();
+            return;
+        }
         var giveawayCheckbox = document.getElementById('giveawayCheckbox');
         var giveawayLn = document.getElementById('giveawayLnAddress');
         var enteredGiveaway = giveawayCheckbox && giveawayCheckbox.checked;

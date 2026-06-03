@@ -41,7 +41,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260603_1510" as="script">
+    <link rel="preload" href="bundle.js?v=20260603_1518" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -1109,17 +1109,10 @@
             <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" onkeydown="if(event.key==='Enter')submitUsername()">
             <input type="email" id="emailInput" placeholder="📧 Email (optional)" style="margin-top:0;width:100%;box-sizing:border-box;">
             <p style="color:#475569;font-size:0.75rem;margin:-8px 0 16px;">We'll never spam you. Only used if we launch future Bitcoin education updates.</p>
-            <div style="position:relative;margin-bottom:16px;">
-                <input type="text" id="signupCountryInput" list="signupCountryList" placeholder="🌍 Country (optional)" autocomplete="off" style="width:100%;padding:14px 18px;background:#020617;border:1px solid var(--border);border-radius:10px;color:#fff;font-size:1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;">
-                <datalist id="signupCountryList"></datalist>
+            <div style="position:relative;margin-bottom:16px;" id="signupCountryAutocomplete">
+                <input type="text" id="signupCountryInput" placeholder="🌍 Country (optional)" autocomplete="off" style="width:100%;padding:14px 18px;background:#020617;border:1px solid var(--border);border-radius:10px;color:#fff;font-size:1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;" oninput="window._filterSignupCountry&&window._filterSignupCountry()" onfocus="window._filterSignupCountry&&window._filterSignupCountry()">
+                <div id="signupCountryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#0a0a0a);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
             </div>
-            <script>
-            (function() {
-                var c = ['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia','Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Ivory Coast','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kosovo','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'];
-                var dl = document.getElementById('signupCountryList');
-                if (dl) dl.innerHTML = c.map(function(n) { return '<option value="' + n + '">'; }).join('');
-            })();
-            </script>
             <div id="giveawaySection" style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:left;">
                 <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;">
                     <input type="checkbox" id="giveawayCheckbox" style="width:20px;height:20px;accent-color:#f7931a;margin-top:2px;flex-shrink:0;cursor:pointer;">
@@ -1187,7 +1180,7 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260603_1510" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260603_1518" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260528_1251" defer></script>
     <script src="timechain-tv.js?v=20260602_2300" defer></script>
