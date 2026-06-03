@@ -2955,6 +2955,27 @@ window.updateNachoNameUI = function(name) {
     });
 };
 
+// Render leaderboard badge emoji — compact multi-emoji into a fixed-size cell
+function _lbBadgeEmoji(emoji) {
+    // Split emoji string into individual emoji characters (handles multi-byte emoji)
+    var chars = [];
+    var segs = typeof Intl !== 'undefined' && Intl.Segmenter
+        ? Array.from(new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(emoji)).map(function(s) { return s.segment; })
+        : null;
+    if (segs) { chars = segs; }
+    else {
+        // Fallback: split on emoji boundaries (regex for surrogate pairs + variation selectors + ZWJ)
+        var m = emoji.match(/\p{Emoji_Presentation}(\u200d\p{Emoji_Presentation})*/gu);
+        chars = m ? m : [emoji];
+    }
+    if (chars.length <= 1) return emoji;
+    // 2-3 emoji: render as a compact grid
+    var size = chars.length === 2 ? '0.6rem' : '0.5rem';
+    var gap = chars.length === 2 ? '0px' : '0px';
+    return '<span style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:' + gap + ';font-size:' + size + ';line-height:1;width:24px;">' +
+        chars.map(function(c) { return '<span>' + c + '</span>'; }).join('') + '</span>';
+}
+
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
     if (!lb) return;
@@ -3053,7 +3074,7 @@ async function toggleLeaderboard() {
             var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + lv.emoji + '</span>' +
+                '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
                 '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' XP</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
