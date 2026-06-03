@@ -2750,6 +2750,7 @@ window._raidTimerInterval = null;
 window._cleanupRaidBoss = function() {
     if (window._raidBossUnsub) { window._raidBossUnsub(); window._raidBossUnsub = null; }
     if (window._raidParticipantsUnsub) { window._raidParticipantsUnsub(); window._raidParticipantsUnsub = null; }
+    if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
     if (window._raidTimerInterval) { clearInterval(window._raidTimerInterval); window._raidTimerInterval = null; }
 };
 
@@ -2953,9 +2954,12 @@ function _renderRaidBossCard(container, boss) {
             '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">🏆 Community Prize</div>' +
             '<div style="font-size:0.8rem;color:var(--text);line-height:1.4;">Defeat the boss and the community earns an <strong style="color:var(--accent);">extra orange ticket giveaway for 21,000 sats!</strong></div>' +
         '</div>' +
-        // Participants list
+        // Participants list with tabs
         '<div>' +
-            '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">🏆 Top Raiders</div>' +
+            '<div style="display:flex;align-items:center;gap:0;margin-bottom:8px;">' +
+                '<button id="raidTabCurrent" onclick="window._switchRaidTab(\'current\')" style="flex:1;padding:8px 0;font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;border:none;border-bottom:2px solid #8b5cf6;background:none;color:#8b5cf6;cursor:pointer;font-family:inherit;transition:all 0.2s;">⚔️ Current Boss</button>' +
+                '<button id="raidTabAllTime" onclick="window._switchRaidTab(\'alltime\')" style="flex:1;padding:8px 0;font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-faint);cursor:pointer;font-family:inherit;transition:all 0.2s;">🏆 All Time</button>' +
+            '</div>' +
             '<div id="raidParticipants" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;">Loading...</div>' +
         '</div>' +
     '</div>';
@@ -2971,7 +2975,9 @@ function _renderRaidBossCard(container, boss) {
     // Start countdown timer
     _startRaidCountdown('raidTimer', endMs);
 
-    // Listen to participants
+    // Reset tab state and listen to current boss participants
+    window._raidActiveTab = 'current';
+    if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
     _listenRaidParticipants(boss._id);
 }
 
@@ -3034,6 +3040,82 @@ function _listenRaidParticipants(bossId) {
             el.innerHTML = html;
         }, function(err) {
             console.error('[RAID] Participants listener error:', err);
+        });
+}
+
+// ── Raid Tab Switching (Current Boss vs All Time) ──
+window._raidActiveTab = 'current';
+window._raidAllTimeUnsub = null;
+
+window._switchRaidTab = function(tab) {
+    if (tab === window._raidActiveTab) return;
+    window._raidActiveTab = tab;
+    var tabCur = document.getElementById('raidTabCurrent');
+    var tabAll = document.getElementById('raidTabAllTime');
+    if (tabCur) {
+        tabCur.style.borderBottomColor = tab === 'current' ? '#8b5cf6' : 'transparent';
+        tabCur.style.color = tab === 'current' ? '#8b5cf6' : 'var(--text-faint)';
+    }
+    if (tabAll) {
+        tabAll.style.borderBottomColor = tab === 'alltime' ? '#8b5cf6' : 'transparent';
+        tabAll.style.color = tab === 'alltime' ? '#8b5cf6' : 'var(--text-faint)';
+    }
+    var el = document.getElementById('raidParticipants');
+    if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading...</div>';
+
+    if (tab === 'current') {
+        // Stop all-time listener, re-enable current boss listener
+        if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
+        if (window._currentRaidBoss && window._currentRaidBoss._id) {
+            _listenRaidParticipants(window._currentRaidBoss._id);
+        }
+    } else {
+        // Stop current boss listener, start all-time query
+        if (window._raidParticipantsUnsub) { window._raidParticipantsUnsub(); window._raidParticipantsUnsub = null; }
+        _listenAllTimeRaiders();
+    }
+};
+
+function _listenAllTimeRaiders() {
+    if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
+    if (typeof db === 'undefined') return;
+
+    window._raidAllTimeUnsub = db.collection('users')
+        .where('raidDamageAllTime', '>', 0)
+        .orderBy('raidDamageAllTime', 'desc')
+        .limit(20)
+        .onSnapshot(function(snapshot) {
+            var el = document.getElementById('raidParticipants');
+            if (!el || window._raidActiveTab !== 'alltime') return;
+            if (snapshot.empty) {
+                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No all-time damage recorded yet.</div>';
+                return;
+            }
+            var html = '';
+            var rank = 0;
+            snapshot.docs.forEach(function(doc) {
+                rank++;
+                var u = doc.data();
+                var displayName = typeof escapeHtml === 'function' ? escapeHtml(u.displayName || u.username || 'Anonymous') : (u.displayName || u.username || 'Anonymous');
+                var dmg = u.raidDamageAllTime || 0;
+                var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
+                var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
+                var _uUid = doc.id;
+                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
+                        '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + _uUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                    '</div>' +
+                    '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;font-variant-numeric:tabular-nums;">' + dmg.toLocaleString() + ' dmg</span>' +
+                '</div>';
+            });
+            el.innerHTML = html;
+        }, function(err) {
+            console.error('[RAID] All-time raiders listener error:', err);
+            var el = document.getElementById('raidParticipants');
+            if (el && window._raidActiveTab === 'alltime') {
+                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Could not load all-time data.</div>';
+            }
         });
 }
 

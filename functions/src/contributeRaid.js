@@ -98,6 +98,11 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
   }
   await participantRef.set(updateData, { merge: true });
 
+  // Track all-time raid damage on the user doc for leaderboard
+  await db.collection('users').doc(uid).set({
+    raidDamageAllTime: admin.firestore.FieldValue.increment(amount)
+  }, { merge: true });
+
   // Recalculate total current from all participants
   const participantsSnap = await activeBossRef.collection('participants').get();
   let totalCurrent = 0;
