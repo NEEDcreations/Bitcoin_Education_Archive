@@ -49,12 +49,11 @@ window._tipManualConfirm=function(){
             if(vs)vs.innerHTML='<span style="color:#ef4444;">Could not verify — check your wallet to confirm payment went through.</span>';
         });
     }else{
-        // No verify URL — we can't confirm, just show a message
+        // No verify URL — can't confirm cryptographically, but still credit the user
         if(window._tipVerifyTimer){clearInterval(window._tipVerifyTimer);window._tipVerifyTimer=null;}
         window._tipVerifyActive=false;
-        var vs=document.getElementById("tipVerifyStatus");
-        if(vs)vs.innerHTML='<span style="color:#eab308;">⚠️ We can\'t verify this payment automatically. If you paid the invoice, the sats were sent directly to the recipient\'s wallet.</span>';
-        if(btn){btn.textContent="✅ Got it";btn.onclick=function(){var ov=document.getElementById("tipOverlay");if(ov)ov.remove();};}
+        // Credit daily challenge + stats even without verify URL (honor system for gamified XP)
+        if(typeof window._tipSuccessCallback==="function")window._tipSuccessCallback(amt,opts);
     }
 };
 window._tipSuccessCallback=function(amt,opts){
