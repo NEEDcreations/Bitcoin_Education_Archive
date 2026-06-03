@@ -6305,13 +6305,8 @@ function checkBadges() {
                 // We announce the badge + SF progress separately for the "not yet active" case.
                 if (typeof window.contributeSatoshiFavor === 'function') {
                     var _badgeUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                    window.contributeSatoshiFavor('badge_earned', badge.emoji + ' ' + badge.name).then(function(data) {
-                        if (!data) return;
-                        if (!data.favorActive && _badgeUsername && typeof window.nachoGlobalAnnounce === 'function') {
-                            var _ptsRem = 21 - (data.points || 0);
-                            window.nachoGlobalAnnounce('\uD83C\uDFC5 @' + _badgeUsername + ' earned the ' + badge.emoji + ' ' + badge.name + ' badge! +1 point toward Satoshi\'s Favor (' + _ptsRem + ' to go) \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
-                        }
-                    }).catch(function() {});
+                    // satoshi-favor.js handles the GC announcement for badge_earned
+                    window.contributeSatoshiFavor('badge_earned', badge.emoji + ' ' + badge.name).catch(function() {});
                 }
 
                 // Queue badge popup if Nacho is busy or bubble is open
