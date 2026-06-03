@@ -53,7 +53,7 @@
         if (!favorState) return null;
         // Return a copy that reflects client-side expiry
         if (favorState.favorActive && !isFavorEffectivelyActive()) {
-            return { points: 0, favorActive: false, bonusMinutes: 0 };
+            return Object.assign({}, favorState, { favorActive: false, bonusMinutes: 0 });
         }
         return favorState;
     };
@@ -98,7 +98,7 @@
 
     function buildBannerHTML(context) {
         const isActive = isFavorEffectivelyActive();
-        const points = isActive ? (favorState.points || 0) : 0;
+        const points = favorState.points || 0;
         const isCompact = context === 'chat';
 
         if (isActive) {
