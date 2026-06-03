@@ -25421,22 +25421,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
-            // Vertical Swipes (Up/Down) - "TikTok style"
-            // Only trigger if at boundaries to not interfere with content scrolling
-            if (absY > 180 && absY > absX * 2.5) {
-                var isAtTop = mainEl.scrollTop <= 5;
-                var isAtBottom = mainEl.scrollHeight - mainEl.scrollTop - mainEl.clientHeight <= 5;
-
-                if (dy > 0 && isAtTop) {
-                    // Swipe Down at Top → Previous
-                    goPrev();
-                    if (typeof haptic === 'function') haptic('light');
-                } else if (dy < 0 && isAtBottom) {
-                    // Swipe Up at Bottom → Next
-                    goNext();
-                    if (typeof haptic === 'function') haptic('light');
-                }
-            }
+            // Vertical swipes disabled — pull-down was triggering unwanted channel navigation
         }, { passive: true });
 
         // Two-finger tap → Nacho Mode
