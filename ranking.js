@@ -2252,6 +2252,11 @@ function updateGuestPointsBanner() {
         if (banner) banner.style.display = 'none';
         return;
     }
+    // Mobile: don't show old guest banner — user info is in the mobile top bar
+    if (window.innerWidth <= 900) {
+        if (banner) banner.style.display = 'none';
+        return;
+    }
     var pts = currentUser.points || 0;
     if (pts < 1) {
         if (banner) banner.style.display = 'none';
@@ -2465,6 +2470,15 @@ function updateUserDisplay(lv) {
     }
 
     if (isAnon || (auth.currentUser && auth.currentUser.isAnonymous && !hasUsername)) {
+        // Mobile: hide the fixed overlay — user info already lives in the mobile top bar.
+        // Anonymous users on mobile see their stats in #mobileUserInfo, no need for the
+        // intrusive bottom sign-up banner.
+        var _isMob = window.innerWidth <= 900;
+        if (_isMob) {
+            el.setAttribute('data-mob-hidden', '1');
+            el.style.display = 'none';
+            return;
+        }
         // If user dismissed the banner this session, keep it hidden.
         // Use a CSS class (which also has !important) so the "display:flex !important"
         // mobile rule can't resurrect it.
@@ -2476,7 +2490,6 @@ function updateUserDisplay(lv) {
         // Otherwise ensure the hide class is removed (re-expanded state)
         el.classList.remove('user-hidden');
         // Consolidated Metric Dashboard + Guest Sign-in
-        var _isMob = window.innerWidth <= 900;
         el.setAttribute('data-anon', '1');
         
         // NEW POSITIONING: Under sidebar branding for tablet/laptop
@@ -2527,6 +2540,7 @@ function updateUserDisplay(lv) {
     } else {
         // Signed in user
         el.removeAttribute('data-anon');
+        el.removeAttribute('data-mob-hidden');
         var _isMob = window.innerWidth <= 900;
 
         // Mobile: hide the fixed overlay entirely — user info lives in the mobile-bar instead
