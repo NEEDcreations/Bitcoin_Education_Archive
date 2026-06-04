@@ -5346,9 +5346,10 @@ window.hideUsernamePrompt = function() {
 };
 
 window.submitUsername = async function() {
+    try {
     // Check if this is the INITIAL SIGNUP modal or the settings username change
     var input = document.getElementById('usernameInput') || document.getElementById('newUsername');
-    if (!input) return;
+    if (!input) { console.error('[submitUsername] No input found'); return; }
     var name = input.value.trim();
     if (!name) { showToast('Please enter a username!'); return; }
     if (name.length < 2) { showToast('Username must be at least 2 characters'); return; }
@@ -5415,6 +5416,10 @@ window.submitUsername = async function() {
     } catch(e) {
         if (status) status.innerHTML = '❌ Error saving';
         showToast('Error updating username. Try again.');
+    }
+    } catch(topErr) {
+        console.error('[submitUsername] Uncaught error:', topErr);
+        if (typeof showToast === 'function') showToast('Error: ' + (topErr.message || 'Unknown error. Please try again.'));
     }
 };
 
