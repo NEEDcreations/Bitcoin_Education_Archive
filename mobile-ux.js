@@ -303,6 +303,7 @@ window.renderRaidBossHome = function() {
             var now = Date.now();
             var activeBoss = null;
             var upcomingBoss = null;
+            var defeatedBoss = null;
 
             snap.forEach(function(doc) {
                 var d = doc.data();
@@ -315,17 +316,19 @@ window.renderRaidBossHome = function() {
                     if (!upcomingBoss || startMs < (upcomingBoss.startTime && upcomingBoss.startTime.toDate ? upcomingBoss.startTime.toDate().getTime() : 0)) {
                         upcomingBoss = d;
                     }
+                } else if (d.defeated) {
+                    if (!defeatedBoss) defeatedBoss = d;
                 }
             });
 
-            _renderRaidHomeCard(el, activeBoss, upcomingBoss);
+            _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss);
         }, function() { el.style.display = 'none'; });
 };
 
-function _renderRaidHomeCard(el, activeBoss, upcomingBoss) {
+function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {
     if (window._raidHomeTimer) { clearInterval(window._raidHomeTimer); window._raidHomeTimer = null; }
 
-    if (!activeBoss && !upcomingBoss) { el.style.display = 'none'; return; }
+    if (!activeBoss && !upcomingBoss && !defeatedBoss) { el.style.display = 'none'; return; }
     el.style.display = '';
 
     var openQH = "if(typeof showQuestHub==='function'){showQuestHub();setTimeout(function(){if(typeof window._questHubTab!=='undefined'){window._questHubTab='raid';if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();}},300)}";
@@ -386,6 +389,21 @@ function _renderRaidHomeCard(el, activeBoss, upcomingBoss) {
             '</div></div>';
 
         window._raidUpcomingStartMs = startMs2;
+    }
+
+    // Defeated boss victory banner on home card
+    if (defeatedBoss && !activeBoss) {
+        var dName = typeof escapeHtml === 'function' ? escapeHtml(defeatedBoss.name || 'Raid Boss') : (defeatedBoss.name || 'Raid Boss');
+        html = '<div onclick="' + openQH + '" style="background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.04));border:1px solid #22c55e;border-radius:12px;padding:12px 16px;cursor:pointer;' + (upcomingBoss ? 'margin-bottom:8px;' : '') + '">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+                '<span style="font-size:1.5rem;">\uD83D\uDC80</span>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="color:#22c55e;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">\uD83C\uDF89 BOSS DEFEATED!</div>' +
+                    '<div style="color:var(--text);font-size:0.85rem;font-weight:700;">' + dName + ' has fallen!</div>' +
+                    '<div style="color:var(--accent);font-size:0.72rem;font-weight:600;margin-top:2px;">\uD83C\uDFC6 Orange ticket drawing this Friday!</div>' +
+                '</div>' +
+                '<span style="font-size:1rem;color:var(--text-muted);flex-shrink:0;">\u203A</span>' +
+            '</div></div>' + html;
     }
 
     el.innerHTML = html;
