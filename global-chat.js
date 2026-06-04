@@ -1407,7 +1407,8 @@ window.showGifPicker = function() {
 
     var picker = document.createElement('div');
     picker.id = 'gifPicker';
-    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    var _isDark = document.body.getAttribute('data-theme') !== 'light';
+    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
     picker.innerHTML =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
@@ -1584,7 +1585,8 @@ window.showEmojiPicker = function() {
 
     var picker = document.createElement('div');
     picker.id = 'gcEmojiPicker';
-    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:320px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    var _isDark = document.body.getAttribute('data-theme') !== 'light';
+    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:320px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
     var cats = Object.keys(EMOJI_CATEGORIES);
     var tabHtml = '<div style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;">';
