@@ -239,6 +239,7 @@ function renderGlobalChat() {
                     '<div style="display:flex;gap:6px;align-items:center;">' +
                         '<button onclick="sendGlobalChat()" style="padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
                         '<input type="text" id="globalChatInput" placeholder="Say something..." maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;min-width:0;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;" autocomplete="off">' +
+                        '<button onclick="showEmojiPicker()" style="padding:6px;background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Emoji">😀</button>' +
                         '<button onclick="chatUploadImage()" style="padding:6px;background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Upload Image">📷</button>' +
                         '<button onclick="showGifPicker()" style="padding:6px;background:none;border:none;font-size:0.75rem;font-weight:700;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Send GIF">GIF</button>' +
                     '</div>' +
@@ -703,6 +704,9 @@ function handlePaste(e) {
 
 // ---- Send Message ----
 window.sendGlobalChat = function() {
+    // Dismiss pickers on send
+    var _ep = document.getElementById('gcEmojiPicker'); if (_ep) _ep.remove();
+    var _gp = document.getElementById('gifPicker'); if (_gp) _gp.remove();
     // Check for pending image/GIF — send it (with optional caption text)
     if (window._chatPendingImage) {
         var imgData = window._chatPendingImage;
@@ -1215,6 +1219,7 @@ function renderOverlayChat() {
                     '<div style="display:flex;gap:4px;align-items:center;">' +
                         '<button onclick="sendGlobalChat()" style="padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
                         '<input type="text" id="globalChatInput" placeholder="Say something..." maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;min-width:0;padding:10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;" autocomplete="off">' +
+                        '<button onclick="showEmojiPicker()" style="padding:6px;background:none;border:none;font-size:1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Emoji">😀</button>' +
                         '<button onclick="chatUploadImage()" style="padding:6px;background:none;border:none;font-size:1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Upload Image">📷</button>' +
                         '<button onclick="showGifPicker()" style="padding:6px;background:none;border:none;font-size:0.7rem;font-weight:700;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Send GIF">GIF</button>' +
                     '</div>' +
@@ -1563,6 +1568,79 @@ window.sendGifUrl = function() {
         return;
     }
     previewGifBeforeSend(url);
+};
+
+// ---- Emoji Picker (for message input) ----
+var EMOJI_CATEGORIES = {
+    'Smileys': ['😀','😂','🤣','😊','😍','🥰','😎','🤩','😤','😡','😢','😭','🥺','😱','🤯','🤔','🤫','🤭','😏','😈','💀','☠️','🤡','👻','😴','🥳','😇','🙄','😬','😮‍💨'],
+    'Gestures': ['👍','👎','👏','🙌','🤝','🤜🤛','✊','👊','🫡','💪','🙏','👀','🫂','🤷','🤦','✌️','🤘','👌','🖕','👋','🫶'],
+    'Bitcoin': ['₿','⚡','⛏️','🔑','🧡','💎','🚀','🐋','📈','📉','🪙','🛡️','🔒','🗝️','💰','🏦','💸','🐂','🐻','📊'],
+    'Objects': ['🔥','💯','🎉','🎊','🏆','🥇','🎯','💡','⭐','❤️','🧡','💛','💚','💙','💜','🖤','❌','✅','⬆️','⬇️','🍿','🍕','🍺','🎵','📱','💻','🎮','🎲','⏰','📢']
+};
+
+window.showEmojiPicker = function() {
+    var old = document.getElementById('gcEmojiPicker');
+    if (old) { old.remove(); return; }
+
+    var picker = document.createElement('div');
+    picker.id = 'gcEmojiPicker';
+    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:320px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+
+    var cats = Object.keys(EMOJI_CATEGORIES);
+    var tabHtml = '<div style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;">';
+    cats.forEach(function(cat, i) {
+        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : '🔥';
+        tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
+    });
+    tabHtml += '<button onclick="document.getElementById(\'gcEmojiPicker\').remove()" style="margin-left:auto;padding:4px 8px;background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;flex-shrink:0;">\u2715</button></div>';
+
+    picker.innerHTML = tabHtml + '<div id="emojiGrid" style="display:flex;flex-wrap:wrap;gap:2px;overflow-y:auto;max-height:240px;justify-content:center;"></div>';
+
+    // Insert before the chat input container
+    var chatWrap = document.getElementById('globalChatInput');
+    if (chatWrap) {
+        var container = chatWrap.closest('[style*="flex-shrink"]') || chatWrap.parentElement.parentElement.parentElement;
+        container.insertBefore(picker, container.firstChild);
+    } else {
+        document.body.appendChild(picker);
+    }
+
+    window._switchEmojiTab(cats[0]);
+};
+
+window._switchEmojiTab = function(cat) {
+    var grid = document.getElementById('emojiGrid');
+    if (!grid) return;
+    var emojis = EMOJI_CATEGORIES[cat] || [];
+    var html = '';
+    emojis.forEach(function(e) {
+        html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
+    });
+    grid.innerHTML = html;
+
+    // Update tab styles
+    var cats = Object.keys(EMOJI_CATEGORIES);
+    cats.forEach(function(c, i) {
+        var tab = document.getElementById('emojiTab_' + i);
+        if (tab) {
+            tab.style.background = (c === cat) ? 'var(--accent-bg)' : 'none';
+            tab.style.borderColor = (c === cat) ? 'var(--accent)' : 'var(--border)';
+        }
+    });
+};
+
+window._insertEmoji = function(emoji) {
+    var input = document.getElementById('globalChatInput');
+    if (!input) return;
+    var start = input.selectionStart || input.value.length;
+    var end = input.selectionEnd || start;
+    input.value = input.value.substring(0, start) + emoji + input.value.substring(end);
+    input.focus();
+    var newPos = start + emoji.length;
+    input.setSelectionRange(newPos, newPos);
+    // Update char counter
+    var counter = document.getElementById('globalChatCharCount');
+    if (counter) counter.textContent = input.value.length;
 };
 
 // ---- Image Upload ----
