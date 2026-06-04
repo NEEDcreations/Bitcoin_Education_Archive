@@ -13153,7 +13153,9 @@ window._cleanupRaidBoss = function() {
     if (window._raidBossUnsub) { window._raidBossUnsub(); window._raidBossUnsub = null; }
     if (window._raidParticipantsUnsub) { window._raidParticipantsUnsub(); window._raidParticipantsUnsub = null; }
     if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
+    if (window._raidDamageDealersUnsub) { window._raidDamageDealersUnsub(); window._raidDamageDealersUnsub = null; }
     if (window._raidTimerInterval) { clearInterval(window._raidTimerInterval); window._raidTimerInterval = null; }
+    window._raidDamageDealersOpen = false;
 };
 
 function _renderRaidTab(body) {
@@ -13214,6 +13216,7 @@ window._loadRaidBoss = function() {
             // If there's a recently defeated boss AND an upcoming boss, show both
             if (defeatedBoss && (upcomingBoss || activeBoss) && !activeBoss) {
                 // Show victory banner + upcoming boss
+                window._defeatedBossId = defeatedBoss._id;
                 var victoryHtml = _raidVictoryBanner(defeatedBoss);
                 container.innerHTML = victoryHtml;
                 var upcomingDiv = document.createElement('div');
@@ -13261,6 +13264,8 @@ function _raidVictoryBanner(boss) {
                 '<div style="font-size:0.78rem;font-weight:800;color:var(--accent);">\uD83C\uDFC6 Community reward unlocked!</div>' +
                 '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">Extra orange ticket drawing for <strong style=\"color:var(--accent);\">21,000 sats</strong> — <strong>this Friday night!</strong></div>' +
             '</div>' +
+            '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:12px;padding:10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
+            '<div id="raidDamageDealers" style="display:none;margin-top:8px;"></div>' +
         '</div>' +
     '</div>';
 }
@@ -13341,8 +13346,11 @@ function _renderRaidBossCard(container, boss) {
                 '<div style="font-size:0.85rem;font-weight:800;color:#22c55e;">\uD83C\uDF89 Community reward unlocked!</div>' +
                 '<div style="font-size:0.78rem;color:var(--text);margin-top:2px;">Extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
             '</div>' +
-            winnersHtml +
+            '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:16px;padding:12px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#8b5cf6;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
+            '<div id="raidDamageDealers" style="display:none;margin-top:12px;"></div>' +
         '</div>';
+        // Store boss ID for lazy-loading damage dealers
+        window._defeatedBossId = boss._id;
         return;
     }
 
@@ -13476,6 +13484,72 @@ function _listenRaidParticipants(bossId) {
             console.error('[RAID] Participants listener error:', err);
         });
 }
+
+// ── Toggle Damage Dealers on Defeated Boss Card ──
+window._raidDamageDealersOpen = false;
+window._raidDamageDealersUnsub = null;
+
+window._toggleRaidDamageDealers = function() {
+    var container = document.getElementById('raidDamageDealers');
+    var btn = document.getElementById('raidDamageDealersBtn');
+    if (!container) return;
+
+    window._raidDamageDealersOpen = !window._raidDamageDealersOpen;
+
+    if (!window._raidDamageDealersOpen) {
+        container.style.display = 'none';
+        if (btn) btn.textContent = '\u2694\uFE0F Top Damage Dealers';
+        if (window._raidDamageDealersUnsub) { window._raidDamageDealersUnsub(); window._raidDamageDealersUnsub = null; }
+        return;
+    }
+
+    container.style.display = 'block';
+    if (btn) btn.textContent = '\u25B2 Hide Damage Dealers';
+    container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading...</div>';
+
+    // Load from current boss (defeated) or use stored ID
+    var bossId = (window._currentRaidBoss && window._currentRaidBoss._id) ? window._currentRaidBoss._id : window._defeatedBossId;
+    if (!bossId || typeof db === 'undefined') {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No damage data available.</div>';
+        return;
+    }
+
+    window._raidDamageDealersUnsub = db.collection('raid_bosses').doc(bossId)
+        .collection('participants')
+        .orderBy('contributed', 'desc')
+        .limit(30)
+        .onSnapshot(function(snapshot) {
+            var el = document.getElementById('raidDamageDealers');
+            if (!el) return;
+            if (snapshot.empty) {
+                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No damage recorded for this boss.</div>';
+                return;
+            }
+            var html = '';
+            var rank = 0;
+            snapshot.docs.forEach(function(doc) {
+                rank++;
+                var p = doc.data();
+                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.displayName || p.username || 'Anonymous') : (p.displayName || p.username || 'Anonymous');
+                var contributed = p.contributed || 0;
+                var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
+                var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
+                var pUid = doc.id;
+                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;margin-bottom:4px;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
+                        '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                    '</div>' +
+                    '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
+                '</div>';
+            });
+            el.innerHTML = html;
+        }, function(err) {
+            console.error('[RAID] Damage dealers listener error:', err);
+            var el = document.getElementById('raidDamageDealers');
+            if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Failed to load damage data.</div>';
+        });
+};
 
 // ── Raid Tab Switching (Current Boss vs All Time) ──
 window._raidActiveTab = 'current';
