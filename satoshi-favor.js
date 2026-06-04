@@ -425,6 +425,12 @@
                 howEarned = '@' + username + ' earned a badge: ' + (detail || '\uD83C\uDFC5') + '!';
             }
 
+            // Calculate bonus minutes added based on source (3 min per point)
+            var SF_BONUS_PER_POINT = 3;
+            var sourcePoints = { 'quiz_daily_3': 1, 'level_up': 1, 'level_up_5': 5, 'level_up_10': 10, 'badge_earned': 1 };
+            var earnedPoints = sourcePoints[source] || 1;
+            var bonusAdded = earnedPoints * SF_BONUS_PER_POINT;
+
             if (data.favorActive && !wasFavorActive) {
                 // Just activated!
                 var activateMsg = '\u26CF\uFE0F SATOSHI\'S FAVOR IS NOW ACTIVE!';
@@ -432,15 +438,16 @@
                 activateMsg += ' Mine now for 60 minutes! \u27A1\uFE0F [Satoshi\'s Favor](#favor)';
                 window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, '');
             } else if (data.favorActive && wasFavorActive) {
-                // Extension while active
+                // Extension while active — show actual bonus minutes added
                 if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +3 bonus minutes \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +' + bonusAdded + ' bonus minutes \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                 }
             } else if (!data.favorActive) {
                 // Not active yet — announce progress toward activation
                 var ptsRem = 21 - (data.points || 0);
                 if (ptsRem > 0 && howEarned && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' +1 toward Satoshi\'s Favor! ' + ptsRem + ' more to go \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
+                    var ptLabel = earnedPoints > 1 ? ('+' + earnedPoints) : '+1';
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' ' + ptLabel + ' toward Satoshi\'s Favor! ' + ptsRem + ' more to go \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                 }
             }
 
