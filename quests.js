@@ -1371,6 +1371,41 @@ function initQuests() {
     }
 }
 
+// ── Daily Activity Tracking (Quiz + Trivia + Poll → SF point) ──
+function _getDailyActivities() {
+    var todayKey = new Date().toISOString().split('T')[0];
+    var state = safeJSON('btc_daily_activities', {});
+    if (state.date !== todayKey) state = { date: todayKey, quiz: false, trivia: false, poll: false, sfAwarded: false };
+    return state;
+}
+
+function _markDailyActivity(type) {
+    var state = _getDailyActivities();
+    state[type] = true;
+    localStorage.setItem('btc_daily_activities', JSON.stringify(state));
+}
+
+function _checkDailyAllThree() {
+    var state = _getDailyActivities();
+    if (state.quiz && state.trivia && state.poll && !state.sfAwarded) {
+        state.sfAwarded = true;
+        localStorage.setItem('btc_daily_activities', JSON.stringify(state));
+        // Sync to Firestore for server-side validation
+        var todayKey = new Date().toISOString().split('T')[0];
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                dailyAllThreeDate: todayKey,
+                dailyQuizDone: true,
+                dailyTriviaDone: true,
+                dailyPollDone: true
+            }).catch(function() {});
+        }
+        if (typeof window.contributeSatoshiFavor === 'function') {
+            window.contributeSatoshiFavor('daily_all_three');
+        }
+    }
+}
+
 async function loadCompletedQuests(uid) {
     if (!db) return;
     try {
@@ -1408,8 +1443,8 @@ function generateAndShowQuest(manual, targetChannelId) {
     if (questLog.date !== today) {
         questLog = { date: today, count: 0 };
     }
-    if (questLog.count >= 3) {
-        if (manual && typeof showToast === 'function') showToast('⏰ You\'ve completed 3 quests today! Come back tomorrow for more.');
+    if (questLog.count >= 1) {
+        if (manual && typeof showToast === 'function') showToast('⏰ You\'ve completed your daily quiz! Retake it for a perfect score or come back tomorrow.');
         return;
     }
 
@@ -1783,13 +1818,9 @@ async function submitQuest() {
         qLog.count++;
         localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
 
-        // Satoshi's Favor: 3 daily quests completed = 1 point
-        if (qLog.count === 3) {
-            // contributeSatoshiFavor handles all Nacho announcements internally
-            if (typeof window.contributeSatoshiFavor === 'function') {
-                window.contributeSatoshiFavor('quiz_daily_3');
-            }
-        }
+        // Mark quiz done for the day and check if all 3 daily activities complete
+        _markDailyActivity('quiz');
+        _checkDailyAllThree();
 
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
@@ -1961,7 +1992,7 @@ function showQuestFinalResults() {
             '<div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
             (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' XP earned!</div>' : '') +
             recHtml +
-            (score < 3 ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retry Quest' + (isRetry ? '' : ' for 25 pts') + '</button>' : '') +
+            (score < 5 ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retake Quiz' + (isRetry ? '' : ' for 25 pts') + '</button>' : '') +
             '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
     }
 
@@ -2396,7 +2427,7 @@ function _renderQuizTab(body) {
     body.innerHTML = '<div style="text-align:center;padding:16px 0;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">📝</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Quiz Quests</div>' +
-        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">5-question quizzes on Bitcoin topics</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">1 daily quiz — retake until you ace it!</div>' +
         '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' +
             '<div style="text-align:center;"><div style="font-size:1.2rem;font-weight:800;color:var(--accent);">' + completedToday + '</div><div style="font-size:0.7rem;color:var(--text-faint);">Today</div></div>' +
             '<div style="text-align:center;"><div style="font-size:1.2rem;font-weight:800;color:var(--heading);">' + completed + '</div><div style="font-size:0.7rem;color:var(--text-faint);">All Time</div></div>' +
@@ -2510,6 +2541,10 @@ window.triviaAnswer = function(chosenIdx) {
     // Raid Boss: trivia + XP
     if (isCorrect && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
     if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(xp);
+
+    // Mark trivia done for daily all-three check
+    _markDailyActivity('trivia');
+    _checkDailyAllThree();
 
     // Also sync to Firestore for signed-in users
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
@@ -2701,6 +2736,10 @@ window.pollVote = function(chosenIdx) {
             if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
             if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(50);
             if (typeof showToast === 'function') showToast('📊 Vote recorded! +50 XP', 3000);
+
+            // Mark poll done for daily all-three check
+            _markDailyActivity('poll');
+            _checkDailyAllThree();
 
             // Track on user doc
             if (!auth.currentUser.isAnonymous) {

@@ -413,8 +413,8 @@
 
             // Build description of what earned the point
             var howEarned = '';
-            if (source === 'quiz_daily_3') {
-                howEarned = '@' + username + ' completed all 3 daily quests!';
+            if (source === 'daily_all_three') {
+                howEarned = '@' + username + ' completed the daily quiz, trivia & poll! ➡️ [Quest Hub](#quests)';
             } else if (source === 'level_up') {
                 howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
             } else if (source === 'level_up_5') {
@@ -427,7 +427,7 @@
 
             // Calculate bonus minutes added based on source (3 min per point)
             var SF_BONUS_PER_POINT = 3;
-            var sourcePoints = { 'quiz_daily_3': 1, 'level_up': 1, 'level_up_5': 5, 'level_up_10': 10, 'badge_earned': 1 };
+            var sourcePoints = { 'daily_all_three': 1, 'level_up': 1, 'level_up_5': 5, 'level_up_10': 10, 'badge_earned': 1 };
             var earnedPoints = sourcePoints[source] || 1;
             var bonusAdded = earnedPoints * SF_BONUS_PER_POINT;
 

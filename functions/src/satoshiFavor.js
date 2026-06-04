@@ -20,7 +20,7 @@ const POINTS_TO_ACTIVATE = 21;
 
 // Point values by source
 const POINT_VALUES = {
-  'quiz_daily_3': 1,
+  'daily_all_three': 1,
   'level_up': 1,
   'level_up_5': 5,
   'level_up_10': 10,
@@ -92,8 +92,8 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
 
   // Build contributor key for dedup
   let contributorKey;
-  if (source === 'quiz_daily_3') {
-    contributorKey = `${uid}_${today}_quiz`;
+  if (source === 'daily_all_three') {
+    contributorKey = `${uid}_${today}_allthree`;
   } else {
     // For level-ups, use the detail (level name) for dedup
     const levelName = detail || source;
@@ -102,20 +102,19 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
 
   const contributorRef = stateRef.collection('contributors').doc(contributorKey);
 
-  // Server-side validation for quiz_daily_3
-  if (source === 'quiz_daily_3') {
+  // Server-side validation for daily_all_three
+  if (source === 'daily_all_three') {
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) {
       throw new functions.https.HttpsError('failed-precondition', 'User profile not found.');
     }
     const userData = userDoc.data();
-    const questsToday = userData.questsCompletedToday || 0;
-    const lastQuestDate = userData.lastQuestDate || '';
+    const allThreeDate = userData.dailyAllThreeDate || '';
 
-    if (questsToday < 3 || lastQuestDate !== today) {
+    if (allThreeDate !== today) {
       throw new functions.https.HttpsError(
         'failed-precondition',
-        'Must complete 3 quests today to contribute via quiz_daily_3.'
+        'Must complete daily quiz, trivia, and poll to earn Satoshi\'s Favor.'
       );
     }
   }
