@@ -416,6 +416,10 @@ window.forumViewPost = async function(postId, fromPopState) {
         // Reply box
         if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;">' +
+                '<div id="forumReplyIndicator" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:8px;margin-bottom:8px;">' +
+                    '<span style="font-size:0.8rem;color:var(--accent);font-weight:600;flex:1;"></span>' +
+                    '<button onclick="window.forumCancelReplyTo()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;touch-action:manipulation;" title="Cancel reply">\u2715</button>' +
+                '</div>' +
                 '<textarea id="forumReplyInput" rows="3" maxlength="1000" placeholder="Write a reply..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;min-height:70px;-webkit-appearance:none;"></textarea>' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
                     '<span id="forumReplyStatus" style="font-size:0.8rem;flex:1;min-width:0;"></span>' +
@@ -458,26 +462,63 @@ async function forumLoadReplies(postId) {
             return;
         }
 
-        var html = '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">' + replies.length + ' ' + (replies.length === 1 ? 'reply' : 'replies') + '</div>';
+        // Build a threaded view: top-level replies with their children nested below
+        var topLevel = [];
+        var childMap = {}; // parentReplyId -> [replies]
         replies.forEach(function(r) {
-            var rlv = typeof getLevel === 'function' ? getLevel(r.authorPoints || 0) : { emoji: '🟢' };
+            if (r.parentReplyId) {
+                if (!childMap[r.parentReplyId]) childMap[r.parentReplyId] = [];
+                childMap[r.parentReplyId].push(r);
+            } else {
+                topLevel.push(r);
+            }
+        });
+
+        var html = '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">' + replies.length + ' ' + (replies.length === 1 ? 'reply' : 'replies') + '</div>';
+
+        function _renderReplyCard(r, isNested) {
+            var rlv = typeof getLevel === 'function' ? getLevel(r.authorPoints || 0) : { emoji: '\uD83D\uDFE2' };
             var hasVotedR = r.voters && auth && auth.currentUser && r.voters.indexOf(auth.currentUser.uid) !== -1;
             var bodyHtml = fEsc(r.body).replace(/\n/g, '<br>');
             bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
             bodyHtml = forumRenderMentions(bodyHtml);
-
             var canDeleteReply = (auth && auth.currentUser && r.authorId === auth.currentUser.uid) || isForumAdmin();
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;">' +
+            var canReply = auth && auth.currentUser && !auth.currentUser.isAnonymous;
+            var replyToLabel = r.parentAuthorName ? '<div style="font-size:0.7rem;color:var(--accent);margin-bottom:4px;">\u21A9 ' + fEsc(r.parentAuthorName) + '</div>' : '';
+            var indent = isNested ? 'margin-left:24px;border-left:2px solid var(--accent);' : '';
+            var out = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;' + indent + '">' +
+                replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
                     '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;transition:0.2s;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
-                    '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">👍 ' + (r.upvotes || 0) + '</button>' +
-                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + r.postId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">🗑️</button>' : '') +
+                    '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
+                    (canReply ? '<button data-reply-id="' + r.id + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
+                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + r.postId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
                 '</div>' +
             '</div>';
+            return out;
+        }
+
+        topLevel.forEach(function(r) {
+            html += _renderReplyCard(r, false);
+            // Render children (one level deep)
+            var children = childMap[r.id] || [];
+            children.forEach(function(child) {
+                html += _renderReplyCard(child, true);
+            });
+        });
+
+        // Render orphaned nested replies whose parent was deleted (show as top-level)
+        Object.keys(childMap).forEach(function(parentId) {
+            var parentExists = topLevel.some(function(t) { return t.id === parentId; });
+            if (!parentExists) {
+                childMap[parentId].forEach(function(orphan) {
+                    html += _renderReplyCard(orphan, false);
+                });
+            }
         });
 
         container.innerHTML = html;
@@ -658,6 +699,28 @@ window.forumSubmitPost = async function() {
     }
 };
 
+// ---- Reply to Reply ----
+window._forumReplyingTo = null; // { replyId, authorName }
+
+window.forumReplyToReply = function(replyId, authorName) {
+    window._forumReplyingTo = { replyId: replyId, authorName: authorName };
+    var indicator = document.getElementById('forumReplyIndicator');
+    if (indicator) {
+        indicator.style.display = 'flex';
+        indicator.querySelector('span').textContent = '\u21A9 Replying to ' + authorName;
+    }
+    var input = document.getElementById('forumReplyInput');
+    if (input) { input.focus(); input.placeholder = 'Reply to ' + authorName + '...'; }
+};
+
+window.forumCancelReplyTo = function() {
+    window._forumReplyingTo = null;
+    var indicator = document.getElementById('forumReplyIndicator');
+    if (indicator) indicator.style.display = 'none';
+    var input = document.getElementById('forumReplyInput');
+    if (input) input.placeholder = 'Write a reply...';
+};
+
 // ---- Submit Reply ----
 window.forumSubmitReply = async function(postId) {
     // [AUDIT FIX] Double-submit protection
@@ -665,16 +728,16 @@ window.forumSubmitReply = async function(postId) {
     window._forumReplySubmitting = true;
     var status = document.getElementById('forumReplyStatus');
     var input = document.getElementById('forumReplyInput');
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || !input) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || !input) { window._forumReplySubmitting = false; return; }
 
     var body = input.value.trim();
     if (!body || body.length < 2) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Reply is too short</span>';
-        return;
+        window._forumReplySubmitting = false; return;
     }
     if (!isCleanText(body)) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Reply contains inappropriate language</span>';
-        return;
+        window._forumReplySubmitting = false; return;
     }
 
     if (status) status.innerHTML = '<span style="color:var(--text-muted);">Posting...</span>';
@@ -683,7 +746,7 @@ window.forumSubmitReply = async function(postId) {
         var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
         var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
 
-        await db.collection('forum_replies').add({
+        var replyData = {
             postId: postId,
             body: body.substring(0, 1000),
             authorId: auth.currentUser.uid,
@@ -692,17 +755,38 @@ window.forumSubmitReply = async function(postId) {
             upvotes: 0,
             voters: [],
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+
+        // Thread support: if replying to another reply, include parent info
+        var replyingTo = window._forumReplyingTo;
+        if (replyingTo && replyingTo.replyId) {
+            replyData.parentReplyId = replyingTo.replyId;
+            replyData.parentAuthorName = replyingTo.authorName || '';
+        }
+
+        await db.collection('forum_replies').add(replyData);
 
         // Increment reply count
         await db.collection('forum_posts').doc(postId).update({
             replyCount: firebase.firestore.FieldValue.increment(1)
         });
 
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
-        // Notify post author
-        if (forumCurrentPost && forumCurrentPost.authorId && typeof sendNotification === 'function') {
-            var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+        if (typeof awardPoints === 'function') awardPoints(5, '\uD83D\uDCAC Forum reply');
+        // Notify post author (for top-level replies) or parent reply author (for nested)
+        var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+        if (replyingTo && replyingTo.replyId) {
+            // Notify the person being replied to (look up their reply doc)
+            try {
+                var parentReplyDoc = await db.collection('forum_replies').doc(replyingTo.replyId).get();
+                if (parentReplyDoc.exists && parentReplyDoc.data().authorId && typeof sendNotification === 'function') {
+                    sendNotification(parentReplyDoc.data().authorId, 'reply', _un + ' replied to your comment on "' + (forumCurrentPost ? (forumCurrentPost.title || '').substring(0, 40) : 'a post') + '"', 'forum_post', postId);
+                }
+            } catch(ne) { /* notification failure is non-critical */ }
+            // Also notify original post author if different
+            if (forumCurrentPost && forumCurrentPost.authorId && typeof sendNotification === 'function') {
+                sendNotification(forumCurrentPost.authorId, 'reply', _un + ' replied in your post "' + (forumCurrentPost.title || '').substring(0, 40) + '"', 'forum_post', postId);
+            }
+        } else if (forumCurrentPost && forumCurrentPost.authorId && typeof sendNotification === 'function') {
             sendNotification(forumCurrentPost.authorId, 'reply', _un + ' replied to your post "' + (forumCurrentPost.title || '').substring(0, 40) + '"', 'forum_post', postId);
         }
         // Notify @mentioned users
@@ -713,11 +797,14 @@ window.forumSubmitReply = async function(postId) {
         }).catch(function(e) { console.error('[forum] Error:', e); });
         if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
         input.value = '';
-        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Reply posted!</span>';
+        // Clear reply-to state
+        window.forumCancelReplyTo();
+        if (status) status.innerHTML = '<span style="color:#22c55e;">\u2705 Reply posted!</span>';
         forumLoadReplies(postId);
     } catch(e) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting reply</span>';
     }
+    window._forumReplySubmitting = false;
 };
 
 // ---- Vote Post ----
