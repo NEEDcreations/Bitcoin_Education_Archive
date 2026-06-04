@@ -1073,6 +1073,8 @@ window.toggleChatOverlay = function() {
     if (_lbFab) { if (_overlayOpen) _lbFab.classList.add('chat-shifted'); else _lbFab.classList.remove('chat-shifted'); }
     if (_overlayOpen) {
         localStorage.setItem('hasUsedChat', '1');
+        // Always open to Global Chat tab
+        _overlayTab = 'global';
         // Render Satoshi's Favor banner
         if (typeof window._renderFavorChatBanner === 'function') window._renderFavorChatBanner();
         if (!_bgChatUnsub && typeof db !== 'undefined' && db) startUnreadTracker();
