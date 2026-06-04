@@ -319,21 +319,35 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     const lbDoc = await lbRef.get();
     const lbData = lbDoc.exists ? lbDoc.data() : {};
     let entries = lbData.entries || [];
+    console.log(`[FAVOR-HASH] User ${username}(${uid}) generated hash ${value}. Current entries: ${entries.length}`);
+    
     // Check if this hash qualifies for top 10
-    if (entries.length < 10 || value < entries[entries.length - 1].value) {
+    const qualifies = entries.length < 10 || value < entries[entries.length - 1].value;
+    console.log(`[FAVOR-HASH] Qualifies for top 10: ${qualifies} (entries.length=${entries.length}, last=${entries[entries.length-1]?.value})`);
+    
+    if (qualifies) {
       // Check if user already has an entry — keep only their best
+      const beforeFilter = entries.length;
       entries = entries.filter(e => e.uid !== uid || e.value < value);
+      console.log(`[FAVOR-HASH] Filtered ${beforeFilter - entries.length} worse entries for user`);
+      
       // Only add if user doesn't already have a better entry
       const userHasBetter = entries.some(e => e.uid === uid && e.value <= value);
+      console.log(`[FAVOR-HASH] User has better entry: ${userHasBetter}`);
+      
       if (!userHasBetter) {
         entries.push({ uid, username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+        console.log(`[FAVOR-HASH] Added new entry for ${username}`);
       }
       entries.sort((a, b) => a.value - b.value);
       entries = entries.slice(0, 10);
       await lbRef.set({ entries });
+      console.log(`[FAVOR-HASH] Saved top 10. New count: ${entries.length}`);
+    } else {
+      console.log(`[FAVOR-HASH] Hash ${value} did not qualify for top 10`);
     }
   } catch (e) {
-    console.warn('[FAVOR] Top hashes update failed:', e.message);
+    console.error('[FAVOR] Top hashes update failed:', e.message, e.stack);
   }
 
   return {
@@ -440,5 +454,83 @@ exports.getFavorHashes = functions.https.onCall(async (data, context) => {
     hashes,
     count: hashes.length,
     hasMore: hashes.length === limit,
+  };
+});
+
+/**
+ * syncCycleToTop10 (onCall) — admin only
+ * Syncs all hashes from a specific cycle to the all-time top 10.
+ * Can be used to backfill missing hashes.
+ */
+exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
+  // Admin check - only specific UIDs can run this
+  const ADMIN_UIDS = ['Rv2KwSy4flQmYMiHobV1V03KJDX2', 'ZVlpC6mfs1W7GlKsY9TQN3Jr8Hd4']; // Add admin UIDs here
+  if (!context.auth || !ADMIN_UIDS.includes(context.auth.uid)) {
+    throw new functions.https.HttpsError('permission-denied', 'Admin only');
+  }
+
+  const { cycleId } = data || {};
+  if (!cycleId) {
+    throw new functions.https.HttpsError('invalid-argument', 'cycleId required');
+  }
+
+  const stateRef = db.collection('satoshiFavor').doc('current');
+  const hashesRef = stateRef.collection('hashes');
+  const lbRef = db.collection('satoshiFavor').doc('topHashes');
+
+  // Get all hashes for this cycle
+  const snapshot = await hashesRef.where('cycleId', '==', cycleId).get();
+  const hashes = [];
+  snapshot.forEach(doc => {
+    const d = doc.data();
+    hashes.push({ uid: d.uid, username: d.username, value: d.value });
+  });
+
+  console.log(`[FAVOR-SYNC] Found ${hashes.length} hashes for cycle ${cycleId}`);
+
+  // Get current top 10
+  const lbDoc = await lbRef.get();
+  const lbData = lbDoc.exists ? lbDoc.data() : {};
+  let entries = lbData.entries || [];
+
+  // Process each hash
+  let added = 0;
+  let skipped = 0;
+  for (const hash of hashes) {
+    const { uid, username, value } = hash;
+    
+    // Check if qualifies
+    if (entries.length >= 10 && value >= entries[entries.length - 1].value) {
+      skipped++;
+      continue;
+    }
+    
+    // Filter out worse entries for this user
+    entries = entries.filter(e => e.uid !== uid || e.value < value);
+    
+    // Check if user has better entry
+    const userHasBetter = entries.some(e => e.uid === uid && e.value <= value);
+    if (!userHasBetter) {
+      entries.push({ uid, username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+      added++;
+    } else {
+      skipped++;
+    }
+  }
+
+  // Sort and trim
+  entries.sort((a, b) => a.value - b.value);
+  entries = entries.slice(0, 10);
+  await lbRef.set({ entries });
+
+  console.log(`[FAVOR-SYNC] Added ${added}, skipped ${skipped}. Total entries now: ${entries.length}`);
+
+  return {
+    success: true,
+    cycleId,
+    hashesProcessed: hashes.length,
+    added,
+    skipped,
+    top10: entries.map(e => ({ username: e.username, value: e.value })),
   };
 });

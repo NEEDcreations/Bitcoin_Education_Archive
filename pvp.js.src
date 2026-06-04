@@ -64,6 +64,7 @@
         lobbyUnsub: null,
         tickerUnsub: null,
         isPlayer1: false,
+        _countdownDone: false,
         // Practice mode state
         practicing: false,
         practiceQ: null,
@@ -720,6 +721,8 @@
         stopPvpTickerUpdates();
         pvpState._resultShown = false;
         pvpState._matchResultShown = false;
+        pvpState._countdownDone = false;
+        pvpState._pendingQuestionData = null;
         if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
         if (pvpState.lobbyUnsub) { pvpState.lobbyUnsub(); pvpState.lobbyUnsub = null; }
 
@@ -1021,7 +1024,7 @@
                 lastSeen: Date.now()
             }).then(function() {
                 pvpState.lobbyDocId = uid;
-                listenForMatch(docRef.id);
+                listenForMatch(uid);
                 // Heartbeat: update lastSeen every 5s so others know we're alive
                 if (pvpState._lobbyHeartbeat) clearInterval(pvpState._lobbyHeartbeat);
                 pvpState._lobbyHeartbeat = setInterval(function() {
@@ -1196,6 +1199,8 @@
         var overlay = document.getElementById('pvpOverlay');
         if (!overlay) return;
 
+        pvpState._countdownDone = false;
+
         var myName = getMyDisplayName();
         var oppName = pvpState.opponentName;
         var myInfo = getPlayerBadgeInfo(myName, getMyUid());
@@ -1302,7 +1307,18 @@
                     }
                     if (typeof haptic === 'function') haptic('heavy');
                     setTimeout(function() {
-                        if (!pvpState.isPlayer1) startNextQuestion();
+                        pvpState._countdownDone = true;
+                        if (!pvpState.isPlayer1) {
+                            startNextQuestion();
+                        } else if (pvpState._pendingQuestionData) {
+                            // Player1: match went active during countdown, render now
+                            var pd = pvpState._pendingQuestionData;
+                            pvpState._pendingQuestionData = null;
+                            pvpState.currentQ = pd.currentQ;
+                            pvpState.answered = false;
+                            pvpState._resultShown = false;
+                            renderQuestion(pd);
+                        }
                     }, 1000);
                     return;
                 }
@@ -1370,6 +1386,12 @@
 
                 if (data.status === 'active' && data.currentQ !== undefined) {
                     if (data.currentQ !== pvpState.currentQ || !document.getElementById('pvpQuestion')) {
+                        // Don't render question until countdown animation is done
+                        if (!pvpState._countdownDone) {
+                            // Store pending data so we render immediately when countdown finishes
+                            pvpState._pendingQuestionData = data;
+                            return;
+                        }
                         pvpState.currentQ = data.currentQ;
                         pvpState.answered = false;
                         pvpState._resultShown = false;

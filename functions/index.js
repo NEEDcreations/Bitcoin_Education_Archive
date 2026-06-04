@@ -4233,11 +4233,41 @@ exports.scheduleRaidBoss = scheduleRaidBoss;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
-const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes } = require('./src/satoshiFavor');
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10 } = require('./src/satoshiFavor');
 exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
 exports.getFavorHashes = getFavorHashes;
+exports.syncCycleToTop10 = syncCycleToTop10;
+
+// Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online)
+exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async (event) => {
+    const stateRef = db.collection('satoshiFavor').doc('current');
+    const stateDoc = await stateRef.get();
+    if (!stateDoc.exists) return;
+
+    const stateData = stateDoc.data();
+    if (!stateData.favorActive) return;
+
+    const now = Date.now();
+    const favorEndBase = stateData.favorEndBase ? stateData.favorEndBase.toMillis() : 0;
+    const bonusMs = (stateData.bonusMinutes || 0) * 60 * 1000;
+    const effectiveEnd = favorEndBase + bonusMs;
+
+    if (now > effectiveEnd) {
+        // Reset
+        await stateRef.set({
+            points: 0,
+            favorActive: false,
+            favorStart: null,
+            favorEndBase: null,
+            bonusMinutes: 0,
+            lastReset: admin.firestore.Timestamp.now(),
+            currentCycleId: stateData.currentCycleId || null,
+        });
+        console.log('[SF-CRON] Auto-reset expired favor at', new Date().toISOString());
+    }
+});
 
 // ===== TELEGRAM REACTION BRIDGE =====
 const { handleTelegramReaction, setTelegramWebhook } = require('./src/handleTelegramReaction');
