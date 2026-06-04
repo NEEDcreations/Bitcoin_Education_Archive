@@ -52,6 +52,15 @@
             }
             _prevFavorActive = nowActive;
 
+            // If Firestore still says favorActive but it's expired, trigger server reset
+            if (favorState.favorActive && !isFavorEffectivelyActive()) {
+                if (typeof firebase !== 'undefined' && firebase.functions) {
+                    firebase.functions().httpsCallable('checkFavorState')({})
+                        .then(function(res) { console.log('[FAVOR] Server auto-reset expired favor:', res.data); })
+                        .catch(function(err) { console.warn('[FAVOR] Server auto-reset failed:', err); });
+                }
+            }
+
             updateAllUIs();
         }, (err) => console.error('[FAVOR] Listener error:', err));
     }
@@ -143,6 +152,15 @@
             if (remaining <= 0) {
                 clearInterval(countdownInterval);
                 countdownInterval = null;
+                // Call server to reset the expired favor state in Firestore
+                if (typeof firebase !== 'undefined' && firebase.functions) {
+                    firebase.functions().httpsCallable('checkFavorState')({})
+                        .then(function(res) {
+                            console.log('[FAVOR] Server reset after expiry:', res.data);
+                            // favorState will update via onSnapshot listener
+                        })
+                        .catch(function(err) { console.warn('[FAVOR] Server reset call failed:', err); });
+                }
                 // Re-render all UIs to show the reset /21 progress state
                 updateAllUIs();
                 return;

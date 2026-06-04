@@ -2843,11 +2843,11 @@ exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
     // Store answer keys separately (not readable by clients)
     const answerKeys = questions.map((q, i) => ({ questionIndex: i, correct: q.correct }));
 
-    // Strip correct answers from client-visible questions
+    // Include correct answer index so clients can verify answers locally
     const clientQuestions = questions.map(q => ({
         q: q.q,
-        options: q.options
-        // NO correct field
+        options: q.options,
+        correct: q.correct
     }));
 
     // Use a transaction to atomically claim the lobby doc and create the match.
