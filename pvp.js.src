@@ -1012,15 +1012,15 @@
 
         // Add fresh lobby entry with lastSeen for presence detection
         setTimeout(function() {
-            db.collection('pvp_lobby').add({
+            db.collection('pvp_lobby').doc(uid).set({
                 uid: uid,
                 name: getMyDisplayName(),
                 profilePic: getMyProfilePic(),
                 status: 'waiting',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 lastSeen: Date.now()
-            }).then(function(docRef) {
-                pvpState.lobbyDocId = docRef.id;
+            }).then(function() {
+                pvpState.lobbyDocId = uid;
                 listenForMatch(docRef.id);
                 // Heartbeat: update lastSeen every 5s so others know we're alive
                 if (pvpState._lobbyHeartbeat) clearInterval(pvpState._lobbyHeartbeat);
@@ -1035,7 +1035,7 @@
                     }).catch(function(){});
                 }, 5000);
                 // Also start polling for opponents (catches cases where real-time listener misses)
-                startMatchmakingPoll(docRef.id, uid);
+                startMatchmakingPoll(uid, uid);
                 // Start practice prompt timer (10s wait before offering practice)
                 startPracticePromptTimer();
             }).catch(function(err) {
