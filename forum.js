@@ -693,6 +693,12 @@ window.forumSubmitPost = async function() {
         if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumPosts = (currentUser.forumPosts || 0) + 1;
         // Raid Boss: forum post
         if (typeof window._raidOnForumPost === 'function') window._raidOnForumPost();
+        // Announce to Global Chat via Nacho
+        if (typeof window.nachoGlobalAnnounce === 'function') {
+            var _shortTitle = fEsc(title).substring(0, 80);
+            var _shortBody = fEsc(body).substring(0, 120);
+            window.nachoGlobalAnnounce('\uD83D\uDDE3\uFE0F New Forum Post: ' + _shortTitle + ' by ' + fEsc(userName) + ': ' + _shortBody + (body.length > 120 ? '...' : '') + ' \u27A1\uFE0F [Open PlebTalk](#forum)');
+        }
         forumBack();
     } catch(e) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting. Try again.</span>';

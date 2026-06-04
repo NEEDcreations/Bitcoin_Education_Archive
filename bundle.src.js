@@ -14567,6 +14567,12 @@ window.forumSubmitPost = async function() {
         if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumPosts = (currentUser.forumPosts || 0) + 1;
         // Raid Boss: forum post
         if (typeof window._raidOnForumPost === 'function') window._raidOnForumPost();
+        // Announce to Global Chat via Nacho
+        if (typeof window.nachoGlobalAnnounce === 'function') {
+            var _shortTitle = fEsc(title).substring(0, 80);
+            var _shortBody = fEsc(body).substring(0, 120);
+            window.nachoGlobalAnnounce('\uD83D\uDDE3\uFE0F New Forum Post: ' + _shortTitle + ' by ' + fEsc(userName) + ': ' + _shortBody + (body.length > 120 ? '...' : '') + ' \u27A1\uFE0F [Open PlebTalk](#forum)');
+        }
         forumBack();
     } catch(e) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting. Try again.</span>';
@@ -16540,6 +16546,23 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
+    // Featured: 603BTC Pleb Shop (Educational section)
+    if (activeSection === 'educational' || activeSection === 'all') {
+        html += '<div id="plebShopCard" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:14px;overflow:hidden;">' +
+            '<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
+                '<div style="display:flex;align-items:center;gap:10px;">' +
+                    '<span style="font-size:1.5rem;">\uD83D\uDED2</span>' +
+                    '<div>' +
+                        '<div style="font-size:0.9rem;font-weight:800;color:var(--heading);">603BTC Pleb Shop</div>' +
+                        '<div style="font-size:0.72rem;color:var(--text-muted);">Bitcoin educational products, merch & gear</div>' +
+                    '</div>' +
+                '</div>' +
+                '<button onclick="window._togglePlebShop()" id="plebShopToggle" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Open Shop</button>' +
+            '</div>' +
+            '<div id="plebShopEmbed" style="display:none;width:100%;height:0;transition:height 0.3s ease;"></div>' +
+        '</div>';
+    }
+
     // Sort dropdown
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
         '<span id="marketResultCount" style="font-size:0.75rem;color:var(--text-faint);">Loading...</span>' +
@@ -17331,6 +17354,29 @@ window.handleMktImageUpload = function(input) {
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+};
+
+// ---- 603BTC Pleb Shop Embed ----
+window._plebShopOpen = false;
+window._togglePlebShop = function() {
+    var embed = document.getElementById('plebShopEmbed');
+    var btn = document.getElementById('plebShopToggle');
+    if (!embed) return;
+    window._plebShopOpen = !window._plebShopOpen;
+    if (window._plebShopOpen) {
+        embed.style.display = 'block';
+        embed.style.height = 'calc(100vh - 280px)';
+        embed.style.minHeight = '500px';
+        if (!embed.querySelector('iframe')) {
+            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment"></iframe>';
+        }
+        if (btn) { btn.textContent = 'Close Shop'; btn.style.background = 'var(--border)'; }
+    } else {
+        embed.style.height = '0';
+        embed.style.minHeight = '0';
+        setTimeout(function() { embed.style.display = 'none'; }, 300);
+        if (btn) { btn.textContent = 'Open Shop'; btn.style.background = 'var(--accent)'; }
+    }
 };
 
 window.clearMktImage = function() {
