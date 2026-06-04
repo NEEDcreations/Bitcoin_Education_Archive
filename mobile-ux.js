@@ -15,8 +15,7 @@
 
 // ---- #2: Bottom Navigation Bar ----
 function initBottomNav() {
-    if (!('ontouchstart' in window) && window.innerWidth > 900) return; // Desktop skip
-
+    // Always initialize bottom nav; CSS media queries hide it on larger screens
     var nav = document.createElement('div');
     nav.id = 'bottomNav';
     nav.className = 'mobile-nav';
