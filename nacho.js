@@ -1257,6 +1257,7 @@ function _showBubble(text, pose) {
             { pattern: /Daily Spin|spin the wheel/i, action: "showSpinWheel()", label: "🎡 Daily Spin" },
             { pattern: /Nacho.s Story/i, action: "showNachoStory()", label: "📖 Read Story" },
             { pattern: /Nacho.s Closet/i, action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)", label: "🎽 Open Closet" },
+            { pattern: /Satoshi.s Favor|mining|FAVOR.*ACTIVE/i, action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='favor';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)", label: "⛏️ Open Satoshi's Favor" },
         ];
         for (var _li = 0; _li < _linkMap.length; _li++) {
             if (_linkMap[_li].pattern.test(text)) {

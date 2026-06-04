@@ -19,7 +19,7 @@ function initBottomNav() {
     var nav = document.createElement('div');
     nav.id = 'bottomNav';
     nav.className = 'mobile-nav';
-    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200000;background:rgba(10,10,10,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:10px 0 env(safe-area-inset-bottom,10px) 0;padding-bottom:max(env(safe-area-inset-bottom,10px),10px);display:block !important;transition:transform 0.25s ease;-webkit-transform:translateZ(0);transform:translateZ(0);';
+    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200000;background:rgba(10,10,10,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:10px 0 env(safe-area-inset-bottom,10px) 0;padding-bottom:max(env(safe-area-inset-bottom,10px),10px);display:none;transition:transform 0.25s ease;-webkit-transform:translateZ(0);transform:translateZ(0);';
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
@@ -37,9 +37,8 @@ function initBottomNav() {
         '.bnav-label{font-size:0.55rem;line-height:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}' +
         '.bnav-btn:active .bnav-icon{transform:scale(1.2);}' +
         '.bnav-btn.active{color:var(--accent);}' +
-        '#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
-        '@media(max-width:900px){#bottomNav{display:block!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
+        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
     document.head.appendChild(style);
     document.body.appendChild(nav);
 }

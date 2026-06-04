@@ -4982,7 +4982,49 @@ const TOP_NOTCH_ENTRIES = [
 
     { keys: ['scarcity purpose','why 21 million','absolute scarcity'],
       answer: "The 21 million limit is the bedrock of Bitcoin's value, {name}. 🍀🦌 For the first time in human history, we have an asset with a fixed supply that cannot be increased by anyone, ever. This absolute scarcity protects you from the 'invisible tax' of inflation, ensuring that your savings maintain their purchasing power over decades, not days. 鹿💎",
-      channel: 'scarce', channelName: 'Scarcity & Hard Money' }
+      channel: 'scarce', channelName: 'Scarcity & Hard Money' },
+
+    // ---- New features (June 2026) ----
+
+    { keys: ['satoshi\'s favor','satoshi favor','mining game','community mining','hash game','hashing game','favor','mining challenge','21 points','favor points'],
+      answer: "Satoshi's Favor is our community mining game, {name}! ⛏️🦌 Everyone earns points from quests, level-ups & badges. Hit 21 points → a 60-min mining window opens → hash for a chance to win 21,000 sats! Check the Favor tab in Quest Hub. May the hash be ever in your favor! 🎯",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['proof of walk','walking','strava','exercise','fitness','walk for bitcoin','earn by walking','steps'],
+      answer: "Proof of Walk is Proof of Work... with your feet! 🦶🦌 Connect your Strava account and earn XP for every walk or run, {name}. Finally, a reason to touch grass AND stack knowledge. Lace up those hooves! 🏃‍♂️⚡",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['raid boss','raid','boss battle','community challenge','monthly challenge','defeat boss','raid damage','boss fight'],
+      answer: "Raid Boss is our monthly community battle, {name}! 🐉🦌 A boss spawns with a massive HP bar — everyone chips away by earning badges, completing quests & leveling up. Top damage dealers win sats prizes! United we stack, divided we get rekt. ⚔️",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['quest hub','quests','daily quests','quiz quest','trivia quest','poll quest','quest tab'],
+      answer: "Quest Hub is your daily mission HQ, {name}! 🎯🦌 It has Quiz, Trivia, Poll, and Raid tabs. Complete all 3 daily quests for a Satoshi's Favor point toward the mining game! Knowledge is power — and sats. 📚⚡",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['xp system','experience points','how xp works','earn xp','xp explained','what is xp'],
+      answer: "XP = Experience Points, {name}! 🌟🦌 Earn XP by visiting channels, completing quests & being active in the community. Level up to unlock new items and features. Think of it like a Bitcoin RPG — except the final boss is fiat ignorance! 🎮⚡",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['reply to reply','threaded replies','forum threads','nested replies','pleb talk replies'],
+      answer: "You can now reply to specific replies in PlebTalk, {name}! 🧵🦌 Threaded conversations make discussions way easier to follow. No more shouting into the void — now your rebuttals have context! Deer-ect communication at its finest. 💬",
+      channel: 'pleb-talk', channelName: 'PlebTalk Forum' },
+
+    { keys: ['emoji picker','emojis','emoji in chat','how to add emoji','emoji button','smiley face'],
+      answer: "Hit the 😀 button in Global Chat to open the emoji picker, {name}! 🎨🦌 We've got categories: Smileys, Gestures, Bitcoin, and Objects. Express yourself — words are great but sometimes you just need a 🚀. Deer-moji activated! 🦌",
+      channel: 'global-chat', channelName: 'Global Chat' },
+
+    { keys: ['daily challenge','daily quest system','all three quests','daily bonus','complete all quests'],
+      answer: "Complete all 3 daily quests — Quiz + Trivia + Poll — for a bonus Satoshi's Favor point, {name}! 🏆🦌 One quiz per day, but you can retake if you didn't ace it. Consistency is key — just like DCA! 📅⚡",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['raid leaderboard','top raiders','raid damage leaderboard','all time damage','raid wins'],
+      answer: "Check the Raid Leaderboard to see top damage dealers for the current boss AND all-time stats, {name}! 🏅🦌 Winners earn sats prizes. Climb that board — fortune favors the active deer! ⚔️⚡",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['tip someone','how to tip','send tip','lightning tip','zap someone'],
+      answer: "Tipping is easy, {name}! ⚡🦌 Tap the ⚡ button on any user profile, forum post, or song in Beats to send a Lightning tip. Spread sats like a deer spreads joy — generously and without hesitation! 💸🎵",
+      channel: 'layer-2-lightning', channelName: 'Lightning Network' }
 ];
 
 // Combine into main KB

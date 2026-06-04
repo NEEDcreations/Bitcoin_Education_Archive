@@ -16,6 +16,7 @@
     let minerCountdownInterval = null;
     let hashListener = null;
     let hashTimestamps = []; // rolling window of recent hash times
+    let _prevFavorActive = false; // track previous favor state for bubble announcements
 
     // ─── INIT ───
     function initSatoshiFavor() {
@@ -35,6 +36,22 @@
             console.log('[FAVOR] Got state update, exists:', doc.exists);
             favorState = doc.exists ? doc.data() : { points: 0, favorActive: false };
             console.log('[FAVOR] State:', favorState);
+
+            // Detect favor activation/expiration transitions for Nacho bubble
+            var nowActive = favorState.favorActive && isFavorEffectivelyActive();
+            if (nowActive && !_prevFavorActive) {
+                // Favor just activated
+                if (typeof window.forceShowBubble === 'function') {
+                    window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to mine! Click below to start hashing! ⛏️🦌", 'fire');
+                }
+            } else if (!nowActive && _prevFavorActive) {
+                // Favor just expired/deactivated
+                if (typeof window.forceShowBubble === 'function') {
+                    window.forceShowBubble("⛏️ Satoshi's Favor has ended! Keep earning points for the next activation! 🦌", 'default');
+                }
+            }
+            _prevFavorActive = nowActive;
+
             updateAllUIs();
         }, (err) => console.error('[FAVOR] Listener error:', err));
     }

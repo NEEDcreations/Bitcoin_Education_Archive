@@ -8596,6 +8596,7 @@ function _showBubble(text, pose) {
             { pattern: /Daily Spin|spin the wheel/i, action: "showSpinWheel()", label: "🎡 Daily Spin" },
             { pattern: /Nacho.s Story/i, action: "showNachoStory()", label: "📖 Read Story" },
             { pattern: /Nacho.s Closet/i, action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)", label: "🎽 Open Closet" },
+            { pattern: /Satoshi.s Favor|mining|FAVOR.*ACTIVE/i, action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='favor';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)", label: "⛏️ Open Satoshi's Favor" },
         ];
         for (var _li = 0; _li < _linkMap.length; _li++) {
             if (_linkMap[_li].pattern.test(text)) {
@@ -20123,7 +20124,7 @@ function initBottomNav() {
     var nav = document.createElement('div');
     nav.id = 'bottomNav';
     nav.className = 'mobile-nav';
-    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200000;background:rgba(10,10,10,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:10px 0 env(safe-area-inset-bottom,10px) 0;padding-bottom:max(env(safe-area-inset-bottom,10px),10px);display:block !important;transition:transform 0.25s ease;-webkit-transform:translateZ(0);transform:translateZ(0);';
+    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200000;background:rgba(10,10,10,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:10px 0 env(safe-area-inset-bottom,10px) 0;padding-bottom:max(env(safe-area-inset-bottom,10px),10px);display:none;transition:transform 0.25s ease;-webkit-transform:translateZ(0);transform:translateZ(0);';
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
@@ -20141,9 +20142,8 @@ function initBottomNav() {
         '.bnav-label{font-size:0.55rem;line-height:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}' +
         '.bnav-btn:active .bnav-icon{transform:scale(1.2);}' +
         '.bnav-btn.active{color:var(--accent);}' +
-        '#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
-        '@media(max-width:900px){#bottomNav{display:block!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
+        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
     document.head.appendChild(style);
     document.body.appendChild(nav);
 }
@@ -26503,7 +26503,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_irl', title: '🤝 IRL Sync', desc: 'Find and create local Bitcoin meetups and events', keywords: 'irl meetup events sync meeting community local map gather conference meetup event rsvp', action: "go('irl-sync')" },
         { id: '_beats', title: '🎸 Bitcoin Beats', desc: 'Community music — discover, upload, and listen to Bitcoin tracks. Upload entire albums and EPs.', keywords: 'beats music livestream live video radio stream audio upload song track listen discover artist genre community album ep discography bulk batch dj broadcast', action: "go('bitcoin-beats')" },
         { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
-        { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post plebtalk', action: "go('forum')" },
+        { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post plebtalk reply thread threaded replies nested conversation', action: "go('forum')" },
         { id: '_articles', title: '📝 Articles', desc: 'Read and write long-form Bitcoin articles', keywords: 'article write publish essay blog read long form content author', action: "forumTab='articles';go('forum')" },
         { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
         { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
@@ -26530,7 +26530,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
         { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which topics you have visited', keywords: 'exploration map progress visited topics grid complete coverage', action: 'goHome()' },
-        { id: '_globalchat', title: '🌍 Global Chat', desc: 'Live global chat room — talk with the community in real time', keywords: 'global chat room live talk community message send public chatroom online users presence dm reaction gif emoji sticker', action: "if(typeof renderChatHub==='function')renderChatHub('global');else if(typeof toggleChatOverlay==='function')toggleChatOverlay()" },
+        { id: '_globalchat', title: '🌍 Global Chat', desc: 'Live global chat room — talk with the community in real time', keywords: 'global chat room live talk community message send public chatroom online users presence dm reaction gif emoji sticker emoji picker smiley face emoticon', action: "if(typeof renderChatHub==='function')renderChatHub('global');else if(typeof toggleChatOverlay==='function')toggleChatOverlay()" },
         { id: '_timechaintv', title: '📺 Timechain TV', desc: 'Live Bitcoin television — 8 channels of curated Bitcoin videos playing 24/7', keywords: 'tv television video watch live stream channel timechain tube youtube documentary tutorial mining sync broadcast cinema epg guide schedule remote couch nacho', action: "go('timechain-tv')" },
         { id: '_djmode', title: '🎧 DJ Mode', desc: 'Go live as a DJ — broadcast music, use sound effects, crossfade, and play Bitcoin quotes', keywords: 'dj mode broadcast live music stream turntable crossfade sound effects horn airhorn scratch mixer controls', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('livestream')},300)" },
         { id: '_upload_album', title: '📀 Upload Album/EP', desc: 'Upload up to 20 songs at once — group as Album or EP with cover art', keywords: 'upload album ep discography batch bulk multiple songs tracks artist release collection', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('upload')},300)" },
@@ -26554,6 +26554,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_cotd', title: '📅 Channel of the Day', desc: 'Today\'s featured Bitcoin education channel', keywords: 'channel of the day daily featured recommendation today pick spotlight', action: 'goHome()' },
         { id: '_nostr', title: '🟣 Nostr Login', desc: 'Sign in with Nostr — extension, nsec, or npub', keywords: 'nostr login sign in nip npub nsec extension relay decentralized identity', action: 'showUsernamePrompt()' },
         { id: '_buddyfind', title: '🤝 Find a Bitcoin Buddy', desc: 'Get matched with a learning partner — teachers meet learners', keywords: 'buddy partner match learn teach mentor mentee pair connect study group accountability partner friend', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
+        { id: '_favor', title: '✨⛏️ Satoshi\'s Favor', desc: 'Community mining game — earn points, activate mining, hash for 21,000 sats', keywords: 'satoshi favor mining hash mine community points activate 21 sats game block nonce difficulty target hashing brute force proof of work', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='favor';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
+        { id: '_raid', title: '⚔️ Raid Boss', desc: 'Monthly community challenge — deal damage by earning badges and completing activities', keywords: 'raid boss challenge monthly community damage badge activity quest defeat winner prize leaderboard attack', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='raid';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
+        { id: '_pow', title: '🚶 Proof of Walk', desc: 'Connect Strava and earn XP for walking — proof of work with your feet', keywords: 'proof of walk strava walking steps exercise fitness health outdoor move earn xp activity sync connect', action: "go('explore');setTimeout(function(){if(typeof renderProofOfWalk==='function')renderProofOfWalk()},300)" },
     ];
 
     function doSearch(q) {
