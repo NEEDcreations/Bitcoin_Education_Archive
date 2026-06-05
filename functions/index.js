@@ -4273,7 +4273,3 @@ exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'U
 const { handleTelegramReaction, setTelegramWebhook } = require('./src/handleTelegramReaction');
 exports.handleTelegramWebhook = handleTelegramReaction;
 exports.setTelegramWebhook = setTelegramWebhook;
-
-// ===== TEMPORARY: Backfill top hashes =====
-const { backfillTopHashes } = require('./src/backfillTopHashes');
-exports.backfillTopHashes = backfillTopHashes;
