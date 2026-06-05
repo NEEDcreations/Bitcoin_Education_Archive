@@ -12475,6 +12475,31 @@ function startQuestManual(targetChannelId) {
     _showQuestTopicPicker();
 }
 
+// Daily recommended quiz — deterministic shuffle, cycles through all topics without repeats
+function _getDailyRecommendedQuiz(topics) {
+    if (!topics || topics.length === 0) return null;
+    var keys = topics.map(function(t) { return t.key; }).sort();
+    var totalTopics = keys.length;
+    // Use a fixed epoch so the cycle is stable
+    var epoch = new Date('2026-01-01T00:00:00Z').getTime();
+    var today = new Date().toISOString().split('T')[0];
+    var todayMs = new Date(today + 'T00:00:00Z').getTime();
+    var dayIndex = Math.floor((todayMs - epoch) / 86400000);
+    // Which position in the current cycle
+    var cyclePos = dayIndex % totalTopics;
+    // Fisher-Yates shuffle with cycle number as seed for deterministic order
+    var cycleNum = Math.floor(dayIndex / totalTopics);
+    var shuffled = keys.slice();
+    var seed = cycleNum * 7919 + 31337; // deterministic seed per cycle
+    for (var i = shuffled.length - 1; i > 0; i--) {
+        seed = (seed * 16807 + 0) % 2147483647; // LCG
+        var j = seed % (i + 1);
+        var tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+    }
+    var dailyKey = shuffled[cyclePos];
+    return topics.find(function(t) { return t.key === dailyKey; }) || null;
+}
+
 function _showQuestTopicPicker() {
     // Build topic list with question counts and completion status
     var topics = [];
@@ -12528,6 +12553,14 @@ function _showQuestTopicPicker() {
             '<div style="height:100%;background:var(--accent);width:' + (topics.length > 0 ? Math.round(doneCount/topics.length*100) : 0) + '%;border-radius:2px;transition:width 0.3s;"></div>' +
         '</div>' +
     '</div>';
+
+    // Daily recommended quiz — cycles through all topics, no repeats until full cycle
+    var _dailyTopic = _getDailyRecommendedQuiz(topics);
+    if (_dailyTopic) {
+        html += '<button onclick="_startQuestTopic(\'' + _dailyTopic.key.replace(/['\\"]/g, '') + '\')" style="width:100%;padding:14px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03));border:2px solid #22c55e;border-radius:12px;color:#22c55e;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;transition:0.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background=\'rgba(34,197,94,0.2)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03))\'">' +
+            '<span style="font-size:1.1rem;">📚</span> Daily Recommended Quiz — ' + _dailyTopic.emoji + ' ' + _dailyTopic.label +
+        '</button>';
+    }
 
     // Random option
     html += '<button onclick="_startQuestTopic(null)" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(247,147,26,0.03));border:1px solid var(--accent);border-radius:12px;color:var(--accent);font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:12px;transition:0.2s;">🎲 Random Topic</button>';
