@@ -374,7 +374,15 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   const pbRef = db.collection('satoshiFavor').doc('personalBests').collection('users').doc(uid);
   try {
     const pbDoc = await pbRef.get();
-    const prev = pbDoc.exists ? pbDoc.data() : null;
+    let prev = pbDoc.exists ? pbDoc.data() : null;
+    // Migration: if no per-user doc, check legacy single-doc for old PB
+    if (!prev) {
+      const legacyDoc = await db.collection('satoshiFavor').doc('personalBests').get();
+      if (legacyDoc.exists) {
+        const legacyUsers = legacyDoc.data().users || {};
+        if (legacyUsers[uid]) prev = legacyUsers[uid];
+      }
+    }
     if (!prev || value < prev.value) {
       await pbRef.set({ value, username, timestamp: admin.firestore.FieldValue.serverTimestamp() });
     }
