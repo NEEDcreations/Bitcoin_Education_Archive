@@ -41,7 +41,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260605_0200" as="script">
+    <link rel="preload" href="bundle.js?v=20260605_1526" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -1132,6 +1132,22 @@
                     document.getElementById('giveawayNote').style.display = this.checked ? 'block' : 'none';
                 });
             </script>
+            <div id="factionPickerSignup" style="margin-bottom:16px;text-align:left;">
+                <div style="color:#94a3b8;font-size:0.8rem;font-weight:700;margin-bottom:4px;text-align:center;">⚔️ Choose Your Faction</div>
+                <div style="color:#475569;font-size:0.68rem;margin-bottom:10px;text-align:center;">New faction features coming soon — no competitive advantage to either choice.</div>
+                <div style="display:flex;gap:8px;">
+                    <div id="factionBtnHornets" onclick="window._signupFaction='cyber_hornets';document.getElementById('factionBtnHornets').style.borderColor='#f7931a';document.getElementById('factionBtnHornets').style.background='rgba(247,147,26,0.1)';document.getElementById('factionBtnBadgers').style.borderColor='var(--border,#1e293b)';document.getElementById('factionBtnBadgers').style.background='none';" style="flex:1;padding:12px 6px;border-radius:12px;border:2px solid var(--border,#1e293b);background:none;cursor:pointer;text-align:center;transition:all 0.2s;">
+                        <div style="font-size:1.6rem;">🐝</div>
+                        <div style="color:#e2e8f0;font-weight:700;font-size:0.8rem;margin-top:4px;">Cyber Hornets</div>
+                        <div style="color:#64748b;font-size:0.6rem;margin-top:2px;">The swarm protects the network</div>
+                    </div>
+                    <div id="factionBtnBadgers" onclick="window._signupFaction='honey_badgers';document.getElementById('factionBtnBadgers').style.borderColor='#a855f7';document.getElementById('factionBtnBadgers').style.background='rgba(168,85,247,0.1)';document.getElementById('factionBtnHornets').style.borderColor='var(--border,#1e293b)';document.getElementById('factionBtnHornets').style.background='none';" style="flex:1;padding:12px 6px;border-radius:12px;border:2px solid var(--border,#1e293b);background:none;cursor:pointer;text-align:center;transition:all 0.2s;">
+                        <div style="font-size:1.6rem;">🦡</div>
+                        <div style="color:#e2e8f0;font-weight:700;font-size:0.8rem;margin-top:4px;">Honey Badgers</div>
+                        <div style="color:#64748b;font-size:0.6rem;margin-top:2px;">Honey badger don't care</div>
+                    </div>
+                </div>
+            </div>
             <button onclick="submitUsername()">Start Learning →</button>
             <div id="emailSignInSection" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Already have an account? Sign in with your email:</p>
@@ -1180,7 +1196,7 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260605_0200" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260605_1526" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260528_1251" defer></script>
     <script src="timechain-tv.js?v=20260602_2300" defer></script>

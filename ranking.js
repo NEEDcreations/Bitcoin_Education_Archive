@@ -27,8 +27,8 @@ const LEVELS = [
     { name: 'Maxi II',        emoji: '🔥🔥', min: 6102 },
     { name: 'Maxi III',       emoji: '🔥🔥🔥', min: 8888 },
     { name: 'Papa John',      emoji: '🍕', min: 10000 },
-    { name: 'Cyberhornet',    emoji: '🐝', min: 13337 },
-    { name: 'Honey Badger',   emoji: '🦡', min: 50000 },
+    { name: 'Full Node',      emoji: '🖥️', min: 18333 },
+    { name: 'Whale',           emoji: '🐋', min: 50000 },
     { name: 'Sovereign',      emoji: '🏴', min: 100000 },
     { name: 'Satoshi',        emoji: '👑', min: 210000 },
 ];
@@ -1692,6 +1692,8 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     };
     if (email) userData.email = email;
     if (country) userData.country = country;
+    // Faction choice from signup
+    if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
     if (enteredGiveaway && giveawayLnAddress) {
         userData.lightningAddress = giveawayLnAddress;
         userData.giveaway = {
@@ -2381,7 +2383,7 @@ function updateRankUI() {
                 source = 'level_up';
             } else if (['Maxi','Maxi II','Maxi III'].includes(levelName)) {
                 source = 'level_up_5';
-            } else if (['Papa John','Cyberhornet','Honey Badger','Sovereign','Satoshi'].includes(levelName)) {
+            } else if (['Papa John','Full Node','Whale','Sovereign','Satoshi'].includes(levelName)) {
                 source = 'level_up_10';
             }
             if (source) {
@@ -3068,6 +3070,7 @@ async function toggleLeaderboard() {
             if (d.earnedHidden && d.earnedHidden.includes('cert_scholar')) certIcons += ' 🎓';
             if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
 
+            var _factionIcon = d.faction === 'cyber_hornets' ? '🐝' : d.faction === 'honey_badgers' ? '🦡' : '';
             var _rowPfp = d.profilePic
                 ? '<img src="' + escapeHtml(d.profilePic) + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
                 : '';
@@ -3075,7 +3078,7 @@ async function toggleLeaderboard() {
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
+                '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + (_factionIcon ? ' <span title="' + (d.faction === 'cyber_hornets' ? 'Cyber Hornets' : 'Honey Badgers') + '" style="font-size:0.7rem;">' + _factionIcon + '</span>' : '') + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' XP</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
@@ -3430,6 +3433,20 @@ window._selectCountry = function(name) {
     if (dropdown) dropdown.style.display = 'none';
 };
 
+// Faction selection
+window._selectFaction = async function(faction) {
+    try {
+        var user = auth ? auth.currentUser : null;
+        if (!user) { if (typeof showToast === 'function') showToast('Sign in to choose a faction'); return; }
+        if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to choose a faction'); return; }
+        // Save to Firestore
+        await db.collection('users').doc(user.uid).update({ faction: faction });
+        if (currentUser) currentUser.faction = faction;
+        if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
+        showSettingsPage('account');
+    } catch(e) { console.error('Faction select error:', e); if (typeof showToast === 'function') showToast('Error saving faction'); }
+};
+
 // Signup country autocomplete (reuses _countryList)
 window._filterSignupCountry = function() {
     var input = document.getElementById('signupCountryInput');
@@ -3509,7 +3526,7 @@ function showSettingsPage(tab) {
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
-            '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
             '</div>';
 
         // Country selector (custom autocomplete — datalist broken on iOS Safari)
@@ -3521,6 +3538,27 @@ function showSettingsPage(tab) {
             '<div id="countryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>' +
             '</div>' +
             '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Optional · Shown on your public profile</div>' +
+            '</div>';
+
+        // Faction selector
+        var _userFaction = currentUser ? currentUser.faction || '' : '';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">⚔️ Faction</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Choose your allegiance! New faction features coming soon — no competitive advantage to either choice.</div>' +
+            '<div style="display:flex;gap:10px;">' +
+            '<div onclick="window._selectFaction(\'cyber_hornets\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'cyber_hornets' ? '#f7931a' : 'var(--border)') + ';background:' + (_userFaction === 'cyber_hornets' ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;text-align:center;transition:all 0.2s;">' +
+                '<div style="font-size:2rem;margin-bottom:6px;">🐝</div>' +
+                '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Cyber Hornets</div>' +
+                '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">The swarm protects the network</div>' +
+                (_userFaction === 'cyber_hornets' ? '<div style="color:#f7931a;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
+            '</div>' +
+            '<div onclick="window._selectFaction(\'honey_badgers\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'honey_badgers' ? '#a855f7' : 'var(--border)') + ';background:' + (_userFaction === 'honey_badgers' ? 'rgba(168,85,247,0.1)' : 'var(--card-bg)') + ';cursor:pointer;text-align:center;transition:all 0.2s;">' +
+                '<div style="font-size:2rem;margin-bottom:6px;">🦡</div>' +
+                '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Honey Badgers</div>' +
+                '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">Honey badger don\'t care</div>' +
+                (_userFaction === 'honey_badgers' ? '<div style="color:#a855f7;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
+            '</div>' +
+            '</div>' +
             '</div>';
 
         // Profile Picture upload
@@ -5910,8 +5948,8 @@ function getLevelFlavor(name) {
         'Maxi II': '6102 — Executive Order 6102 banned gold. They can\'t ban Bitcoin. Double the conviction.',
         'Maxi III': '8888 — triple maxi. The signal only gets stronger.',
         'Papa John': '10,000 BTC for two pizzas. Never forget. 🍕 You\'ve earned your slice.',
-        'Cyberhornet': '13337 — leet speak for the elite. Bzzzz. The swarm protects the network. You\'re part of it now.',
-        'Honey Badger': 'Honey badger don\'t care. 50,000 strong. Unstoppable, just like Bitcoin.',
+        'Full Node': '18,333 — port 18333. You verify everything yourself. Don\'t trust, verify.',
+        'Whale': '50,000 strong. You move markets. Unstoppable, just like Bitcoin.',
         'Sovereign': 'Self-sovereign. 100K channels deep. No permission needed. You ARE the bank.',
         'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
     };
