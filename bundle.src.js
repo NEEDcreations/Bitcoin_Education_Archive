@@ -12629,7 +12629,7 @@ function _renderFavorTab(body) {
     var html = '<div style="text-align:center;padding:16px 0;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">✨⛏️</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Satoshi\'s Favor</div>' +
-        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Community mining when the community earns 21 points</div>';
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Community mining when the community earns 21 points.<br><span style="color:#f7931a;font-weight:600;">Chance to win 21,000 sats! ⚡</span></div>';
 
     if (isActive) {
         var endBase = state.favorEndBase ? state.favorEndBase.toMillis() : 0;
