@@ -1436,15 +1436,15 @@ function onChannelVisitForQuest(channelId) {
     }
 }
 
-function generateAndShowQuest(manual, targetChannelId) {
-    // Limit quests to 3 per day to prevent point farming
+function generateAndShowQuest(manual, targetChannelId, isRetake) {
+    // Limit quests to 1 per day — but allow retakes for non-perfect scores
     var today = new Date().toISOString().split('T')[0];
     var questLog = safeJSON('btc_quest_daily', {});
     if (questLog.date !== today) {
         questLog = { date: today, count: 0 };
     }
-    if (questLog.count >= 1) {
-        if (manual && typeof showToast === 'function') showToast('⏰ You\'ve completed your daily quiz! Retake it for a perfect score or come back tomorrow.');
+    if (questLog.count >= 1 && !isRetake) {
+        if (manual && typeof showToast === 'function') showToast('⏰ You\'ve completed your daily quiz! Go to Quiz Quests to retake it for a perfect score.');
         return;
     }
 
@@ -1816,6 +1816,9 @@ async function submitQuest() {
         var qLog = safeJSON('btc_quest_daily', {});
         if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
         qLog.count++;
+        qLog.lastScore = score;
+        qLog.lastTopic = currentQuest.topicKey || null;
+        qLog.lastTitle = currentQuest.title || null;
         localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
 
         // Mark quiz done for the day and check if all 3 daily activities complete
@@ -2009,6 +2012,19 @@ function retryQuest() {
     });
     showQuest(currentQuest, true);
 }
+
+// Retake last quiz from the Quiz tab (after modal was closed)
+window._retakeLastQuiz = function() {
+    var qLog = safeJSON('btc_quest_daily', {});
+    var topic = qLog.lastTopic || null;
+    // Close the quest hub overlay if open
+    var overlay = document.getElementById('questHubOverlay');
+    if (overlay) overlay.remove();
+    // Generate quiz with retake flag to bypass daily count
+    setTimeout(function() {
+        generateAndShowQuest(true, topic, true);
+    }, 200);
+};
 
 function startQuestManual(targetChannelId) {
     if (currentQuest) return; // Already showing one
@@ -2483,6 +2499,18 @@ function _renderQuizTab(body) {
     var qLog = safeJSON('btc_quest_daily', {});
     var completedToday = (qLog.date === todayKey) ? qLog.count : 0;
     var completed = completedQuests ? completedQuests.size : 0;
+    var canRetake = (qLog.date === todayKey && completedToday >= 1 && qLog.lastScore && qLog.lastScore < 5);
+
+    var retakeHtml = '';
+    if (canRetake) {
+        var retakeTopic = qLog.lastTopic ? "'" + qLog.lastTopic.replace(/['\\]/g, '') + "'" : 'null';
+        var retakeLabel = qLog.lastTitle || 'your last quiz';
+        retakeHtml = '<div style="margin-bottom:16px;padding:14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:14px;">' +
+            '<div style="font-size:0.85rem;font-weight:700;color:var(--accent);margin-bottom:4px;">🔄 You scored ' + qLog.lastScore + '/5 on ' + (typeof escapeHtml === 'function' ? escapeHtml(retakeLabel) : retakeLabel) + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">Retake it to get a perfect score! +25 XP for improvement</div>' +
+            '<button onclick="window._retakeLastQuiz()" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;">🔄 Retake Quiz</button>' +
+        '</div>';
+    }
 
     body.innerHTML = '<div style="text-align:center;padding:16px 0;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">📝</div>' +
@@ -2496,7 +2524,8 @@ function _renderQuizTab(body) {
             '<div style="padding:6px 14px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;">3+ correct = 50 XP</div>' +
             '<div style="padding:6px 14px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;">Perfect = 100 XP</div>' +
         '</div>' +
-        '<button onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){if(typeof _showQuestTopicPicker===\'function\')_showQuestTopicPicker();else if(typeof startQuestManual===\'function\')startQuestManual()},200)" style="padding:14px 32px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:0.2s;">Start Quiz Quest ⚔️</button>' +
+        retakeHtml +
+        '<button onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){if(typeof _showQuestTopicPicker===\'function\')_showQuestTopicPicker();else if(typeof startQuestManual===\'function\')startQuestManual()},200)" style="padding:14px 32px;background:' + (canRetake ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#f7931a,#e8720c)') + ';border:' + (canRetake ? '1px solid var(--border)' : 'none') + ';border-radius:14px;color:' + (canRetake ? 'var(--text-muted)' : '#fff') + ';font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:0.2s;">' + (canRetake ? 'Choose New Topic' : 'Start Quiz Quest ⚔️') + '</button>' +
     '</div>';
 }
 
