@@ -399,16 +399,26 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     let entries = lbData.entries || [];
     
     const qualifies = entries.length < 10 || value < entries[entries.length - 1].value;
+    const myHash = uidHash(uid);
+    // Match both new _h (hashed) and legacy _h/uid (raw uid) for backward compat
+    const isMyEntry = (e) => e._h === myHash || e._h === uid || e.uid === uid;
     
     if (qualifies) {
-      entries = entries.filter(e => e._h !== uidHash(uid) || e.value < value);
-      const userHasBetter = entries.some(e => e._h === uidHash(uid) && e.value <= value);
+      entries = entries.filter(e => !isMyEntry(e) || e.value < value);
+      const userHasBetter = entries.some(e => isMyEntry(e) && e.value <= value);
       
       if (!userHasBetter) {
-        entries.push({ _h: uidHash(uid), username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+        entries.push({ _h: myHash, username, value, timestamp: admin.firestore.Timestamp.now() });
       }
       entries.sort((a, b) => a.value - b.value);
       entries = entries.slice(0, 10);
+      // Strip any serverTimestamp sentinels from legacy entries (can't be inside arrays)
+      entries = entries.map(e => ({
+        _h: e._h || '',
+        username: e.username || 'Anon',
+        value: e.value,
+        timestamp: (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now()
+      }));
       await lbRef.set({ entries });
     }
   } catch (e) {
@@ -571,18 +581,28 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
       continue;
     }
     
-    // Filter out worse entries for this user (use hashed uid for dedup)
-    entries = entries.filter(e => e._h !== uidHash(uid) || e.value < value);
+    // Filter out worse entries for this user (match both hashed and legacy raw uid)
+    const myHash = uidHash(uid);
+    const isMyEntry = (e) => e._h === myHash || e._h === uid || e.uid === uid;
+    entries = entries.filter(e => !isMyEntry(e) || e.value < value);
     
     // Check if user has better entry
-    const userHasBetter = entries.some(e => e._h === uidHash(uid) && e.value <= value);
+    const userHasBetter = entries.some(e => isMyEntry(e) && e.value <= value);
     if (!userHasBetter) {
-      entries.push({ _h: uidHash(uid), username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+      entries.push({ _h: myHash, username, value, timestamp: admin.firestore.Timestamp.now() });
       added++;
     } else {
       skipped++;
     }
   }
+
+  // Strip serverTimestamp sentinels from any legacy entries
+  entries = entries.map(e => ({
+    _h: e._h || '',
+    username: e.username || 'Anon',
+    value: e.value,
+    timestamp: (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now()
+  }));
 
   // Sort and trim
   entries.sort((a, b) => a.value - b.value);
