@@ -1,0 +1,1433 @@
+{
+  "scanTime": "2026-06-05T13:11:53.699Z",
+  "filesScanned": 149,
+  "totalUrlReferences": 5422,
+  "uniqueUrls": 4203,
+  "urlsChecked": 1754,
+  "urlsSkippedSocial": 2449,
+  "deadLinksFound": 158,
+  "deadLinks": [
+    {
+      "file": "D_whitepaper.json",
+      "msgIndex": 3,
+      "url": "https://amzn.to/3ME4ttK",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "The Book Of Satoshi: The Collected Writings of Bitcoin Creator Satoshi Nakamoto Attached free PDF Pu"
+    },
+    {
+      "file": "E_blockchain-timechain.json",
+      "msgIndex": 21,
+      "url": "https://acceleratebtc.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "",
+      "textPreview": "Transaction accelerators: Bitcoin accelerators are used to get a Bitcoin transaction to be included "
+    },
+    {
+      "file": "E_chaumian-mints.json",
+      "msgIndex": 23,
+      "url": "https://chessu.cash/",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "solve chess puzzles, win ecash https://chessu.cash/"
+    },
+    {
+      "file": "E_core-source-code.json",
+      "msgIndex": 52,
+      "url": "https://silentpayments.xyz/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "Silent payments  https://silentpayments.xyz/  https://bips.dev/352/  https://app.silentium.dev/  htt"
+    },
+    {
+      "file": "E_core-source-code.json",
+      "msgIndex": 52,
+      "url": "https://app.silentium.dev/",
+      "foundIn": "text",
+      "status": null,
+      "error": "write EPROTO 005D7F7C817F0000:error:0A000458:SSL routines:ssl3_read_bytes:tlsv1 unrecognized name:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:918:SSL alert number 112\n",
+      "textPreview": "Silent payments  https://silentpayments.xyz/  https://bips.dev/352/  https://app.silentium.dev/  htt"
+    },
+    {
+      "file": "E_ctv-covenants.json",
+      "msgIndex": 11,
+      "url": "https://river.com/learn/what-is-op-vault-in-bitcoin/",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "OP_VAULT https://river.com/learn/what-is-op-vault-in-bitcoin/"
+    },
+    {
+      "file": "E_ctv-covenants.json",
+      "msgIndex": 24,
+      "url": "https://river.com/learn/what-is-op-vault-in-bitcoin/",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "OP_VAULT https://river.com/learn/what-is-op-vault-in-bitcoin/"
+    },
+    {
+      "file": "E_evidence-against-alts.json",
+      "msgIndex": 31,
+      "url": "https://dennisporter.substack.com/p/ethereum-dumpster-fire",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Ethereum Dumpster Fire, an article by the highly acclaimed Dennis Porter:  https://dennisporter.subs"
+    },
+    {
+      "file": "E_evidence-against-alts.json",
+      "msgIndex": 44,
+      "url": "https://darthcoin.substack.com/p/hide-bitcoin-inside-nft-aka-dumb",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Dumb thing you can apparently do with NFTs...dumb but kind of cool: https://darthcoin.substack.com/p"
+    },
+    {
+      "file": "E_evidence-against-alts.json",
+      "msgIndex": 244,
+      "url": "https://techtelegraph.co.uk/crypto-hex-founder-is-actually-notorious-criminal-spam-king/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND techtelegraph.co.uk",
+      "textPreview": "Hex https://techtelegraph.co.uk/crypto-hex-founder-is-actually-notorious-criminal-spam-king/"
+    },
+    {
+      "file": "E_investment-strategy.json",
+      "msgIndex": 2,
+      "url": "https://linktr.ee/IBEXmercado",
+      "foundIn": "text",
+      "status": 404,
+      "error": null,
+      "textPreview": "You can also borrow against your Bitcoin (tax free) as shown here (Michael Saylor strategy). Persona"
+    },
+    {
+      "file": "E_investment-strategy.json",
+      "msgIndex": 18,
+      "url": "https://lightningescrow.io/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND lightningescrow.io",
+      "textPreview": "<b>LOANS</b> Non-custodial, use your bitcoin as collateral with Hodl Hodl https://lend.hodlhodl.com/"
+    },
+    {
+      "file": "E_investment-strategy.json",
+      "msgIndex": 52,
+      "url": "https://tallyco.in/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "**CROWDFUNDING** Crowd funding with Bitcoin https://tallyco.in/  Geyser - Crowd funding projects ove"
+    },
+    {
+      "file": "E_layer-2-lightning.json",
+      "msgIndex": 16,
+      "url": "https://www.amazon.com/Mastering-Lightning-Network-Blockchain-Protocol/dp/1492054860/ref=sr_1_3?keywords=mastering+lightning&qid=1637195870&sr=8-3",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "Mastering the Lightning Networkh by Andreas: https://www.amazon.com/Mastering-Lightning-Network-Bloc"
+    },
+    {
+      "file": "E_layer-3-sidechains.json",
+      "msgIndex": 6,
+      "url": "https://fabric.pub/",
+      "foundIn": "text",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "<b>FABRIC</b> An Operating System for the world's most powerful supercomputer. Goal of making all on"
+    },
+    {
+      "file": "E_layer-3-sidechains.json",
+      "msgIndex": 44,
+      "url": "https://www.amazon.com/Mastering-Lightning-Network-Blockchain-Protocol/dp/1492054860/ref=sr_1_3?keywords=mastering+lightning&qid=1637195870&sr=8-3",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "Mastering the Lightning Networkh by Andreas: https://www.amazon.com/Mastering-Lightning-Network-Bloc"
+    },
+    {
+      "file": "E_layer-3-sidechains.json",
+      "msgIndex": 77,
+      "url": "https://legend.lnbits.com/",
+      "foundIn": "link",
+      "status": 502,
+      "error": null,
+      "textPreview": "Reusable LNURL links: https://legend.lnbits.com/"
+    },
+    {
+      "file": "E_layer-3-sidechains.json",
+      "msgIndex": 108,
+      "url": "https://hiddenlightningnetwork.com",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND hiddenlightningnetwork.com",
+      "textPreview": "Tracking txs on the lightning network. Hidden lightning network. (I'm not sure how this works) https"
+    },
+    {
+      "file": "E_mining.json",
+      "msgIndex": 31,
+      "url": "https://wattummanagement.com/bitcoin-mining-containers/?utm_medium=ppc&utm_source=googleadwords&utm_campaign=14824905545&utm_content=552280813396&utm_keyword=asic%20mining&gclid=CjwKCAjw9LSSBhBsEiwAKtf0nyi8aW2c2MxGEj8MY-dhbPyRL7W1a7N-BmqM3QTXy8Qw_r-HLJhLuhoCYpYQAvD_BwE",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "WATTUM MOBILE MINING CONTAINERS https://wattummanagement.com/bitcoin-mining-containers/?utm_medium=p"
+    },
+    {
+      "file": "E_mining.json",
+      "msgIndex": 35,
+      "url": "https://samsonmow.com/review-microbt-whatsminer-m30s/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "Review: MicroBT Whatsminer M30S++ power efficiency of 31 joules per terahash and an advertised hashr"
+    },
+    {
+      "file": "E_nodes.json",
+      "msgIndex": 7,
+      "url": "https://bitnodes.io/nodes/live-map/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND bitnodes.io",
+      "textPreview": "Live map of Bitcoin nodes: https://bitnodes.io/nodes/live-map/"
+    },
+    {
+      "file": "E_privacy-nonkyc.json",
+      "msgIndex": 0,
+      "url": "https://textverified.com/",
+      "foundIn": "text",
+      "status": 405,
+      "error": null,
+      "textPreview": "<b>KYC</b>  <i>(under construction)</i>  KYC stands for \"know your customer.\" For tax purposes as we"
+    },
+    {
+      "file": "E_privacy-nonkyc.json",
+      "msgIndex": 72,
+      "url": "https://bitcoinprivacy.wiki/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND bitcoinprivacy.wiki",
+      "textPreview": "All things bitcoin privacy aggregated into one site"
+    },
+    {
+      "file": "E_problems-of-money.json",
+      "msgIndex": 77,
+      "url": "https://amzn.to/3PEapPR",
+      "foundIn": "link",
+      "status": 405,
+      "error": null,
+      "textPreview": "The Creature from Jekyll Island: A Second Look at the Federal Reserve: https://amzn.to/3PEapPR"
+    },
+    {
+      "file": "E_problems-of-money.json",
+      "msgIndex": 78,
+      "url": "https://www.newyork.org/history/history-of-the-rothschild-bank-worlds-biggest-bank",
+      "foundIn": "text",
+      "status": 404,
+      "error": null,
+      "textPreview": "The first Central Bank ROTHSCHILD  https://en.wikipedia.org/wiki/Bank_of_Amsterdam https://www.newyo"
+    },
+    {
+      "file": "E_regulation.json",
+      "msgIndex": 6,
+      "url": "https://freopp.org/el-salvadors-bitcoin-law-full-proposed-english-text-9a2153ad1d19",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "The Bitcoin Law, enacted in El Salvador to make Bitcoin legal tender on September 7, 2021: https://f"
+    },
+    {
+      "file": "E_self-custody.json",
+      "msgIndex": 40,
+      "url": "https://aantonop.com/workshops-page/",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "Path to self custody paid workshop by Andreas https://aantonop.com/workshops-page/"
+    },
+    {
+      "file": "E_smart-contracts.json",
+      "msgIndex": 4,
+      "url": "https://opreturnbot.eldamar.icu/",
+      "foundIn": "text",
+      "status": 502,
+      "error": null,
+      "textPreview": "Op return bot fixed at 1 sat/vb https://x.com/ProofOfCash/status/1924271020812243203?t=oh-_hbUuXk6wC"
+    },
+    {
+      "file": "H_austrian_school_of_economics.json",
+      "msgIndex": 11,
+      "url": "https://www.amazon.com/s?k=Murray+Rothbard&linkCode=sl2&linkId=1ccea0cc5a1dfe78b9419180cacb252b&tag=rothbardsuggests-20&ref=as_li_ss_tl",
+      "foundIn": "text",
+      "status": 503,
+      "error": null,
+      "textPreview": "Murray Rothbard - Austrian Economist https://en.wikipedia.org/wiki/Murray_Rothbard His books on Amaz"
+    },
+    {
+      "file": "H_discrete_log_contracts__dlcs.json",
+      "msgIndex": 3,
+      "url": "https://suredbits.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "DLCs enables developers to make bitcoin payments based on an oracle's signature. This can be used to"
+    },
+    {
+      "file": "H_game_theory.json",
+      "msgIndex": 2,
+      "url": "https://en.wikipedia.org/wiki/Focal_point_(game_theory",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Schelling point - In game theory, a focal point (or Schelling point) is a solution that people tend "
+    },
+    {
+      "file": "H_game_theory.json",
+      "msgIndex": 15,
+      "url": "https://en.wikipedia.org/wiki/Focal_point_(game_theory",
+      "foundIn": "text",
+      "status": 404,
+      "error": null,
+      "textPreview": "\"Bitcoin is the next Schelling point in terms of warfare. If you don't adopt the next best piece of "
+    },
+    {
+      "file": "H_orange-pilling.json",
+      "msgIndex": 23,
+      "url": "https://www.washingtonpost.com/business/2022/03/30/crypto-political-fundraising/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "A friend of mine made this care package for me to share with a lib friend...  Dem Case: This is new "
+    },
+    {
+      "file": "H_referral-links.json",
+      "msgIndex": 6,
+      "url": "https://sparklp.co/028b2f45",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND 21days.b.tc",
+      "textPreview": "Earn 2100 sats by completing this Bitcoin course. It's MUCH easier than it sounds. One brief email p"
+    },
+    {
+      "file": "H_risks__threats__attack_vectors__weaknes.json",
+      "msgIndex": 25,
+      "url": "https://cointelegraph.com/news/researchers-highlight-privacy-issues-with-lightning-network",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Privacy issues with Lightning https://cointelegraph.com/news/researchers-highlight-privacy-issues-wi"
+    },
+    {
+      "file": "H_risks__threats__attack_vectors__weaknes.json",
+      "msgIndex": 29,
+      "url": "https://www.btctimes.com/news/samson-mow-debunks-pentagon-backed-bitcoin-report",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "A 51% Attack Is Nothing but Fear Mongering by Samson Maw https://www.btctimes.com/news/samson-mow-de"
+    },
+    {
+      "file": "H_vbyte.json",
+      "msgIndex": 2,
+      "url": "https://metamug.com/article/security/bitcoin-transaction-fee-satoshi-per-byte.html",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "https://metamug.com/article/security/bitcoin-transaction-fee-satoshi-per-byte.html"
+    },
+    {
+      "file": "R_apps-tools.json",
+      "msgIndex": 14,
+      "url": "https://buybitcoinworldwide.com/stats/stock-to-flow/",
+      "foundIn": "link",
+      "status": 428,
+      "error": null,
+      "textPreview": "Lots of models including stock to flow  https://buybitcoinworldwide.com/stats/stock-to-flow/"
+    },
+    {
+      "file": "R_apps-tools.json",
+      "msgIndex": 27,
+      "url": "https://chat.bitcoinsearch.xyz/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND chat.bitcoinsearch.xyz",
+      "textPreview": "ChatBTC, a GPT powered bot that has been trained from the Bitcoin dev mailing list and stack exchang"
+    },
+    {
+      "file": "R_apps-tools.json",
+      "msgIndex": 75,
+      "url": "https://www.opportunitycost.app/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN www.opportunitycost.app",
+      "textPreview": "Opportunity Cost  Browser extension that changes the denomination of all on screen prices to sats ht"
+    },
+    {
+      "file": "R_apps-tools.json",
+      "msgIndex": 83,
+      "url": "https://lowbackgroundsteel.ai/",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Pre-AI content archive https://lowbackgroundsteel.ai/"
+    },
+    {
+      "file": "R_apps-tools.json",
+      "msgIndex": 88,
+      "url": "https://charts.bitbo.io/index/",
+      "foundIn": "link",
+      "status": 428,
+      "error": null,
+      "textPreview": "Bitbo charts on everything  https://charts.bitbo.io/index/"
+    },
+    {
+      "file": "R_art-inspiration.json",
+      "msgIndex": 211,
+      "url": "https://bitnodes.io/nodes/live-map/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND bitnodes.io",
+      "textPreview": "Live map of Bitcoin nodes: https://bitnodes.io/nodes/live-map/"
+    },
+    {
+      "file": "R_art-inspiration.json",
+      "msgIndex": 574,
+      "url": "http://Thebitcoinflag.com",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN bitcoinofbricks.com",
+      "textPreview": "History on Bitcoin's B logo on this site (scroll down): http://Thebitcoinflag.com"
+    },
+    {
+      "file": "R_art-inspiration.json",
+      "msgIndex": 1098,
+      "url": "https://cdn.discordapp.com/attachments/1016427344954675404/1016865700536664196/Kayjii_satoshi_nakamoto_with_bitcoins_fork_plate_black_tunic_yo_72e3c1d1-2943-4ffe-bc6a-274324c6f23f.png",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://cdn.discordapp.com/attachments/1016427344954675404/1016865700536664196/Kayjii_satoshi_nakamo"
+    },
+    {
+      "file": "R_art-inspiration.json",
+      "msgIndex": 1099,
+      "url": "https://cdn.discordapp.com/attachments/1016427344954675404/1016868453711368193/Kayjii_promptsatoshi_nakamoto_with_bitcoins_around_him_meditati_f0c10452-e929-488a-91c3-e514a169f054.png",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://cdn.discordapp.com/attachments/1016427344954675404/1016868453711368193/Kayjii_promptsatoshi_"
+    },
+    {
+      "file": "R_art-inspiration.json",
+      "msgIndex": 1100,
+      "url": "https://cdn.discordapp.com/attachments/1016427344954675404/1016868488540864612/Kayjii_satoshi_nakamoto_with_bitcoin_around_him_meditating_bitc_dcdf0aa2-269b-4092-a30d-39ae01bec9b2.png",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://cdn.discordapp.com/attachments/1016427344954675404/1016868488540864612/Kayjii_satoshi_nakamo"
+    },
+    {
+      "file": "R_articles-threads.json",
+      "msgIndex": 7,
+      "url": "https://theinternetofmoney.info/the-talks/",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "Valuable and comprehensive list of lectures by amazing speaker Andreas Antonopoulos  https://theinte"
+    },
+    {
+      "file": "R_articles-threads.json",
+      "msgIndex": 34,
+      "url": "https://www.newsweek.com/governments-should-invest-bitcoin-network-opinion-1623331",
+      "foundIn": "link",
+      "status": 406,
+      "error": null,
+      "textPreview": "Bitcoin is doing for money what the internet did for information. Like the internet, it needs infras"
+    },
+    {
+      "file": "R_articles-threads.json",
+      "msgIndex": 70,
+      "url": "https://charts.bitbo.io/stock-to-flow/",
+      "foundIn": "link",
+      "status": 428,
+      "error": null,
+      "textPreview": "Detailed breakdown of Bitcoin's Stock to Flow model: https://charts.bitbo.io/stock-to-flow/"
+    },
+    {
+      "file": "R_articles-threads.json",
+      "msgIndex": 129,
+      "url": "https://bitcoinmagazine.com/culture/framing-bitcoin-for-progressives?s=09",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Framing Bitcoin for Progressives  https://bitcoinmagazine.com/culture/framing-bitcoin-for-progressiv"
+    },
+    {
+      "file": "R_articles-threads.json",
+      "msgIndex": 139,
+      "url": "https://time.com/5486673/bitcoin-venezuela-authoritarian/?amp=true&s=09",
+      "foundIn": "link",
+      "status": 406,
+      "error": null,
+      "textPreview": "Why Bitcoin matters for freedom by Gladstein  https://time.com/5486673/bitcoin-venezuela-authoritari"
+    },
+    {
+      "file": "R_articles-threads.json",
+      "msgIndex": 140,
+      "url": "https://bitcoinmagazine.com/culture/progressives-and-bitcoin-are-not-opposed?s=09",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Another \"Bitcoin for Progressives\" article https://bitcoinmagazine.com/culture/progressives-and-bitc"
+    },
+    {
+      "file": "R_articles-threads.json",
+      "msgIndex": 163,
+      "url": "https://cointelegraph.com/news/ethereum-raises-3700-btc-in-first-12-hours-of-ether-presale",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "I can't believe people gave away thousands of Bitcoin to this scam...(eth presale) https://cointeleg"
+    },
+    {
+      "file": "R_articles-threads.json",
+      "msgIndex": 237,
+      "url": "https://rollkit.dev/learn/overview",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://rollkit.dev/learn/overview"
+    },
+    {
+      "file": "R_books.json",
+      "msgIndex": 4,
+      "url": "https://theinternetofmoney.info/the-talks/",
+      "foundIn": "text",
+      "status": 503,
+      "error": null,
+      "textPreview": "<b>\"The Internet of Money,\"</b> also by Andreas, is a book that delves into the \"why\" of bitcoin:  h"
+    },
+    {
+      "file": "R_books.json",
+      "msgIndex": 13,
+      "url": "https://amzn.to/3mBgdgF",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "The Little Bitcoin Book: Why Bitcoin Matters for Your Freedom, Finances, and Future: https://amzn.to"
+    },
+    {
+      "file": "R_books.json",
+      "msgIndex": 20,
+      "url": "https://amzn.to/3F7dIcE",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "Mastering the Lightning Networkh by Andreas: https://amzn.to/3F7dIcE"
+    },
+    {
+      "file": "R_books.json",
+      "msgIndex": 40,
+      "url": "https://amzn.to/3PEapPR",
+      "foundIn": "link",
+      "status": 405,
+      "error": null,
+      "textPreview": "The Creature from Jekyll Island: A Second Look at the Federal Reserve: https://amzn.to/3PEapPR"
+    },
+    {
+      "file": "R_books.json",
+      "msgIndex": 58,
+      "url": "https://www.uncerto.com/book-pdf",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Bitcoin is Venice free pdf https://www.uncerto.com/book-pdf"
+    },
+    {
+      "file": "R_books.json",
+      "msgIndex": 105,
+      "url": "https://a.co/4ch2itR",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://a.co/4ch2itR"
+    },
+    {
+      "file": "R_books.json",
+      "msgIndex": 108,
+      "url": "https://store.bitcoinmagazine.com/collections/books/products/the-bitcoin-miners-almanac-pre-order",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "The Bitcoin Miners Almanac  https://store.bitcoinmagazine.com/collections/books/products/the-bitcoin"
+    },
+    {
+      "file": "R_charts.json",
+      "msgIndex": 270,
+      "url": "https://stats.buybitcoinworldwide.com/power-law-oscillator/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "https://stats.buybitcoinworldwide.com/power-law-oscillator/"
+    },
+    {
+      "file": "R_charts.json",
+      "msgIndex": 281,
+      "url": "https://charts.bitbo.io/sma1458/",
+      "foundIn": "text",
+      "status": 428,
+      "error": null,
+      "textPreview": "4 year simple moving average https://twitter.com/bitstein/status/1537265936238927872?t=qIteOGNKnx_nn"
+    },
+    {
+      "file": "R_charts.json",
+      "msgIndex": 353,
+      "url": "https://stats.buybitcoinworldwide.com/power-law-oscillator/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "https://stats.buybitcoinworldwide.com/power-law-oscillator/"
+    },
+    {
+      "file": "R_curriculum.json",
+      "msgIndex": 53,
+      "url": "https://www.wsj.com/articles/the-secrets-of-americas-greatest-high-school-math-team-11657791000",
+      "foundIn": "link",
+      "status": 401,
+      "error": null,
+      "textPreview": "https://www.wsj.com/articles/the-secrets-of-americas-greatest-high-school-math-team-11657791000"
+    },
+    {
+      "file": "R_curriculum.json",
+      "msgIndex": 71,
+      "url": "https://github.com/MyFirstBitcoin/Bitcoin-Diploma-2024",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Updated My First Bitcoin diploma workbook!!! https://github.com/MyFirstBitcoin/Bitcoin-Diploma-2024"
+    },
+    {
+      "file": "R_curriculum.json",
+      "msgIndex": 85,
+      "url": "https://www.wsj.com/articles/the-secrets-of-americas-greatest-high-school-math-team-11657791000",
+      "foundIn": "link",
+      "status": 401,
+      "error": null,
+      "textPreview": "https://www.wsj.com/articles/the-secrets-of-americas-greatest-high-school-math-team-11657791000"
+    },
+    {
+      "file": "R_fun-facts.json",
+      "msgIndex": 67,
+      "url": "http://Thebitcoinflag.com",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN bitcoinofbricks.com",
+      "textPreview": "History/description on design choice Bitcoin's B logo on this site (scroll down): 12.5° Angled Cut  "
+    },
+    {
+      "file": "R_games.json",
+      "msgIndex": 50,
+      "url": "https://www.lnflip.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND www.lnflip.com",
+      "textPreview": "Coin flip gamble  https://www.lnflip.com/"
+    },
+    {
+      "file": "R_history.json",
+      "msgIndex": 3,
+      "url": "https://en.wikipedia.org/wiki/Silk_Road_(marketplace",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "More on Silk Road: https://en.wikipedia.org/wiki/Silk_Road_(marketplace)  Post about Bitcoin hitting"
+    },
+    {
+      "file": "R_history.json",
+      "msgIndex": 54,
+      "url": "https://diyhpl.us/wiki/transcripts/crypto98-hal-finney-zero-knowledge-proof-of-preimage/",
+      "foundIn": "text",
+      "status": 418,
+      "error": null,
+      "textPreview": "1998 - Hal Finney talk on zero knowledge proofs https://twitter.com/pete_rizzo_/status/1704522067582"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 10,
+      "url": "https://bitnodes.io/nodes/live-map/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND bitnodes.io",
+      "textPreview": "Live map of Bitcoin nodes (pretty cool): https://bitnodes.io/nodes/live-map/"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 17,
+      "url": "https://fiatmarketcap.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "",
+      "textPreview": "Fiat Market Cap. Fiat currencies' market caps priced and ranked in Bitcoin: https://fiatmarketcap.co"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 21,
+      "url": "https://oxt.me/",
+      "foundIn": "text",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "Which fiat are people using to purchase bitcoin (live)? https://fiatleak.com/btc How much Bitcoin go"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 22,
+      "url": "https://bitcoinaverage.com/en/bitcoin-price/btc-to-usd",
+      "foundIn": "text",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "Coinos.io - Send and receive bitcoin w Liquid and Lightning https://coinos.io/ Twenty one.world. Pro"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 24,
+      "url": "https://www.getbitcoin.org/#get-btc",
+      "foundIn": "text",
+      "status": null,
+      "error": "write EPROTO 005D7F7C817F0000:error:0A000410:SSL routines:ssl3_read_bytes:ssl/tls alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:918:SSL alert number 40\n",
+      "textPreview": "Citadel Patch pool of resources and consulting:  Odell's resources:  Bitcoin Cannon by Swan Bitcoin "
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 24,
+      "url": "https://100millionsatoshis.world/",
+      "foundIn": "text",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "Citadel Patch pool of resources and consulting:  Odell's resources:  Bitcoin Cannon by Swan Bitcoin "
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 25,
+      "url": "https://thenakedpleb.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND thenakedpleb.com",
+      "textPreview": "<b>FUN</b> Bitcoin obituaries https://99bitcoins.com/bitcoin-obituaries/ Pronouncements stating \"Bit"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 27,
+      "url": "https://theartbanc.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN theartbanc.com",
+      "textPreview": "<b>NEWSLETTERS</b> The Pomp Letter: https://pomp.substack.com/  The Bitcoin Espresso:   Ecoinometric"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 32,
+      "url": "https://aantonop.com/workshops-page/",
+      "foundIn": "text",
+      "status": 503,
+      "error": null,
+      "textPreview": "<b>BITCOIN COURSES AND TESTS:</b> Free Bitcoin course by Saylor Academy. 12 hours of wonderful conte"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 32,
+      "url": "https://aantonop.com/workshops/introduction-to-bitcoin-and-open-blockchains/?utm_source=aantonop.io&utm_medium=urlshortener&utm_campaign&utm_term&utm_content",
+      "foundIn": "text",
+      "status": 503,
+      "error": null,
+      "textPreview": "<b>BITCOIN COURSES AND TESTS:</b> Free Bitcoin course by Saylor Academy. 12 hours of wonderful conte"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 32,
+      "url": "https://www.globalbitcoinfest.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND www.globalbitcoinfest.com",
+      "textPreview": "<b>BITCOIN COURSES AND TESTS:</b> Free Bitcoin course by Saylor Academy. 12 hours of wonderful conte"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 33,
+      "url": "http://www.bitcoinholidaycalendar.com/treasuries/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN www.bitcoinholidaycalendar.com",
+      "textPreview": "<b>MORE INFORMATION WEBSITES</b> The CBBI is a Bitcoin index that utilizes advanced, real-time analy"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 33,
+      "url": "https://www.knutsvanholm.com/",
+      "foundIn": "text",
+      "status": 404,
+      "error": null,
+      "textPreview": "<b>MORE INFORMATION WEBSITES</b> The CBBI is a Bitcoin index that utilizes advanced, real-time analy"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 34,
+      "url": "https://bitcointodaycoalition.org/bitcoin-facts",
+      "foundIn": "text",
+      "status": 500,
+      "error": null,
+      "textPreview": "<b>MORE CONGLOMERATE RESOURCES</b> Noderunners network: https://noderunners.network/en/ Organized pa"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 34,
+      "url": "https://electricmoney.org/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND electricmoney.org",
+      "textPreview": "<b>MORE CONGLOMERATE RESOURCES</b> Noderunners network: https://noderunners.network/en/ Organized pa"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 34,
+      "url": "https://bitcoinmaxinews.com/m/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND bitcoinmaxinews.com",
+      "textPreview": "<b>MORE CONGLOMERATE RESOURCES</b> Noderunners network: https://noderunners.network/en/ Organized pa"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 35,
+      "url": "https://we-are-all-satoshi.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND we-are-all-satoshi.com",
+      "textPreview": "<b>MORE FUN</b> Fucking shitcoins receipt by Gigi https://fuckingshitcoins.com/ Find out if #Bitcoin"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 35,
+      "url": "https://www.thebitcoinbugle.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "<b>MORE FUN</b> Fucking shitcoins receipt by Gigi https://fuckingshitcoins.com/ Find out if #Bitcoin"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 35,
+      "url": "https://www.isitashitcoin.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND www.isitashitcoin.com",
+      "textPreview": "<b>MORE FUN</b> Fucking shitcoins receipt by Gigi https://fuckingshitcoins.com/ Find out if #Bitcoin"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 37,
+      "url": "https://plainenglishbitcoin.com/#",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND plainenglishbitcoin.com",
+      "textPreview": "<b>MORE INFORMATION WEBSITES</b> Physical bitcoin product since 2012 - Denarium  https://denarium.co"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 37,
+      "url": "https://www.bitcoinerevents.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND www.bitcoinerevents.com",
+      "textPreview": "<b>MORE INFORMATION WEBSITES</b> Physical bitcoin product since 2012 - Denarium  https://denarium.co"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 37,
+      "url": "https://stackchain.app/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND stackchain.app",
+      "textPreview": "<b>MORE INFORMATION WEBSITES</b> Physical bitcoin product since 2012 - Denarium  https://denarium.co"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 38,
+      "url": "https://www.bitcoinerevents.com",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND www.bitcoinerevents.com",
+      "textPreview": "<b>MORE MEETUPS/EVENTS</b> charlotte halloween party hodlween http://web.archive.org/web/20230402061"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 39,
+      "url": "https://bitcoinmaxinews.com/m/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND bitcoinmaxinews.com",
+      "textPreview": "<b>BITCOIN NEWS/MEDIA</b> Satoshi's Journal: https://www.satoshisjournal.com Bitcoin Magazine https:"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 40,
+      "url": "https://satstats.net/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND satstats.net",
+      "textPreview": "<b>MORE INFORMATIONAL WEBSITES</b> Solochance - Calculate the chance of hitting a bitcoin block when"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 40,
+      "url": "https://theyownbitcoin.bitcoinreserve.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND theyownbitcoin.bitcoinreserve.com",
+      "textPreview": "<b>MORE INFORMATIONAL WEBSITES</b> Solochance - Calculate the chance of hitting a bitcoin block when"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 40,
+      "url": "https://www.bitlist.com/#list2",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND www.bitlist.com",
+      "textPreview": "<b>MORE INFORMATIONAL WEBSITES</b> Solochance - Calculate the chance of hitting a bitcoin block when"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 40,
+      "url": "https://www.pricedinbitcoin21.com/landing",
+      "foundIn": "text",
+      "status": 404,
+      "error": null,
+      "textPreview": "<b>MORE INFORMATIONAL WEBSITES</b> Solochance - Calculate the chance of hitting a bitcoin block when"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 40,
+      "url": "https://www.pricedinbitcoin21.com/landing",
+      "foundIn": "text",
+      "status": 404,
+      "error": null,
+      "textPreview": "<b>MORE INFORMATIONAL WEBSITES</b> Solochance - Calculate the chance of hitting a bitcoin block when"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 42,
+      "url": "https://fiatmarketcap.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "",
+      "textPreview": "<b>MORE INFORMATIONAL WEBSITES</b> To get on zero means you don’t hold any fiat by @JWWeatherman_ ht"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 42,
+      "url": "https://satstats.net/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND satstats.net",
+      "textPreview": "<b>MORE INFORMATIONAL WEBSITES</b> To get on zero means you don’t hold any fiat by @JWWeatherman_ ht"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 42,
+      "url": "https://ocean.xyz",
+      "foundIn": "text",
+      "status": 404,
+      "error": null,
+      "textPreview": "<b>MORE INFORMATIONAL WEBSITES</b> To get on zero means you don’t hold any fiat by @JWWeatherman_ ht"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 45,
+      "url": "https://bitcoincourse.io/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND bitcoincourse.io",
+      "textPreview": "Course by Anil https://bitcoincourse.io/ https://x.com/anilsaidso/status/1808174463642657123?t=hhNEU"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 46,
+      "url": "https://www.pricedinbitcoin21.com/landing",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Everything priced in Bitcoin  https://www.pricedinbitcoin21.com/landing"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 56,
+      "url": "https://www.bitcoinmarathon.org/",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Bitcoin half marathon and festival - Thailand https://www.bitcoinmarathon.org/"
+    },
+    {
+      "file": "R_international.json",
+      "msgIndex": 5,
+      "url": "https://event.swanbitcoin.com/librogratis/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND event.swanbitcoin.com",
+      "textPreview": "Spanish: Buy bitcoin p2p with Local Bitcoins https://twitter.com/LocalBitcoinsES  Spanish - (free) b"
+    },
+    {
+      "file": "R_international.json",
+      "msgIndex": 5,
+      "url": "https://bitblioteca.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "Spanish: Buy bitcoin p2p with Local Bitcoins https://twitter.com/LocalBitcoinsES  Spanish - (free) b"
+    },
+    {
+      "file": "R_international.json",
+      "msgIndex": 25,
+      "url": "https://lunaticoin.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND lunaticoin.com",
+      "textPreview": "Spanish Lunaticoin  https://lunaticoin.com/"
+    },
+    {
+      "file": "R_jobs-earn.json",
+      "msgIndex": 47,
+      "url": "https://plebbin.com/",
+      "foundIn": "text",
+      "status": 504,
+      "error": null,
+      "textPreview": "Plebbin - buy, sell, rent, exchange, learn. Classifieds for the Plebs by https://twitter.com/LRothba"
+    },
+    {
+      "file": "R_jobs-earn.json",
+      "msgIndex": 50,
+      "url": "https://gigsats.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND gigsats.com",
+      "textPreview": "Gigsats - a marketplace for freelance services, powered by #Bitcoin and Lightning Network. https://g"
+    },
+    {
+      "file": "R_jobs-earn.json",
+      "msgIndex": 51,
+      "url": "https://nutminer.semisol.dev/",
+      "foundIn": "link",
+      "status": null,
+      "error": "write EPROTO 005D7F7C817F0000:error:0A000438:SSL routines:ssl3_read_bytes:tlsv1 alert internal error:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:918:SSL alert number 80\n",
+      "textPreview": "Nut miner - cashu ecash browser miner by  https://nutminer.semisol.dev/"
+    },
+    {
+      "file": "R_jobs-earn.json",
+      "msgIndex": 61,
+      "url": "https://plebbin.com/",
+      "foundIn": "text",
+      "status": 504,
+      "error": null,
+      "textPreview": "https://www.bitcointalent.co/ These two are the main sites to find jobs: https://bitcoinerjobs.co/ h"
+    },
+    {
+      "file": "R_jobs-earn.json",
+      "msgIndex": 61,
+      "url": "https://gigsats.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND gigsats.com",
+      "textPreview": "https://www.bitcointalent.co/ These two are the main sites to find jobs: https://bitcoinerjobs.co/ h"
+    },
+    {
+      "file": "R_memes-funny.json",
+      "msgIndex": 731,
+      "url": "https://files.stlouisfed.org/files/htdocs/publications/page1-econ/2018/03/01/bitcoin-money-or-financial-investment_SE.pdf",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout on redirect",
+      "textPreview": "Federal Reserve infopacket on Bitcoin. NGMI https://files.stlouisfed.org/files/htdocs/publications/p"
+    },
+    {
+      "file": "R_memes-funny.json",
+      "msgIndex": 1422,
+      "url": "https://presentyourstory.com/gilfoyles-crypto-currency-powerpoint-slides/",
+      "foundIn": "link",
+      "status": 500,
+      "error": null,
+      "textPreview": "Gilfoyle's cryptocurrency slides from Silicon Valley https://presentyourstory.com/gilfoyles-crypto-c"
+    },
+    {
+      "file": "R_memes-funny.json",
+      "msgIndex": 1587,
+      "url": "https://tenor.com/view/satoshi-nakamoto-satoshi-stack-sats-bitcoin-btc-gif-18134593",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://tenor.com/view/satoshi-nakamoto-satoshi-stack-sats-bitcoin-btc-gif-18134593"
+    },
+    {
+      "file": "R_memes-funny.json",
+      "msgIndex": 1964,
+      "url": "https://proxy.irismessengers.wtf/insecure/plain/https://nostr.build/i/nostr.build_3fd0e97ffb1e25f17ba20cfaaa67b5fb92d1a1e74ee19df7f619d0667725658c.jpg",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND proxy.irismessengers.wtf",
+      "textPreview": "https://proxy.irismessengers.wtf/insecure/plain/https://nostr.build/i/nostr.build_3fd0e97ffb1e25f17b"
+    },
+    {
+      "file": "R_music.json",
+      "msgIndex": 53,
+      "url": "https://www.plebrap.space/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND www.plebrap.space",
+      "textPreview": "Pleb Rap (German) music sharing platform https://www.plebrap.space/"
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 44,
+      "url": "https://www.washingtonpost.com/us-policy/2021/08/25/yellen-crypto-bitcoin-defi/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "https://www.washingtonpost.com/us-policy/2021/08/25/yellen-crypto-bitcoin-defi/"
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 671,
+      "url": "https://www.washingtonpost.com/washington-post-live/2021/09/21/path-forward-cryptocurrency-with-gary-gensler-us-securities-exchange-commission-chair/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "https://www.washingtonpost.com/washington-post-live/2021/09/21/path-forward-cryptocurrency-with-gary"
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 815,
+      "url": "https://cointelegraph.com/news/bitcoin-miner-stronghold-will-list-almost-6m-shares-in-its-100m-ipo/amp?__twitter_impression=true",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Another US based mining company going public and will be the first one to do so in an IPO...bullish "
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 862,
+      "url": "https://cointelegraph.com/news/mt-gox-rehabilitation-plan-is-now-final-and-binding",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://cointelegraph.com/news/mt-gox-rehabilitation-plan-is-now-final-and-binding"
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 964,
+      "url": "https://www.washingtonpost.com/us-policy/2021/08/25/yellen-crypto-bitcoin-defi/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "https://www.washingtonpost.com/us-policy/2021/08/25/yellen-crypto-bitcoin-defi/"
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 965,
+      "url": "https://www.washingtonpost.com/us-policy/2021/08/25/yellen-crypto-bitcoin-defi/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "https://www.washingtonpost.com/us-policy/2021/08/25/yellen-crypto-bitcoin-defi/"
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 1045,
+      "url": "https://poseidon01.ssrn.com/delivery.php?ID=894066006095123112068099085127103092118059041019064065110101090089024124007099077121110039062059057028033082025094002121099121108038036022041016096116111020126027009062024125081114022119006076090106113084025085028105029092019027123096090005111021004&EXT=pdf&INDEX=TRUE",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND poseidon01.ssrn.com",
+      "textPreview": "https://poseidon01.ssrn.com/delivery.php?ID=89406600609512311206809908512710309211805904101906406511"
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 1069,
+      "url": "https://www.washingtonpost.com/washington-post-live/2021/09/21/path-forward-cryptocurrency-with-gary-gensler-us-securities-exchange-commission-chair/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "https://www.washingtonpost.com/washington-post-live/2021/09/21/path-forward-cryptocurrency-with-gary"
+    },
+    {
+      "file": "R_news-adoption.json",
+      "msgIndex": 1118,
+      "url": "https://cointelegraph.com/news/mt-gox-rehabilitation-plan-is-now-final-and-binding",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://cointelegraph.com/news/mt-gox-rehabilitation-plan-is-now-final-and-binding"
+    },
+    {
+      "file": "R_nostr.json",
+      "msgIndex": 2,
+      "url": "https://nostree.me",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND nostree.me",
+      "textPreview": "Resources:  Learn more about all things nostr https://nostr-resources.com/  Media uploader https://n"
+    },
+    {
+      "file": "R_podcasts.json",
+      "msgIndex": 11,
+      "url": "https://jesusbitcoinpod.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND jesusbitcoinpod.com",
+      "textPreview": "For Christians who love Bitcoin. I liked episode 1 from this link! https://jesusbitcoinpod.com/"
+    },
+    {
+      "file": "R_podcasts.json",
+      "msgIndex": 36,
+      "url": "https://podcasts.apple.com/us/podcast/smart-people-shit/id1562927150?i=1000539698846",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "A strong political call to action in here from the CEO of Bitcoin Magazine https://podcasts.apple.co"
+    },
+    {
+      "file": "R_podcasts.json",
+      "msgIndex": 43,
+      "url": "https://onthebrink-podcast.com/lancium/?s=09",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "Ray Cline and Shaun Connell (Lancium) on Stabilizing the Grid with Bitcoin Mining https://onthebrink"
+    },
+    {
+      "file": "R_podcasts.json",
+      "msgIndex": 57,
+      "url": "https://jesusbitcoinpod.com/?s=09",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND jesusbitcoinpod.com",
+      "textPreview": "The Jesus & Bitcoin podcast  https://jesusbitcoinpod.com/?s=09"
+    },
+    {
+      "file": "R_podcasts.json",
+      "msgIndex": 80,
+      "url": "https://podcasts.apple.com/us/podcast/volume-13-btcjune-presents-that-puro-signal/id1619639791?i=1000570951707",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "That Puro Signal - podcast clips over music https://podcasts.apple.com/us/podcast/volume-13-btcjune-"
+    },
+    {
+      "file": "R_poems-stories.json",
+      "msgIndex": 27,
+      "url": "https://www.bitcoinpoems.pro",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "Collection of poems by @bitcoinpoems https://www.bitcoinpoems.pro"
+    },
+    {
+      "file": "R_projects-diy.json",
+      "msgIndex": 2,
+      "url": "https://www.econoalchemist.com/post/home-mining-for-non-kyc-bitcoin",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "<b>HOME MINING:</b> Home mining strategy https://www.econoalchemist.com/post/home-mining-for-non-kyc"
+    },
+    {
+      "file": "R_projects-diy.json",
+      "msgIndex": 3,
+      "url": "https://handsfreebitcoin.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN handsfreebitcoin.com",
+      "textPreview": "<b>HOME MINING (CONTINUED)</b> Home set up https://x.com/ausenhus/status/1469390654476210177?t=Yx8ku"
+    },
+    {
+      "file": "R_satoshi-nakamoto.json",
+      "msgIndex": 1,
+      "url": "https://www.math.snu.ac.kr/~hichoi/finmath/AlanGreenspan-GoldEconomicFreedom.pdf",
+      "foundIn": "text",
+      "status": 404,
+      "error": null,
+      "textPreview": "- <i>Persons proposed to be the real individual Satoshi or part of the group Satoshi (partial list t"
+    },
+    {
+      "file": "R_social-media.json",
+      "msgIndex": 11,
+      "url": "https://getzion.com/",
+      "foundIn": "text",
+      "status": null,
+      "error": "write EPROTO 005D7F7C817F0000:error:0A000438:SSL routines:ssl3_read_bytes:tlsv1 alert internal error:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:918:SSL alert number 80\n",
+      "textPreview": "The Social Network Built on Bitcoin and Lightning and being built by https://twitter.com/AwakenWithJ"
+    },
+    {
+      "file": "R_social-media.json",
+      "msgIndex": 20,
+      "url": "https://starbackr.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "Timeout",
+      "textPreview": "Starbackr content creation built on Bitcoin. Tips with lightning https://starbackr.com/"
+    },
+    {
+      "file": "R_social-media.json",
+      "msgIndex": 22,
+      "url": "https://github.com/lnbits/lnbits/tree/main/lnbits/extensions/livestream",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "DJ livestream with payments over lighting (LNbits) https://github.com/lnbits/lnbits/tree/main/lnbits"
+    },
+    {
+      "file": "R_social-media.json",
+      "msgIndex": 32,
+      "url": "https://bitcoinhackers.org/about",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://bitcoinhackers.org/about Mastadon"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 4,
+      "url": "https://bitcoinsavesgear.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN bitcoinsavesgear.com",
+      "textPreview": "Hoodies, shirts, and a Diamond Hands HODL fanny pack, and Run DCA hats https://bitcoinsavesgear.com/"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 10,
+      "url": "https://www.bitcoinblackfriday.com/2021/the-dip?s=09",
+      "foundIn": "link",
+      "status": null,
+      "error": "write EPROTO 005D7F7C817F0000:error:0A000438:SSL routines:ssl3_read_bytes:tlsv1 alert internal error:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:918:SSL alert number 80\n",
+      "textPreview": "Cheddar dip https://www.bitcoinblackfriday.com/2021/the-dip?s=09"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 12,
+      "url": "https://amzn.to/3sElGH9",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "Bitcoin merch on Amazon including Bitcoin playing cards https://amzn.to/3sElGH9"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 13,
+      "url": "https://amzn.to/3FKNLPT",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "You can buy a fraction of a bitcoin shirt https://amzn.to/3FKNLPT"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 17,
+      "url": "https://aantonop.com/product/you-do-not-need-a-blockchain-for-that-15oz-mug/",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "https://aantonop.com/product/you-do-not-need-a-blockchain-for-that-15oz-mug/"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 31,
+      "url": "http://Thebitcoinflag.com",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN bitcoinofbricks.com",
+      "textPreview": "Flag http://Thebitcoinflag.com"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 35,
+      "url": "https://www.finitesupply.net/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo ENOTFOUND www.finitesupply.net",
+      "textPreview": "Finite Supply shop https://www.finitesupply.net/"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 36,
+      "url": "https://www.bitcasahomes.com/",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN www.bitcasahomes.com",
+      "textPreview": "Bitcasa Homes - Real estate and Bitcoin BNB Marketplace  https://www.bitcasahomes.com/ https://twitt"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 54,
+      "url": "https://pollofeed.com/",
+      "foundIn": "link",
+      "status": 401,
+      "error": null,
+      "textPreview": "Feed chickens over lightning. Pollo feed https://pollofeed.com/"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 61,
+      "url": "https://lfgo.co/",
+      "foundIn": "link",
+      "status": 421,
+      "error": null,
+      "textPreview": "cool shop LFGO https://lfgo.co/"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 75,
+      "url": "http://Thebitcoinflag.com",
+      "foundIn": "link",
+      "status": null,
+      "error": "getaddrinfo EAI_AGAIN bitcoinofbricks.com",
+      "textPreview": "Flag http://Thebitcoinflag.com"
+    },
+    {
+      "file": "R_swag-merch.json",
+      "msgIndex": 79,
+      "url": "https://plebsters.com/products/baseball-cap-3",
+      "foundIn": "link",
+      "status": 404,
+      "error": null,
+      "textPreview": "https://plebsters.com/products/baseball-cap-3"
+    },
+    {
+      "file": "R_videos.json",
+      "msgIndex": 73,
+      "url": "https://theinternetofmoney.info/the-talks/",
+      "foundIn": "link",
+      "status": 503,
+      "error": null,
+      "textPreview": "Valuable and comprehensive list of lectures by amazing speaker Andreas Antonopoulos  https://theinte"
+    },
+    {
+      "file": "R_web5.json",
+      "msgIndex": 0,
+      "url": "https://developer.tbd.website/projects/web5/",
+      "foundIn": "link",
+      "status": 500,
+      "error": null,
+      "textPreview": "https://developer.tbd.website/projects/web5/"
+    },
+    {
+      "file": "R_web5.json",
+      "msgIndex": 1,
+      "url": "https://developer.tbd.website/projects/web5/",
+      "foundIn": "link",
+      "status": 500,
+      "error": null,
+      "textPreview": "https://developer.tbd.website/projects/web5/"
+    }
+  ]
+}
