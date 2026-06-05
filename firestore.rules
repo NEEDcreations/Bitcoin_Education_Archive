@@ -1055,12 +1055,10 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // Hashes subcollection — public read, server writes
+      // Hashes subcollection — public read, Cloud Functions only write
       match /hashes/{hashId} {
         allow read: if true;
-        allow create: if request.auth != null
-                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
-        allow update, delete: if false;
+        allow create, update, delete: if false;
       }
 
       // Cooldowns subcollection — server writes only
