@@ -1,0 +1,357 @@
+{
+  "scanTime": "2026-06-05T13:55:31.498Z",
+  "filesScanned": 149,
+  "totalImageRefs": 3844,
+  "missingImages": 24,
+  "uniqueMissingImages": 24,
+  "orphanImages": 1718,
+  "orphanSizeMB": 245.57,
+  "missing": [
+    {
+      "file": "D_money.json",
+      "msgIndex": 5,
+      "imgPath": "images/discord-may2026/discord_002_0.png",
+      "textPreview": "Updated Dune indicator (trailers released at bottom of bears)"
+    },
+    {
+      "file": "D_money.json",
+      "msgIndex": 6,
+      "imgPath": "images/discord-may2026/discord_003_0.png",
+      "textPreview": "bear markets suck for three reasons"
+    },
+    {
+      "file": "D_money.json",
+      "msgIndex": 7,
+      "imgPath": "images/discord-may2026/discord_013_0.jpg",
+      "textPreview": "Your average Bitcoin price if you bought daily for x years"
+    },
+    {
+      "file": "D_money.json",
+      "msgIndex": 8,
+      "imgPath": "images/discord-may2026/discord_041_0.png",
+      "textPreview": "National debt colored by republican/democrat party"
+    },
+    {
+      "file": "E_cryptography.json",
+      "msgIndex": 36,
+      "imgPath": "images/discord-may2026/discord_048_0.jpg",
+      "textPreview": "How public/private key cryptography works"
+    },
+    {
+      "file": "E_developers.json",
+      "msgIndex": 8,
+      "imgPath": "images/discord-may2026/discord_011_0.png",
+      "textPreview": "b10c Bitcoin dev blog"
+    },
+    {
+      "file": "E_layer-2-lightning.json",
+      "msgIndex": 93,
+      "imgPath": "images/discord-may2026/discord_006_0.png",
+      "textPreview": "Transaction fees, mastercard vs lightning"
+    },
+    {
+      "file": "E_layer-2-lightning.json",
+      "msgIndex": 95,
+      "imgPath": "images/discord-may2026/discord_017_0.png",
+      "textPreview": "bitcoin’s lightning network also works exactly like this when making a payment  Mathematics, Physics"
+    },
+    {
+      "file": "E_layer-2-lightning.json",
+      "msgIndex": 95,
+      "imgPath": "images/discord-may2026/discord_017_1.jpg",
+      "textPreview": "bitcoin’s lightning network also works exactly like this when making a payment  Mathematics, Physics"
+    },
+    {
+      "file": "E_mining.json",
+      "msgIndex": 73,
+      "imgPath": "images/discord-may2026/discord_015_0.png",
+      "textPreview": "Rent hash through Braiins (Ocean, DATUM)"
+    },
+    {
+      "file": "E_mining.json",
+      "msgIndex": 75,
+      "imgPath": "images/discord-may2026/discord_051_0.jpg",
+      "textPreview": "Mining solo vs pool graphic"
+    },
+    {
+      "file": "E_regulation.json",
+      "msgIndex": 38,
+      "imgPath": "images/discord-may2026/discord_009_0.png",
+      "textPreview": "how countries trea Bitcoin since 2020 (River research)"
+    },
+    {
+      "file": "R_apps-tools.json",
+      "msgIndex": 102,
+      "imgPath": "images/discord-may2026/discord_019_0.png",
+      "textPreview": "Bitcoin data toolkit suite:  app:  api:"
+    },
+    {
+      "file": "R_apps-tools.json",
+      "msgIndex": 103,
+      "imgPath": "images/discord-may2026/discord_022_0.png",
+      "textPreview": "Tools  • StackFreedom.io → find out how much Bitcoin you need to escape the rat race  • SatChek.com "
+    },
+    {
+      "file": "R_books.json",
+      "msgIndex": 111,
+      "imgPath": "images/discord-may2026/discord_032_0.jpg",
+      "textPreview": "Bitcoin books"
+    },
+    {
+      "file": "R_games.json",
+      "msgIndex": 70,
+      "imgPath": "images/discord-may2026/discord_021_0.png",
+      "textPreview": "Clixel - Multiplayer Bitcoin game"
+    },
+    {
+      "file": "R_graphics.json",
+      "msgIndex": 621,
+      "imgPath": "images/discord-may2026/discord_029_0.png",
+      "textPreview": "Bitcoin vs Crypto graphic"
+    },
+    {
+      "file": "R_graphics.json",
+      "msgIndex": 622,
+      "imgPath": "images/discord-may2026/discord_042_0.jpg",
+      "textPreview": "What seems to be happening vs what is really happening (graphic)"
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 71,
+      "imgPath": "images/discord-may2026/discord_020_0.png",
+      "textPreview": "A nonprofit that aims to raise $21 million in 2027 to fund primary and secondary bitcoin education. "
+    },
+    {
+      "file": "R_informational-sites.json",
+      "msgIndex": 72,
+      "imgPath": "images/discord-may2026/discord_039_0.jpg",
+      "textPreview": "fund grassroots projects or Bitcoin ecosystem gets controlled"
+    },
+    {
+      "file": "R_memes-funny.json",
+      "msgIndex": 2134,
+      "imgPath": "images/discord-may2026/discord_033_0.jpg",
+      "textPreview": "Man struggling at Bitcoin ATM meme"
+    },
+    {
+      "file": "R_memes-funny.json",
+      "msgIndex": 2135,
+      "imgPath": "images/discord-may2026/discord_052_0.jpg",
+      "textPreview": "Ding dong tao meme. Ho Lee Fomo"
+    },
+    {
+      "file": "R_satoshi-nakamoto.json",
+      "msgIndex": 38,
+      "imgPath": "images/discord-may2026/discord_035_0.jpg",
+      "textPreview": "Satoshi, Hal, Len"
+    },
+    {
+      "file": "R_satoshi-nakamoto.json",
+      "msgIndex": 40,
+      "imgPath": "images/discord-may2026/discord_043_0.jpg",
+      "textPreview": "Satoshi, Hal, Len"
+    }
+  ],
+  "orphansSample": [
+    {
+      "path": "images/btc-grad-logo-sm.jpg",
+      "size": 12874
+    },
+    {
+      "path": "images/btc-grad-logo.jpg",
+      "size": 258799
+    },
+    {
+      "path": "images/discord-may2026/discord_001_0.png",
+      "size": 840290
+    },
+    {
+      "path": "images/discord-may2026/discord_002_0.jpg",
+      "size": 54413
+    },
+    {
+      "path": "images/discord-may2026/discord_003_0.jpg",
+      "size": 144906
+    },
+    {
+      "path": "images/discord-may2026/discord_006_0.jpg",
+      "size": 157772
+    },
+    {
+      "path": "images/discord-may2026/discord_011_0.jpg",
+      "size": 321423
+    },
+    {
+      "path": "images/discord-may2026/discord_012_0.jpg",
+      "size": 19677
+    },
+    {
+      "path": "images/discord-may2026/discord_013_0.png",
+      "size": 306783
+    },
+    {
+      "path": "images/discord-may2026/discord_015_0.jpg",
+      "size": 88337
+    },
+    {
+      "path": "images/discord-may2026/discord_019_0.jpg",
+      "size": 321423
+    },
+    {
+      "path": "images/discord-may2026/discord_021_0.jpg",
+      "size": 49445
+    },
+    {
+      "path": "images/discord-may2026/discord_022_0.jpg",
+      "size": 181021
+    },
+    {
+      "path": "images/discord-may2026/discord_025_0.png",
+      "size": 335782
+    },
+    {
+      "path": "images/discord-may2026/discord_032_0.png",
+      "size": 338111
+    },
+    {
+      "path": "images/discord-may2026/discord_033_0.png",
+      "size": 283441
+    },
+    {
+      "path": "images/discord-may2026/discord_034_0.png",
+      "size": 116182
+    },
+    {
+      "path": "images/discord-may2026/discord_035_0.png",
+      "size": 138149
+    },
+    {
+      "path": "images/discord-may2026/discord_037_0.png",
+      "size": 566424
+    },
+    {
+      "path": "images/discord-may2026/discord_037_1.jpg",
+      "size": 70304
+    },
+    {
+      "path": "images/discord-may2026/discord_039_0.png",
+      "size": 158737
+    },
+    {
+      "path": "images/discord-may2026/discord_041_0.jpg",
+      "size": 84419
+    },
+    {
+      "path": "images/discord-may2026/discord_043_0.png",
+      "size": 720578
+    },
+    {
+      "path": "images/discord-may2026/discord_044_0.png",
+      "size": 281248
+    },
+    {
+      "path": "images/discord-may2026/discord_045_0.png",
+      "size": 423323
+    },
+    {
+      "path": "images/discord-may2026/discord_048_0.png",
+      "size": 799915
+    },
+    {
+      "path": "images/discord-may2026/discord_051_0.png",
+      "size": 682329
+    },
+    {
+      "path": "images/discord-may2026/discord_052_0.png",
+      "size": 416641
+    },
+    {
+      "path": "images/donate/bip47-qr.jpg",
+      "size": 22821
+    },
+    {
+      "path": "images/donate/cashapp-qr.jpg",
+      "size": 18865
+    },
+    {
+      "path": "images/donate/onchain-qr.jpg",
+      "size": 22819
+    },
+    {
+      "path": "images/donate/paypal-qr.jpg",
+      "size": 23532
+    },
+    {
+      "path": "images/donate/venmo-qr.jpg",
+      "size": 18699
+    },
+    {
+      "path": "images/donate/zelle-qr.jpg",
+      "size": 22819
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_000_blockchain-timechain_GqrV15IW0AE9qZh.jpg",
+      "size": 126525
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_001_blockchain-timechain_F6V11lVaQAAnMYO.jpg",
+      "size": 59952
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_003_blockchain-timechain_F5x7aEKaIAA5S4H.jpg",
+      "size": 43150
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_005_blockchain-timechain_FeqnlaqaAAAbkNu.jpg",
+      "size": 66082
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_006_blockchain-timechain__bgPIt3MbGdE0Xv6.jpg",
+      "size": 129246
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_007_blockchain-timechain_maxresdefault.jpg",
+      "size": 55711
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_009_blockchain-timechain_FH-u0iDWQAEnY6W.jpg",
+      "size": 48271
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_011_blockchain-timechain_FGu2l0OXMAcZHve.png",
+      "size": 431162
+    },
+    {
+      "path": "images/experienced/blockchain-timechain_014_blockchain-timechain_maxresdefault.jpg",
+      "size": 84432
+    },
+    {
+      "path": "images/experienced/core-source-code_017_20250908_105933.jpg",
+      "size": 390525
+    },
+    {
+      "path": "images/experienced/core-source-code_018_core-source-code_G0RMznKXwAAXg49.jpg",
+      "size": 133902
+    },
+    {
+      "path": "images/experienced/core-source-code_019_Screenshot_20250313-124756.png",
+      "size": 245056
+    },
+    {
+      "path": "images/experienced/core-source-code_025_core-source-code_Gby-5CJX0Bc5em6.png",
+      "size": 262605
+    },
+    {
+      "path": "images/experienced/core-source-code_038_core-source-code_0.jpg",
+      "size": 40209
+    },
+    {
+      "path": "images/experienced/core-source-code_039_core-source-code_maxresdefault.jpg",
+      "size": 40727
+    },
+    {
+      "path": "images/experienced/core-source-code_040_core-source-code_Fb-xvSSX0AENahc.png",
+      "size": 158024
+    }
+  ]
+}
