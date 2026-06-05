@@ -143,6 +143,29 @@ const BADGE_DEFS = [
 
     // ---- Double Scholar Badge ----
     { id: 'cert_double', name: 'Double Scholar', emoji: '🏛️', desc: 'Earned both Scholar AND Protocol Expert certifications', check: () => localStorage.getItem('btc_scholar_prop_passed') === 'true' && localStorage.getItem('btc_scholar_tech_passed') === 'true', pts: 250 },
+
+    // ---- Satoshi's Favor Mining Badges ----
+    { id: 'sf_first_hash', name: 'First Hash', emoji: '⛏️', desc: 'Generated your first hash during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 1, pts: 10 },
+    { id: 'sf_10_hashes', name: 'Pickaxe Swinger', emoji: '⛏️', desc: 'Generated 10 hashes during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 10, pts: 25 },
+    { id: 'sf_50_hashes', name: 'Mine Foreman', emoji: '🪨', desc: 'Generated 50 hashes during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 50, pts: 75 },
+    { id: 'sf_100_hashes', name: 'Hash Machine', emoji: '🔩', desc: 'Generated 100 hashes during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 100, pts: 150 },
+    { id: 'sf_500_hashes', name: 'ASIC Mode', emoji: '🖥️', desc: 'Generated 500 hashes during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 500, pts: 500 },
+    { id: 'sf_low_hash', name: 'Lucky Strike', emoji: '🎯', desc: 'Mined a hash under 1,000,000', check: () => parseInt(localStorage.getItem('btc_sf_best_hash') || '999999999') < 1000000, pts: 50 },
+    { id: 'sf_ultra_low', name: 'Golden Nonce', emoji: '✨', desc: 'Mined a hash under 100,000', check: () => parseInt(localStorage.getItem('btc_sf_best_hash') || '999999999') < 100000, pts: 200 },
+    { id: 'sf_block_solver', name: 'Block Solver', emoji: '🏆', desc: 'Solved a block! Hash under the difficulty target', check: () => localStorage.getItem('btc_sf_solved_block') === 'true', pts: 1000 },
+    { id: 'sf_contributor', name: 'Community Miner', emoji: '🤝', desc: 'Contributed to activating Satoshi\'s Favor 3 times', check: () => parseInt(localStorage.getItem('btc_sf_activations') || '0') >= 3, pts: 50 },
+    { id: 'sf_contributor_10', name: 'Favor Champion', emoji: '🏅', desc: 'Contributed to activating Satoshi\'s Favor 10 times', check: () => parseInt(localStorage.getItem('btc_sf_activations') || '0') >= 10, pts: 200 },
+
+    // ---- Raid Boss Badges ----
+    { id: 'raid_first', name: 'Raid Recruit', emoji: '⚔️', desc: 'Dealt damage to your first Raid Boss', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) >= 1, pts: 10 },
+    { id: 'raid_100', name: 'Raid Warrior', emoji: '🗡️', desc: 'Dealt 100 total raid damage', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) >= 100, pts: 50 },
+    { id: 'raid_500', name: 'Raid Veteran', emoji: '🛡️', desc: 'Dealt 500 total raid damage', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) >= 500, pts: 100 },
+    { id: 'raid_1000', name: 'Raid Commander', emoji: '⚜️', desc: 'Dealt 1,000 total raid damage', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) >= 1000, pts: 250 },
+    { id: 'raid_5000', name: 'Raid Legend', emoji: '👑', desc: 'Dealt 5,000 total raid damage', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) >= 5000, pts: 750 },
+    { id: 'raid_boss_slayer', name: 'Boss Slayer', emoji: '💀', desc: 'Participated in defeating a Raid Boss', check: () => parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') >= 1, pts: 50 },
+    { id: 'raid_boss_slayer_5', name: 'Boss Hunter', emoji: '🐉', desc: 'Participated in defeating 5 Raid Bosses', check: () => parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') >= 5, pts: 150 },
+    { id: 'raid_boss_slayer_10', name: 'Dragon Slayer', emoji: '🐲', desc: 'Participated in defeating 10 Raid Bosses', check: () => parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') >= 10, pts: 500 },
+    { id: 'raid_winner', name: 'Raid Champion', emoji: '🎖️', desc: 'Won the sats lottery after a Raid Boss defeat', check: () => localStorage.getItem('btc_raid_winner') === 'true', pts: 250 },
 ];
 
 let earnedBadges = new Set();
@@ -452,6 +475,8 @@ function getBadgeHTML() {
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
         '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50'),
         '🎡 Spin Wheel': _cat(BADGE_DEFS, b => b.id.startsWith('spin_')),
+        '⛏️ Satoshi\'s Favor': _cat(BADGE_DEFS, b => b.id.startsWith('sf_')),
+        '🐲 Raid Boss': _cat(BADGE_DEFS, b => b.id.startsWith('raid_')),
         '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };

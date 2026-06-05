@@ -3047,6 +3047,11 @@ function _renderRaidBossCard(container, boss) {
     // Case 2: Defeated
     if (boss.defeated) {
         var winners = boss.winners || [];
+        // Check if current user won the sats lottery (for badge tracking)
+        var _myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+        if (_myName && winners.indexOf(_myName) !== -1) {
+            localStorage.setItem('btc_raid_winner', 'true');
+        }
         var winnersHtml = '';
         if (winners.length > 0) {
             winnersHtml = '<div style="margin-top:16px;">' +
@@ -3498,7 +3503,14 @@ window._raidContribute = function(metric, amount, detail) {
         console.log('[RAID] Contributing:', metric, amount || 1);
         var fn = firebase.functions().httpsCallable('contributeRaid');
         fn({ metric: metric, amount: amount || 1, detail: detail || '' }).then(function(r) {
-            if (r && r.data) console.log('[RAID] Result:', r.data.success, r.data.current + '/' + r.data.target, r.data.message || '');
+            if (r && r.data) {
+                console.log('[RAID] Result:', r.data.success, r.data.current + '/' + r.data.target, r.data.message || '');
+                // Track boss defeat for badges
+                if (r.data.defeated) {
+                    var _rd = parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') + 1;
+                    localStorage.setItem('btc_raid_bosses_defeated', _rd.toString());
+                }
+            }
         }).catch(function(e) { console.error('[RAID] Error:', e.message); });
     } catch(e) { console.error('[RAID] Exception:', e); }
 };

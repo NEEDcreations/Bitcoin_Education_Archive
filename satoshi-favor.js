@@ -322,6 +322,13 @@
             const { value, isWinner, hashId } = result.data;
             hashTimestamps.push(Date.now());
 
+            // Track mining stats for badges
+            var _sfH = parseInt(localStorage.getItem('btc_sf_hashes') || '0') + 1;
+            localStorage.setItem('btc_sf_hashes', _sfH.toString());
+            var _sfBest = parseInt(localStorage.getItem('btc_sf_best_hash') || '999999999');
+            if (value < _sfBest) localStorage.setItem('btc_sf_best_hash', value.toString());
+            if (isWinner) localStorage.setItem('btc_sf_solved_block', 'true');
+
             visual.style.transform = 'scale(1)';
             output.textContent = value.toLocaleString();
             output.style.color = isWinner ? '#22c55e' : (value < DIFFICULTY_TARGET * 10 ? '#f7931a' : 'var(--text-muted)');
@@ -467,7 +474,9 @@
             var bonusAdded = earnedPoints * SF_BONUS_PER_POINT;
 
             if (data.favorActive && !wasFavorActive) {
-                // Just activated!
+                // Just activated! Track for badges
+                var _sfAct = parseInt(localStorage.getItem('btc_sf_activations') || '0') + 1;
+                localStorage.setItem('btc_sf_activations', _sfAct.toString());
                 var activateMsg = '\u26CF\uFE0F SATOSHI\'S FAVOR IS NOW ACTIVE!';
                 if (howEarned) activateMsg += ' ' + howEarned;
                 activateMsg += ' Mine now for 60 minutes! \u27A1\uFE0F [Satoshi\'s Favor](#favor)';
