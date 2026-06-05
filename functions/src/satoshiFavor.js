@@ -66,6 +66,25 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
   return stateData;
 }
 
+// Valid level names per source tier (server-side whitelist)
+const LEVEL_TIERS = {
+  'level_up': ['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
+  'level_up_5': ['Maxi','Maxi II','Maxi III'],
+  'level_up_10': ['Papa John','Full Node','Whale','Sovereign','Cypherpunk','Satoshi'],
+};
+
+// Minimum XP thresholds per level (must match client LEVELS array)
+const LEVEL_MIN_POINTS = {
+  'Pleb': 144, 'Pleb II': 170, 'Pleb III': 256,
+  'Stacker': 500, 'Stacker II': 1913, 'Stacker III': 2016,
+  'Maxi': 2140, 'Maxi II': 6102, 'Maxi III': 8888,
+  'Papa John': 10000, 'Full Node': 18333, 'Whale': 50000,
+  'Sovereign': 100000, 'Cypherpunk': 133337, 'Satoshi': 210000,
+};
+
+// Max bonus minutes cap (prevent infinite favor window)
+const MAX_BONUS_MINUTES = 180; // 3 hours max extension
+
 /**
  * contributeFavor (onCall)
  * Called when community earns a Satoshi's Favor point.
@@ -73,6 +92,11 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
 exports.contributeFavor = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  // Block anonymous users
+  if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to Satoshi\'s Favor.');
   }
 
   const uid = context.auth.uid;
@@ -90,27 +114,16 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
   const stateRef = db.collection('satoshiFavor').doc('current');
   const today = getTodayString();
 
-  // Build contributor key for dedup
-  let contributorKey;
-  if (source === 'daily_all_three') {
-    contributorKey = `${uid}_${today}_allthree`;
-  } else {
-    // For level-ups, use the detail (level name) for dedup
-    const levelName = detail || source;
-    contributorKey = `${uid}_${levelName}`;
+  // Fetch user doc for ALL source types (needed for validation)
+  const userDoc = await db.collection('users').doc(uid).get();
+  if (!userDoc.exists) {
+    throw new functions.https.HttpsError('failed-precondition', 'User profile not found.');
   }
-
-  const contributorRef = stateRef.collection('contributors').doc(contributorKey);
+  const userData = userDoc.data();
 
   // Server-side validation for daily_all_three
   if (source === 'daily_all_three') {
-    const userDoc = await db.collection('users').doc(uid).get();
-    if (!userDoc.exists) {
-      throw new functions.https.HttpsError('failed-precondition', 'User profile not found.');
-    }
-    const userData = userDoc.data();
     const allThreeDate = userData.dailyAllThreeDate || '';
-
     if (allThreeDate !== today) {
       throw new functions.https.HttpsError(
         'failed-precondition',
@@ -118,6 +131,54 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
       );
     }
   }
+
+  // Server-side validation for level-ups
+  if (source === 'level_up' || source === 'level_up_5' || source === 'level_up_10') {
+    const validLevels = LEVEL_TIERS[source];
+    const levelName = detail || '';
+    // Validate the level name is in the correct tier
+    if (!validLevels || !validLevels.includes(levelName)) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `Invalid level name for ${source}: ${levelName}`
+      );
+    }
+    // Validate the user actually has enough points for this level
+    const requiredPoints = LEVEL_MIN_POINTS[levelName];
+    const userPoints = userData.points || 0;
+    if (userPoints < requiredPoints) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        `User has ${userPoints} XP but needs ${requiredPoints} for ${levelName}.`
+      );
+    }
+  }
+
+  // Server-side validation for badge_earned
+  if (source === 'badge_earned') {
+    // detail should be a badge identifier — just sanitize length
+    if (!detail || typeof detail !== 'string' || detail.length > 100) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invalid badge detail.');
+    }
+  }
+
+  // Build contributor key for dedup — server-controlled, NOT from client detail
+  let contributorKey;
+  if (source === 'daily_all_three') {
+    contributorKey = `${uid}_${today}_allthree`;
+  } else if (source === 'level_up' || source === 'level_up_5' || source === 'level_up_10') {
+    // Dedup by uid + validated level name (from whitelist, not raw client input)
+    const validatedLevel = detail; // already validated above against whitelist
+    contributorKey = `${uid}_level_${validatedLevel}`;
+  } else if (source === 'badge_earned') {
+    // Dedup by uid + sanitized badge id
+    const safeBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
+    contributorKey = `${uid}_badge_${safeBadge}`;
+  } else {
+    contributorKey = `${uid}_${source}_${today}`;
+  }
+
+  const contributorRef = stateRef.collection('contributors').doc(contributorKey);
 
   // Run in a transaction for atomicity
   const result = await db.runTransaction(async (transaction) => {
@@ -154,8 +215,9 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
     });
 
     if (stateData.favorActive) {
-      // Favor is active and not expired — add bonus minutes
-      const newBonus = (stateData.bonusMinutes || 0) + (BONUS_MINUTES_PER_POINT * pointsToAdd);
+      // Favor is active and not expired — add bonus minutes (capped)
+      const rawBonus = (stateData.bonusMinutes || 0) + (BONUS_MINUTES_PER_POINT * pointsToAdd);
+      const newBonus = Math.min(rawBonus, MAX_BONUS_MINUTES);
       const updatedState = { ...stateData, bonusMinutes: newBonus };
       transaction.set(stateRef, updatedState);
       return updatedState;
