@@ -11,6 +11,11 @@ const crypto = require('crypto');
 
 const db = admin.firestore();
 
+// One-way hash of uid for public dedup (prevents uid exposure in readable docs)
+function uidHash(uid) {
+  return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
+}
+
 const DIFFICULTY_TARGET = 1000;
 const HASHES_PER_MINUTE = 10;
 const HASH_WINDOW_MS = 60000; // 60 seconds
@@ -84,6 +89,7 @@ const LEVEL_MIN_POINTS = {
 
 // Max bonus minutes cap (prevent infinite favor window)
 const MAX_BONUS_MINUTES = 180; // 3 hours max extension
+const MAX_POINTS = 42; // 2x activation threshold — prevents unbounded accumulation
 
 /**
  * contributeFavor (onCall)
@@ -222,8 +228,9 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
       transaction.set(stateRef, updatedState);
       return updatedState;
     } else {
-      // Favor not active — add points
-      const newPoints = (stateData.points || 0) + pointsToAdd;
+      // Favor not active — add points (capped)
+      const rawPoints = (stateData.points || 0) + pointsToAdd;
+      const newPoints = Math.min(rawPoints, MAX_POINTS);
 
       if (newPoints >= POINTS_TO_ACTIVATE) {
         // Activate favor! Extra points beyond 21 become bonus minutes
@@ -352,6 +359,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   });
 
   // Write hash doc outside transaction (not security-critical, just record-keeping)
+  // NOTE: uid stored in hash doc for internal server use (cooldown, dedup) but stripped from public responses
   const hashDoc = await hashesRef.add({
     uid,
     username,
@@ -361,55 +369,38 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     cycleId: stateData.currentCycleId || null,
   });
 
-  // Update personal best (all-time lowest hash for this user)
-  const pbRef = db.collection('satoshiFavor').doc('personalBests');
-  const pbFieldKey = `users.${uid}`;
+  // Update personal best — per-user doc (avoids single-doc bloat)
+  const pbRef = db.collection('satoshiFavor').doc('personalBests').collection('users').doc(uid);
   try {
     const pbDoc = await pbRef.get();
-    const pbData = pbDoc.exists ? pbDoc.data() : {};
-    const users = pbData.users || {};
-    const prev = users[uid];
+    const prev = pbDoc.exists ? pbDoc.data() : null;
     if (!prev || value < prev.value) {
-      await pbRef.set({
-        users: { ...users, [uid]: { value, username, timestamp: admin.firestore.FieldValue.serverTimestamp() } }
-      }, { merge: true });
+      await pbRef.set({ value, username, timestamp: admin.firestore.FieldValue.serverTimestamp() });
     }
   } catch (e) {
     console.warn('[FAVOR] Personal best update failed:', e.message);
   }
 
   // Update community top 10 lowest hashes (all-time leaderboard)
+  // Uses _uid internally for dedup but does NOT expose it in the public doc
   const lbRef = db.collection('satoshiFavor').doc('topHashes');
   try {
     const lbDoc = await lbRef.get();
     const lbData = lbDoc.exists ? lbDoc.data() : {};
     let entries = lbData.entries || [];
-    console.log(`[FAVOR-HASH] User ${username}(${uid}) generated hash ${value}. Current entries: ${entries.length}`);
     
-    // Check if this hash qualifies for top 10
     const qualifies = entries.length < 10 || value < entries[entries.length - 1].value;
-    console.log(`[FAVOR-HASH] Qualifies for top 10: ${qualifies} (entries.length=${entries.length}, last=${entries[entries.length-1]?.value})`);
     
     if (qualifies) {
-      // Check if user already has an entry — keep only their best
-      const beforeFilter = entries.length;
-      entries = entries.filter(e => e.uid !== uid || e.value < value);
-      console.log(`[FAVOR-HASH] Filtered ${beforeFilter - entries.length} worse entries for user`);
-      
-      // Only add if user doesn't already have a better entry
-      const userHasBetter = entries.some(e => e.uid === uid && e.value <= value);
-      console.log(`[FAVOR-HASH] User has better entry: ${userHasBetter}`);
+      entries = entries.filter(e => e._h !== uidHash(uid) || e.value < value);
+      const userHasBetter = entries.some(e => e._h === uidHash(uid) && e.value <= value);
       
       if (!userHasBetter) {
-        entries.push({ uid, username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
-        console.log(`[FAVOR-HASH] Added new entry for ${username}`);
+        entries.push({ _h: uidHash(uid), username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
       }
       entries.sort((a, b) => a.value - b.value);
       entries = entries.slice(0, 10);
       await lbRef.set({ entries });
-      console.log(`[FAVOR-HASH] Saved top 10. New count: ${entries.length}`);
-    } else {
-      console.log(`[FAVOR-HASH] Hash ${value} did not qualify for top 10`);
     }
   } catch (e) {
     console.error('[FAVOR] Top hashes update failed:', e.message, e.stack);
@@ -502,16 +493,17 @@ exports.getFavorHashes = functions.https.onCall(async (data, context) => {
   const snapshot = await query.get();
   const hashes = [];
 
+  const callerUid = context.auth ? context.auth.uid : null;
   snapshot.forEach((doc) => {
     const d = doc.data();
     hashes.push({
       id: doc.id,
-      uid: d.uid,
       username: d.username,
       value: d.value,
       timestamp: d.timestamp || null,
       isWinner: d.isWinner || false,
       cycleId: d.cycleId || null,
+      isMe: callerUid ? d.uid === callerUid : false,
     });
   });
 
@@ -570,13 +562,13 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
       continue;
     }
     
-    // Filter out worse entries for this user
-    entries = entries.filter(e => e.uid !== uid || e.value < value);
+    // Filter out worse entries for this user (use hashed uid for dedup)
+    entries = entries.filter(e => e._h !== uidHash(uid) || e.value < value);
     
     // Check if user has better entry
-    const userHasBetter = entries.some(e => e.uid === uid && e.value <= value);
+    const userHasBetter = entries.some(e => e._h === uidHash(uid) && e.value <= value);
     if (!userHasBetter) {
-      entries.push({ uid, username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+      entries.push({ _h: uidHash(uid), username, value, timestamp: admin.firestore.FieldValue.serverTimestamp() });
       added++;
     } else {
       skipped++;

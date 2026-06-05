@@ -12716,7 +12716,7 @@ window.closeQuestHubForFavor = function() {
 
 function _loadFavorLeaderboards() {
     if (typeof db === 'undefined') return;
-    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    var myUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
 
     // Top 10 lowest hashes
     db.collection('satoshiFavor').doc('topHashes').get().then(function(doc) {
@@ -12730,7 +12730,7 @@ function _loadFavorLeaderboards() {
         var html = '';
         for (var i = 0; i < entries.length; i++) {
             var e = entries[i];
-            var isMe = e.uid === myUid;
+            var isMe = myUsername && e.username === myUsername;
             var rank = i + 1;
             var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
             var name = typeof escapeHtml === 'function' ? escapeHtml(e.username || 'Anon') : (e.username || 'Anon');
@@ -12740,7 +12740,7 @@ function _loadFavorLeaderboards() {
                 'border:1px solid ' + (isWin ? '#22c55e' : (isMe ? 'var(--accent)' : 'var(--border)')) + ';border-radius:8px;">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
-                    '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + e.uid + '\')" style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;">' + (isWin ? '\uD83C\uDFC6 ' : '') + name + (isMe ? ' (you)' : '') + '</span>' +
+                    '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + (isWin ? '\uD83C\uDFC6 ' : '') + name + (isMe ? ' (you)' : '') + '</span>' +
                 '</div>' +
                 '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:' + (isWin ? '#22c55e' : (e.value < 10000 ? 'var(--accent)' : 'var(--text-muted)')) + ';">' + e.value.toLocaleString() + '</span>' +
             '</div>';
@@ -12751,19 +12751,18 @@ function _loadFavorLeaderboards() {
         if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load leaderboard</div>';
     });
 
-    // Personal best
+    // Personal best — per-user doc in subcollection
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     if (!myUid) {
         var pbEl = document.getElementById('favorPersonalBest');
         if (pbEl) pbEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Sign in to track your personal best</div>';
         return;
     }
-    db.collection('satoshiFavor').doc('personalBests').get().then(function(doc) {
+    db.collection('satoshiFavor').doc('personalBests').collection('users').doc(myUid).get().then(function(doc) {
         var pbEl = document.getElementById('favorPersonalBest');
         if (!pbEl) return;
         if (!doc.exists) { pbEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Start mining!</div>'; return; }
-        var users = doc.data().users || {};
-        var myBest = users[myUid];
-        if (!myBest) { pbEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Start mining!</div>'; return; }
+        var myBest = doc.data();
         var isWin = myBest.value < 1000;
         pbEl.innerHTML = '<div style="text-align:center;padding:8px;">' +
             '<div style="font-size:1.8rem;font-weight:900;font-family:monospace;color:' + (isWin ? '#22c55e' : (myBest.value < 10000 ? 'var(--accent)' : 'var(--heading)')) + ';">' + (isWin ? '\uD83C\uDFC6 ' : '') + myBest.value.toLocaleString() + '</div>' +

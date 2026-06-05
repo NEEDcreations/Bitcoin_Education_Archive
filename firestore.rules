@@ -1074,9 +1074,16 @@ service cloud.firestore {
     }
 
     // Personal bests — public read, server writes
+    // Personal bests — legacy parent doc (read-only, server writes)
     match /satoshiFavor/personalBests {
       allow read: if true;
       allow write: if false;
+
+      // Per-user personal best docs — user can only read their own
+      match /users/{userId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
     }
 
     // Trivia answer stats — public read, authenticated users can merge-increment

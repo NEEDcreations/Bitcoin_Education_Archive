@@ -402,12 +402,12 @@
                 return;
             }
 
-            const myUid = auth && auth.currentUser ? auth.currentUser.uid : null;
+            // uid no longer returned from server — use isMe flag instead
             let html = '';
 
             snap.docs.forEach((doc) => {
                 const h = doc.data();
-                const isMe = h.uid === myUid;
+                const isMe = h.isMe || false;
                 const isWin = h.isWinner;
                 const val = h.value.toLocaleString();
                 const time = h.timestamp ? new Date(h.timestamp.toMillis()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '--:--';
