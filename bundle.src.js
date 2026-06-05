@@ -13553,7 +13553,8 @@ window._toggleRaidDamageDealers = function() {
     container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading...</div>';
 
     // Load from current boss (defeated) or use stored ID
-    var bossId = (window._currentRaidBoss && window._currentRaidBoss._id) ? window._currentRaidBoss._id : window._defeatedBossId;
+    // Prefer defeated boss ID (the button lives in the defeated banner)
+    var bossId = window._defeatedBossId || (window._currentRaidBoss && window._currentRaidBoss._id ? window._currentRaidBoss._id : null);
     if (!bossId || typeof db === 'undefined') {
         container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No damage data available.</div>';
         return;
