@@ -1079,6 +1079,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Trivia answer stats — public read, authenticated users can merge-increment
+    match /trivia_stats/{date} {
+      allow read: if true;
+      allow create: if request.auth != null
+                   && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
+                   && request.resource.data.total == 1;
+      allow update: if request.auth != null
+                   && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3']);
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

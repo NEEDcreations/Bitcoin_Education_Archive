@@ -2496,9 +2496,12 @@ function _renderTriviaTab(body) {
             var bg = isCorrect ? 'rgba(34,197,94,0.15)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.15)' : 'var(--card-bg,#1a1a2e)');
             var border = isCorrect ? '#22c55e' : (wasChosen && !isCorrect ? '#ef4444' : 'var(--border)');
             var icon = isCorrect ? '✅' : (wasChosen && !isCorrect ? '❌' : '');
-            html += '<div style="padding:12px 16px;background:' + bg + ';border:2px solid ' + border + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:10px;opacity:' + (isCorrect || wasChosen ? '1' : '0.5') + ';">' +
-                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid ' + border + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
-                optText + (icon ? '<span style="margin-left:auto;">' + icon + '</span>' : '') +
+            html += '<div style="padding:12px 16px;background:' + bg + ';border:2px solid ' + border + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:10px;opacity:' + (isCorrect || wasChosen ? '1' : '0.5') + ';position:relative;overflow:hidden;">' +
+                '<div id="triviaBar_' + i + '" style="position:absolute;left:0;top:0;bottom:0;width:0;background:' + (isCorrect ? 'rgba(34,197,94,0.1)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)')) + ';transition:width 0.6s ease-out;border-radius:10px;"></div>' +
+                '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid ' + border + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);position:relative;z-index:1;">' + String.fromCharCode(65 + i) + '</span>' +
+                '<span style="position:relative;z-index:1;flex:1;">' + optText + '</span>' +
+                '<span id="triviaPct_' + i + '" style="position:relative;z-index:1;margin-left:auto;font-size:0.75rem;color:var(--text-muted);font-weight:700;min-width:36px;text-align:right;"></span>' +
+                (icon ? '<span style="position:relative;z-index:1;">' + icon + '</span>' : '') +
             '</div>';
         } else {
             html += '<button onclick="triviaAnswer(' + i + ')" style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
@@ -2508,6 +2511,23 @@ function _renderTriviaTab(body) {
         }
     }
     html += '</div>';
+
+    // Fetch and display community answer stats
+    if (answered && typeof db !== 'undefined') {
+        db.collection('trivia_stats').doc(todayKey).get().then(function(doc) {
+            var stats = doc.exists ? doc.data() : {};
+            var total = stats.total || 0;
+            if (total < 1) return;
+            for (var j = 0; j < t.options.length; j++) {
+                var count = stats['option_' + j] || 0;
+                var pct = Math.round((count / total) * 100);
+                var barEl = document.getElementById('triviaBar_' + j);
+                var pctEl = document.getElementById('triviaPct_' + j);
+                if (barEl) barEl.style.width = pct + '%';
+                if (pctEl) pctEl.textContent = pct + '%';
+            }
+        }).catch(function() {});
+    }
 
     // Show explanation if answered
     if (answered) {
@@ -2553,6 +2573,13 @@ window.triviaAnswer = function(chosenIdx) {
             triviaAnswered: firebase.firestore.FieldValue.increment(1),
             triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
         }).catch(function() {});
+    }
+
+    // Track answer distribution for community stats
+    if (typeof db !== 'undefined') {
+        var statsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
+        statsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
+        db.collection('trivia_stats').doc(todayKey).set(statsUpdate, { merge: true }).catch(function() {});
     }
 
     // Re-render to show result
