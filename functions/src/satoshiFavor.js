@@ -309,7 +309,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     const userDoc = await db.collection('users').doc(uid).get();
     if (userDoc.exists) {
       const userData = userDoc.data();
-      username = userData.displayName || userData.username || userData.email || 'Anonymous';
+      username = userData.username || userData.displayName || 'Anonymous';
     }
   } catch (e) {
     console.warn(`Could not fetch username for ${uid}:`, e.message);
