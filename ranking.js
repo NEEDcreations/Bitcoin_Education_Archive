@@ -30,6 +30,7 @@ const LEVELS = [
     { name: 'Full Node',      emoji: '🖥️', min: 18333 },
     { name: 'Whale',           emoji: '🐋', min: 50000 },
     { name: 'Sovereign',      emoji: '🏴', min: 100000 },
+    { name: 'Cypherpunk',     emoji: '🔒', min: 133337 },
     { name: 'Satoshi',        emoji: '👑', min: 210000 },
 ];
 
@@ -2383,7 +2384,7 @@ function updateRankUI() {
                 source = 'level_up';
             } else if (['Maxi','Maxi II','Maxi III'].includes(levelName)) {
                 source = 'level_up_5';
-            } else if (['Papa John','Full Node','Whale','Sovereign','Satoshi'].includes(levelName)) {
+            } else if (['Papa John','Full Node','Whale','Sovereign','Cypherpunk','Satoshi'].includes(levelName)) {
                 source = 'level_up_10';
             }
             if (source) {
@@ -5951,6 +5952,7 @@ function getLevelFlavor(name) {
         'Full Node': '18,333 — port 18333. You verify everything yourself. Don\'t trust, verify.',
         'Whale': '50,000 strong. You move markets. Unstoppable, just like Bitcoin.',
         'Sovereign': 'Self-sovereign. 100K channels deep. No permission needed. You ARE the bank.',
+        'Cypherpunk': '133,337 — leet beyond leet. Privacy is a right, not a privilege. Code is law.',
         'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
     };
     return flavors[name] || 'You\'re leveling up!';
