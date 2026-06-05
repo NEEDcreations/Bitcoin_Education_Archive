@@ -303,30 +303,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('failed-precondition', 'Satoshi\'s Favor has expired.');
   }
 
-  // Check cooldown via per-user cooldown doc (avoids composite index on hashes subcollection)
-  const hashesRef = stateRef.collection('hashes');
-  // Rate limit: 10 hashes per 60 seconds per user (rolling window via cooldown doc)
-  const cooldownRef = stateRef.collection('cooldowns').doc(uid);
-  const cooldownDoc = await cooldownRef.get();
-  let timestamps = [];
-
-  if (cooldownDoc.exists) {
-    const data = cooldownDoc.data();
-    timestamps = (data.timestamps || []).filter(t => {
-      const ms = t.toMillis ? t.toMillis() : t;
-      return now - ms < HASH_WINDOW_MS;
-    });
-    if (timestamps.length >= HASHES_PER_MINUTE) {
-      const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
-      const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
-      throw new functions.https.HttpsError(
-        'resource-exhausted',
-        `Rate limit: ${waitSec}s until next hash (10/min).`
-      );
-    }
-  }
-
-  // Get username
+  // Get username (outside transaction — read-only, not security-critical)
   let username = 'Anonymous';
   try {
     const userDoc = await db.collection('users').doc(uid).get();
@@ -338,11 +315,43 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     console.warn(`Could not fetch username for ${uid}:`, e.message);
   }
 
-  // Generate random value 0 to 100,000,000 (inclusive of 0, exclusive of 100,000,001)
-  const value = crypto.randomInt(0, 100000001);
-  const isWinner = value < DIFFICULTY_TARGET;
+  // Atomic rate-limit check + hash generation inside a transaction
+  // Prevents TOCTOU: concurrent requests all reading the same cooldown state
+  const hashesRef = stateRef.collection('hashes');
+  const cooldownRef = stateRef.collection('cooldowns').doc(uid);
 
-  // Write hash to subcollection + update cooldown doc
+  const { value, isWinner } = await db.runTransaction(async (transaction) => {
+    const cooldownDoc = await transaction.get(cooldownRef);
+    let timestamps = [];
+
+    if (cooldownDoc.exists) {
+      const cdData = cooldownDoc.data();
+      timestamps = (cdData.timestamps || []).filter(t => {
+        const ms = t.toMillis ? t.toMillis() : t;
+        return now - ms < HASH_WINDOW_MS;
+      });
+      if (timestamps.length >= HASHES_PER_MINUTE) {
+        const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
+        const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
+        throw new functions.https.HttpsError(
+          'resource-exhausted',
+          `Rate limit: ${waitSec}s until next hash (10/min).`
+        );
+      }
+    }
+
+    // Generate random value 0 to 100,000,000
+    const val = crypto.randomInt(0, 100000001);
+    const winner = val < DIFFICULTY_TARGET;
+
+    // Append timestamp and write cooldown atomically
+    timestamps.push(admin.firestore.Timestamp.now());
+    transaction.set(cooldownRef, { timestamps });
+
+    return { value: val, isWinner: winner };
+  });
+
+  // Write hash doc outside transaction (not security-critical, just record-keeping)
   const hashDoc = await hashesRef.add({
     uid,
     username,
@@ -350,12 +359,6 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
     isWinner,
     cycleId: stateData.currentCycleId || null,
-  });
-
-  // Update cooldown doc — store rolling window of timestamps
-  timestamps.push(admin.firestore.Timestamp.now());
-  await cooldownRef.set({
-    timestamps: timestamps,
   });
 
   // Update personal best (all-time lowest hash for this user)
