@@ -8673,7 +8673,7 @@ function _showBubble(text, pose) {
         ];
         for (var _li = 0; _li < _linkMap.length; _li++) {
             if (_linkMap[_li].pattern.test(text)) {
-                actionBtn = '<button onclick="event.stopPropagation();' + _linkMap[_li].action + ';hideBubble(true);" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">' + _linkMap[_li].label + '</button>';
+                actionBtn = '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;' + _linkMap[_li].action + ';hideBubble(true);" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + _linkMap[_li].label + '</button>';
                 break;
             }
         }
@@ -8996,6 +8996,8 @@ let nachoClickCount = 0;
 let nachoTapTimes = [];
 let nachoFlyCooldown = 0;
 window.nachoClick = function() {
+    // Guard: if an action button was just clicked, don't interfere
+    if (window._nachoActionClicked) { window._nachoActionClicked = false; return; }
     const now = Date.now();
 
     // Multi-tap detection
