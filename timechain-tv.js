@@ -9011,6 +9011,11 @@ window.renderTimechainTV = function() {
         }, { passive: true });
     })();
 
+    // Eagerly subscribe to peak/views stats and poll presence so the live
+    // counter tooltip shows real numbers on first hover, before any channel switch.
+    _subscribeTctvStats();
+    _pollViewerCounts();
+
     _currentStation = activeStation;
     saveStation(activeStation);
     joinStation(activeStation);
