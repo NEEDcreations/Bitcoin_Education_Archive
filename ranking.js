@@ -1289,17 +1289,23 @@ async function loadUser(uid, prefetchedDoc) {
         const isRealUser = auth.currentUser && !auth.currentUser.isAnonymous;
 
         // Sync read checkmarks: for real users, use Firebase as source of truth
-        if (currentUser.readChannels) {
+        // visitedChannelsList is the authoritative field (written by awardPoints CF via arrayUnion)
+        // readChannels is the legacy field — union both for backward compat
+        var _fbRead = [...new Set([
+            ...(Array.isArray(currentUser.visitedChannelsList) ? currentUser.visitedChannelsList : []),
+            ...(Array.isArray(currentUser.readChannels) ? currentUser.readChannels : [])
+        ])];
+        if (_fbRead.length > 0) {
             if (isRealUser) {
-                localStorage.setItem('btc_visited_channels', JSON.stringify(currentUser.readChannels));
+                localStorage.setItem('btc_visited_channels', JSON.stringify(_fbRead));
             } else {
                 let local = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
-                let merged = [...new Set([...local, ...currentUser.readChannels])];
+                let merged = [...new Set([...local, ..._fbRead])];
                 localStorage.setItem('btc_visited_channels', JSON.stringify(merged));
             }
             restoreVisitedUI();
         } else if (isRealUser) {
-            // Real user with no readChannels in Firebase — clear local
+            // Real user with nothing in Firebase yet — clear local
             localStorage.setItem('btc_visited_channels', '[]');
             restoreVisitedUI();
         }
