@@ -3077,15 +3077,15 @@ async function toggleLeaderboard() {
             if (d.earnedHidden && d.earnedHidden.includes('cert_scholar')) certIcons += ' 🎓';
             if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
 
-            var _factionIcon = d.faction === 'cyber_hornets' ? '🐝' : d.faction === 'honey_badgers' ? '🦡' : '';
             var _rowPfp = d.profilePic
                 ? '<img src="' + escapeHtml(d.profilePic) + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
                 : '';
             var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+            var _lbNameStyle = d.faction ? window._factionNameStyle(d.faction) : '';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + (_factionIcon ? ' <span title="' + (d.faction === 'cyber_hornets' ? 'Cyber Hornets' : 'Honey Badgers') + '" style="font-size:0.7rem;">' + _factionIcon + '</span>' : '') + '</span>' +
+                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' XP</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';

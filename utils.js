@@ -136,6 +136,21 @@ function getSatCap() {
 }
 
 /** Premium tier constants */
+// ---- Faction Username Styling ----
+// Returns inline CSS string for faction-colored usernames.
+// Cyber Hornets: yellow text, black outline
+// Honey Badgers: black text, white outline
+// Usage: style="' + window._factionNameStyle(faction) + '"
+window._factionNameStyle = function(faction) {
+    if (faction === 'cyber_hornets') {
+        return 'color:#f7e400;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;font-weight:700;';
+    }
+    if (faction === 'honey_badgers') {
+        return 'color:#1a1a1a;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;font-weight:700;';
+    }
+    return '';
+};
+
 var PREMIUM_CONFIG = {
     FREE_SAT_CAP: 10000,
     PREMIUM_SAT_CAP: 21000,

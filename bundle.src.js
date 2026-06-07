@@ -136,6 +136,21 @@ function getSatCap() {
 }
 
 /** Premium tier constants */
+// ---- Faction Username Styling ----
+// Returns inline CSS string for faction-colored usernames.
+// Cyber Hornets: yellow text, black outline
+// Honey Badgers: black text, white outline
+// Usage: style="' + window._factionNameStyle(faction) + '"
+window._factionNameStyle = function(faction) {
+    if (faction === 'cyber_hornets') {
+        return 'color:#f7e400;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;font-weight:700;';
+    }
+    if (faction === 'honey_badgers') {
+        return 'color:#1a1a1a;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;font-weight:700;';
+    }
+    return '';
+};
+
 var PREMIUM_CONFIG = {
     FREE_SAT_CAP: 10000,
     PREMIUM_SAT_CAP: 21000,
@@ -3225,15 +3240,15 @@ async function toggleLeaderboard() {
             if (d.earnedHidden && d.earnedHidden.includes('cert_scholar')) certIcons += ' 🎓';
             if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
 
-            var _factionIcon = d.faction === 'cyber_hornets' ? '🐝' : d.faction === 'honey_badgers' ? '🦡' : '';
             var _rowPfp = d.profilePic
                 ? '<img src="' + escapeHtml(d.profilePic) + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
                 : '';
             var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+            var _lbNameStyle = d.faction ? window._factionNameStyle(d.faction) : '';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + (_factionIcon ? ' <span title="' + (d.faction === 'cyber_hornets' ? 'Cyber Hornets' : 'Honey Badgers') + '" style="font-size:0.7rem;">' + _factionIcon + '</span>' : '') + '</span>' +
+                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' XP</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
@@ -14422,7 +14437,7 @@ function forumRenderPosts(posts, container) {
                     '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
                     (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
                     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-                        '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;color:var(--text-faint);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-faint)\'">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                        '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                         '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
                         '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
                         (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
@@ -14472,7 +14487,7 @@ window.forumViewPost = async function(postId, fromPopState) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;transition:0.2s;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                 '<span style="font-size:0.75rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
             '</div>';
 
@@ -14574,7 +14589,7 @@ async function forumLoadReplies(postId) {
             var out = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                    '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;transition:0.2s;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
@@ -14757,6 +14772,7 @@ window.forumSubmitPost = async function() {
             category: category,
             authorId: auth.currentUser.uid,
             authorName: userName,
+            authorFaction: (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) ? currentUser.faction : null,
             authorPoints: userPts,
             upvotes: 0,
             voters: [],
@@ -14842,6 +14858,7 @@ window.forumSubmitReply = async function(postId) {
             body: body.substring(0, 1000),
             authorId: auth.currentUser.uid,
             authorName: userName,
+            authorFaction: (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) ? currentUser.faction : null,
             authorPoints: userPts,
             upvotes: 0,
             voters: [],
@@ -15123,7 +15140,7 @@ async function loadArticles() {
             
             // Meta
             html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text-faint);">' +
-                '<span>' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</span>' +
+                '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + '>' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</span>' +
                 '<span>·</span><span>' + readTime + ' min read</span>' +
                 (dateStr ? '<span>·</span><span>' + dateStr + '</span>' : '') +
             '</div>';
@@ -15589,7 +15606,7 @@ window.articleView = async function(articleId) {
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
         if (a.authorPic) html += '<img src="' + fEsc(a.authorPic) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
         html += '<div>' +
-            '<div style="font-weight:700;font-size:0.9rem;color:var(--text);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')">' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
+            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')">' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
             '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + (a.wordCount || 0).toLocaleString() + ' words</div>' +
         '</div>';
         // Edit button for author
@@ -15703,7 +15720,7 @@ async function articleLoadReplies(articleId) {
             var canDel = auth && auth.currentUser && (auth.currentUser.uid === r.authorId || isForumAdmin());
             html += '<div style="padding:12px 0;border-bottom:1px solid var(--border);">' +
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
-                    '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
                     (canDel ? '<button onclick="articleDeleteReply(\'' + doc.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;">🗑️</button>' : '') +
                 '</div>' +

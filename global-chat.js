@@ -372,6 +372,7 @@ function renderChatMessages(msgs) {
         }
 
         var isNacho = m.uid === 'nacho-bot' || m.isNachoAuto === true;
+        var _factionStyle = !isNacho && m.faction ? window._factionNameStyle(m.faction) : '';
         var nameColor = isNacho ? '#22c55e' : isMe ? 'var(--accent)' : '#6366f1';
         var bubbleBg = isNacho ? 'rgba(34,197,94,0.06)' : isMe ? 'var(--accent-bg,rgba(247,147,26,0.08))' : 'var(--card-bg)';
         var bubbleBorder = isNacho ? 'rgba(34,197,94,0.2)' : isMe ? 'rgba(247,147,26,0.2)' : 'var(--border)';
@@ -382,7 +383,7 @@ function renderChatMessages(msgs) {
         html += '<div style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
-        html += '<span style="font-weight:700;font-size:0.75rem;color:' + nameColor + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
+        html += '<span style="font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
         if (myUid) {
             html += '<span onclick="setChatReply(\'' + m._id + '\',\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',\'' + esc((m.text||'').substring(0,50)).replace(/[\\'"]/g,'') + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
@@ -823,6 +824,7 @@ window.sendGlobalChat = function() {
 
     // Write to Firestore
     var msgData = {uid: uid, name: username, text: text, ts: firebase.firestore.FieldValue.serverTimestamp()};
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) msgData.faction = currentUser.faction;
     if (replyData.replyTo) { msgData.replyTo = replyData.replyTo; msgData.replyToName = replyData.replyToName; msgData.replyToText = replyData.replyToText; }
     db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
         // Track for daily challenge
@@ -1540,6 +1542,7 @@ window.sendGifMessage = function(url, caption) {
         isGif: true,
         ts: firebase.firestore.FieldValue.serverTimestamp()
     };
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) msgData.faction = currentUser.faction;
 
     // Include reply if active
     if (_replyTo) {
@@ -1816,6 +1819,7 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 ts: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (caption) msgData.caption = caption;
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) msgData.faction = currentUser.faction;
             if (replyCopy) {
                 msgData.replyTo = replyCopy.id;
                 msgData.replyToName = replyCopy.name;
