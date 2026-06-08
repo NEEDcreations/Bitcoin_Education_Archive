@@ -1196,13 +1196,14 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
         referralTicketsEarned: admin.firestore.FieldValue.increment(50),
         referralCount: admin.firestore.FieldValue.increment(1),
     });
-    // Referred user: mark verified (signup bonus of 50 tickets already awarded client-side on attachReferral)
+    // Referred user: +50 tickets for reaching Maxi rank via referral link
     batch.update(db.collection('users').doc(referredUid), {
         referralVerified: true,
+        orangeTickets: admin.firestore.FieldValue.increment(50),
     });
     await batch.commit();
 
-    return { success: true, referrerTickets: 50, referredTickets: 0 };
+    return { success: true, referrerTickets: 50, referredTickets: 50 };
 });
 
 // =============================================

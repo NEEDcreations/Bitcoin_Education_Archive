@@ -11,7 +11,7 @@
 const TICKET_CONFIG = {
     dailyLogin: 1,
     referral: 50,
-    referralSignupBonus: 50,  // Tickets awarded to new user who signed up via referral link
+    referralSignupBonus: 50,  // Tickets awarded to referred user when they reach Maxi rank
     referralPointsThreshold: 2140,  // Maxi rank threshold
     pointsPerTicket: 5,  // Each ticket earned = 5 points towards reward system
 };
@@ -107,31 +107,11 @@ async function attachReferral(uid) {
             referrerUid = null;
         }
 
-        // Save referral info on the new user + award signup bonus tickets
-        const signupBonus = TICKET_CONFIG.referralSignupBonus;
+        // Save referral info on the new user — bonus tickets awarded when they reach Maxi rank
         await db.collection('users').doc(uid).update({
             referredBy: refCode,
             referralVerified: false,
-            orangeTickets: (firebase.firestore.FieldValue || {}).increment
-                ? firebase.firestore.FieldValue.increment(signupBonus)
-                : signupBonus,
-            referredSignupBonus: true,
         });
-        // Update local state
-        if (typeof currentUser !== 'undefined' && currentUser) {
-            currentUser.referredBy = refCode;
-            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + signupBonus;
-        }
-        // Show welcome toast after a short delay
-        setTimeout(function() {
-            if (typeof showToast === 'function') {
-                showToast('🫂 Welcome! You joined via a referral link — you\'ve been awarded ' + signupBonus + ' Orange Tickets!');
-            }
-        }, 3000);
-        // Award referred badge
-        setTimeout(function() {
-            if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-        }, 4000);
 
         // Also record in referrals collection for tracking
         await db.collection('referrals').doc(uid).set({
