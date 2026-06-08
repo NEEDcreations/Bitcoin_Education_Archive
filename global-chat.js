@@ -380,7 +380,7 @@ function renderChatMessages(msgs) {
         // Override display name for Nacho auto-replies
         if (isNacho && m.name !== '🦌 Nacho') m.name = '🦌 Nacho';
 
-        html += '<div style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
+        html += '<div data-msg-id="' + m._id + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         html += '<span style="font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
@@ -393,8 +393,10 @@ function renderChatMessages(msgs) {
         }
         html += '</div>';
         if (m.replyToName) {
-            html += '<div style="padding:4px 8px;margin-bottom:4px;border-left:2px solid #6366f1;font-size:0.7rem;color:var(--text-faint);border-radius:2px;background:rgba(99,102,241,0.05);">';
-            html += '<span style="font-weight:700;">' + esc(m.replyToName) + '</span>: ' + esc((m.replyToText||'').substring(0,60)) + (m.replyToText && m.replyToText.length > 60 ? '…' : '');
+            var _replyId = m.replyTo || '';
+            html += '<div onclick="window._scrollToChatMsg(\'' + _replyId + '\')" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
+            html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
+            html += '<span style="color:var(--text-muted);">' + esc((m.replyToText||'').substring(0,80)) + (m.replyToText && m.replyToText.length > 80 ? '…' : '') + '</span>';
             html += '</div>';
         }
         if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
@@ -658,6 +660,27 @@ function hideAC() {
     _acType = null;
     _acQuery = '';
 }
+
+// ---- Scroll to original message ----
+window._scrollToChatMsg = function(msgId) {
+    if (!msgId) return;
+    var chatEl = document.getElementById('chatMessages');
+    if (!chatEl) return;
+    var target = chatEl.querySelector('[data-msg-id="' + msgId + '"]');
+    if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Flash highlight
+        var bubble = target.querySelector('div');
+        var el = bubble || target;
+        var orig = el.style.outline || '';
+        el.style.outline = '2px solid #6366f1';
+        el.style.borderRadius = '14px';
+        setTimeout(function() { el.style.outline = orig; }, 1200);
+    } else {
+        // Message not in view — show toast
+        if (typeof showToast === 'function') showToast('↑ Scroll up to find the original message', 2500);
+    }
+};
 
 // ---- Reply Handling ----
 window.setChatReply = function(msgId, name, preview) {
