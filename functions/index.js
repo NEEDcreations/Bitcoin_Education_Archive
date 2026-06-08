@@ -4360,12 +4360,14 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
         const factionKey = u.faction === 'cyber_hornets' ? 'cyber_hornets'
                          : u.faction === 'honey_badgers' ? 'honey_badgers'
                          : 'no_faction';
+        // Use update() so dot-notation keys are treated as nested field paths,
+        // not literal string keys (which is what set+merge does).
         const statsUpdate = {
             totalDonated: admin.firestore.FieldValue.increment(amount),
             updatedAt: ts,
             [`factionTotals.${factionKey}`]: admin.firestore.FieldValue.increment(amount),
         };
-        tx.set(statsRef, statsUpdate, { merge: true });
+        tx.update(statsRef, statsUpdate);
     });
 
     return { success: true, newBadges, bonusPts };
