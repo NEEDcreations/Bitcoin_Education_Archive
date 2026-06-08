@@ -664,20 +664,36 @@ function hideAC() {
 // ---- Scroll to original message ----
 window._scrollToChatMsg = function(msgId) {
     if (!msgId) return;
-    var chatEl = document.getElementById('chatMessages');
+    // Try both possible container IDs
+    var chatEl = document.getElementById('globalChatMessages') || document.getElementById('chatMessages');
     if (!chatEl) return;
     var target = chatEl.querySelector('[data-msg-id="' + msgId + '"]');
     if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Flash highlight
-        var bubble = target.querySelector('div');
-        var el = bubble || target;
-        var orig = el.style.outline || '';
-        el.style.outline = '2px solid #6366f1';
-        el.style.borderRadius = '14px';
-        setTimeout(function() { el.style.outline = orig; }, 1200);
+        // Manually scroll the chat container so the message is centered
+        var containerRect = chatEl.getBoundingClientRect();
+        var targetRect = target.getBoundingClientRect();
+        var targetOffsetTop = target.offsetTop;
+        // Walk up to find offset relative to chatEl
+        var el = target;
+        var offset = 0;
+        while (el && el !== chatEl) { offset += el.offsetTop; el = el.offsetParent; }
+        var scrollTarget = offset - (chatEl.clientHeight / 2) + (target.clientHeight / 2);
+        chatEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        // Flash highlight on the message bubble
+        var bubble = target.querySelector('[style*="border-radius"]') || target.querySelector('div') || target;
+        var origBg = bubble.style.background || '';
+        var origTransition = bubble.style.transition || '';
+        bubble.style.transition = 'background 0.15s';
+        bubble.style.background = 'rgba(99,102,241,0.35)';
+        setTimeout(function() {
+            bubble.style.background = 'rgba(99,102,241,0.15)';
+            setTimeout(function() {
+                bubble.style.background = origBg;
+                bubble.style.transition = origTransition;
+            }, 400);
+        }, 500);
     } else {
-        // Message not in view — show toast
+        // Message not in DOM — likely scrolled out of loaded range
         if (typeof showToast === 'function') showToast('↑ Scroll up to find the original message', 2500);
     }
 };
