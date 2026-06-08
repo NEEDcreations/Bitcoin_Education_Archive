@@ -4156,6 +4156,28 @@ window.nachoQuizAnswer = function(btn, correct) {
         });
     }
 
+    // Robust PVP launcher — handles race where pvp.js hasn't loaded yet
+    window._launchPVP = function() {
+        if (typeof enterPVPMode === 'function') {
+            enterPVPMode();
+        } else {
+            // pvp.js not loaded yet — trigger deferred load and retry
+            if (typeof window._loadDeferred === 'function') window._loadDeferred();
+            if (typeof showToast === 'function') showToast('⚔️ Loading PVP arena...');
+            var _pvpRetry = 0;
+            var _pvpWait = setInterval(function() {
+                _pvpRetry++;
+                if (typeof enterPVPMode === 'function') {
+                    clearInterval(_pvpWait);
+                    enterPVPMode();
+                } else if (_pvpRetry > 15) {
+                    clearInterval(_pvpWait);
+                    if (typeof showToast === 'function') showToast('⚠️ PVP failed to load — try refreshing the page');
+                }
+            }, 200);
+        }
+    };
+
     window.toggleAppsMenu = function(e) {
         if (e) e.stopPropagation();
         // Remove existing menu so it rebuilds with current tier state
@@ -4212,7 +4234,7 @@ if (locked) {
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
                 appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false) +
-                appBtn('⚔️', 'PVP Battle', "if(typeof enterPVPMode==='function')enterPVPMode()", false) +
+                appBtn('⚔️', 'PVP Battle', "window._launchPVP()", false) +
                 appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) +
                 appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) +
                 appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) +
