@@ -27630,7 +27630,7 @@ if (locked) {
                 return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/[\\'"]/g, "") + '\')" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnLocked + '" class="app-menu-item">' +
                     '<span style="font-size:1.8rem;">' + emoji + '</span><span>🔒 ' + label + '</span></button>';
             }
-            return '<button onclick="' + action + ';toggleAppsMenu()" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnBase + '" class="app-menu-item">' +
+            return '<button onclick="var _m=document.getElementById(\'appsMenu\');if(_m)_m.style.display=\'none\';' + action + '" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnBase + '" class="app-menu-item">' +
                 '<span style="font-size:1.8rem;">' + emoji + '</span><span>' + label + '</span></button>';
         }
 
