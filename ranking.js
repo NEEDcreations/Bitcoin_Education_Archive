@@ -4973,6 +4973,14 @@ function showSettingsPage(tab) {
                         ? ' +' + result.data.newBadges.length + ' badge' + (result.data.newBadges.length > 1 ? 's' : '') + ' unlocked!' : '';
                     if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
                     if (typeof window._charityThankYou === 'function') window._charityThankYou(amt, result.data && result.data.newBadges || [], result.data && result.data.bonusPts || 0);
+                    // Announce earned badges to Global Chat via Satoshi's Favor
+                    var _satsBadges = result.data && result.data.newBadges || [];
+                    if (_satsBadges.length > 0 && typeof window.contributeSatoshiFavor === 'function') {
+                        var _satsDonorMap = { donor_100:'\ud83e\udd37 Giving Pleb', donor_500:'\ud83d\udc9b Stack Sharer', donor_1000:'\ud83e\udde1 Community Builder', donor_5000:'\u2764\ufe0f Archive Patron', donor_10000:'\ud83d\udd25 Sats Saint', donor_25000:'\u26a1 Lightning Philanthropist', donor_50000:'\ud83c\udfc6 Satoshi\'s Steward', donor_100000:'\ud83d\udc51 Legend of the Archive' };
+                        _satsBadges.forEach(function(bid) { if (_satsDonorMap[bid]) window.contributeSatoshiFavor('badge_earned', _satsDonorMap[bid]).catch(function(){}); });
+                    }
+                    // Reset charity stats cache so Quest Hub picks up fresh totals
+                    if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;
                     showSettingsPage('sats');
                 })
                 .catch(function(e) {

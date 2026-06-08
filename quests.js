@@ -2505,8 +2505,8 @@ function _loadCharityStats(cb) {
     if (typeof firebase === 'undefined' || !firebase.firestore) return cb && cb();
     var db = firebase.firestore();
     Promise.all([
-        db.collection('charity_stats').doc('global').get(),
-        db.collection('charity_donations').orderBy('ts', 'desc').limit(10).get()
+        db.collection('charity_stats').doc('global').get({ source: 'server' }),
+        db.collection('charity_donations').orderBy('ts', 'desc').limit(10).get({ source: 'server' })
     ]).then(function(results) {
         var statsDoc = results[0];
         var recentSnap = results[1];
@@ -2709,7 +2709,26 @@ function _renderCharityTabInner(body) {
             if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
             // Show thank-you modal
             window._charityThankYou(amt, newBadges, result.data && result.data.bonusPts || 0);
-            // Refresh tab
+            // Announce earned badges to Global Chat via Satoshi's Favor
+            if (newBadges.length > 0 && typeof window.contributeSatoshiFavor === 'function') {
+                var _donorBadgeMap = {
+                    donor_100:    { emoji: '🫷', name: 'Giving Pleb' },
+                    donor_500:    { emoji: '💛', name: 'Stack Sharer' },
+                    donor_1000:   { emoji: '🧡', name: 'Community Builder' },
+                    donor_5000:   { emoji: '❤️', name: 'Archive Patron' },
+                    donor_10000:  { emoji: '🔥', name: 'Sats Saint' },
+                    donor_25000:  { emoji: '⚡', name: 'Lightning Philanthropist' },
+                    donor_50000:  { emoji: '🏆', name: "Satoshi's Steward" },
+                    donor_100000: { emoji: '👑', name: 'Legend of the Archive' },
+                };
+                newBadges.forEach(function(badgeId) {
+                    var bdef = _donorBadgeMap[badgeId];
+                    if (bdef) {
+                        window.contributeSatoshiFavor('badge_earned', bdef.emoji + ' ' + bdef.name).catch(function() {});
+                    }
+                });
+            }
+            // Refresh tab (force server read so faction bar reflects new totals)
             _charityStatsLoaded = false;
             _renderCharityTab(document.getElementById('questHubBody'));
         }).catch(function(e) {
