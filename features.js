@@ -1134,7 +1134,7 @@ window.awardOrangeTickets = function(amount, reason) {
 
 // setFloatingElementsVisible — show/hide floating buttons when sidebar opens
 window.setFloatingElementsVisible = function(visible) {
-    var ids = ['floatingRandomBtn','lbFloatBtn','mobileSearchBtn','backToTop','scrollToBottom'];
+    var ids = ['floatingRandomBtn','lbFloatBtn','mobileSearchBtn','backToTop','scrollToBottom','chatOverlayBtn','aiToolsBtn','dashboardFloatBtn'];
     ids.forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = visible ? '' : 'none';

@@ -1097,7 +1097,7 @@ function createChatOverlay() {
 
     // Style for desktop — chat btn bottom-right, left of search magnifying glass
     var style = document.createElement('style');
-    style.textContent = '@media(max-width:900px){#chatOverlayBtn{display:none!important;}}@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{display:none!important;}}@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
+    style.textContent = '@media(max-width:900px){#chatOverlayBtn{bottom:70px!important;right:184px!important;z-index:200001!important;}}@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{display:none!important;}}@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
     document.head.appendChild(style);
 }
 
