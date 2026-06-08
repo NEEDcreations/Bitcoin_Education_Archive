@@ -11,7 +11,8 @@
 const TICKET_CONFIG = {
     dailyLogin: 1,
     referral: 50,
-    referralPointsThreshold: 2100,
+    referralSignupBonus: 50,  // Tickets awarded to new user who signed up via referral link
+    referralPointsThreshold: 2140,  // Maxi rank threshold
     pointsPerTicket: 5,  // Each ticket earned = 5 points towards reward system
 };
 
@@ -106,11 +107,31 @@ async function attachReferral(uid) {
             referrerUid = null;
         }
 
-        // Save referral info on the new user
+        // Save referral info on the new user + award signup bonus tickets
+        const signupBonus = TICKET_CONFIG.referralSignupBonus;
         await db.collection('users').doc(uid).update({
             referredBy: refCode,
             referralVerified: false,
+            orangeTickets: (firebase.firestore.FieldValue || {}).increment
+                ? firebase.firestore.FieldValue.increment(signupBonus)
+                : signupBonus,
+            referredSignupBonus: true,
         });
+        // Update local state
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.referredBy = refCode;
+            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + signupBonus;
+        }
+        // Show welcome toast after a short delay
+        setTimeout(function() {
+            if (typeof showToast === 'function') {
+                showToast('🫂 Welcome! You joined via a referral link — you\'ve been awarded ' + signupBonus + ' Orange Tickets!');
+            }
+        }, 3000);
+        // Award referred badge
+        setTimeout(function() {
+            if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+        }, 4000);
 
         // Also record in referrals collection for tracking
         await db.collection('referrals').doc(uid).set({
@@ -259,7 +280,7 @@ function renderTicketsSection() {
         '<div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">' +
         '<div style="font-size:1.2rem;">🤝</div>' +
         '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Referral</div>' +
-        '<div style="color:var(--accent);font-weight:700;font-size:0.85rem;">+5 tickets</div></div></div>' +
+        '<div style="color:var(--accent);font-weight:700;font-size:0.85rem;">+50 tickets</div></div></div>' +
         '</div>';
 
     return html;
@@ -275,7 +296,7 @@ function renderReferralSection() {
     let html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Referral Program</div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Share your link with friends. Earn <strong style="color:#f7931a;">5 Orange Tickets</strong> for each referral who logs in and earns 2,100+ points (Maxi rank).' +
+        'Share your link with friends. Earn <strong style="color:#f7931a;">50 Orange Tickets</strong> for each referral who logs in and earns 2,140+ points (Maxi rank).' +
         '</div>' +
         '<div style="position:relative;margin-bottom:12px;">' +
         '<input type="text" id="referralLinkInput" readonly value="' + link + '" style="width:100%;padding:10px 80px 10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;box-sizing:border-box;" onclick="this.select()">' +

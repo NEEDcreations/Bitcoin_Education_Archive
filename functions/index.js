@@ -1094,9 +1094,9 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
     const points = userData.points || 0;
     const channelsVisited = (userData.visitedChannels || userData.visitedChannelsList || []).length;
 
-    // Qualification: at least 100 points and 5 channels visited
-    if (points < 100 || channelsVisited < 5) {
-        return { success: false, reason: 'Keep learning! You need 100+ points and 5+ channels visited.' };
+    // Qualification: reached Maxi rank (2,140+ points)
+    if (points < 2140) {
+        return { success: false, reason: 'Keep learning! You need to reach Maxi rank (2,140+ points) to unlock the referral reward.' };
     }
 
     // ===== FRAUD CHECKS =====
@@ -1190,16 +1190,19 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
         verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
         ticketsAwarded: true
     });
+    // Referrer: +50 tickets, +1 referralCount
     batch.update(db.collection('users').doc(referrerUid), {
         orangeTickets: admin.firestore.FieldValue.increment(50),
-        referralTicketsEarned: admin.firestore.FieldValue.increment(50)
+        referralTicketsEarned: admin.firestore.FieldValue.increment(50),
+        referralCount: admin.firestore.FieldValue.increment(1),
     });
+    // Referred user: mark verified (signup bonus of 50 tickets already awarded client-side on attachReferral)
     batch.update(db.collection('users').doc(referredUid), {
-        orangeTickets: admin.firestore.FieldValue.increment(25)
+        referralVerified: true,
     });
     await batch.commit();
 
-    return { success: true, referrerTickets: 50, referredTickets: 25 };
+    return { success: true, referrerTickets: 50, referredTickets: 0 };
 });
 
 // =============================================

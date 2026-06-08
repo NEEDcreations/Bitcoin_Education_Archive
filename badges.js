@@ -124,9 +124,13 @@ const BADGE_DEFS = [
     { id: 'tip_magnet', name: 'Tip Magnet', emoji: '🧲', desc: 'Received 10 tips from others', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 10, pts: 100 },
 
     // ---- Referral Badges ----
-    { id: 'referral_1', name: 'First Referral', emoji: '🔗', desc: 'Got 1 friend to sign up via your link', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 1, pts: 50 },
-    { id: 'referral_10', name: 'Network Effect', emoji: '🌐', desc: 'Referred 10 users', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 10, pts: 200 },
-    { id: 'referral_50', name: 'Super Spreader', emoji: '📡', desc: 'Referred 50 users', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 50, pts: 1000 },
+    { id: 'referral_1',   name: 'First Referral',    emoji: '🔗', desc: 'Referred 1 friend who reached Maxi rank',   check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 1,   pts: 50 },
+    { id: 'referral_5',   name: 'Connector',          emoji: '🤝', desc: 'Referred 5 friends who reached Maxi rank',  check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 5,   pts: 100 },
+    { id: 'referral_10',  name: 'Network Effect',     emoji: '🌐', desc: 'Referred 10 friends to Bitcoin education', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 10,  pts: 200 },
+    { id: 'referral_25',  name: 'Orange Pill Machine', emoji: '💊', desc: 'Orange-pilled 25 people via your link',    check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 25,  pts: 500 },
+    { id: 'referral_50',  name: 'Super Spreader',     emoji: '📡', desc: 'Referred 50 people — legend status',       check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 50,  pts: 1000 },
+    { id: 'referral_100', name: 'Viral Plebian',       emoji: '👑', desc: 'Referred 100 people — you are the movement', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 100, pts: 2500 },
+    { id: 'referred',     name: 'Referred Friend',    emoji: '🫂', desc: 'Joined Bitcoin Education Archive via a referral link', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.referredBy), pts: 25 },
 
     // ---- DM / Social Badges ----
     { id: 'dm_first', name: 'DM Starter', emoji: '✉️', desc: 'Sent your first direct message', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 1, pts: 15 },

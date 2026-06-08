@@ -4192,7 +4192,7 @@ function showSettingsPage(tab) {
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (6,102+ pts). Verified automatically.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (2,140+ pts). Verified automatically.<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
@@ -6387,9 +6387,13 @@ const BADGE_DEFS = [
     { id: 'tip_magnet', name: 'Tip Magnet', emoji: '🧲', desc: 'Received 10 tips from others', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 10, pts: 100 },
 
     // ---- Referral Badges ----
-    { id: 'referral_1', name: 'First Referral', emoji: '🔗', desc: 'Got 1 friend to sign up via your link', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 1, pts: 50 },
-    { id: 'referral_10', name: 'Network Effect', emoji: '🌐', desc: 'Referred 10 users', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 10, pts: 200 },
-    { id: 'referral_50', name: 'Super Spreader', emoji: '📡', desc: 'Referred 50 users', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 50, pts: 1000 },
+    { id: 'referral_1',   name: 'First Referral',    emoji: '🔗', desc: 'Referred 1 friend who reached Maxi rank',   check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 1,   pts: 50 },
+    { id: 'referral_5',   name: 'Connector',          emoji: '🤝', desc: 'Referred 5 friends who reached Maxi rank',  check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 5,   pts: 100 },
+    { id: 'referral_10',  name: 'Network Effect',     emoji: '🌐', desc: 'Referred 10 friends to Bitcoin education', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 10,  pts: 200 },
+    { id: 'referral_25',  name: 'Orange Pill Machine', emoji: '💊', desc: 'Orange-pilled 25 people via your link',    check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 25,  pts: 500 },
+    { id: 'referral_50',  name: 'Super Spreader',     emoji: '📡', desc: 'Referred 50 people — legend status',       check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 50,  pts: 1000 },
+    { id: 'referral_100', name: 'Viral Plebian',       emoji: '👑', desc: 'Referred 100 people — you are the movement', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 100, pts: 2500 },
+    { id: 'referred',     name: 'Referred Friend',    emoji: '🫂', desc: 'Joined Bitcoin Education Archive via a referral link', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.referredBy), pts: 25 },
 
     // ---- DM / Social Badges ----
     { id: 'dm_first', name: 'DM Starter', emoji: '✉️', desc: 'Sent your first direct message', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 1, pts: 15 },
@@ -6871,7 +6875,8 @@ setTimeout(initBadges, 2000);
 const TICKET_CONFIG = {
     dailyLogin: 1,
     referral: 50,
-    referralPointsThreshold: 2100,
+    referralSignupBonus: 50,  // Tickets awarded to new user who signed up via referral link
+    referralPointsThreshold: 2140,  // Maxi rank threshold
     pointsPerTicket: 5,  // Each ticket earned = 5 points towards reward system
 };
 
@@ -6966,11 +6971,31 @@ async function attachReferral(uid) {
             referrerUid = null;
         }
 
-        // Save referral info on the new user
+        // Save referral info on the new user + award signup bonus tickets
+        const signupBonus = TICKET_CONFIG.referralSignupBonus;
         await db.collection('users').doc(uid).update({
             referredBy: refCode,
             referralVerified: false,
+            orangeTickets: (firebase.firestore.FieldValue || {}).increment
+                ? firebase.firestore.FieldValue.increment(signupBonus)
+                : signupBonus,
+            referredSignupBonus: true,
         });
+        // Update local state
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.referredBy = refCode;
+            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + signupBonus;
+        }
+        // Show welcome toast after a short delay
+        setTimeout(function() {
+            if (typeof showToast === 'function') {
+                showToast('🫂 Welcome! You joined via a referral link — you\'ve been awarded ' + signupBonus + ' Orange Tickets!');
+            }
+        }, 3000);
+        // Award referred badge
+        setTimeout(function() {
+            if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+        }, 4000);
 
         // Also record in referrals collection for tracking
         await db.collection('referrals').doc(uid).set({
@@ -7119,7 +7144,7 @@ function renderTicketsSection() {
         '<div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">' +
         '<div style="font-size:1.2rem;">🤝</div>' +
         '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Referral</div>' +
-        '<div style="color:var(--accent);font-weight:700;font-size:0.85rem;">+5 tickets</div></div></div>' +
+        '<div style="color:var(--accent);font-weight:700;font-size:0.85rem;">+50 tickets</div></div></div>' +
         '</div>';
 
     return html;
@@ -7135,7 +7160,7 @@ function renderReferralSection() {
     let html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Referral Program</div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Share your link with friends. Earn <strong style="color:#f7931a;">5 Orange Tickets</strong> for each referral who logs in and earns 2,100+ points (Maxi rank).' +
+        'Share your link with friends. Earn <strong style="color:#f7931a;">50 Orange Tickets</strong> for each referral who logs in and earns 2,140+ points (Maxi rank).' +
         '</div>' +
         '<div style="position:relative;margin-bottom:12px;">' +
         '<input type="text" id="referralLinkInput" readonly value="' + link + '" style="width:100%;padding:10px 80px 10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;box-sizing:border-box;" onclick="this.select()">' +
