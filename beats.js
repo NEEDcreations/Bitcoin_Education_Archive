@@ -198,7 +198,7 @@ window.beatsShowGlobalPlayer = function() {
         var playerH = 80; // approx player height
         var navH = 56;
         var baseBottom = navH + playerH;
-        ['chatOverlayBtn', 'aiToolsBtn', 'lbFloatBtn'].forEach(function(id) {
+        ['chatOverlayBtn', 'aiToolsBtn', 'lbFloatBtn', 'dashboardFloatBtn'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.style.bottom = (baseBottom + 10) + 'px';
         });
@@ -249,7 +249,7 @@ window.beatsClosePlayer = function() {
     window._beatsQueueIdx = -1;
     // Reset floating button positions on mobile
     if (window.innerWidth <= 900) {
-        ['chatOverlayBtn', 'aiToolsBtn', 'lbFloatBtn'].forEach(function(id) {
+        ['chatOverlayBtn', 'aiToolsBtn', 'lbFloatBtn', 'dashboardFloatBtn'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.style.bottom = '';
         });

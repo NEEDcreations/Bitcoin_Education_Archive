@@ -1050,7 +1050,7 @@
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
@@ -2644,7 +2644,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (screen) screen.remove();
 
         // Restore everything that was hidden on enter
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = '';
         });
         // Restore mobile top bar
@@ -4913,7 +4913,7 @@ window.toggleAITools = function() {
         btn.onclick = toggleAITools;
         btn.title = 'AI Tools';
         btn.setAttribute('aria-label', 'Open AI Tools');
-        btn.style.cssText = 'position:fixed;bottom:10px;right:76px;z-index:200001;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
+        btn.style.cssText = 'position:fixed;bottom:10px;right:132px;z-index:200001;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
         btn.innerHTML = '🤖';
         document.body.appendChild(btn);
 
@@ -4922,7 +4922,7 @@ window.toggleAITools = function() {
         if (!style) {
             style = document.createElement('style');
             style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:84px!important;right:16px!important;}}';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:196px!important;right:16px!important;}}';
             document.head.appendChild(style);
         }
     }

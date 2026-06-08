@@ -2789,17 +2789,18 @@ function updateUserDisplay(lv) {
         dashBtn.onclick = function() { if (typeof toggleDashboard === 'function') toggleDashboard(); };
         document.body.appendChild(dashBtn);
     }
-    // Position below userDisplay on desktop, hidden on mobile (mobile has it in top bar)
-    dashBtn.style.cssText = 'position:fixed;top:12px;right:20px;z-index:129;width:36px;height:36px;border-radius:10px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:0.2s;';
+    // Position as bottom-right FAB between Leaderboard (right:20px) and AI Tools (right:132px)
+    dashBtn.style.cssText = 'position:fixed;bottom:10px;right:76px;z-index:200001;background:linear-gradient(135deg,#f97316,#eab308);color:#fff;border:none;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(249,115,22,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
     dashBtn.innerHTML = '📊';
-    dashBtn.title = 'Bitcoin Network Metrics';
-    // If userDisplay is visible, tuck dashboard button below it
-    if (el.style.display !== 'none' && el.offsetHeight > 0) {
-        var elRect = el.getBoundingClientRect();
-        dashBtn.style.top = (elRect.bottom + 8) + 'px';
+    dashBtn.title = 'Bitcoin Metrics';
+    // Apply mobile position via injected style tag
+    var dashBtnCSS = document.getElementById('dashBtnCSS');
+    if (!dashBtnCSS) {
+        dashBtnCSS = document.createElement('style');
+        dashBtnCSS.id = 'dashBtnCSS';
+        dashBtnCSS.textContent = '@media(max-width:900px){#dashboardFloatBtn{bottom:140px!important;right:16px!important;}}';
+        document.head.appendChild(dashBtnCSS);
     }
-    // Hide on mobile — mobile top bar already has it
-    if (window.innerWidth <= 900) dashBtn.style.display = 'none';
 
     // Update mobile top bar user info (username + price + block height + pts)
     const mobileInfo = document.getElementById('mobileUserInfo');
@@ -24457,7 +24458,7 @@ window._startHalvingTicker = function() {
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
@@ -26051,7 +26052,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (screen) screen.remove();
 
         // Restore everything that was hidden on enter
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = '';
         });
         // Restore mobile top bar
@@ -28320,7 +28321,7 @@ window.toggleAITools = function() {
         btn.onclick = toggleAITools;
         btn.title = 'AI Tools';
         btn.setAttribute('aria-label', 'Open AI Tools');
-        btn.style.cssText = 'position:fixed;bottom:10px;right:76px;z-index:200001;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
+        btn.style.cssText = 'position:fixed;bottom:10px;right:132px;z-index:200001;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
         btn.innerHTML = '🤖';
         document.body.appendChild(btn);
 
@@ -28329,7 +28330,7 @@ window.toggleAITools = function() {
         if (!style) {
             style = document.createElement('style');
             style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:84px!important;right:16px!important;}}';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:196px!important;right:16px!important;}}';
             document.head.appendChild(style);
         }
     }

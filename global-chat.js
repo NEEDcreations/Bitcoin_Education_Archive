@@ -1016,7 +1016,7 @@ function createChatOverlay() {
     if (!btn) {
         btn = document.createElement('button');
         btn.id = 'chatOverlayBtn';
-        btn.style.cssText = 'position:fixed;bottom:10px;right:128px;z-index:300;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(59,130,246,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;';
+        btn.style.cssText = 'position:fixed;bottom:10px;right:188px;z-index:300;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(59,130,246,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;';
         btn.innerHTML = '💬';
         document.body.appendChild(btn);
     }
@@ -1058,7 +1058,7 @@ function createChatOverlay() {
 
     // Style for desktop — chat btn bottom-right, left of search magnifying glass
     var style = document.createElement('style');
-    style.textContent = '@media(max-width:900px){#chatOverlayBtn{bottom:84px!important;right:128px!important;}}@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{display:none!important;}}@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
+    style.textContent = '@media(max-width:900px){#chatOverlayBtn{bottom:84px!important;right:16px!important;}}@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{display:none!important;}}@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
     document.head.appendChild(style);
 }
 
