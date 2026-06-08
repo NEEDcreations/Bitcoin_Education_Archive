@@ -2528,6 +2528,7 @@ function _renderCharityTab(body) {
 function _renderCharityTabInner(body) {
     var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
     var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+    var userFaction = typeof currentUser !== 'undefined' && currentUser ? (currentUser.faction || '') : '';
     var pts = typeof currentUser !== 'undefined' && currentUser ? (currentUser.points || 0) : 0;
     var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
     var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
@@ -2578,6 +2579,13 @@ function _renderCharityTabInner(body) {
     if (!isSignedIn) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.9rem;">' +
             '🔐 Sign in to donate XP for charity' +
+        '</div>';
+    } else if (!userFaction) {
+        html += '<div style="background:var(--card-bg);border:1px solid rgba(247,147,26,0.3);border-radius:14px;padding:20px;text-align:center;margin-bottom:16px;">' +
+            '<div style="font-size:1.6rem;margin-bottom:8px;">⚔️</div>' +
+            '<div style="font-size:0.95rem;font-weight:700;color:var(--heading);margin-bottom:6px;">Choose Your Faction First</div>' +
+            '<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:16px;">Your faction\'s donation total is tracked for the community leaderboard. Join a side before you donate!</div>' +
+            '<button onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){if(typeof showSettings===\'function\')showSettings();setTimeout(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')},100)},100)" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">🐝🦡 Choose Your Faction</button>' +
         '</div>';
     } else {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
