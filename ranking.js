@@ -5394,6 +5394,12 @@ window.hideUsernamePrompt = function() {
     if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
         showGuideReturnBtn();
     }
+    // One-shot callback — used e.g. by Charity tab to return after faction selection
+    if (typeof window._onSettingsClose === 'function') {
+        var cb = window._onSettingsClose;
+        window._onSettingsClose = null;
+        setTimeout(cb, 150);
+    }
 };
 
 window.submitUsername = async function() {
