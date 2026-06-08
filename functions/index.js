@@ -4318,6 +4318,12 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
         const pointsDonated = u.pointsDonated || 0;
         const available = points - pointsClaimed - pointsDonated;
 
+        // Faction required — donations must be attributed to a side
+        if (!u.faction || (u.faction !== 'cyber_hornets' && u.faction !== 'honey_badgers')) {
+            throw new functions.https.HttpsError('failed-precondition',
+                'You must choose a faction (Cyber Hornets or Honey Badgers) before donating.');
+        }
+
         if (available < amount) {
             throw new functions.https.HttpsError('failed-precondition',
                 `Not enough available points. You have ${available.toLocaleString()} pts available.`);
