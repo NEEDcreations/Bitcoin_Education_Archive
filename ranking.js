@@ -4042,12 +4042,15 @@ function showSettingsPage(tab) {
 
     } else if (settingsTab === 'sats') {
         // ===== SATS FAUCET TAB =====
+        var _satsSubTab = window._satsSubTab || 'claim'; // 'claim' | 'donate'
         var isAnon = user.isAnonymous;
         var userPts = currentUser ? currentUser.points || 0 : 0;
         var pointsClaimed = currentUser ? currentUser.pointsClaimed || 0 : 0;
-        var availablePts = userPts - pointsClaimed;
+        var pointsDonated = currentUser ? currentUser.pointsDonated || 0 : 0;
+        var availablePts = userPts - pointsClaimed - pointsDonated;
+        var availableForClaim = userPts - pointsClaimed; // claim doesn't subtract donated
         var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
-        var satsBalance = Math.floor(Math.max(0, availablePts) / 10); // 10 unclaimed points = 1 sat
+        var satsBalance = Math.floor(Math.max(0, availableForClaim) / 10); // 10 unclaimed points = 1 sat (claim uses availableForClaim, not availablePts)
         var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
         var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
         var claimable = Math.min(satsBalance, 500, lifetimeLeft);
@@ -4087,6 +4090,13 @@ function showSettingsPage(tab) {
         var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10;
         var meetsMin = satsBalance >= 100;
 
+        // Sub-tab switcher
+        html += '<div style="display:flex;gap:8px;margin-bottom:20px;">';
+        html += '<button id="satsSubClaim" onclick="window._satsSubTab=\'claim\';showSettingsPage(\'sats\')" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid ' + (_satsSubTab==='claim'?'var(--accent)':'var(--border)') + ';background:' + (_satsSubTab==='claim'?'var(--accent)':'none') + ';color:' + (_satsSubTab==='claim'?'#fff':'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Claim Sats</button>';
+        html += '<button id="satsSubDonate" onclick="window._satsSubTab=\'donate\';showSettingsPage(\'sats\')" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid ' + (_satsSubTab==='donate'?'#ef4444':'var(--border)') + ';background:' + (_satsSubTab==='donate'?'linear-gradient(135deg,#ef4444,#dc2626)':'none') + ';color:' + (_satsSubTab==='donate'?'#fff':'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Donate XP</button>';
+        html += '</div>';
+
+        if (_satsSubTab !== 'donate') {
         html += '<div style="text-align:center;margin-bottom:20px;">';
         html += '<div style="font-size:2.5rem;">⚡</div>';
         html += '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Real Sats</div>';
@@ -4097,7 +4107,7 @@ function showSettingsPage(tab) {
         html += '<div style="background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,179,8,0.1));border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Your Balance</div>';
         html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' claimable sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availablePts.toLocaleString() + ' unclaimed XP of ' + userPts.toLocaleString() + ' total</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availableForClaim.toLocaleString() + ' unclaimed XP of ' + userPts.toLocaleString() + ' total</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
 
@@ -4232,6 +4242,66 @@ function showSettingsPage(tab) {
             html += '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);line-height:1.5;">💡 Get one from <a href="https://walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);">Wallet of Satoshi</a>, <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);">Alby</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);">Coinos</a>, or <a href="https://strike.me" target="_blank" rel="noopener" style="color:var(--accent);">Strike</a>.</div>';
         }
         html += '</div>';
+
+        } else {
+        // ===== DONATE XP SUB-TAB =====
+        var _donateAvail = Math.max(0, userPts - pointsClaimed - pointsDonated);
+        var _userFaction = currentUser ? (currentUser.faction || '') : '';
+
+        html += '<div style="text-align:center;margin-bottom:20px;">';
+        html += '<div style="font-size:2.5rem;">❤️</div>';
+        html += '<div style="font-size:1.3rem;font-weight:800;color:#ef4444;margin-top:4px;">Donate XP for Charity</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">1,000 XP = 1,000 sats donated — 10× more impact than claiming</div>';
+        html += '</div>';
+
+        // Balance card
+        html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
+        html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Available to Donate</div>';
+        html += '<div style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated</div>';
+        html += '</div>';
+
+        if (isAnon) {
+            html += '<div style="padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">🔐 Sign in to donate XP</div>';
+        } else if (!_userFaction) {
+            html += '<div style="background:var(--card-bg);border:1px solid rgba(247,147,26,0.3);border-radius:14px;padding:20px;text-align:center;margin-bottom:16px;">';
+            html += '<div style="font-size:1.4rem;margin-bottom:6px;">⚔️</div>';
+            html += '<div style="font-size:0.9rem;font-weight:700;color:var(--heading);margin-bottom:6px;">Choose Your Faction First</div>';
+            html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:14px;">Your faction\u2019s donation total is tracked for the community leaderboard.</div>';
+            html += '<button onclick="showSettingsPage(\'account\')" style="padding:10px 24px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">🐝🦡 Choose Faction → Account</button>';
+            html += '</div>';
+        } else {
+            // Quick-pick percentage buttons
+            var _quickPcts = [5, 10, 25, 50, 100];
+            html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
+            _quickPcts.forEach(function(pct) {
+                var amt = Math.floor(_donateAvail * pct / 100);
+                html += '<button onclick="window._satsCharitySetAmt(' + amt + ')" style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
+            });
+            html += '</div>';
+
+            html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+            html += '<input id="satsCharityAmtInput" type="number" min="1" max="' + _donateAvail + '" placeholder="Custom amount" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg,var(--card-bg));color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;">';
+            html += '</div>';
+
+            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
+            html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--text-muted);"><input type="checkbox" id="satsCharityAnonToggle" style="width:16px;height:16px;cursor:pointer;accent-color:#ef4444;"> Donate anonymously</label>';
+            html += '</div>';
+
+            html += '<button onclick="window._satsCharitySubmit()" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;">❤️ Donate XP for Charity</button>';
+
+            if (pointsDonated > 0) {
+                html += '<div style="font-size:0.75rem;color:var(--text-faint);text-align:center;margin-bottom:16px;">' + pointsDonated.toLocaleString() + ' XP already donated — thank you! ❤️</div>';
+            }
+        }
+
+        // Expandable disclaimer note
+        html += '<div style="margin-bottom:8px;">';
+        html += '<button onclick="window._toggleSatsCharityNote()" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">ℹ️ About Donations <span id="satsCharityNoteArrow">▼</span></button>';
+        html += '<div id="satsCharityNote" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:12px;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Donations are non-refundable and not tax-deductible. Faction is always recorded even for anonymous donations. Community votes on which charities receive the funds.</div>';
+        html += '</div>';
+
+        } // end donate sub-tab
 
     } else if (settingsTab === 'prefs') {
         // Appearance (Theme + Font Size combined)
@@ -4865,6 +4935,50 @@ function showSettingsPage(tab) {
     // Load sats history if on sats tab
     if (settingsTab === 'sats' && typeof loadSatsHistory === 'function') {
         setTimeout(loadSatsHistory, 100);
+    }
+
+    // Wire up charity donate helpers for the Sats > Donate sub-tab
+    if (settingsTab === 'sats') {
+        window._toggleSatsCharityNote = function() {
+            var n = document.getElementById('satsCharityNote');
+            var arr = document.getElementById('satsCharityNoteArrow');
+            if (!n) return;
+            var open = n.style.display !== 'none';
+            n.style.display = open ? 'none' : 'block';
+            if (arr) arr.textContent = open ? '\u25bc' : '\u25b2';
+        };
+        window._satsCharitySetAmt = function(amt) {
+            var inp = document.getElementById('satsCharityAmtInput');
+            if (inp) inp.value = amt > 0 ? amt : '';
+        };
+        window._satsCharitySubmit = function() {
+            if (typeof firebase === 'undefined' || !firebase.functions) return;
+            var inp = document.getElementById('satsCharityAmtInput');
+            var amt = parseInt(inp ? inp.value : '') || 0;
+            var avail = typeof currentUser !== 'undefined' && currentUser
+                ? Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0)) : 0;
+            if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
+            if (amt > avail) { if (typeof showToast === 'function') showToast('Not enough available XP (' + avail.toLocaleString() + ' available)'); return; }
+            var anon = document.getElementById('satsCharityAnonToggle') ? document.getElementById('satsCharityAnonToggle').checked : false;
+            var btn = document.querySelector('[onclick="window._satsCharitySubmit()"]');
+            if (btn) { btn.disabled = true; btn.textContent = 'Donating...'; }
+            firebase.functions().httpsCallable('donatePoints')({ amount: amt, anonymous: anon })
+                .then(function(result) {
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
+                        if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+                    }
+                    var badgeMsg = result.data && result.data.newBadges && result.data.newBadges.length > 0
+                        ? ' +' + result.data.newBadges.length + ' badge' + (result.data.newBadges.length > 1 ? 's' : '') + ' unlocked!' : '';
+                    if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
+                    if (typeof window._charityThankYou === 'function') window._charityThankYou(amt, result.data && result.data.newBadges || [], result.data && result.data.bonusPts || 0);
+                    showSettingsPage('sats');
+                })
+                .catch(function(e) {
+                    if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
+                    if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Donation failed. Try again.'), 4000);
+                });
+        };
     }
 
     // Load referral stats if on data tab (tickets are now here)
