@@ -13261,10 +13261,25 @@ function _renderCharityTabInner(body) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📜 Recent Donations</div>';
         _charityRecent.forEach(function(d) {
+            var isAnon = d.anonymous || !d.uid || (d.username || '') === 'Anonymous';
             var factionLabel = d.faction === 'cyber_hornets' ? '<span style="color:#f7e400;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px 1px 0 #000;font-weight:700;">🐝</span>' :
                                d.faction === 'honey_badgers' ? '<span style="color:#1a1a1a;font-size:0.65rem;text-shadow:-1px -1px 0 #fff,1px 1px 0 #fff;font-weight:700;">🦡</span>' : '';
+            // Faction-coloured name style
+            var nameStyle;
+            if (isAnon) {
+                nameStyle = 'color:var(--text-muted);';
+            } else if (d.faction === 'cyber_hornets') {
+                nameStyle = 'color:#f7e400;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+            } else if (d.faction === 'honey_badgers') {
+                nameStyle = 'color:#e5e7eb;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+            } else {
+                nameStyle = 'color:var(--text);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+            }
+            var nameHtml = isAnon
+                ? '<span style="' + nameStyle + '">' + esc(d.username || 'Anonymous') + '</span>'
+                : '<span style="' + nameStyle + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + esc(d.uid) + '\')" title="View profile">' + esc(d.username || 'Anonymous') + '</span>';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82rem;">' +
-                '<span>' + factionLabel + ' ' + esc(d.username || 'Anonymous') + '</span>' +
+                '<span style="display:flex;align-items:center;gap:5px;">' + factionLabel + ' ' + nameHtml + '</span>' +
                 '<span style="color:#ef4444;font-weight:700;">+' + (d.amount || 0).toLocaleString() + ' XP</span>' +
             '</div>';
         });
