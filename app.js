@@ -2759,6 +2759,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof loadCommunityStats === 'function') loadCommunityStats();
         // Raid Boss home card
         if (typeof renderRaidBossHome === 'function') renderRaidBossHome();
+        // Charity home card
+        if (typeof window._renderCharityHome === 'function') window._renderCharityHome();
         // Show guide return button if user navigated from the guide
         if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
             showGuideReturnBtn();
@@ -3782,6 +3784,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_buddyfind', title: '🤝 Find a Bitcoin Buddy', desc: 'Get matched with a learning partner — teachers meet learners', keywords: 'buddy partner match learn teach mentor mentee pair connect study group accountability partner friend', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_favor', title: '✨⛏️ Satoshi\'s Favor', desc: 'Community mining game — earn points, activate mining, hash for 21,000 sats', keywords: 'satoshi favor mining hash mine community points activate 21 sats game block nonce difficulty target hashing brute force proof of work', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='favor';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
         { id: '_raid', title: '⚔️ Raid Boss', desc: 'Monthly community challenge — deal damage by earning badges and completing activities', keywords: 'raid boss challenge monthly community damage badge activity quest defeat winner prize leaderboard attack', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='raid';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
+        { id: '_charity', title: '❤️ Donate XP for Charity', desc: 'Donate your XP points for charity — 1,000 XP = 1,000 sats pledged. 10× more impact than redeeming for yourself.', keywords: 'charity donate donation xp points sats bitcoin giving community philanthropy pledge faction badger hornet', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='charity';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
         { id: '_pow', title: '🚶 Proof of Walk', desc: 'Connect Strava and earn XP for walking — proof of work with your feet', keywords: 'proof of walk strava walking steps exercise fitness health outdoor move earn xp activity sync connect', action: "go('explore');setTimeout(function(){if(typeof renderProofOfWalk==='function')renderProofOfWalk()},300)" },
     ];
 

@@ -1375,6 +1375,12 @@ async function loadUser(uid, prefetchedDoc) {
                 var mergedHidden = [...new Set([...existingHidden, ...currentUser.hiddenBadges])];
                 localStorage.setItem('btc_hidden_badges', JSON.stringify(mergedHidden));
             }
+            // Merge donation badges (awarded server-side by donatePoints CF)
+            if (currentUser.donationBadges && currentUser.donationBadges.length > 0) {
+                var existingHidden2 = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+                var mergedHidden2 = [...new Set([...existingHidden2, ...currentUser.donationBadges])];
+                localStorage.setItem('btc_hidden_badges', JSON.stringify(mergedHidden2));
+            }
             if (currentUser.visibleBadges) {
                 // Merge Firebase badges into localStorage
                 var existing = JSON.parse(localStorage.getItem('btc_badges') || '[]');

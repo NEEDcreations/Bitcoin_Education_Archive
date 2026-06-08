@@ -35,7 +35,8 @@ service cloud.firestore {
                         'referralTicketsEarned', 'lastSpinDate', 'spinClosetItems',
                         'pvpWins', 'pvpLosses', 'forumPosts', 'forumReplies',
                         'marketListings', 'marketMessages', 'referralCode',
-                        'pendingOverflow', 'lastOverflowDate'
+                        'pendingOverflow', 'lastOverflowDate',
+                        'pointsDonated', 'donationBadges'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
@@ -1094,6 +1095,18 @@ service cloud.firestore {
                    && request.resource.data.total == 1;
       allow update: if request.auth != null
                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3']);
+    }
+
+    // Charity donations — public read (for leaderboard/feed), CF-only write
+    match /charity_donations/{donationId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Charity global stats — public read, CF-only write
+    match /charity_stats/{statId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     match /{document=**} {

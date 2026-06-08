@@ -1538,6 +1538,12 @@ async function loadUser(uid, prefetchedDoc) {
                 var mergedHidden = [...new Set([...existingHidden, ...currentUser.hiddenBadges])];
                 localStorage.setItem('btc_hidden_badges', JSON.stringify(mergedHidden));
             }
+            // Merge donation badges (awarded server-side by donatePoints CF)
+            if (currentUser.donationBadges && currentUser.donationBadges.length > 0) {
+                var existingHidden2 = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+                var mergedHidden2 = [...new Set([...existingHidden2, ...currentUser.donationBadges])];
+                localStorage.setItem('btc_hidden_badges', JSON.stringify(mergedHidden2));
+            }
             if (currentUser.visibleBadges) {
                 // Merge Firebase badges into localStorage
                 var existing = JSON.parse(localStorage.getItem('btc_badges') || '[]');
@@ -12952,6 +12958,7 @@ window.showQuestHub = function() {
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
+        '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
         '</div>';
 
     var body = document.createElement('div');
@@ -12969,14 +12976,15 @@ window.showQuestHub = function() {
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
     // Update active tab styles
-    ['Quiz', 'Trivia', 'Poll', 'Raid'].forEach(function(t) {
+    ['Quiz', 'Trivia', 'Poll', 'Raid', 'Favor', 'Charity'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
         if (!btn) return;
         var isActive = tab === t.toLowerCase();
         var raidActive = t === 'Raid' && isActive;
-        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : (isActive ? 'var(--accent)' : 'none');
+        var charityActive = t === 'Charity' && isActive;
+        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : (isActive ? 'var(--accent)' : 'none');
         btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
-        btn.style.borderColor = raidActive ? '#8b5cf6' : (isActive ? 'var(--accent)' : 'var(--border)');
+        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : (isActive ? 'var(--accent)' : 'var(--border)');
     });
 
     var body = document.getElementById('questHubBody');
@@ -12990,7 +12998,268 @@ function _renderQuestHubTab() {
     else if (tab === 'poll') _renderPollTab(body);
     else if (tab === 'raid') _renderRaidTab(body);
     else if (tab === 'favor') _renderFavorTab(body);
+    else if (tab === 'charity') _renderCharityTab(body);
 }
+
+// ── CHARITY TAB ──
+var _charityStats = null;
+var _charityRecent = [];
+var _charityStatsLoaded = false;
+
+function _loadCharityStats(cb) {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return cb && cb();
+    var db = firebase.firestore();
+    Promise.all([
+        db.collection('charity_stats').doc('global').get(),
+        db.collection('charity_donations').orderBy('ts', 'desc').limit(10).get()
+    ]).then(function(results) {
+        var statsDoc = results[0];
+        var recentSnap = results[1];
+        _charityStats = statsDoc.exists ? statsDoc.data() : { totalDonated: 0, factionTotals: {} };
+        _charityRecent = [];
+        recentSnap.forEach(function(doc) { _charityRecent.push(doc.data()); });
+        _charityStatsLoaded = true;
+        if (cb) cb();
+    }).catch(function() { if (cb) cb(); });
+}
+
+function _renderCharityTab(body) {
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">Loading charity data...</div>';
+    _loadCharityStats(function() {
+        _renderCharityTabInner(body);
+    });
+}
+
+function _renderCharityTabInner(body) {
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+    var pts = typeof currentUser !== 'undefined' && currentUser ? (currentUser.points || 0) : 0;
+    var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
+    var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
+    var available = Math.max(0, pts - claimed - donated);
+
+    var stats = _charityStats || { totalDonated: 0, factionTotals: {} };
+    var totalDonated = stats.totalDonated || 0;
+    var hornets = (stats.factionTotals && stats.factionTotals.cyber_hornets) || 0;
+    var badgers = (stats.factionTotals && stats.factionTotals.honey_badgers) || 0;
+
+    var html = '';
+
+    // Header
+    html += '<div style="text-align:center;margin-bottom:20px;">' +
+        '<div style="font-size:2rem;margin-bottom:6px;">❤️</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">Donate XP for Charity</div>' +
+        '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">1,000 XP = 1,000 sats donated — 10× more impact than redeeming for yourself</div>' +
+    '</div>';
+
+    // Community total
+    html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:16px;text-align:center;margin-bottom:16px;">' +
+        '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:#ef4444;font-weight:800;margin-bottom:6px;">🌍 Community Pledge</div>' +
+        '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);">' + totalDonated.toLocaleString() + ' <span style="font-size:1rem;font-weight:600;color:var(--text-muted);">sats pledged</span></div>' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">(' + totalDonated.toLocaleString() + ' XP donated by the community)</div>' +
+    '</div>';
+
+    // Faction leaderboard
+    var factionTotal = hornets + badgers;
+    var hornetsPct = factionTotal > 0 ? Math.round((hornets / factionTotal) * 100) : 50;
+    var badgersPct = 100 - hornetsPct;
+    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;">' +
+        '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">⚔️ Faction Giving</div>' +
+        '<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.8rem;">' +
+            '<span style="color:#f7e400;font-weight:700;text-shadow:-1px -1px 0 #000,1px 1px 0 #000;">🐝 Cyber Hornets</span>' +
+            '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #fff,1px 1px 0 #fff;">🦡 Honey Badgers</span>' +
+        '</div>' +
+        '<div style="display:flex;border-radius:8px;overflow:hidden;height:14px;margin-bottom:6px;">' +
+            '<div style="width:' + hornetsPct + '%;background:linear-gradient(90deg,#f7e400,#f59e0b);transition:0.5s;"></div>' +
+            '<div style="width:' + badgersPct + '%;background:linear-gradient(90deg,#374151,#1f2937);transition:0.5s;"></div>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-faint);">' +
+            '<span>' + hornets.toLocaleString() + ' XP (' + hornetsPct + '%)</span>' +
+            '<span>' + badgers.toLocaleString() + ' XP (' + badgersPct + '%)</span>' +
+        '</div>' +
+    '</div>';
+
+    // Donate UI
+    if (!isSignedIn) {
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.9rem;">' +
+            '🔐 Sign in to donate XP for charity' +
+        '</div>';
+    } else {
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">🎡 Your Donation</div>' +
+            '<div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">' +
+                'Available to donate: <strong style="color:var(--heading);">' + available.toLocaleString() + ' XP</strong>' +
+                (donated > 0 ? ' <span style="color:var(--text-faint);font-size:0.75rem;">(' + donated.toLocaleString() + ' already donated)</span>' : '') +
+            '</div>';
+
+        // Quick-pick buttons
+        var quickPcts = [5, 10, 25, 50, 100];
+        html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
+        quickPcts.forEach(function(pct) {
+            var amt = Math.floor(available * pct / 100);
+            html += '<button onclick="window._charitySetAmount(' + amt + ')" style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
+        });
+        html += '</div>';
+
+        // Custom amount input
+        html += '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+            '<input id="charityAmtInput" type="number" min="1" max="' + available + '" placeholder="Custom amount" value="" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg,var(--card-bg));color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;">' +
+        '</div>';
+
+        // Anonymous toggle
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;color:var(--text-muted);">' +
+            '<input type="checkbox" id="charityAnonToggle" style="width:16px;height:16px;cursor:pointer;accent-color:#ef4444;"> Donate anonymously (your name hidden, faction still recorded)' +
+            '</label>' +
+        '</div>';
+
+        // Donate button
+        html += '<button onclick="window._submitCharityDonation()" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:0.2s;">❤️ Donate XP for Charity</button>';
+
+        html += '</div>';
+    }
+
+    // Recent donations
+    if (_charityRecent.length > 0) {
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📜 Recent Donations</div>';
+        _charityRecent.forEach(function(d) {
+            var factionLabel = d.faction === 'cyber_hornets' ? '<span style="color:#f7e400;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px 1px 0 #000;font-weight:700;">🐝</span>' :
+                               d.faction === 'honey_badgers' ? '<span style="color:#1a1a1a;font-size:0.65rem;text-shadow:-1px -1px 0 #fff,1px 1px 0 #fff;font-weight:700;">🦡</span>' : '';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82rem;">' +
+                '<span>' + factionLabel + ' ' + esc(d.username || 'Anonymous') + '</span>' +
+                '<span style="color:#ef4444;font-weight:700;">+' + (d.amount || 0).toLocaleString() + ' XP</span>' +
+            '</div>';
+        });
+        html += '</div>';
+    }
+
+    // Charity vote placeholder
+    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;">' +
+        '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">🗳️ Community Charity Vote</div>' +
+        '<div style="font-size:0.82rem;color:var(--text-muted);">Coming soon — the community will vote on which charities receive our pledged sats. Focused on Bitcoin education and adoption, but not limited to it.</div>' +
+    '</div>';
+
+    // Expandable note
+    html += '<div style="margin-bottom:16px;">' +
+        '<button onclick="var n=document.getElementById(\'charityNote\');n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=n.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">ℹ️ About Donations <span>▼</span></button>' +
+        '<div id="charityNote" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:14px;font-size:0.8rem;color:var(--text-muted);line-height:1.6;">' +
+            '<p style="margin:0 0 8px;">Our community will vote on which charities our contributions go to. In Bitcoin, the charities will focus on Bitcoin education and adoption — but our donations are not limited to the Bitcoin ecosystem. We can find charities outside of Bitcoin that we want to support as a community.</p>' +
+            '<p style="margin:0;color:#ef4444;"><strong>⚠️ Donations are non-refundable.</strong> Donated XP cannot be reclaimed or reversed. Donations are a community pledge and are not tax-deductible. This is not a registered charitable organization and no tax receipts are issued.</p>' +
+        '</div>' +
+    '</div>';
+
+    // Badges section
+    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;">' +
+        '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">🏅 Donation Badges</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+    var donorBadges = [
+        { id:'donor_100',    emoji:'🫷', name:'Giving Pleb',           thresh:'100 XP',    reward:'50 XP' },
+        { id:'donor_500',    emoji:'💛', name:'Stack Sharer',          thresh:'500 XP',    reward:'150 XP' },
+        { id:'donor_1000',   emoji:'🧡', name:'Community Builder',     thresh:'1,000 XP',  reward:'300 XP' },
+        { id:'donor_5000',   emoji:'❤️', name:'Archive Patron',        thresh:'5,000 XP',  reward:'1,000 XP' },
+        { id:'donor_10000',  emoji:'🔥', name:'Sats Saint',            thresh:'10,000 XP', reward:'2,000 XP' },
+        { id:'donor_25000',  emoji:'⚡', name:'Lightning Philanthropist', thresh:'25,000 XP', reward:'4,000 XP' },
+        { id:'donor_50000',  emoji:'🏆', name:"Satoshi's Steward",    thresh:'50,000 XP', reward:'7,500 XP' },
+        { id:'donor_100000', emoji:'👑', name:'Legend of the Archive', thresh:'100,000 XP',reward:'15,000 XP' },
+    ];
+    var earnedBadges = typeof safeJSON === 'function' ? safeJSON('btc_hidden_badges', []) : [];
+    donorBadges.forEach(function(b) {
+        var earned = earnedBadges.includes(b.id) || (typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.donationBadges) && currentUser.donationBadges.includes(b.id));
+        html += '<div style="padding:10px;border-radius:10px;border:1px solid ' + (earned ? 'rgba(239,68,68,0.4)' : 'var(--border)') + ';background:' + (earned ? 'rgba(239,68,68,0.06)' : 'none') + ';text-align:center;">' +
+            '<div style="font-size:1.4rem;margin-bottom:2px;' + (earned ? '' : 'filter:grayscale(1);opacity:0.4;') + '">' + b.emoji + '</div>' +
+            '<div style="font-size:0.72rem;font-weight:700;color:' + (earned ? 'var(--heading)' : 'var(--text-faint)') + ';">' + b.name + '</div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:2px;">' + b.thresh + ' donated</div>' +
+            '<div style="font-size:0.65rem;color:#ef4444;margin-top:1px;">+' + b.reward + ' reward</div>' +
+        '</div>';
+    });
+    html += '</div></div>';
+
+    body.innerHTML = html;
+
+    // Wire up amount setter
+    window._charitySetAmount = function(amt) {
+        var inp = document.getElementById('charityAmtInput');
+        if (inp) { inp.value = amt > 0 ? amt : ''; }
+    };
+
+    window._submitCharityDonation = function() {
+        if (typeof firebase === 'undefined' || !firebase.functions) { if (typeof showToast === 'function') showToast('Firebase not ready'); return; }
+        var inp = document.getElementById('charityAmtInput');
+        var amt = parseInt(inp ? inp.value : '') || 0;
+        if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
+        var avail = Math.max(0, (typeof currentUser !== 'undefined' && currentUser ? (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) : 0));
+        if (amt > avail) { if (typeof showToast === 'function') showToast('Not enough available XP. You have ' + avail.toLocaleString() + ' pts available.'); return; }
+        var anon = document.getElementById('charityAnonToggle') ? document.getElementById('charityAnonToggle').checked : false;
+        var btn = document.querySelector('[onclick="window._submitCharityDonation()"]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Donating...'; }
+        var donateFn = firebase.functions().httpsCallable('donatePoints');
+        donateFn({ amount: amt, anonymous: anon }).then(function(result) {
+            // Update local state
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
+                if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+            }
+            // Thank-you message
+            var newBadges = result.data && result.data.newBadges || [];
+            var badgeMsg = newBadges.length > 0 ? ' You earned ' + newBadges.length + ' new badge' + (newBadges.length > 1 ? 's' : '') + '!' : '';
+            if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
+            // Show thank-you modal
+            window._charityThankYou(amt, newBadges, result.data && result.data.bonusPts || 0);
+            // Refresh tab
+            _charityStatsLoaded = false;
+            _renderCharityTab(document.getElementById('questHubBody'));
+        }).catch(function(e) {
+            if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
+            if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Donation failed. Try again.'), 4000);
+        });
+    };
+}
+
+window._charityThankYou = function(amt, newBadges, bonusPts) {
+    var existing = document.getElementById('charityThankYouOverlay');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'charityThankYouOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:300000;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:20px;';
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--card-bg);border:1px solid rgba(239,68,68,0.4);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;';
+    var html = '<div style="font-size:3rem;margin-bottom:12px;">❤️</div>' +
+        '<div style="font-size:1.2rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Thank You!</div>' +
+        '<div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:16px;">You donated <strong>' + amt.toLocaleString() + ' XP</strong> — that\'s <strong>' + amt.toLocaleString() + ' sats</strong> pledged to charity.</div>';
+    if (bonusPts > 0) html += '<div style="font-size:0.85rem;color:#ef4444;font-weight:700;margin-bottom:10px;">+' + bonusPts.toLocaleString() + ' bonus XP earned!</div>';
+    if (newBadges && newBadges.length > 0) html += '<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:16px;">🏼 New badge' + (newBadges.length > 1 ? 's' : '') + ' unlocked: ' + newBadges.join(', ') + '</div>';
+    html += '<div style="font-size:0.75rem;color:var(--text-faint);margin-bottom:20px;">The community will vote on which charities receive these sats.</div>' +
+        '<button onclick="document.getElementById(\'charityThankYouOverlay\').remove()" style="padding:12px 32px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Close 💕</button>';
+    modal.innerHTML = html;
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+};
+
+// Home card loader
+window._renderCharityHome = function() {
+    var el = document.getElementById('charityDonateHome');
+    if (!el) return;
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    firebase.firestore().collection('charity_stats').doc('global').get().then(function(doc) {
+        var stats = doc.exists ? doc.data() : { totalDonated: 0, factionTotals: {} };
+        var total = stats.totalDonated || 0;
+        var hornets = (stats.factionTotals && stats.factionTotals.cyber_hornets) || 0;
+        var badgers = (stats.factionTotals && stats.factionTotals.honey_badgers) || 0;
+        el.innerHTML = '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(220,38,38,0.04));border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:14px 16px;cursor:pointer;" onclick="if(typeof showQuestHub===\'function\'){showQuestHub();window._questHubTab=\'charity\';if(typeof _renderQuestHubTab===\'function\')setTimeout(function(){_renderQuestHubTab()},50);}">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+                '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:#ef4444;font-weight:800;">❤️ Donate XP for Charity</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);">Tap to donate →</div>' +
+            '</div>' +
+            '<div style="font-size:1.3rem;font-weight:900;color:var(--heading);">' + total.toLocaleString() + ' <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);">sats pledged</span></div>' +
+            '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;">' +
+                '<span style="color:#f7e400;font-weight:700;text-shadow:-1px -1px 0 #000,1px 1px 0 #000;">🐝 ' + hornets.toLocaleString() + ' XP</span>' +
+                '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #fff,1px 1px 0 #fff;">🦡 ' + badgers.toLocaleString() + ' XP</span>' +
+            '</div>' +
+        '</div>';
+    }).catch(function() {});
+};
 
 // ── QUIZ TAB (existing system) ──
 function _renderQuizTab(body) {
@@ -19053,6 +19322,15 @@ const HIDDEN_BADGES = [
     { id: 'first_reply', name: 'Conversationalist', emoji: '💬', pts: 75, desc: 'Reply to a forum post', hint: 'Join a discussion!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.forumReplies >= 1; } },
     { id: 'market_seller', name: 'Merchant', emoji: '🏪', pts: 150, desc: 'List an item on Lightning Mart', hint: 'Sell something for sats on Lightning Mart!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketListings >= 1; } },
     { id: 'market_buyer', name: 'Shopper', emoji: '🛍️', pts: 150, desc: 'Contact a seller on the marketplace', hint: 'Find something to buy!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketMessages >= 1; } },
+    // === CHARITY DONATION BADGES ===
+    { id: 'donor_100', name: 'Giving Pleb', emoji: '🫷', pts: 50, desc: 'Donate 100 XP for charity', hint: 'Donate 100 XP in the Charity tab!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 100; }, progress: function() { return Math.min((typeof currentUser !== 'undefined' && currentUser ? currentUser.pointsDonated || 0 : 0), 100) + '/100'; } },
+    { id: 'donor_500', name: 'Stack Sharer', emoji: '💛', pts: 150, desc: 'Donate 500 XP for charity', hint: 'Keep donating!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 500; }, progress: function() { return Math.min((typeof currentUser !== 'undefined' && currentUser ? currentUser.pointsDonated || 0 : 0), 500) + '/500'; } },
+    { id: 'donor_1000', name: 'Community Builder', emoji: '🧡', pts: 300, desc: 'Donate 1,000 XP for charity', hint: 'A true community builder!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 1000; }, progress: function() { return Math.min((typeof currentUser !== 'undefined' && currentUser ? currentUser.pointsDonated || 0 : 0), 1000) + '/1,000'; } },
+    { id: 'donor_5000', name: 'Archive Patron', emoji: '❤️', pts: 1000, desc: 'Donate 5,000 XP for charity', hint: 'An archive patron — legendary!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 5000; }, progress: function() { return Math.min((typeof currentUser !== 'undefined' && currentUser ? currentUser.pointsDonated || 0 : 0), 5000) + '/5,000'; } },
+    { id: 'donor_10000', name: 'Sats Saint', emoji: '🔥', pts: 2000, desc: 'Donate 10,000 XP for charity', hint: 'A sats saint among us!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 10000; }, progress: function() { return Math.min((typeof currentUser !== 'undefined' && currentUser ? currentUser.pointsDonated || 0 : 0), 10000) + '/10,000'; } },
+    { id: 'donor_25000', name: 'Lightning Philanthropist', emoji: '⚡', pts: 4000, desc: 'Donate 25,000 XP for charity', hint: 'A lightning philanthropist!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 25000; }, progress: function() { return Math.min((typeof currentUser !== 'undefined' && currentUser ? currentUser.pointsDonated || 0 : 0), 25000) + '/25,000'; } },
+    { id: 'donor_50000', name: "Satoshi's Steward", emoji: '🏆', pts: 7500, desc: 'Donate 50,000 XP for charity', hint: "Satoshi's Steward — incredible!", hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 50000; }, progress: function() { return Math.min((typeof currentUser !== 'undefined' && currentUser ? currentUser.pointsDonated || 0 : 0), 50000) + '/50,000'; } },
+    { id: 'donor_100000', name: 'Legend of the Archive', emoji: '👑', pts: 15000, desc: 'Donate 100,000 XP for charity', hint: 'A true legend of the archive!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 100000; }, progress: function() { return Math.min((typeof currentUser !== 'undefined' && currentUser ? currentUser.pointsDonated || 0 : 0), 100000) + '/100,000'; } },
     // === TRUE HIDDEN (surprise discoveries) ===
     { id: 'night_owl', name: 'Night Owl', emoji: '🦉', pts: 50, desc: 'Visit the archive after midnight', hidden: true, check: function() { return new Date().getHours() >= 0 && new Date().getHours() < 5; } },
     { id: 'speed_runner', name: 'Speed Runner', emoji: '⚡', pts: 100, desc: 'Visit 15+ channels in one session', hidden: true, check: function() { return typeof sessionChannels !== 'undefined' && sessionChannels.size >= 15; } },
@@ -25760,6 +26038,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof loadCommunityStats === 'function') loadCommunityStats();
         // Raid Boss home card
         if (typeof renderRaidBossHome === 'function') renderRaidBossHome();
+        // Charity home card
+        if (typeof window._renderCharityHome === 'function') window._renderCharityHome();
         // Show guide return button if user navigated from the guide
         if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
             showGuideReturnBtn();
@@ -26783,6 +27063,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_buddyfind', title: '🤝 Find a Bitcoin Buddy', desc: 'Get matched with a learning partner — teachers meet learners', keywords: 'buddy partner match learn teach mentor mentee pair connect study group accountability partner friend', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_favor', title: '✨⛏️ Satoshi\'s Favor', desc: 'Community mining game — earn points, activate mining, hash for 21,000 sats', keywords: 'satoshi favor mining hash mine community points activate 21 sats game block nonce difficulty target hashing brute force proof of work', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='favor';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
         { id: '_raid', title: '⚔️ Raid Boss', desc: 'Monthly community challenge — deal damage by earning badges and completing activities', keywords: 'raid boss challenge monthly community damage badge activity quest defeat winner prize leaderboard attack', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='raid';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
+        { id: '_charity', title: '❤️ Donate XP for Charity', desc: 'Donate your XP points for charity — 1,000 XP = 1,000 sats pledged. 10× more impact than redeeming for yourself.', keywords: 'charity donate donation xp points sats bitcoin giving community philanthropy pledge faction badger hornet', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='charity';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
         { id: '_pow', title: '🚶 Proof of Walk', desc: 'Connect Strava and earn XP for walking — proof of work with your feet', keywords: 'proof of walk strava walking steps exercise fitness health outdoor move earn xp activity sync connect', action: "go('explore');setTimeout(function(){if(typeof renderProofOfWalk==='function')renderProofOfWalk()},300)" },
     ];
 

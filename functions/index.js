@@ -4273,3 +4273,100 @@ exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'U
 const { handleTelegramReaction, setTelegramWebhook } = require('./src/handleTelegramReaction');
 exports.handleTelegramWebhook = handleTelegramReaction;
 exports.setTelegramWebhook = setTelegramWebhook;
+
+// ===== DONATE XP FOR CHARITY =====
+exports.donatePoints = functions.https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in to donate.');
+    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Create an account to donate.');
+    }
+
+    const uid = context.auth.uid;
+    const amount = Math.floor(Number(data.amount));
+    const anonymous = data.anonymous === true;
+
+    if (!amount || amount < 1) throw new functions.https.HttpsError('invalid-argument', 'Donation must be at least 1 point.');
+    if (amount > 1000000) throw new functions.https.HttpsError('invalid-argument', 'Donation too large.');
+
+    const db = admin.firestore();
+    const userRef = db.collection('users').doc(uid);
+    const statsRef = db.collection('charity_stats').doc('global');
+    const donationRef = db.collection('charity_donations').doc();
+
+    // Badge tier thresholds -> [minTotal, badgeId, badgePts]
+    const DONATION_BADGES = [
+        [100,    'donor_100',    50],
+        [500,    'donor_500',    150],
+        [1000,   'donor_1000',   300],
+        [5000,   'donor_5000',   1000],
+        [10000,  'donor_10000',  2000],
+        [25000,  'donor_25000',  4000],
+        [50000,  'donor_50000',  7500],
+        [100000, 'donor_100000', 15000],
+    ];
+
+    let newBadges = [];
+    let bonusPts = 0;
+
+    await db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+        const u = userDoc.data();
+
+        const points = u.points || 0;
+        const pointsClaimed = u.pointsClaimed || 0;
+        const pointsDonated = u.pointsDonated || 0;
+        const available = points - pointsClaimed - pointsDonated;
+
+        if (available < amount) {
+            throw new functions.https.HttpsError('failed-precondition',
+                `Not enough available points. You have ${available.toLocaleString()} pts available.`);
+        }
+
+        const newTotal = pointsDonated + amount;
+
+        // Check which badges are newly earned
+        const existingBadges = Array.isArray(u.donationBadges) ? u.donationBadges : [];
+        for (const [threshold, badgeId, badgePtsAward] of DONATION_BADGES) {
+            if (newTotal >= threshold && !existingBadges.includes(badgeId)) {
+                newBadges.push(badgeId);
+                bonusPts += badgePtsAward;
+            }
+        }
+
+        const ts = admin.firestore.FieldValue.serverTimestamp();
+
+        // Update user doc
+        const userUpdate = {
+            pointsDonated: admin.firestore.FieldValue.increment(amount),
+        };
+        if (newBadges.length > 0) {
+            userUpdate.donationBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
+            userUpdate.points = admin.firestore.FieldValue.increment(bonusPts);
+        }
+        tx.update(userRef, userUpdate);
+
+        // Write donation record
+        tx.set(donationRef, {
+            uid: uid,
+            username: anonymous ? 'Anonymous' : (u.username || 'Anonymous'),
+            faction: u.faction || null,
+            amount: amount,
+            anonymous: anonymous,
+            ts: ts,
+        });
+
+        // Update global charity stats (faction totals always recorded)
+        const factionKey = u.faction === 'cyber_hornets' ? 'cyber_hornets'
+                         : u.faction === 'honey_badgers' ? 'honey_badgers'
+                         : 'no_faction';
+        const statsUpdate = {
+            totalDonated: admin.firestore.FieldValue.increment(amount),
+            updatedAt: ts,
+            [`factionTotals.${factionKey}`]: admin.firestore.FieldValue.increment(amount),
+        };
+        tx.set(statsRef, statsUpdate, { merge: true });
+    });
+
+    return { success: true, newBadges, bonusPts };
+});

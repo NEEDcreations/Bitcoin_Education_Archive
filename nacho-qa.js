@@ -5024,7 +5024,27 @@ const TOP_NOTCH_ENTRIES = [
 
     { keys: ['tip someone','how to tip','send tip','lightning tip','zap someone'],
       answer: "Tipping is easy, {name}! ⚡🦌 Tap the ⚡ button on any user profile, forum post, or song in Beats to send a Lightning tip. Spread sats like a deer spreads joy — generously and without hesitation! 💸🎵",
-      channel: 'layer-2-lightning', channelName: 'Lightning Network' }
+      channel: 'layer-2-lightning', channelName: 'Lightning Network' },
+
+{ keys: ['donate xp','donate points','xp charity','points charity','give to charity','charity donation'],
+      answer: "Hooves up for charity, {name}! 🫷🦌 Head to Quest Hub → ❤️ Charity tab. 1,000 XP = 1,000 sats pledged to charity — that's 10x the impact of redeeming sats for yourself! The community votes on which charities receive the funds.",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+{ keys: ['available points donate','can i donate','donation available','how many points donate'],
+      answer: "You can donate any XP not yet redeemed, {name}! 🦌 Available XP = Total XP − Redeemed XP − Already Donated XP. Check the Charity tab in Quest Hub to see your balance. Pick 5%, 10%, 25%, 50%, 100%, or a custom amount!",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+{ keys: ['charity vote','which charity','vote charity','community vote charity'],
+      answer: "Coming soon, {name}! 🗳️🦌 The community will vote on which charities receive our sats. Focused on Bitcoin education and adoption — but any cause the community cares about is fair game!",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+{ keys: ['donation refund','refund donation','get points back','undo donation'],
+      answer: "No take-backs, {name}! 🦌❤️ Donations are non-refundable — once donated, XP is pledged to charity and gone. Not tax-deductible since we're not a registered charity. But it's for a great cause!",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+{ keys: ['donation badge','charity badge','donor badge','giving badge','sats saint','stack sharer'],
+      answer: "Earn glory for giving, {name}! 🏅🦌 Badges: 🫷 Giving Pleb (100 XP) → 💛 Stack Sharer (500) → 🧡 Community Builder (1K) → ❤️ Archive Patron (5K) → 🔥 Sats Saint (10K) → ⚡ Lightning Philanthropist (25K) → 🏆 Satoshi's Steward (50K) → 👑 Legend of the Archive (100K). Each rewards bonus XP!",
+      channel: 'quest-hub', channelName: 'Quest Hub' }
 ];
 
 // Combine into main KB
