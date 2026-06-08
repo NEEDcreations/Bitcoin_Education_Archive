@@ -4220,11 +4220,14 @@ exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
     if (req.query.t !== 'dau-2026') return res.status(403).send('no');
     try {
         const uid = req.query.uid;
+        if (!uid) return res.status(400).json({error: 'uid required'});
         await db.collection('users').doc(uid).update({
             withdrawals_disabled: false,
+            satsDisabled: false,
             flagged: false,
             flag_reason: admin.firestore.FieldValue.delete(),
-            ban_reason: admin.firestore.FieldValue.delete()
+            ban_reason: admin.firestore.FieldValue.delete(),
+            _pendingClaim: admin.firestore.FieldValue.delete(),
         });
         res.json({success: true, uid});
     } catch(e) { res.status(500).json({error:e.toString()});}
