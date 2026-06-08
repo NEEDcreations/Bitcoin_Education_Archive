@@ -2721,6 +2721,25 @@ function updateUserDisplay(lv) {
         el.removeAttribute('data-mob-hidden');
         var _isMob = window.innerWidth <= 900;
 
+        // Standalone dashboard button — create on all platforms including mobile
+        var dashBtn = document.getElementById('dashboardFloatBtn');
+        if (!dashBtn) {
+            dashBtn = document.createElement('div');
+            dashBtn.id = 'dashboardFloatBtn';
+            dashBtn.onclick = function() { if (typeof toggleDashboard === 'function') toggleDashboard(); };
+            document.body.appendChild(dashBtn);
+        }
+        dashBtn.style.cssText = 'position:fixed;bottom:10px;right:76px;z-index:200001;background:linear-gradient(135deg,#f97316,#eab308);color:#fff;border:none;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(249,115,22,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
+        dashBtn.innerHTML = '📊';
+        dashBtn.title = 'Bitcoin Metrics';
+        var dashBtnCSS = document.getElementById('dashBtnCSS');
+        if (!dashBtnCSS) {
+            dashBtnCSS = document.createElement('style');
+            dashBtnCSS.id = 'dashBtnCSS';
+            dashBtnCSS.textContent = '@media(max-width:900px){#dashboardFloatBtn{bottom:70px!important;right:72px!important;}}';
+            document.head.appendChild(dashBtnCSS);
+        }
+
         // Mobile: hide the fixed overlay entirely — user info lives in the mobile-bar instead
         if (_isMob) {
             el.style.display = 'none';
@@ -2781,26 +2800,7 @@ function updateUserDisplay(lv) {
     }
     el.style.display = 'flex';
 
-    // Standalone dashboard button (survives userDisplay dismiss)
-    var dashBtn = document.getElementById('dashboardFloatBtn');
-    if (!dashBtn) {
-        dashBtn = document.createElement('div');
-        dashBtn.id = 'dashboardFloatBtn';
-        dashBtn.onclick = function() { if (typeof toggleDashboard === 'function') toggleDashboard(); };
-        document.body.appendChild(dashBtn);
-    }
-    // Position as bottom-right FAB between Leaderboard (right:20px) and AI Tools (right:132px)
-    dashBtn.style.cssText = 'position:fixed;bottom:10px;right:76px;z-index:200001;background:linear-gradient(135deg,#f97316,#eab308);color:#fff;border:none;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(249,115,22,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
-    dashBtn.innerHTML = '📊';
-    dashBtn.title = 'Bitcoin Metrics';
-    // Apply mobile position via injected style tag
-    var dashBtnCSS = document.getElementById('dashBtnCSS');
-    if (!dashBtnCSS) {
-        dashBtnCSS = document.createElement('style');
-        dashBtnCSS.id = 'dashBtnCSS';
-        dashBtnCSS.textContent = '@media(max-width:900px){#dashboardFloatBtn{bottom:70px!important;right:72px!important;}}';
-        document.head.appendChild(dashBtnCSS);
-    }
+    // dashboardFloatBtn is now created earlier (before mobile early-return) to ensure it shows on mobile too
 
     // Update mobile top bar user info (username + price + block height + pts)
     const mobileInfo = document.getElementById('mobileUserInfo');
