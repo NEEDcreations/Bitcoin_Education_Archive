@@ -2635,7 +2635,7 @@ function updateUserDisplay(lv) {
     if (!dashBtnCSS) {
         dashBtnCSS = document.createElement('style');
         dashBtnCSS.id = 'dashBtnCSS';
-        dashBtnCSS.textContent = '@media(max-width:900px){#dashboardFloatBtn{bottom:140px!important;right:16px!important;}}';
+        dashBtnCSS.textContent = '@media(max-width:900px){#dashboardFloatBtn{bottom:70px!important;right:72px!important;}}';
         document.head.appendChild(dashBtnCSS);
     }
 

@@ -2798,7 +2798,7 @@ function updateUserDisplay(lv) {
     if (!dashBtnCSS) {
         dashBtnCSS = document.createElement('style');
         dashBtnCSS.id = 'dashBtnCSS';
-        dashBtnCSS.textContent = '@media(max-width:900px){#dashboardFloatBtn{bottom:140px!important;right:16px!important;}}';
+        dashBtnCSS.textContent = '@media(max-width:900px){#dashboardFloatBtn{bottom:70px!important;right:72px!important;}}';
         document.head.appendChild(dashBtnCSS);
     }
 
@@ -28330,7 +28330,7 @@ window.toggleAITools = function() {
         if (!style) {
             style = document.createElement('style');
             style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:196px!important;right:16px!important;}}';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:128px!important;}}';
             document.head.appendChild(style);
         }
     }

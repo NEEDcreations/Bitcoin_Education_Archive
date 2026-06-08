@@ -41,7 +41,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260608_0317" as="script">
+    <link rel="preload" href="bundle.js?v=20260608_0325" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -319,11 +319,11 @@
         .username-box .skip:hover { color: var(--text-dim); }
 
         @media (max-width: 900px) {
-            #leaderboard { right: 10px; left: 10px; bottom: 84px; width: auto; }
-            #lbFloatBtn { bottom: 84px !important; right: 16px !important; z-index: 200002 !important; }
-            #lbFloatBtn.chat-shifted { bottom: 134px !important; }
-            #chatOverlayBtn { bottom: 84px !important; right: 16px !important; display: none !important; }
-            #dashboardFloatBtn { bottom: 140px !important; right: 16px !important; z-index: 200001 !important; }
+            #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
+            #lbFloatBtn { bottom: 70px !important; right: 16px !important; z-index: 200002 !important; }
+            #lbFloatBtn.chat-shifted { bottom: 120px !important; }
+            #chatOverlayBtn { display: none !important; }
+            #dashboardFloatBtn { bottom: 70px !important; right: 72px !important; z-index: 200001 !important; }
             #floatingRandomBtn { bottom: 120px !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
             /* RESTORE MOBILE VISIBILITY — but not when explicitly hidden (anon mobile or dismissed) */
             #userDisplay:not(.user-hidden):not([data-mob-hidden]) { display: flex !important; }
@@ -1198,7 +1198,7 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260608_0317" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260608_0325" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260528_1251" defer></script>
     <script src="timechain-tv.js?v=20260607_2339" defer></script>
@@ -1213,7 +1213,7 @@
     (function(){
         var _lazyScripts = [
             'nacho-qa.js?v=20260608_0032','scholar.js?v=20260528_1708','beats.js?v=20260608_0317',
-            'global-chat.js?v=20260608_0317','lightning.js?v=20260514_1424','lightning-tips.js?v=20260603_1701',
+            'global-chat.js?v=20260608_0325','lightning.js?v=20260514_1424','lightning-tips.js?v=20260603_1701',
             'notifications.js?v=20260528_1251','guide.js?v=20260526','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260523_batch','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',

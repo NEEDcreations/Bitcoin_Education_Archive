@@ -4922,7 +4922,7 @@ window.toggleAITools = function() {
         if (!style) {
             style = document.createElement('style');
             style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:196px!important;right:16px!important;}}';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:128px!important;}}';
             document.head.appendChild(style);
         }
     }
