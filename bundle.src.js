@@ -6781,7 +6781,16 @@ function getBadgeHTML() {
         '.badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 10px; padding: 4px; }' +
         '.locked .badge-emoji { filter: grayscale(1) opacity(0.2); transition: 0.3s; }' +
         '.badge-item.locked:hover .badge-emoji { filter: grayscale(1) opacity(0.5); }' +
+        '.badge-item.badge-search-highlight { border-color: var(--accent) !important; box-shadow: 0 0 0 2px rgba(247,147,26,0.4); animation: badgeHighlightPop 0.4s ease; }' +
+        '@keyframes badgeHighlightPop { 0% { transform:scale(1); } 50% { transform:scale(1.12); } 100% { transform:scale(1); } }' +
         '</style>';
+
+    // Badge search bar
+    html += '<div style="margin-bottom:14px;position:relative;">' +
+        '<input id="badgeSearchInput" type="text" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
+        '<button onclick="document.getElementById(\'badgeSearchInput\').value=\'\';window._badgeSearch(\'\')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0;line-height:1;">✕</button>' +
+        '<div id="badgeSearchResults" style="display:none;margin-top:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;"></div>' +
+        '</div>';
 
     var _bcIdx = 0;
     for (const [catName, badgeList] of Object.entries(categories)) {
@@ -6805,7 +6814,7 @@ function getBadgeHTML() {
             const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
             const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' XP)' : '🔒 Locked — ' + badge.desc;
             
-            html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" title="' + escapeHtml(badge.desc) + '" onclick="this.classList.toggle(\'tapped\')" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
+            html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" title="' + escapeHtml(badge.desc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
                 '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
                 '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + badge.name + '</div>' +
                 '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +
@@ -6838,7 +6847,7 @@ function getBadgeHTML() {
                 const unlocked = earnedHidden.includes(badge.id);
                 const progressText = (!unlocked && badge.progress) ? badge.progress() : '';
                 const hintText = (!unlocked && badge.hint) ? badge.hint : '';
-                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" style="position:relative;padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;" onclick="this.classList.toggle(\'tapped\')">' +
+                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" style="position:relative;padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;" onclick="window._showBadgeTip(event,this)">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '🔒') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + badge.name + '</div>' +
                     (progressText ? '<div style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">' + progressText + '</div>' : '') +
@@ -6867,7 +6876,7 @@ function getBadgeHTML() {
         if (anyHiddenEarned) {
             for (const badge of hiddenBadges) {
                 const unlocked = earnedHidden.includes(badge.id);
-                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" onclick="this.classList.toggle(\'tapped\')" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
+                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '❓') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (unlocked ? badge.name : '???') + '</div>' +
                     '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 Keep exploring!') + '</div>' +
@@ -6882,6 +6891,136 @@ function getBadgeHTML() {
 
     return html;
 }
+
+// ---- Single floating tooltip for badge taps ----
+window._showBadgeTip = function(e, el) {
+    e.stopPropagation();
+    var tip = document.getElementById('badgeFloatTip');
+    if (!tip) return;
+
+    // Read tooltip content from the hidden .badge-tooltip child
+    var inner = el.querySelector('.badge-tooltip');
+    var content = inner ? inner.innerHTML : (el.getAttribute('title') || '');
+    if (!content) return;
+
+    // If same badge tapped again — dismiss
+    if (tip.style.display === 'block' && tip._srcEl === el) {
+        tip.style.display = 'none';
+        tip._srcEl = null;
+        el.classList.remove('tapped');
+        return;
+    }
+
+    // Clear previous tapped state
+    document.querySelectorAll('.badge-item.tapped').forEach(function(b) { b.classList.remove('tapped'); });
+    el.classList.add('tapped');
+    tip._srcEl = el;
+    tip.innerHTML = content;
+    tip.style.display = 'block';
+
+    // Position near tap point, keep within viewport
+    var x = (e.touches ? e.touches[0].clientX : e.clientX) || 0;
+    var y = (e.touches ? e.touches[0].clientY : e.clientY) || 0;
+    tip.style.left = '0px'; tip.style.top = '0px'; // reset for measurement
+    var tw = tip.offsetWidth || 220;
+    var th = tip.offsetHeight || 80;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var left = Math.min(x - tw / 2, vw - tw - 10);
+    left = Math.max(left, 10);
+    var top = y - th - 12;
+    if (top < 10) top = y + 24;
+    if (top + th > vh - 10) top = vh - th - 10;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+};
+
+// Dismiss tooltip on outside tap/click
+document.addEventListener('click', function(e) {
+    var tip = document.getElementById('badgeFloatTip');
+    if (!tip || tip.style.display === 'none') return;
+    if (!e.target.closest('.badge-item')) {
+        tip.style.display = 'none';
+        tip._srcEl = null;
+        document.querySelectorAll('.badge-item.tapped').forEach(function(b) { b.classList.remove('tapped'); });
+    }
+}, true);
+
+// ---- Badge search ----
+window._badgeSearch = function(query) {
+    var q = (query || '').trim().toLowerCase();
+    var resultsEl = document.getElementById('badgeSearchResults');
+    if (!resultsEl) return;
+
+    // Clear highlights
+    document.querySelectorAll('.badge-item.badge-search-highlight').forEach(function(b) { b.classList.remove('badge-search-highlight'); });
+
+    if (!q) {
+        resultsEl.style.display = 'none';
+        resultsEl.innerHTML = '';
+        return;
+    }
+
+    // Search across BADGE_DEFS + HIDDEN_BADGES
+    var allBadges = [];
+    if (typeof BADGE_DEFS !== 'undefined') allBadges = allBadges.concat(BADGE_DEFS);
+    if (typeof HIDDEN_BADGES !== 'undefined') HIDDEN_BADGES.forEach(function(b) { if (!b.hidden) allBadges.push(b); });
+
+    var matches = allBadges.filter(function(b) {
+        return b.name.toLowerCase().includes(q) || (b.desc || '').toLowerCase().includes(q);
+    }).slice(0, 8);
+
+    if (matches.length === 0) {
+        resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--text-muted);font-size:0.82rem;">No badges found for "' + escapeHtml(query) + '"</div>';
+        resultsEl.style.display = 'block';
+        return;
+    }
+
+    var rhtml = '';
+    matches.forEach(function(b) {
+        var earned = earnedBadges.has(b.id) || JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]').includes(b.id);
+        rhtml += '<div onclick="window._badgeSearchJump(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.07)\'" onmouseout="this.style.background=\'\'">'
+            + '<span style="font-size:1.4rem;flex-shrink:0;' + (earned ? '' : 'filter:grayscale(1) opacity(0.4);') + '">' + (earned ? b.emoji : (b.lockedEmoji || '🔘')) + '</span>'
+            + '<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:700;color:var(--text);">' + escapeHtml(b.name) + '</div><div style="font-size:0.7rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (earned ? '✅ ' : '🔒 ') + escapeHtml(b.desc) + '</div></div>'
+            + '</div>';
+    });
+    resultsEl.innerHTML = rhtml;
+    resultsEl.style.display = 'block';
+};
+
+window._badgeSearchJump = function(badgeId) {
+    // Close search dropdown
+    var resultsEl = document.getElementById('badgeSearchResults');
+    var input = document.getElementById('badgeSearchInput');
+    if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+    if (input) input.value = '';
+
+    // Clear previous highlights
+    document.querySelectorAll('.badge-item.badge-search-highlight').forEach(function(b) { b.classList.remove('badge-search-highlight'); });
+
+    // Find the badge item in the DOM
+    var target = document.querySelector('.badge-item[data-badge-id="' + badgeId + '"]');
+    if (!target) return;
+
+    // Walk up to open any collapsed parent grid
+    var parent = target.closest('.badges-grid');
+    if (parent && parent.style.display === 'none') {
+        parent.style.display = 'grid';
+        // Update the section arrow
+        var btn = parent.previousElementSibling;
+        if (btn) {
+            var arrow = btn.querySelector('.bca');
+            if (arrow) arrow.textContent = '▼';
+        }
+    }
+
+    // Highlight and scroll
+    target.classList.add('badge-search-highlight');
+    setTimeout(function() {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function() { target.classList.remove('badge-search-highlight'); }, 2500);
+    }, 100);
+};
 
 // Init
 setTimeout(initBadges, 2000);
