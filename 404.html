@@ -1283,8 +1283,9 @@ if ('serviceWorker' in navigator) {
                     if (newWorker.state === 'activated' && hadController) {
                         // Show update banner — user refreshes naturally
                         var banner = document.createElement('div');
-                        banner.style.cssText = 'position:fixed;bottom:70px;left:16px;right:16px;z-index:9999;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.4);font-family:inherit;';
-                        banner.innerHTML = '<div style="font-weight:700;font-size:0.85rem;">🆕 Update ready</div><button onclick="location.reload()" style="padding:7px 14px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer;">Refresh</button>';
+                        var _isMobUpd = window.innerWidth <= 900;
+                        banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? '130px' : '70px') + ';left:16px;right:16px;z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
+                        banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button onclick="location.reload()" style="padding:8px 18px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;white-space:nowrap;">↺ Refresh</button>';
                         document.body.appendChild(banner);
                     }
                 });
