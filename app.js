@@ -5,7 +5,7 @@
     var nachoLiveData = { price: null, blockHeight: null };
 
     // ---- Clean URL helpers ----
-    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho','quests'];
+    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho','quests','proof-of-play'];
     window._cleanUrl = function(id) {
         if (!id) return '/';
         // If we're already on the clean URL path, don't add a hash
@@ -3786,6 +3786,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_raid', title: '⚔️ Raid Boss', desc: 'Monthly community challenge — deal damage by earning badges and completing activities', keywords: 'raid boss challenge monthly community damage badge activity quest defeat winner prize leaderboard attack', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='raid';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
         { id: '_charity', title: '❤️ Donate XP for Charity', desc: 'Donate your XP points for charity — 1,000 XP = 1,000 sats pledged. 10× more impact than redeeming for yourself.', keywords: 'charity donate donation xp points sats bitcoin giving community philanthropy pledge faction badger hornet', action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='charity';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)" },
         { id: '_pow', title: '🚶 Proof of Walk', desc: 'Connect Strava and earn XP for walking — proof of work with your feet', keywords: 'proof of walk strava walking steps exercise fitness health outdoor move earn xp activity sync connect', action: "go('explore');setTimeout(function(){if(typeof renderProofOfWalk==='function')renderProofOfWalk()},300)" },
+        { id: '_pop', title: '🕹️ Proof of Play', desc: 'Bitcoin gaming hub — Timechain Arcade games + PVP trivia battles', keywords: 'proof of play arcade games pvp battle timechain bitcoin gaming 1v1 trivia lightning to the moon node runner nakamoto knights block hunt', action: 'if(typeof enterProofOfPlay==="function")enterProofOfPlay()' },
     ];
 
     function doSearch(q) {
@@ -4209,7 +4210,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             'IRL Sync': 'Find or host local Bitcoin meetups',
             'Bitcoin Beats': 'Community music player',
             'Timechain TV': '21 channels of Bitcoin video content',
-            'Proof of Walk': 'Earn XP by walking — connect Strava'
+            'Proof of Walk': 'Earn XP by walking — connect Strava',
+                'Proof of Play': 'Bitcoin gaming hub — Arcade + PVP'
         };
         function appBtn(emoji, label, action, locked, lockMsg) {
             var tip = _appTooltips[label] || label;
@@ -4241,6 +4243,7 @@ if (locked) {
                 appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) +
                 appBtn('📺', 'Timechain TV', "go('timechain-tv')", false) +
                 appBtn('👟', 'Proof of Walk', "showProofOfWalk()", false) +
+                appBtn('🕹️', 'Proof of Play', "enterProofOfPlay()", false) +
             '</div></div>';
         document.body.insertAdjacentHTML('beforeend', html);
         var menu = document.getElementById('appsMenu');
@@ -4409,6 +4412,12 @@ if (locked) {
             // PVP Battle
             if (hash === 'pvp' || state.channel === 'pvp') {
                 if (typeof enterPVPMode === 'function') enterPVPMode();
+                return;
+            }
+
+            // Proof of Play
+            if (hash === 'proof-of-play' || hash === 'proof-of-play-pvp') {
+                if (typeof window._popHandleHash === 'function') window._popHandleHash(hash);
                 return;
             }
 
