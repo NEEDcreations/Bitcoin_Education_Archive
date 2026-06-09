@@ -27670,7 +27670,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         var _appTooltips = {
             'Nacho Mode': 'Chat with our AI Bitcoin tutor',
-            'PVP Battle': '1v1 Bitcoin trivia battles',
+            'Proof of Play': 'Bitcoin gaming hub — Arcade + PVP',
             'Pleb Talk': 'Community discussion board for Bitcoin topics',
             'Lightning Mart': 'Buy and sell with Lightning sats',
             'IRL Sync': 'Find or host local Bitcoin meetups',
@@ -27702,14 +27702,13 @@ if (locked) {
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
                 appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false) +
-                appBtn('⚔️', 'PVP Battle', "window._launchPVP()", false) +
+                appBtn('🕹️', 'Proof of Play', "enterProofOfPlay()", false) +
                 appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) +
                 appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) +
                 appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) +
                 appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) +
                 appBtn('📺', 'Timechain TV', "go('timechain-tv')", false) +
                 appBtn('👟', 'Proof of Walk', "showProofOfWalk()", false) +
-                appBtn('🕹️', 'Proof of Play', "enterProofOfPlay()", false) +
             '</div></div>';
         document.body.insertAdjacentHTML('beforeend', html);
         var menu = document.getElementById('appsMenu');
