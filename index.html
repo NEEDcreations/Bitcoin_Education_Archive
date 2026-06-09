@@ -318,22 +318,18 @@
         .username-box .skip { color: #475569; font-size: 0.85rem; margin-top: 12px; cursor: pointer; display: block; }
         .username-box .skip:hover { color: var(--text-dim); }
 
+        /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
+        .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; border:none; color:#fff; font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+        .fab-btn:hover { transform:translateY(-2px) translateZ(0); filter:brightness(1.1); }
+        #chatOverlayBtn { right:184px; background:linear-gradient(135deg,#3b82f6,#6366f1); box-shadow:0 4px 16px rgba(59,130,246,0.4); }
+        #aiToolsBtn     { right:128px; background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 4px 20px rgba(99,102,241,0.4); }
+        #dashboardFloatBtn { right:72px; background:linear-gradient(135deg,#f97316,#eab308); box-shadow:0 4px 20px rgba(249,115,22,0.4); }
+        #lbFloatBtn     { right:16px; background:var(--accent,#f7931a); box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:200002; }
+        #lbFloatBtn.chat-shifted { bottom:120px !important; }
+
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
-            /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
-            .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; border:none; color:#fff; font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-            .fab-btn:hover { transform:translateY(-2px) translateZ(0); filter:brightness(1.1); }
-            #chatOverlayBtn { right:184px; background:linear-gradient(135deg,#3b82f6,#6366f1); box-shadow:0 4px 16px rgba(59,130,246,0.4); }
-            #aiToolsBtn     { right:128px; background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 4px 20px rgba(99,102,241,0.4); }
-            #dashboardFloatBtn { right:72px; background:linear-gradient(135deg,#f97316,#eab308); box-shadow:0 4px 20px rgba(249,115,22,0.4); }
-            #lbFloatBtn     { right:16px;  background:var(--accent,#f7931a); box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:200002; }
-            @media (max-width:900px) {
-                .fab-btn { bottom:70px !important; }
-                #chatOverlayBtn { right:184px !important; }
-                #aiToolsBtn     { right:128px !important; }
-                #dashboardFloatBtn { right:72px !important; }
-                #lbFloatBtn     { right:16px !important; }
-            }
+            .fab-btn { bottom:70px !important; }
             #lbFloatBtn.chat-shifted { bottom:120px !important; }
             #floatingRandomBtn { bottom: 120px !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
             /* RESTORE MOBILE VISIBILITY — but not when explicitly hidden (anon mobile or dismissed) */
