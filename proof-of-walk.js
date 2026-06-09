@@ -290,17 +290,66 @@ window.syncPow = function() {
 }
 
 function _checkPowBadges(ptsJustEarned) {
-    if (ptsJustEarned > 0 && typeof awardBadge === 'function') {
-        const uid = auth.currentUser.uid;
-        // Check for Marathoner (if today's points >= 2100)
-        db.collection('users').doc(uid).collection('proof_of_walk_stats').doc('daily').get().then(doc => {
-            if (doc.exists && doc.data().distance >= 42.0) {
-                awardBadge('pow_marathoner');
+    if (ptsJustEarned <= 0 || typeof awardBadge !== 'function') return;
+    const uid = auth.currentUser.uid;
+
+    // Always award first step
+    awardBadge('pow_first_step');
+
+    // Marathoner: today's distance >= 42 km
+    db.collection('users').doc(uid).collection('proof_of_walk_stats').doc('daily').get().then(doc => {
+        if (doc.exists && doc.data().distance >= 42.0) {
+            awardBadge('pow_marathoner');
+        }
+    });
+
+    // Lifetime km + streak: scan all activities
+    db.collection('users').doc(uid).collection('proof_of_walk')
+        .orderBy('date', 'desc').get().then(snap => {
+            if (snap.empty) return;
+
+            let totalDist = 0;
+            const dates = new Set();
+            snap.forEach(doc => {
+                const d = doc.data();
+                totalDist += d.distance || 0;
+                if (d.date) dates.add(d.date);
+            });
+
+            // -- Lifetime km milestones --
+            const kmMilestones = [
+                { id: 'pow_km_10',   km: 10 },
+                { id: 'pow_km_50',   km: 50 },
+                { id: 'pow_km_100',  km: 100 },
+                { id: 'pow_km_500',  km: 500 },
+                { id: 'pow_km_1000', km: 1000 },
+                { id: 'pow_km_5000', km: 5000 },
+            ];
+            kmMilestones.forEach(m => {
+                if (totalDist >= m.km) awardBadge(m.id);
+            });
+
+            // -- Streak calculation --
+            // Build a sorted descending array of unique date strings
+            const sortedDates = Array.from(dates).sort().reverse();
+            let streak = 0;
+            let cursor = new Date();
+            // Normalize cursor to UTC midnight
+            cursor = new Date(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate());
+            for (let i = 0; i < sortedDates.length; i++) {
+                const d = new Date(sortedDates[i]);
+                const expected = cursor.toISOString().split('T')[0];
+                if (sortedDates[i] === expected) {
+                    streak++;
+                    cursor.setDate(cursor.getDate() - 1);
+                } else {
+                    break;
+                }
             }
-        });
-        // Check for first step
-        awardBadge('pow_first_step');
-    }
+            if (streak >= 3)  awardBadge('pow_streak_3');
+            if (streak >= 7)  awardBadge('pow_streak_7');
+            if (streak >= 30) awardBadge('pow_streak_30');
+        }).catch(console.error);
 }
 
 // Handle auth redirect alerts
@@ -431,10 +480,17 @@ window.renderPOWSupport = function() {
         '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
             '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">Badges &amp; Achievements</h2>' +
             '<ul style="color:var(--text);font-size:0.9rem;line-height:1.8;margin:0;padding-left:20px;">' +
-                '<li>🥾 <strong>First Step</strong> — Complete your first walk sync</li>' +
-                '<li>🔥 <strong>Consistency</strong> — Sync activities on 7 consecutive days</li>' +
-                '<li>🏅 <strong>Marathoner</strong> — Walk/run 42 km in a single day</li>' +
-                '<li>📋 <strong>Daily Quest</strong> — Walk at least 5 km to complete the daily quest</li>' +
+                '<li>👟 <strong>First Step</strong> (50 pts) — Sync your first walk</li>' +
+                '<li>🏃‍♂️ <strong>Marathoner</strong> (200 pts) — Hit the 42 km daily cap</li>' +
+                '<li>🔥 <strong>3-Day Streak</strong> (100 pts) — Sync walks 3 days in a row</li>' +
+                '<li>🔥 <strong>7-Day Streak</strong> (300 pts) — Sync walks 7 days in a row</li>' +
+                '<li>💎 <strong>30-Day Streak</strong> (1,000 pts) — Sync walks 30 days in a row</li>' +
+                '<li>🥾 <strong>10 km Club</strong> (50 pts) — Walk 10 km lifetime</li>' +
+                '<li>🚶 <strong>50 km Club</strong> (100 pts) — Walk 50 km lifetime</li>' +
+                '<li>🏅 <strong>Century Walker</strong> (200 pts) — Walk 100 km lifetime</li>' +
+                '<li>🏔️ <strong>500 km Legend</strong> (500 pts) — Walk 500 km lifetime</li>' +
+                '<li>🌍 <strong>1,000 km Titan</strong> (1,000 pts) — Walk 1,000 km lifetime</li>' +
+                '<li>🌕 <strong>To the Moon</strong> (2,500 pts) — Walk 5,000 km lifetime</li>' +
             '</ul>' +
         '</div>' +
 

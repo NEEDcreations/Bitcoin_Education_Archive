@@ -6270,6 +6270,17 @@ function getLevelFlavor(name) {
 const BADGE_DEFS = [
     { id: "pow_first_step", name: "First Step", emoji: "👟", desc: "Synced your first walk via Proof of Walk", check: () => false, pts: 50, hidden: false },
     { id: "pow_marathoner", name: "Marathoner", emoji: "🏃‍♂️", desc: "Hit the 42km daily cap in Proof of Walk", check: () => false, pts: 200, hidden: false },
+    // Streak badges
+    { id: "pow_streak_3", name: "3-Day Streak", emoji: "🔥", desc: "Synced walks 3 days in a row via Proof of Walk", check: () => false, pts: 100, hidden: false },
+    { id: "pow_streak_7", name: "7-Day Streak", emoji: "🔥", desc: "Synced walks 7 days in a row via Proof of Walk", check: () => false, pts: 300, hidden: false },
+    { id: "pow_streak_30", name: "30-Day Streak", emoji: "💎", desc: "Synced walks 30 days in a row via Proof of Walk", check: () => false, pts: 1000, hidden: false },
+    // All-time km milestones
+    { id: "pow_km_10", name: "10 km Club", emoji: "🥾", desc: "Walked 10 km lifetime via Proof of Walk", check: () => false, pts: 50, hidden: false },
+    { id: "pow_km_50", name: "50 km Club", emoji: "🚶", desc: "Walked 50 km lifetime via Proof of Walk", check: () => false, pts: 100, hidden: false },
+    { id: "pow_km_100", name: "Century Walker", emoji: "🏅", desc: "Walked 100 km lifetime via Proof of Walk", check: () => false, pts: 200, hidden: false },
+    { id: "pow_km_500", name: "500 km Legend", emoji: "🏔️", desc: "Walked 500 km lifetime via Proof of Walk", check: () => false, pts: 500, hidden: false },
+    { id: "pow_km_1000", name: "1,000 km Titan", emoji: "🌍", desc: "Walked 1,000 km lifetime via Proof of Walk", check: () => false, pts: 1000, hidden: false },
+    { id: "pow_km_5000", name: "To the Moon", emoji: "🌕", desc: "Walked 5,000 km lifetime via Proof of Walk", check: () => false, pts: 2500, hidden: false },
     { id: 'first_channel', name: 'First Steps', emoji: '👶', desc: 'Opened your first channel', check: v => v.length >= 1, pts: 10 },
     { id: 'explorer_10', name: 'Explorer', emoji: '🧭', desc: 'Visited 10 topics', check: v => v.length >= 10, pts: 15 },
     { id: 'explorer_25', name: 'Trailblazer', emoji: '🗺️', desc: 'Visited 25 topics', check: v => v.length >= 25, pts: 30 },
