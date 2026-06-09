@@ -346,7 +346,7 @@ function _renderPVPTab(wrap) {
 window.enterProofOfPlay = function(startTab) {
     if (_popActive) return;
     _popActive = true;
-    startTab = startTab || 'arcade';
+    startTab = startTab || 'pvp';
 
     _injectPOPStyles();
 
@@ -368,8 +368,8 @@ window.enterProofOfPlay = function(startTab) {
                 '<span style="font-size:0.95rem;font-weight:800;color:var(--heading);">Proof of Play</span>' +
             '</div>' +
             '<div class="pop-tabs">' +
-                '<button id="popTabArcade" class="pop-tab ' + (startTab === 'arcade' ? 'active' : '') + '" onclick="window._popSwitchTab(\'arcade\')">🎮 Arcade</button>' +
                 '<button id="popTabPVP" class="pop-tab ' + (startTab === 'pvp' ? 'active' : '') + '" onclick="window._popSwitchTab(\'pvp\')">⚔️ PVP</button>' +
+                '<button id="popTabArcade" class="pop-tab ' + (startTab === 'arcade' ? 'active' : '') + '" onclick="window._popSwitchTab(\'arcade\')">🎮 Arcade</button>' +
             '</div>' +
         '</div>' +
         '<div class="pop-body" id="popBody"></div>';
