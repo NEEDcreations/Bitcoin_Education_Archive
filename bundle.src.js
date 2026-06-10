@@ -13127,7 +13127,7 @@ function _renderFavorTab(body) {
     html += '<div style="background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;text-align:left;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">' +
         '<strong style="color:var(--accent);">How it works:</strong><br>' +
         'This is a <strong>community challenge</strong> — everyone\'s points combine!<br><br>' +
-        '• Complete 3 daily quiz quests = 1 point<br>' +
+        '• Complete the daily Quiz Quest, Trivia &amp; Poll = 1 point<br>' +
         '• Earn a badge = 1 point<br>' +
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
         '• Level up to Maxi ranks = 5 points each<br>' +
