@@ -12081,6 +12081,28 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
         { q: "What is the derivation path structure defined by BIP44?", a: "m/purpose'/coin'/account'/change/index", wrong: ["m/account'/coin'/purpose'/index/change", "m/index/change/account'/coin'/purpose'", "m/coin'/purpose'/change/account'/index"] }
     ]
 };
+// ── STATIC QUEST INDEX ──────────────────────────────────────────────────────
+// Each topic sliced into fixed 5-question parts. IDs are stable across sessions.
+var STATIC_QUESTS = (function() {
+    var list = [];
+    Object.keys(QUESTION_BANK).forEach(function(key) {
+        if (key === '_general') return;
+        var arr = QUESTION_BANK[key];
+        var parts = Math.floor(arr.length / 5);
+        for (var p = 0; p < parts; p++) {
+            var slice = arr.slice(p * 5, p * 5 + 5);
+            list.push({
+                id: 'q__' + key + '__' + (p + 1),
+                topicKey: key,
+                partNum: p + 1,
+                totalParts: parts,
+                questions: slice
+            });
+        }
+    });
+    return list;
+})();
+
 
 // Quest triggers: after visiting X channels
 const QUEST_TRIGGERS = [5, 15, 25, 40, 60, 80, 100];
@@ -12219,9 +12241,39 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
     // Collect available questions
     let pool = [];
 
-    // If a specific topic was selected from the picker, ONLY use that topic's questions
-    if (targetChannelId && QUESTION_BANK[targetChannelId]) {
-        QUESTION_BANK[targetChannelId].forEach(q => pool.push({...q, source: targetChannelId}));
+    // Check if this is a static quest (topicKey||partNum format from picker)
+    var _staticQuest = null;
+    var _actualTopicKey = targetChannelId;
+    if (targetChannelId && targetChannelId.indexOf('||') !== -1) {
+        var _parts = targetChannelId.split('||');
+        _actualTopicKey = _parts[0];
+        var _partNum = parseInt(_parts[1]) - 1; // 0-based
+        _staticQuest = STATIC_QUESTS.find(function(sq) {
+            return sq.topicKey === _actualTopicKey && sq.partNum === parseInt(_parts[1]);
+        });
+        if (_staticQuest) {
+            // Use the fixed slice directly — skip pool building entirely
+            var _staticQuestId = 'q__' + _actualTopicKey + '__' + _parts[1];
+            if (completedQuests.has(_staticQuestId)) {
+                if (manual && typeof showToast === 'function') showToast('✅ You already aced ' + _actualTopicKey.replace(/[-_]+/g, ' ') + ' Part ' + _parts[1] + ' with a perfect score!');
+                return;
+            }
+            var _staticSelected = _staticQuest.questions.map(function(q) {
+                var opts = [q.a, ...q.wrong].sort(() => Math.random() - 0.5);
+                return { q: q.q, options: opts, answer: opts.indexOf(q.a) };
+            });
+            currentQuest = { id: _staticQuestId, topicKey: _actualTopicKey, partNum: parseInt(_parts[1]), totalParts: _staticQuest.totalParts, title: _getStaticQuestTitle(_actualTopicKey, parseInt(_parts[1]), _staticQuest.totalParts), questions: _staticSelected };
+            window._currentQuestServerId = null;
+            if (typeof firebase !== 'undefined' && firebase.functions) {
+                firebase.functions().httpsCallable('startQuest')({ questions: _staticSelected.map(function(q) { return { answer: q.answer }; }), topicKey: _actualTopicKey }).then(function(res) { window._currentQuestServerId = res.data.questId; }).catch(function(e) { console.warn('Quest registration failed:', e); });
+            }
+            showQuest(currentQuest, false);
+            return;
+        }
+    }
+    // If a specific topic was selected from the picker (channel-visit auto-trigger), ONLY use that topic's questions
+    if (_actualTopicKey && QUESTION_BANK[_actualTopicKey]) {
+        QUESTION_BANK[_actualTopicKey].forEach(q => pool.push({...q, source: _actualTopicKey}));
     }
 
     // Only mix in other sources if no specific topic was selected
@@ -12315,13 +12367,13 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
     }
 
     // Use topic-based ID so perfect scores are tracked per topic
-    var questId = targetChannelId ? ('quest_' + targetChannelId) : ('quest_dynamic_' + questCount);
+    var questId = _actualTopicKey ? ('quest_' + _actualTopicKey) : ('quest_dynamic_' + questCount);
     // Block retake if user already got a perfect 5/5 on this topic
-    if (targetChannelId && completedQuests.has(questId)) {
-        if (typeof showToast === 'function') showToast('\u2705 You already aced ' + targetChannelId.replace(/[-_]+/g, ' ') + ' with a perfect score!');
+    if (_actualTopicKey && completedQuests.has(questId)) {
+        if (typeof showToast === 'function') showToast('\u2705 You already aced ' + _actualTopicKey.replace(/[-_]+/g, ' ') + ' with a perfect score!');
         return;
     }
-    if (!targetChannelId && completedQuests.has(questId)) return;
+    if (!_actualTopicKey && completedQuests.has(questId)) return;
 
     // Track these questions as asked
     const newAsked = [...askedQuestions, ...selected.map(q => q.q)];
@@ -12334,7 +12386,7 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
         return { q: q.q, options, answer: correctIdx };
     });
 
-    currentQuest = { id: questId, topicKey: targetChannelId || null, title: getQuestTitle(questCount, targetChannelId), questions };
+    currentQuest = { id: questId, topicKey: _actualTopicKey || null, title: getQuestTitle(questCount, _actualTopicKey), questions };
 
     // Register quest server-side for secure grading
     window._currentQuestServerId = null;
@@ -12348,6 +12400,28 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
     }
 
     showQuest(currentQuest, false);
+}
+
+function _getStaticQuestTitle(topicKey, partNum, totalParts) {
+    var topicEmojis = {
+        'mining': '⛏️', 'nodes': '🖥️', 'privacy-nonkyc': '🕵️', 'problems-of-money': '💸',
+        'layer-2-lightning': '⚡', 'self-custody': '🔑', 'halving': '📉', 'history': '📜',
+        'whitepaper': '📄', 'money': '💰', 'scarce': '💎', 'secure': '🛡️', 'decentralized': '🌍',
+        'programmable': '💻', 'dominant': '👑', 'energy': '🔋', 'cryptography': '🔐',
+        'pow-vs-pos': '⚔️', 'blockchain-timechain': '⛓️', 'books': '📚', 'cbdc': '🏦',
+        'cypherpunks': '🏴', 'mtgox': '💀', 'block_size_wars': '⚔️', 'evidence-against-alts': '⚠️',
+        'austrian_economics': '📐', 'gold_standard_history': '🥇', 'bitcoin_vs_real_estate': '🏠',
+        'satoshi_nakamoto_deep': '🧩', 'mining_hardware': '🖥️', 'mining_economics': '💹',
+        'taproot_assets': '🌳', 'op_codes_bitcoin': '⚙️', 'bip_standards': '📋',
+        'human_rights_deep': '✊', 'books_deep': '📚', 'consensus': '🤝', 'regulation': '⚖️',
+        'maximalism': '🔥', 'nostr': '🟣', 'investment-strategy': '📊', 'philosophy': '🤔',
+        'taproot': '🌳', 'fedimints': '🏛️', 'softwar': '🪖', 'time_preference': '⏳',
+        'governance': '🏛️', 'misconceptions-fud': '🚫', 'elevator_pitches': '🗣️'
+    };
+    var emoji = topicEmojis[topicKey] || '📖';
+    var label = topicKey.replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    var suffix = totalParts > 1 ? ' — Part ' + partNum : '';
+    return emoji + ' ' + label + suffix;
 }
 
 function getQuestTitle(num, topicKey) {
@@ -12850,18 +12924,18 @@ function _showQuestTopicPicker() {
         'governance': '🏛️', 'apps-tools': '🧰', 'misconceptions-fud': '🚫', 'elevator_pitches': '🗣️'
     };
 
-    for (var key in QUESTION_BANK) {
-        if (key === '_general') continue; // Skip general pool in picker
-        var qs = QUESTION_BANK[key];
-        if (!qs || qs.length < 3) continue; // Need at least 3 questions
-        var label = key.replace(/_pt(\d+)$/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-        var ptMatch = key.match(/_pt(\d+)$/);
-        if (ptMatch) label += ' (Part ' + ptMatch[1] + ')';
+    // Build one entry per static quest (Part 1, Part 2, etc.)
+    STATIC_QUESTS.forEach(function(sq) {
+        var key = sq.topicKey;
+        var questId = sq.id; // 'q__topicKey__partNum'
         var baseKey2 = key.replace(/_pt\d+$/, '');
         var emoji = topicEmojis[key] || topicEmojis[baseKey2] || '📖';
-        var done = completedQuests.has('quest_' + key) || completedQuests.has(key) || weeklyCompleted.indexOf(key) !== -1;
-        topics.push({ key: key, label: label, emoji: emoji, count: qs.length, done: done });
-    }
+        var baseLabel = key.replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        var label = sq.totalParts > 1 ? baseLabel + ' — Part ' + sq.partNum : baseLabel;
+        var done = completedQuests.has(questId);
+        // Use topicKey||partNum as the picker trigger key
+        topics.push({ key: key + '||' + sq.partNum, label: label, emoji: emoji, count: 5, done: done, questId: questId });
+    });
 
     // Sort: incomplete first, then alphabetical
     topics.sort(function(a, b) {
