@@ -112,7 +112,7 @@ const TIPS = [
     { pose: 'fire', text: "💡 Tip: Keep a daily streak going! Every 5 days in a row = bonus 100 points! 🔥" },
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
     // Tickets & Rewards
-    { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in! More tickets = higher giveaway chances! 🎟️" },
+    { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in and exploring! 🎟️" },
     { pose: 'point', text: "💡 Tip: Share your referral link (Settings → Tickets) and earn 50 tickets for each verified friend!" },
     { pose: 'celebrate', text: "💡 Tip: Each Orange Ticket also gives you 5 bonus XP! Tickets + points = double reward! 🎟️⭐" },
     // Quests & Scholar

@@ -300,7 +300,7 @@ function checkBadges() {
                 // Award points (toasts are already queued by _nachoBusy)
                 var badgePts = badge.pts || 20;
                 if (typeof awardPoints === 'function') {
-                    awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji);
+                    awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji, null, null, null, badge.id);
                 }
                 // Save to Firebase so badges persist across devices/browsers
                 if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {

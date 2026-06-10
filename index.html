@@ -43,7 +43,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260610_1559" as="script">
+    <link rel="preload" href="bundle.js?v=20260610_1731" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -940,13 +940,6 @@
                 <p class="home-subtitle">A curated library of Bitcoin education — 146 channels, 📺 Timechain TV (24/7 streaming), 7 mini-apps, and Quests to test your knowledge. Start your Quest today!</p>
                 <!-- App Stats moved to bottom -->
                 
-                <div id="giveawayBanner" style="margin-bottom:16px;padding:20px;background:linear-gradient(135deg,#f7931a 0%,#ea580c 100%);border-radius:16px;text-align:center;cursor:pointer;box-shadow:0 4px 20px rgba(247,147,26,0.3);position:relative;overflow:hidden;" onclick="showUsernamePrompt()">
-                    <div style="position:absolute;top:-20px;right:-20px;font-size:5rem;opacity:0.15;pointer-events:none;">⚡</div>
-                    <div style="font-size:1.8rem;margin-bottom:6px;">🎉 25,000 SATS GIVEAWAY 🎉</div>
-                    <div style="color:rgba(255,255,255,0.95);font-size:1rem;font-weight:600;">New users are entered for a chance to win!</div>
-                    <div style="color:rgba(255,255,255,0.75);font-size:0.85rem;margin-top:6px;">Create an account & register below ⬇️</div>
-                    <div style="display:inline-block;margin-top:12px;padding:10px 24px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.5);border-radius:10px;color:#fff;font-weight:700;font-size:0.95rem;letter-spacing:0.5px;">Sign Up Now →</div>
-                </div>
                 <div id="dailySpinBanner" style="display:none;margin-bottom:16px;"></div>
                 <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" onclick="showUsernamePrompt()"></div>
                 <!-- Quest Guide Banner — always visible, collapsible -->
@@ -1133,25 +1126,10 @@
                 <input type="text" id="signupCountryInput" placeholder="🌍 Country (optional)" autocomplete="off" style="width:100%;padding:14px 18px;background:#020617;border:1px solid var(--border);border-radius:10px;color:#fff;font-size:1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;" oninput="window._filterSignupCountry&&window._filterSignupCountry()" onfocus="window._filterSignupCountry&&window._filterSignupCountry()">
                 <div id="signupCountryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#0a0a0a);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
             </div>
-            <div id="giveawaySection" style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:left;">
-                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;">
-                    <input type="checkbox" id="giveawayCheckbox" style="width:20px;height:20px;accent-color:#f7931a;margin-top:2px;flex-shrink:0;cursor:pointer;">
-                    <span style="color:var(--text);font-size:0.9rem;font-weight:600;line-height:1.4;">🎉 Register for the <span style="color:#f7931a;">25,000 sats giveaway!</span></span>
-                </label>
-                <div id="giveawayLnWrap" style="display:none;flex-direction:column;gap:6px;">
-                    <div>
-                        <input type="text" id="giveawayLnAddress" placeholder="⚡ you@walletofsatoshi.com" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;margin-bottom:8px;" oninput="this.style.borderColor='var(--border)'">
-                        <button onclick="pasteToField('giveawayLnAddress')" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">📋 Paste from clipboard</button>
-                    </div>
-                </div>
-                <p id="giveawayNote" style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;display:none;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>
+            <div id="signupLnSection" style="margin-bottom:16px;">
+                <input type="text" id="signupLnAddress" placeholder="⚡ Lightning address (optional)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="200" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="this.style.borderColor='var(--border)'">
+                <p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Used so others can tip you ⚡ (e.g. you@walletofsatoshi.com)</p>
             </div>
-            <script>
-                document.getElementById('giveawayCheckbox').addEventListener('change', function() {
-                    var w = document.getElementById('giveawayLnWrap'); w.style.display = this.checked ? 'flex' : 'none'; if(this.checked) w.style.flexDirection = 'column';
-                    document.getElementById('giveawayNote').style.display = this.checked ? 'block' : 'none';
-                });
-            </script>
             <div id="factionPickerSignup" style="margin-bottom:16px;text-align:left;">
                 <div style="color:#94a3b8;font-size:0.8rem;font-weight:700;margin-bottom:4px;text-align:center;">⚔️ Choose Your Faction</div>
                 <div style="color:#475569;font-size:0.68rem;margin-bottom:10px;text-align:center;">New faction features coming soon — no competitive advantage to either choice.</div>
@@ -1217,9 +1195,9 @@
     <!-- <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script> -->
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260610_1559" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260610_1731" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
-    <script src="onboarding.js?v=20260528_1251" defer></script>
+    <script src="onboarding.js?v=20260610_1637" defer></script>
     <script src="timechain-tv.js?v=20260607_2339" defer></script>
     <script src="mobile-optimize.js?v=20260411" defer></script>
     <script src="audit-fixes-v2.js?v=20260307" defer></script>
@@ -1231,7 +1209,7 @@
     <script>
     (function(){
         var _lazyScripts = [
-            'pvp.js?v=20260608_1729','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260608_0032',
+            'pvp.js?v=20260608_1729','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260610_1637',
             'scholar.js?v=20260528_1708','beats.js?v=20260608_0317',
             'global-chat.js?v=20260609_1743','lightning.js?v=20260514_1424','lightning-tips.js?v=20260603_1701',
             'notifications.js?v=20260528_1251','guide.js?v=20260526','modules.js?v=20260331',

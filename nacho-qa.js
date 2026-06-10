@@ -477,7 +477,7 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     { keys: ['ticket','tickets','orange ticket','giveaway','referral','refer','sats giveaway'],
-      answer: "Earn Orange Tickets by logging in daily (+1) and referring friends (+5). More tickets = higher chance of winning the 25,000 sats giveaway! Check Settings → Tickets for your referral link!",
+      answer: "Earn Orange Tickets by logging in daily (+1) and referring friends (+5). The more tickets you have, the higher your chances in future events! Check Settings → Tickets for your referral link!",
       channel: null, channelName: null },
 
     { keys: ['badge','badges','hidden badge','achievements','unlock'],
@@ -2907,7 +2907,7 @@ function matchSiteNavigation(input) {
           answer: "The Bitcoin Scholar Certification is the ultimate test — pass it and earn your certificate! 🎓",
           action: "startScholarQuest()", label: "🎓 Scholar Certification" },
         { patterns: /where.*(ticket|spin|wheel|giveaway|raffle)|how.*(earn|get|win).*ticket|orange ticket|daily spin|spin.*wheel/,
-          answer: "You can earn Orange Tickets by spinning the daily wheel, referrals, and exploring! 🎟️ Tickets enter you into giveaways.",
+          answer: "You can earn Orange Tickets by spinning the daily wheel, referrals, and exploring! 🎟️ Tickets may be used for future events!",
           action: "showSpinWheel()", label: "🎡 Daily Spin" },
         { patterns: /where.*(leaderboard|ranking|score|top|leader)|leaderboard|who.*(top|first|leading)|ranking/,
           answer: "The Leaderboard shows the top Bitcoiners ranked by points! 🏆",

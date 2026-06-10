@@ -1844,8 +1844,6 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
     const channelId = (data.channelId || '').substring(0, 100);
     const tickets = parseInt(data.tickets) || 0;
     const streakFreezes = parseInt(data.streakFreezes) || 0;
-    // Badge ID for server-side dedup (optional — only sent for badge_earned actions)
-    const badgeId = (data.badgeId || '').replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 60);
 
     // ── ACTION-BASED POINT VALIDATION ──
     // Server defines exact point values per action type. Client cannot choose amounts.
@@ -2036,17 +2034,6 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 }
             }
 
-            // 1a. Badge dedup — each badge can only award XP once per user, ever
-            if (matchedAction === 'badge_earned' && badgeId) {
-                const badgeAwardRef = userRef.collection('badge_awards').doc(badgeId);
-                const badgeAwardDoc = await t.get(badgeAwardRef);
-                if (badgeAwardDoc.exists) {
-                    throw new Error('BADGE_ALREADY_AWARDED:' + badgeId);
-                }
-                // Stamp it inside the transaction so concurrent calls can't double-award
-                t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action });
-            }
-
             // 1b. Check per-day action count (anti-spam)
             let dailyActionUsed = 0;
             if (dailyActionRef) {
@@ -2192,9 +2179,6 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
     } catch (e) {
         if (e.message === 'TOO_FAST') {
             return { success: false, error: 'Too fast — wait a moment', cooldown: true };
-        }
-        if (e.message && e.message.startsWith('BADGE_ALREADY_AWARDED:')) {
-            return { success: false, error: 'Badge already awarded', badgeDuplicate: true };
         }
         if (e.message && e.message.startsWith('DAILY_ACTION_LIMIT:')) {
             const parts = e.message.split(':');
