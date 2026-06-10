@@ -581,6 +581,8 @@
 
         try {
             var auth = getAuth();
+            var db = getDb();
+            if (!auth || !db) { throw new Error('Firebase services are not available yet. Please wait a moment and try again.'); }
             if (!auth.currentUser || auth.currentUser.isAnonymous === undefined) {
                 var cred = await auth.signInAnonymously();
                 // Wait for auth state to fully propagate
@@ -716,6 +718,7 @@
         if (pvpState._lobbyHeartbeat) { clearInterval(pvpState._lobbyHeartbeat); pvpState._lobbyHeartbeat = null; }
         if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
         if (pvpState._oppTimeoutTimer) { clearTimeout(pvpState._oppTimeoutTimer); pvpState._oppTimeoutTimer = null; }
+        if (pvpState._p1AdvanceTimer) { clearTimeout(pvpState._p1AdvanceTimer); pvpState._p1AdvanceTimer = null; }
         stopPractice();
         stopFunFactRotation();
         stopPvpTickerUpdates();
@@ -1364,6 +1367,12 @@
                 if (!doc.exists) return;
                 var data = doc.data();
 
+                // Clear active timers if match is no longer active
+                if (data.status !== 'active') {
+                    if (pvpState._oppTimeoutTimer) { clearTimeout(pvpState._oppTimeoutTimer); pvpState._oppTimeoutTimer = null; }
+                    if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
+                }
+
                 pvpState.questions = data.questions || [];
 
                 var myKey = pvpState.isPlayer1 ? 'player1' : 'player2';
@@ -1404,8 +1413,10 @@
                     var oppAns = data[oppKey].answers || [];
                     console.log('[PVP] Snapshot: status=active, currentQ=' + data.currentQ + ', myAns=' + myAns.length + ', oppAns=' + oppAns.length + ', answered=' + pvpState.answered);
                     if (myAns.length > data.currentQ && oppAns.length > data.currentQ && pvpState.answered) {
+                        if (pvpState._oppTimeoutTimer) { clearTimeout(pvpState._oppTimeoutTimer); pvpState._oppTimeoutTimer = null; }
                         if (!pvpState._forceResultTimer) {
-                            console.log('[PVP] Both answered! Starting force-resolve timer (2s)');
+                            var delay = pvpState.isPlayer1 ? 1500 : 3500;
+                            console.log('[PVP] Both answered! Starting force-resolve timer (' + delay + 'ms)');
                             pvpState._forceResultTimer = setTimeout(function() {
                                 pvpState._forceResultTimer = null;
                                 console.log('[PVP] Force-resolve timer fired, running transaction...');
@@ -1427,7 +1438,7 @@
                                 }).then(function() {
                                     console.log('[PVP] Force-resolve transaction committed');
                                 }).catch(function(e) { console.error('[PVP] Force-resolve tx error:', e); });
-                            }, 2000);
+                            }, delay);
                         }
                     }
 
@@ -1633,8 +1644,21 @@
         } else if (!myIsCorrect && oppIsCorrect) {
             oppWon = true;
         } else if (myIsCorrect && oppIsCorrect) {
-            // Both correct — first to commit wins (opponent was already in DB)
-            oppWon = true;
+            // Both correct — compare answeredAt timestamps
+            var myTime = (myAnswer && myAnswer.answeredAt) ? new Date(myAnswer.answeredAt).getTime() : Infinity;
+            var oppTime = (oppAnswer && oppAnswer.answeredAt) ? new Date(oppAnswer.answeredAt).getTime() : Infinity;
+            if (myTime < oppTime) {
+                iWon = true;
+            } else if (oppTime < myTime) {
+                oppWon = true;
+            } else {
+                // Exact tie, fallback to host/isPlayer1 wins the tie breaker
+                if (pvpState.isPlayer1) {
+                    iWon = true;
+                } else {
+                    oppWon = true;
+                }
+            }
         } else {
             // Both wrong — REROLL
             var newQ = pickRandomQuestions(1);
