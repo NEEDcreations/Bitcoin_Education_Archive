@@ -431,6 +431,7 @@ async function finishEmailSignIn(email, _signInUrl) {
         // Check if this was a new registration (pending username from signup form)
         const pendingUsername = localStorage.getItem('btc_pending_username');
         const pendingEmail = localStorage.getItem('btc_pending_email');
+        const pendingLnAddress = localStorage.getItem('btc_pending_ln_address') || '';
         if (pendingUsername && !existingDoc.exists) {
             // New user verifying their email — create their full account now
             const userData = {
@@ -443,6 +444,7 @@ async function finishEmailSignIn(email, _signInUrl) {
                 lastVisit: new Date().toISOString().split('T')[0],
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
+            if (pendingLnAddress) { userData.lightning = pendingLnAddress; userData.lightningAddress = pendingLnAddress; }
             await db.collection('users').doc(emailUid).set(userData);
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
 
@@ -453,6 +455,7 @@ async function finishEmailSignIn(email, _signInUrl) {
         // Clean up pending data
         localStorage.removeItem('btc_pending_username');
         localStorage.removeItem('btc_pending_email');
+        localStorage.removeItem('btc_pending_ln_address');
         // 🗑️ SECURITY HARDENING (C-NEW-13): Wipe ghost on-chain wallet data
         localStorage.removeItem('btc_wallet_enc');
         localStorage.removeItem('btc_wallet_addrs');
@@ -938,22 +941,33 @@ async function _saveAnonDataGlobal() {
 }
 
 async function _handleSignInResultGlobal(user, anonUid, anonData) {
+    // Pick up Lightning address typed in the sign-up form before provider auth
+    var _pendingLn = localStorage.getItem('btc_pending_ln_address') || '';
+    localStorage.removeItem('btc_pending_ln_address');
+
     var existingDoc = await db.collection('users').doc(user.uid).get();
     if (!existingDoc.exists) {
         if (anonData) {
             anonData.email = user.email || '';
             if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
+            if (_pendingLn) { anonData.lightning = _pendingLn; anonData.lightningAddress = _pendingLn; }
             await db.collection('users').doc(user.uid).set(anonData);
         } else {
-            await db.collection('users').doc(user.uid).set({
+            var _newProviderDoc = {
                 username: user.displayName || 'Bitcoiner',
                 email: user.email || '',
                 points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
                 lastVisit: new Date().toISOString().split('T')[0],
                 created: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            };
+            if (_pendingLn) { _newProviderDoc.lightning = _pendingLn; _newProviderDoc.lightningAddress = _pendingLn; }
+            await db.collection('users').doc(user.uid).set(_newProviderDoc);
         }
     } else {
+        // Returning user — save LN if they typed one and don't already have one
+        if (_pendingLn && !existingDoc.data().lightningAddress && !existingDoc.data().lightning) {
+            try { await existingDoc.ref.update({ lightning: _pendingLn, lightningAddress: _pendingLn }); } catch(e) {}
+        }
         if (anonData) {
             var existData = existingDoc.data();
             var _mergedPts = Math.min(anonData.points || 0, 500);
@@ -1544,7 +1558,7 @@ function containsProfanity(str) {
     return false;
 }
 
-async function createUser(username, email, enteredGiveaway, giveawayLnAddress, country) { // giveaway params kept for call-site compat, no longer used
+async function createUser(username, email, enteredGiveaway, giveawayLnAddress, country) { // giveaway params kept for call-site compat; giveawayLnAddress now used as lightningAddress
     // Wait for auth to be ready if not yet
     if (typeof auth === 'undefined' || !auth) {
         showToast('⏳ Loading... please try again in a moment.');
@@ -1600,6 +1614,14 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     };
     if (email) userData.email = email;
     if (country) userData.country = country;
+    // Lightning address from signup field
+    var _signupLn = giveawayLnAddress || '';
+    if (!_signupLn) {
+        // Also check localStorage in case it was set for email-flow users
+        _signupLn = localStorage.getItem('btc_pending_ln_address') || '';
+        localStorage.removeItem('btc_pending_ln_address');
+    }
+    if (_signupLn) userData.lightningAddress = _signupLn;
     // Faction choice from signup
     if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
 
@@ -1615,6 +1637,8 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
+    // Confirm LN address was saved
+    if (_signupLn) setTimeout(function() { showToast('⚡ Lightning address saved to your profile!'); }, 1200);
     // Show Quest Guide for new accounts (reset dismiss so they see it fresh)
     try {
         localStorage.removeItem('guide_dismissed');
@@ -3165,6 +3189,11 @@ window.showSignInOnly = function() {
         var emailNote = emailInput ? emailInput.nextElementSibling : null;
         if (emailNote && emailNote.tagName === 'P') emailNote.style.display = 'none';
 
+        var lnSection = document.getElementById('signupLnSection');
+        if (lnSection) lnSection.style.display = 'none';
+        var factionPicker = document.getElementById('factionPickerSignup');
+        if (factionPicker) factionPicker.style.display = 'none';
+
         if (h2) h2.style.display = 'none';
         if (firstP) firstP.style.display = 'none';
         if (usernameInput) usernameInput.style.display = 'none';
@@ -3227,6 +3256,11 @@ window._restoreSignUpForm = function() {
     var submitBtn = box.querySelector('button[onclick="submitUsername()"]');
     var emailNote = emailInput ? emailInput.nextElementSibling : null;
     if (emailNote && emailNote.tagName === 'P') emailNote.style.display = '';
+
+    var lnSection = document.getElementById('signupLnSection');
+    if (lnSection) lnSection.style.display = '';
+    var factionPicker = document.getElementById('factionPickerSignup');
+    if (factionPicker) factionPicker.style.display = '';
 
     if (h2) h2.style.display = '';
     if (firstP) firstP.style.display = '';
@@ -5429,7 +5463,15 @@ window.submitUsername = async function() {
             return;
         }
         var enteredGiveaway = false;
-        var lnAddress = '';
+        var lnAddressEl = document.getElementById('signupLnAddress');
+        var lnAddress = lnAddressEl ? lnAddressEl.value.trim() : '';
+        // Basic Lightning address validation (user@domain format)
+        if (lnAddress && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(lnAddress)) {
+            if (lnAddressEl) { lnAddressEl.style.borderColor = '#ef4444'; lnAddressEl.focus(); }
+            showToast('⚡ Please enter a valid Lightning address (e.g. you@wallet.com) or leave it blank.');
+            return;
+        }
+        if (lnAddress) localStorage.setItem('btc_pending_ln_address', lnAddress);
 
         if (email) {
             // Email provided — send magic link for verification
@@ -5692,8 +5734,8 @@ window.saveSatsLnAddress = async function() {
     }
     try {
         if (status) status.innerHTML = '<span style="color:var(--accent);">Saving…</span>';
-        await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr });
-        if (typeof currentUser !== 'undefined' && currentUser) currentUser.lightning = addr;
+        await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr, lightningAddress: addr });
+        if (typeof currentUser !== 'undefined' && currentUser) { currentUser.lightning = addr; currentUser.lightningAddress = addr; }
         if (addr) {
             if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Lightning Address saved!</span>';
             if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');

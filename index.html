@@ -41,7 +41,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260610_1637" as="script">
+    <link rel="preload" href="bundle.js?v=20260610_1650" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -1122,6 +1122,10 @@
                 <input type="text" id="signupCountryInput" placeholder="🌍 Country (optional)" autocomplete="off" style="width:100%;padding:14px 18px;background:#020617;border:1px solid var(--border);border-radius:10px;color:#fff;font-size:1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;" oninput="window._filterSignupCountry&&window._filterSignupCountry()" onfocus="window._filterSignupCountry&&window._filterSignupCountry()">
                 <div id="signupCountryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#0a0a0a);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
             </div>
+            <div id="signupLnSection" style="margin-bottom:16px;">
+                <input type="text" id="signupLnAddress" placeholder="⚡ Lightning address (optional)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="200" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="this.style.borderColor='var(--border)'">
+                <p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Used so others can tip you ⚡ (e.g. you@walletofsatoshi.com)</p>
+            </div>
             <div id="factionPickerSignup" style="margin-bottom:16px;text-align:left;">
                 <div style="color:#94a3b8;font-size:0.8rem;font-weight:700;margin-bottom:4px;text-align:center;">⚔️ Choose Your Faction</div>
                 <div style="color:#475569;font-size:0.68rem;margin-bottom:10px;text-align:center;">New faction features coming soon — no competitive advantage to either choice.</div>
@@ -1186,7 +1190,7 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260610_1637" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260610_1650" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260610_1637" defer></script>
     <script src="timechain-tv.js?v=20260607_2339" defer></script>
