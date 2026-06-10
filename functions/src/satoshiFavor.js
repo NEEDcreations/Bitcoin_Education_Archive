@@ -750,11 +750,13 @@ exports.syncUserFactionPoints = functions.https.onCall(async (data, context) => 
   const prevSyncedPoints = syncDoc.exists ? syncDoc.data().pointsSynced : 0;
 
   let unaffiliatedPoints = 0;
+  const unstampedDocs = [];
   snap.forEach(doc => {
     const d = doc.data();
     // Count docs that have no faction stamp (unaffiliated pool)
     if (!d.faction) {
       unaffiliatedPoints += d.pointsAdded || POINT_VALUES[d.source] || 1;
+      unstampedDocs.push(doc.ref);
     }
   });
 
@@ -775,6 +777,11 @@ exports.syncUserFactionPoints = functions.https.onCall(async (data, context) => 
       [newFaction]: admin.firestore.FieldValue.increment(toMove),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    // Stamp faction on all previously-unaffiliated contributor docs for this user
+    for (const ref of unstampedDocs) {
+      transaction.update(ref, { faction: newFaction });
+    }
 
     // Record this sync so we don't double-count
     transaction.set(syncRef, {

@@ -13110,16 +13110,14 @@ function _renderFavorTab(body) {
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
             '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<span style="font-size:0.82rem;">👤</span>' +
-                '<span style="font-size:0.72rem;color:var(--text-muted);">Unaffiliated</span>' +
+                '<span style="font-size:0.72rem;color:var(--text-muted);">Unaffiliated — <span onclick=\"document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)\" style=\"color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline;\">Choose a Faction!</span></span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span id="sfScoreUnaffiliated" style="font-size:0.88rem;font-weight:800;color:var(--text-muted);font-family:monospace;">0</span>' +
                 '<span style="font-size:0.62rem;color:var(--text-faint);">pts</span>' +
             '</div>' +
         '</div>' +
-        '<div id="sfNoFactionNote" style="display:none;margin-top:10px;">' +
-            '<button onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)" style="width:100%;padding:10px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(168,85,247,0.15));border:1px solid var(--accent);border-radius:10px;color:var(--heading);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">Join a faction → Help your team win! 🐝🦡</button>' +
-        '</div>' +
+        '<div id="sfNoFactionNote" style="display:none;"></div>' +
         '<div id="sfAdminBackfill" style="display:none;margin-top:8px;text-align:center;">' +
             '<button onclick="window._runFactionBackfill()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:7px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Backfill historical data (admin)</button>' +
         '</div>' +
