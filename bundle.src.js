@@ -13055,38 +13055,6 @@ function _renderFavorTab(body) {
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Satoshi\'s Favor</div>' +
         '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Community mining when the community earns 21 points.<br><span style="color:#f7931a;font-weight:600;">Chance to win 21,000 sats! ⚡</span></div>';
 
-    // ── Faction Scoreboard ──
-    html += '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
-        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:12px;">⚔️ Faction SF Competition</div>' +
-        '<div id="factionScoreboardInner" style="display:flex;gap:10px;align-items:stretch;">' +
-            '<div style="flex:1;background:rgba(247,147,26,0.07);border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:12px;text-align:center;">' +
-                '<div style="font-size:1.4rem;margin-bottom:4px;">🐝</div>' +
-                '<div style="font-size:0.78rem;font-weight:800;color:#f7931a;margin-bottom:6px;">Cyber Hornets</div>' +
-                '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
-                '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
-            '</div>' +
-            '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
-                '<div style="font-size:0.9rem;font-weight:900;color:var(--text-faint);">VS</div>' +
-                '<div id="sfScoreLeader" style="font-size:0.6rem;color:var(--text-faint);text-align:center;max-width:40px;"></div>' +
-            '</div>' +
-            '<div style="flex:1;background:rgba(168,85,247,0.07);border:2px solid rgba(168,85,247,0.3);border-radius:12px;padding:12px;text-align:center;">' +
-                '<div style="font-size:1.4rem;margin-bottom:4px;">🦡</div>' +
-                '<div style="font-size:0.78rem;font-weight:800;color:#a855f7;margin-bottom:6px;">Honey Badgers</div>' +
-                '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
-                '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
-            '</div>' +
-        '</div>' +
-        '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
-            '<div id="sfScoreBarFill" style="height:100%;background:linear-gradient(90deg,#f7931a,#f7931a 50%,#a855f7 50%,#a855f7);width:100%;border-radius:3px;transition:background 0.5s;"></div>' +
-        '</div>' +
-        '<div id="sfNoFactionNote" style="display:none;margin-top:10px;font-size:0.72rem;color:var(--text-faint);text-align:center;">' +
-            'You haven\'t chosen a faction yet. <span onclick="showSettingsPage(\'account\')" style="color:var(--accent);cursor:pointer;font-weight:700;">Join one →</span>' +
-        '</div>' +
-        '<div id="sfAdminBackfill" style="display:none;margin-top:10px;text-align:center;">' +
-            '<button onclick="window._runFactionBackfill()" style="padding:6px 14px;background:rgba(247,147,26,0.12);border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Backfill historical data (admin)</button>' +
-        '</div>' +
-    '</div>';
-    // —— end faction scoreboard——
 
     if (isActive) {
         var endBase = state.favorEndBase ? state.favorEndBase.toMillis() : 0;
@@ -13114,6 +13082,49 @@ function _renderFavorTab(body) {
             '<div style="margin-top:8px;font-size:0.75rem;color:var(--text-muted);">' + (21 - points) + ' more points to activate</div>' +
         '</div>';
     }
+
+    // ── Faction Scoreboard (below progress bar) ──
+    html += '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
+        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:12px;">⚔️ Faction SF Competition</div>' +
+        '<div id="factionScoreboardInner" style="display:flex;gap:10px;align-items:stretch;">' +
+            '<div style="flex:1;background:rgba(247,147,26,0.07);border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:12px;text-align:center;">' +
+                '<div style="font-size:1.4rem;margin-bottom:4px;">🐝</div>' +
+                '<div style="font-size:0.78rem;font-weight:800;color:#f7931a;margin-bottom:6px;">Cyber Hornets</div>' +
+                '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
+                '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
+                '<div style="font-size:0.9rem;font-weight:900;color:var(--text-faint);">VS</div>' +
+                '<div id="sfScoreLeader" style="font-size:0.6rem;color:var(--text-faint);text-align:center;max-width:40px;"></div>' +
+            '</div>' +
+            '<div style="flex:1;background:rgba(168,85,247,0.07);border:2px solid rgba(168,85,247,0.3);border-radius:12px;padding:12px;text-align:center;">' +
+                '<div style="font-size:1.4rem;margin-bottom:4px;">🦡</div>' +
+                '<div style="font-size:0.78rem;font-weight:800;color:#a855f7;margin-bottom:6px;">Honey Badgers</div>' +
+                '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
+                '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
+            '</div>' +
+        '</div>' +
+        '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
+            '<div id="sfScoreBarFill" style="height:100%;background:linear-gradient(90deg,#f7931a,#f7931a 50%,#a855f7 50%,#a855f7);width:100%;border-radius:3px;transition:background 0.5s;"></div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
+            '<div style="display:flex;align-items:center;gap:6px;">' +
+                '<span style="font-size:0.82rem;">👤</span>' +
+                '<span style="font-size:0.72rem;color:var(--text-muted);">Unaffiliated</span>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span id="sfScoreUnaffiliated" style="font-size:0.88rem;font-weight:800;color:var(--text-muted);font-family:monospace;">0</span>' +
+                '<span style="font-size:0.62rem;color:var(--text-faint);">pts</span>' +
+            '</div>' +
+        '</div>' +
+        '<div id="sfNoFactionNote" style="display:none;margin-top:10px;">' +
+            '<button onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)" style="width:100%;padding:10px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(168,85,247,0.15));border:1px solid var(--accent);border-radius:10px;color:var(--heading);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">Join a faction → Help your team win! 🐝🦡</button>' +
+        '</div>' +
+        '<div id="sfAdminBackfill" style="display:none;margin-top:8px;text-align:center;">' +
+            '<button onclick="window._runFactionBackfill()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:7px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Backfill historical data (admin)</button>' +
+        '</div>' +
+    '</div>';
+    // —— end faction scoreboard ——
 
     html += '<div style="background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;text-align:left;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">' +
         '<strong style="color:var(--accent);">How it works:</strong><br>' +
@@ -13207,13 +13218,16 @@ function _startFactionScoreboardListener() {
 
         var elH = document.getElementById('sfScoreHornets');
         var elB = document.getElementById('sfScoreBadgers');
+        var elU = document.getElementById('sfScoreUnaffiliated');
         var elLeader = document.getElementById('sfScoreLeader');
         var elBar = document.getElementById('sfScoreBar');
         var elBarFill = document.getElementById('sfScoreBarFill');
         var elNote = document.getElementById('sfNoFactionNote');
+        var unaffiliated = data.unaffiliated || 0;
 
         if (elH) elH.textContent = hornets.toLocaleString();
         if (elB) elB.textContent = badgers.toLocaleString();
+        if (elU) elU.textContent = unaffiliated.toLocaleString();
 
         // Leader label
         if (elLeader) {
