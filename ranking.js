@@ -3107,7 +3107,7 @@ async function toggleLeaderboard() {
         html += '<div style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
             '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4>' +
-            '<button onclick="event.stopPropagation();enterPVPMode();" style="padding:6px 14px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:8px;color:#fff;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.5px;transition:0.2s;">Enter PVP Lobby</button>' +
+            '<button onclick="event.stopPropagation();_launchPVP();" style="padding:6px 14px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:8px;color:#fff;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.5px;transition:0.2s;">Enter PVP Lobby</button>' +
             '</div>' +
             '<div id="pvpLeaderboardList"><div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading PVP rankings...</div></div>' +
         '</div>';
@@ -4717,7 +4717,7 @@ function showSettingsPage(tab) {
             html += statRow('PVP Record', _pvpW + 'W – ' + _pvpL + 'L', '⚔️');
             html += statRow('PVP Win Rate', _pvpPct + '%', '📊');
         } else {
-            html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
+            html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();_launchPVP();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
         }
         // Prediction Stats
         if (typeof getPredictionStats === 'function') {
