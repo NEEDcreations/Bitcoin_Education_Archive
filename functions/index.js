@@ -4240,12 +4240,15 @@ exports.scheduleRaidBoss = scheduleRaidBoss;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
-const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10 } = require('./src/satoshiFavor');
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, syncUserFactionPoints, getFactionTotals } = require('./src/satoshiFavor');
 exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
 exports.getFavorHashes = getFavorHashes;
 exports.syncCycleToTop10 = syncCycleToTop10;
+exports.backfillFactionTotals = backfillFactionTotals;
+exports.syncUserFactionPoints = syncUserFactionPoints;
+exports.getFactionTotals = getFactionTotals;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online)
 exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async (event) => {

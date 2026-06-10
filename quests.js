@@ -2232,6 +2232,36 @@ function _renderFavorTab(body) {
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Satoshi\'s Favor</div>' +
         '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Community mining when the community earns 21 points.<br><span style="color:#f7931a;font-weight:600;">Chance to win 21,000 sats! ⚡</span></div>';
 
+    // ── Faction Scoreboard ──
+    html += '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
+        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:12px;">⚔️ Faction SF Competition</div>' +
+        '<div id="factionScoreboardInner" style="display:flex;gap:10px;align-items:stretch;">' +
+            '<div style="flex:1;background:rgba(247,147,26,0.07);border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:12px;text-align:center;">' +
+                '<div style="font-size:1.4rem;margin-bottom:4px;">🐝</div>' +
+                '<div style="font-size:0.78rem;font-weight:800;color:#f7931a;margin-bottom:6px;">Cyber Hornets</div>' +
+                '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">...</div>' +
+                '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
+                '<div style="font-size:0.9rem;font-weight:900;color:var(--text-faint);">VS</div>' +
+                '<div id="sfScoreLeader" style="font-size:0.6rem;color:var(--text-faint);text-align:center;max-width:40px;"></div>' +
+            '</div>' +
+            '<div style="flex:1;background:rgba(168,85,247,0.07);border:2px solid rgba(168,85,247,0.3);border-radius:12px;padding:12px;text-align:center;">' +
+                '<div style="font-size:1.4rem;margin-bottom:4px;">🦡</div>' +
+                '<div style="font-size:0.78rem;font-weight:800;color:#a855f7;margin-bottom:6px;">Honey Badgers</div>' +
+                '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">...</div>' +
+                '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
+            '</div>' +
+        '</div>' +
+        '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
+            '<div id="sfScoreBarFill" style="height:100%;background:linear-gradient(90deg,#f7931a,#f7931a 50%,#a855f7 50%,#a855f7);width:100%;border-radius:3px;transition:background 0.5s;"></div>' +
+        '</div>' +
+        '<div id="sfNoFactionNote" style="display:none;margin-top:10px;font-size:0.72rem;color:var(--text-faint);text-align:center;">' +
+            'You haven\'t chosen a faction yet. <span onclick="showSettingsPage(\'account\')" style="color:var(--accent);cursor:pointer;font-weight:700;">Join one →</span>' +
+        '</div>' +
+    '</div>';
+    // —— end faction scoreboard——
+
     if (isActive) {
         var endBase = state.favorEndBase ? state.favorEndBase.toMillis() : 0;
         var bonusMs = (state.bonusMinutes || 0) * 60 * 1000;
@@ -2287,6 +2317,9 @@ function _renderFavorTab(body) {
     html += '</div>';
     body.innerHTML = html;
 
+    // —— Live faction scoreboard listener ——
+    _startFactionScoreboardListener();
+
     // Load top hashes + personal best
     _loadFavorLeaderboards();
 
@@ -2313,7 +2346,68 @@ window.closeQuestHubForFavor = function() {
     var overlay = document.getElementById('questHubOverlay');
     if (overlay) overlay.remove();
     window._cleanupRaidBoss && window._cleanupRaidBoss();
+    // Clean up faction listener
+    if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
 };
+
+// —— Faction scoreboard live listener ——
+function _startFactionScoreboardListener() {
+    // Detach any previous listener
+    if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
+    if (typeof db === 'undefined') return;
+
+    var totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+    window._factionScoreUnsub = totalsRef.onSnapshot(function(doc) {
+        var data = doc.exists ? doc.data() : {};
+        var hornets = data.cyber_hornets || 0;
+        var badgers = data.honey_badgers || 0;
+        var total = hornets + badgers;
+
+        var elH = document.getElementById('sfScoreHornets');
+        var elB = document.getElementById('sfScoreBadgers');
+        var elLeader = document.getElementById('sfScoreLeader');
+        var elBar = document.getElementById('sfScoreBar');
+        var elBarFill = document.getElementById('sfScoreBarFill');
+        var elNote = document.getElementById('sfNoFactionNote');
+
+        if (elH) elH.textContent = hornets.toLocaleString();
+        if (elB) elB.textContent = badgers.toLocaleString();
+
+        // Leader label
+        if (elLeader) {
+            if (hornets > badgers) elLeader.textContent = '🐝 Leading';
+            else if (badgers > hornets) elLeader.textContent = '🦡 Leading';
+            else if (total > 0) elLeader.textContent = 'Tied!';
+            else elLeader.textContent = '';
+        }
+
+        // Progress bar showing split
+        if (elBar && elBarFill && total > 0) {
+            elBar.style.display = 'block';
+            var hornetPct = Math.round((hornets / total) * 100);
+            var badgerPct = 100 - hornetPct;
+            elBarFill.style.background =
+                'linear-gradient(90deg, #f7931a ' + hornetPct + '%, #a855f7 ' + hornetPct + '%)';
+        }
+
+        // Show join note if user has no faction
+        if (elNote) {
+            var userFaction = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
+            elNote.style.display = userFaction ? 'none' : 'block';
+        }
+
+        // Highlight user's faction card
+        var userFaction2 = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
+        var elScoreboard = document.getElementById('factionScoreboardInner');
+        if (elScoreboard && userFaction2) {
+            var cards = elScoreboard.querySelectorAll('div[style*="flex:1"]');
+            if (cards[0]) cards[0].style.borderWidth = userFaction2 === 'cyber_hornets' ? '3px' : '2px';
+            if (cards[1]) cards[1].style.borderWidth = userFaction2 === 'honey_badgers' ? '3px' : '2px';
+        }
+    }, function(err) {
+        console.warn('[FACTION-SCORE] Listener error:', err);
+    });
+}
 
 // Detach handle for real-time topHashes listener
 var _favorTopHashesUnsub = null;

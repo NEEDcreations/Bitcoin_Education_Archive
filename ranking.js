@@ -3446,11 +3446,32 @@ window._selectFaction = async function(faction) {
         var user = auth ? auth.currentUser : null;
         if (!user) { if (typeof showToast === 'function') showToast('Sign in to choose a faction'); return; }
         if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to choose a faction'); return; }
+
+        var previousFaction = currentUser ? (currentUser.faction || null) : null;
+        var isFirstChoice = !previousFaction;
+
         // Save to Firestore
         await db.collection('users').doc(user.uid).update({ faction: faction });
         if (currentUser) currentUser.faction = faction;
         if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
         showSettingsPage('account');
+
+        // If this is fist time picking a faction (or switching from no faction),
+        // sync their historical unaffiliated SF points to the new faction
+        if (isFirstChoice && typeof firebase !== 'undefined' && firebase.functions) {
+            firebase.functions().httpsCallable('syncUserFactionPoints')({
+                newFaction: faction,
+                previousFaction: previousFaction
+            }).then(function(res) {
+                if (res.data && res.data.pointsSynced > 0) {
+                    if (typeof showToast === 'function') showToast('⚡ ' + res.data.pointsSynced + ' past SF point' + (res.data.pointsSynced !== 1 ? 's' : '') + ' credited to your faction!');
+                }
+            }).catch(function(err) {
+                console.warn('[FACTION] syncUserFactionPoints failed:', err);
+            });
+        }
+        // Note: if switching factions, future contributions go to new faction automatically.
+        // Historical points stay with original faction (Option A).
     } catch(e) { console.error('Faction select error:', e); if (typeof showToast === 'function') showToast('Error saving faction'); }
 };
 
