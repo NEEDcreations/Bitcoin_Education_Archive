@@ -1352,11 +1352,21 @@ if (_origGo2) {
     window.go = function(id) {
         // Show button on all pages except full chat hub
         if (id !== 'chat') showOverlayBtn();
+        // Remove chat-shifted from leaderboard FAB when navigating away from chat hub
+        var _lbFabNav = document.getElementById('lbFloatBtn');
+        if (_lbFabNav) _lbFabNav.classList.remove('chat-shifted');
         return _origGo2.apply(this, arguments);
     };
 }
 
-window.addEventListener('popstate', showOverlayBtn);
+window.addEventListener('popstate', function() {
+    showOverlayBtn();
+    // Remove chat-shifted if navigating away from chat hub via back button
+    if (!document.getElementById('chatContent')) {
+        var _lbFabPop = document.getElementById('lbFloatBtn');
+        if (_lbFabPop) _lbFabPop.classList.remove('chat-shifted');
+    }
+});
 
 // ---- Emoji Reaction System ----
 window.showReactPicker = function(msgId, btnEl) {
