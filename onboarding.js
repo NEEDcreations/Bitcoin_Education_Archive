@@ -418,14 +418,14 @@ window.applySimplifiedHome = function() {
     // Hide elements based on level
     var hideSelectors = {
         beginner: [
-            '#giveawayBanner', '#dailySpinBanner', '#progressRings',
+            '#dailySpinBanner', '#progressRings',
             '#dailyChallengeCard', '#quoteOfDay', '#explorationMap',
             '#donateSection', '[onclick*="showSpinWheel"]', '[onclick*="showPricePrediction"]',
             '.desktop-only-apps', '#lbFloatBtn', '#desktopDMBtn', '#rankBar',
             '#activity-ticker', '#continueReading'
         ],
-        intermediate: ['#giveawayBanner', '#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker'],
-        advanced: ['#giveawayBanner', '#dailySpinBanner']
+        intermediate: ['#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker'],
+        advanced: ['#dailySpinBanner']
     };
 
     (hideSelectors[level] || []).forEach(function(sel) {

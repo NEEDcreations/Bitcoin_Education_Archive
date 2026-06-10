@@ -431,8 +431,6 @@ async function finishEmailSignIn(email, _signInUrl) {
         // Check if this was a new registration (pending username from signup form)
         const pendingUsername = localStorage.getItem('btc_pending_username');
         const pendingEmail = localStorage.getItem('btc_pending_email');
-        const pendingGiveaway = localStorage.getItem('btc_pending_giveaway');
-
         if (pendingUsername && !existingDoc.exists) {
             // New user verifying their email — create their full account now
             const userData = {
@@ -445,23 +443,6 @@ async function finishEmailSignIn(email, _signInUrl) {
                 lastVisit: new Date().toISOString().split('T')[0],
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
-            if (pendingGiveaway) {
-                userData.lightningAddress = pendingGiveaway;
-                userData.giveaway = {
-                    entered: true,
-                    lightningAddress: pendingGiveaway,
-                    enteredAt: new Date().toISOString()
-                };
-                try {
-                    await db.collection('giveaway_entries').doc(emailUid).set({
-                        username: pendingUsername,
-                        lightningAddress: pendingGiveaway,
-                        email: email,
-                        enteredAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        uid: emailUid
-                    });
-                } catch(e) {}
-            }
             await db.collection('users').doc(emailUid).set(userData);
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
 
@@ -472,16 +453,12 @@ async function finishEmailSignIn(email, _signInUrl) {
         // Clean up pending data
         localStorage.removeItem('btc_pending_username');
         localStorage.removeItem('btc_pending_email');
-        localStorage.removeItem('btc_pending_giveaway');
         // 🗑️ SECURITY HARDENING (C-NEW-13): Wipe ghost on-chain wallet data
         localStorage.removeItem('btc_wallet_enc');
         localStorage.removeItem('btc_wallet_addrs');
 
         loadUser(emailUid);
         showToast('✅ Email verified! Signed in as ' + escapeHtml(pendingUsername || email));
-        if (pendingGiveaway) {
-            setTimeout(function() { showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!'); }, 2000);
-        }
     } catch(e) {
         console.error('[Email Sign-In] Full error:', e.code, e.message, e.stack);
         // Check if this is a Firestore permission error
@@ -999,7 +976,8 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
     loadUser(user.uid);
     if (!existingDoc.exists) {
         if (typeof attachReferral === 'function') attachReferral(user.uid);
-        showGiveawayPrompt(user.uid, user.displayName || user.email || 'Bitcoiner');
+        hideUsernamePrompt();
+        showToast('✅ Welcome, ' + escapeHtml(user.displayName || user.email || 'Bitcoiner') + '!');
         // Show Quest Guide for brand new provider sign-ups
         try {
             localStorage.removeItem('guide_dismissed');
@@ -1139,74 +1117,6 @@ async function signInWithProvider(provider) {
             showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
         }
     }
-}
-
-// Show giveaway registration for new provider sign-ins
-function showGiveawayPrompt(uid, displayName) {
-    const modal = document.getElementById('usernameModal');
-    const box = modal.querySelector('.username-box');
-    box.innerHTML =
-        '<h2>🎉 Welcome, ' + displayName + '!</h2>' +
-        '<p style="color:var(--text-muted);margin-bottom:16px;">Your account is all set. Want to enter the giveaway?</p>' +
-        '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:left;">' +
-            '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;">' +
-                '<input type="checkbox" id="giveawayCheckboxProvider" checked style="width:20px;height:20px;accent-color:#f7931a;margin-top:2px;flex-shrink:0;cursor:pointer;">' +
-                '<span style="color:var(--text);font-size:0.9rem;font-weight:600;line-height:1.4;">🎉 Register for the <span style="color:#f7931a;">25,000 sats giveaway!</span></span>' +
-            '</label>' +
-            '<div>' +
-                '<input type="text" id="giveawayLnProvider" placeholder="⚡ you@walletofsatoshi.com" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;margin-bottom:8px;">' +
-                '<button onclick="pasteToField(\'giveawayLnProvider\')" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">📋 Paste from clipboard</button>' +
-            '</div>' +
-            '<p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>' +
-        '</div>' +
-        '<button onclick="submitGiveawayProvider(\'' + uid + '\',\'' + displayName.replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Enter Giveaway & Continue →</button>' +
-        '<button onclick="hideUsernamePrompt();showToast(\'✅ Welcome, ' + displayName.replace(/[\\'"]/g, "") + '!\')" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Skip → Start Learning</button>';
-    modal.classList.add('open');
-
-    // Toggle lightning address visibility
-    document.getElementById('giveawayCheckboxProvider').addEventListener('change', function() {
-        document.getElementById('giveawayLnProvider').parentElement.style.display = this.checked ? 'flex' : 'none';
-    });
-}
-
-async function submitGiveawayProvider(uid, displayName) {
-    var checkbox = document.getElementById('giveawayCheckboxProvider');
-    var lnInput = document.getElementById('giveawayLnProvider');
-    var lnAddress = lnInput ? lnInput.value.trim() : '';
-
-    if (checkbox && checkbox.checked) {
-        if (!lnAddress) {
-            if (lnInput) lnInput.style.borderColor = '#ef4444';
-            showToast('⚡ Please enter a Lightning address!');
-            return;
-        }
-        // Save giveaway entry
-        try {
-            await db.collection('users').doc(uid).update({
-                lightningAddress: lnAddress,
-                giveaway: {
-                    entered: true,
-                    lightningAddress: lnAddress,
-                    enteredAt: new Date().toISOString()
-                }
-            });
-            if (typeof currentUser !== 'undefined' && currentUser) currentUser.lightningAddress = lnAddress;
-            await db.collection('giveaway_entries').doc(uid).set({
-                username: displayName,
-                lightningAddress: lnAddress,
-                enteredAt: firebase.firestore.FieldValue.serverTimestamp(),
-                uid: uid
-            });
-            showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!');
-        } catch(e) {
-            console.log('Giveaway save error:', e);
-        }
-    }
-
-    hideUsernamePrompt();
-    showToast('✅ Signed in as ' + displayName);
-    var banner = document.getElementById('giveawayBanner');
-    if (banner) banner.style.display = 'none';
 }
 
 // Returning user: send magic link to sign back in
@@ -1574,22 +1484,7 @@ function updateAuthButton() {
         guestBanner.style.display = 'none';
     }
 
-    // Update giveaway banner for signed-in users
-    var giveawayBanner = document.getElementById('giveawayBanner');
-    if (giveawayBanner && _authBtnSignedIn) {
-        var hasGiveaway = currentUser && currentUser.giveaway;
-        if (hasGiveaway) {
-            giveawayBanner.innerHTML =
-                '<div style="position:absolute;top:-20px;right:-20px;font-size:5rem;opacity:0.15;pointer-events:none;">⚡</div>' +
-                '<div style="font-size:1.8rem;margin-bottom:6px;">🎉 25,000 SATS GIVEAWAY 🎉</div>' +
-                '<div style="color:rgba(255,255,255,0.95);font-size:1rem;font-weight:600;">You\'re entered! Good luck! 🍀</div>' +
-                '<div style="display:inline-block;margin-top:12px;padding:10px 24px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.5);border-radius:10px;color:#fff;font-weight:700;font-size:0.95rem;letter-spacing:0.5px;">✅ Entered</div>';
-            giveawayBanner.onclick = function() { showSettings(); };
-        } else {
-            giveawayBanner.querySelector('div:last-child') && (giveawayBanner.querySelector('div:last-child').textContent = '⚙️ View Your Profile →');
-            giveawayBanner.onclick = function() { showSettings(); };
-        }
-    }
+
 }
 
 // Sanitize user input — strip HTML tags and dangerous chars
@@ -1649,7 +1544,7 @@ function containsProfanity(str) {
     return false;
 }
 
-async function createUser(username, email, enteredGiveaway, giveawayLnAddress, country) {
+async function createUser(username, email, enteredGiveaway, giveawayLnAddress, country) { // giveaway params kept for call-site compat, no longer used
     // Wait for auth to be ready if not yet
     if (typeof auth === 'undefined' || !auth) {
         showToast('⏳ Loading... please try again in a moment.');
@@ -1707,24 +1602,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     if (country) userData.country = country;
     // Faction choice from signup
     if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
-    if (enteredGiveaway && giveawayLnAddress) {
-        userData.lightningAddress = giveawayLnAddress;
-        userData.giveaway = {
-            entered: true,
-            lightningAddress: giveawayLnAddress,
-            enteredAt: new Date().toISOString()
-        };
-        // Also save to a separate giveaway collection for easy admin access
-        try {
-            await db.collection('giveaway_entries').doc(uid).set({
-                username: username,
-                lightningAddress: giveawayLnAddress,
-                email: email || null,
-                enteredAt: firebase.firestore.FieldValue.serverTimestamp(),
-                uid: uid
-            });
-        } catch(e) { console.log('Giveaway entry save error:', e); }
-    }
+
     await db.collection('users').doc(uid).set(userData);
     // Increment global registered user count
     try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
@@ -1745,9 +1623,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
             setTimeout(function() { showGuide(); }, 800);
         }
     } catch(e) {}
-    // Hide giveaway banner after registration
-    var banner = document.getElementById('giveawayBanner');
-    if (banner) banner.style.display = 'none';
+
 
     // Attach referral if user came via referral link
     if (typeof attachReferral === 'function') attachReferral(uid);
@@ -2358,9 +2234,7 @@ function _checkCapOnLoad() {
 
 function updateRankUI() {
     if (!currentUser) return;
-    // Hide giveaway banner for existing users
-    var gBanner = document.getElementById('giveawayBanner');
-    if (gBanner && currentUser.username) gBanner.style.display = 'none';
+
     const lv = getLevel(currentUser.points || 0);
 
     // PERSISTENCE FIX: Ensure we don't celebrate 0 -> current on load
@@ -2547,7 +2421,7 @@ function updateUserDisplay(lv) {
                     if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:var(--text-muted);text-decoration:none;font-weight:700;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
                     return s + '</div>';
                 })() +
-                (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep XP & enter giveaway!</div>' : '') +
+                (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep your XP!</div>' : '') +
             '</div>' +
             (!_isMob ? '<div id="notifBellPlaceholder" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;"></div>' : '') +
             (!_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 12px;border-radius:8px;font-weight:900;font-size:0.65rem;white-space:nowrap;cursor:pointer;">SIGN UP</div>' : '') +
@@ -3280,12 +3154,11 @@ window.showSignInOnly = function() {
     setTimeout(function() {
         var box = modal.querySelector('.username-box');
         if (!box) return;
-        // Hide: h2, first p, username input, email input, email note, giveaway section, Start Learning button
+        // Hide: h2, first p, username input, email input, email note, Start Learning button
         var h2 = box.querySelector('h2');
         var firstP = box.querySelector('p');
         var usernameInput = document.getElementById('usernameInput');
         var emailInput = document.getElementById('emailInput');
-        var giveawaySection = document.getElementById('giveawaySection');
         var submitBtn = box.querySelector('button[onclick="submitUsername()"]');
 
         // Find the email note (p after emailInput)
@@ -3296,12 +3169,7 @@ window.showSignInOnly = function() {
         if (firstP) firstP.style.display = 'none';
         if (usernameInput) usernameInput.style.display = 'none';
         if (emailInput) emailInput.style.display = 'none';
-        if (giveawaySection) giveawaySection.style.display = 'none';
         if (submitBtn) submitBtn.style.display = 'none';
-
-        // Also hide the giveaway script checkbox handler
-        var giveawayScript = giveawaySection ? giveawaySection.nextElementSibling : null;
-        if (giveawayScript && giveawayScript.tagName === 'SCRIPT') giveawayScript.style.display = 'none';
 
         // Add a sign-in header
         var signInHeader = document.getElementById('signInOnlyHeader');
@@ -3356,7 +3224,6 @@ window._restoreSignUpForm = function() {
     var firstP = box.querySelector('p');
     var usernameInput = document.getElementById('usernameInput');
     var emailInput = document.getElementById('emailInput');
-    var giveawaySection = document.getElementById('giveawaySection');
     var submitBtn = box.querySelector('button[onclick="submitUsername()"]');
     var emailNote = emailInput ? emailInput.nextElementSibling : null;
     if (emailNote && emailNote.tagName === 'P') emailNote.style.display = '';
@@ -3365,7 +3232,6 @@ window._restoreSignUpForm = function() {
     if (firstP) firstP.style.display = '';
     if (usernameInput) usernameInput.style.display = '';
     if (emailInput) emailInput.style.display = '';
-    if (giveawaySection) giveawaySection.style.display = '';
     if (submitBtn) submitBtn.style.display = '';
 
     // Restore email sign in label
@@ -4457,7 +4323,7 @@ function showSettingsPage(tab) {
                 '🎡 <strong>Spin reminders</strong> — a couple times a week, never daily<br>' +
                 '🔥 <strong>Streak alerts</strong> — don\'t lose your streak!<br>' +
                 '📰 <strong>New content</strong> — when we add major new topics<br>' +
-                '🏆 <strong>Giveaway alerts</strong> — never miss a sats giveaway<br><br>' +
+                 +
                 '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
             '</div>' +
             '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
@@ -5499,7 +5365,7 @@ window.minimizeSignUpBanner = function() {
 };
 
 function clearUserLocalStorage() {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_giveaway'];
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username'];
     var toRemove = [];
     for (var i = 0; i < localStorage.length; i++) {
         var key = localStorage.key(i);
@@ -5562,17 +5428,8 @@ window.submitUsername = async function() {
             signupCountryEl.focus();
             return;
         }
-        var giveawayCheckbox = document.getElementById('giveawayCheckbox');
-        var giveawayLn = document.getElementById('giveawayLnAddress');
-        var enteredGiveaway = giveawayCheckbox && giveawayCheckbox.checked;
-        var lnAddress = giveawayLn ? giveawayLn.value.trim() : '';
-
-        // Require Lightning address if giveaway is checked
-        if (enteredGiveaway && !lnAddress) {
-            if (giveawayLn) { giveawayLn.style.borderColor = '#ef4444'; giveawayLn.focus(); }
-            showToast('⚡ Enter a Lightning address to enter the giveaway, or uncheck the box to skip.');
-            return;
-        }
+        var enteredGiveaway = false;
+        var lnAddress = '';
 
         if (email) {
             // Email provided — send magic link for verification
@@ -5580,9 +5437,6 @@ window.submitUsername = async function() {
             if (sent) {
                 localStorage.setItem('btc_pending_username', name);
                 localStorage.setItem('btc_pending_email', email);
-                if (enteredGiveaway && lnAddress) {
-                    localStorage.setItem('btc_pending_giveaway', lnAddress);
-                }
                 showToast('📧 Check your email for a verification link!');
                 hideUsernamePrompt();
                 // Also create the anonymous user immediately so they can start using the site
