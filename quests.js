@@ -58,14 +58,14 @@ const QUESTION_BANK = {
     'secure_pt2': [
         { q: 'Bitcoin uses which hashing algorithm?', a: 'SHA-256', wrong: ['MD5', 'RSA', 'AES'] },
         { q: 'The cost to attack Bitcoin\'s network is:', a: 'Billions of dollars', wrong: ['A few hundred dollars', 'Free', 'A few thousand dollars'] },
-        { q: 'What is Bitcoin\'s uptime percentage since launch in 2009?', a: 'Over 99.98% — virtually no downtime', wrong: ['About 95%', 'Around 80% due to attacks', '100% with zero interruptions'] },
+        { q: 'What is Bitcoin\'s uptime percentage since launch in 2009?', a: 'Over 99.98% - virtually no downtime', wrong: ['About 95%', 'Around 80% due to attacks', '100% with zero interruptions'] },
         { q: 'Why does higher hashrate make Bitcoin more secure?', a: 'More computational power means an attacker needs proportionally more resources to overpower the network', wrong: ['Higher hashrate makes transactions free', 'It allows more coins to be mined', 'It reduces the block time to seconds'] },
         { q: 'What makes a 51% attack on Bitcoin impractical?', a: 'The enormous cost of acquiring more mining power than all honest miners combined', wrong: ['The government protects Bitcoin', 'Satoshi can reverse any attack', 'Bitcoin uses a firewall'] },
     ],
 
     'money': [
         { q: 'How many satoshis are in one Bitcoin?', a: '100,000,000', wrong: ['1,000,000', '1,000', '10,000'] },
-        { q: 'Bitcoin payments are compared to:', a: 'Email — anyone with your address can send', wrong: ['Fax machines', 'Phone calls', 'Physical mail'] },
+        { q: 'Bitcoin payments are compared to:', a: 'Email - anyone with your address can send', wrong: ['Fax machines', 'Phone calls', 'Physical mail'] },
         { q: 'Bitcoin\'s distribution was fair because:', a: 'There was no premine', wrong: ['A company sold coins early', 'The government distributed it', 'Only miners got coins'] },
         { q: 'A satoshi is named after:', a: 'Bitcoin\'s creator, Satoshi Nakamoto', wrong: ['A Japanese emperor', 'A type of sushi', 'A programming language'] },
         { q: 'Bitcoin is divisible to how many decimal places?', a: '8', wrong: ['2', '4', '16'] },
@@ -74,14 +74,14 @@ const QUESTION_BANK = {
     'money_pt2': [
         { q: 'Bitcoin can function as:', a: 'A store of value, medium of exchange, and unit of account', wrong: ['Only a store of value', 'Only for payments', 'Only for speculation'] },
         { q: 'What makes Bitcoin "sound money"?', a: 'Fixed supply and predictable issuance', wrong: ['Government backing', 'Bank guarantees', 'Corporate ownership'] },
-        { q: 'Which property of money does Bitcoin\'s 21 million cap satisfy?', a: 'Scarcity — it cannot be inflated or debased', wrong: ['Acceptability — everyone must use it', 'Portability — it weighs nothing', 'Cognizability — it looks like gold'] },
+        { q: 'Which property of money does Bitcoin\'s 21 million cap satisfy?', a: 'Scarcity - it cannot be inflated or debased', wrong: ['Acceptability - everyone must use it', 'Portability - it weighs nothing', 'Cognizability - it looks like gold'] },
         { q: 'Why are satoshis important for Bitcoin as money?', a: 'They allow micropayments and make Bitcoin divisible enough for everyday transactions', wrong: ['They increase the total supply', 'They are a separate cryptocurrency', 'They can only be used on Lightning'] },
         { q: 'What gives Bitcoin its monetary value according to Austrian economics?', a: 'Subjective value from its useful properties: scarcity, portability, divisibility, and censorship resistance', wrong: ['Government decree', 'Gold backing', 'The electricity used to mine it'] },
     ],
 
     'peaceful': [
         { q: 'When China banned Bitcoin:', a: 'Bitcoin just moved and kept going', wrong: ['Bitcoin shut down', 'The price went to zero', 'The code was deleted'] },
-        { q: 'Bitcoin is described as:', a: 'Permissionless and borderless', wrong: ['Government-regulated', 'Country-specific', 'Requiring a bank account'] },
+        { q: 'What happened to Bitcoin transactions during the 2021 China mining ban?', a: 'The network kept running - hash rate dipped then recovered within months', wrong: ['Bitcoin transactions stopped for several weeks', 'Bitcoin price permanently crashed to zero', 'The protocol forked to remove Chinese miners'] },
         { q: 'Bitcoin enables protest by:', a: 'Allowing people to transact without government permission', wrong: ['Sending angry emails', 'Blocking websites', 'Hacking banks'] },
         { q: 'Bitcoin is called "peaceful" because:', a: 'It opts out of the existing system without force', wrong: ['It prevents all crime', 'It eliminates wars', 'It makes everyone rich'] },
         { q: 'Bitcoin helps people in authoritarian regimes by:', a: 'Providing censorship-resistant money', wrong: ['Overthrowing governments', 'Hacking military systems', 'Printing local currency'] },
@@ -90,7 +90,7 @@ const QUESTION_BANK = {
     'peaceful_pt2': [
         { q: 'Bitcoin adoption is described as:', a: 'Voluntary and organic', wrong: ['Mandatory and forced', 'Government-mandated', 'Corporate-controlled'] },
         { q: 'How does Bitcoin function as a peaceful protest tool?', a: 'It allows people to opt out of inflationary monetary systems without violence', wrong: ['It funds protest organizations', 'It blocks government websites', 'It replaces voting systems'] },
-        { q: 'Why is Bitcoin described as "opt-in" money?', a: 'Nobody is forced to use it — participation is entirely voluntary', wrong: ['You must opt in through a bank', 'Governments assign Bitcoin to citizens', 'Mining is mandatory for users'] },
+        { q: 'Why is Bitcoin described as "opt-in" money?', a: 'Nobody is forced to use it - participation is entirely voluntary', wrong: ['You must opt in through a bank', 'Governments assign Bitcoin to citizens', 'Mining is mandatory for users'] },
         { q: 'How did Bitcoin help protestors in authoritarian regimes?', a: 'It allowed them to receive donations that could not be frozen by the government', wrong: ['It gave them free internet access', 'It replaced their national ID systems', 'It provided encrypted phone calls'] },
         { q: 'What makes Bitcoin "permissionless"?', a: 'Anyone can send, receive, or hold Bitcoin without needing approval from any authority', wrong: ['You need a license to own it', 'Only approved wallets can transact', 'Miners must approve each transaction manually'] },
     ],
@@ -100,7 +100,7 @@ const QUESTION_BANK = {
         { q: 'Bitcoin\'s growth pattern resembles:', a: 'A J-shaped curve', wrong: ['A straight line', 'A bell curve', 'A flat line'] },
         { q: 'Bitcoin is said to change you by:', a: 'Lowering your time preference', wrong: ['Making you rich instantly', 'Increasing spending', 'Nothing changes'] },
         { q: 'Bitcoin\'s market dominance refers to:', a: 'Its share of total cryptocurrency market cap', wrong: ['How many users it has', 'Its mining speed', 'Its block size'] },
-        { q: 'The Lindy Effect suggests Bitcoin:', a: 'Will last longer the longer it survives', wrong: ['Will die soon', 'Is a fad', 'Needs government support'] },
+        { q: 'Bitcoin\'s ∞/21M meme represents:', a: 'All the world\'s wealth eventually stored in a 21M coin supply', wrong: ['Bitcoin has infinite users', 'Mining never ends', 'There are infinite blockchains'] },
     ],
 
     'dominant_pt2': [
@@ -153,15 +153,15 @@ const QUESTION_BANK = {
 
     'mining_pt4': [
         { q: 'What happens when a miner finds a valid block hash?', a: 'They broadcast the block to the network, collect the block reward and transaction fees', wrong: ['They must wait for government approval before adding it', 'The block is sent to Satoshi for verification', 'All other miners must restart their hardware'] },
-        { q: 'Why does Bitcoin mining use so much energy?', a: 'Energy expenditure is what gives Bitcoin its security — it makes attacks prohibitively expensive', wrong: ['The code is poorly optimized', 'Miners are required to run 24/7 by law', 'Each transaction requires its own mining operation'] },
+        { q: 'Why does Bitcoin mining use so much energy?', a: 'Energy expenditure is what gives Bitcoin its security - it makes attacks prohibitively expensive', wrong: ['The code is poorly optimized', 'Miners are required to run 24/7 by law', 'Each transaction requires its own mining operation'] },
         { q: 'What is "hash rate" in Bitcoin mining?', a: 'The total computational power being used to process transactions and secure the network', wrong: ['The speed at which new coins are printed', 'The rate at which transactions are deleted', 'The number of miners currently online'] },
-        { q: 'What is "stranded energy" and why do Bitcoin miners seek it?', a: 'Energy produced in remote locations with no local demand — miners can monetize it at low cost', wrong: ['Energy that has been stored in batteries', 'Solar power generated at night', 'Electricity from decommissioned plants only'] },
+        { q: 'What is "stranded energy" and why do Bitcoin miners seek it?', a: 'Energy produced in remote locations with no local demand - miners can monetize it at low cost', wrong: ['Energy that has been stored in batteries', 'Solar power generated at night', 'Electricity from decommissioned plants only'] },
         { q: 'What is a mining "share" in a pool?', a: 'Proof that a miner contributed valid work toward finding a block, used to split rewards proportionally', wrong: ['A stock in the mining company', 'A partial Bitcoin sent to the miner', 'A vote on which transactions to include'] },
     ],
 
     'nodes': [
         { q: 'Running a node lets you:', a: 'Verify transactions independently', wrong: ['Mine Bitcoin', 'Print money', 'Control the network'] },
-        { q: '"Don\'t trust, verify" means:', a: 'Run your own node to check the truth', wrong: ['Trust your bank', 'Believe what others say', 'Ignore Bitcoin'] },
+        { q: 'What does it mean to say Bitcoin has "no leader"?', a: 'No single person or organization controls the protocol rules', wrong: ['Satoshi still runs it anonymously', 'The Bitcoin Foundation is in charge', 'Core developers vote on all changes'] },
         { q: 'A full node stores:', a: 'The entire blockchain history', wrong: ['Only your transactions', 'Just the latest block', 'Nothing'] },
         { q: 'How many Bitcoin nodes exist approximately?', a: 'Tens of thousands worldwide', wrong: ['Only 5', 'Exactly 21 million', 'One per country'] },
         { q: 'Running a node requires:', a: 'A regular computer with enough storage', wrong: ['A supercomputer', 'Government permission', 'A mining rig'] },
@@ -235,7 +235,7 @@ const QUESTION_BANK = {
         { q: 'When an exchange holds your Bitcoin:', a: 'You have an IOU, not actual Bitcoin', wrong: ['It\'s completely safe', 'You own it fully', 'The government insures it'] },
         { q: 'Cold storage means:', a: 'Keeping keys offline, disconnected from the internet', wrong: ['Storing Bitcoin in a freezer', 'A cold climate mining facility', 'An inactive exchange account'] },
         { q: 'A hardware wallet provides security by:', a: 'Keeping private keys on a dedicated device that never exposes them to the internet', wrong: ['Storing Bitcoin inside the physical device', 'Encrypting the blockchain so only you can read it', 'Requiring government approval for each transaction'] },
-        { q: 'If you lose your hardware wallet but have your seed phrase, you can:', a: 'Recover all your Bitcoin on a new wallet using the seed phrase', wrong: ['Nothing — the Bitcoin is permanently lost', 'Contact the wallet manufacturer for a replacement', 'File a claim with Bitcoin insurance'] },
+        { q: 'If you lose your hardware wallet but have your seed phrase, you can:', a: 'Recover all your Bitcoin on a new wallet using the seed phrase', wrong: ['Nothing - the Bitcoin is permanently lost', 'Contact the wallet manufacturer for a replacement', 'File a claim with Bitcoin insurance'] },
         { q: 'Multisig (multi-signature) wallets require:', a: 'Multiple keys to authorize a transaction (e.g., 2-of-3)', wrong: ['Multiple Bitcoin addresses to send from', 'Multiple confirmations from the same key', 'Multiple mining pools to verify'] },
     ],
 
@@ -243,7 +243,7 @@ const QUESTION_BANK = {
         { q: 'KYC stands for:', a: 'Know Your Customer', wrong: ['Keep Your Coins', 'Keys You Control', 'Knowledge Yields Crypto'] },
         { q: 'CoinJoin is used for:', a: 'Mixing transactions for privacy', wrong: ['Joining mining pools', 'Merging blockchains', 'Creating altcoins'] },
         { q: 'Non-KYC Bitcoin means:', a: 'Bitcoin acquired without identity verification', wrong: ['Stolen Bitcoin', 'Fake Bitcoin', 'Government Bitcoin'] },
-        { q: 'Bitcoin\'s blockchain is:', a: 'Public — anyone can see transactions', wrong: ['Completely private', 'Only visible to miners', 'Encrypted and hidden'] },
+        { q: 'Bitcoin\'s blockchain is:', a: 'Public - anyone can see transactions', wrong: ['Completely private', 'Only visible to miners', 'Encrypted and hidden'] },
         { q: 'Why do some people prefer non-KYC Bitcoin?', a: 'To maintain financial privacy', wrong: ['To pay lower fees', 'To mine faster', 'To get a better price'] },
     ],
 
@@ -264,7 +264,7 @@ const QUESTION_BANK = {
     ],
 
     'problems-of-money': [
-        { q: 'The Cantillon Effect describes:', a: 'Those closest to money printing benefit most', wrong: ['Bitcoin mining', 'The halving', 'Lightning fees'] },
+        { q: 'Why is inflation described as a "hidden tax"?', a: 'It silently erodes the purchasing power of savings without a formal vote', wrong: ['Governments secretly mine Bitcoin to fund spending', 'Banks charge secret fees on every transaction', 'Inflation only affects people who pay income taxes'] },
         { q: 'Fractional reserve banking means:', a: 'Banks hold only a fraction of deposits', wrong: ['Banks hold all deposits', 'Bitcoin is fractional', 'Miners keep fractions'] },
         { q: 'Inflation is often called:', a: 'A hidden tax on savings', wrong: ['A bonus for savers', 'A mining reward', 'A blockchain feature'] },
         { q: 'Fiat currency is backed by:', a: 'Government decree and trust', wrong: ['Gold reserves', 'Bitcoin', 'Real estate'] },
@@ -292,7 +292,7 @@ const QUESTION_BANK = {
         { q: 'A common Bitcoin investment strategy is:', a: 'Buy regularly and hold long-term', wrong: ['Day trade constantly', 'Sell every week', 'Only buy at the top'] },
         { q: 'HODL originated from:', a: 'A misspelled forum post saying "I AM HODLING"', wrong: ['A financial textbook', 'A government document', 'A bank term'] },
         { q: 'Bitcoin\'s 4-year cycle is often tied to:', a: 'The halving events', wrong: ['US elections', 'Solar cycles', 'Stock market seasons'] },
-        { q: 'The best time to buy Bitcoin according to Bitcoiners is:', a: 'Always — time in the market beats timing the market', wrong: ['Only at all-time highs', 'Only on Mondays', 'Only in December'] },
+        { q: 'The best time to buy Bitcoin according to Bitcoiners is:', a: 'Always - time in the market beats timing the market', wrong: ['Only at all-time highs', 'Only on Mondays', 'Only in December'] },
     ],
 
     'investment-strategy_pt2': [
@@ -323,21 +323,21 @@ const QUESTION_BANK = {
         { q: 'Elliptic curve cryptography is used for:', a: 'Generating Bitcoin key pairs', wrong: ['Mining blocks', 'Sending emails', 'Browsing the web'] },
         { q: 'What type of cryptography does Bitcoin use for digital signatures?', a: 'Elliptic Curve Digital Signature Algorithm (ECDSA) on the secp256k1 curve', wrong: ['RSA 2048-bit encryption', 'AES-256 symmetric encryption', 'Triple DES block cipher'] },
         { q: 'What is a hash function\'s role in Bitcoin?', a: 'It creates a fixed-size, unique digital fingerprint of any input data, used for block headers, addresses, and mining', wrong: ['It encrypts all Bitcoin transactions end-to-end', 'It compresses the blockchain to save space', 'It converts Bitcoin to other cryptocurrencies'] },
-        { q: 'Why can\'t you derive a private key from a public key?', a: 'Elliptic curve math is a one-way function — easy to compute forward, computationally infeasible to reverse', wrong: ['Because private keys are longer than public keys', 'Because the blockchain deletes private keys', 'Because Satoshi encrypted all key pairs'] },
-        { q: 'What does SHA-256 stand for and where is it used in Bitcoin?', a: 'Secure Hash Algorithm 256-bit — used in mining (proof of work) and creating transaction IDs', wrong: ['Super Hash Accelerator — used in wallet encryption only', 'Satoshi Hash Algorithm — used in signature verification', 'Shared Hash Array — used in peer-to-peer networking'] },
+        { q: 'Why can\'t you derive a private key from a public key?', a: 'Elliptic curve math is a one-way function - easy to compute forward, computationally infeasible to reverse', wrong: ['Because private keys are longer than public keys', 'Because the blockchain deletes private keys', 'Because Satoshi encrypted all key pairs'] },
+        { q: 'What does SHA-256 stand for and where is it used in Bitcoin?', a: 'Secure Hash Algorithm 256-bit - used in mining (proof of work) and creating transaction IDs', wrong: ['Super Hash Accelerator - used in wallet encryption only', 'Satoshi Hash Algorithm - used in signature verification', 'Shared Hash Array - used in peer-to-peer networking'] },
     ],
 
     'regulation': [
         { q: 'Bitcoin\'s response to bans has been:', a: 'Moving to friendlier jurisdictions', wrong: ['Shutting down', 'Complying immediately', 'Becoming illegal forever'] },
         { q: 'El Salvador made Bitcoin:', a: 'Legal tender in 2021', wrong: ['Illegal in 2020', 'A national secret', 'Only for tourists'] },
-        { q: 'Bitcoin regulation varies by:', a: 'Country — each has different rules', wrong: ['There are no rules anywhere', 'One global law covers it', 'Bitcoin regulates itself'] },
+        { q: 'Bitcoin regulation varies by:', a: 'Country - each has different rules', wrong: ['There are no rules anywhere', 'One global law covers it', 'Bitcoin regulates itself'] },
         { q: 'A Bitcoin ETF allows:', a: 'Traditional investors to get Bitcoin exposure through stock markets', wrong: ['Free Bitcoin for everyone', 'Government-controlled mining', 'Printing new Bitcoin'] },
         { q: 'The SEC has classified Bitcoin as:', a: 'A commodity, not a security', wrong: ['A security', 'A currency', 'Illegal'] },
     ],
 
     'regulation_pt2': [
         { q: 'What is a "Self-Custody" regulation attempt?', a: 'Rules that try to force users to use custodial services', wrong: ['Laws that guarantee free Bitcoin', 'Mining equipment safety standards', 'Bitcoin price caps'] },
-        { q: 'Can a government effectively ban Bitcoin?', a: 'They can restrict fiat on-ramps but cannot stop peer-to-peer transactions', wrong: ['Yes — turning off the internet kills Bitcoin permanently', 'Yes — all nodes can be identified and shut down simultaneously', 'No bans have ever been attempted by any country'] },
+        { q: 'Can a government effectively ban Bitcoin?', a: 'They can restrict fiat on-ramps but cannot stop peer-to-peer transactions', wrong: ['Yes - turning off the internet kills Bitcoin permanently', 'Yes - all nodes can be identified and shut down simultaneously', 'No bans have ever been attempted by any country'] },
         { q: 'China has banned Bitcoin mining multiple times, yet:', a: 'Miners relocated and the network hash rate recovered within months', wrong: ['Bitcoin permanently lost 50% of its value', 'All Chinese Bitcoin was confiscated', 'The Bitcoin network was offline for weeks'] },
         { q: 'How is Bitcoin classified for tax purposes in most jurisdictions?', a: 'As property or a capital asset, meaning gains are subject to capital gains tax', wrong: ['As currency, exempt from all taxes', 'As a commodity with no reporting requirements', 'As digital cash with no tax implications'] },
         { q: 'What does the "Travel Rule" require for crypto transactions?', a: 'Regulated exchanges must share sender and receiver identity information for transfers above a threshold', wrong: ['Users must physically travel to an exchange to withdraw', 'Bitcoin can only be sent within your home country', 'Miners must verify passport numbers for each block'] },
@@ -353,15 +353,15 @@ const QUESTION_BANK = {
 
     'energy_pt2': [
         { q: 'Methane flaring and Bitcoin mining:', a: 'Miners can capture and use flared gas productively', wrong: ['They are unrelated', 'Mining increases flaring', 'Flaring powers all mining'] },
-        { q: 'Bitcoin mining primarily uses which type of energy?', a: 'Over 50% renewable — often stranded or wasted energy', wrong: ['100% coal and natural gas', 'Nuclear power exclusively', 'Solar panels attached to mining rigs'] },
+        { q: 'Bitcoin mining primarily uses which type of energy?', a: 'Over 50% renewable - often stranded or wasted energy', wrong: ['100% coal and natural gas', 'Nuclear power exclusively', 'Solar panels attached to mining rigs'] },
         { q: 'Bitcoin mining can actually help the environment by:', a: 'Monetizing flared methane that would otherwise be released into the atmosphere', wrong: ['Reducing the total electricity consumed worldwide', 'Creating new renewable energy out of thin air', 'Cooling the planet through heat dissipation'] },
         { q: 'How do Bitcoin miners contribute to grid stability?', a: 'They can instantly power down during peak demand, acting as flexible load that balances the grid', wrong: ['They generate excess electricity for the grid', 'They replace power plants entirely', 'They only mine during off-peak hours by law'] },
-        { q: 'What percentage of Bitcoin mining uses renewable energy sources according to recent estimates?', a: 'Over 50% and growing, driven by miners seeking the cheapest energy', wrong: ['Less than 5%', 'Exactly 100% — all mining is renewable', 'About 10%, mostly nuclear'] },
+        { q: 'What percentage of Bitcoin mining uses renewable energy sources according to recent estimates?', a: 'Over 50% and growing, driven by miners seeking the cheapest energy', wrong: ['Less than 5%', 'Exactly 100% - all mining is renewable', 'About 10%, mostly nuclear'] },
     ],
 
     'core-source-code': [
         { q: 'Changes to Bitcoin Core require:', a: 'Careful testing and peer review', wrong: ['One person\'s approval', 'A company decision', 'Government permission'] },
-        { q: 'Bitcoin Core is written primarily in:', a: 'C++', wrong: ['Python', 'JavaScript', 'Java'] },
+        { q: 'What is a Bitcoin Improvement Proposal (BIP)?', a: 'A formal document proposing changes or standards for the Bitcoin protocol', wrong: ['A government bill regulating Bitcoin', 'A mining pool reward-sharing scheme', 'An exchange listing application form'] },
         { q: 'Anyone can:', a: 'Read, review, and propose changes to Bitcoin\'s code', wrong: ['Change Bitcoin without review', 'Delete the blockchain', 'Add more coins'] },
         { q: 'A BIP is:', a: 'A Bitcoin Improvement Proposal', wrong: ['A Bitcoin Investment Plan', 'A Block Information Protocol', 'A Banking Integration Process'] },
         { q: 'Bitcoin\'s code repository is hosted on:', a: 'GitHub', wrong: ['Facebook', 'A secret server', 'The dark web'] },
@@ -388,7 +388,7 @@ const QUESTION_BANK = {
         { q: 'Bitcoin is often compared to:', a: 'Digital gold', wrong: ['Digital silver', 'Digital stocks', 'Digital bonds'] },
         { q: 'The Bitcoin network is sometimes compared to:', a: 'The internet protocol (TCP/IP)', wrong: ['A single website', 'A phone call', 'A TV channel'] },
         { q: 'Holding Bitcoin is compared to:', a: 'Holding property in cyberspace', wrong: ['Renting a movie', 'Subscribing to a service', 'Opening a bank account'] },
-        { q: 'Bitcoin is often compared to digital gold because both are scarce, durable, and serve as stores of value outside government control.', a: 'Digital gold', wrong: ['Digital cash', 'Digital silver', 'Digital oil'] },
+        { q: 'Nick Szabo\'s pre-Bitcoin proposal for digital scarce money was called:', a: 'Bit Gold', wrong: ['Digital Cash', 'E-Gold', 'Digi-Buck'] },
     ],
 
     'byzantine_generals__problem': [
@@ -404,7 +404,7 @@ const QUESTION_BANK = {
         { q: 'Miners are incentivized to be honest because:', a: 'Cheating costs more than playing by the rules', wrong: ['They sign contracts', 'The government watches them', 'There are no incentives'] },
         { q: 'Nash Equilibrium in Bitcoin means:', a: 'No participant benefits from changing their strategy alone', wrong: ['Everyone mines equally', 'Prices never change', 'All nodes are identical'] },
         { q: 'The prisoner\'s dilemma relates to Bitcoin because:', a: 'Cooperation is more profitable than defection', wrong: ['Miners are in prison', 'Bitcoin is illegal', 'Users are trapped'] },
-        { q: 'What game theory concept explains why Bitcoin miners are incentivized to stay honest rather than attack the network?', a: 'Nash equilibrium — attacking costs more than honest mining', wrong: ['Prisoner\\\'s dilemma', 'Zero-sum game', 'Pareto inefficiency'] },
+        { q: 'What game theory concept explains why Bitcoin miners are incentivized to stay honest rather than attack the network?', a: 'Nash equilibrium - attacking costs more than honest mining', wrong: ['Prisoner\\\'s dilemma', 'Zero-sum game', 'Pareto inefficiency'] },
     ],
 
     'elevator_pitches': [
@@ -436,7 +436,7 @@ const QUESTION_BANK = {
         { q: 'Bitcoin scales primarily through:', a: 'Layer 2 solutions like Lightning', wrong: ['Making blocks bigger forever', 'Removing the block limit', 'Using faster internet'] },
         { q: 'The block size limit exists to:', a: 'Keep node requirements low and maintain decentralization', wrong: ['Slow down transactions', 'Limit Bitcoin\'s value', 'Help miners make more money'] },
         { q: 'The Blocksize Wars were about:', a: 'Whether to increase block size or use Layer 2', wrong: ['Mining profitability', 'Bitcoin\'s name', 'Which exchange to use'] },
-        { q: 'Bitcoin\'s block size is limited to approximately:', a: '1-4 MB (with SegWit)', wrong: ['100 MB', 'Unlimited — it grows with demand', '1 KB'] },
+        { q: 'Bitcoin\'s block size is limited to approximately:', a: '1-4 MB (with SegWit)', wrong: ['100 MB', 'Unlimited - it grows with demand', '1 KB'] },
     ],
 
     'scalability_pt2': [
@@ -452,7 +452,7 @@ const QUESTION_BANK = {
         { q: 'A UTXO is like:', a: 'A specific bill in your wallet that you spend whole', wrong: ['A bank balance', 'A credit limit', 'An account number'] },
         { q: 'When you spend a UTXO:', a: 'It\'s consumed entirely and change is returned as a new UTXO', wrong: ['Part of it disappears', 'It stays in your wallet', 'It\'s deleted from the blockchain'] },
         { q: 'UTXO management matters for:', a: 'Privacy and minimizing future transaction fees', wrong: ['Mining speed', 'Block creation', 'Node operation'] },
-        { q: 'What is a UTXO in Bitcoin?', a: 'Unspent Transaction Output — the amount of bitcoin remaining after a transaction', wrong: ['A type of digital signature', 'A mining reward token', 'A user transaction ID'] },
+        { q: 'What is a UTXO in Bitcoin?', a: 'Unspent Transaction Output - the amount of bitcoin remaining after a transaction', wrong: ['A type of digital signature', 'A mining reward token', 'A user transaction ID'] },
     ],
 
     'dust': [
@@ -499,7 +499,7 @@ const QUESTION_BANK = {
         { q: 'The Blocksize Wars resulted in:', a: 'Bitcoin Cash splitting off as a hard fork while Bitcoin kept small blocks + SegWit', wrong: ['Bitcoin doubling its block size to 2 MB', 'All miners switching to Bitcoin Cash', 'The creation of Ethereum'] },
         { q: 'What is a soft fork in Bitcoin?', a: 'A backward-compatible protocol upgrade where old nodes still accept new blocks', wrong: ['A complete restart of the blockchain', 'A split that creates a new cryptocurrency', 'An update that requires all nodes to upgrade immediately'] },
         { q: 'What is a hard fork?', a: 'A non-backward-compatible change that requires all nodes to upgrade or they\'ll follow a different chain', wrong: ['A bug fix that doesn\'t change consensus rules', 'A minor update to wallet software', 'A temporary network outage'] },
-        { q: 'What was the Bitcoin Cash (BCH) hard fork about?', a: 'A disagreement over scaling — BCH proponents wanted larger blocks while Bitcoin kept the 1 MB base limit with SegWit', wrong: ['A dispute over who created Bitcoin', 'A fix for a critical security bug', 'A change to Bitcoin\'s monetary policy'] },
+        { q: 'What was the Bitcoin Cash (BCH) hard fork about?', a: 'A disagreement over scaling - BCH proponents wanted larger blocks while Bitcoin kept the 1 MB base limit with SegWit', wrong: ['A dispute over who created Bitcoin', 'A fix for a critical security bug', 'A change to Bitcoin\'s monetary policy'] },
         { q: 'Why are soft forks generally preferred over hard forks for Bitcoin upgrades?', a: 'They maintain backward compatibility, don\'t force upgrades, and don\'t risk splitting the network', wrong: ['They are faster to implement', 'They don\'t require any code changes', 'Hard forks are illegal in most countries'] },
     ],
 
@@ -547,16 +547,16 @@ const QUESTION_BANK = {
         { q: 'Satoshi Nakamoto:', a: 'Stepped down and disappeared', wrong: ['Is currently the CEO of Bitcoin', 'Was arrested', 'Sold all Bitcoin'] },
         { q: 'Satoshi\'s last known communication was around:', a: '2011', wrong: ['2020', '2015', '2009'] },
         { q: 'Satoshi\'s Bitcoin holdings are estimated at:', a: 'About 1 million BTC that have never moved', wrong: ['Zero', '100 BTC', 'All 21 million'] },
-        { q: 'Satoshi\'s disappearance is seen as:', a: 'A feature — it made Bitcoin truly decentralized', wrong: ['A bug', 'A crime', 'A marketing strategy'] },
-        { q: 'Satoshi\'s true identity is:', a: 'Unknown — it could be one person or a group', wrong: ['Confirmed to be Elon Musk', 'A CIA agent', 'The President'] },
+        { q: 'Satoshi\'s disappearance is seen as:', a: 'A feature - it made Bitcoin truly decentralized', wrong: ['A bug', 'A crime', 'A marketing strategy'] },
+        { q: 'Satoshi\'s true identity is:', a: 'Unknown - it could be one person or a group', wrong: ['Confirmed to be Elon Musk', 'A CIA agent', 'The President'] },
     ],
 
     'satoshi-nakamoto_pt2': [
         { q: 'Why is it important that Satoshi Nakamoto disappeared?', a: 'Bitcoin has no leader who can be arrested, corrupted, or pressured', wrong: ['Because they were wanted by law enforcement', 'So they could secretly accumulate more Bitcoin', 'Because the code was finished and needed no more work'] },
         { q: 'What evidence suggests Satoshi Nakamoto was likely one person rather than a team?', a: 'Consistent writing style, coding patterns, and posting times across years of activity', wrong: ['A signed confession published on the Bitcoin Talk forum', 'DNA evidence found on the original Bitcoin server hardware', 'A government investigation that confirmed a single identity'] },
         { q: 'When did Satoshi Nakamoto stop posting publicly?', a: 'Around December 2010, with a final known post in April 2011', wrong: ['January 2009 right after launching Bitcoin', 'They never stopped and still post today', 'In 2015 during the block size debate'] },
-        { q: 'How many Bitcoin did Satoshi Nakamoto reportedly mine?', a: 'Approximately 1 million BTC based on analysis of early mining patterns', wrong: ['Exactly 21 million (the entire supply)', 'Zero — Satoshi never mined', 'About 100 BTC from the genesis block only'] },
-        { q: 'What famous message did Satoshi embed in the Bitcoin genesis block?', a: '"The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"', wrong: ['"Hello World — Bitcoin is born"', '"In code we trust"', '"The revolution will not be centralized"'] },
+        { q: 'How many Bitcoin did Satoshi Nakamoto reportedly mine?', a: 'Approximately 1 million BTC based on analysis of early mining patterns', wrong: ['Exactly 21 million (the entire supply)', 'Zero - Satoshi never mined', 'About 100 BTC from the genesis block only'] },
+        { q: 'What famous message did Satoshi embed in the Bitcoin genesis block?', a: '"The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"', wrong: ['"Hello World - Bitcoin is born"', '"In code we trust"', '"The revolution will not be centralized"'] },
     ],
 
     'history': [
@@ -576,7 +576,7 @@ const QUESTION_BANK = {
     ],
 
     '_general': [
-        { q: 'What is the smallest unit of Bitcoin called?', a: 'A satoshi', wrong: ['A bit', 'A wei', 'A penny'] },
+        { q: 'One Bitcoin equals how many satoshis?', a: '100,000,000 (one hundred million)', wrong: ['1,000,000', '10,000,000', '1,000,000,000'] },
         { q: 'Bitcoin was launched in which year?', a: '2009', wrong: ['2008', '2010', '2012'] },
         { q: 'Bitcoin transactions are recorded on:', a: 'A public distributed ledger', wrong: ['A private server', 'A bank database', 'An email chain'] },
         { q: 'Who can send you Bitcoin?', a: 'Anyone who knows your address', wrong: ['Only your bank', 'Only verified users', 'Only people in your country'] },
@@ -607,17 +607,17 @@ const QUESTION_BANK = {
         { q: 'A watch-only wallet lets you:', a: 'Monitor a balance without being able to spend', wrong: ['Mine Bitcoin', 'Create new coins', 'Edit the blockchain'] },
         { q: 'Pleb is a term of endearment in Bitcoin meaning:', a: 'An everyday Bitcoiner, not wealthy but committed', wrong: ['A professional trader', 'A mining executive', 'A government official'] },
         { q: 'What is the total number of satoshis that will ever exist?', a: '2.1 quadrillion (2,100,000,000,000,000)', wrong: ['21 million', '100 billion', '21 quadrillion'] },
-        { q: 'Bitcoin Pizza Day is celebrated on:', a: 'May 22', wrong: ['January 3', 'October 31', 'April 15'] },
+        { q: 'Bitcoin\'s first confirmed exchange rate (in 2010) was roughly:', a: '1,309 BTC per US dollar', wrong: ['1 BTC per US dollar', '100 BTC per US dollar', '0.01 BTC per US dollar'] },
         { q: 'The first Bitcoin exchange rate was established at approximately:', a: '$0.00099 per BTC (less than one penny)', wrong: ['$1.00 per BTC', '$0.10 per BTC', '$100 per BTC'] },
-        { q: 'HODL originated from:', a: 'A misspelled Bitcoin forum post from 2013 ("I AM HODLING")', wrong: ['An acronym created by a Bitcoin company', 'A Japanese word meaning "to hold"', 'A technical term in Bitcoin\'s source code'] },
+        { q: 'Dollar-cost averaging (DCA) into Bitcoin means:', a: 'Buying a fixed amount regularly regardless of price', wrong: ['Borrowing dollars to buy Bitcoin all at once', 'Selling Bitcoin when the dollar strengthens', 'Converting Bitcoin profits back into dollars'] },
         { q: 'The phrase "Not your keys, not your coins" warns against:', a: 'Keeping Bitcoin on exchanges where you don\'t control the private keys', wrong: ['Using physical Bitcoin coins instead of digital', 'Sharing your public key with other people', 'Using hardware wallets instead of software'] },
     ],
 
     'risks__threats__attack_vectors__weaknes': [
         { q: 'Which Bitcoin address type is better for quantum resistance?', a: 'SegWit (bc1q) because Taproot exposes the public key', wrong: ['Taproot (bc1p)', 'Legacy (1...)', 'All are equally vulnerable'] },
         { q: 'BIP 360 proposes:', a: 'Pay to Quantum Resistant Hash', wrong: ['Bigger blocks', 'Faster mining', 'New altcoin support'] },
-        { q: 'A 51% attack would require:', a: 'Controlling more than half of Bitcoin\'s total mining hash rate', wrong: ['Owning 51% of all existing Bitcoin', 'Having 51% of all Bitcoin nodes vote together', 'Hacking 51% of Bitcoin wallets simultaneously'] },
-        { q: 'Why is a 51% attack impractical against Bitcoin?', a: 'The hash rate is so massive it would cost billions and be unprofitable', wrong: ['Because Bitcoin automatically detects and blocks attacks', 'Because Satoshi built in a secret defense mechanism', 'Because only 21 mining pools exist worldwide'] },
+        { q: 'Why is a 51% attack economically irrational against Bitcoin?', a: 'The cost of acquiring that hash rate would far exceed any attainable reward', wrong: ['Because Bitcoin\'s code blocks it automatically', 'Because Satoshi holds 51% of hash rate as a safeguard', 'Because 51% of miners have agreed never to attack'] },
+        { q: 'What can a successful 51% attacker actually do to Bitcoin?', a: 'Double-spend their own recent transactions and block some new transactions', wrong: ['Create new Bitcoin out of thin air beyond the 21M cap', 'Steal coins from other users\' wallets', 'Delete the entire blockchain history'] },
         { q: 'Quantum computing threatens Bitcoin by potentially:', a: 'Breaking ECDSA signatures used to authorize spending', wrong: ['Mining all remaining Bitcoin in seconds', 'Deleting the entire blockchain', 'Creating unlimited new Bitcoin addresses'] },
     ],
 
@@ -625,12 +625,12 @@ const QUESTION_BANK = {
         { q: 'Ethereum\'s original sale page reveals that ETH was:', a: 'Pre-sold as a security to fund development', wrong: ['Mined fairly like Bitcoin', 'Distributed equally', 'Created by Satoshi'] },
         { q: 'What fundamental difference exists between Bitcoin and altcoins regarding decentralization?', a: 'Altcoin founders often hold large pre-mines or centralized control', wrong: ['Altcoins are too cheap', 'Bitcoin has better marketing', 'Altcoins use different blockchains'] },
         { q: 'Why do Bitcoiners say "there is no second best"?', a: 'No other crypto achieves Bitcoin\'s decentralization, security, and immutability', wrong: ['Bitcoin was the first, so it automatically wins', 'The SEC has declared all other cryptos illegal', 'Satoshi patented the blockchain concept'] },
-        { q: 'What is a "pre-mine" and why is it concerning?', a: 'Founders allocate coins to themselves before public launch — unfair distribution', wrong: ['A technique to speed up transaction processing', 'A security measure that protects the network', 'A method of testing the blockchain before launch'] },
+        { q: 'What is a "pre-mine" and why is it concerning?', a: 'Founders allocate coins to themselves before public launch - unfair distribution', wrong: ['A technique to speed up transaction processing', 'A security measure that protects the network', 'A method of testing the blockchain before launch'] },
         { q: 'Most altcoins are considered securities because:', a: 'They have identifiable teams profiting from token sales with promises of returns', wrong: ['They use the same code as Bitcoin', 'The SEC approves them as securities automatically', 'They are traded on stock exchanges'] },
     ],
 
     'smart-contracts': [
-        { q: 'Bitcoin\'s scripting language has supported smart contracts:', a: 'Since the beginning — Bitcoin always had them', wrong: ['Only after Taproot in 2021', 'Only after SegWit in 2017', 'Never — only Ethereum has them'] },
+        { q: 'Bitcoin\'s scripting language has supported smart contracts:', a: 'Since the beginning - Bitcoin always had them', wrong: ['Only after Taproot in 2021', 'Only after SegWit in 2017', 'Never - only Ethereum has them'] },
         { q: 'OP_RETURN is used in Bitcoin to:', a: 'Embed small amounts of data in transactions', wrong: ['Return sent Bitcoin', 'Cancel transactions', 'Mine faster'] },
         { q: 'What is Bitcoin\\\'s native scripting language called?', a: 'Bitcoin Script', wrong: ['Solidity', 'Python Script', 'JavaScript'] },
         { q: 'What does OP_RETURN allow users to do on Bitcoin?', a: 'Embed up to 80 bytes of arbitrary data in a transaction', wrong: ['Execute Ethereum-style smart contracts', 'Change transaction amounts', 'Create new bitcoins'] },
@@ -649,12 +649,12 @@ const QUESTION_BANK = {
         { q: 'BTCAccepted.org helps you find:', a: 'Businesses that accept Bitcoin payments', wrong: ['Mining pools', 'Lightning nodes', 'Altcoin exchanges'] },
         { q: 'Sats.host offers:', a: 'Bitcoin-powered static website hosting', wrong: ['Mining services', 'Cold storage', 'KYC verification'] },
         { q: 'What annual Bitcoin conference is often called "the Super Bowl of Bitcoin"?', a: 'Bitcoin Conference (formerly Miami/Bitcoin 2021)', wrong: ['Consensus', 'DevCon', 'ETHDenver'] },
-        { q: 'What is the significance of wearing an orange pill at Bitcoin conferences?', a: 'Signifies being "orange pilled" — awakened to Bitcoin\\\'s importance', wrong: ['Medical supplement promotion', 'Conference staff identifier', 'VIP pass indicator'] },
+        { q: 'What is the significance of wearing an orange pill at Bitcoin conferences?', a: 'Signifies being "orange pilled" - awakened to Bitcoin\\\'s importance', wrong: ['Medical supplement promotion', 'Conference staff identifier', 'VIP pass indicator'] },
         { q: 'What popular Bitcoin merchandise item satirizes central banking?', a: '"End the Fed" t-shirts and posters', wrong: ['Bitcoin gaming chairs', 'Satoshi action figures', 'Mining rig keychains'] },
     ],
 
     'apps-tools': [
-        { q: 'PPQ.ai lets you use AI models and pay with:', a: 'Bitcoin per prompt — no subscription needed', wrong: ['Monthly credit card subscription', 'Ethereum gas fees', 'Free but with ads'] },
+        { q: 'PPQ.ai lets you use AI models and pay with:', a: 'Bitcoin per prompt - no subscription needed', wrong: ['Monthly credit card subscription', 'Ethereum gas fees', 'Free but with ads'] },
         { q: 'Angor is a platform for:', a: 'Non-custodial Bitcoin crowdfunding', wrong: ['Bitcoin mining', 'Coin mixing', 'Hardware wallets'] },
         { q: 'What website provides real-time visualization of the Bitcoin mempool?', a: 'mempool.space', wrong: ['blockchain.com', 'coinmarketcap.com', 'bitcoincharts.com'] },
         { q: 'What popular hardware wallet supports both Bitcoin and Lightning?', a: 'Coldcard and BitBox02', wrong: ['PayPal Card', 'Venmo Wallet', 'Apple Pay'] },
@@ -673,14 +673,14 @@ const QUESTION_BANK = {
         { q: 'How often does Bitcoin\'s difficulty adjustment occur?', a: 'Every 2,016 blocks (approximately 2 weeks)', wrong: ['Every 1,000 blocks', 'Every month', 'Every day'] },
         { q: 'What does the difficulty adjustment ensure?', a: 'Blocks are found roughly every 10 minutes regardless of hash power changes', wrong: ['Transaction fees stay constant', 'Mining rewards increase', 'Block size adjusts automatically'] },
         { q: 'Bitcoin\'s difficulty adjusts every:', a: '2,016 blocks (roughly every 2 weeks)', wrong: ['Every single block', 'Once per year', 'Every 210,000 blocks (at each halving)'] },
-        { q: 'If miners leave the network, difficulty adjustment:', a: 'Lowers the difficulty so blocks are found at the target rate', wrong: ['Increases difficulty to punish remaining miners', 'Has no effect — blocks just take longer forever', 'Automatically doubles the block reward'] },
+        { q: 'If miners leave the network, difficulty adjustment:', a: 'Lowers the difficulty so blocks are found at the target rate', wrong: ['Increases difficulty to punish remaining miners', 'Has no effect - blocks just take longer forever', 'Automatically doubles the block reward'] },
         { q: 'The target time between Bitcoin blocks is approximately:', a: '10 minutes', wrong: ['1 minute', '1 hour', '30 seconds'] },
     ],
 
     'nostr': [
-        { q: 'Nostr is:', a: 'A decentralized social media protocol where no one controls content', wrong: ['A Bitcoin mining pool', 'A Lightning wallet', 'A blockchain explorer'] },
+        { q: 'What does the Nostr acronym stand for?', a: 'Notes and Other Stuff Transmitted by Relays', wrong: ['Network of Secured Transactions and Relays', 'New Open Source Transaction Relay', 'Node-Operated Social Trust Registry'] },
         { q: 'What makes Nostr unique from typical social media?', a: 'Your identity is uncensorable and no single entity controls the platform', wrong: ['It pays users in Bitcoin automatically', 'It only works on mobile', 'It requires KYC verification'] },
-        { q: 'Nostr is best described as:', a: 'A decentralized social protocol that cannot be censored', wrong: ['A Bitcoin wallet application', 'A new cryptocurrency competing with Bitcoin', 'An encrypted messaging app owned by a company'] },
+        { q: 'What is a NIP in the Nostr ecosystem?', a: 'A Nostr Implementation Possibility - a protocol specification for how clients and relays behave', wrong: ['A Nostr Identity Protocol used to register usernames', 'An encryption standard for private Nostr messages', 'A fee charged to publish on premium Nostr relays'] },
         { q: 'Nostr uses cryptographic keys to:', a: 'Allow users to own their identity without a central authority', wrong: ['Mine new coins on the Nostr blockchain', 'Encrypt all messages so no one can read them', 'Create smart contracts between users'] },
         { q: 'How is Nostr connected to Bitcoin?', a: 'Many clients integrate Lightning for tips and payments', wrong: ['Nostr runs on the Bitcoin blockchain directly', 'You must own Bitcoin to create a Nostr account', 'Nostr mining validates Bitcoin transactions'] },
     ],
@@ -688,7 +688,7 @@ const QUESTION_BANK = {
     'network_effects': [
         { q: 'Bitcoin\'s network effect means:', a: 'Each new user increases the value and utility for all existing users', wrong: ['The internet gets faster', 'Mining gets easier', 'Fees decrease to zero'] },
         { q: 'Why is Bitcoin\'s network effect considered a strong moat?', a: 'It creates a self-reinforcing cycle of liquidity, security, and adoption that competitors cannot easily replicate', wrong: ['Because Bitcoin has patents', 'Because the government protects it', 'Because the code is encrypted'] },
-        { q: 'What economic principle explains Bitcoin\\\'s value increasing as more people use it?', a: 'Metcalfe\\\'s Law — network value proportional to connected users squared', wrong: ['Moore\\\'s Law', 'Murphy\\\'s Law', 'Pareto Principle'] },
+        { q: 'What economic principle explains Bitcoin\\\'s value increasing as more people use it?', a: 'Metcalfe\\\'s Law - network value proportional to connected users squared', wrong: ['Moore\\\'s Law', 'Murphy\\\'s Law', 'Pareto Principle'] },
         { q: 'Metcalfe\'s Law applied to Bitcoin suggests:', a: 'Its value grows proportionally to the square of its users', wrong: ['The price will always increase linearly', 'Only the first users receive any benefit', 'Network effects only apply to social media'] },
         { q: 'What is the flywheel effect in Bitcoin adoption?', a: 'More users attract more developers, merchants, and infrastructure, which attracts even more users', wrong: ['Mining gets easier as more people join', 'Transaction fees decrease as the network grows', 'Bitcoin price always goes up with more users'] },
     ],
@@ -718,11 +718,11 @@ const QUESTION_BANK = {
     ],
 
     'the_future': [
-        { q: 'Hyperbitcoinization refers to:', a: 'Mass voluntary adoption of Bitcoin as the dominant form of money', wrong: ['A Bitcoin price crash', 'A government mandate to use Bitcoin', 'A technical upgrade to the protocol'] },
+        { q: 'What hypothetical event do Bitcoiners call "hyperbitcoinization"?', a: 'A voluntary tipping point where Bitcoin displaces fiat as the world\'s dominant money', wrong: ['A government-mandated switch to Bitcoin', 'A hard fork that increases the 21M supply cap', 'A major exchange hack causing mass adoption'] },
         { q: 'Bitcoin is described as \'generational wealth\' because:', a: 'Its fixed supply and growing adoption may increase its value over decades', wrong: ['Only older people can buy it', 'It expires after one generation', 'Banks guarantee its value for 100 years'] },
-        { q: 'What is hyperbitcoinization?', a: 'The hypothetical point where Bitcoin becomes the world\\\'s dominant form of money', wrong: ['Overheating of mining equipment', 'Excessive Bitcoin advertising', 'A type of Bitcoin hack'] },
+        { q: 'What is the "digital scarcity" argument for Bitcoin\'s long-term value?', a: 'Unlike any prior asset, Bitcoin\'s supply cap is enforced by math rather than human institutions', wrong: ['Scarcity is irrelevant because Bitcoin can be subdivided infinitely', 'Bitcoin\'s value comes from government backing similar to gold reserves', 'Digital files can always be copied so Bitcoin cannot truly be scarce'] },
         { q: 'What happens when the last Bitcoin is mined (~2140)?', a: 'Miners will be compensated solely through transaction fees', wrong: ['The network will shut down permanently', 'A new supply of 21 million coins will be created', 'Mining will become free with no reward'] },
-        { q: 'What does hyperbitcoinization refer to?', a: 'A theoretical tipping point where Bitcoin becomes the dominant global monetary system', wrong: ['Bitcoin reaching a price of one million dollars', 'Every country banning Bitcoin simultaneously', 'Bitcoin hash rate exceeding all supercomputers combined'] },
+        { q: 'Who coined the term "hyperbitcoinization"?', a: 'Daniel Krawisz in a 2014 Nakamoto Institute essay', wrong: ['Satoshi Nakamoto in the Bitcoin whitepaper', 'Michael Saylor during a 2020 conference', 'Andreas Antonopoulos in Mastering Bitcoin'] },
     ],
 
     'orange-pilling': [
@@ -743,10 +743,10 @@ const QUESTION_BANK = {
 
     'developers': [
         { q: 'Bitcoin Core is primarily written in:', a: 'C++', wrong: ['Python', 'JavaScript', 'Rust'] },
-        { q: 'Contributing to Bitcoin open source requires:', a: 'Anyone can propose changes — no permission needed', wrong: ['A computer science degree', 'Approval from the Bitcoin Foundation', 'Purchasing a developer license'] },
+        { q: 'Contributing to Bitcoin open source requires:', a: 'Anyone can propose changes - no permission needed', wrong: ['A computer science degree', 'Approval from the Bitcoin Foundation', 'Purchasing a developer license'] },
         { q: 'Who is considered Bitcoin\\\'s lead maintainer as of recent years?', a: 'There is no formal leader; Bitcoin Core has multiple maintainers', wrong: ['Satoshi Nakamoto', 'Vitalik Buterin', 'Elon Musk'] },
         { q: 'What organization has historically funded Bitcoin Core development?', a: 'MIT Digital Currency Initiative, Chaincode Labs, Brink, Spiral', wrong: ['World Bank', 'Federal Reserve', 'Goldman Sachs'] },
-        { q: 'Which version control system hosts Bitcoin Core’s source code?', a: 'Git', wrong: ['SVN', 'Mercurial', 'Bazaar'] },
+        { q: 'Which version control system hosts Bitcoin Core\'s source code?', a: 'Git', wrong: ['SVN', 'Mercurial', 'Bazaar'] },
     ],
 
     'ham_radio': [
@@ -799,7 +799,7 @@ const QUESTION_BANK = {
 
     'environment___energy': [
         { q: 'Bitcoin mining\'s relationship with renewable energy is:', a: 'Miners actively seek cheap renewable and stranded energy, incentivizing green energy development', wrong: ['Mining only uses coal', 'Renewable energy cannot power mining', 'Mining has no relationship with energy markets'] },
-        { q: 'What percentage of Bitcoin mining comes from renewable energy (estimates)?', a: 'Estimates range from 50-60% using renewable or stranded energy', wrong: ['0% — all coal', '100% renewable', 'Less than 10%'] },
+        { q: 'What percentage of Bitcoin mining comes from renewable energy (estimates)?', a: 'Estimates range from 50-60% using renewable or stranded energy', wrong: ['0% - all coal', '100% renewable', 'Less than 10%'] },
         { q: 'What is "stranded energy" in Bitcoin mining?', a: 'Energy that would otherwise go to waste due to lack of transmission infrastructure', wrong: ['Energy from broken solar panels', 'Leftover battery power', 'Natural gas used for heating'] },
         { q: 'How does Bitcoin mining help stabilize electrical grids?', a: 'Miners can rapidly reduce load during peak demand (demand response)', wrong: ['By storing electricity in batteries', 'By donating profits to utilities', 'By building more coal plants'] },
         { q: 'What common criticism about Bitcoin energy use is often misrepresented?', a: 'Per-transaction energy cost (Bitcoin uses same energy regardless of transaction count)', wrong: ['It uses no energy at all', 'All energy comes from coal', 'Mining makes computers explode'] },
@@ -810,14 +810,14 @@ const QUESTION_BANK = {
         { q: 'Which Austrian economist emphasized the importance of sound money and criticized fiat?', a: 'Ludwig von Mises and Friedrich Hayek', wrong: ['John Maynard Keynes', 'Karl Marx', 'Milton Friedman'] },
         { q: 'The Austrian School of Economics emphasizes:', a: 'Sound money, free markets, and the dangers of central banking', wrong: ['Government control of all monetary systems', 'That inflation is beneficial for economic growth', 'That central banks should print unlimited money'] },
         { q: 'Who wrote "The Theory of Money and Credit"?', a: 'Ludwig von Mises', wrong: ['John Maynard Keynes', 'Paul Krugman', 'Adam Smith'] },
-        { q: 'Bitcoin aligns with Austrian economics because:', a: 'It has a fixed supply and cannot be debased by any authority', wrong: ['It was invented by an Austrian economist', 'The Austrian government officially endorses it', 'It uses the Austrian Schilling as its base currency'] },
+        { q: 'Saifedean Ammous\' book "The Bitcoin Standard" argues that Bitcoin is the best form of money because:', a: 'It is the hardest money ever created — no authority can inflate its supply', wrong: ['It is the fastest payment network ever built', 'Governments around the world have endorsed it', 'It has no transaction fees when used on-chain'] },
     ],
 
     'lindy_effect': [
-        { q: 'The Lindy Effect applied to Bitcoin means:', a: 'The longer Bitcoin survives, the longer it is expected to continue surviving', wrong: ['Bitcoin gets slower over time', 'Older technology always fails', 'Bitcoin will expire after 21 years'] },
+        { q: 'The term "Lindy Effect" was coined and popularized in its modern form by:', a: 'Nassim Nicholas Taleb in his 2012 book Antifragile', wrong: ['Satoshi Nakamoto in the Bitcoin whitepaper', 'Albert Goldman originally in 1964', 'Benoît Mandelbrot in The Fractal Geometry of Nature'] },
         { q: 'What is the Lindy Effect?', a: 'The longer something survives, the longer its remaining life expectancy', wrong: ['A measure of mining difficulty', 'A type of cryptographic hash', 'A brand of hardware wallet'] },
-        { q: 'How does the Lindy Effect apply to Bitcoin?', a: 'Each year without failure increases confidence in future survival', wrong: ['Bitcoin becomes less secure over time', 'Only old coins have value', 'Newer cryptocurrencies are safer'] },
-        { q: 'What concept is closely related to Lindy Effect in Bitcoin?', a: 'Antifragility — stress makes the system stronger', wrong: ['Inflation targeting', 'Proof of stake', 'Central banking'] },
+        { q: 'The Lindy Effect applies to non-perishable things. Which of these would it NOT apply to?', a: 'A human being - biological organisms have decreasing life expectancy with age', wrong: ['Bitcoin', 'The idea of sound money', 'The C++ programming language'] },
+        { q: 'What concept is closely related to Lindy Effect in Bitcoin?', a: 'Antifragility - stress makes the system stronger', wrong: ['Inflation targeting', 'Proof of stake', 'Central banking'] },
         { q: 'Why is Bitcoin\\\'s 15+ year survival significant for the Lindy Effect?', a: 'Demonstrates resilience to attacks, bugs, and regulatory pressure', wrong: ['Proves it cannot be upgraded', 'Makes it obsolete', 'Shows it uses too much energy'] },
     ],
 
@@ -839,23 +839,23 @@ const QUESTION_BANK = {
 
     'submarine_swap': [
         { q: 'A submarine swap allows you to:', a: 'Exchange on-chain Bitcoin for Lightning Bitcoin (or vice versa) trustlessly', wrong: ['Mine Bitcoin underwater', 'Send Bitcoin without internet', 'Convert Bitcoin to Ethereum'] },
-        { q: 'What is a submarine swap?', a: 'An atomic swap between on-chain Bitcoin and Lightning Network off-chain', wrong: ['A type of mining pool payout', 'A DeFi lending protocol', 'An underwater transaction method'] },
+        { q: 'Why is it called a "submarine" swap?', a: 'On-chain is "above water" and Lightning off-chain is "below water" - you swap between the two', wrong: ['It was developed by the US Navy\'s research division', 'Transactions travel through undersea fiber optic cables', 'The protocol was inspired by a submarine navigation algorithm'] },
         { q: 'What enables submarine swaps to be trustless?', a: 'HTLCs (Hash Time Locked Contracts)', wrong: ['Centralized exchange custody', 'Bank wire confirmation', 'Social media verification'] },
         { q: 'What problem do submarine swaps solve?', a: 'Moving funds between on-chain and Lightning without closing channels', wrong: ['Mining difficulty adjustment', 'Exchange rate volatility', 'Wallet password recovery'] },
-        { q: 'What technology makes submarine swaps trustless?', a: 'Hash Time-Locked Contracts (HTLCs) that ensure both sides complete or neither does', wrong: ['A centralized escrow service that holds funds during the swap', 'Blockchain validators who verify the exchange manually', 'Smart contracts on Ethereum that bridge to Bitcoin'] },
+        { q: 'Alex Bosworth and Olaoluwa Osuntokun created submarine swaps while at which company?', a: 'Lightning Labs', wrong: ['Blockstream', 'Chaincode Labs', 'River Financial'] },
     ],
 
     'supranational': [
         { q: 'What does "supranational" mean in the context of Bitcoin?', a: 'It transcends national borders and governments', wrong: ['It is backed by the United Nations', 'It requires international approval to use', 'It can only be used between countries'] },
-        { q: 'The Lindy Effect suggests that Bitcoin:', a: 'The longer it survives, the longer it is expected to survive', wrong: ['Will eventually be replaced by newer technology', 'Has a fixed expiration date coded into its protocol', 'Must be upgraded every 10 years to remain relevant'] },
+        { q: 'What does it mean that Bitcoin is "supranational" money?', a: 'It operates beyond any single nation\'s jurisdiction or control', wrong: ['It is owned by the United Nations', 'Only governments can use it', 'It requires international banking licenses'] },
         { q: 'Bitcoin settlement finality means:', a: 'Once confirmed, transactions cannot be reversed', wrong: ['Transactions can be disputed within 30 days', 'A central authority must approve each transaction', 'Only miners can verify if a transaction is final'] },
-        { q: 'Why is Bitcoin considered "supranational" money?', a: 'It operates beyond any single nation\\\'s jurisdiction or control', wrong: ['It is owned by the UN', 'Only governments can use it', 'It requires international banking licenses'] },
+        { q: 'Which of these best demonstrates Bitcoin\'s supranational nature?', a: 'A citizen of any country can hold Bitcoin without a bank or government permission', wrong: ['The UN officially recognized Bitcoin as legal tender in 2021', 'Bitcoin miners must register with their national government', 'Cross-border Bitcoin payments require a SWIFT code'] },
         { q: 'What makes Bitcoin different from national currencies like the dollar or euro?', a: 'No central bank can print more or manipulate its supply', wrong: ['It is backed by gold reserves', 'It requires government approval', 'It only works online'] },
     ],
 
     'organic': [
         { q: 'Bitcoin grew organically because:', a: 'It had no pre-mine, no ICO, and no marketing budget', wrong: ['A major corporation funded its development', 'Governments agreed to adopt it simultaneously', 'Social media algorithms promoted it automatically'] },
-        { q: 'What makes Bitcoin\'s distribution unique among cryptocurrencies?', a: 'Fair launch — no coins were pre-allocated to founders', wrong: ['Satoshi kept 50% of all coins before launch', 'Venture capitalists funded the initial distribution', 'Coins were distributed based on national GDP'] },
+        { q: 'What makes Bitcoin\'s distribution unique among cryptocurrencies?', a: 'Fair launch - no coins were pre-allocated to founders', wrong: ['Satoshi kept 50% of all coins before launch', 'Venture capitalists funded the initial distribution', 'Coins were distributed based on national GDP'] },
         { q: 'How has Bitcoin grown without traditional marketing?', a: 'Through grassroots adoption and word-of-mouth from users', wrong: ['Massive advertising budgets', 'Celebrity endorsements', 'Government subsidies'] },
         { q: 'What drives Bitcoin\\\'s organic adoption in developing countries?', a: 'Real need for inflation protection and remittance savings', wrong: ['Central bank mandates', 'Corporate marketing campaigns', 'Mandatory school education'] },
         { q: 'What is the role of Bitcoin\\\'s open source community?', a: 'Volunteer developers contribute code without corporate hierarchy', wrong: ['They control Bitcoin Foundation', 'They receive government salaries', 'They own all bitcoins'] },
@@ -894,7 +894,7 @@ const QUESTION_BANK = {
     ],
 
     'public_key_vs_private_key': [
-        { q: 'Your Bitcoin public key is like:', a: 'Your email address — you share it so people can send you Bitcoin', wrong: ['Your password — never share it with anyone', 'Your bank PIN number — used to authorize spending', 'Your social security number — it proves your identity'] },
+        { q: 'Your Bitcoin public key is like:', a: 'Your email address - you share it so people can send you Bitcoin', wrong: ['Your password - never share it with anyone', 'Your bank PIN number - used to authorize spending', 'Your social security number - it proves your identity'] },
         { q: 'If someone has your private key, they can:', a: 'Spend all the Bitcoin controlled by that key', wrong: ['Only view your transaction history', 'Reset your password and lock you out', 'Create new Bitcoin out of thin air'] },
         { q: 'What is the relationship between private and public keys?', a: 'Public keys are derived from private keys via one-way cryptographic function', wrong: ['Private keys are given to everyone', 'Public keys encrypt private keys', 'They are identical numbers'] },
         { q: 'What should you do with your private keys?', a: 'Keep them secret and secure, never share with anyone', wrong: ['Publish them online', 'Email them to exchanges', 'Print them on merchandise'] },
@@ -913,7 +913,7 @@ const QUESTION_BANK = {
         { q: '"Don\'t trust, verify" means:', a: 'Run your own node to independently verify all Bitcoin rules', wrong: ['Never use Bitcoin because it cannot be trusted', 'Only trust exchanges that are government-regulated', 'Verify your identity before making transactions'] },
         { q: 'The concept "Bitcoin is Time" by Gigi suggests:', a: 'Bitcoin creates a decentralized clock through proof of work', wrong: ['Bitcoin transactions can travel back in time', 'Bitcoin was invented to save people time', 'Bitcoin mining uses atomic clocks'] },
         { q: 'What is the cypherpunk movement that birthed Bitcoin?', a: 'Advocates for privacy through cryptography and code over trust', wrong: ['Bankers wanting digital currency', 'Gamers creating virtual money', 'Governments tracking transactions'] },
-        { q: 'What does "don\\\'t trust, verify" mean in Bitcoin?', a: 'Run your own node to validate transactions rather than trusting third parties', wrong: ['Trust banks with your bitcoin', 'Verify your email address', 'Don\\\'t check transactions yourself'] },
+        { q: 'What does it mean that Bitcoin had a "fair launch"?', a: 'No pre-mine, no ICO - anyone could mine from day one on equal terms', wrong: ['The government approved it before launch', 'Satoshi distributed coins equally to all users', 'A committee reviewed and certified the genesis block'] },
         { q: 'What does Bitcoin\\\'s "monetary policy" refer to?', a: 'Fixed supply schedule with predictable issuance rate until 21 million', wrong: ['Central bank interest rates', 'Government fiscal policy', 'Investment fund strategies'] },
     ],
 
@@ -922,19 +922,19 @@ const QUESTION_BANK = {
         { q: 'After the 2024 halving, the block reward is:', a: '3.125 BTC per block', wrong: ['6.25 BTC per block', '1.5625 BTC per block', '50 BTC per block'] },
         { q: 'The halving is significant because it:', a: 'Mathematically enforces Bitcoin\'s decreasing supply issuance', wrong: ['Doubles the total supply of Bitcoin', 'Reduces the number of active miners by half', 'Changes Bitcoin\'s consensus mechanism'] },
         { q: 'What happens during a Bitcoin halving?', a: 'Block reward paid to miners is cut in half', wrong: ['Transaction fees double', 'Bitcoin supply doubles', 'Mining difficulty halves'] },
-        { q: 'When will the final bitcoin be mined?', a: 'Around year 2140 when all 21 million are issued', wrong: ['2025', '2040', 'Never — mining continues forever'] },
+        { q: 'When will the final bitcoin be mined?', a: 'Around year 2140 when all 21 million are issued', wrong: ['2025', '2040', 'Never - mining continues forever'] },
     ],
 
 
     // ============================================================
-    // NEW TOPICS — Generated 2026-05-31 (250 questions, 50 topics)
+    // NEW TOPICS - Generated 2026-05-31 (250 questions, 50 topics)
     // ============================================================
 
 'bitcoin_vs_real_estate': [
         { q: 'What key property rights advantage does Bitcoin have over real estate?', a: 'It cannot be seized, taxed annually, or confiscated via eminent domain', wrong: ['Real estate has stronger rights because it is protected by law', 'Bitcoin and real estate have identical property rights protections', 'Bitcoin ownership is not recognized by any major legal system'] },
         { q: 'How do maintenance costs compare between Bitcoin and real estate?', a: 'Bitcoin has near-zero costs; real estate requires taxes, insurance, and repairs', wrong: ['Bitcoin requires expensive monthly server fees to maintain ownership', 'Real estate has no maintenance costs once the mortgage is paid off', 'Both assets have roughly equivalent ongoing maintenance expenses'] },
         { q: 'Why is Bitcoin considered superior to real estate in terms of portability?', a: 'A seed phrase can be memorized and carried across any border instantly', wrong: ['Real estate deeds can be memorized and are just as portable', 'Bitcoin is less portable because it always requires internet access', 'Portability is irrelevant when comparing long-term stores of value'] },
-        { q: 'How does Bitcoin\'s divisibility compare to real estate?', a: 'Bitcoin divides into 100 million satoshis; real estate cannot be micro-divided', wrong: ['Real estate is more divisible because you can rent individual rooms', 'Bitcoin cannot be divided at all — you must buy a whole coin', 'Both assets offer identical divisibility through financial derivatives'] },
+        { q: 'How does Bitcoin\'s divisibility compare to real estate?', a: 'Bitcoin divides into 100 million satoshis; real estate cannot be micro-divided', wrong: ['Real estate is more divisible because you can rent individual rooms', 'Bitcoin cannot be divided at all - you must buy a whole coin', 'Both assets offer identical divisibility through financial derivatives'] },
         { q: 'What risk does real estate face that Bitcoin does not, related to government power?', a: 'Eminent domain seizure, property tax liens, and government confiscation', wrong: ['Governments can easily confiscate Bitcoin but not real estate', 'Neither asset faces any confiscation risk in democratic nations', 'Bitcoin faces greater government risk because it can be fully banned'] },
     ],
 
@@ -1008,7 +1008,7 @@ const QUESTION_BANK = {
         { q: 'How long does a difficulty epoch typically last?', a: 'Approximately 2 weeks', wrong: ['Exactly 1 week', 'About 1 month', 'Approximately 4 days'] },
     ],'dlcs': [
         { q: 'In a Discreet Log Contract (DLC), what role does an oracle play?', a: 'It signs a real-world outcome that determines how the contract pays out', wrong: ['It holds the funds in escrow until both parties agree on the result', 'It executes smart contract code on a sidechain to settle the bet', 'It mines the specific transaction that settles the contract on-chain'] },
-        { q: 'What cryptographic technique makes DLCs "discreet" — invisible to the oracle?', a: 'Adaptor signatures that use the oracle\'s attestation privately', wrong: ['Zero-knowledge proofs that hide the contract from participants', 'Ring signatures that mix the contract with unrelated transactions', 'Homomorphic encryption that processes data without decrypting it'] },
+        { q: 'What cryptographic technique makes DLCs "discreet" - invisible to the oracle?', a: 'Adaptor signatures that use the oracle\'s attestation privately', wrong: ['Zero-knowledge proofs that hide the contract from participants', 'Ring signatures that mix the contract with unrelated transactions', 'Homomorphic encryption that processes data without decrypting it'] },
         { q: 'What is a common real-world use case for Discreet Log Contracts?', a: 'Financial derivatives and betting settled by price or event data', wrong: ['Decentralized file storage using the Bitcoin network as a backend', 'Privacy-preserving identity verification on the Bitcoin blockchain', 'Automated market making for Lightning Network liquidity pools'] },
         { q: 'Why is the oracle in a DLC considered more trustworthy than traditional smart contract oracles?', a: 'The oracle doesn\'t know the contract exists or what depends on it', wrong: ['The oracle stakes Bitcoin collateral that is slashed if it lies', 'Multiple oracles must all agree before any payout can occur', 'The oracle runs inside a trusted execution environment on-chain'] },
         { q: 'DLC.Link enables Discreet Log Contracts to be used primarily for what purpose?', a: 'Bridging Bitcoin as collateral into DeFi without giving up custody', wrong: ['Mining pool payout distribution based on individual hash rate', 'Decentralized DNS registration on the Bitcoin base layer', 'Cross-chain atomic swaps between Bitcoin and Ethereum directly'] },
@@ -1019,20 +1019,20 @@ const QUESTION_BANK = {
         { q: 'What is the core thesis of the Dollar Milkshake Theory?', a: 'The dollar strengthens by sucking up global liquidity while other fiat currencies weaken', wrong: ['All fiat currencies collapse simultaneously and get replaced by Bitcoin', 'The dollar weakens as other currencies collectively strengthen against it', 'Central banks coordinate to create and adopt a single global currency'] },
         { q: 'What is the "dollar strength paradox" in the Milkshake Theory?', a: 'The dollar gets stronger vs other currencies while losing purchasing power vs hard assets', wrong: ['A strong dollar always means the Bitcoin price will go down in tandem', 'Dollar strength is a reliable signal that the US economy is healthy', 'Nobody wants dollars but everyone needs them to service their debts'] },
         { q: 'How does Bitcoin fit into the Dollar Milkshake Theory\'s endgame?', a: 'After the dollar absorbs global liquidity, Bitcoin becomes the ultimate fiat exit', wrong: ['Bitcoin is irrelevant to the theory because it isn\'t a fiat currency', 'Bitcoin collapses alongside other currencies during the dollar\'s rise', 'The theory predicts Bitcoin gets banned and replaced by state CBDCs'] },
-        { q: 'Why does global dollar demand play a central role in the Milkshake Theory?', a: 'Trillions in dollar-denominated debt forces nations to buy dollars, strengthening it', wrong: ['Global dollar demand is declining rapidly as nations actively de-dollarize', 'Dollar demand only matters for US domestic transactions and trade', 'The theory says dollar demand is irrelevant — only money supply matters'] },
+        { q: 'Why does global dollar demand play a central role in the Milkshake Theory?', a: 'Trillions in dollar-denominated debt forces nations to buy dollars, strengthening it', wrong: ['Global dollar demand is declining rapidly as nations actively de-dollarize', 'Dollar demand only matters for US domestic transactions and trade', 'The theory says dollar demand is irrelevant - only money supply matters'] },
     ],
 
     'el-salvador': [
         { q: 'What was the Chivo wallet in El Salvador\'s Bitcoin adoption?', a: 'A government-issued Lightning wallet that gave citizens $30 in Bitcoin', wrong: ['A private hardware wallet manufactured locally in El Salvador', 'An exchange platform where Salvadorans could trade altcoins', 'A banking app that only supported US dollar-based transactions'] },
-        { q: 'What is "Bitcoin Beach" and why is it significant to El Salvador\'s Bitcoin story?', a: 'El Zonte — a village that built a grassroots Bitcoin economy before the national law', wrong: ['A luxury resort in San Salvador that exclusively accepts Bitcoin payments', 'A government-built tourist attraction designed to promote Bitcoin adoption', 'A cryptocurrency exchange headquartered on the Salvadoran coastal region'] },
+        { q: 'What is "Bitcoin Beach" and why is it significant to El Salvador\'s Bitcoin story?', a: 'El Zonte - a village that built a grassroots Bitcoin economy before the national law', wrong: ['A luxury resort in San Salvador that exclusively accepts Bitcoin payments', 'A government-built tourist attraction designed to promote Bitcoin adoption', 'A cryptocurrency exchange headquartered on the Salvadoran coastal region'] },
         { q: 'What was President Bukele\'s core strategy behind making Bitcoin legal tender?', a: 'Financial inclusion for the unbanked, foreign investment, and cheaper remittances', wrong: ['Replacing the US dollar entirely with Bitcoin as the sole currency', 'Mining Bitcoin profitably using El Salvador\'s untapped oil reserves', 'Creating a government-controlled cryptocurrency to replace Bitcoin'] },
-        { q: 'How did the World Bank and IMF respond to El Salvador\'s Bitcoin law?', a: 'They pushed back — the World Bank refused help and the IMF warned of risks', wrong: ['Both organizations fully endorsed and helped fund the entire initiative', 'The IMF designed and helped build the Chivo wallet infrastructure', 'The World Bank provided a $500 million loan specifically for adoption'] },
-        { q: 'How did Lightning Network adoption benefit El Salvador\'s economy?', a: 'It enabled fast, near-free payments and remittances, cutting out costly services', wrong: ['Lightning was not used — only on-chain Bitcoin transactions were supported', 'Lightning made transactions faster but significantly more expensive overall', 'El Salvador banned Lightning in favor of on-chain-only Bitcoin payments'] },
+        { q: 'How did the World Bank and IMF respond to El Salvador\'s Bitcoin law?', a: 'They pushed back - the World Bank refused help and the IMF warned of risks', wrong: ['Both organizations fully endorsed and helped fund the entire initiative', 'The IMF designed and helped build the Chivo wallet infrastructure', 'The World Bank provided a $500 million loan specifically for adoption'] },
+        { q: 'How did Lightning Network adoption benefit El Salvador\'s economy?', a: 'It enabled fast, near-free payments and remittances, cutting out costly services', wrong: ['Lightning was not used - only on-chain Bitcoin transactions were supported', 'Lightning made transactions faster but significantly more expensive overall', 'El Salvador banned Lightning in favor of on-chain-only Bitcoin payments'] },
     ],
 
     'evidence-against-alts_pt2': [
         { q: 'What is a "premine" and why is it a red flag for altcoins?', a: 'Founders create and keep tokens before public launch, giving insiders an unfair edge', wrong: ['A premine is a security feature that helps blockchains launch more quickly', 'A premine means the coin was tested before release, which is good practice', 'A premine is when miners validate the genesis block without earning fees'] },
-        { q: 'Why are many altcoin tokens considered securities under US law?', a: 'They pass the Howey Test — buyers expect profits from a centralized team\'s efforts', wrong: ['The SEC automatically classifies every digital asset as a regulated security', 'Any token traded on a cryptocurrency exchange is legally a security by default', 'Only tokens with market caps above $1 billion can qualify as securities'] },
+        { q: 'Why are many altcoin tokens considered securities under US law?', a: 'They pass the Howey Test - buyers expect profits from a centralized team\'s efforts', wrong: ['The SEC automatically classifies every digital asset as a regulated security', 'Any token traded on a cryptocurrency exchange is legally a security by default', 'Only tokens with market caps above $1 billion can qualify as securities'] },
         { q: 'What is "VC token dumping" in the altcoin market?', a: 'VCs invest early at a discount, then sell their tokens on retail investors at launch', wrong: ['VCs donate their discounted tokens to charity projects after launch', 'VCs permanently lock their tokens to show support for the project', 'VCs use their tokens to fund open-source Bitcoin core development'] },
         { q: 'Why do Bitcoiners argue that "decentralized governance tokens" are an oxymoron?', a: 'Token voting concentrates power with whales and VCs, recreating inequality', wrong: ['Governance tokens are too technically complex to ever implement properly', 'Bitcoin already uses governance tokens internally for protocol upgrades', 'Governance tokens have been declared illegal in every jurisdiction'] },
         { q: 'What key evidence do Bitcoiners cite about Ethereum\'s centralization?', a: 'A massive premine to insiders, repeated monetary policy changes, and known leadership', wrong: ['Ethereum runs on a single server that is controlled by Vitalik Buterin', 'Ethereum transactions require explicit government approval before processing', 'Ethereum has fewer active nodes than a typical corporate cloud database'] },
@@ -1056,16 +1056,16 @@ const QUESTION_BANK = {
         { q: 'What does "first principles thinking" mean when applied to Bitcoin?', a: 'Breaking money down to fundamental properties and reasoning up from there', wrong: ['Copying the design of existing currencies and then improving them', 'Following the majority opinion of mainstream economists on money', 'Starting with government approval and working backward from there'] },
         { q: 'Which philosopher is most associated with the first principles method of reasoning from fundamental truths?', a: 'Aristotle', wrong: ['Plato', 'Socrates', 'Descartes'] },
         { q: 'When reasoning from first principles about what makes good money, which set of properties matters most?', a: 'Scarcity, portability, durability, divisibility, and fungibility', wrong: ['Government backing, legal enforcement, and central bank control', 'Physical weight, aesthetic beauty, and historical tradition', 'Ease of printing, widespread banking, and inflation targeting'] },
-        { q: 'First principles thinking reveals what fundamental connection between energy and money?', a: 'Money should represent stored energy — unforgeable costliness gives it value', wrong: ['Money has no relationship to energy since it is purely a social construct', 'Only physical commodities can serve as money because they contain atoms', 'Energy is irrelevant to money if a government declares it legal tender'] },
+        { q: 'First principles thinking reveals what fundamental connection between energy and money?', a: 'Money should represent stored energy - unforgeable costliness gives it value', wrong: ['Money has no relationship to energy since it is purely a social construct', 'Only physical commodities can serve as money because they contain atoms', 'Energy is irrelevant to money if a government declares it legal tender'] },
         { q: 'Why does first principles reasoning tend to lead people toward Bitcoin rather than altcoins?', a: 'Bitcoin best satisfies the fundamental properties of sound money from first principles', wrong: ['Bitcoin was the first cryptocurrency so it wins by default over altcoins', 'Altcoins are illegal in most countries so Bitcoin is the only legal option', 'Bitcoin has the best marketing team and strongest brand awareness overall'] },
     ],
 
     'foss': [
         { q: 'What type of software license does Bitcoin Core use?', a: 'MIT License', wrong: ['GPL v3', 'Apache License 2.0', 'Creative Commons'] },
         { q: 'Why is it important that Bitcoin Core is free and open-source software (FOSS)?', a: 'Anyone can audit the code to verify no backdoors or hidden rules exist', wrong: ['It makes Bitcoin free to use with zero transaction fees for users', 'It allows developers to create unlimited Bitcoin through the code', 'It means no one actually needs to run the Bitcoin software'] },
-        { q: 'What are "reproducible builds" in the context of Bitcoin Core?', a: 'A process to compile source code and verify the binary matches the official release', wrong: ['A method of mining Bitcoin blocks more efficiently using parallel processing', 'A way to duplicate Bitcoin wallets for secure backup across multiple devices', 'A technique for copying the entire blockchain to new nodes more quickly'] },
+        { q: 'What is the Guix build system used for in Bitcoin Core?', a: 'Producing reproducible, auditable binaries so anyone can verify the software', wrong: ['Managing Bitcoin Core\'s GitHub pull request workflow', 'Automatically testing Lightning Network compatibility', 'Compiling Bitcoin mining firmware for ASIC hardware'] },
         { q: '"Linus\'s Law" states that "given enough eyeballs, all bugs are shallow." How does this apply to Bitcoin?', a: 'Thousands of developers review Bitcoin\'s code, so vulnerabilities get found and fixed faster', wrong: ['Linux servers are the only machines capable of running Bitcoin full nodes properly', 'Linus Torvalds personally reviews and audits every Bitcoin Core release himself', 'Bitcoin can only run on open-source operating systems like Linux and FreeBSD'] },
-        { q: 'Why does open-source matter specifically for money/monetary software like Bitcoin?', a: 'Users must verify the rules of their money — no hidden inflation or secret changes', wrong: ['Open-source software is always faster and more efficient than proprietary code', 'It allows banks to freely copy Bitcoin and make their own branded version', 'It makes Bitcoin significantly easier for governments to regulate and control'] },
+        { q: 'Why does open-source matter specifically for money/monetary software like Bitcoin?', a: 'Users must verify the rules of their money - no hidden inflation or secret changes', wrong: ['Open-source software is always faster and more efficient than proprietary code', 'It allows banks to freely copy Bitcoin and make their own branded version', 'It makes Bitcoin significantly easier for governments to regulate and control'] },
     ],
 
     'geopolitics___macroeconomics_pt2': [
@@ -1073,13 +1073,13 @@ const QUESTION_BANK = {
         { q: 'What is the "strategic Bitcoin reserve" concept that multiple nations are exploring?', a: 'Nations accumulating Bitcoin as a reserve asset alongside gold for its scarcity and hedge value', wrong: ['A requirement for all nations to back their fiat currency reserves with Bitcoin', 'A UN mandate requiring every country to hold at least one thousand Bitcoin', 'A program where central banks replace all existing gold reserves with Bitcoin'] },
         { q: 'What is the "nation-state game theory" argument for Bitcoin adoption?', a: 'Early adopter nations gain a massive strategic edge, pressuring others to follow or fall behind', wrong: ['Nations banning Bitcoin grow stronger because they fully control their money supply', 'Game theory proves that no nation will ever voluntarily adopt Bitcoin as a reserve', 'Nation-state game theory only applies to countries that possess nuclear weapons'] },
         { q: 'How do proponents respond to critics who say Bitcoin is used for sanctions evasion?', a: 'Bitcoin\'s transparent public ledger makes transactions easier to trace than physical cash', wrong: ['Bitcoin supporters agree that sanctions evasion is its primary real-world use case', 'Bitcoin transactions are completely invisible and undetectable to all governments', 'Sanctions don\'t apply to digital assets under any current international law'] },
-        { q: 'How do institutions like the IMF and World Bank view Bitcoin?', a: 'Generally hostile — they\'ve pressured nations like El Salvador to drop Bitcoin legal tender status', wrong: ['The IMF and World Bank are actually the largest institutional Bitcoin holders today', 'Both organizations have publicly endorsed Bitcoin as the future of global finance', 'The IMF created Bitcoin as a planned replacement for Special Drawing Rights'] },
+        { q: 'How do institutions like the IMF and World Bank view Bitcoin?', a: 'Generally hostile - they\'ve pressured nations like El Salvador to drop Bitcoin legal tender status', wrong: ['The IMF and World Bank are actually the largest institutional Bitcoin holders today', 'Both organizations have publicly endorsed Bitcoin as the future of global finance', 'The IMF created Bitcoin as a planned replacement for Special Drawing Rights'] },
     ],
 
     'governance_pt2': [
         { q: 'Who can submit a Bitcoin Improvement Proposal (BIP)?', a: 'Anyone in the Bitcoin community', wrong: ['Only Bitcoin Core maintainers', 'Only miners with enough hash rate', 'Only officially registered developers'] },
-        { q: 'What activation method does BIP 9 use?', a: 'Miner signaling with version bits', wrong: ['User activation without miners', 'Mandatory soft fork by Core devs', 'Core developer approval voting'] },
-        { q: 'What activation method does BIP 8 use?', a: 'Mandatory activation with optional miner signaling', wrong: ['Complete miner control over activation timing', 'Exchange approval and coordinated agreement', 'Proof of stake voting by Bitcoin holders'] },
+        { q: 'What activation method does BIP 9 use?', a: 'Miner signaling with version bits during a defined window', wrong: ['Node operators vote directly without miner input', 'Core developers set a flag day with no miner input', 'Miners and the SEC jointly approve the activation'] },
+        { q: 'BIP 8 improves on BIP 9 by adding what option?', a: 'A "lock-in on timeout" (LOT=true) that forces activation even without miner majority', wrong: ['Requiring all major exchanges to signal readiness first', 'Giving Core developers a veto over miner signaling', 'Replacing version bits with a proof-of-stake ballot'] },
         { q: 'What does UASF stand for?', a: 'User-Activated Soft Fork', wrong: ['Unified Active Soft Fork', 'Universal Auto Soft Fork', 'User Approval Soft Fork'] },
         { q: 'What was Speedy Trial used for in Bitcoin?', a: 'Taproot activation with a shortened signaling period', wrong: ['SegWit activation with extended miner coordination', 'Lightning Network deployment across mainnet nodes', 'Difficulty adjustment algorithm changes and updates'] },
     ],
@@ -1088,7 +1088,7 @@ const QUESTION_BANK = {
         { q: 'What is a PSBT (Partially Signed Bitcoin Transaction) and why is it important for hardware wallets?', a: 'A format for building transactions on one device and signing on another', wrong: ['A Bitcoin address type exclusive to hardware wallets', 'A protocol for sending Bitcoin over Bluetooth', 'A backup format for storing seed phrases digitally'] },
         { q: 'What is SeedSigner?', a: 'A DIY, open-source, air-gapped wallet built on a Raspberry Pi', wrong: ['A cloud service that generates seed phrases for you', 'A proprietary hardware wallet made by Ledger', 'An app that signs transactions via phone fingerprint'] },
         { q: 'What is a "secure element" chip in hardware wallets?', a: 'A tamper-resistant chip that stores keys and blocks extraction', wrong: ['A chip that connects the wallet to Wi-Fi securely', 'A component that speeds up transaction processing', 'A GPS module that tracks the wallet for recovery'] },
-        { q: 'What does "air-gapped" mean when describing a hardware wallet like Coldcard or Foundation Passport?', a: 'It never connects to internet — data moves via SD card, QR, or NFC', wrong: ['The wallet is sealed in a vacuum to prevent tampering', 'The wallet uses satellite connections instead of Wi-Fi', 'The wallet can only be used outdoors for security'] },
+        { q: 'What does "air-gapped" mean when describing a hardware wallet like Coldcard or Foundation Passport?', a: 'It never connects to internet - data moves via SD card, QR, or NFC', wrong: ['The wallet is sealed in a vacuum to prevent tampering', 'The wallet uses satellite connections instead of Wi-Fi', 'The wallet can only be used outdoors for security'] },
     ],
 
     'history_pt3': [
@@ -1100,11 +1100,11 @@ const QUESTION_BANK = {
     ],
 
     'improved_incentive_structure': [
-        { q: 'How does Bitcoin "fix broken incentives" in the current monetary system?', a: 'By removing money printing, it forces honest accounting and ends inflation of debt', wrong: ['It gives governments better tools to manage the economy', 'It doesn\'t change incentives — just moves them to digital', 'It fixes incentives by making all transactions government-traceable'] },
+        { q: 'How does Bitcoin "fix broken incentives" in the current monetary system?', a: 'By removing money printing, it forces honest accounting and ends inflation of debt', wrong: ['It gives governments better tools to manage the economy', 'It doesn\'t change incentives - just moves them to digital', 'It fixes incentives by making all transactions government-traceable'] },
         { q: 'What does "low time preference society" mean in the context of a Bitcoin standard?', a: 'People plan long-term and save more because their money gains value over time', wrong: ['A society that doesn\'t care about time and works fewer hours', 'A society where transactions must complete within strict time limits', 'A society that only uses Bitcoin for short-term speculation'] },
-        { q: 'Why is proof of work considered a "fair distribution" mechanism for new Bitcoin?', a: 'Anyone can mine by spending real energy — no pre-mines or insider allocations', wrong: ['Proof of work gives equal Bitcoin to every person on Earth', 'Early miners got special privileges that later miners don\'t', 'Proof of work distributes Bitcoin based on geographic location'] },
+        { q: 'Why is proof of work considered a "fair distribution" mechanism for new Bitcoin?', a: 'Anyone can mine by spending real energy - no pre-mines or insider allocations', wrong: ['Proof of work gives equal Bitcoin to every person on Earth', 'Early miners got special privileges that later miners don\'t', 'Proof of work distributes Bitcoin based on geographic location'] },
         { q: 'How does sound money (like Bitcoin) change savings and investment behavior?', a: 'People save more and only invest in projects with real returns above deflation', wrong: ['Sound money discourages saving because money becomes too valuable', 'Investment behavior stays the same regardless of monetary system', 'Sound money causes everyone to hoard and collapse the economy'] },
-        { q: 'What broken incentive does fiat money create that Bitcoin eliminates?', a: 'Fiat rewards borrowing over saving because inflation erodes purchasing power', wrong: ['Fiat incentivizes too much saving, which Bitcoin fixes', 'Fiat money has no broken incentives — it works as designed', 'Bitcoin creates the same borrow incentive since rates exist'] },
+        { q: 'What broken incentive does fiat money create that Bitcoin eliminates?', a: 'Fiat rewards borrowing over saving because inflation erodes purchasing power', wrong: ['Fiat incentivizes too much saving, which Bitcoin fixes', 'Fiat money has no broken incentives - it works as designed', 'Bitcoin creates the same borrow incentive since rates exist'] },
     ],
 
     'investment-strategy_pt4': [
@@ -1123,9 +1123,9 @@ const QUESTION_BANK = {
         { q: 'What is the "Maxwell\'s Demon" analogy sometimes applied to Bitcoin?', a: 'You can\'t sort molecules or secure a ledger without real energy expenditure', wrong: ['Maxwell\'s Demon is the name of the first Bitcoin mining software', 'It describes a theoretical AI attack that takes over the network', 'It refers to Bitcoin price randomness being like particle motion'] },
     ],
 'layer-2-lightning_pt4': [
-        { q: 'What is a submarine swap on the Lightning Network?', a: 'A trustless exchange between on-chain and off-chain Bitcoin using HTLCs', wrong: ['A method to secretly close Lightning channels without notice', 'A way to mine Bitcoin directly through Lightning Network nodes', 'An attack vector that drains funds from open Lightning channels'] },
+        { q: 'What does Lightning Labs\' Loop service do?', a: 'It moves funds between on-chain and Lightning using submarine swaps', wrong: ['It mines Bitcoin directly from a Lightning node', 'It converts Bitcoin to altcoins through atomic swaps', 'It syncs the Lightning channel graph to the Bitcoin timechain'] },
         { q: 'What is Multi-Path Payments (MPP) on Lightning?', a: 'Splitting a payment across multiple routes to exceed single-channel limits', wrong: ['Making multiple payments to different recipients simultaneously', 'A backup payment method used only if Lightning is offline', 'Sending the same payment through multiple channels for redundancy'] },
-        { q: 'What is AMP (Atomic Multi-Path Payments) on Lightning?', a: 'A method where split parts are only redeemable together atomically', wrong: ['An amplifier that boosts signal strength between Lightning nodes', 'A method to increase the maximum capacity of any channel', 'An automatic mining protocol built into the Lightning layer'] },
+        { q: 'What privacy advantage does AMP have over basic MPP on Lightning?', a: 'Each shard has a different payment hash, making it harder for routing nodes to link shards', wrong: ['AMP encrypts the sender\'s IP address on every hop', 'AMP uses Tor routing by default for all payments', 'AMP hides the payment amount from the recipient entirely'] },
         { q: 'What is trampoline routing on the Lightning Network?', a: 'Delegating route calculation to intermediate nodes for lighter clients', wrong: ['Bouncing payments off satellites for wider global coverage area', 'A routing method that always prioritizes the fastest available path', 'A security protocol that encrypts all payment amounts in transit'] },
         { q: 'What are channel factories in the Lightning Network?', a: 'Opening many channels among multiple parties in one on-chain transaction', wrong: ['Physical facilities where Lightning network nodes are manufactured', 'Automated systems that create channels based on user demand levels', 'Software that converts on-chain wallets into Lightning-ready wallets'] },
     ],
@@ -1201,8 +1201,8 @@ const QUESTION_BANK = {
     ],'orange-pilling_pt2': [
         { q: 'What is the "Socratic method" approach to orange-pilling someone about Bitcoin?', a: 'Asking questions that lead them to discover Bitcoin\'s value themselves', wrong: ['Quoting ancient Greek philosophers who predicted digital money', 'Having the person read the Bitcoin whitepaper out loud to you', 'Debating them aggressively until they agree Bitcoin is good'] },
         { q: 'What is "progressive disclosure" when introducing someone to Bitcoin?', a: 'Starting with simple concepts they care about, then going deeper', wrong: ['Showing them Bitcoin\'s full transaction history from genesis', 'Revealing your entire Bitcoin portfolio to build their trust', 'Disclosing all of Bitcoin\'s technical flaws upfront to seem honest'] },
-        { q: 'When orange-pilling family members, what is generally the most effective approach?', a: 'Focus on what they care about — savings, retirement, their future', wrong: ['Send them a 3-hour technical podcast about mining and hashing', 'Buy them Bitcoin without asking and surprise them with it later', 'Bring it up at every family dinner until they finally agree'] },
-        { q: 'What is one of the biggest mistakes people make when trying to orange-pill someone?', a: 'Information overload — dumping too much detail at once', wrong: ['Being too patient and waiting for them to ask questions', 'Starting with how Bitcoin helps people in other countries', 'Recommending they read a book about the history of money'] },
+        { q: 'When orange-pilling family members, what is generally the most effective approach?', a: 'Focus on what they care about - savings, retirement, their future', wrong: ['Send them a 3-hour technical podcast about mining and hashing', 'Buy them Bitcoin without asking and surprise them with it later', 'Bring it up at every family dinner until they finally agree'] },
+        { q: 'What is one of the biggest mistakes people make when trying to orange-pill someone?', a: 'Information overload - dumping too much detail at once', wrong: ['Being too patient and waiting for them to ask questions', 'Starting with how Bitcoin helps people in other countries', 'Recommending they read a book about the history of money'] },
         { q: 'Which book is widely considered the best starting point for orange-pilling someone interested in economics and sound money?', a: 'The Bitcoin Standard by Saifedean Ammous', wrong: ['Mastering Bitcoin by Andreas Antonopoulos', 'Programming Bitcoin by Jimmy Song', 'The Blocksize War by Jonathan Bier'] },
     ],
 
@@ -1233,12 +1233,12 @@ const QUESTION_BANK = {
     'problems-of-money_pt4': [
         { q: 'The Cantillon Effect describes how newly printed money benefits those closest to its creation. Who benefits MOST from money printing?', a: 'Banks and the politically connected who receive new money first', wrong: ['Average workers who receive higher wages from inflation', 'Retirees on fixed incomes who get cost-of-living adjustments', 'Small business owners who can raise their prices immediately'] },
         { q: 'What is Quantitative Easing (QE)?', a: 'A central bank creating new money to buy bonds, expanding supply', wrong: ['A method of reducing government debt by printing less money', 'A technique for making international trade easier between nations', 'A system where banks lend to each other at zero percent interest'] },
-        { q: 'What is the "repo market" and why does it matter for understanding fiat fragility?', a: 'Overnight lending market using bonds as collateral — its 2019 crisis exposed systemic fragility', wrong: ['A marketplace where banks sell repossessed homes and vehicles for profit', 'A government repository that stores and audits physical gold reserves', 'A database where central banks track and monitor all global transfers'] },
+        { q: 'What is the "repo market" and why does it matter for understanding fiat fragility?', a: 'Overnight lending market using bonds as collateral - its 2019 crisis exposed systemic fragility', wrong: ['A marketplace where banks sell repossessed homes and vehicles for profit', 'A government repository that stores and audits physical gold reserves', 'A database where central banks track and monitor all global transfers'] },
         { q: 'What is the "Eurodollar system"?', a: 'US dollars held and created by banks outside the US, forming a shadow system', wrong: ['The system that converts Euros to Dollars at European exchange desks', 'A European Central Bank program to replace the Dollar with the Euro', 'A cryptocurrency project backed equally by both Euros and US Dollars'] },
         { q: 'What does the decline of the "petrodollar" system mean for global finance?', a: 'Oil nations moving away from dollar pricing weakens its reserve status', wrong: ['Oil companies are switching from drilling to mining Bitcoin instead', 'The petrodollar decline means that oil is becoming nearly worthless', 'European nations are being forced to buy all their oil with gold'] },
     ],    'regulation_pt3': [
         { q: 'In the US, what is the key difference between SEC and CFTC jurisdiction over digital assets?', a: 'SEC regulates securities (most altcoins); CFTC regulates Bitcoin as a commodity', wrong: ['SEC handles Bitcoin while CFTC handles all altcoins separately', 'Both agencies share identical authority over all digital assets', 'CFTC only regulates physical commodities, not any digital assets'] },
-        { q: 'What is the Howey Test and how does it apply to Bitcoin?', a: 'A legal test for securities — Bitcoin fails to qualify since it has no central enterprise', wrong: ['A technical test that measures a blockchain\'s degree of decentralization', 'Bitcoin fails the Howey Test, making it an SEC-regulated security asset', 'A test that determines the appropriate tax rate on crypto investments'] },
+        { q: 'What is the Howey Test and how does it apply to Bitcoin?', a: 'A legal test for securities - Bitcoin fails to qualify since it has no central enterprise', wrong: ['A technical test that measures a blockchain\'s degree of decentralization', 'Bitcoin fails the Howey Test, making it an SEC-regulated security asset', 'A test that determines the appropriate tax rate on crypto investments'] },
         { q: 'What is the "Travel Rule" in cryptocurrency regulation?', a: 'A FATF rule requiring institutions to share sender/receiver identity above a threshold', wrong: ['A regulation that limits Bitcoin transfers to within a single country', 'A requirement for Bitcoin miners to register their physical locations', 'A law that bans carrying hardware wallets across international borders'] },
         { q: 'What is the FATF and why is it significant for Bitcoin privacy?', a: 'An international body pushing KYC/AML standards that threaten self-custodial privacy', wrong: ['A global mining consortium that coordinates difficulty adjustment levels', 'A nonprofit organization promoting Bitcoin adoption in developing nations', 'A technology standard designed for faster Bitcoin transaction processing'] },
         { q: 'How have US states approached Bitcoin regulation differently from the federal government?', a: 'Several states passed pro-Bitcoin laws like reserve bills and transmitter exemptions', wrong: ['All 50 states enforce identical cryptocurrency regulations matching federal law', 'States are constitutionally prohibited from creating crypto-related legislation', 'Most states have banned Bitcoin mining operations due to energy concerns'] },
@@ -1302,9 +1302,9 @@ const QUESTION_BANK = {
     'time_preference_pt3': [
         { q: 'According to Saifedean Ammous in "The Bitcoin Standard," what is the relationship between sound money and time preference?', a: 'Sound money lowers time preference, encouraging saving and long-term investment', wrong: ['Sound money raises time preference because people rush to spend currency', 'There is no meaningful relationship between money type and time preference', 'Sound money eliminates time preference, making people totally indifferent'] },
         { q: 'How does Ammous argue that low time preference connects to civilization building?', a: 'People invest in long-term projects when money reliably holds its value', wrong: ['Civilizations advance fastest when people spend money as quickly as possible', 'Low time preference leads to stagnation because nobody takes any risks', 'Civilization building is completely unrelated to the monetary system'] },
-        { q: 'What behavioral effect does fiat money have on time preference according to the Austrian economics perspective?', a: 'Fiat raises time preference — inflation punishes savers and rewards debtors', wrong: ['Fiat lowers time preference because stable inflation aids long-term planning', 'Fiat has no effect on time preference, which is determined by culture', 'Fiat encourages saving because interest rates compensate for inflation'] },
+        { q: 'What behavioral effect does fiat money have on time preference according to the Austrian economics perspective?', a: 'Fiat raises time preference - inflation punishes savers and rewards debtors', wrong: ['Fiat lowers time preference because stable inflation aids long-term planning', 'Fiat has no effect on time preference, which is determined by culture', 'Fiat encourages saving because interest rates compensate for inflation'] },
         { q: 'How does the concept of delayed gratification relate to Bitcoin and sound money?', a: 'Sound money rewards patience by preserving purchasing power over time', wrong: ['Delayed gratification is irrelevant to any monetary system design', 'Bitcoin punishes patience because its price is far too volatile', 'Sound money discourages waiting by making everything too expensive'] },
-        { q: 'What is the key difference between how fiat and Bitcoin influence personal financial behavior?', a: 'Fiat incentivizes consumption and debt; Bitcoin incentivizes saving', wrong: ['Both systems produce identical behavior — spending stays the same', 'Bitcoin makes people spend more as they feel wealthy from gains', 'Fiat encourages saving; Bitcoin encourages spending due to deflation'] },
+        { q: 'What is the key difference between how fiat and Bitcoin influence personal financial behavior?', a: 'Fiat incentivizes consumption and debt; Bitcoin incentivizes saving', wrong: ['Both systems produce identical behavior - spending stays the same', 'Bitcoin makes people spend more as they feel wealthy from gains', 'Fiat encourages saving; Bitcoin encourages spending due to deflation'] },
     ],
 
     'vbyte': [
@@ -1437,7 +1437,7 @@ function onChannelVisitForQuest(channelId) {
 }
 
 function generateAndShowQuest(manual, targetChannelId, isRetake) {
-    // Limit quests to 1 per day — but allow retakes for non-perfect scores
+    // Limit quests to 1 per day - but allow retakes for non-perfect scores
     var today = new Date().toISOString().split('T')[0];
     var questLog = safeJSON('btc_quest_daily', {});
     if (questLog.date !== today) {
@@ -1453,7 +1453,7 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
 
     // Collect available questions
     let pool = [];
-    
+
     // If a specific topic was selected from the picker, ONLY use that topic's questions
     if (targetChannelId && QUESTION_BANK[targetChannelId]) {
         QUESTION_BANK[targetChannelId].forEach(q => pool.push({...q, source: targetChannelId}));
@@ -1468,7 +1468,7 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
                 questions.forEach(q => pool.push({...q, source: chId}));
             }
         }
-        
+
         // Always include general knowledge questions
         if (QUESTION_BANK['_general']) {
             QUESTION_BANK['_general'].forEach(q => pool.push({...q, source: '_general'}));
@@ -1502,7 +1502,7 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
     // Shuffle
     freshPool.sort(() => Math.random() - 0.5);
 
-    // Deduplicate by topic — extract key words and prevent similar questions in same quest
+    // Deduplicate by topic - extract key words and prevent similar questions in same quest
     function getTopicKey(q) {
         var text = q.q.toLowerCase();
         // Match specific known topics
@@ -1527,7 +1527,7 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
     var maxQ = targetChannelId ? Math.min(freshPool.length, 5) : 5;
     var selected = [];
     var usedTopics = {};
-    
+
     // For topic-specific quests, skip topic dedup (all questions ARE the same topic)
     if (targetChannelId) {
         for (var si = 0; si < freshPool.length && selected.length < maxQ; si++) {
@@ -1627,7 +1627,7 @@ function playWarriorDrum() {
         const now = ctx.currentTime;
 
         function gorillaHit(time) {
-            // Impact tone — sharp attack at 150Hz dropping to 60Hz
+            // Impact tone - sharp attack at 150Hz dropping to 60Hz
             const osc1 = ctx.createOscillator();
             const g1 = ctx.createGain();
             osc1.connect(g1); g1.connect(ctx.destination);
@@ -1638,7 +1638,7 @@ function playWarriorDrum() {
             g1.gain.exponentialRampToValueAtTime(0.001, now + time + 0.4);
             osc1.start(now + time); osc1.stop(now + time + 0.4);
 
-            // Drum body resonance — 80Hz sustained thump
+            // Drum body resonance - 80Hz sustained thump
             const osc2 = ctx.createOscillator();
             const g2 = ctx.createGain();
             osc2.connect(g2); g2.connect(ctx.destination);
@@ -1649,7 +1649,7 @@ function playWarriorDrum() {
             g2.gain.exponentialRampToValueAtTime(0.001, now + time + 0.5);
             osc2.start(now + time); osc2.stop(now + time + 0.5);
 
-            // Skin slap — short burst of low-pass noise
+            // Skin slap - short burst of low-pass noise
             const len = Math.floor(ctx.sampleRate * 0.08);
             const buf = ctx.createBuffer(1, len, ctx.sampleRate);
             const data = buf.getChannelData(0);
@@ -1777,7 +1777,7 @@ async function submitQuest() {
             }
             questCount++;
         } else {
-            msg = '😅 ' + score + '/5 — Better luck next time! Keep reading and try again.';
+            msg = '😅 ' + score + '/5 - Better luck next time! Keep reading and try again.';
         }
     } else {
         if (isPerfect) {
@@ -1800,7 +1800,7 @@ async function submitQuest() {
             }
             questCount++;
         } else {
-            msg = '😅 ' + score + '/5 — You can retry for 25 XP!';
+            msg = '😅 ' + score + '/5 - You can retry for 25 XP!';
         }
     }
 
@@ -1862,7 +1862,7 @@ async function submitQuest() {
             '<h2>' + currentQuest.title + '</h2>' +
             '<div style="font-size:2.5rem;margin:12px 0;">' + (score === 5 ? '🏆' : score >= 3 ? '🎉' : '😅') + '</div>' +
             '<div style="font-size:1.5rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + score + ' / 5 Correct</div>' +
-            '<div style="font-size:0.95rem;color:var(--text-muted);margin-bottom:16px;">Review your answers below — <span style="color:#22c55e;font-weight:700;">green</span> is correct, <span style="color:#ef4444;font-weight:700;">red</span> is wrong</div>' +
+            '<div style="font-size:0.95rem;color:var(--text-muted);margin-bottom:16px;">Review your answers below - <span style="color:#22c55e;font-weight:700;">green</span> is correct, <span style="color:#ef4444;font-weight:700;">red</span> is wrong</div>' +
             '<button class="quest-done" onclick="showQuestFinalResults()" style="margin-bottom:8px;">Show What You\'ve Earned! →</button>';
     }
 
@@ -1905,7 +1905,7 @@ function playHooraySound() {
             osc2.start(now + i * 0.1); osc2.stop(now + i * 0.1 + 0.3);
         });
 
-        // Final sustained major chord — the hooray moment
+        // Final sustained major chord - the hooray moment
         [1047, 1319, 1568].forEach((freq) => {
             const osc = ctx.createOscillator();
             const g = ctx.createGain();
@@ -2028,7 +2028,7 @@ window._retakeLastQuiz = function() {
 
 function startQuestManual(targetChannelId) {
     if (currentQuest) return; // Already showing one
-    
+
     // If a specific channel was passed, start directly
     if (targetChannelId) {
         generateAndShowQuest(true, targetChannelId);
@@ -2043,7 +2043,7 @@ function startQuestManual(targetChannelId) {
     _showQuestTopicPicker();
 }
 
-// Daily recommended quiz — deterministic shuffle, cycles through all topics without repeats
+// Daily recommended quiz - deterministic shuffle, cycles through all topics without repeats
 function _getDailyRecommendedQuiz(topics) {
     if (!topics || topics.length === 0) return null;
     var keys = topics.map(function(t) { return t.key; }).sort();
@@ -2122,11 +2122,11 @@ function _showQuestTopicPicker() {
         '</div>' +
     '</div>';
 
-    // Daily recommended quiz — cycles through all topics, no repeats until full cycle
+    // Daily recommended quiz - cycles through all topics, no repeats until full cycle
     var _dailyTopic = _getDailyRecommendedQuiz(topics);
     if (_dailyTopic) {
         html += '<button onclick="_startQuestTopic(\'' + _dailyTopic.key.replace(/['\\"]/g, '') + '\')" style="width:100%;padding:14px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03));border:2px solid #22c55e;border-radius:12px;color:#22c55e;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;transition:0.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background=\'rgba(34,197,94,0.2)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03))\'">' +
-            '<span style="font-size:1.1rem;">📚</span> Daily Recommended Quiz — ' + _dailyTopic.emoji + ' ' + _dailyTopic.label +
+            '<span style="font-size:1.1rem;">📚</span> Daily Recommended Quiz - ' + _dailyTopic.emoji + ' ' + _dailyTopic.label +
         '</button>';
     }
 
@@ -2134,7 +2134,7 @@ function _showQuestTopicPicker() {
     html += '<button onclick="_startQuestTopic(null)" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(247,147,26,0.03));border:1px solid var(--accent);border-radius:12px;color:var(--accent);font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:12px;transition:0.2s;">🎲 Random Topic</button>';
 
     // Search field
-    html += '<input id="questSearch" type="text" placeholder="Search topics…" style="width:100%;padding:8px;margin-bottom:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:0.85rem;" />';
+    html += '<input id="questSearch" type="text" placeholder="Search topics..." style="width:100%;padding:8px;margin-bottom:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:0.85rem;" />';
 
     // Topic grid
     html += '<div id="questTopicList" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px;">'
@@ -2181,9 +2181,9 @@ window._startQuestTopic = function(topicKey) {
     var modal = document.getElementById('questModal');
     if (modal) modal.classList.remove('open');
     currentQuest = null;
-    
+
     if (!topicKey) {
-        // Random — pick an incomplete topic
+        // Random - pick an incomplete topic
         var incomplete = [];
         for (var key in QUESTION_BANK) {
             if (key === '_general') continue;
@@ -2193,12 +2193,12 @@ window._startQuestTopic = function(topicKey) {
         if (incomplete.length > 0) {
             topicKey = incomplete[Math.floor(Math.random() * incomplete.length)];
         } else {
-            // All done — pick any
+            // All done - pick any
             var allKeys = Object.keys(QUESTION_BANK).filter(function(k) { return k !== '_general' && QUESTION_BANK[k].length >= 3; });
             topicKey = allKeys[Math.floor(Math.random() * allKeys.length)];
         }
     }
-    
+
     setTimeout(function() {
         generateAndShowQuest(true, topicKey);
     }, 200);
@@ -2287,7 +2287,7 @@ function _renderFavorTab(body) {
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
             '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<span style="font-size:0.82rem;">👤</span>' +
-                '<span style="font-size:0.72rem;color:var(--text-muted);">Unaffiliated — <span onclick=\"document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)\" style=\"color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline;\">Choose a Faction!</span></span>' +
+                '<span style="font-size:0.72rem;color:var(--text-muted);">Unaffiliated - <span onclick=\"document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)\" style=\"color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline;\">Choose a Faction!</span></span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span id="sfScoreUnaffiliated" style="font-size:0.88rem;font-weight:800;color:var(--text-muted);font-family:monospace;">0</span>' +
@@ -2299,11 +2299,11 @@ function _renderFavorTab(body) {
             '<button onclick="window._runFactionBackfill()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:7px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Backfill historical data (admin)</button>' +
         '</div>' +
     '</div>';
-    // —— end faction scoreboard ——
+    // -- end faction scoreboard --
 
     html += '<div style="background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;text-align:left;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">' +
         '<strong style="color:var(--accent);">How it works:</strong><br>' +
-        'This is a <strong>community challenge</strong> — everyone\'s points combine!<br><br>' +
+        'This is a <strong>community challenge</strong> - everyone\'s points combine!<br><br>' +
         '• Complete the daily Quiz Quest, Trivia &amp; Poll = 1 point<br>' +
         '• Earn a badge = 1 point<br>' +
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
@@ -2329,7 +2329,7 @@ function _renderFavorTab(body) {
     html += '</div>';
     body.innerHTML = html;
 
-    // —— Live faction scoreboard listener ——
+    // -- Live faction scoreboard listener --
     _startFactionScoreboardListener();
 
     // Load top hashes + personal best
@@ -2378,7 +2378,7 @@ window._runFactionBackfill = function() {
     });
 };
 
-// —— Faction scoreboard live listener ——
+// -- Faction scoreboard live listener --
 function _startFactionScoreboardListener() {
     // Detach any previous listener
     if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
@@ -2489,7 +2489,7 @@ function _loadFavorLeaderboards() {
     if (_favorTopHashesUnsub) { _favorTopHashesUnsub(); _favorTopHashesUnsub = null; }
     if (_favorPBUnsub) { _favorPBUnsub(); _favorPBUnsub = null; }
 
-    // Top 10 lowest hashes — REAL-TIME listener
+    // Top 10 lowest hashes - REAL-TIME listener
     _favorTopHashesUnsub = db.collection('satoshiFavor').doc('topHashes').onSnapshot(function(doc) {
         var el = document.getElementById('favorTopHashes');
         if (!el) return;
@@ -2503,7 +2503,7 @@ function _loadFavorLeaderboards() {
         if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load leaderboard</div>';
     });
 
-    // Personal best — real-time on per-user doc, legacy fallback
+    // Personal best - real-time on per-user doc, legacy fallback
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     if (!myUid) {
         var pbEl = document.getElementById('favorPersonalBest');
@@ -2518,7 +2518,7 @@ function _loadFavorLeaderboards() {
             pbEl.innerHTML = _renderPBHTML(doc.data().value);
             return;
         }
-        // No per-user doc yet — check legacy single doc (once)
+        // No per-user doc yet - check legacy single doc (once)
         if (_legacyChecked) { pbEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Start mining!</div>'; return; }
         _legacyChecked = true;
         db.collection('satoshiFavor').doc('personalBests').get().then(function(legacyDoc) {
@@ -2548,7 +2548,7 @@ if (typeof showQuestFinalResults !== "undefined") window.showQuestFinalResults =
 if (typeof retryQuest !== "undefined") window.retryQuest = retryQuest;
 if (typeof _renderQuestHubTab !== "undefined") window._renderQuestHubTab = _renderQuestHubTab;
 // ============================================================
-// QUEST HUB — Quiz / Trivia / Poll tabs
+// QUEST HUB - Quiz / Trivia / Poll tabs
 // ============================================================
 
 window._questHubTab = 'quiz';
@@ -2571,7 +2571,7 @@ window.showQuestHub = function() {
     var modal = document.createElement('div');
     modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
 
-    // Desktop font-size boost — everything in the modal reads larger on wide screens
+    // Desktop font-size boost - everything in the modal reads larger on wide screens
     var qhStyle = document.createElement('style');
     qhStyle.textContent = '@media(min-width:600px){' +
         '#questHubOverlay [style*="font-size:0.6"]{font-size:0.82rem!important}' +
@@ -2695,7 +2695,7 @@ function _renderCharityTabInner(body) {
     html += '<div style="text-align:center;margin-bottom:20px;">' +
         '<div style="font-size:2rem;margin-bottom:6px;">❤️</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">Donate XP for Charity</div>' +
-        '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">1,000 XP = 1,000 sats donated — 10× more impact than redeeming for yourself</div>' +
+        '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">1,000 XP = 1,000 sats donated - 10× more impact than redeeming for yourself</div>' +
     '</div>';
 
     // Community total
@@ -2805,14 +2805,14 @@ function _renderCharityTabInner(body) {
     // Charity vote placeholder
     html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">🗳️ Community Charity Vote</div>' +
-        '<div style="font-size:0.82rem;color:var(--text-muted);">Coming soon — the community will vote on which charities receive our pledged sats. Focused on Bitcoin education and adoption, but not limited to it.</div>' +
+        '<div style="font-size:0.82rem;color:var(--text-muted);">Coming soon - the community will vote on which charities receive our pledged sats. Focused on Bitcoin education and adoption, but not limited to it.</div>' +
     '</div>';
 
     // Expandable note
     html += '<div style="margin-bottom:16px;">' +
-        '<button onclick="var n=document.getElementById(\'charityNote\');n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=n.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">ℹ️ About Donations <span>▼</span></button>' +
+        '<button onclick="var n=document.getElementById(\'charityNote\');n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=n.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">i️ About Donations <span>▼</span></button>' +
         '<div id="charityNote" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:14px;font-size:0.8rem;color:var(--text-muted);line-height:1.6;">' +
-            '<p style="margin:0 0 8px;">Our community will vote on which charities our contributions go to. In Bitcoin, the charities will focus on Bitcoin education and adoption — but our donations are not limited to the Bitcoin ecosystem. We can find charities outside of Bitcoin that we want to support as a community.</p>' +
+            '<p style="margin:0 0 8px;">Our community will vote on which charities our contributions go to. In Bitcoin, the charities will focus on Bitcoin education and adoption - but our donations are not limited to the Bitcoin ecosystem. We can find charities outside of Bitcoin that we want to support as a community.</p>' +
             '<p style="margin:0;color:#ef4444;"><strong>⚠️ Donations are non-refundable.</strong> Donated XP cannot be reclaimed or reversed. Donations are a community pledge and are not tax-deductible. This is not a registered charitable organization and no tax receipts are issued.</p>' +
         '</div>' +
     '</div>';
@@ -2913,7 +2913,7 @@ window._charityThankYou = function(amt, newBadges, bonusPts) {
     modal.style.cssText = 'background:var(--card-bg);border:1px solid rgba(239,68,68,0.4);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;';
     var html = '<div style="font-size:3rem;margin-bottom:12px;">❤️</div>' +
         '<div style="font-size:1.2rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Thank You!</div>' +
-        '<div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:16px;">You donated <strong>' + amt.toLocaleString() + ' XP</strong> — that\'s <strong>' + amt.toLocaleString() + ' sats</strong> pledged to charity.</div>';
+        '<div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:16px;">You donated <strong>' + amt.toLocaleString() + ' XP</strong> - that\'s <strong>' + amt.toLocaleString() + ' sats</strong> pledged to charity.</div>';
     if (bonusPts > 0) html += '<div style="font-size:0.85rem;color:#ef4444;font-weight:700;margin-bottom:10px;">+' + bonusPts.toLocaleString() + ' bonus XP earned!</div>';
     if (newBadges && newBadges.length > 0) html += '<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:16px;">🏼 New badge' + (newBadges.length > 1 ? 's' : '') + ' unlocked: ' + newBadges.join(', ') + '</div>';
     html += '<div style="font-size:0.75rem;color:var(--text-faint);margin-bottom:20px;">The community will vote on which charities receive these sats.</div>' +
@@ -2970,7 +2970,7 @@ function _renderQuizTab(body) {
     body.innerHTML = '<div style="text-align:center;padding:16px 0;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">📝</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Quiz Quests</div>' +
-        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">1 daily quiz — retake until you ace it!</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">1 daily quiz - retake until you ace it!</div>' +
         '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' +
             '<div style="text-align:center;"><div style="font-size:1.2rem;font-weight:800;color:var(--accent);">' + completedToday + '</div><div style="font-size:0.7rem;color:var(--text-faint);">Today</div></div>' +
             '<div style="text-align:center;"><div style="font-size:1.2rem;font-weight:800;color:var(--heading);">' + completed + '</div><div style="font-size:0.7rem;color:var(--text-faint);">All Time</div></div>' +
@@ -2985,7 +2985,7 @@ function _renderQuizTab(body) {
 }
 
 // ============================================================
-// TRIVIA QUEST SYSTEM — 1 per day, standalone question
+// TRIVIA QUEST SYSTEM - 1 per day, standalone question
 // ============================================================
 
 function _getTriviaToday() {
@@ -3131,12 +3131,12 @@ window.triviaAnswer = function(chosenIdx) {
     if (body) _renderTriviaTab(body);
 
     if (typeof showToast === 'function') {
-        showToast(isCorrect ? '✅ Correct! +50 XP 🧠' : '❌ Wrong — +10 XP for trying!', 3000);
+        showToast(isCorrect ? '✅ Correct! +50 XP 🧠' : '❌ Wrong - +10 XP for trying!', 3000);
     }
 };
 
 // ============================================================
-// POLL QUEST SYSTEM — 1 per day, vote to see results
+// POLL QUEST SYSTEM - 1 per day, vote to see results
 // ============================================================
 
 function _getPollToday() {
@@ -3171,7 +3171,7 @@ function _renderPollTab(body) {
     var html = '<div style="text-align:center;padding:8px 0 16px;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">📊</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Poll Quest</div>' +
-        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">Vote daily — see what the community thinks</div>' +
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">Vote daily - see what the community thinks</div>' +
         '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP for voting</div>' +
     '</div>';
 
@@ -3190,7 +3190,7 @@ function _renderPollTab(body) {
         if (uid && typeof db !== 'undefined') {
             db.collection('poll_votes').doc(pollId).get().then(function(doc) {
                 if (doc.exists && doc.data().voters && doc.data().voters.indexOf(uid) !== -1) {
-                    // User already voted server-side — sync local state and show results
+                    // User already voted server-side - sync local state and show results
                     var serverVoterIdx = state.chosen; // May not have local chosen
                     state = { date: todayKey, index: today.index, chosen: typeof serverVoterIdx === 'number' ? serverVoterIdx : -1, pollId: p.id };
                     _setPollState(state);
@@ -3300,7 +3300,7 @@ window.pollVote = function(chosenIdx) {
                 }, { merge: true });
             });
         }).then(function() {
-            // Vote succeeded — save local state + award XP
+            // Vote succeeded - save local state + award XP
             state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
             _setPollState(state);
             if (typeof awardPoints === 'function') awardPoints(50, '📊 Poll Quest vote');
@@ -3324,13 +3324,13 @@ window.pollVote = function(chosenIdx) {
             if (body) _renderPollTab(body);
         }).catch(function(e) {
             if (e && e.code === 'already-voted') {
-                // Already voted server-side — sync local state
+                // Already voted server-side - sync local state
                 state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
                 _setPollState(state);
                 if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
             } else {
                 console.error('[POLL] Vote failed:', e);
-                if (typeof showToast === 'function') showToast('⚠️ Vote failed — try again', 3000);
+                if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
                 // Re-enable buttons on error
                 pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
                 return;
@@ -3339,7 +3339,7 @@ window.pollVote = function(chosenIdx) {
             if (body) _renderPollTab(body);
         });
     } else {
-        // No auth or offline — local-only vote (no XP, no server record)
+        // No auth or offline - local-only vote (no XP, no server record)
         state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
         _setPollState(state);
         if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
@@ -3349,7 +3349,7 @@ window.pollVote = function(chosenIdx) {
 };
 
 // ============================================================
-// RAID BOSS SYSTEM — Real-time collaborative boss fights
+// RAID BOSS SYSTEM - Real-time collaborative boss fights
 // ============================================================
 
 // Cleanup state for raid boss listeners/intervals
@@ -3409,10 +3409,10 @@ window._loadRaidBoss = function() {
                 var endMs = d.endTime ? (d.endTime.toMillis ? d.endTime.toMillis() : d.endTime) : 0;
 
                 if (!d.placeholder && !d.defeated && startMs <= now && endMs > now) {
-                    // Active boss — non-placeholder, started, not expired
+                    // Active boss - non-placeholder, started, not expired
                     if (!activeBoss) activeBoss = d;
                 } else if (d.placeholder && startMs > now) {
-                    // Upcoming placeholder — pick the soonest
+                    // Upcoming placeholder - pick the soonest
                     if (!upcomingBoss || startMs < (upcomingBoss.startTime ? (upcomingBoss.startTime.toMillis ? upcomingBoss.startTime.toMillis() : upcomingBoss.startTime) : 0)) {
                         upcomingBoss = d;
                     }
@@ -3470,7 +3470,7 @@ function _raidVictoryBanner(boss) {
             '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;margin-bottom:10px;">The community worked together and took it down! Great job everyone!</div>' +
             '<div style="padding:10px 14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;">' +
                 '<div style="font-size:0.78rem;font-weight:800;color:var(--accent);">\uD83C\uDFC6 Community reward unlocked!</div>' +
-                '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">Extra orange ticket drawing for <strong style=\"color:var(--accent);\">21,000 sats</strong> — <strong>this Friday night!</strong></div>' +
+                '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">Extra orange ticket drawing for <strong style=\"color:var(--accent);\">21,000 sats</strong> - <strong>this Friday night!</strong></div>' +
             '</div>' +
             '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:12px;padding:10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
             '<div id="raidDamageDealers" style="display:none;margin-top:8px;"></div>' +
@@ -3671,7 +3671,7 @@ function _listenRaidParticipants(bossId) {
             var el = document.getElementById('raidParticipants');
             if (!el) return;
             if (snapshot.empty) {
-                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No raiders yet — be the first! ⚔️</div>';
+                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No raiders yet - be the first! ⚔️</div>';
                 return;
             }
             var html = '';
@@ -3977,7 +3977,7 @@ if (typeof window._questHubRouteAdded === 'undefined') {
 }
 
 // =============================================
-// Raid Boss — Auto-contribution hooks
+// Raid Boss - Auto-contribution hooks
 // Fire-and-forget calls to contributeRaid Cloud Function
 // =============================================
 window._raidContribute = function(metric, amount, detail) {
