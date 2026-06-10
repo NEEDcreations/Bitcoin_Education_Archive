@@ -174,13 +174,13 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
   if (source === 'daily_all_three') {
     contributorKey = `${uid}_${today}_allthree`;
   } else if (source === 'level_up' || source === 'level_up_5' || source === 'level_up_10') {
-    // Dedup by uid + validated level name + date (one level-up credit per level per day)
+    // Dedup by uid + level name only — NO date, each rank is reached exactly once
     const validatedLevel = detail; // already validated above against whitelist
-    contributorKey = `${uid}_${today}_level_${validatedLevel}`;
+    contributorKey = `${uid}_level_${validatedLevel}`;
   } else if (source === 'badge_earned') {
-    // Dedup by uid + sanitized badge id + date (one badge credit per badge per day)
+    // Dedup by uid + sanitized badge name only — NO date, badges are one-time permanent
     const safeBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
-    contributorKey = `${uid}_${today}_badge_${safeBadge}`;
+    contributorKey = `${uid}_badge_${safeBadge}`;
   } else {
     contributorKey = `${uid}_${source}_${today}`;
   }

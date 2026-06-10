@@ -1916,7 +1916,7 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
-async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
+async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId) {
     if (!currentUser || !rankingReady) return;
 
     // Anti-abuse: validate pts is a reasonable number
@@ -2047,6 +2047,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
         if (channelId) payload.channelId = channelId;
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
+        if (badgeId) payload.badgeId = badgeId;
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
             if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Daily limit reached for this action.'), 6000);
@@ -6493,7 +6494,7 @@ function checkBadges() {
                 // Award points (toasts are already queued by _nachoBusy)
                 var badgePts = badge.pts || 20;
                 if (typeof awardPoints === 'function') {
-                    awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji);
+                    awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji, null, null, null, badge.id);
                 }
                 // Save to Firebase so badges persist across devices/browsers
                 if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
