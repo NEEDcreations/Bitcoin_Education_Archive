@@ -4937,24 +4937,17 @@ window.toggleAITools = function() {
 // Inject AI Tools button on DOM ready
 (function() {
     function injectAIToolsBtn() {
-        if (document.getElementById('aiToolsBtn')) return;
-        var btn = document.createElement('button');
-        btn.id = 'aiToolsBtn';
-        btn.onclick = toggleAITools;
-        btn.title = 'AI Tools';
-        btn.setAttribute('aria-label', 'Open AI Tools');
-        btn.style.cssText = 'position:fixed;bottom:10px;right:132px;z-index:200001;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
-        btn.innerHTML = '🤖';
-        document.body.appendChild(btn);
-
-        // Mobile: icon-only FAB
-        var style = document.getElementById('aiToolsBtnCSS');
-        if (!style) {
-            style = document.createElement('style');
-            style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:128px!important;}}';
-            document.head.appendChild(style);
+        // Button is now static in HTML — just wire up the onclick
+        var btn = document.getElementById('aiToolsBtn');
+        if (!btn) {
+            // Fallback: create if somehow missing
+            btn = document.createElement('button');
+            btn.id = 'aiToolsBtn';
+            btn.className = 'fab-btn';
+            btn.innerHTML = '🤖';
+            document.body.appendChild(btn);
         }
+        btn.onclick = toggleAITools;
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', injectAIToolsBtn);

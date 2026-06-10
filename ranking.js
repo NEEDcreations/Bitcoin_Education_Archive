@@ -2559,24 +2559,17 @@ function updateUserDisplay(lv) {
         el.removeAttribute('data-mob-hidden');
         var _isMob = window.innerWidth <= 900;
 
-        // Standalone dashboard button — create on all platforms including mobile
+        // dashboardFloatBtn is static HTML — just ensure onclick is wired
         var dashBtn = document.getElementById('dashboardFloatBtn');
         if (!dashBtn) {
             dashBtn = document.createElement('div');
             dashBtn.id = 'dashboardFloatBtn';
-            dashBtn.onclick = function() { if (typeof toggleDashboard === 'function') toggleDashboard(); };
+            dashBtn.className = 'fab-btn';
+            dashBtn.innerHTML = '📊';
+            dashBtn.title = 'Bitcoin Metrics';
             document.body.appendChild(dashBtn);
         }
-        dashBtn.style.cssText = 'position:fixed;bottom:10px;right:76px;z-index:200001;background:linear-gradient(135deg,#f97316,#eab308);color:#fff;border:none;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(249,115,22,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;-webkit-transform:translateZ(0);transform:translateZ(0);';
-        dashBtn.innerHTML = '📊';
-        dashBtn.title = 'Bitcoin Metrics';
-        var dashBtnCSS = document.getElementById('dashBtnCSS');
-        if (!dashBtnCSS) {
-            dashBtnCSS = document.createElement('style');
-            dashBtnCSS.id = 'dashBtnCSS';
-            dashBtnCSS.textContent = '@media(max-width:900px){#dashboardFloatBtn{bottom:70px!important;right:72px!important;}}';
-            document.head.appendChild(dashBtnCSS);
-        }
+        dashBtn.onclick = function() { if (typeof toggleDashboard === 'function') toggleDashboard(); };
 
         // Mobile: hide the fixed overlay entirely — user info lives in the mobile-bar instead
         if (_isMob) {
@@ -3454,11 +3447,32 @@ window._selectFaction = async function(faction) {
         var user = auth ? auth.currentUser : null;
         if (!user) { if (typeof showToast === 'function') showToast('Sign in to choose a faction'); return; }
         if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to choose a faction'); return; }
+
+        var previousFaction = currentUser ? (currentUser.faction || null) : null;
+        var isFirstChoice = !previousFaction;
+
         // Save to Firestore
         await db.collection('users').doc(user.uid).update({ faction: faction });
         if (currentUser) currentUser.faction = faction;
         if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
         showSettingsPage('account');
+
+        // If this is fist time picking a faction (or switching from no faction),
+        // sync their historical unaffiliated SF points to the new faction
+        if (isFirstChoice && typeof firebase !== 'undefined' && firebase.functions) {
+            firebase.functions().httpsCallable('syncUserFactionPoints')({
+                newFaction: faction,
+                previousFaction: previousFaction
+            }).then(function(res) {
+                if (res.data && res.data.pointsSynced > 0) {
+                    if (typeof showToast === 'function') showToast('⚡ ' + res.data.pointsSynced + ' past SF point' + (res.data.pointsSynced !== 1 ? 's' : '') + ' credited to your faction!');
+                }
+            }).catch(function(err) {
+                console.warn('[FACTION] syncUserFactionPoints failed:', err);
+            });
+        }
+        // Note: if switching factions, future contributions go to new faction automatically.
+        // Historical points stay with original faction (Option A).
     } catch(e) { console.error('Faction select error:', e); if (typeof showToast === 'function') showToast('Error saving faction'); }
 };
 
@@ -3638,24 +3652,24 @@ function showSettingsPage(tab) {
                     var found = allEarned.find(function(b) { return b.id === chosenBadge; });
                     if (found) currentBadgeDisplay = found.emoji + ' ' + found.name;
                 }
+                var _badgePickerHtml = '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
+                    '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
+                _badgePickerHtml += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!chosenBadge ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+                for (var bi = 0; bi < allEarned.length; bi++) {
+                    var b = allEarned[bi];
+                    var isChosen = chosenBadge === b.id;
+                    _badgePickerHtml += '<div onclick="setDisplayBadge(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + b.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + b.name + '</div></div>' + (isChosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+                }
+                _badgePickerHtml += '</div></div>';
+
                 _advHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                    '<div onclick="window._expanded_badges=!window._expanded_badges;showSettingsPage(\'account\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                    '<div onclick="var _bp=document.getElementById(\'badgePickerPanel\');var _arr=document.getElementById(\'badgePickerArrow\');if(_bp){var open=_bp.style.display===\'block\';_bp.style.display=open?\'none\':\'block\';if(_arr)_arr.textContent=open?\'▸\':\'▾\';}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
                     '<div><div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🏅 Display Badge</div>' +
                     '<div style="color:var(--text);font-size:0.85rem;margin-top:4px;">' + currentBadgeDisplay + '</div></div>' +
-                    '<span style="color:var(--text-faint);font-size:1rem;transition:0.2s;">' + (window._expanded_badges ? '▾' : '▸') + '</span></div>';
-                if (window._expanded_badges) {
-                    _advHtml += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
-                        '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
-                        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
-                    _advHtml += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!chosenBadge ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
-                    for (var bi = 0; bi < allEarned.length; bi++) {
-                        var b = allEarned[bi];
-                        var isChosen = chosenBadge === b.id;
-                        _advHtml += '<div onclick="setDisplayBadge(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + b.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + b.name + '</div></div>' + (isChosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
-                    }
-                    _advHtml += '</div>';
-                }
-                _advHtml += '</div>';
+                    '<span id="badgePickerArrow" style="color:var(--text-faint);font-size:1rem;transition:0.2s;">▸</span></div>' +
+                    '<div id="badgePickerPanel" style="display:none;">' + _badgePickerHtml + '</div>' +
+                    '</div>';
             }
         }
 
@@ -5651,9 +5665,29 @@ window.setDisplayBadge = function(badgeId) {
     // Update all UI that shows the badge
     updateRankUI();
     updateAuthButton();
-    // Refresh the settings page to show the new selection
-    showSettingsPage('account');
     showToast(badgeId ? '🏅 Display badge updated!' : '🏅 Using default rank emoji');
+    // Refresh just the badge picker panel in-place — no full page re-render
+    var _bp = document.getElementById('badgePickerPanel');
+    if (_bp) {
+        // Re-render badge options with updated selection
+        var _lvl = (typeof getLevel === 'function') ? getLevel((currentUser && currentUser.points) || 0) : { emoji: '🌱', name: 'Newbie' };
+        var _allE = [];
+        if (typeof earnedBadges !== 'undefined' && typeof BADGE_DEFS !== 'undefined') {
+            BADGE_DEFS.forEach(function(bd) { if (earnedBadges.has(bd.id)) _allE.push({ id: bd.id, emoji: bd.emoji, name: bd.name }); });
+        }
+        var _earnedHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+        if (typeof HIDDEN_BADGES !== 'undefined') HIDDEN_BADGES.forEach(function(bd) { if (_earnedHidden.indexOf(bd.id) !== -1) _allE.push({ id: bd.id, emoji: bd.hidden ? (bd.revealEmoji || bd.emoji) : bd.emoji, name: bd.hidden ? (bd.revealName || bd.name) : bd.name }); });
+        var _chosen = badgeId || '';
+        var _ph = '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
+        _ph += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!_chosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (!_chosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + _lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + _lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!_chosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+        _allE.forEach(function(bd) {
+            var _ic = _chosen === bd.id;
+            _ph += '<div onclick="setDisplayBadge(\'' + bd.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (_ic ? 'var(--accent)' : 'var(--border)') + ';background:' + (_ic ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + bd.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + bd.name + '</div></div>' + (_ic ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+        });
+        _ph += '</div></div>';
+        _bp.innerHTML = _ph;
+        _bp.style.display = 'block';
+    }
 };
 if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) {
     // Read from input if no name passed

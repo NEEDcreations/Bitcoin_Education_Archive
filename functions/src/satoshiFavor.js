@@ -213,13 +213,26 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
     // Check if favor expired, reset if needed
     stateData = checkAndResetFavor(stateData, transaction, stateRef);
 
-    // Record contributor
+    // Record contributor — stamp faction at time of contribution
+    const faction = userData.faction || null; // cyber_hornets | honey_badgers | null
     transaction.set(contributorRef, {
       uid,
       source,
       detail: detail || null,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      faction,
+      pointsAdded: pointsToAdd,
     });
+
+    // Update faction totals doc atomically
+    const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+    const factionField = faction === 'cyber_hornets' ? 'cyber_hornets'
+                       : faction === 'honey_badgers' ? 'honey_badgers'
+                       : 'unaffiliated';
+    transaction.set(totalsRef, {
+      [factionField]: admin.firestore.FieldValue.increment(pointsToAdd),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
 
     if (stateData.favorActive) {
       // Favor is active and not expired — add bonus minutes (capped)
@@ -618,5 +631,181 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
     added,
     skipped,
     top10: entries.map(e => ({ username: e.username, value: e.value })),
+  };
+});
+
+/**
+ * backfillFactionTotals (onCall, admin only)
+ * One-shot function that scans ALL contributor docs, joins against users collection
+ * for current faction (Option A), stamps faction on each contributor doc that is
+ * missing it, and rebuilds the factionTotals doc from scratch.
+ * Safe to run multiple times — idempotent.
+ */
+exports.backfillFactionTotals = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+
+  // Admin-only: check email
+  const ADMIN_EMAILS = ['needcreations@gmail.com', 'info.603btc@gmail.com'];
+  const userRecord = await admin.auth().getUser(context.auth.uid);
+  if (!ADMIN_EMAILS.includes(userRecord.email)) {
+    throw new functions.https.HttpsError('permission-denied', 'Admin only.');
+  }
+
+  const contributorsRef = db.collection('satoshiFavor').doc('current').collection('contributors');
+  const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+
+  // Fetch all contributor docs
+  const snap = await contributorsRef.get();
+  console.log(`[BACKFILL] Found ${snap.size} contributor docs`);
+
+  // Collect unique UIDs
+  const uidSet = new Set();
+  snap.forEach(doc => { if (doc.data().uid) uidSet.add(doc.data().uid); });
+  const uids = Array.from(uidSet);
+  console.log(`[BACKFILL] Unique UIDs: ${uids.length}`);
+
+  // Batch-fetch user docs (500 per batch max)
+  const uidFactionMap = {};
+  const batchSize = 500;
+  for (let i = 0; i < uids.length; i += batchSize) {
+    const batch = uids.slice(i, i + batchSize);
+    const userDocs = await Promise.all(batch.map(uid => db.collection('users').doc(uid).get()));
+    userDocs.forEach((ud, idx) => {
+      uidFactionMap[batch[idx]] = (ud.exists && ud.data().faction) ? ud.data().faction : null;
+    });
+  }
+
+  // Tally totals and stamp missing faction fields
+  const totals = { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 };
+  const writeBatch = db.batch();
+  let stamped = 0;
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    const uid = d.uid;
+    const pts = d.pointsAdded || POINT_VALUES[d.source] || 1;
+    const faction = uidFactionMap[uid] || null;
+    const fKey = faction === 'cyber_hornets' ? 'cyber_hornets'
+                : faction === 'honey_badgers' ? 'honey_badgers'
+                : 'unaffiliated';
+    totals[fKey] += pts;
+
+    // Stamp faction if missing
+    if (!d.faction && faction) {
+      writeBatch.update(doc.ref, { faction, pointsAdded: pts });
+      stamped++;
+    } else if (!d.pointsAdded) {
+      writeBatch.update(doc.ref, { pointsAdded: pts });
+    }
+  });
+
+  // Commit contributor doc stamps in batches of 500
+  await writeBatch.commit();
+
+  // Overwrite factionTotals
+  await totalsRef.set({
+    cyber_hornets: totals.cyber_hornets,
+    honey_badgers: totals.honey_badgers,
+    unaffiliated: totals.unaffiliated,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    lastBackfill: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  console.log(`[BACKFILL] Done. Totals:`, totals, `Stamped: ${stamped}`);
+  return { success: true, totals, contributorDocs: snap.size, uniqueUsers: uids.length, stamped };
+});
+
+/**
+ * syncUserFactionPoints (onCall)
+ * Called when a user chooses (or first sets) their faction.
+ * Sums all their existing contributor docs and adds those points to the new faction total.
+ * Does NOT retroactively change old contributor docs (only future contributions get new faction).
+ * Safe to call multiple times — uses a per-user sync record to prevent double-counting.
+ */
+exports.syncUserFactionPoints = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot sync faction points.');
+  }
+
+  const uid = context.auth.uid;
+  const { newFaction, previousFaction } = data;
+
+  if (!['cyber_hornets', 'honey_badgers'].includes(newFaction)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Invalid faction.');
+  }
+
+  const contributorsRef = db.collection('satoshiFavor').doc('current').collection('contributors');
+  const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+  const syncRef = db.collection('satoshiFavor').doc('factionSyncs').collection('users').doc(uid);
+
+  // Fetch all contributor docs for this user
+  const snap = await contributorsRef.where('uid', '==', uid).get();
+  if (snap.empty) return { success: true, pointsSynced: 0 };
+
+  // Sum points that are currently unaffiliated (no faction was stamped)
+  // or were already on this user's old unaffiliated pool
+  const syncDoc = await syncRef.get();
+  const prevSyncedFaction = syncDoc.exists ? syncDoc.data().faction : null;
+  const prevSyncedPoints = syncDoc.exists ? syncDoc.data().pointsSynced : 0;
+
+  let unaffiliatedPoints = 0;
+  const unstampedDocs = [];
+  snap.forEach(doc => {
+    const d = doc.data();
+    // Count docs that have no faction stamp (unaffiliated pool)
+    if (!d.faction) {
+      unaffiliatedPoints += d.pointsAdded || POINT_VALUES[d.source] || 1;
+      unstampedDocs.push(doc.ref);
+    }
+  });
+
+  if (unaffiliatedPoints === 0) return { success: true, pointsSynced: 0 };
+
+  // Atomically move points from unaffiliated → newFaction
+  await db.runTransaction(async (transaction) => {
+    const totalsDoc = await transaction.get(totalsRef);
+    const current = totalsDoc.exists ? totalsDoc.data() : {};
+    const unaffil = current.unaffiliated || 0;
+
+    // Don't subtract more than what's in unaffiliated (safety)
+    const toMove = Math.min(unaffiliatedPoints, unaffil);
+    if (toMove <= 0) return;
+
+    transaction.set(totalsRef, {
+      unaffiliated: Math.max(0, unaffil - toMove),
+      [newFaction]: admin.firestore.FieldValue.increment(toMove),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // Stamp faction on all previously-unaffiliated contributor docs for this user
+    for (const ref of unstampedDocs) {
+      transaction.update(ref, { faction: newFaction });
+    }
+
+    // Record this sync so we don't double-count
+    transaction.set(syncRef, {
+      uid,
+      faction: newFaction,
+      pointsSynced: toMove,
+      syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { success: true, pointsSynced: unaffiliatedPoints };
+});
+
+/**
+ * getFactionTotals (onCall)
+ * Public read of factionTotals doc. Real-time updates handled client-side via Firestore listener.
+ */
+exports.getFactionTotals = functions.https.onCall(async (data, context) => {
+  const doc = await db.collection('satoshiFavor').doc('factionTotals').get();
+  if (!doc.exists) return { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 };
+  const d = doc.data();
+  return {
+    cyber_hornets: d.cyber_hornets || 0,
+    honey_badgers: d.honey_badgers || 0,
+    unaffiliated: d.unaffiliated || 0,
   };
 });

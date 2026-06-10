@@ -43,7 +43,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260609_1724" as="script">
+    <link rel="preload" href="bundle.js?v=20260610_1559" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -320,12 +320,19 @@
         .username-box .skip { color: #475569; font-size: 0.85rem; margin-top: 12px; cursor: pointer; display: block; }
         .username-box .skip:hover { color: var(--text-dim); }
 
+        /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
+        .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; border:none; color:#fff; font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+        .fab-btn:hover { transform:translateY(-2px) translateZ(0); filter:brightness(1.1); }
+        #chatOverlayBtn { right:184px; background:linear-gradient(135deg,#3b82f6,#6366f1); box-shadow:0 4px 16px rgba(59,130,246,0.4); }
+        #aiToolsBtn     { right:128px; background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 4px 20px rgba(99,102,241,0.4); }
+        #dashboardFloatBtn { right:72px; background:linear-gradient(135deg,#f97316,#eab308); box-shadow:0 4px 20px rgba(249,115,22,0.4); }
+        #lbFloatBtn     { right:16px; background:var(--accent,#f7931a); box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:200002; }
+        #lbFloatBtn.chat-shifted { bottom:120px !important; }
+
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
-            #lbFloatBtn { bottom: 70px !important; right: 16px !important; z-index: 200002 !important; }
-            #lbFloatBtn.chat-shifted { bottom: 120px !important; }
-            #chatOverlayBtn { display: none !important; }
-            #dashboardFloatBtn { bottom: 70px !important; right: 72px !important; z-index: 200001 !important; }
+            .fab-btn { bottom:70px !important; }
+            #lbFloatBtn.chat-shifted { bottom:120px !important; }
             #floatingRandomBtn { bottom: 120px !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
             /* RESTORE MOBILE VISIBILITY — but not when explicitly hidden (anon mobile or dismissed) */
             #userDisplay:not(.user-hidden):not([data-mob-hidden]) { display: flex !important; }
@@ -350,8 +357,10 @@
         .badge-item:hover { opacity: 1; transform: translateY(-2px); }
         .badge-emoji { font-size: 1.5rem; margin-bottom: 4px; }
         .badge-name { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; }
-        .badge-tooltip { display: none; position: fixed; background: var(--bg-side); border: 1px solid var(--accent); color: var(--text); padding: 10px 14px; border-radius: 10px; font-size: 0.78rem; white-space: normal; min-width: 180px; max-width: 280px; width: max-content; z-index: 10000; box-shadow: 0 8px 24px rgba(0,0,0,0.5); pointer-events: none; text-align: center; line-height: 1.5; }
-        .badge-item:hover .badge-tooltip, .badge-item.tapped .badge-tooltip { display: block; }
+        /* Badge tooltip — rendered via JS, one at a time */
+        .badge-tooltip { display: none !important; } /* inline tooltips hidden; JS handles it */
+        #badgeFloatTip { position:fixed; background:var(--bg-side,#1a1a2e); border:1px solid var(--accent,#f7931a); color:var(--text); padding:10px 14px; border-radius:10px; font-size:0.78rem; white-space:normal; min-width:180px; max-width:260px; z-index:210000; box-shadow:0 8px 24px rgba(0,0,0,0.55); pointer-events:none; text-align:center; line-height:1.5; display:none; }
+        .badge-item.tapped { border-color:var(--accent) !important; }
         /* TCTV home button: dark purple text for light mode, light purple for dark */
         .tctv-home-btn { color: #6b21a8 !important; }
         [data-theme="dark"] .tctv-home-btn, .oled-theme .tctv-home-btn { color: #e9d5ff !important; }
@@ -547,7 +556,7 @@
         #goog-gt-tt { display: none !important; }
         select, select option, select optgroup { background: var(--bg-side, #0f172a); color: var(--text, #e0e0e0); }
         select option:checked { background: var(--accent-bg, #1a1a2e); color: var(--accent, #f7931a); }
-    #desktopDMBtn { display: flex; } @media (max-width: 600px) { #desktopDMBtn { display: none !important; } }
+
     .no-desktop { display: none !important; } .mobile-back-btn { display: none !important; } @media (max-width: 900px) { .no-desktop { display: flex !important; } .mobile-back-btn { display: inline-flex !important; } }
     </style>
     <!-- LOCAL DEV: disabled Google Sign-In (CORS on localhost) -->
@@ -983,7 +992,7 @@
                             <!-- Apps grid -->
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                                 <button onclick="enterNachoMode()" title="Chat with our AI Bitcoin tutor" data-tooltip="Chat with our AI Bitcoin tutor" style="padding:12px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;">🦌 Nacho Mode</button>
-                                <button onclick="if(typeof enterPVPMode==='function')enterPVPMode()" title="1v1 Bitcoin trivia battles" data-tooltip="1v1 Bitcoin trivia battles" style="padding:12px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;">⚔️ PVP Battle</button>
+                                <button onclick="if(typeof enterProofOfPlay==='function')enterProofOfPlay()" title="Bitcoin gaming hub — Arcade + PVP" data-tooltip="Bitcoin gaming hub — Arcade + PVP" style="padding:12px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;">🕹️ Proof of Play</button>
                                 <button onclick="go('forum')" title="Community discussion board for Bitcoin topics" data-tooltip="Community discussion board for Bitcoin topics" data-tier="explorer" data-unlock-name="🗣️ Pleb Talk" style="padding:12px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;">🗣️ Pleb Talk</button>
                                 <button onclick="go('marketplace')" title="Buy and sell with Lightning sats" data-tooltip="Buy and sell with Lightning sats" data-tier="full" data-unlock-name="⚡ Lightning Mart" style="padding:12px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;">⚡ Lightning Mart</button>
                                 <button onclick="go('irl-sync')" title="Find or host local Bitcoin meetups" data-tooltip="Find or host local Bitcoin meetups" data-tier="community" data-unlock-name="🤝 IRL Sync" style="padding:12px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;">🤝 IRL Sync</button>
@@ -1105,10 +1114,14 @@
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
-    <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:10px;right:20px;z-index:9990;background:var(--accent);color:#fff;border:none;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:0.2s;">🏆</button>
-    <button id="chatOverlayBtn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else showToast('Chat loading...')" style="position:fixed;bottom:10px;right:188px;z-index:300;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(59,130,246,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;">💬</button>
+    <!-- FAB row: Chat | AI Tools | Metrics | Leaderboard -->
+    <button id="chatOverlayBtn" class="fab-btn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else showToast('Chat loading...')" title="Global Chat" aria-label="Open Chat">💬</button>
+    <button id="aiToolsBtn"     class="fab-btn" onclick="if(typeof toggleAITools==='function')toggleAITools();else showToast('AI Tools loading...')" title="AI Tools" aria-label="Open AI Tools">🤖</button>
+    <div    id="dashboardFloatBtn" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics" role="button" tabindex="0">📊</div>
+    <button id="lbFloatBtn"     class="fab-btn" onclick="toggleLeaderboard()" title="Leaderboard" aria-label="Open Leaderboard">🏆</button>
     <div id="leaderboard"></div>
-    <button onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else if(typeof renderChatHub==='function')renderChatHub('global');else go('dms')" style="position:fixed;bottom:10px;right:188px;z-index:9989;background:linear-gradient(135deg,#3b82f6,#6366f1);border:none;border-radius:50%;width:48px;height:48px;color:#fff;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;" id="desktopDMBtn">💬</button>
+    <div id="badgeFloatTip"></div>
+
     <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
@@ -1204,7 +1217,7 @@
     <!-- <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script> -->
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260609_1724" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260610_1559" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260528_1251" defer></script>
     <script src="timechain-tv.js?v=20260607_2339" defer></script>
@@ -1220,7 +1233,7 @@
         var _lazyScripts = [
             'pvp.js?v=20260608_1729','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260608_0032',
             'scholar.js?v=20260528_1708','beats.js?v=20260608_0317',
-            'global-chat.js?v=20260608_1418','lightning.js?v=20260514_1424','lightning-tips.js?v=20260603_1701',
+            'global-chat.js?v=20260609_1743','lightning.js?v=20260514_1424','lightning-tips.js?v=20260603_1701',
             'notifications.js?v=20260528_1251','guide.js?v=20260526','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260523_batch','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
@@ -1274,8 +1287,9 @@ if ('serviceWorker' in navigator) {
                     if (newWorker.state === 'activated' && hadController) {
                         // Show update banner — user refreshes naturally
                         var banner = document.createElement('div');
-                        banner.style.cssText = 'position:fixed;bottom:70px;left:16px;right:16px;z-index:9999;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.4);font-family:inherit;';
-                        banner.innerHTML = '<div style="font-weight:700;font-size:0.85rem;">🆕 Update ready</div><button onclick="location.reload()" style="padding:7px 14px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer;">Refresh</button>';
+                        var _isMobUpd = window.innerWidth <= 900;
+                        banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? '130px' : '70px') + ';left:16px;right:16px;z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
+                        banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button onclick="location.reload()" style="padding:8px 18px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;white-space:nowrap;">↺ Refresh</button>';
                         document.body.appendChild(banner);
                     }
                 });
