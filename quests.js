@@ -2239,7 +2239,7 @@ function _renderFavorTab(body) {
             '<div style="flex:1;background:rgba(247,147,26,0.07);border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:12px;text-align:center;">' +
                 '<div style="font-size:1.4rem;margin-bottom:4px;">🐝</div>' +
                 '<div style="font-size:0.78rem;font-weight:800;color:#f7931a;margin-bottom:6px;">Cyber Hornets</div>' +
-                '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">...</div>' +
+                '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
@@ -2249,7 +2249,7 @@ function _renderFavorTab(body) {
             '<div style="flex:1;background:rgba(168,85,247,0.07);border:2px solid rgba(168,85,247,0.3);border-radius:12px;padding:12px;text-align:center;">' +
                 '<div style="font-size:1.4rem;margin-bottom:4px;">🦡</div>' +
                 '<div style="font-size:0.78rem;font-weight:800;color:#a855f7;margin-bottom:6px;">Honey Badgers</div>' +
-                '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">...</div>' +
+                '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
             '</div>' +
         '</div>' +
@@ -2258,6 +2258,9 @@ function _renderFavorTab(body) {
         '</div>' +
         '<div id="sfNoFactionNote" style="display:none;margin-top:10px;font-size:0.72rem;color:var(--text-faint);text-align:center;">' +
             'You haven\'t chosen a faction yet. <span onclick="showSettingsPage(\'account\')" style="color:var(--accent);cursor:pointer;font-weight:700;">Join one →</span>' +
+        '</div>' +
+        '<div id="sfAdminBackfill" style="display:none;margin-top:10px;text-align:center;">' +
+            '<button onclick="window._runFactionBackfill()" style="padding:6px 14px;background:rgba(247,147,26,0.12);border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Backfill historical data (admin)</button>' +
         '</div>' +
     '</div>';
     // —— end faction scoreboard——
@@ -2350,6 +2353,22 @@ window.closeQuestHubForFavor = function() {
     if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
 };
 
+// Admin one-click backfill
+window._runFactionBackfill = function() {
+    if (typeof firebase === 'undefined') return;
+    var btn = document.querySelector('#sfAdminBackfill button');
+    if (btn) { btn.textContent = '⏳ Running backfill...'; btn.disabled = true; }
+    firebase.functions().httpsCallable('backfillFactionTotals')({}).then(function(r) {
+        var d = r.data;
+        if (typeof showToast === 'function') showToast('✅ Backfill done! 🐝 ' + (d.totals && d.totals.cyber_hornets || 0) + ' vs 🦡 ' + (d.totals && d.totals.honey_badgers || 0));
+        if (btn) { btn.textContent = '✅ Done!'; }
+    }).catch(function(err) {
+        if (typeof showToast === 'function') showToast('❌ Backfill error: ' + err.message);
+        if (btn) { btn.textContent = '⚡ Backfill historical data (admin)'; btn.disabled = false; }
+        console.error('[BACKFILL]', err);
+    });
+};
+
 // —— Faction scoreboard live listener ——
 function _startFactionScoreboardListener() {
     // Detach any previous listener
@@ -2358,7 +2377,7 @@ function _startFactionScoreboardListener() {
 
     var totalsRef = db.collection('satoshiFavor').doc('factionTotals');
     window._factionScoreUnsub = totalsRef.onSnapshot(function(doc) {
-        var data = doc.exists ? doc.data() : {};
+        var data = doc.exists ? doc.data() : { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 };
         var hornets = data.cyber_hornets || 0;
         var badgers = data.honey_badgers || 0;
         var total = hornets + badgers;
@@ -2391,9 +2410,16 @@ function _startFactionScoreboardListener() {
         }
 
         // Show join note if user has no faction
+        var userFaction = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
         if (elNote) {
-            var userFaction = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
             elNote.style.display = userFaction ? 'none' : 'block';
+        }
+
+        // Show backfill button for admin
+        var elAdmin = document.getElementById('sfAdminBackfill');
+        if (elAdmin) {
+            var isAdmin = (typeof currentUser !== 'undefined' && currentUser && currentUser.email === 'needcreations@gmail.com');
+            elAdmin.style.display = isAdmin ? 'block' : 'none';
         }
 
         // Highlight user's faction card
@@ -2532,6 +2558,24 @@ window.showQuestHub = function() {
 
     var modal = document.createElement('div');
     modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
+
+    // Desktop font-size boost — everything in the modal reads larger on wide screens
+    var qhStyle = document.createElement('style');
+    qhStyle.textContent = '@media(min-width:600px){' +
+        '#questHubOverlay [style*="font-size:0.6"]{font-size:0.82rem!important}' +
+        '#questHubOverlay [style*="font-size:0.7"]{font-size:0.88rem!important}' +
+        '#questHubOverlay [style*="font-size:0.75"]{font-size:0.9rem!important}' +
+        '#questHubOverlay [style*="font-size:0.78"]{font-size:0.92rem!important}' +
+        '#questHubOverlay [style*="font-size:0.8"]{font-size:0.95rem!important}' +
+        '#questHubOverlay [style*="font-size:0.82"]{font-size:0.97rem!important}' +
+        '#questHubOverlay [style*="font-size:0.85"]{font-size:1rem!important}' +
+        '#questHubOverlay [style*="font-size:0.9"]{font-size:1.05rem!important}' +
+        '#questHubOverlay [style*="font-size:0.95"]{font-size:1.08rem!important}' +
+        '#questHubOverlay p,[id="questHubBody"] div{font-size:inherit}' +
+        '#questHubBody{font-size:1rem}' +
+        '#questHubTabs button{font-size:0.88rem!important;padding:12px 0!important}' +
+    '}';
+    modal.appendChild(qhStyle);
 
     // Header
     var header = document.createElement('div');
