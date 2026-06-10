@@ -10904,7 +10904,7 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
 
     'peaceful': [
         { q: 'When China banned Bitcoin:', a: 'Bitcoin just moved and kept going', wrong: ['Bitcoin shut down', 'The price went to zero', 'The code was deleted'] },
-        { q: 'What happened to Bitcoin transactions during the 2021 China mining ban?', a: 'The network kept running - hash rate dipped then recovered within months', wrong: ['Bitcoin transactions stopped for several weeks', 'Bitcoin price permanently crashed to zero', 'The protocol forked to remove Chinese miners'] },
+        { q: 'What happened to Bitcoin transactions during the 2021 China mining ban?', a: 'The network kept running - hash rate dipped then recovered within months', wrong: ['Transactions slowed severely as hash rate took over a year to fully recover', 'The difficulty adjustment failed and blocks stopped confirming for several weeks', 'The network split into two chains — one with and one without Chinese nodes'] },
         { q: 'Bitcoin enables protest by:', a: 'Allowing people to transact without government permission', wrong: ['Sending angry emails', 'Blocking websites', 'Hacking banks'] },
         { q: 'Bitcoin is called "peaceful" because:', a: 'It opts out of the existing system without force', wrong: ['It prevents all crime', 'It eliminates wars', 'It makes everyone rich'] },
         { q: 'Bitcoin helps people in authoritarian regimes by:', a: 'Providing censorship-resistant money', wrong: ['Overthrowing governments', 'Hacking military systems', 'Printing local currency'] },
@@ -11087,7 +11087,7 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
     ],
 
     'problems-of-money': [
-        { q: 'Why is inflation described as a "hidden tax"?', a: 'It silently erodes the purchasing power of savings without a formal vote', wrong: ['Governments secretly mine Bitcoin to fund spending', 'Banks charge secret fees on every transaction', 'Inflation only affects people who pay income taxes'] },
+        { q: 'Why is inflation described as a "hidden tax"?', a: 'It silently erodes the purchasing power of savings without a formal vote', wrong: ['It is an unofficial surcharge added by central banks on top of existing income taxes', 'Banks secretly deposit hidden service fees into government accounts disguised as price rises', 'Only people in the highest tax bracket are actually subject to the effects of inflation'] },
         { q: 'Fractional reserve banking means:', a: 'Banks hold only a fraction of deposits', wrong: ['Banks hold all deposits', 'Bitcoin is fractional', 'Miners keep fractions'] },
         { q: 'Inflation is often called:', a: 'A hidden tax on savings', wrong: ['A bonus for savers', 'A mining reward', 'A blockchain feature'] },
         { q: 'Fiat currency is backed by:', a: 'Government decree and trust', wrong: ['Gold reserves', 'Bitcoin', 'Real estate'] },
@@ -11184,7 +11184,7 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
 
     'core-source-code': [
         { q: 'Changes to Bitcoin Core require:', a: 'Careful testing and peer review', wrong: ['One person\'s approval', 'A company decision', 'Government permission'] },
-        { q: 'What is a Bitcoin Improvement Proposal (BIP)?', a: 'A formal document proposing changes or standards for the Bitcoin protocol', wrong: ['A government bill regulating Bitcoin', 'A mining pool reward-sharing scheme', 'An exchange listing application form'] },
+        { q: 'What is a Bitcoin Improvement Proposal (BIP)?', a: 'A formal document proposing changes or standards for the Bitcoin protocol', wrong: ['A mandatory software update all Bitcoin nodes must immediately install', 'A formal funding request submitted by miners to the Bitcoin Foundation', 'A signed petition from major exchanges required before protocol changes occur'] },
         { q: 'Anyone can:', a: 'Read, review, and propose changes to Bitcoin\'s code', wrong: ['Change Bitcoin without review', 'Delete the blockchain', 'Add more coins'] },
         { q: 'A BIP is:', a: 'A Bitcoin Improvement Proposal', wrong: ['A Bitcoin Investment Plan', 'A Block Information Protocol', 'A Banking Integration Process'] },
         { q: 'Bitcoin\'s code repository is hosted on:', a: 'GitHub', wrong: ['Facebook', 'A secret server', 'The dark web'] },
@@ -11399,7 +11399,7 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
     ],
 
     '_general': [
-        { q: 'One Bitcoin equals how many satoshis?', a: '100,000,000 (one hundred million)', wrong: ['1,000,000', '10,000,000', '1,000,000,000'] },
+        { q: 'One Bitcoin equals how many satoshis?', a: '100,000,000 (one hundred million)', wrong: ['1,000,000 (one million)', '10,000,000 (ten million)', '1,000,000,000 (one billion)'] },
         { q: 'Bitcoin was launched in which year?', a: '2009', wrong: ['2008', '2010', '2012'] },
         { q: 'Bitcoin transactions are recorded on:', a: 'A public distributed ledger', wrong: ['A private server', 'A bank database', 'An email chain'] },
         { q: 'Who can send you Bitcoin?', a: 'Anyone who knows your address', wrong: ['Only your bank', 'Only verified users', 'Only people in your country'] },
@@ -11502,8 +11502,8 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
 
     'nostr': [
         { q: 'What does the Nostr acronym stand for?', a: 'Notes and Other Stuff Transmitted by Relays', wrong: ['Network of Secured Transactions and Relays', 'New Open Source Transaction Relay', 'Node-Operated Social Trust Registry'] },
-        { q: 'What makes Nostr unique from typical social media?', a: 'Your identity is uncensorable and no single entity controls the platform', wrong: ['It pays users in Bitcoin automatically', 'It only works on mobile', 'It requires KYC verification'] },
-        { q: 'What is a NIP in the Nostr ecosystem?', a: 'A Nostr Implementation Possibility - a protocol specification for how clients and relays behave', wrong: ['A Nostr Identity Protocol used to register usernames', 'An encryption standard for private Nostr messages', 'A fee charged to publish on premium Nostr relays'] },
+        { q: 'What makes Nostr unique from typical social media?', a: 'Your identity is uncensorable and no single entity controls the platform', wrong: ['It automatically pays users in Bitcoin proportional to the engagement they receive', 'It functions exclusively on mobile devices with no desktop interface available', 'It requires government-issued identity verification before any content can be published'] },
+        { q: 'What is a NIP in the Nostr ecosystem?', a: 'A Nostr Implementation Possibility - a protocol specification for how clients and relays behave', wrong: ['A Nostr Identity Protocol mapping public keys to verified human-readable usernames', 'A standardised encryption layer securing private direct messages between Nostr users', 'A subscription fee structure charged by premium relay operators for event publishing'] },
         { q: 'Nostr uses cryptographic keys to:', a: 'Allow users to own their identity without a central authority', wrong: ['Mine new coins on the Nostr blockchain', 'Encrypt all messages so no one can read them', 'Create smart contracts between users'] },
         { q: 'How is Nostr connected to Bitcoin?', a: 'Many clients integrate Lightning for tips and payments', wrong: ['Nostr runs on the Bitcoin blockchain directly', 'You must own Bitcoin to create a Nostr account', 'Nostr mining validates Bitcoin transactions'] },
     ],
@@ -11541,8 +11541,8 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
     ],
 
     'the_future': [
-        { q: 'What hypothetical event do Bitcoiners call "hyperbitcoinization"?', a: 'A voluntary tipping point where Bitcoin displaces fiat as the world\'s dominant money', wrong: ['A government-mandated switch to Bitcoin', 'A hard fork that increases the 21M supply cap', 'A major exchange hack causing mass adoption'] },
-        { q: 'Bitcoin is described as \'generational wealth\' because:', a: 'Its fixed supply and growing adoption may increase its value over decades', wrong: ['Only older people can buy it', 'It expires after one generation', 'Banks guarantee its value for 100 years'] },
+        { q: 'What hypothetical event do Bitcoiners call "hyperbitcoinization"?', a: 'A voluntary tipping point where Bitcoin displaces fiat as the world\'s dominant money', wrong: ['A coordinated government transition where nations simultaneously adopt a Bitcoin standard', 'A planned protocol upgrade that makes Bitcoin the only globally compatible payment rail', 'A forced redenomination where central banks exchange fiat reserves for Bitcoin at par'] },
+        { q: 'Bitcoin is described as \'generational wealth\' because:', a: 'Its fixed supply and growing adoption may increase its value over decades', wrong: ['Only family members can legally inherit and access a deceased holder\'s Bitcoin wallet', 'Bitcoin wallets automatically expire and reset to zero after 25 years of inactivity', 'Central banks officially guarantee Bitcoin\'s face value for 100 years as a reserve asset'] },
         { q: 'What is the "digital scarcity" argument for Bitcoin\'s long-term value?', a: 'Unlike any prior asset, Bitcoin\'s supply cap is enforced by math rather than human institutions', wrong: ['Scarcity is irrelevant because Bitcoin can be subdivided infinitely', 'Bitcoin\'s value comes from government backing similar to gold reserves', 'Digital files can always be copied so Bitcoin cannot truly be scarce'] },
         { q: 'What happens when the last Bitcoin is mined (~2140)?', a: 'Miners will be compensated solely through transaction fees', wrong: ['The network will shut down permanently', 'A new supply of 21 million coins will be created', 'Mining will become free with no reward'] },
         { q: 'Who coined the term "hyperbitcoinization"?', a: 'Daniel Krawisz in a 2014 Nakamoto Institute essay', wrong: ['Satoshi Nakamoto in the Bitcoin whitepaper', 'Michael Saylor during a 2020 conference', 'Andreas Antonopoulos in Mastering Bitcoin'] },
@@ -11633,15 +11633,15 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
         { q: 'Which Austrian economist emphasized the importance of sound money and criticized fiat?', a: 'Ludwig von Mises and Friedrich Hayek', wrong: ['John Maynard Keynes', 'Karl Marx', 'Milton Friedman'] },
         { q: 'The Austrian School of Economics emphasizes:', a: 'Sound money, free markets, and the dangers of central banking', wrong: ['Government control of all monetary systems', 'That inflation is beneficial for economic growth', 'That central banks should print unlimited money'] },
         { q: 'Who wrote "The Theory of Money and Credit"?', a: 'Ludwig von Mises', wrong: ['John Maynard Keynes', 'Paul Krugman', 'Adam Smith'] },
-        { q: 'Saifedean Ammous\' book "The Bitcoin Standard" argues that Bitcoin is the best form of money because:', a: 'It is the hardest money ever created — no authority can inflate its supply', wrong: ['It is the fastest payment network ever built', 'Governments around the world have endorsed it', 'It has no transaction fees when used on-chain'] },
+        { q: 'Saifedean Ammous\' book "The Bitcoin Standard" argues that Bitcoin is the best form of money because:', a: 'It is the hardest money ever created — no authority can inflate its supply', wrong: ['It provides higher investment returns than gold over any comparable 10-year period', 'It is the only payment network capable of achieving true instant global settlement', 'A global coalition of central banks has adopted it as their primary reserve asset'] },
     ],
 
     'lindy_effect': [
         { q: 'The term "Lindy Effect" was coined and popularized in its modern form by:', a: 'Nassim Nicholas Taleb in his 2012 book Antifragile', wrong: ['Satoshi Nakamoto in the Bitcoin whitepaper', 'Albert Goldman originally in 1964', 'Benoît Mandelbrot in The Fractal Geometry of Nature'] },
-        { q: 'What is the Lindy Effect?', a: 'The longer something survives, the longer its remaining life expectancy', wrong: ['A measure of mining difficulty', 'A type of cryptographic hash', 'A brand of hardware wallet'] },
-        { q: 'The Lindy Effect applies to non-perishable things. Which of these would it NOT apply to?', a: 'A human being - biological organisms have decreasing life expectancy with age', wrong: ['Bitcoin', 'The idea of sound money', 'The C++ programming language'] },
+        { q: 'What is the Lindy Effect?', a: 'The longer something survives, the longer its remaining life expectancy', wrong: ['A statistical model measuring how quickly Bitcoin mining difficulty adjusts to hash rate', 'A type of cryptographic hash function used to verify Bitcoin block headers on-chain', 'An industry certification that labels hardware wallet firmware as officially secure'] },
+        { q: 'The Lindy Effect applies to non-perishable things. Which of these would it NOT apply to?', a: 'A human being - biological organisms have decreasing life expectancy with age', wrong: ['Bitcoin, which has survived and strengthened over 15+ years of relentless stress-testing', 'The concept of sound money, which has persisted across thousands of years of civilisation', 'The C++ programming language, widely used on critical systems since the early 1980s'] },
         { q: 'What concept is closely related to Lindy Effect in Bitcoin?', a: 'Antifragility - stress makes the system stronger', wrong: ['Inflation targeting', 'Proof of stake', 'Central banking'] },
-        { q: 'Why is Bitcoin\\\'s 15+ year survival significant for the Lindy Effect?', a: 'Demonstrates resilience to attacks, bugs, and regulatory pressure', wrong: ['Proves it cannot be upgraded', 'Makes it obsolete', 'Shows it uses too much energy'] },
+        { q: 'Why is Bitcoin\'s 15+ year survival significant for the Lindy Effect?', a: 'Demonstrates resilience to attacks, bugs, and regulatory pressure', wrong: ['Proves the codebase is now too rigid and entrenched to accept meaningful future upgrades', 'Makes it technically obsolete compared to newer blockchain protocols built after 2018', 'Shows that its energy consumption has compounded past any level that society can sustain'] },
     ],
 
     'softwar': [
@@ -11661,10 +11661,10 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
     ],
 
     'submarine_swap': [
-        { q: 'A submarine swap allows you to:', a: 'Exchange on-chain Bitcoin for Lightning Bitcoin (or vice versa) trustlessly', wrong: ['Mine Bitcoin underwater', 'Send Bitcoin without internet', 'Convert Bitcoin to Ethereum'] },
-        { q: 'Why is it called a "submarine" swap?', a: 'On-chain is "above water" and Lightning off-chain is "below water" - you swap between the two', wrong: ['It was developed by the US Navy\'s research division', 'Transactions travel through undersea fiber optic cables', 'The protocol was inspired by a submarine navigation algorithm'] },
+        { q: 'A submarine swap allows you to:', a: 'Exchange on-chain Bitcoin for Lightning Bitcoin (or vice versa) trustlessly', wrong: ['Mine Bitcoin using specialised deep-sea cooling rigs for better thermal efficiency', 'Send Bitcoin transactions without the internet using a mesh radio relay network', 'Convert Bitcoin into Ethereum through a cross-chain atomic bridge smart contract'] },
+        { q: 'Why is it called a "submarine" swap?', a: 'On-chain is "above water" and Lightning off-chain is "below water" - you swap between the two', wrong: ['The swap conceals funds below the blockchain visible layer before resurfacing on-chain', 'On-chain funds are submerged in a time-locked escrow vault beneath the mempool layer', 'The name comes from the HTLC diving beneath regular channel capacity during the swap'] },
         { q: 'What enables submarine swaps to be trustless?', a: 'HTLCs (Hash Time Locked Contracts)', wrong: ['Centralized exchange custody', 'Bank wire confirmation', 'Social media verification'] },
-        { q: 'What problem do submarine swaps solve?', a: 'Moving funds between on-chain and Lightning without closing channels', wrong: ['Mining difficulty adjustment', 'Exchange rate volatility', 'Wallet password recovery'] },
+        { q: 'What problem do submarine swaps solve?', a: 'Moving funds between on-chain and Lightning without closing channels', wrong: ['Automatically rebalancing mining pool difficulty when large hash rate enters or exits', 'Stabilising the exchange rate between on-chain BTC and Lightning-denominated sats', 'Recovering wallet access when a user loses their hardware device or written seed phrase'] },
         { q: 'Alex Bosworth and Olaoluwa Osuntokun created submarine swaps while at which company?', a: 'Lightning Labs', wrong: ['Blockstream', 'Chaincode Labs', 'River Financial'] },
     ],
 
@@ -11886,7 +11886,7 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
     'foss': [
         { q: 'What type of software license does Bitcoin Core use?', a: 'MIT License', wrong: ['GPL v3', 'Apache License 2.0', 'Creative Commons'] },
         { q: 'Why is it important that Bitcoin Core is free and open-source software (FOSS)?', a: 'Anyone can audit the code to verify no backdoors or hidden rules exist', wrong: ['It makes Bitcoin free to use with zero transaction fees for users', 'It allows developers to create unlimited Bitcoin through the code', 'It means no one actually needs to run the Bitcoin software'] },
-        { q: 'What is the Guix build system used for in Bitcoin Core?', a: 'Producing reproducible, auditable binaries so anyone can verify the software', wrong: ['Managing Bitcoin Core\'s GitHub pull request workflow', 'Automatically testing Lightning Network compatibility', 'Compiling Bitcoin mining firmware for ASIC hardware'] },
+        { q: 'What is the Guix build system used for in Bitcoin Core?', a: 'Producing reproducible, auditable binaries so anyone can verify the software', wrong: ['Automatically deploying Bitcoin Core updates to all nodes across the network', 'Managing the peer-review and merge workflow for Bitcoin Core pull requests', 'Cross-compiling Bitcoin Core binaries optimised for different CPU architectures'] },
         { q: '"Linus\'s Law" states that "given enough eyeballs, all bugs are shallow." How does this apply to Bitcoin?', a: 'Thousands of developers review Bitcoin\'s code, so vulnerabilities get found and fixed faster', wrong: ['Linux servers are the only machines capable of running Bitcoin full nodes properly', 'Linus Torvalds personally reviews and audits every Bitcoin Core release himself', 'Bitcoin can only run on open-source operating systems like Linux and FreeBSD'] },
         { q: 'Why does open-source matter specifically for money/monetary software like Bitcoin?', a: 'Users must verify the rules of their money - no hidden inflation or secret changes', wrong: ['Open-source software is always faster and more efficient than proprietary code', 'It allows banks to freely copy Bitcoin and make their own branded version', 'It makes Bitcoin significantly easier for governments to regulate and control'] },
     ],
@@ -11902,7 +11902,7 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
     'governance_pt2': [
         { q: 'Who can submit a Bitcoin Improvement Proposal (BIP)?', a: 'Anyone in the Bitcoin community', wrong: ['Only Bitcoin Core maintainers', 'Only miners with enough hash rate', 'Only officially registered developers'] },
         { q: 'What activation method does BIP 9 use?', a: 'Miner signaling with version bits during a defined window', wrong: ['Node operators vote directly without miner input', 'Core developers set a flag day with no miner input', 'Miners and the SEC jointly approve the activation'] },
-        { q: 'BIP 8 improves on BIP 9 by adding what option?', a: 'A "lock-in on timeout" (LOT=true) that forces activation even without miner majority', wrong: ['Requiring all major exchanges to signal readiness first', 'Giving Core developers a veto over miner signaling', 'Replacing version bits with a proof-of-stake ballot'] },
+        { q: 'BIP 8 improves on BIP 9 by adding what option?', a: 'A "lock-in on timeout" (LOT=true) that forces activation even without miner majority', wrong: ['A mandatory 95% node upgrade threshold that must be met before version bit signaling', 'An emergency pause mechanism letting any single mining pool block the activation', 'A two-thirds supermajority developer vote required before version bit signaling begins'] },
         { q: 'What does UASF stand for?', a: 'User-Activated Soft Fork', wrong: ['Unified Active Soft Fork', 'Universal Auto Soft Fork', 'User Approval Soft Fork'] },
         { q: 'What was Speedy Trial used for in Bitcoin?', a: 'Taproot activation with a shortened signaling period', wrong: ['SegWit activation with extended miner coordination', 'Lightning Network deployment across mainnet nodes', 'Difficulty adjustment algorithm changes and updates'] },
     ],
@@ -11948,7 +11948,7 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
 'layer-2-lightning_pt4': [
         { q: 'What does Lightning Labs\' Loop service do?', a: 'It moves funds between on-chain and Lightning using submarine swaps', wrong: ['It mines Bitcoin directly from a Lightning node', 'It converts Bitcoin to altcoins through atomic swaps', 'It syncs the Lightning channel graph to the Bitcoin timechain'] },
         { q: 'What is Multi-Path Payments (MPP) on Lightning?', a: 'Splitting a payment across multiple routes to exceed single-channel limits', wrong: ['Making multiple payments to different recipients simultaneously', 'A backup payment method used only if Lightning is offline', 'Sending the same payment through multiple channels for redundancy'] },
-        { q: 'What privacy advantage does AMP have over basic MPP on Lightning?', a: 'Each shard has a different payment hash, making it harder for routing nodes to link shards', wrong: ['AMP encrypts the sender\'s IP address on every hop', 'AMP uses Tor routing by default for all payments', 'AMP hides the payment amount from the recipient entirely'] },
+        { q: 'What privacy advantage does AMP have over basic MPP on Lightning?', a: 'Each shard has a different payment hash, making it harder for routing nodes to link shards', wrong: ['AMP wraps each shard in an extra onion layer completely invisible to intermediate nodes', 'AMP routes every shard through Tor by default, concealing the sender\'s network identity', 'AMP uses zero-knowledge proofs so routing nodes cannot observe any payment metadata'] },
         { q: 'What is trampoline routing on the Lightning Network?', a: 'Delegating route calculation to intermediate nodes for lighter clients', wrong: ['Bouncing payments off satellites for wider global coverage area', 'A routing method that always prioritizes the fastest available path', 'A security protocol that encrypts all payment amounts in transit'] },
         { q: 'What are channel factories in the Lightning Network?', a: 'Opening many channels among multiple parties in one on-chain transaction', wrong: ['Physical facilities where Lightning network nodes are manufactured', 'Automated systems that create channels based on user demand levels', 'Software that converts on-chain wallets into Lightning-ready wallets'] },
     ],
