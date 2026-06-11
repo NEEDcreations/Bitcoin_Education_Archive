@@ -559,7 +559,7 @@ window.showUserProfile = function(uid) {
             + (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
                 '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showSettings===\'function\')showSettings();">' +
                     '<span style="font-size:1rem;">🌍</span>' +
-                    '<span style="color:#22c55e;font-size:0.8rem;">Add your country to earn <strong>+10 XP</strong> →</span>' +
+                    '<span style="color:#22c55e;font-size:0.8rem;">Add your country → earn <strong>+100 XP</strong> + 🌍 Global Citizen badge</span>' +
                 '</div>' : '') +
             '</div></div>';
 

@@ -3698,14 +3698,14 @@ function showSettingsPage(tab) {
 
         // Country selector (custom autocomplete — datalist broken on iOS Safari)
         var _userCountry = currentUser ? currentUser.country || '' : '';
-        var _countryXpNudge = !_userCountry ? ' <span style="color:#22c55e;font-size:0.7rem;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:2px 7px;margin-left:4px;">+10 XP</span>' : '';
+        var _countryXpNudge = !_userCountry ? ' <span style="color:#22c55e;font-size:0.7rem;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:2px 7px;margin-left:4px;">+100 XP + badge</span>' : '';
         html += '<div style="background:var(--card-bg);border:1px solid ' + (!_userCountry ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;">🌍 Country' + _countryXpNudge + '</div>' +
             '<div style="position:relative;" id="countryAutocomplete">' +
             '<input type="text" id="countryInput" value="' + escapeHtml(_userCountry) + '" placeholder="Start typing your country..." autocomplete="off" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="window._filterCountryList()" onfocus="window._filterCountryList()">' +
             '<div id="countryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>' +
             '</div>' +
-            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">' + (!_userCountry ? '🌟 Add your country to earn +10 XP · Shown on your public profile' : 'Optional · Shown on your public profile') + '</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">' + (!_userCountry ? '🌟 Add your country → earn +100 XP + 🌍 Global Citizen badge' : 'Optional · Shown on your public profile') + '</div>' +
             '</div>';
 
         // Faction selector
@@ -5429,11 +5429,16 @@ async function saveProfile() {
         if (status) status.innerHTML = '<span style="color:var(--accent);">Saving...</span>';
         await db.collection('users').doc(uid).update(updateData);
         
-        // One-time +10 XP reward for adding country for the first time
+        // One-time +100 XP reward + Global Citizen badge for adding country for the first time
         var _prevCountry = currentUser ? (currentUser.country || '') : '';
-        if (country && !_prevCountry && typeof awardPoints === 'function') {
-            awardPoints(10, 'badge_earned', null, null, null, 'country_set');
-            if (typeof showToast === 'function') setTimeout(function() { showToast('🌍 +10 XP for adding your country!'); }, 800);
+        if (country && !_prevCountry) {
+            if (typeof awardPoints === 'function') {
+                awardPoints(100, 'badge_earned', null, null, null, 'country_set');
+            }
+            // Trigger badge check so Global Citizen badge is awarded immediately
+            if (typeof checkBadges === 'function') {
+                setTimeout(function() { checkBadges(); }, 500);
+            }
         }
 
         // Update local currentUser object
@@ -6398,6 +6403,7 @@ const BADGE_DEFS = [
     // ---- Milestone Badges ----
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
+    { id: 'global_citizen', name: 'Global Citizen', emoji: '🌍', desc: 'Added your country to your profile — representing Bitcoin worldwide', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.country), pts: 100 },
 
     // ---- Trail Badges ----
     { id: 'trail_meadow', name: 'Meadow Walker', emoji: '🌿', desc: 'Completed The Meadow trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('meadow'); } catch(e) { return false; } }, pts: 200 },
@@ -6765,7 +6771,7 @@ function getBadgeHTML() {
         '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
-        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_')),
+        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_') || b.id === 'global_citizen' || b.id === 'referred'),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
         '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50'),
@@ -18964,7 +18970,7 @@ window.showUserProfile = function(uid) {
             + (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
                 '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showSettings===\'function\')showSettings();">' +
                     '<span style="font-size:1rem;">🌍</span>' +
-                    '<span style="color:#22c55e;font-size:0.8rem;">Add your country to earn <strong>+10 XP</strong> →</span>' +
+                    '<span style="color:#22c55e;font-size:0.8rem;">Add your country → earn <strong>+100 XP</strong> + 🌍 Global Citizen badge</span>' +
                 '</div>' : '') +
             '</div></div>';
 
