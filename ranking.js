@@ -2603,6 +2603,79 @@ function hideLeaderboard() {
     if (fab) fab.style.display = 'flex';
 }
 
+// Leaderboard username search
+var _lbSearchTimer = null;
+window.lbSearchUser = async function(val) {
+    var resultEl = document.getElementById('lbSearchResult');
+    if (!resultEl) return;
+    val = (val || '').trim();
+    if (!val) { resultEl.innerHTML = ''; return; }
+    if (val.length < 2) { resultEl.innerHTML = ''; return; }
+
+    clearTimeout(_lbSearchTimer);
+    _lbSearchTimer = setTimeout(async function() {
+        resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
+        try {
+            // Case-insensitive prefix search — query both exact and lowercase
+            var q1 = db.collection('users')
+                .where('username', '>=', val)
+                .where('username', '<', val + '\uf8ff')
+                .limit(5).get();
+            // Also search case-insensitively via lowercase variant
+            var valLower = val.toLowerCase();
+            var q2 = db.collection('users')
+                .where('username', '>=', valLower)
+                .where('username', '<', valLower + '\uf8ff')
+                .limit(5).get();
+            var [snap1, snap2] = await Promise.all([q1, q2]);
+            var seen = new Set();
+            var found = [];
+            [snap1, snap2].forEach(function(snap) {
+                snap.forEach(function(doc) {
+                    if (!seen.has(doc.id)) {
+                        seen.add(doc.id);
+                        found.push({ id: doc.id, ...doc.data() });
+                    }
+                });
+            });
+            // Filter ghost mode users (unless it's the current user)
+            found = found.filter(function(u) {
+                var isMe = auth.currentUser && u.id === auth.currentUser.uid;
+                return !u.ghostMode || isMe;
+            });
+            if (!found.length) {
+                resultEl.innerHTML = '<div class="lb-search-none">No user found matching "' + escapeHtml(val) + '"</div>';
+                return;
+            }
+            // For each found user, compute their rank
+            var html = '';
+            await Promise.all(found.map(async function(u) {
+                var pts = u.points || 0;
+                // Count all users with strictly more points = 1-based rank
+                var rankSnap = await db.collection('users')
+                    .where('points', '>', pts)
+                    .get();
+                u._rank = rankSnap.size + 1;
+            }));
+            found.forEach(function(u) {
+                var pts = (u.points || 0).toLocaleString();
+                var rankStr = '#' + u._rank;
+                var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
+                var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
+                html += '<div class="lb-search-result">' +
+                    '<span>' + lv.emoji + '</span>' +
+                    '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>' +
+                    '<span class="lb-sr-pts">' + pts + ' XP &nbsp;·&nbsp; <strong>' + rankStr + '</strong></span>' +
+                '</div>';
+            });
+            resultEl.innerHTML = html;
+        } catch(e) {
+            console.warn('[lbSearch]', e);
+            resultEl.innerHTML = '<div class="lb-search-none">Search error — try again</div>';
+        }
+    }, 350);
+};
+
 // Close leaderboard when clicking/tapping outside.
 // Uses capture phase + both mousedown and touchstart so it fires BEFORE
 // any inner handler can call stopPropagation() and swallow the event.
@@ -2955,6 +3028,8 @@ async function toggleLeaderboard() {
 
         let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
         html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
+        html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
+        html += '<div id="lbSearchResult"></div>';
         html += '<div class="lb-list">';
 
         const showInitial = Math.min(10, allUsers.length);
