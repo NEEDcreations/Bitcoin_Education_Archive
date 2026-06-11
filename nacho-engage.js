@@ -536,7 +536,7 @@ setTimeout(function() {
             // Quest nudges
             var questsDone = typeof completedQuests !== 'undefined' ? completedQuests.size || 0 : 0;
             if (!earnedBadges.has('quest_3') && questsDone >= 2 && questsDone < 3 && canNudge('near_quest_3')) {
-                nudges.push({ id: 'near_quest_3', text: 'You\'ve completed ' + questsDone + ' quests! One more for the Quest Master badge! \u2694\ufe0f Try a quest after reading!' });
+                nudges.push({ id: 'near_quest_3', text: 'You\'ve completed ' + questsDone + ' quests! One more for the Quest Seeker badge! \u2694\ufe0f Try a quest after reading!' });
             }
             
             // TCTV nudge

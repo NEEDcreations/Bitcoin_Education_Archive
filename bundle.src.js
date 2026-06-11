@@ -6338,9 +6338,13 @@ const BADGE_DEFS = [
         const blue = ['one-stop-shop','faq-glossary','nostr','misconceptions-fud','books','videos','podcasts','articles-threads','informational-sites','curriculum','research-theses','games','music','movies-tv','hardware','poems-stories','apps-tools','projects-diy','art-inspiration','graphics','charts','swag-merch','jobs-earn','social-media','fun-facts','news-adoption','history','international','satoshi-nakamoto','giga-chad','health','web5','memes-funny'];
         return blue.every(p => v.includes(p));
     }, pts: 150},
-    { id: 'quest_1', name: 'Quester', emoji: '⚔️', desc: 'Completed your first Quest', check: (v, t, q) => q >= 1, pts: 10 },
-    { id: 'quest_3', name: 'Quest Master', emoji: '📜', desc: 'Completed 3 Quests', check: (v, t, q) => q >= 3, pts: 25 },
-    { id: 'quest_5', name: 'Quest Legend', emoji: '🏰', desc: 'Completed 5 Quests', check: (v, t, q) => q >= 5, pts: 50 },
+    { id: 'quest_1',   name: 'Quester',         emoji: '⚔️',  desc: 'Completed your first Quest',  check: (v, t, q) => q >= 1,   pts: 10 },
+    { id: 'quest_3',   name: 'Quest Seeker',     emoji: '📜',  desc: 'Completed 3 Quests',         check: (v, t, q) => q >= 3,   pts: 25 },
+    { id: 'quest_5',   name: 'Quest Champion',   emoji: '🏆',  desc: 'Completed 5 Quests',         check: (v, t, q) => q >= 5,   pts: 50 },
+    { id: 'quest_10',  name: 'Quest Veteran',    emoji: '🗡️',  desc: 'Completed 10 Quests',        check: (v, t, q) => q >= 10,  pts: 100 },
+    { id: 'quest_25',  name: 'Quest Crusader',   emoji: '⚜️',  desc: 'Completed 25 Quests',        check: (v, t, q) => q >= 25,  pts: 200 },
+    { id: 'quest_50',  name: 'Quest Legend',     emoji: '🏰',  desc: 'Completed 50 Quests',        check: (v, t, q) => q >= 50,  pts: 400 },
+    { id: 'quest_100', name: 'Quest Master',     emoji: '👑',  desc: 'Completed 100 Quests',       check: (v, t, q) => q >= 100, pts: 750 },
     { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 topics to favorites', check: () => {
         return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 5;
     }, pts: 20},
@@ -6619,7 +6623,7 @@ function checkBadges() {
 }
 
 // Major badges that deserve a share prompt
-const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5'];
+const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100'];
 
 function showBadgeToast(badge) {
     // Notify
@@ -10844,7 +10848,7 @@ setTimeout(function() {
             // Quest nudges
             var questsDone = typeof completedQuests !== 'undefined' ? completedQuests.size || 0 : 0;
             if (!earnedBadges.has('quest_3') && questsDone >= 2 && questsDone < 3 && canNudge('near_quest_3')) {
-                nudges.push({ id: 'near_quest_3', text: 'You\'ve completed ' + questsDone + ' quests! One more for the Quest Master badge! \u2694\ufe0f Try a quest after reading!' });
+                nudges.push({ id: 'near_quest_3', text: 'You\'ve completed ' + questsDone + ' quests! One more for the Quest Seeker badge! \u2694\ufe0f Try a quest after reading!' });
             }
             
             // TCTV nudge
