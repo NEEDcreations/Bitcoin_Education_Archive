@@ -2745,8 +2745,8 @@ function _renderCharityTabInner(body) {
     html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">⚔️ Faction Giving</div>' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.8rem;">' +
-            '<span style="color:#f7e400;font-weight:700;text-shadow:-1px -1px 0 #000,1px 1px 0 #000;">🐝 Cyber Hornets</span>' +
-            '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #fff,1px 1px 0 #fff;">🦡 Honey Badgers</span>' +
+            '<span style="color:#f7e400;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;">🐝 Cyber Hornets</span>' +
+            '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;">🦡 Honey Badgers</span>' +
         '</div>' +
         '<div style="display:flex;border-radius:8px;overflow:hidden;height:14px;margin-bottom:6px;">' +
             '<div style="width:' + hornetsPct + '%;background:linear-gradient(90deg,#f7e400,#f59e0b);transition:0.5s;"></div>' +
@@ -2811,8 +2811,8 @@ function _renderCharityTabInner(body) {
             '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📜 Recent Donations</div>';
         _charityRecent.forEach(function(d) {
             var isAnon = d.anonymous || !d.uid || (d.username || '') === 'Anonymous';
-            var factionLabel = d.faction === 'cyber_hornets' ? '<span style="color:#f7e400;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px 1px 0 #000;font-weight:700;">🐝</span>' :
-                               d.faction === 'honey_badgers' ? '<span style="color:#1a1a1a;font-size:0.65rem;text-shadow:-1px -1px 0 #fff,1px 1px 0 #fff;font-weight:700;">🦡</span>' : '';
+            var factionLabel = d.faction === 'cyber_hornets' ? '<span style="color:#f7e400;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;">🐝</span>' :
+                               d.faction === 'honey_badgers' ? '<span style="color:#1a1a1a;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;font-weight:700;">🦡</span>' : '';
             // Faction-coloured name style
             var nameStyle;
             if (isAnon) {
@@ -2974,8 +2974,8 @@ window._renderCharityHome = function() {
             '</div>' +
             '<div style="font-size:1.3rem;font-weight:900;color:var(--heading);">' + total.toLocaleString() + ' <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);">sats pledged</span></div>' +
             '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;">' +
-                '<span style="color:#f7e400;font-weight:700;text-shadow:-1px -1px 0 #000,1px 1px 0 #000;">🐝 ' + hornets.toLocaleString() + ' XP</span>' +
-                '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #fff,1px 1px 0 #fff;">🦡 ' + badgers.toLocaleString() + ' XP</span>' +
+                '<span style="color:#f7e400;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;">🐝 ' + hornets.toLocaleString() + ' XP</span>' +
+                '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;">🦡 ' + badgers.toLocaleString() + ' XP</span>' +
             '</div>' +
         '</div>';
     }).catch(function() {});
