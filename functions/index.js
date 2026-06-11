@@ -4404,3 +4404,52 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
 
     return { success: true, newBadges, bonusPts };
 });
+
+// ===== LEADERBOARD USER SEARCH =====
+// Fetches top users ordered by points, filters by substring match (case-insensitive),
+// returns matched users with their true rank. Supports cursor-based pagination.
+exports.searchUsers = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+
+    const query = ((data.query || '').trim()).toLowerCase();
+    if (!query || query.length < 2) return { users: [], hasMore: false };
+
+    const pageSize = parseInt(data.pageSize) || 10;
+    const afterRank = parseInt(data.afterRank) || 0; // cursor: skip users already returned
+
+    // Fetch users ordered by points desc
+    // We scan up to 5000 users to find substring matches — sufficient for this app's scale
+    const SCAN_LIMIT = 5000;
+    const snap = await db.collection('users')
+        .where('points', '>', 0)
+        .orderBy('points', 'desc')
+        .limit(SCAN_LIMIT)
+        .get();
+
+    // Build ranked list with substring filter
+    const matched = [];
+    let rank = 0;
+    snap.forEach(doc => {
+        rank++;
+        const d = doc.data();
+        if (d.ghostMode) return; // respect ghost mode
+        const name = (d.username || '').toLowerCase();
+        if (!name.includes(query)) return;
+        matched.push({
+            uid: doc.id,
+            username: d.username || 'Anon',
+            points: d.points || 0,
+            rank,
+            faction: d.faction || null,
+            country: d.country || null,
+            lightningAddress: d.lightningAddress || d.lightning || null,
+        });
+    });
+
+    // Pagination: skip already-seen results by rank cursor
+    const page = afterRank > 0 ? matched.filter(u => u.rank > afterRank) : matched;
+    const results = page.slice(0, pageSize);
+    const hasMore = page.length > pageSize;
+
+    return { users: results, hasMore };
+});

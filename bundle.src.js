@@ -2768,74 +2768,94 @@ function hideLeaderboard() {
 
 // Leaderboard username search
 var _lbSearchTimer = null;
-window.lbSearchUser = async function(val) {
+var _lbSearchQuery = '';
+var _lbSearchLastRank = 0;
+var _lbSearchHasMore = false;
+var _lbSearchLoading = false;
+
+function _lbBuildResultRow(u) {
+    var pts = (u.points || 0).toLocaleString();
+    var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
+    var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
+    return '<div class="lb-search-result">' +
+        '<span>' + lv.emoji + '</span>' +
+        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>' +
+        '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + u.rank + '</strong></span>' +
+    '</div>';
+}
+
+async function _lbSearchLoad(query, afterRank, append) {
+    if (_lbSearchLoading) return;
+    _lbSearchLoading = true;
+    var resultEl = document.getElementById('lbSearchResult');
+    if (!resultEl) { _lbSearchLoading = false; return; }
+
+    // Remove old load-more button if present
+    var oldBtn = document.getElementById('lbSearchMoreBtn');
+    if (oldBtn) oldBtn.remove();
+
+    if (!append) {
+        resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
+    } else {
+        var loadingRow = document.createElement('div');
+        loadingRow.id = 'lbSearchLoadingRow';
+        loadingRow.className = 'lb-search-none';
+        loadingRow.textContent = 'Loading more...';
+        resultEl.appendChild(loadingRow);
+    }
+
+    try {
+        var searchFn = firebase.functions().httpsCallable('searchUsers');
+        var res = await searchFn({ query: query, pageSize: 10, afterRank: afterRank });
+        var users = (res.data && res.data.users) || [];
+        var hasMore = !!(res.data && res.data.hasMore);
+
+        // Remove loading indicator
+        var lr = document.getElementById('lbSearchLoadingRow');
+        if (lr) lr.remove();
+
+        if (!append && !users.length) {
+            resultEl.innerHTML = '<div class="lb-search-none">No users found matching "' + escapeHtml(query) + '"</div>';
+            _lbSearchLoading = false;
+            return;
+        }
+
+        if (!append) resultEl.innerHTML = '';
+        users.forEach(function(u) { resultEl.insertAdjacentHTML('beforeend', _lbBuildResultRow(u)); });
+
+        _lbSearchLastRank = users.length ? users[users.length - 1].rank : afterRank;
+        _lbSearchHasMore = hasMore;
+
+        if (hasMore) {
+            var btn = document.createElement('button');
+            btn.id = 'lbSearchMoreBtn';
+            btn.style.cssText = 'width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin:4px 0 2px;';
+            btn.textContent = 'Show more results ▼';
+            btn.onclick = function() { _lbSearchLoad(_lbSearchQuery, _lbSearchLastRank, true); };
+            resultEl.appendChild(btn);
+        }
+    } catch(e) {
+        console.warn('[lbSearch]', e);
+        var lr2 = document.getElementById('lbSearchLoadingRow');
+        if (lr2) lr2.remove();
+        if (!append) resultEl.innerHTML = '<div class="lb-search-none">Search error — try again</div>';
+    }
+    _lbSearchLoading = false;
+}
+
+window.lbSearchUser = function(val) {
     var resultEl = document.getElementById('lbSearchResult');
     if (!resultEl) return;
     val = (val || '').trim();
-    if (!val) { resultEl.innerHTML = ''; return; }
-    if (val.length < 2) { resultEl.innerHTML = ''; return; }
+    if (!val || val.length < 2) { resultEl.innerHTML = ''; _lbSearchQuery = ''; return; }
 
     clearTimeout(_lbSearchTimer);
-    _lbSearchTimer = setTimeout(async function() {
-        resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
-        try {
-            // Case-insensitive prefix search — query both exact and lowercase
-            var q1 = db.collection('users')
-                .where('username', '>=', val)
-                .where('username', '<', val + '\uf8ff')
-                .limit(5).get();
-            // Also search case-insensitively via lowercase variant
-            var valLower = val.toLowerCase();
-            var q2 = db.collection('users')
-                .where('username', '>=', valLower)
-                .where('username', '<', valLower + '\uf8ff')
-                .limit(5).get();
-            var [snap1, snap2] = await Promise.all([q1, q2]);
-            var seen = new Set();
-            var found = [];
-            [snap1, snap2].forEach(function(snap) {
-                snap.forEach(function(doc) {
-                    if (!seen.has(doc.id)) {
-                        seen.add(doc.id);
-                        found.push({ id: doc.id, ...doc.data() });
-                    }
-                });
-            });
-            // Filter ghost mode users (unless it's the current user)
-            found = found.filter(function(u) {
-                var isMe = auth.currentUser && u.id === auth.currentUser.uid;
-                return !u.ghostMode || isMe;
-            });
-            if (!found.length) {
-                resultEl.innerHTML = '<div class="lb-search-none">No user found matching "' + escapeHtml(val) + '"</div>';
-                return;
-            }
-            // For each found user, compute their rank
-            var html = '';
-            await Promise.all(found.map(async function(u) {
-                var pts = u.points || 0;
-                // Count all users with strictly more points = 1-based rank
-                var rankSnap = await db.collection('users')
-                    .where('points', '>', pts)
-                    .get();
-                u._rank = rankSnap.size + 1;
-            }));
-            found.forEach(function(u) {
-                var pts = (u.points || 0).toLocaleString();
-                var rankStr = '#' + u._rank;
-                var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
-                var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
-                html += '<div class="lb-search-result">' +
-                    '<span>' + lv.emoji + '</span>' +
-                    '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>' +
-                    '<span class="lb-sr-pts">' + pts + ' XP &nbsp;·&nbsp; <strong>' + rankStr + '</strong></span>' +
-                '</div>';
-            });
-            resultEl.innerHTML = html;
-        } catch(e) {
-            console.warn('[lbSearch]', e);
-            resultEl.innerHTML = '<div class="lb-search-none">Search error — try again</div>';
-        }
+    _lbSearchTimer = setTimeout(function() {
+        _lbSearchQuery = val;
+        _lbSearchLastRank = 0;
+        _lbSearchHasMore = false;
+        _lbSearchLoading = false;
+        _lbSearchLoad(val, 0, false);
     }, 350);
 };
 
