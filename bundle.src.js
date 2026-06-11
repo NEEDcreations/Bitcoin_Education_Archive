@@ -13354,27 +13354,44 @@ var _favorPBUnsub = null;
 
 function _renderTopHashesHTML(entries) {
     var myUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+    var now = Date.now();
+    var SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000;
     var html = '';
-    for (var i = 0; i < entries.length; i++) {
-        var e = entries[i];
+
+    function renderEntry(e, i) {
         var isMe = myUsername && e.username === myUsername;
         var rank = i + 1;
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
         var name = typeof escapeHtml === 'function' ? escapeHtml(e.username || 'Anon') : (e.username || 'Anon');
         var isWin = e.value < 1000;
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;margin-bottom:3px;' +
+        var tsMs = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp.toMillis() : (e.timestamp ? Number(e.timestamp) : 0);
+        var isNew = tsMs && (now - tsMs) < SEVENTY_TWO_HOURS;
+        var newBadge = isNew ? '<span style="margin-left:6px;padding:1px 5px;background:#f7931a;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;">NEW</span>' : '';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;margin-bottom:3px;' +
             'background:' + (isWin ? 'rgba(34,197,94,0.12)' : (isMe ? 'rgba(247,147,26,0.1)' : 'transparent')) + ';' +
             'border:1px solid ' + (isWin ? '#22c55e' : (isMe ? 'var(--accent)' : 'var(--border)')) + ';border-radius:8px;">' +
             '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
-                '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + (isWin ? '\uD83C\uDFC6 ' : '') + name + (isMe ? ' (you)' : '') + '</span>' +
+                '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + (isWin ? '\uD83C\uDFC6 ' : '') + name + (isMe ? ' (you)' : '') + newBadge + '</span>' +
             '</div>' +
             '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:' + (isWin ? '#22c55e' : (e.value < 10000 ? 'var(--accent)' : 'var(--text-muted)')) + ';">' + e.value.toLocaleString() + '</span>' +
         '</div>';
     }
+
+    var top10 = entries.slice(0, 10);
+    var rest = entries.slice(10);
+    for (var i = 0; i < top10.length; i++) html += renderEntry(top10[i], i);
+
+    if (rest.length > 0) {
+        html += '<div id="favorHashesMore" style="display:none;">';
+        for (var j = 0; j < rest.length; j++) html += renderEntry(rest[j], 10 + j);
+        html += '</div>';
+        html += '<button onclick="(function(){var m=document.getElementById(\'favorHashesMore\');var b=document.getElementById(\'favorHashesMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()" ' +
+            'id="favorHashesMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
+    }
+
     return html;
 }
-
 function _renderPBHTML(val) {
     var isWin = val < 1000;
     return '<div style="text-align:center;padding:8px;">' +

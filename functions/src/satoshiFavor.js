@@ -411,7 +411,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     const lbData = lbDoc.exists ? lbDoc.data() : {};
     let entries = lbData.entries || [];
     
-    const qualifies = entries.length < 10 || value < entries[entries.length - 1].value;
+    const qualifies = entries.length < 20 || value < entries[entries.length - 1].value;
     const myHash = uidHash(uid);
     // Match both new _h (hashed) and legacy _h/uid (raw uid) for backward compat
     const isMyEntry = (e) => e._h === myHash || e._h === uid || e.uid === uid;
@@ -424,7 +424,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
         entries.push({ _h: myHash, username, value, timestamp: admin.firestore.Timestamp.now() });
       }
       entries.sort((a, b) => a.value - b.value);
-      entries = entries.slice(0, 10);
+      entries = entries.slice(0, 20);
       // Strip any serverTimestamp sentinels from legacy entries (can't be inside arrays)
       entries = entries.map(e => ({
         _h: e._h || '',
@@ -589,7 +589,7 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
     const { uid, username, value } = hash;
     
     // Check if qualifies
-    if (entries.length >= 10 && value >= entries[entries.length - 1].value) {
+    if (entries.length >= 20 && value >= entries[entries.length - 1].value) {
       skipped++;
       continue;
     }
@@ -619,7 +619,7 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
 
   // Sort and trim
   entries.sort((a, b) => a.value - b.value);
-  entries = entries.slice(0, 10);
+  entries = entries.slice(0, 20);
   await lbRef.set({ entries });
 
   console.log(`[FAVOR-SYNC] Added ${added}, skipped ${skipped}. Total entries now: ${entries.length}`);
