@@ -2604,6 +2604,99 @@ function hideLeaderboard() {
     if (fab) fab.style.display = 'flex';
 }
 
+// Leaderboard username search
+var _lbSearchTimer = null;
+var _lbSearchQuery = '';
+var _lbSearchLastRank = 0;
+var _lbSearchHasMore = false;
+var _lbSearchLoading = false;
+
+function _lbBuildResultRow(u) {
+    var pts = (u.points || 0).toLocaleString();
+    var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
+    var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
+    return '<div class="lb-search-result">' +
+        '<span>' + lv.emoji + '</span>' +
+        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>' +
+        '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + u.rank + '</strong></span>' +
+    '</div>';
+}
+
+async function _lbSearchLoad(query, afterRank, append) {
+    if (_lbSearchLoading) return;
+    _lbSearchLoading = true;
+    var resultEl = document.getElementById('lbSearchResult');
+    if (!resultEl) { _lbSearchLoading = false; return; }
+
+    // Remove old load-more button if present
+    var oldBtn = document.getElementById('lbSearchMoreBtn');
+    if (oldBtn) oldBtn.remove();
+
+    if (!append) {
+        resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
+    } else {
+        var loadingRow = document.createElement('div');
+        loadingRow.id = 'lbSearchLoadingRow';
+        loadingRow.className = 'lb-search-none';
+        loadingRow.textContent = 'Loading more...';
+        resultEl.appendChild(loadingRow);
+    }
+
+    try {
+        var searchFn = firebase.functions().httpsCallable('searchUsers');
+        var res = await searchFn({ query: query, pageSize: 10, afterRank: afterRank });
+        var users = (res.data && res.data.users) || [];
+        var hasMore = !!(res.data && res.data.hasMore);
+
+        // Remove loading indicator
+        var lr = document.getElementById('lbSearchLoadingRow');
+        if (lr) lr.remove();
+
+        if (!append && !users.length) {
+            resultEl.innerHTML = '<div class="lb-search-none">No users found matching "' + escapeHtml(query) + '"</div>';
+            _lbSearchLoading = false;
+            return;
+        }
+
+        if (!append) resultEl.innerHTML = '';
+        users.forEach(function(u) { resultEl.insertAdjacentHTML('beforeend', _lbBuildResultRow(u)); });
+
+        _lbSearchLastRank = users.length ? users[users.length - 1].rank : afterRank;
+        _lbSearchHasMore = hasMore;
+
+        if (hasMore) {
+            var btn = document.createElement('button');
+            btn.id = 'lbSearchMoreBtn';
+            btn.style.cssText = 'width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin:4px 0 2px;';
+            btn.textContent = 'Show more results ▼';
+            btn.onclick = function() { _lbSearchLoad(_lbSearchQuery, _lbSearchLastRank, true); };
+            resultEl.appendChild(btn);
+        }
+    } catch(e) {
+        console.warn('[lbSearch]', e);
+        var lr2 = document.getElementById('lbSearchLoadingRow');
+        if (lr2) lr2.remove();
+        if (!append) resultEl.innerHTML = '<div class="lb-search-none">Search error — try again</div>';
+    }
+    _lbSearchLoading = false;
+}
+
+window.lbSearchUser = function(val) {
+    var resultEl = document.getElementById('lbSearchResult');
+    if (!resultEl) return;
+    val = (val || '').trim();
+    if (!val || val.length < 2) { resultEl.innerHTML = ''; _lbSearchQuery = ''; return; }
+
+    clearTimeout(_lbSearchTimer);
+    _lbSearchTimer = setTimeout(function() {
+        _lbSearchQuery = val;
+        _lbSearchLastRank = 0;
+        _lbSearchHasMore = false;
+        _lbSearchLoading = false;
+        _lbSearchLoad(val, 0, false);
+    }, 350);
+};
+
 // Close leaderboard when clicking/tapping outside.
 // Uses capture phase + both mousedown and touchstart so it fires BEFORE
 // any inner handler can call stopPropagation() and swallow the event.
@@ -2956,6 +3049,8 @@ async function toggleLeaderboard() {
 
         let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
         html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
+        html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
+        html += '<div id="lbSearchResult"></div>';
         html += '<div class="lb-list">';
 
         const showInitial = Math.min(10, allUsers.length);
@@ -3461,13 +3556,14 @@ function showSettingsPage(tab) {
 
         // Country selector (custom autocomplete — datalist broken on iOS Safari)
         var _userCountry = currentUser ? currentUser.country || '' : '';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌍 Country</div>' +
+        var _countryXpNudge = !_userCountry ? ' <span style="color:#22c55e;font-size:0.7rem;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:2px 7px;margin-left:4px;">+100 XP + badge</span>' : '';
+        html += '<div style="background:var(--card-bg);border:1px solid ' + (!_userCountry ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;">🌍 Country' + _countryXpNudge + '</div>' +
             '<div style="position:relative;" id="countryAutocomplete">' +
             '<input type="text" id="countryInput" value="' + escapeHtml(_userCountry) + '" placeholder="Start typing your country..." autocomplete="off" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="window._filterCountryList()" onfocus="window._filterCountryList()">' +
             '<div id="countryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>' +
             '</div>' +
-            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Optional · Shown on your public profile</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">' + (!_userCountry ? '🌟 Add your country → earn +100 XP + 🌍 Global Citizen badge' : 'Optional · Shown on your public profile') + '</div>' +
             '</div>';
 
         // Faction selector
@@ -5191,6 +5287,18 @@ async function saveProfile() {
         if (status) status.innerHTML = '<span style="color:var(--accent);">Saving...</span>';
         await db.collection('users').doc(uid).update(updateData);
         
+        // One-time +100 XP reward + Global Citizen badge for adding country for the first time
+        var _prevCountry = currentUser ? (currentUser.country || '') : '';
+        if (country && !_prevCountry) {
+            if (typeof awardPoints === 'function') {
+                awardPoints(100, 'badge_earned', null, null, null, 'country_set');
+            }
+            // Trigger badge check so Global Citizen badge is awarded immediately
+            if (typeof checkBadges === 'function') {
+                setTimeout(function() { checkBadges(); }, 500);
+            }
+        }
+
         // Update local currentUser object
         Object.assign(currentUser, updateData);
         

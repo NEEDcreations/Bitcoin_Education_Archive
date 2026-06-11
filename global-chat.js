@@ -1343,6 +1343,9 @@ var _origGoHome2 = window.goHome;
 if (_origGoHome2) {
     window.goHome = function() {
         showOverlayBtn();
+        // Remove chat-shifted from leaderboard FAB when returning home
+        var _lbFabHome = document.getElementById('lbFloatBtn');
+        if (_lbFabHome) _lbFabHome.classList.remove('chat-shifted');
         return _origGoHome2.apply(this, arguments);
     };
 }
@@ -1352,11 +1355,21 @@ if (_origGo2) {
     window.go = function(id) {
         // Show button on all pages except full chat hub
         if (id !== 'chat') showOverlayBtn();
+        // Remove chat-shifted from leaderboard FAB when navigating away from chat hub
+        var _lbFabNav = document.getElementById('lbFloatBtn');
+        if (_lbFabNav) _lbFabNav.classList.remove('chat-shifted');
         return _origGo2.apply(this, arguments);
     };
 }
 
-window.addEventListener('popstate', showOverlayBtn);
+window.addEventListener('popstate', function() {
+    showOverlayBtn();
+    // Remove chat-shifted if navigating away from chat hub via back button
+    if (!document.getElementById('chatContent')) {
+        var _lbFabPop = document.getElementById('lbFloatBtn');
+        if (_lbFabPop) _lbFabPop.classList.remove('chat-shifted');
+    }
+});
 
 // ---- Emoji Reaction System ----
 window.showReactPicker = function(msgId, btnEl) {
@@ -2533,6 +2546,11 @@ function initOverlay() {
     // Hide floating button on mobile — bottom nav "Chat" is enough
     var chatBtn = document.getElementById('chatOverlayBtn');
     if (chatBtn && window.innerWidth <= 900) chatBtn.style.display = 'none';
+    // Safety net: strip chat-shifted from lbFloatBtn if chat panel is not open on init
+    if (!_overlayOpen && !document.getElementById('chatContent')) {
+        var _lbInit = document.getElementById('lbFloatBtn');
+        if (_lbInit) _lbInit.classList.remove('chat-shifted');
+    }
 }
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(initOverlay, 2000); });

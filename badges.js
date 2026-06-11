@@ -36,9 +36,13 @@ const BADGE_DEFS = [
         const blue = ['one-stop-shop','faq-glossary','nostr','misconceptions-fud','books','videos','podcasts','articles-threads','informational-sites','curriculum','research-theses','games','music','movies-tv','hardware','poems-stories','apps-tools','projects-diy','art-inspiration','graphics','charts','swag-merch','jobs-earn','social-media','fun-facts','news-adoption','history','international','satoshi-nakamoto','giga-chad','health','web5','memes-funny'];
         return blue.every(p => v.includes(p));
     }, pts: 150},
-    { id: 'quest_1', name: 'Quester', emoji: '⚔️', desc: 'Completed your first Quest', check: (v, t, q) => q >= 1, pts: 10 },
-    { id: 'quest_3', name: 'Quest Master', emoji: '📜', desc: 'Completed 3 Quests', check: (v, t, q) => q >= 3, pts: 25 },
-    { id: 'quest_5', name: 'Quest Legend', emoji: '🏰', desc: 'Completed 5 Quests', check: (v, t, q) => q >= 5, pts: 50 },
+    { id: 'quest_1',   name: 'Quester',         emoji: '⚔️',  desc: 'Completed your first Quest',  check: (v, t, q) => q >= 1,   pts: 10 },
+    { id: 'quest_3',   name: 'Quest Seeker',     emoji: '📜',  desc: 'Completed 3 Quests',         check: (v, t, q) => q >= 3,   pts: 25 },
+    { id: 'quest_5',   name: 'Quest Champion',   emoji: '🏆',  desc: 'Completed 5 Quests',         check: (v, t, q) => q >= 5,   pts: 50 },
+    { id: 'quest_10',  name: 'Quest Veteran',    emoji: '🗡️',  desc: 'Completed 10 Quests',        check: (v, t, q) => q >= 10,  pts: 100 },
+    { id: 'quest_25',  name: 'Quest Crusader',   emoji: '⚜️',  desc: 'Completed 25 Quests',        check: (v, t, q) => q >= 25,  pts: 200 },
+    { id: 'quest_50',  name: 'Quest Master',     emoji: '👑',  desc: 'Completed 50 Quests',        check: (v, t, q) => q >= 50,  pts: 400 },
+    { id: 'quest_100', name: 'Quest Legend',     emoji: '🏰',  desc: 'Completed 100 Quests',       check: (v, t, q) => q >= 100, pts: 750 },
     { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 topics to favorites', check: () => {
         return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 5;
     }, pts: 20},
@@ -121,6 +125,7 @@ const BADGE_DEFS = [
     // ---- Milestone Badges ----
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
+    { id: 'global_citizen', name: 'Global Citizen', emoji: '🌍', desc: 'Added your country to your profile — representing Bitcoin worldwide', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.country), pts: 100 },
 
     // ---- Trail Badges ----
     { id: 'trail_meadow', name: 'Meadow Walker', emoji: '🌿', desc: 'Completed The Meadow trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('meadow'); } catch(e) { return false; } }, pts: 200 },
@@ -316,7 +321,7 @@ function checkBadges() {
 }
 
 // Major badges that deserve a share prompt
-const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5'];
+const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100'];
 
 function showBadgeToast(badge) {
     // Notify
@@ -488,7 +493,7 @@ function getBadgeHTML() {
         '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
-        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_')),
+        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_') || b.id === 'global_citizen' || b.id === 'referred'),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
         '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50'),
@@ -498,6 +503,16 @@ function getBadgeHTML() {
         '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
+
+    // Build a reverse-lookup map: badgeId → category name (used by search tooltip + grid hover)
+    window._badgeCatMap = {};
+    Object.keys(categories).forEach(function(catName) {
+        (categories[catName] || []).forEach(function(b) { window._badgeCatMap[b.id] = catName; });
+    });
+    // Also map hidden/goal badges to a catch-all
+    if (typeof HIDDEN_BADGES !== 'undefined') HIDDEN_BADGES.forEach(function(b) {
+        if (!window._badgeCatMap[b.id]) window._badgeCatMap[b.id] = '🏆 Milestones';
+    });
 
     let html = '<style>' +
         '.badge-cat-title { color: var(--text-faint); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px; font-weight: 800; display: flex; align-items:center; gap: 8px; }' +
@@ -538,7 +553,7 @@ function getBadgeHTML() {
             const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
             const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' XP)' : '🔒 Locked — ' + badge.desc;
             
-            html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" title="' + escapeHtml(badge.desc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
+            html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="' + escapeHtml(catName) + '" title="' + escapeHtml(badge.desc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
                 '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
                 '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + badge.name + '</div>' +
                 '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +
@@ -571,7 +586,7 @@ function getBadgeHTML() {
                 const unlocked = earnedHidden.includes(badge.id);
                 const progressText = (!unlocked && badge.progress) ? badge.progress() : '';
                 const hintText = (!unlocked && badge.hint) ? badge.hint : '';
-                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" style="position:relative;padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;" onclick="window._showBadgeTip(event,this)">' +
+                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="🎯 Goals" style="position:relative;padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;" onclick="window._showBadgeTip(event,this)">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '🔒') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + badge.name + '</div>' +
                     (progressText ? '<div style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">' + progressText + '</div>' : '') +
@@ -600,7 +615,7 @@ function getBadgeHTML() {
         if (anyHiddenEarned) {
             for (const badge of hiddenBadges) {
                 const unlocked = earnedHidden.includes(badge.id);
-                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
+                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="🔮 Secret Badges" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '❓') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (unlocked ? badge.name : '???') + '</div>' +
                     '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 Keep exploring!') + '</div>' +
@@ -626,6 +641,15 @@ window._showBadgeTip = function(e, el) {
     var inner = el.querySelector('.badge-tooltip');
     var content = inner ? inner.innerHTML : (el.getAttribute('title') || '');
     if (!content) return;
+
+    // Append category chip if available
+    var cat = el.getAttribute('data-badge-cat') || (window._badgeCatMap && window._badgeCatMap[el.getAttribute('data-badge-id')]);
+    if (cat) {
+        content += '<div style="margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;gap:5px;flex-wrap:wrap;">' +
+            '<span style="font-size:0.65rem;color:var(--text-faint);">Category</span>' +
+            '<span style="font-size:0.7rem;padding:2px 8px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.25);border-radius:12px;color:var(--accent);font-weight:700;">' + escapeHtml(cat) + '</span>' +
+        '</div>';
+    }
 
     // If same badge tapped again — dismiss
     if (tip.style.display === 'block' && tip._srcEl === el) {
@@ -703,13 +727,46 @@ window._badgeSearch = function(query) {
     var rhtml = '';
     matches.forEach(function(b) {
         var earned = earnedBadges.has(b.id) || JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]').includes(b.id);
-        rhtml += '<div onclick="window._badgeSearchJump(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.07)\'" onmouseout="this.style.background=\'\'">'
-            + '<span style="font-size:1.4rem;flex-shrink:0;' + (earned ? '' : 'filter:grayscale(1) opacity(0.4);') + '">' + (earned ? b.emoji : (b.lockedEmoji || '🔘')) + '</span>'
-            + '<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:700;color:var(--text);">' + escapeHtml(b.name) + '</div><div style="font-size:0.7rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (earned ? '✅ ' : '🔒 ') + escapeHtml(b.desc) + '</div></div>'
-            + '</div>';
+        var cat = (window._badgeCatMap && window._badgeCatMap[b.id]) || '';
+        var pts = b.pts || 20;
+        var safeId = b.id.replace(/[^a-zA-Z0-9_]/g, '_');
+        rhtml += '<div id="bsr_' + safeId + '" style="border-bottom:1px solid var(--border);">';
+        // Collapsed row (always visible)
+        rhtml += '<div onclick="window._badgeSearchToggle(\'' + b.id + '\',\'' + safeId + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.07)\'" onmouseout="this.style.background=\'\'">' + '<span style="font-size:1.4rem;flex-shrink:0;' + (earned ? '' : 'filter:grayscale(1) opacity(0.4);') + '">' + (earned ? b.emoji : (b.lockedEmoji || '🔘')) + '</span>' + '<div style="flex:1;min-width:0;">' + '<div style="font-size:0.82rem;font-weight:700;color:var(--text);">' + escapeHtml(b.name) + '</div>' + '<div style="font-size:0.7rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (earned ? '✅ ' : '🔒 ') + escapeHtml(b.desc) + '</div>' + '</div>' + '<span style="font-size:0.75rem;color:var(--text-faint);flex-shrink:0;">▾</span>' + '</div>';
+        // Expanded detail panel (hidden by default)
+        rhtml += '<div id="bsr_detail_' + safeId + '" style="display:none;padding:10px 14px 12px;background:rgba(247,147,26,0.04);border-top:1px solid var(--border);">'
+            + '<div style="font-size:0.82rem;color:var(--text);margin-bottom:6px;">' + (earned ? '✅' : '🔒') + ' <strong>' + escapeHtml(b.name) + '</strong></div>'
+            + '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.5;margin-bottom:8px;">' + escapeHtml(b.desc) + '</div>'
+            + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'
+                + (cat ? '<span style="font-size:0.7rem;padding:2px 8px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.25);border-radius:12px;color:var(--accent);font-weight:700;">' + escapeHtml(cat) + '</span>' : '')
+                + '<span style="font-size:0.7rem;padding:2px 8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:12px;color:#22c55e;font-weight:700;">+' + pts + ' XP</span>'
+                + (earned ? '<span style="font-size:0.7rem;padding:2px 8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:12px;color:#22c55e;">Earned ✅</span>' : '')
+            + '</div>'
+            + '<button onclick="window._badgeSearchJump(\'' + b.id + '\')" style="font-size:0.75rem;padding:6px 14px;background:var(--accent);color:#000;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">View in collection →</button>'
+        + '</div>';
+        rhtml += '</div>';
     });
     resultsEl.innerHTML = rhtml;
     resultsEl.style.display = 'block';
+};
+
+window._badgeSearchToggle = function(badgeId, safeId) {
+    var detail = document.getElementById('bsr_detail_' + safeId);
+    if (!detail) return;
+    var isOpen = detail.style.display !== 'none';
+    // Collapse all other open detail panels first
+    document.querySelectorAll('[id^="bsr_detail_"]').forEach(function(el) {
+        if (el !== detail) {
+            el.style.display = 'none';
+            // Reset its arrow
+            var row = el.previousElementSibling;
+            if (row) { var arrow = row.querySelector('span:last-child'); if (arrow) arrow.textContent = '▾'; }
+        }
+    });
+    detail.style.display = isOpen ? 'none' : 'block';
+    // Flip arrow on trigger row
+    var row = detail.previousElementSibling;
+    if (row) { var arrow = row.querySelector('span:last-child'); if (arrow) arrow.textContent = isOpen ? '▾' : '▴'; }
 };
 
 window._badgeSearchJump = function(badgeId) {
