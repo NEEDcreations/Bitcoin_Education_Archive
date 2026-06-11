@@ -411,23 +411,15 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     const lbData = lbDoc.exists ? lbDoc.data() : {};
     let entries = lbData.entries || [];
     
+    // Allow multiple entries per user — top 20 hashes all-time regardless of who mined them
     const qualifies = entries.length < 20 || value < entries[entries.length - 1].value;
-    const myHash = uidHash(uid);
-    // Match both new _h (hashed) and legacy _h/uid (raw uid) for backward compat
-    const isMyEntry = (e) => e._h === myHash || e._h === uid || e.uid === uid;
-    
+
     if (qualifies) {
-      entries = entries.filter(e => !isMyEntry(e) || e.value < value);
-      const userHasBetter = entries.some(e => isMyEntry(e) && e.value <= value);
-      
-      if (!userHasBetter) {
-        entries.push({ _h: myHash, username, value, timestamp: admin.firestore.Timestamp.now() });
-      }
+      entries.push({ username, value, timestamp: admin.firestore.Timestamp.now() });
       entries.sort((a, b) => a.value - b.value);
       entries = entries.slice(0, 20);
       // Strip any serverTimestamp sentinels from legacy entries (can't be inside arrays)
       entries = entries.map(e => ({
-        _h: e._h || '',
         username: e.username || 'Anon',
         value: e.value,
         timestamp: (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now()
@@ -585,33 +577,22 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
   // Process each hash
   let added = 0;
   let skipped = 0;
+  // Allow multiple entries per user — top 20 hashes all-time
   for (const hash of hashes) {
-    const { uid, username, value } = hash;
-    
-    // Check if qualifies
+    const { username, value } = hash;
+
+    // Check if qualifies for top 20
     if (entries.length >= 20 && value >= entries[entries.length - 1].value) {
       skipped++;
       continue;
     }
-    
-    // Filter out worse entries for this user (match both hashed and legacy raw uid)
-    const myHash = uidHash(uid);
-    const isMyEntry = (e) => e._h === myHash || e._h === uid || e.uid === uid;
-    entries = entries.filter(e => !isMyEntry(e) || e.value < value);
-    
-    // Check if user has better entry
-    const userHasBetter = entries.some(e => isMyEntry(e) && e.value <= value);
-    if (!userHasBetter) {
-      entries.push({ _h: myHash, username, value, timestamp: admin.firestore.Timestamp.now() });
-      added++;
-    } else {
-      skipped++;
-    }
+
+    entries.push({ username, value, timestamp: admin.firestore.Timestamp.now() });
+    added++;
   }
 
   // Strip serverTimestamp sentinels from any legacy entries
   entries = entries.map(e => ({
-    _h: e._h || '',
     username: e.username || 'Anon',
     value: e.value,
     timestamp: (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now()
