@@ -3698,13 +3698,14 @@ function showSettingsPage(tab) {
 
         // Country selector (custom autocomplete — datalist broken on iOS Safari)
         var _userCountry = currentUser ? currentUser.country || '' : '';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌍 Country</div>' +
+        var _countryXpNudge = !_userCountry ? ' <span style="color:#22c55e;font-size:0.7rem;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:2px 7px;margin-left:4px;">+10 XP</span>' : '';
+        html += '<div style="background:var(--card-bg);border:1px solid ' + (!_userCountry ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;">🌍 Country' + _countryXpNudge + '</div>' +
             '<div style="position:relative;" id="countryAutocomplete">' +
             '<input type="text" id="countryInput" value="' + escapeHtml(_userCountry) + '" placeholder="Start typing your country..." autocomplete="off" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="window._filterCountryList()" onfocus="window._filterCountryList()">' +
             '<div id="countryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>' +
             '</div>' +
-            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Optional · Shown on your public profile</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">' + (!_userCountry ? '🌟 Add your country to earn +10 XP · Shown on your public profile' : 'Optional · Shown on your public profile') + '</div>' +
             '</div>';
 
         // Faction selector
@@ -5428,6 +5429,13 @@ async function saveProfile() {
         if (status) status.innerHTML = '<span style="color:var(--accent);">Saving...</span>';
         await db.collection('users').doc(uid).update(updateData);
         
+        // One-time +10 XP reward for adding country for the first time
+        var _prevCountry = currentUser ? (currentUser.country || '') : '';
+        if (country && !_prevCountry && typeof awardPoints === 'function') {
+            awardPoints(10, 'badge_earned', null, null, null, 'country_set');
+            if (typeof showToast === 'function') setTimeout(function() { showToast('🌍 +10 XP for adding your country!'); }, 800);
+        }
+
         // Update local currentUser object
         Object.assign(currentUser, updateData);
         
@@ -18874,6 +18882,15 @@ window.showUserProfile = function(uid) {
                 '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
+                // Faction + Country row
+                '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;flex-wrap:wrap;">' +
+                    (u.faction === 'cyber_hornets' ? '<span style="font-size:0.75rem;padding:3px 10px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.3);border-radius:20px;color:#eab308;font-weight:700;">🐝 Cyber Hornets</span>' :
+                     u.faction === 'honey_badgers' ? '<span style="font-size:0.75rem;padding:3px 10px;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3);border-radius:20px;color:#a855f7;font-weight:700;">🦡 Honey Badgers</span>' :
+                     '<span style="font-size:0.75rem;padding:3px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text-faint);">👤 Unaffiliated</span>') +
+                    '<span style="font-size:0.75rem;padding:3px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:' + (u.country ? 'var(--text-muted)' : 'var(--text-faint)') + ';">' +
+                        (u.country ? '🌍 ' + escapeHtml(u.country) : '🌍 Not specified') +
+                    '</span>' +
+                '</div>' +
             '</div>' +
             // Bio
             (u.bio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;text-align:left;">' +
@@ -18942,6 +18959,12 @@ window.showUserProfile = function(uid) {
                         '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
                         : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
                     '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
+                '</div>' : '') +
+            // Own-profile country nudge (only visible to yourself, only if country not set)
+            + (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
+                '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showSettings===\'function\')showSettings();">' +
+                    '<span style="font-size:1rem;">🌍</span>' +
+                    '<span style="color:#22c55e;font-size:0.8rem;">Add your country to earn <strong>+10 XP</strong> →</span>' +
                 '</div>' : '') +
             '</div></div>';
 

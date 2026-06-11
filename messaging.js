@@ -477,6 +477,15 @@ window.showUserProfile = function(uid) {
                 '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
+                // Faction + Country row
+                '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;flex-wrap:wrap;">' +
+                    (u.faction === 'cyber_hornets' ? '<span style="font-size:0.75rem;padding:3px 10px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.3);border-radius:20px;color:#eab308;font-weight:700;">🐝 Cyber Hornets</span>' :
+                     u.faction === 'honey_badgers' ? '<span style="font-size:0.75rem;padding:3px 10px;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3);border-radius:20px;color:#a855f7;font-weight:700;">🦡 Honey Badgers</span>' :
+                     '<span style="font-size:0.75rem;padding:3px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text-faint);">👤 Unaffiliated</span>') +
+                    '<span style="font-size:0.75rem;padding:3px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:' + (u.country ? 'var(--text-muted)' : 'var(--text-faint)') + ';">' +
+                        (u.country ? '🌍 ' + escapeHtml(u.country) : '🌍 Not specified') +
+                    '</span>' +
+                '</div>' +
             '</div>' +
             // Bio
             (u.bio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;text-align:left;">' +
@@ -545,6 +554,12 @@ window.showUserProfile = function(uid) {
                         '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
                         : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
                     '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
+                '</div>' : '') +
+            // Own-profile country nudge (only visible to yourself, only if country not set)
+            + (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
+                '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showSettings===\'function\')showSettings();">' +
+                    '<span style="font-size:1rem;">🌍</span>' +
+                    '<span style="color:#22c55e;font-size:0.8rem;">Add your country to earn <strong>+10 XP</strong> →</span>' +
                 '</div>' : '') +
             '</div></div>';
 
