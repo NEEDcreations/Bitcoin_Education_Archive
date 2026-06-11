@@ -41,8 +41,8 @@ const BADGE_DEFS = [
     { id: 'quest_5',   name: 'Quest Champion',   emoji: '🏆',  desc: 'Completed 5 Quests',         check: (v, t, q) => q >= 5,   pts: 50 },
     { id: 'quest_10',  name: 'Quest Veteran',    emoji: '🗡️',  desc: 'Completed 10 Quests',        check: (v, t, q) => q >= 10,  pts: 100 },
     { id: 'quest_25',  name: 'Quest Crusader',   emoji: '⚜️',  desc: 'Completed 25 Quests',        check: (v, t, q) => q >= 25,  pts: 200 },
-    { id: 'quest_50',  name: 'Quest Legend',     emoji: '🏰',  desc: 'Completed 50 Quests',        check: (v, t, q) => q >= 50,  pts: 400 },
-    { id: 'quest_100', name: 'Quest Master',     emoji: '👑',  desc: 'Completed 100 Quests',       check: (v, t, q) => q >= 100, pts: 750 },
+    { id: 'quest_50',  name: 'Quest Master',     emoji: '👑',  desc: 'Completed 50 Quests',        check: (v, t, q) => q >= 50,  pts: 400 },
+    { id: 'quest_100', name: 'Quest Legend',     emoji: '🏰',  desc: 'Completed 100 Quests',       check: (v, t, q) => q >= 100, pts: 750 },
     { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 topics to favorites', check: () => {
         return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 5;
     }, pts: 20},
