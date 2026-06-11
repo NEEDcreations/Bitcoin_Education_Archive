@@ -1343,6 +1343,9 @@ var _origGoHome2 = window.goHome;
 if (_origGoHome2) {
     window.goHome = function() {
         showOverlayBtn();
+        // Remove chat-shifted from leaderboard FAB when returning home
+        var _lbFabHome = document.getElementById('lbFloatBtn');
+        if (_lbFabHome) _lbFabHome.classList.remove('chat-shifted');
         return _origGoHome2.apply(this, arguments);
     };
 }
@@ -2543,6 +2546,11 @@ function initOverlay() {
     // Hide floating button on mobile — bottom nav "Chat" is enough
     var chatBtn = document.getElementById('chatOverlayBtn');
     if (chatBtn && window.innerWidth <= 900) chatBtn.style.display = 'none';
+    // Safety net: strip chat-shifted from lbFloatBtn if chat panel is not open on init
+    if (!_overlayOpen && !document.getElementById('chatContent')) {
+        var _lbInit = document.getElementById('lbFloatBtn');
+        if (_lbInit) _lbInit.classList.remove('chat-shifted');
+    }
 }
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(initOverlay, 2000); });
