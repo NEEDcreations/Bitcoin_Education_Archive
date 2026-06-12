@@ -1365,6 +1365,12 @@ function _checkDailyAllThree() {
                 });
             }
         }, 2000);
+        // Track cumulative daily triple completions for badge checks
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                dailyTripleCount: firebase.firestore.FieldValue.increment(1)
+            }).catch(function() {});
+        }
     }
 }
 
@@ -3143,11 +3149,27 @@ window.triviaAnswer = function(chosenIdx) {
 
     // Also sync to Firestore for signed-in users
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({
-            lastTriviaDate: todayKey,
-            triviaAnswered: firebase.firestore.FieldValue.increment(1),
-            triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
-        }).catch(function() {});
+        // Calculate trivia streak server-side-friendly: read lastTriviaDate, check if yesterday
+        var _yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
+            var data = doc.exists ? doc.data() : {};
+            var lastDate = data.lastTriviaDate || '';
+            var currentStreak = data.triviaStreak || 0;
+            var newStreak = (lastDate === _yesterday) ? currentStreak + 1 : (lastDate === todayKey ? currentStreak : 1);
+            return db.collection('users').doc(auth.currentUser.uid).update({
+                lastTriviaDate: todayKey,
+                triviaAnswered: firebase.firestore.FieldValue.increment(1),
+                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0),
+                triviaStreak: newStreak
+            });
+        }).catch(function() {
+            // Fallback: update without streak calc
+            db.collection('users').doc(auth.currentUser.uid).update({
+                lastTriviaDate: todayKey,
+                triviaAnswered: firebase.firestore.FieldValue.increment(1),
+                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
+            }).catch(function() {});
+        });
     }
 
     // Track answer distribution for community stats

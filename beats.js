@@ -424,6 +424,8 @@ window.beatsPlayTrack = function(idx) {
     window._beatsQueueIdx = idx;
     // Daily challenge: track that user played a beat
     try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_beats_played_' + _t, 'true'); } catch(e) {}
+    // Lifetime play count for badges
+    try { var _pc = parseInt(localStorage.getItem('btc_beats_play_count') || '0'); localStorage.setItem('btc_beats_play_count', String(_pc + 1)); } catch(e) {}
 
     // Stop existing
     if (window._beatsAudio) { window._beatsAudio.pause(); window._beatsAudio = null; }

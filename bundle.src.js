@@ -6484,6 +6484,96 @@ const BADGE_DEFS = [
     { id: 'raid_boss_slayer_5', name: 'Boss Hunter', emoji: '🐉', desc: 'Participated in defeating 5 Raid Bosses', check: () => parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') >= 5, pts: 150 },
     { id: 'raid_boss_slayer_10', name: 'Dragon Slayer', emoji: '🐲', desc: 'Participated in defeating 10 Raid Bosses', check: () => parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') >= 10, pts: 500 },
     { id: 'raid_winner', name: 'Raid Champion', emoji: '🎖️', desc: 'Won the sats lottery after a Raid Boss defeat', check: () => localStorage.getItem('btc_raid_winner') === 'true', pts: 250 },
+
+    // ---- Trivia ----
+    { id: 'trivia_first', name: 'Quiz Curious', emoji: '🧠', desc: 'Answered your first daily trivia question', check: () => { try { var s = JSON.parse(localStorage.getItem('btc_trivia_state') || '{}'); return !!s.date; } catch(e) { return false; } }, pts: 10 },
+    { id: 'trivia_correct_1', name: 'Trivia Warm-Up', emoji: '✅', desc: 'Got your first trivia question correct', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaCorrect || 0) >= 1, pts: 15 },
+    { id: 'trivia_correct_10', name: 'Fact Checker', emoji: '🔎', desc: 'Got 10 trivia questions correct', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaCorrect || 0) >= 10, pts: 30 },
+    { id: 'trivia_correct_30', name: 'Big Brain', emoji: '🦾', desc: 'Got 30 trivia questions correct', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaCorrect || 0) >= 30, pts: 75 },
+    { id: 'trivia_correct_100', name: 'Trivia Titan', emoji: '🏅', desc: 'Got 100 trivia questions correct — absolute Bitcoin scholar', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaCorrect || 0) >= 100, pts: 500 },
+    { id: 'trivia_streak_7', name: 'Daily Habit', emoji: '📆', desc: 'Answered trivia 7 days in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaStreak || 0) >= 7, pts: 50 },
+    { id: 'trivia_streak_30', name: 'Trivia Devotee', emoji: '🔱', desc: 'Answered trivia 30 days in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaStreak || 0) >= 30, pts: 300 },
+
+    // ---- Daily Poll ----
+    { id: 'poll_first', name: 'Opinionated', emoji: '🗳️', desc: 'Cast your first vote in the daily poll', check: () => { try { var s = JSON.parse(localStorage.getItem('btc_poll_state') || '{}'); return !!s.date; } catch(e) { return false; } }, pts: 10 },
+    { id: 'poll_10', name: 'Regular Voter', emoji: '🗓️', desc: 'Voted in 10 daily polls', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.pollsVoted || 0) >= 10, pts: 25 },
+    { id: 'poll_50', name: 'Civic Plebian', emoji: '🏛️', desc: 'Voted in 50 daily polls', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.pollsVoted || 0) >= 50, pts: 100 },
+    { id: 'poll_100', name: 'Democracy Maxi', emoji: '⚖️', desc: 'Voted in 100 daily polls — never missed an opinion', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.pollsVoted || 0) >= 100, pts: 400 },
+
+    // ---- Daily All-Three ----
+    { id: 'daily_triple_1', name: 'Triple Play', emoji: '🎯', desc: 'Completed quiz, trivia AND poll in one day', check: () => { try { var s = JSON.parse(localStorage.getItem('btc_daily_activities') || '{}'); return !!(s.sfAwarded); } catch(e) { return false; } }, pts: 25 },
+    { id: 'daily_triple_7', name: 'Consistent Stacker', emoji: '📚', desc: 'Completed all three daily activities 7 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 7, pts: 100 },
+    { id: 'daily_triple_30', name: 'Unstoppable', emoji: '🚂', desc: 'Completed all three daily activities 30 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 30, pts: 500 },
+
+    // ---- Marketplace ----
+    { id: 'market_browse', name: 'Window Shopper', emoji: '🛍️', desc: 'Visited the Lightning Marketplace', check: () => localStorage.getItem('btc_market_rules_accepted') === 'true', pts: 10 },
+    { id: 'market_listed_1', name: 'Vendor', emoji: '🏪', desc: 'Listed your first item in the Marketplace', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketListings || 0) >= 1, pts: 30 },
+    { id: 'market_listed_5', name: 'Merchant', emoji: '💼', desc: 'Listed 5 items in the Marketplace', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketListings || 0) >= 5, pts: 75 },
+    { id: 'market_saved_5', name: 'Wishlist', emoji: '❤️‍🔥', desc: 'Saved 5 items in the Marketplace', check: () => { try { return (JSON.parse(localStorage.getItem('btc_market_saved') || '[]')).length >= 5; } catch(e) { return false; } }, pts: 15 },
+    { id: 'market_message', name: 'Dealmaker', emoji: '🤜', desc: 'Sent your first Marketplace message to a seller', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketMessages || 0) >= 1, pts: 20 },
+
+    // ---- Bookmarks & Favorites ----
+    { id: 'bookmarks_1', name: 'Earmarked', emoji: '🔖', desc: 'Bookmarked your first article', check: () => { try { return (JSON.parse(localStorage.getItem('btc_bookmarks') || '[]')).length >= 1; } catch(e) { return false; } }, pts: 10 },
+    { id: 'bookmarks_10', name: 'Archivist', emoji: '🗄️', desc: 'Bookmarked 10 articles', check: () => { try { return (JSON.parse(localStorage.getItem('btc_bookmarks') || '[]')).length >= 10; } catch(e) { return false; } }, pts: 30 },
+    { id: 'favs_10', name: 'Curator', emoji: '🧹', desc: 'Saved 10 topics to favorites', check: () => { try { return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 10; } catch(e) { return false; } }, pts: 25 },
+    { id: 'favs_25', name: 'Collection', emoji: '🗂️', desc: 'Saved 25 topics to favorites', check: () => { try { return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 25; } catch(e) { return false; } }, pts: 75 },
+
+    // ---- DMs & Social ----
+    { id: 'dm_10', name: 'Inbox Zero', emoji: '📥', desc: 'Sent 10 direct messages', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 10, pts: 25 },
+    { id: 'dm_buddy', name: 'Buddy Up', emoji: '🫂', desc: 'Matched with a Bitcoin learning buddy', check: () => localStorage.getItem('btc_buddy_matched') === 'true', pts: 30 },
+    { id: 'react_5', name: 'Reactor', emoji: '⚡', desc: 'Reacted to 5 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 5, pts: 10 },
+    { id: 'react_200', name: 'Emoji Sensei', emoji: '🧘', desc: 'Reacted to 200 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 200, pts: 150 },
+    { id: 'tip_sats_10k', name: 'Sat Slinger', emoji: '💰', desc: 'Tipped 10,000+ sats total', check: () => parseInt(localStorage.getItem('btc_tips_total_sats') || '0') >= 10000, pts: 300 },
+    { id: 'tip_received_1', name: 'Tip Received', emoji: '🎁', desc: 'Received your first tip from another user', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 1, pts: 20 },
+    { id: 'tip_received_50', name: 'Community Darling', emoji: '🌟', desc: 'Received 50 tips from others', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 50, pts: 500 },
+
+    // ---- Price Predictions ----
+    { id: 'predict_10', name: 'Market Watcher', emoji: '📊', desc: 'Made 10 price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.total || 0 : 0) >= 10, pts: 25 },
+    { id: 'predict_50', name: 'Chartist', emoji: '📈', desc: 'Made 50 price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.total || 0 : 0) >= 50, pts: 75 },
+    { id: 'predict_correct_25', name: 'Pattern Reader', emoji: '🌊', desc: '25 correct price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 25, pts: 200 },
+    { id: 'predict_correct_100', name: 'Time Traveler', emoji: '⏳', desc: '100 correct price predictions — you can see the future', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 100, pts: 750 },
+
+    // ---- IRL Attendance ----
+    { id: 'irl_attend_1', name: 'Show Up', emoji: '📍', desc: 'RSVPed to your first IRL event', check: () => parseInt(localStorage.getItem('btc_irl_attended') || '0') >= 1, pts: 25 },
+    { id: 'irl_attend_5', name: 'Scene Regular', emoji: '🗺️', desc: 'Attended 5 IRL Bitcoin events', check: () => parseInt(localStorage.getItem('btc_irl_attended') || '0') >= 5, pts: 100 },
+    { id: 'irl_host_10', name: 'Regional Leader', emoji: '🌆', desc: 'Hosted 10 IRL Bitcoin events', check: () => parseInt(localStorage.getItem('btc_irl_hosted') || '0') >= 10, pts: 500 },
+
+    // ---- Bitcoin Beats listening ----
+    { id: 'beats_first_listen', name: 'First Listen', emoji: '🎵', desc: 'Listened to your first track on Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_play_count') || '0') >= 1, pts: 10 },
+    { id: 'beats_50_plays', name: 'Audiophile', emoji: '🎧', desc: 'Played 50 tracks on Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_play_count') || '0') >= 50, pts: 30 },
+    { id: 'beats_liked_10', name: 'Music Fan', emoji: '🩷', desc: 'Liked 10 tracks on Bitcoin Beats', check: () => { try { return (JSON.parse(localStorage.getItem('btc_beats_liked') || '[]')).length >= 10; } catch(e) { return false; } }, pts: 20 },
+    { id: 'beats_liked_50', name: 'Taste Maker', emoji: '🎼', desc: 'Liked 50 tracks on Bitcoin Beats', check: () => { try { return (JSON.parse(localStorage.getItem('btc_beats_liked') || '[]')).length >= 50; } catch(e) { return false; } }, pts: 75 },
+
+    // ---- Nacho ----
+    { id: 'nacho_asked_10', name: 'Curious', emoji: '🤔', desc: 'Asked Nacho 10 questions', check: () => parseInt(localStorage.getItem('btc_nacho_sent') || '0') >= 10, pts: 15 },
+    { id: 'nacho_asked_100', name: 'Nacho Scholar', emoji: '🦌', desc: 'Asked Nacho 100 questions', check: () => parseInt(localStorage.getItem('btc_nacho_sent') || '0') >= 100, pts: 75 },
+    { id: 'nacho_whisper', name: 'Nacho\'s Confidant', emoji: '🤫', desc: 'Interacted with Nacho 500+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 500, pts: 500 },
+    { id: 'nacho_eli5', name: 'ELI5 Mode', emoji: '👶', desc: 'Used Explain it Like I\'m 5 mode with Nacho', check: () => parseInt(localStorage.getItem('btc_nacho_eli5') || '0') >= 1, pts: 10 },
+
+    // ---- Sats milestones ----
+    { id: 'sats_10k', name: 'Sat Hoarder', emoji: '🏦', desc: 'Claimed 10,000 sats total from the faucet', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 10000, pts: 500 },
+    { id: 'sats_21k', name: '21 Million Dreams', emoji: '₿', desc: 'Claimed 21,000 sats — because 21 million is the magic number', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 21000, pts: 2100, hidden: false },
+
+    // ---- Streak milestones (fill the gap between 30 and 100) ----
+    { id: 'streak_14', name: 'Two Weeks Strong', emoji: '📅', desc: '14-day visit streak', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 14, pts: 75 },
+    { id: 'streak_60', name: 'Two Month Maxi', emoji: '🗓️', desc: '60-day visit streak', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 60, pts: 400 },
+    { id: 'streak_200', name: 'Sovereign Individual', emoji: '🗽', desc: '200-day visit streak — this is dedication', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 200, pts: 2100 },
+
+    // ---- Very Difficult ----
+    { id: 'all_certs', name: 'Grand Scholar', emoji: '🎓', desc: 'Earned all three Bitcoin certifications (Scholar, Protocol Expert, and all Trails)', check: () => localStorage.getItem('btc_scholar_prop_passed') === 'true' && localStorage.getItem('btc_scholar_tech_passed') === 'true' && (function(){ try { var p = JSON.parse(localStorage.getItem('btc_trail_passed') || '[]'); return p.includes('meadow') && p.includes('mountain') && p.includes('summit'); } catch(e) { return false; } })(), pts: 1500 },
+    { id: 'jack_of_all', name: 'Jack of All Trades', emoji: '🃏', desc: 'Earned at least one badge in every major category', check: () => {
+        var b = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+        var has = function(ids) { return ids.some(function(id) { return b.indexOf(id) !== -1; }); };
+        return has(['quest_1','quest_3','quest_5','quest_10','quest_25','quest_50','quest_100'])
+            && has(['chat_first','chat_10','chat_50','chat_100','chat_500'])
+            && has(['pvp_first','pvp_5','pvp_25','pvp_50','pvp_100'])
+            && has(['tctv_tuned_in','tctv_couch_potato','tctv_binge_watcher','tctv_couch_king','tctv_satellite'])
+            && has(['sf_first_hash','sf_10_hashes','sf_50_hashes','sf_100_hashes','sf_500_hashes','sf_1000_hashes','sf_10000_hashes'])
+            && has(['raid_first','raid_5','raid_10','raid_25','raid_50','raid_100'])
+            && has(['tip_first','tip_10','tip_whale'])
+            && has(['streak_7','streak_30','streak_100']);
+    }, pts: 3000 },
+    { id: 'hall_of_fame', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 50 or more distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
 ];
 
 let earnedBadges = new Set();
@@ -12230,6 +12320,12 @@ function _checkDailyAllThree() {
                 });
             }
         }, 2000);
+        // Track cumulative daily triple completions for badge checks
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                dailyTripleCount: firebase.firestore.FieldValue.increment(1)
+            }).catch(function() {});
+        }
     }
 }
 
@@ -14008,11 +14104,27 @@ window.triviaAnswer = function(chosenIdx) {
 
     // Also sync to Firestore for signed-in users
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({
-            lastTriviaDate: todayKey,
-            triviaAnswered: firebase.firestore.FieldValue.increment(1),
-            triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
-        }).catch(function() {});
+        // Calculate trivia streak server-side-friendly: read lastTriviaDate, check if yesterday
+        var _yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
+            var data = doc.exists ? doc.data() : {};
+            var lastDate = data.lastTriviaDate || '';
+            var currentStreak = data.triviaStreak || 0;
+            var newStreak = (lastDate === _yesterday) ? currentStreak + 1 : (lastDate === todayKey ? currentStreak : 1);
+            return db.collection('users').doc(auth.currentUser.uid).update({
+                lastTriviaDate: todayKey,
+                triviaAnswered: firebase.firestore.FieldValue.increment(1),
+                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0),
+                triviaStreak: newStreak
+            });
+        }).catch(function() {
+            // Fallback: update without streak calc
+            db.collection('users').doc(auth.currentUser.uid).update({
+                lastTriviaDate: todayKey,
+                triviaAnswered: firebase.firestore.FieldValue.increment(1),
+                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
+            }).catch(function() {});
+        });
     }
 
     // Track answer distribution for community stats
