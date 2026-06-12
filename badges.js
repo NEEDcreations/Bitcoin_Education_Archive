@@ -604,6 +604,15 @@ function getBadgeHTML() {
         '@keyframes badgeHighlightPop { 0% { transform:scale(1); } 50% { transform:scale(1.12); } 100% { transform:scale(1); } }' +
         '</style>';
 
+    // Badge count summary
+    var _totalEarnable = BADGE_DEFS.filter(function(b) { try { return b.check !== null && b.check.toString().indexOf('return false') === -1; } catch(e) { return true; } }).length;
+    var _earnedCount = earnedBadges.size;
+    var _pct = Math.round((_earnedCount / _totalEarnable) * 100);
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:12px;">' +
+        '<span style="font-size:0.85rem;color:var(--text-muted);">🏅 <strong style="color:var(--text);">' + _earnedCount + '</strong> / ' + _totalEarnable + ' badges earned</span>' +
+        '<span style="font-size:0.78rem;font-weight:700;color:' + (_pct >= 75 ? '#f7931a' : _pct >= 40 ? '#4caf50' : 'var(--text-faint)') + ';">' + _pct + '%</span>' +
+        '</div>';
+
     // Badge search bar
     html += '<div style="margin-bottom:14px;position:relative;">' +
         '<input id="badgeSearchInput" type="text" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">' +

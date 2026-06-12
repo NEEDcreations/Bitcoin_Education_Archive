@@ -1865,7 +1865,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'quest_retry': 25,            // Quest retry
         'quest_partial': 50,          // Quest 3+ correct
         'scholar_cert': 2100,         // Scholar certification
-        'badge_earned': 1000,         // Max badge points (actual varies)
+        'badge_earned': 21000,        // Max badge points — Satoshi's Ghost is 21,000 (actual varies by badge)
         'pvp_victory': 50,            // PVP win (score-based, capped)
         'pvp_practice': 10,           // PVP practice correct
         'pvp_draw': 5,               // PVP draw
@@ -1989,8 +1989,9 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         }
     }
 
-    // Validate
-    if (pts < 0 || pts > 2200) {
+    // Validate — badge_earned can go up to 21,000
+    const absMax = (matchedAction === 'badge_earned') ? 21000 : 2200;
+    if (pts < 0 || pts > absMax) {
         return { success: false, error: 'Invalid points amount' };
     }
     if (pts === 0 && !tickets && !streakFreezes && !channelId) {
@@ -2124,11 +2125,16 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
             // Compute today's award against the daily cap. Any excess is added to
             // pendingOverflow for a future day.
+            // EXCEPTION: badge_earned is a one-time lifetime award — always awarded in full,
+            // never capped or deferred to overflow. A 21,000-pt badge should land immediately.
             let awarded = 0;
             let capped = false;
             let overflowAdded = 0;
             if (pts > 0) {
-                if (dailyUsed < DAILY_CAP) {
+                if (matchedAction === 'badge_earned') {
+                    // Badges bypass the daily cap entirely — one-time lifetime award
+                    awarded = pts;
+                } else if (dailyUsed < DAILY_CAP) {
                     awarded = pts;
                     if (dailyUsed + pts > DAILY_CAP) {
                         awarded = DAILY_CAP - dailyUsed;
@@ -2139,7 +2145,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                     // Already at cap — entire award goes to overflow
                     overflowAdded = pts;
                 }
-                capped = (dailyUsed + awarded >= DAILY_CAP);
+                capped = (matchedAction !== 'badge_earned') && (dailyUsed + awarded >= DAILY_CAP);
             }
 
             // 4. Build Atomic Update — channel tracking is a visit record (not a reward),
