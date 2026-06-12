@@ -1354,7 +1354,9 @@ function _checkDailyAllThree() {
     if (state.quiz && state.trivia && state.poll && !state.sfAwarded) {
         state.sfAwarded = true;
         localStorage.setItem('btc_daily_activities', JSON.stringify(state));
-        // Sync to Firestore for server-side validation
+        // Sync to Firestore FIRST, then call contributeSatoshiFavor only after the
+        // user doc is written — the Cloud Function reads dailyAllThreeDate server-side
+        // so we must ensure it's committed before the function runs.
         var todayKey = new Date().toISOString().split('T')[0];
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
@@ -1362,10 +1364,18 @@ function _checkDailyAllThree() {
                 dailyQuizDone: true,
                 dailyTriviaDone: true,
                 dailyPollDone: true
-            }).catch(function() {});
-        }
-        if (typeof window.contributeSatoshiFavor === 'function') {
-            window.contributeSatoshiFavor('daily_all_three');
+            }).then(function() {
+                if (typeof window.contributeSatoshiFavor === 'function') {
+                    window.contributeSatoshiFavor('daily_all_three');
+                }
+            }).catch(function(err) {
+                console.error('[DAILY] Firestore sync failed, SF point not awarded:', err);
+            });
+        } else {
+            // Not signed in as non-anon — still attempt (will be rejected server-side anyway)
+            if (typeof window.contributeSatoshiFavor === 'function') {
+                window.contributeSatoshiFavor('daily_all_three');
+            }
         }
     }
 }
