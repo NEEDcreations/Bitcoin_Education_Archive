@@ -248,14 +248,7 @@ window.markVisibleBadgesReady = function() {
 
     if (migrated) {
         localStorage.setItem('btc_badges', JSON.stringify([...earnedBadges]));
-        // Save to Firebase so this migration only happens once
-        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
-            try {
-                db.collection('users').doc(auth.currentUser.uid).update({
-                    visibleBadges: [...earnedBadges]
-                });
-            } catch(e) {}
-        }
+        // visibleBadges is now CF-only (blocked from client writes). Migration is read-only here.
     }
 
     window._visibleBadgesReady = true;
@@ -307,14 +300,8 @@ function checkBadges() {
                 if (typeof awardPoints === 'function') {
                     awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji, null, null, null, badge.id);
                 }
-                // Save to Firebase so badges persist across devices/browsers
-                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
-                    try {
-                        db.collection('users').doc(auth.currentUser.uid).update({
-                            visibleBadges: firebase.firestore.FieldValue.arrayUnion(badge.id)
-                        });
-                    } catch(e) {}
-                }
+                // visibleBadges is now written server-side by the awardPoints CF
+                // (blocked from client writes in firestore.rules — [AUDIT FIX H-2])
             }
         } catch(e) {}
     }

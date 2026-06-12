@@ -1897,6 +1897,9 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'feedback': 5,                // Feedback bonus
         'tctv_watch_10m': 10,          // Timechain TV: 10 points per 10 minutes watched (cooldown enforced)
         'quiz_correct': 10,            // Nacho Mode quiz correct answer
+        'trivia_correct': 50,          // Daily trivia correct answer
+        'trivia_attempt': 10,          // Daily trivia attempt (wrong answer)
+        'poll_vote': 50,               // Daily poll quest vote
     };
 
     // Look up max allowed points for this action using keyword matching
@@ -1945,6 +1948,9 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'feedback': ['feedback'],
         'tctv_watch_10m': ['tctv_watch', 'timechain tv', 'watching timechain'],
         'quiz_correct': ['quiz correct', 'quiz_correct', '🎮 quiz'],
+        'trivia_correct': ['trivia quest correct', 'trivia_correct', '🧠 trivia quest correct'],
+        'trivia_attempt': ['trivia quest attempt', 'trivia_attempt', '🧠 trivia quest attempt'],
+        'poll_vote': ['poll quest vote', 'poll_vote', '📊 poll quest vote'],
     };
 
     let pts = 0;
@@ -2045,6 +2051,27 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 }
                 // Stamp it inside the transaction so concurrent calls can't double-award
                 t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action });
+                // [AUDIT FIX H-2] Write visibleBadges server-side (blocked from client in rules)
+                t.update(userRef, { visibleBadges: admin.firestore.FieldValue.arrayUnion(badgeId) });
+            }
+
+            // 1c. Daily dedup for trivia and poll — one award per UTC day per action
+            // Uses daily_action_counts subcollection (CF-only, rules block client writes)
+            if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
+                const triviaRef = userRef.collection('daily_action_counts').doc(today + '_trivia');
+                const triviaDoc = await t.get(triviaRef);
+                if (triviaDoc.exists) {
+                    throw new Error('ALREADY_CLAIMED_TODAY:trivia');
+                }
+                t.set(triviaRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            }
+            if (matchedAction === 'poll_vote') {
+                const pollRef = userRef.collection('daily_action_counts').doc(today + '_poll_vote');
+                const pollDoc = await t.get(pollRef);
+                if (pollDoc.exists) {
+                    throw new Error('ALREADY_CLAIMED_TODAY:poll');
+                }
+                t.set(pollRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
             }
 
             // 1b. Check per-day action count (anti-spam)

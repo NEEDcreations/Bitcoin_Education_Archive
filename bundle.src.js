@@ -6543,14 +6543,7 @@ window.markVisibleBadgesReady = function() {
 
     if (migrated) {
         localStorage.setItem('btc_badges', JSON.stringify([...earnedBadges]));
-        // Save to Firebase so this migration only happens once
-        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
-            try {
-                db.collection('users').doc(auth.currentUser.uid).update({
-                    visibleBadges: [...earnedBadges]
-                });
-            } catch(e) {}
-        }
+        // visibleBadges is now CF-only (blocked from client writes). Migration is read-only here.
     }
 
     window._visibleBadgesReady = true;
@@ -6602,14 +6595,8 @@ function checkBadges() {
                 if (typeof awardPoints === 'function') {
                     awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji, null, null, null, badge.id);
                 }
-                // Save to Firebase so badges persist across devices/browsers
-                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
-                    try {
-                        db.collection('users').doc(auth.currentUser.uid).update({
-                            visibleBadges: firebase.firestore.FieldValue.arrayUnion(badge.id)
-                        });
-                    } catch(e) {}
-                }
+                // visibleBadges is now written server-side by the awardPoints CF
+                // (blocked from client writes in firestore.rules — [AUDIT FIX H-2])
             }
         } catch(e) {}
     }
@@ -12232,29 +12219,17 @@ function _checkDailyAllThree() {
     if (state.quiz && state.trivia && state.poll && !state.sfAwarded) {
         state.sfAwarded = true;
         localStorage.setItem('btc_daily_activities', JSON.stringify(state));
-        // Sync to Firestore FIRST, then call contributeSatoshiFavor only after the
-        // user doc is written — the Cloud Function reads dailyAllThreeDate server-side
-        // so we must ensure it's committed before the function runs.
-        var todayKey = new Date().toISOString().split('T')[0];
-        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            db.collection('users').doc(auth.currentUser.uid).update({
-                dailyAllThreeDate: todayKey,
-                dailyQuizDone: true,
-                dailyTriviaDone: true,
-                dailyPollDone: true
-            }).then(function() {
-                if (typeof window.contributeSatoshiFavor === 'function') {
-                    window.contributeSatoshiFavor('daily_all_three');
-                }
-            }).catch(function(err) {
-                console.error('[DAILY] Firestore sync failed, SF point not awarded:', err);
-            });
-        } else {
-            // Not signed in as non-anon — still attempt (will be rejected server-side anyway)
+        // [AUDIT FIX C-1] The CF now validates completion against daily_action_counts records
+        // written server-side by awardPoints CF (trivia) and poll transaction. No client
+        // doc write needed here — dailyAllThreeDate and related fields are now CF-only.
+        // Small delay to ensure prior awardPoints CF calls have committed their dedup records.
+        setTimeout(function() {
             if (typeof window.contributeSatoshiFavor === 'function') {
-                window.contributeSatoshiFavor('daily_all_three');
+                window.contributeSatoshiFavor('daily_all_three').catch(function(err) {
+                    console.error('[DAILY] contributeSatoshiFavor failed:', err.message || err);
+                });
             }
-        }
+        }, 2000);
     }
 }
 
