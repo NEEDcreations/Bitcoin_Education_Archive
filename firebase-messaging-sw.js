@@ -1,15 +1,8 @@
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
-firebase.initializeApp({
-    apiKey: "AIzaSyCkUGX2KWaVGmSQXpYJhWDxF_BSiHRX6SM",
-    authDomain: "btc-archive-test.firebaseapp.com",
-    projectId: "btc-archive-test",
-    storageBucket: "btc-archive-test.firebasestorage.app",
-    messagingSenderId: "60810625669",
-    appId: "1:60810625669:web:ea4dacd55333e41429dfec",
-    measurementId: "G-7C2FKDJ8E4"
-});
+importScripts('/firebase-config.js');
+firebase.initializeApp(FIREBASE_CONFIG);
 
 const messaging = firebase.messaging();
 

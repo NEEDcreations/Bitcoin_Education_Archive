@@ -539,18 +539,15 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (resource.data.player1.uid == request.auth.uid
                       || resource.data.player2.uid == request.auth.uid);
-      // Match creation still client-side (lobby system), but answers go through Cloud Function
+      // Match creation still client-side (lobby system)
       allow create: if request.auth != null
                     && (request.resource.data.player1.uid == request.auth.uid
                         || request.resource.data.player2.uid == request.auth.uid)
                     && request.resource.data.player1.uid != request.resource.data.player2.uid;
-      // Only allow: heartbeat and questionStartedAt (for local client sync)
-      // Answers, scores, status, and currentQ handled by pvpSubmitAnswer Cloud Function (Admin SDK)
+      // Allow players of the match to update status, answers, scores, etc. directly
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
-                        || resource.data.player2.uid == request.auth.uid)
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['questionStartedAt', 'player1LastSeen', 'player2LastSeen']);
+                        || resource.data.player2.uid == request.auth.uid);
     }
 
     // =============================================

@@ -598,17 +598,24 @@
             if (!auth.currentUser) { throw new Error('Sign-in failed. Please try again.'); }
             // Set username in Firestore
             var uid = auth.currentUser.uid;
-            await db.collection('users').doc(uid).set({
-                username: name,
-                points: 0,
-                channelsVisited: 0,
-                totalVisits: 1,
-                streak: 0,
-                pvpWins: 0,
-                pvpLosses: 0,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            var userDoc = await db.collection('users').doc(uid).get();
+            if (userDoc.exists) {
+                await db.collection('users').doc(uid).update({
+                    username: name
+                });
+            } else {
+                await db.collection('users').doc(uid).set({
+                    username: name,
+                    points: 0,
+                    channelsVisited: 0,
+                    totalVisits: 1,
+                    streak: 0,
+                    pvpWins: 0,
+                    pvpLosses: 0,
+                    lastVisit: new Date().toISOString().split('T')[0],
+                    created: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
 
             // Load user data so currentUser is populated
             if (typeof loadUser === 'function') {
@@ -961,13 +968,19 @@
     var LOBBY_STALE_MS = 30000; // 30 seconds
 
     function isLobbyEntryAlive(data) {
-        if (!data.lastSeen) return false; // legacy entry with no heartbeat — stale
-        return (Date.now() - data.lastSeen) < LOBBY_STALE_MS;
+        if (!data.lastSeen) {
+            console.log('[PVP Matchmaker] isLobbyEntryAlive: lastSeen missing');
+            return false;
+        }
+        var alive = (Date.now() - data.lastSeen) < LOBBY_STALE_MS;
+        console.log('[PVP Matchmaker] isLobbyEntryAlive: alive =', alive, 'diff =', Date.now() - data.lastSeen);
+        return alive;
     }
 
     function joinLobby() {
         var db = getDb();
         var uid = getMyUid();
+        console.log('[PVP Matchmaker] joinLobby called. My UID:', uid);
         if (!db || !uid) return;
 
         // Step 1: Try to find and match with an existing waiting player
@@ -976,86 +989,95 @@
             .limit(10)
             .get()
             .then(function(snap) {
+                console.log('[PVP Matchmaker] Lobby query returned', snap.size, 'documents');
                 var matched = false;
                 snap.forEach(function(doc) {
                     if (matched) return;
                     var data = doc.data();
+                    console.log('[PVP Matchmaker] Found lobby doc:', doc.id, 'status:', data.status, 'uid:', data.uid, 'lastSeen:', data.lastSeen, 'current time:', Date.now(), 'diff:', Date.now() - (data.lastSeen || 0));
                     if (data.uid === uid) {
                         // Clean up our own stale entry from a previous session
+                        console.log('[PVP Matchmaker] Cleaning up our own stale entry:', doc.id);
                         doc.ref.delete().catch(function(){});
                         return;
                     }
                     // Only match with players who have a fresh heartbeat
                     if (!isLobbyEntryAlive(data)) {
                         // Stale entry — clean it up
+                        console.log('[PVP Matchmaker] Stale entry found, attempting cleanup for:', doc.id);
                         doc.ref.delete().catch(function(){});
                         return;
                     }
                     matched = true;
+                    console.log('[PVP Matchmaker] Found valid waiting opponent. Creating match with doc:', doc.id);
                     createMatch(doc.id, data);
                 });
 
                 if (!matched) {
                     // No valid opponent found — add ourselves and listen
+                    console.log('[PVP Matchmaker] No valid opponent found in query. Adding self to lobby.');
                     addToLobbyAndListen(uid);
                 }
             })
             .catch(function(err) {
-                console.error('PVP lobby query error:', err);
+                console.error('[PVP Matchmaker] PVP lobby query error:', err);
                 // Index might not be ready — add to lobby and use polling fallback
                 addToLobbyAndListen(uid);
             });
     }
 
     function addToLobbyAndListen(uid) {
+        console.log('[PVP Matchmaker] addToLobbyAndListen called for UID:', uid);
         var db = getDb();
         if (!db) return;
 
-        // Clean up any stale entries for this user first
-        db.collection('pvp_lobby').where('uid', '==', uid).get().then(function(snap) {
-            snap.forEach(function(doc) { doc.ref.delete(); });
-        }).catch(function(){});
-
-        // Add fresh lobby entry with lastSeen for presence detection
-        setTimeout(function() {
-            db.collection('pvp_lobby').doc(uid).set({
-                uid: uid,
-                name: getMyDisplayName(),
-                profilePic: getMyProfilePic(),
-                status: 'waiting',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                lastSeen: Date.now()
-            }).then(function() {
-                pvpState.lobbyDocId = uid;
-                listenForMatch(uid);
-                // Heartbeat: update lastSeen every 5s so others know we're alive
-                if (pvpState._lobbyHeartbeat) clearInterval(pvpState._lobbyHeartbeat);
-                pvpState._lobbyHeartbeat = setInterval(function() {
-                    if (!pvpState.inLobby || pvpState.inMatch || !pvpState.lobbyDocId) {
-                        clearInterval(pvpState._lobbyHeartbeat);
-                        pvpState._lobbyHeartbeat = null;
-                        return;
-                    }
-                    db.collection('pvp_lobby').doc(pvpState.lobbyDocId).update({
-                        lastSeen: Date.now()
-                    }).catch(function(){});
-                }, 5000);
-                // Also start polling for opponents (catches cases where real-time listener misses)
-                startMatchmakingPoll(uid, uid);
-                // Start practice prompt timer (10s wait before offering practice)
-                startPracticePromptTimer();
-            }).catch(function(err) {
-                console.error('PVP lobby join error:', err);
-                if (typeof showToast === 'function') showToast('⚠️ Failed to join PVP lobby');
-            });
-        }, 500);
+        var myName = getMyDisplayName();
+        var myPic = getMyProfilePic();
+        console.log('[PVP Matchmaker] Writing lobby entry for UID:', uid, 'name:', myName);
+        db.collection('pvp_lobby').doc(uid).set({
+            uid: uid,
+            name: myName,
+            profilePic: myPic,
+            status: 'waiting',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastSeen: Date.now()
+        }).then(function() {
+            console.log('[PVP Matchmaker] Successfully wrote lobby entry for:', uid);
+            pvpState.lobbyDocId = uid;
+            listenForMatch(uid);
+            // Heartbeat: update lastSeen every 5s so others know we're alive
+            if (pvpState._lobbyHeartbeat) clearInterval(pvpState._lobbyHeartbeat);
+            pvpState._lobbyHeartbeat = setInterval(function() {
+                if (!pvpState.inLobby || pvpState.inMatch || !pvpState.lobbyDocId) {
+                    console.log('[PVP Matchmaker] Heartbeat stopping. inLobby:', pvpState.inLobby, 'inMatch:', pvpState.inMatch, 'lobbyDocId:', pvpState.lobbyDocId);
+                    clearInterval(pvpState._lobbyHeartbeat);
+                    pvpState._lobbyHeartbeat = null;
+                    return;
+                }
+                console.log('[PVP Matchmaker] Sending heartbeat for lobby doc:', pvpState.lobbyDocId);
+                db.collection('pvp_lobby').doc(pvpState.lobbyDocId).update({
+                    lastSeen: Date.now()
+                }).catch(function(err){
+                    console.error('[PVP Matchmaker] Heartbeat update error:', err);
+                });
+            }, 5000);
+            // Also start polling for opponents (catches cases where real-time listener misses)
+            startMatchmakingPoll(uid, uid);
+            // Start practice prompt timer (10s wait before offering practice)
+            startPracticePromptTimer();
+        }).catch(function(err) {
+            console.error('[PVP Matchmaker] PVP lobby join error:', err);
+            if (typeof showToast === 'function') showToast('⚠️ Failed to join PVP lobby');
+        });
     }
 
     // Poll for opponents every 3 seconds as a fallback
     function startMatchmakingPoll(myLobbyDocId, myUid) {
+        console.log('[PVP Matchmaker] startMatchmakingPoll started for myLobbyDocId:', myLobbyDocId);
         if (pvpState._matchPoll) clearInterval(pvpState._matchPoll);
         pvpState._matchPoll = setInterval(function() {
             if (pvpState.inMatch || !pvpState.inLobby) {
+                console.log('[PVP Matchmaker] Polling stopping. inMatch:', pvpState.inMatch, 'inLobby:', pvpState.inLobby);
                 clearInterval(pvpState._matchPoll);
                 pvpState._matchPoll = null;
                 return;
@@ -1063,32 +1085,46 @@
             var db = getDb();
             if (!db) return;
 
+            console.log('[PVP Matchmaker] Polling for opponents...');
             db.collection('pvp_lobby')
                 .where('status', '==', 'waiting')
                 .limit(10)
                 .get()
                 .then(function(snap) {
+                    console.log('[PVP Matchmaker] Polling query returned', snap.size, 'documents');
                     if (pvpState.inMatch) return; // already matched
                     snap.forEach(function(doc) {
                         if (pvpState.inMatch) return;
                         var data = doc.data();
+                        console.log('[PVP Matchmaker] Polling found document:', doc.id, 'uid:', data.uid, 'status:', data.status);
                         if (data.uid === myUid) return;
                         // Only match with alive players
                         if (!isLobbyEntryAlive(data)) {
+                            console.log('[PVP Matchmaker] Polling: entry is stale. Deleting doc.id:', doc.id);
                             doc.ref.delete().catch(function(){}); // clean up stale
                             return;
                         }
                         // Found a live opponent — match them!
-                        clearInterval(pvpState._matchPoll);
-                        pvpState._matchPoll = null;
-                        createMatch(doc.id, data);
+                        // Prevent race condition: if both players find each other at the same time,
+                        // only the one with the smaller UID creates the match.
+                        if (myUid < data.uid) {
+                            console.log('[PVP Matchmaker] Polling: Found live opponent, matching with:', doc.id);
+                            clearInterval(pvpState._matchPoll);
+                            pvpState._matchPoll = null;
+                            createMatch(doc.id, data);
+                        } else {
+                            console.log('[PVP Matchmaker] Polling: Opponent has smaller UID, waiting for them to create the match...');
+                        }
                     });
                 })
-                .catch(function(){});
+                .catch(function(err){
+                    console.error('[PVP Matchmaker] Polling query error:', err);
+                });
         }, 3000);
     }
 
     function listenForMatch(lobbyDocId) {
+        console.log('[PVP Matchmaker] listenForMatch called for lobbyDocId:', lobbyDocId);
         var db = getDb();
         if (!db) return;
 
@@ -1096,9 +1132,12 @@
 
         pvpState.lobbyUnsub = db.collection('pvp_lobby').doc(lobbyDocId)
             .onSnapshot(function(doc) {
+                console.log('[PVP Matchmaker] listenForMatch snapshot triggered. doc exists:', doc.exists);
                 if (!doc.exists) return;
                 var data = doc.data();
+                console.log('[PVP Matchmaker] listenForMatch doc status:', data.status, 'matchId:', data.matchId);
                 if (data.status === 'matched' && data.matchId) {
+                    console.log('[PVP Matchmaker] We have been matched! matchId:', data.matchId);
                     // We've been matched!
                     pvpState.matchId = data.matchId;
                     pvpState.isPlayer1 = true;
@@ -1114,10 +1153,13 @@
                     listenToMatch(data.matchId);
                     showMatchFound();
                 }
+            }, function(err) {
+                console.error('[PVP Matchmaker] listenForMatch error:', err);
             });
     }
 
     function createMatch(waitingDocId, waitingData) {
+        console.log('[PVP Matchmaker] createMatch called. waitingDocId (Player 1):', waitingDocId, 'waitingData.uid:', waitingData.uid);
         var db = getDb();
         var uid = getMyUid();
         if (!db || !uid) return;
@@ -1138,21 +1180,33 @@
             questionStartedAt: null,
         };
 
+        console.log('[PVP Matchmaker] Creating pvp_matches document...');
         db.collection('pvp_matches').add(matchData).then(function(docRef) {
             var matchId = docRef.id;
+            console.log('[PVP Matchmaker] Successfully created match document with ID:', matchId);
 
             // Update the waiting player's lobby entry
+            console.log('[PVP Matchmaker] Updating Player 1 lobby doc status to matched...');
             db.collection('pvp_lobby').doc(waitingDocId).update({
                 status: 'matched',
                 matchId: matchId,
                 opponentName: getMyDisplayName(),
                 opponentUid: uid,
                 opponentProfilePic: getMyProfilePic()
+            }).then(function() {
+                console.log('[PVP Matchmaker] Successfully updated Player 1 lobby doc.');
+            }).catch(function(err) {
+                console.error('[PVP Matchmaker] FAILED to update Player 1 lobby doc:', err);
             });
 
             // Remove our own lobby entry if we had one
             if (pvpState.lobbyDocId) {
-                db.collection('pvp_lobby').doc(pvpState.lobbyDocId).delete().catch(function(){});
+                console.log('[PVP Matchmaker] Deleting our own lobby entry:', pvpState.lobbyDocId);
+                db.collection('pvp_lobby').doc(pvpState.lobbyDocId).delete().then(function() {
+                    console.log('[PVP Matchmaker] Successfully deleted our own lobby entry.');
+                }).catch(function(err){
+                    console.error('[PVP Matchmaker] Failed to delete our own lobby entry:', err);
+                });
             }
 
             pvpState.matchId = matchId;
@@ -1167,7 +1221,7 @@
             showMatchFound();
 
         }).catch(function(err) {
-            console.error('PVP match create error:', err);
+            console.error('[PVP Matchmaker] PVP match create error:', err);
             if (typeof showToast === 'function') showToast('⚠️ Failed to create PVP match');
         });
     }
