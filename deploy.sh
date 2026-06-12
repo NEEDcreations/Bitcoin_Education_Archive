@@ -115,7 +115,7 @@ push_mirror() {
     local log="/tmp/deploy_push_${name}.log"
     echo "📦 Pushing to ${name}..."
     # Run in background so mirrors don't block. Capture stderr for post-report.
-    ( git push "$name" gh-pages > "$log" 2>&1 ; echo $? > "${log}.rc" ) &
+    ( git push --force "$name" gh-pages > "$log" 2>&1 ; echo $? > "${log}.rc" ) &
 }
 
 push_mirror codeberg

@@ -445,6 +445,8 @@ async function finishEmailSignIn(email, _signInUrl) {
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (pendingLnAddress) { userData.lightning = pendingLnAddress; userData.lightningAddress = pendingLnAddress; }
+            var _emailSrc = localStorage.getItem('btc_signup_source');
+            if (_emailSrc) { userData.signupSource = _emailSrc; }
             await db.collection('users').doc(emailUid).set(userData);
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
 
@@ -1624,6 +1626,9 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     if (_signupLn) userData.lightningAddress = _signupLn;
     // Faction choice from signup
     if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
+    // Campaign source tracking — written once at signup, never overwritten
+    var _signupSrc = localStorage.getItem('btc_signup_source');
+    if (_signupSrc) { userData.signupSource = _signupSrc; }
 
     await db.collection('users').doc(uid).set(userData);
     // Increment global registered user count

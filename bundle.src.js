@@ -608,6 +608,8 @@ async function finishEmailSignIn(email, _signInUrl) {
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (pendingLnAddress) { userData.lightning = pendingLnAddress; userData.lightningAddress = pendingLnAddress; }
+            var _emailSrc = localStorage.getItem('btc_signup_source');
+            if (_emailSrc) { userData.signupSource = _emailSrc; }
             await db.collection('users').doc(emailUid).set(userData);
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
 
@@ -1787,6 +1789,9 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     if (_signupLn) userData.lightningAddress = _signupLn;
     // Faction choice from signup
     if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
+    // Campaign source tracking — written once at signup, never overwritten
+    var _signupSrc = localStorage.getItem('btc_signup_source');
+    if (_signupSrc) { userData.signupSource = _signupSrc; }
 
     await db.collection('users').doc(uid).set(userData);
     // Increment global registered user count
@@ -7228,6 +7233,22 @@ function captureReferralCode() {
     if (ref && ref.length >= 6) {
         // Store it locally — we'll attach it to the user doc when they create an account
         localStorage.setItem('btc_referral_code', ref);
+        // Clean URL without reload
+        if (window.history && window.history.replaceState) {
+            const clean = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, '', clean);
+        }
+    }
+
+    // ---- Campaign source tracking (?src=Stacker_News etc.) ----
+    // Stored in localStorage and written to Firestore on signup.
+    // Query: db.collection('users').where('signupSource', '==', 'Stacker_News')
+    const src = params.get('src');
+    if (src && src.length >= 2 && src.length <= 64) {
+        // Only store if not already set — first touch wins
+        if (!localStorage.getItem('btc_signup_source')) {
+            localStorage.setItem('btc_signup_source', src.replace(/[^a-zA-Z0-9_\-\.]/g, '_').substring(0, 64));
+        }
         // Clean URL without reload
         if (window.history && window.history.replaceState) {
             const clean = window.location.pathname + window.location.hash;

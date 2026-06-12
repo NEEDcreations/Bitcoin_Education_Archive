@@ -42,6 +42,22 @@ function captureReferralCode() {
             window.history.replaceState({}, '', clean);
         }
     }
+
+    // ---- Campaign source tracking (?src=Stacker_News etc.) ----
+    // Stored in localStorage and written to Firestore on signup.
+    // Query: db.collection('users').where('signupSource', '==', 'Stacker_News')
+    const src = params.get('src');
+    if (src && src.length >= 2 && src.length <= 64) {
+        // Only store if not already set — first touch wins
+        if (!localStorage.getItem('btc_signup_source')) {
+            localStorage.setItem('btc_signup_source', src.replace(/[^a-zA-Z0-9_\-\.]/g, '_').substring(0, 64));
+        }
+        // Clean URL without reload
+        if (window.history && window.history.replaceState) {
+            const clean = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, '', clean);
+        }
+    }
 }
 
 // ---- Award daily login ticket ----
