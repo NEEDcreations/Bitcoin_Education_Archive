@@ -2880,6 +2880,26 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (typeof haptic === 'function') haptic('success');
         }
 
+        // === Block 42 — Konami Code easter egg ===
+        // Up Up Down Down Left Right Left Right B A
+        var _konamiSeq = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
+        window._konamiBuffer = window._konamiBuffer || [];
+        window._konamiBuffer.push(e.key.toLowerCase());
+        if (window._konamiBuffer.length > 10) window._konamiBuffer.shift();
+        if (window._konamiBuffer.join(',') === _konamiSeq.join(',') && localStorage.getItem('btc_block42_found') !== 'true') {
+            window._konamiBuffer = [];
+            localStorage.setItem('btc_block42_found', 'true');
+            if (typeof launchConfetti === 'function') launchConfetti();
+            if (typeof haptic === 'function') haptic('success');
+            if (typeof showToast === 'function') showToast('🎱 Block 42 unlocked! Secret badge discovered...');
+            setTimeout(function() {
+                if (typeof window._nachoSay === 'function') {
+                    window._nachoSay('\u26cf\ufe0f ...Did you just find Block 42? I didn\'t think anyone would actually try that. You\'re different.');
+                }
+            }, 1500);
+            if (typeof checkHiddenBadges === 'function') setTimeout(checkHiddenBadges, 500);
+        }
+
         // === Escape = close modals ===
         if (key === 'escape') {
             e.preventDefault();

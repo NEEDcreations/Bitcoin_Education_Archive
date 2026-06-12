@@ -20139,7 +20139,7 @@ const HIDDEN_BADGES = [
     { id: 'the_plebeian', name: 'The Plebeian', emoji: '🫡', pts: 350, desc: 'Reached the leaderboard top 100 without a single referral', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.leaderboardRank || 9999) <= 100 && (currentUser.referralCount || 0) === 0; } },
     { id: 'silent_donor', name: 'Silent Donor', emoji: '🤫', pts: 777, desc: 'Donated XP to charity without ever sharing your referral link', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 500 && (currentUser.referralCount || 0) === 0; } },
     { id: 'dust_collector', name: 'Dust Collector', emoji: '🧹', pts: 210, desc: 'Claimed sats from the faucet 21 days in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_faucet_streak') || '0') >= 21; } },
-    { id: 'hash_obsessed', name: 'Hash Obsessed', emoji: '⛏️', pts: 2100, desc: 'Contributed 10,000 hashes to Satoshi\'s Favor', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.totalHashes || 0) >= 10000; } },
+    { id: 'hash_obsessed', name: 'Hash Obsessed', emoji: '⛏️', pts: 2100, desc: 'Contributed 25,000 hashes to Satoshi\'s Favor', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.totalHashes || 0) >= 25000; } },
 ];
 
 
@@ -26944,6 +26944,26 @@ window.nachoQuizAnswer = function(btn, correct) {
             localStorage.setItem('btc_bitcoin_eyes_unlocked', 'true');
             if (typeof showToast === 'function') showToast('₿₿ Secret unlocked: Bitcoin Eyes! Check Nacho\'s Closet!');
             if (typeof haptic === 'function') haptic('success');
+        }
+
+        // === Block 42 — Konami Code easter egg ===
+        // Up Up Down Down Left Right Left Right B A
+        var _konamiSeq = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
+        window._konamiBuffer = window._konamiBuffer || [];
+        window._konamiBuffer.push(e.key.toLowerCase());
+        if (window._konamiBuffer.length > 10) window._konamiBuffer.shift();
+        if (window._konamiBuffer.join(',') === _konamiSeq.join(',') && localStorage.getItem('btc_block42_found') !== 'true') {
+            window._konamiBuffer = [];
+            localStorage.setItem('btc_block42_found', 'true');
+            if (typeof launchConfetti === 'function') launchConfetti();
+            if (typeof haptic === 'function') haptic('success');
+            if (typeof showToast === 'function') showToast('🎱 Block 42 unlocked! Secret badge discovered...');
+            setTimeout(function() {
+                if (typeof window._nachoSay === 'function') {
+                    window._nachoSay('\u26cf\ufe0f ...Did you just find Block 42? I didn\'t think anyone would actually try that. You\'re different.');
+                }
+            }, 1500);
+            if (typeof checkHiddenBadges === 'function') setTimeout(checkHiddenBadges, 500);
         }
 
         // === Escape = close modals ===

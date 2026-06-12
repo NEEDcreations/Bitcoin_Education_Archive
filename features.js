@@ -53,7 +53,7 @@ const HIDDEN_BADGES = [
     { id: 'the_plebeian', name: 'The Plebeian', emoji: '🫡', pts: 350, desc: 'Reached the leaderboard top 100 without a single referral', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.leaderboardRank || 9999) <= 100 && (currentUser.referralCount || 0) === 0; } },
     { id: 'silent_donor', name: 'Silent Donor', emoji: '🤫', pts: 777, desc: 'Donated XP to charity without ever sharing your referral link', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 500 && (currentUser.referralCount || 0) === 0; } },
     { id: 'dust_collector', name: 'Dust Collector', emoji: '🧹', pts: 210, desc: 'Claimed sats from the faucet 21 days in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_faucet_streak') || '0') >= 21; } },
-    { id: 'hash_obsessed', name: 'Hash Obsessed', emoji: '⛏️', pts: 2100, desc: 'Contributed 10,000 hashes to Satoshi\'s Favor', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.totalHashes || 0) >= 10000; } },
+    { id: 'hash_obsessed', name: 'Hash Obsessed', emoji: '⛏️', pts: 2100, desc: 'Contributed 25,000 hashes to Satoshi\'s Favor', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.totalHashes || 0) >= 25000; } },
 ];
 
 
