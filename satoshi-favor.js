@@ -21,8 +21,15 @@
     // ─── INIT ───
     function initSatoshiFavor() {
         if (typeof db === 'undefined' || !db) {
-            setTimeout(initSatoshiFavor, 2000);
+            setTimeout(initSatoshiFavor, 100);
             return;
+        }
+        // Render immediately from cache so banner appears before Firestore round-trip
+        var _cached = null;
+        try { _cached = JSON.parse(localStorage.getItem('btc_favor_state_cache') || 'null'); } catch(e) {}
+        if (_cached && !favorState) {
+            favorState = _cached;
+            renderHomeBanner();
         }
         listenToFavorState();
         console.log('[FAVOR] Initialized');
@@ -36,6 +43,13 @@
             console.log('[FAVOR] Got state update, exists:', doc.exists);
             favorState = doc.exists ? doc.data() : { points: 0, favorActive: false };
             console.log('[FAVOR] State:', favorState);
+            // Cache to localStorage for instant render on next load
+            try {
+                var _cacheData = { points: favorState.points || 0, favorActive: favorState.favorActive || false };
+                if (favorState.favorEndBase && favorState.favorEndBase.toMillis) _cacheData.favorEndBaseMs = favorState.favorEndBase.toMillis();
+                if (favorState.bonusMinutes) _cacheData.bonusMinutes = favorState.bonusMinutes;
+                localStorage.setItem('btc_favor_state_cache', JSON.stringify(_cacheData));
+            } catch(e) {}
 
             // Detect favor activation/expiration transitions for Nacho bubble
             var nowActive = favorState.favorActive && isFavorEffectivelyActive();
@@ -69,7 +83,13 @@
     // Returns true if favor is active and NOT expired client-side
     function isFavorEffectivelyActive() {
         if (!favorState || !favorState.favorActive) return false;
-        var endBase = favorState.favorEndBase ? favorState.favorEndBase.toMillis() : 0;
+        // favorEndBase can be a Firestore Timestamp (.toMillis) or a cached plain number (favorEndBaseMs)
+        var endBase = 0;
+        if (favorState.favorEndBase && typeof favorState.favorEndBase.toMillis === 'function') {
+            endBase = favorState.favorEndBase.toMillis();
+        } else if (typeof favorState.favorEndBaseMs === 'number') {
+            endBase = favorState.favorEndBaseMs;
+        }
         var bonusMs = (favorState.bonusMinutes || 0) * 60 * 1000;
         return (endBase + bonusMs) > Date.now();
     }
@@ -145,7 +165,9 @@
                 clearInterval(countdownInterval);
                 return;
             }
-            const endBase = favorState.favorEndBase ? favorState.favorEndBase.toMillis() : 0;
+            var endBase = 0;
+            if (favorState.favorEndBase && typeof favorState.favorEndBase.toMillis === 'function') endBase = favorState.favorEndBase.toMillis();
+            else if (typeof favorState.favorEndBaseMs === 'number') endBase = favorState.favorEndBaseMs;
             const bonusMs = (favorState.bonusMinutes || 0) * 60 * 1000;
             const remaining = (endBase + bonusMs) - Date.now();
 
@@ -264,7 +286,9 @@
             const el = document.getElementById('minerCountdown');
             if (!el) return;
             if (!favorState || !favorState.favorActive) { el.textContent = 'EXPIRED'; return; }
-            const endBase = favorState.favorEndBase ? favorState.favorEndBase.toMillis() : 0;
+            var endBase = 0;
+            if (favorState.favorEndBase && typeof favorState.favorEndBase.toMillis === 'function') endBase = favorState.favorEndBase.toMillis();
+            else if (typeof favorState.favorEndBaseMs === 'number') endBase = favorState.favorEndBaseMs;
             const bonusMs = (favorState.bonusMinutes || 0) * 60 * 1000;
             const remaining = (endBase + bonusMs) - Date.now();
             if (remaining <= 0) { el.textContent = '00:00:00'; disableHashButton(); return; }
