@@ -279,6 +279,9 @@ const BADGE_DEFS = [
             && has(['streak_7','streak_30','streak_100']);
     }, pts: 3000 },
     { id: 'hall_of_fame', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 50 or more distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
+    { id: 'the_archive', name: 'The Archive', emoji: '🏛️', desc: 'Earned 100 distinct badges — you don\'t just use the Archive, you are it', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 100, pts: 10000, hidden: false },
+    { id: 'genesis_block', name: 'Genesis Block', emoji: '⚡', desc: 'Earned 150 distinct badges — foundational, irreplaceable, impossible to ignore', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 150, pts: 15000, hidden: false },
+    { id: 'satoshis_ghost', name: "Satoshi's Ghost", emoji: '👻', desc: 'Earned 200 distinct badges — so rare, nobody knows if it has ever been done', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 200, pts: 21000, hidden: false },
 ];
 
 let earnedBadges = new Set();
