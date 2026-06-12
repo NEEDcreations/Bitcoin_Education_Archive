@@ -6900,7 +6900,7 @@ function getBadgeHTML() {
         '</style>';
 
     // Badge count summary
-    var _totalEarnable = BADGE_DEFS.filter(function(b) { try { return b.check !== null && b.check.toString().indexOf('return false') === -1; } catch(e) { return true; } }).length;
+    var _totalEarnable = BADGE_DEFS.filter(function(b) { try { return b.check.toString().trim() !== '() => false'; } catch(e) { return true; } }).length;
     var _earnedCount = earnedBadges.size;
     var _pct = Math.round((_earnedCount / _totalEarnable) * 100);
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:12px;">' +
