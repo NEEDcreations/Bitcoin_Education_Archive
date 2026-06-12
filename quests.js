@@ -3291,6 +3291,21 @@ function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
 }
 
 function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
+    // Secret badge: The Contrarian — track when user voted for minority option
+    try {
+        if (typeof chosen === 'number' && chosen >= 0 && total > 1) {
+            var _maxVotes = Math.max.apply(null, votes);
+            if (votes[chosen] < _maxVotes) {
+                var _minKey = 'btc_poll_minority_votes';
+                var _minDay = 'btc_poll_minority_day';
+                var _todayStr = new Date().toISOString().split('T')[0];
+                if (localStorage.getItem(_minDay) !== _todayStr) {
+                    localStorage.setItem(_minDay, _todayStr);
+                    localStorage.setItem(_minKey, String(parseInt(localStorage.getItem(_minKey) || '0') + 1));
+                }
+            }
+        }
+    } catch(e) {}
     var html = htmlPrefix;
     var colors = ['#f7931a', '#3b82f6', '#22c55e', '#8b5cf6'];
     html += '<div style="display:flex;flex-direction:column;gap:10px;">';

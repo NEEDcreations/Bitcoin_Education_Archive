@@ -6145,6 +6145,20 @@ window.submitSatsClaim = async function() {
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
             window._satsClaimInProgress = false;
+            // Secret badge: Dust Collector — track consecutive faucet claim days
+            try {
+                var _fcToday = new Date().toISOString().split('T')[0];
+                var _fcLast = localStorage.getItem('btc_faucet_last_day');
+                var _fcYest = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                var _fcStreak = parseInt(localStorage.getItem('btc_faucet_streak') || '0');
+                if (_fcLast === _fcYest) {
+                    _fcStreak++;
+                } else if (_fcLast !== _fcToday) {
+                    _fcStreak = 1;
+                }
+                localStorage.setItem('btc_faucet_streak', String(_fcStreak));
+                localStorage.setItem('btc_faucet_last_day', _fcToday);
+            } catch(e) {}
 
             if (typeof notifySelfSatsClaim === 'function') notifySelfSatsClaim(paidAmount);
             // Fun celebration popup + confetti
@@ -6906,10 +6920,14 @@ function getBadgeHTML() {
 
     // Badge count summary
     var _totalEarnable = BADGE_DEFS.filter(function(b) { try { return b.check.toString().trim() !== '() => false'; } catch(e) { return true; } }).length;
+    var _hiddenEarnable = typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.filter(function(b) { return b.hidden; }).length : 0;
+    var _hiddenEarned = (JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]')).length;
     var _earnedCount = earnedBadges.size;
-    var _pct = Math.round((_earnedCount / _totalEarnable) * 100);
+    var _grandTotal = _totalEarnable + _hiddenEarnable;
+    var _grandEarned = _earnedCount + _hiddenEarned;
+    var _pct = Math.round((_grandEarned / _grandTotal) * 100);
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:12px;">' +
-        '<span style="font-size:0.85rem;color:var(--text-muted);">🏅 <strong style="color:var(--text);">' + _earnedCount + '</strong> / ' + _totalEarnable + ' badges earned</span>' +
+        '<span style="font-size:0.85rem;color:var(--text-muted);">🏅 <strong style="color:var(--text);">' + _grandEarned + '</strong> / ' + _grandTotal + ' badges earned</span>' +
         '<span style="font-size:0.78rem;font-weight:700;color:' + (_pct >= 75 ? '#f7931a' : _pct >= 40 ? '#4caf50' : 'var(--text-faint)') + ';">' + _pct + '%</span>' +
         '</div>';
 
@@ -14279,6 +14297,21 @@ function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
 }
 
 function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
+    // Secret badge: The Contrarian — track when user voted for minority option
+    try {
+        if (typeof chosen === 'number' && chosen >= 0 && total > 1) {
+            var _maxVotes = Math.max.apply(null, votes);
+            if (votes[chosen] < _maxVotes) {
+                var _minKey = 'btc_poll_minority_votes';
+                var _minDay = 'btc_poll_minority_day';
+                var _todayStr = new Date().toISOString().split('T')[0];
+                if (localStorage.getItem(_minDay) !== _todayStr) {
+                    localStorage.setItem(_minDay, _todayStr);
+                    localStorage.setItem(_minKey, String(parseInt(localStorage.getItem(_minKey) || '0') + 1));
+                }
+            }
+        }
+    } catch(e) {}
     var html = htmlPrefix;
     var colors = ['#f7931a', '#3b82f6', '#22c55e', '#8b5cf6'];
     html += '<div style="display:flex;flex-direction:column;gap:10px;">';
@@ -20096,6 +20129,17 @@ const HIDDEN_BADGES = [
     { id: 'sats_maxed', name: 'Faucet King', emoji: '👑', pts: 1000, desc: 'Claimed all 10,000 sats from the faucet', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 10000; } },
     { id: 'streak_freeze', name: 'Ice Shield', emoji: '🧊', pts: 50, desc: 'Used a streak freeze to save your streak', hidden: true, check: function() { return localStorage.getItem('btc_freeze_used') === 'true'; } },
     { id: 'nacho_closet_full', name: 'Fashionista', emoji: '👗', pts: 200, desc: 'Unlocked all Nacho closet items from the spin wheel', hidden: true, check: function() { var items = safeJSON('btc_spin_closet_items', []); return items.length >= 10; } },
+    // === 10 NEW SECRET BADGES (hard / obscure) ===
+    { id: 'ghost_reader', name: 'Ghost Reader', emoji: '👻', pts: 500, desc: 'Visited the archive every day for a week without earning any points', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.streak || 0) >= 7 && (currentUser.points || 0) === 0; } },
+    { id: 'whitepaper_pilgrim', name: 'Whitepaper Pilgrim', emoji: '📜', pts: 750, desc: 'Read the whitepaper channel 10 times in separate sessions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_whitepaper_visits') || '0') >= 10; } },
+    { id: 'insomniac', name: 'Insomniac', emoji: '🌑', pts: 300, desc: 'Visited the archive between 2am and 4am on 3 separate occasions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_late_night_visits') || '0') >= 3; } },
+    { id: 'contrarian', name: 'The Contrarian', emoji: '🙃', pts: 400, desc: 'Voted against the majority in 10 daily polls', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_poll_minority_votes') || '0') >= 10; } },
+    { id: 'block_42', name: 'Block 42', emoji: '🎱', pts: 421, desc: 'Discovered something hidden in the archive', hidden: true, check: function() { return localStorage.getItem('btc_block42_found') === 'true'; } },
+    { id: 'rabbit_hole', name: 'Rabbit Hole', emoji: '🕳️', pts: 600, desc: 'Spent 3 hours straight learning in one session', hidden: true, check: function() { return (Date.now() - (window._sessionStart || Date.now())) > 10800000; } },
+    { id: 'the_plebeian', name: 'The Plebeian', emoji: '🫡', pts: 350, desc: 'Reached the leaderboard top 100 without a single referral', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.leaderboardRank || 9999) <= 100 && (currentUser.referralCount || 0) === 0; } },
+    { id: 'silent_donor', name: 'Silent Donor', emoji: '🤫', pts: 777, desc: 'Donated XP to charity without ever sharing your referral link', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 500 && (currentUser.referralCount || 0) === 0; } },
+    { id: 'dust_collector', name: 'Dust Collector', emoji: '🧹', pts: 210, desc: 'Claimed sats from the faucet 21 days in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_faucet_streak') || '0') >= 21; } },
+    { id: 'hash_obsessed', name: 'Hash Obsessed', emoji: '⛏️', pts: 2100, desc: 'Contributed 10,000 hashes to Satoshi\'s Favor', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.totalHashes || 0) >= 10000; } },
 ];
 
 
@@ -24022,6 +24066,15 @@ window._startHalvingTicker = function() {
 })();
 (function() {
     window._sessionStart = window._sessionStart || Date.now();
+    // Secret badge: Insomniac — track late night visits (2am–4am), once per session
+    (function() {
+        var _h = new Date().getHours();
+        if (_h >= 2 && _h < 4 && !sessionStorage.getItem('btc_late_night_logged')) {
+            sessionStorage.setItem('btc_late_night_logged', '1');
+            var _ln = parseInt(localStorage.getItem('btc_late_night_visits') || '0') + 1;
+            localStorage.setItem('btc_late_night_visits', String(_ln));
+        }
+    })();
     var _lastTickerPrice = null;
     var _hasInited = false;
     var nachoLiveData = { price: null, blockHeight: null };
@@ -27612,6 +27665,17 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Raid Boss contribution for channel visits
         if (typeof window._raidOnChannelVisit === 'function') window._raidOnChannelVisit(id);
+
+        // Secret badge: Whitepaper Pilgrim — track separate sessions visiting whitepaper
+        if (id === 'whitepaper') {
+            var _wpKey = 'btc_wp_last_session';
+            var _wpSession = sessionStorage.getItem(_wpKey);
+            if (!_wpSession) {
+                sessionStorage.setItem(_wpKey, '1');
+                var _wpCount = parseInt(localStorage.getItem('btc_whitepaper_visits') || '0') + 1;
+                localStorage.setItem('btc_whitepaper_visits', String(_wpCount));
+            }
+        }
 
         // Update SEO metrics (id, title, desc)
         if (typeof _updateSEO === 'function' && typeof CHANNELS !== 'undefined' && CHANNELS[id]) {

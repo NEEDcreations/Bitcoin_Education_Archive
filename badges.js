@@ -606,10 +606,14 @@ function getBadgeHTML() {
 
     // Badge count summary
     var _totalEarnable = BADGE_DEFS.filter(function(b) { try { return b.check.toString().trim() !== '() => false'; } catch(e) { return true; } }).length;
+    var _hiddenEarnable = typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.filter(function(b) { return b.hidden; }).length : 0;
+    var _hiddenEarned = (JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]')).length;
     var _earnedCount = earnedBadges.size;
-    var _pct = Math.round((_earnedCount / _totalEarnable) * 100);
+    var _grandTotal = _totalEarnable + _hiddenEarnable;
+    var _grandEarned = _earnedCount + _hiddenEarned;
+    var _pct = Math.round((_grandEarned / _grandTotal) * 100);
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:12px;">' +
-        '<span style="font-size:0.85rem;color:var(--text-muted);">🏅 <strong style="color:var(--text);">' + _earnedCount + '</strong> / ' + _totalEarnable + ' badges earned</span>' +
+        '<span style="font-size:0.85rem;color:var(--text-muted);">🏅 <strong style="color:var(--text);">' + _grandEarned + '</strong> / ' + _grandTotal + ' badges earned</span>' +
         '<span style="font-size:0.78rem;font-weight:700;color:' + (_pct >= 75 ? '#f7931a' : _pct >= 40 ? '#4caf50' : 'var(--text-faint)') + ';">' + _pct + '%</span>' +
         '</div>';
 

@@ -1,5 +1,14 @@
 (function() {
     window._sessionStart = window._sessionStart || Date.now();
+    // Secret badge: Insomniac — track late night visits (2am–4am), once per session
+    (function() {
+        var _h = new Date().getHours();
+        if (_h >= 2 && _h < 4 && !sessionStorage.getItem('btc_late_night_logged')) {
+            sessionStorage.setItem('btc_late_night_logged', '1');
+            var _ln = parseInt(localStorage.getItem('btc_late_night_visits') || '0') + 1;
+            localStorage.setItem('btc_late_night_visits', String(_ln));
+        }
+    })();
     var _lastTickerPrice = null;
     var _hasInited = false;
     var nachoLiveData = { price: null, blockHeight: null };
@@ -3590,6 +3599,17 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Raid Boss contribution for channel visits
         if (typeof window._raidOnChannelVisit === 'function') window._raidOnChannelVisit(id);
+
+        // Secret badge: Whitepaper Pilgrim — track separate sessions visiting whitepaper
+        if (id === 'whitepaper') {
+            var _wpKey = 'btc_wp_last_session';
+            var _wpSession = sessionStorage.getItem(_wpKey);
+            if (!_wpSession) {
+                sessionStorage.setItem(_wpKey, '1');
+                var _wpCount = parseInt(localStorage.getItem('btc_whitepaper_visits') || '0') + 1;
+                localStorage.setItem('btc_whitepaper_visits', String(_wpCount));
+            }
+        }
 
         // Update SEO metrics (id, title, desc)
         if (typeof _updateSEO === 'function' && typeof CHANNELS !== 'undefined' && CHANNELS[id]) {

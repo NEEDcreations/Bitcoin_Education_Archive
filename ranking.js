@@ -5982,6 +5982,20 @@ window.submitSatsClaim = async function() {
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
             window._satsClaimInProgress = false;
+            // Secret badge: Dust Collector — track consecutive faucet claim days
+            try {
+                var _fcToday = new Date().toISOString().split('T')[0];
+                var _fcLast = localStorage.getItem('btc_faucet_last_day');
+                var _fcYest = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                var _fcStreak = parseInt(localStorage.getItem('btc_faucet_streak') || '0');
+                if (_fcLast === _fcYest) {
+                    _fcStreak++;
+                } else if (_fcLast !== _fcToday) {
+                    _fcStreak = 1;
+                }
+                localStorage.setItem('btc_faucet_streak', String(_fcStreak));
+                localStorage.setItem('btc_faucet_last_day', _fcToday);
+            } catch(e) {}
 
             if (typeof notifySelfSatsClaim === 'function') notifySelfSatsClaim(paidAmount);
             // Fun celebration popup + confetti
