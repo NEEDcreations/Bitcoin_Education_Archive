@@ -6898,6 +6898,16 @@ function getBadgeHTML() {
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
 
+    // Sort categories alphabetically by label (strip emoji for sort key), keep Milestones last
+    var _sortedCatKeys = Object.keys(categories).sort(function(a, b) {
+        if (a === '🏆 Milestones') return 1;
+        if (b === '🏆 Milestones') return -1;
+        var _strip = function(s) { return s.replace(/^[^a-zA-Z]+/, '').toLowerCase(); };
+        return _strip(a).localeCompare(_strip(b));
+    });
+    var _sortedCategories = {};
+    _sortedCatKeys.forEach(function(k) { _sortedCategories[k] = categories[k]; });
+
     // Build a reverse-lookup map: badgeId → category name (used by search tooltip + grid hover)
     window._badgeCatMap = {};
     Object.keys(categories).forEach(function(catName) {
@@ -6939,7 +6949,7 @@ function getBadgeHTML() {
         '</div>';
 
     var _bcIdx = 0;
-    for (const [catName, badgeList] of Object.entries(categories)) {
+    for (const [catName, badgeList] of Object.entries(_sortedCategories)) {
         if (badgeList.length === 0) continue;
         _bcIdx++;
         var _bcId = 'bc_' + _bcIdx;
