@@ -2279,13 +2279,6 @@ function updateRankUI() {
         showLevelUpCelebration(lv);
         localStorage.setItem('btc_highest_level_seen', lv.min.toString());
         if (typeof notifySelfLevelUp === 'function') notifySelfLevelUp(lv.min, lv.name, lv.emoji);
-        // Announce level-up in Global Chat
-        var _luName = (currentUser && currentUser.username) ? currentUser.username : null;
-        var _luUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
-        if (_luName && typeof window.nachoGlobalAnnounce === 'function') {
-            window.nachoGlobalAnnounce(lv.emoji + ' @' + _luName + ' just leveled up to ' + lv.emoji + ' ' + lv.name + '! Congrats! \uD83C\uDF89', _luUid);
-        }
-
         // Satoshi's Favor contribution for level-ups
         if (typeof window.contributeSatoshiFavor === 'function') {
             var levelName = lv.name || '';
