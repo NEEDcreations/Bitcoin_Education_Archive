@@ -419,7 +419,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     console.warn('[FAVOR] Personal best update failed:', e.message);
   }
 
-  // Update community top 10 lowest hashes (all-time leaderboard)
+  // Update community top 25 lowest hashes (all-time leaderboard)
   // Uses _uid internally for dedup but does NOT expose it in the public doc
   const lbRef = db.collection('satoshiFavor').doc('topHashes');
   try {
@@ -427,13 +427,13 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     const lbData = lbDoc.exists ? lbDoc.data() : {};
     let entries = lbData.entries || [];
     
-    // Allow multiple entries per user — top 20 hashes all-time regardless of who mined them
-    const qualifies = entries.length < 20 || value < entries[entries.length - 1].value;
+    // Allow multiple entries per user — top 25 hashes all-time regardless of who mined them
+    const qualifies = entries.length < 25 || value < entries[entries.length - 1].value;
 
     if (qualifies) {
       entries.push({ username, value, timestamp: admin.firestore.Timestamp.now() });
       entries.sort((a, b) => a.value - b.value);
-      entries = entries.slice(0, 20);
+      entries = entries.slice(0, 25);
       // Strip any serverTimestamp sentinels from legacy entries (can't be inside arrays)
       entries = entries.map(e => ({
         username: e.username || 'Anon',
@@ -593,12 +593,12 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
   // Process each hash
   let added = 0;
   let skipped = 0;
-  // Allow multiple entries per user — top 20 hashes all-time
+  // Allow multiple entries per user — top 25 hashes all-time
   for (const hash of hashes) {
     const { username, value } = hash;
 
-    // Check if qualifies for top 20
-    if (entries.length >= 20 && value >= entries[entries.length - 1].value) {
+    // Check if qualifies for top 25
+    if (entries.length >= 25 && value >= entries[entries.length - 1].value) {
       skipped++;
       continue;
     }
@@ -616,7 +616,7 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
 
   // Sort and trim
   entries.sort((a, b) => a.value - b.value);
-  entries = entries.slice(0, 20);
+  entries = entries.slice(0, 25);
   await lbRef.set({ entries });
 
   console.log(`[FAVOR-SYNC] Added ${added}, skipped ${skipped}. Total entries now: ${entries.length}`);

@@ -6632,6 +6632,12 @@ const BADGE_DEFS = [
             && has(['tip_first','tip_10','tip_whale'])
             && has(['streak_7','streak_30','streak_100']);
     }, pts: 3000 },
+    // FLEX badges (total actions across all categories)
+    { id: 'flex_rookie',    name: 'Healthy Start',     emoji: '🌱', desc: 'Completed 10 FLEX actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=10;  } catch(e){return false;} }, pts: 25 },
+    { id: 'flex_committed', name: 'Committed',          emoji: '💪', desc: 'Completed 50 FLEX actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=50;  } catch(e){return false;} }, pts: 75 },
+    { id: 'flex_athlete',   name: 'Bitcoin Athlete',   emoji: '🏅', desc: 'Completed 200 FLEX actions total',   check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=200; } catch(e){return false;} }, pts: 200 },
+    { id: 'flex_legend',    name: 'FLEX Legend',       emoji: '🦁', desc: 'Completed 1,000 FLEX actions total', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=1000;} catch(e){return false;} }, pts: 1000 },
+    { id: 'flex_all_once',  name: 'Full Stack Human',  emoji: '🧬', desc: 'Completed every FLEX action at least once', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); var ids=['steak','sunlight','dca','custody','lift','meetup','lightning','read','sleep','nokyc','node','cold','fast','walk','journal','meditate','teach','water','gratitude','verify']; return ids.every(function(id){return s[id]&&s[id].total>=1;}); } catch(e){return false;} }, pts: 150 },
     { id: 'hall_of_fame', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 50 or more distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
     { id: 'the_archive', name: 'The Archive', emoji: '🏛️', desc: 'Earned 100 distinct badges — you don\'t just use the Archive, you are it', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 100, pts: 10000, hidden: false },
     { id: 'genesis_block', name: 'Genesis Block', emoji: '⚡', desc: 'Earned 150 distinct badges — foundational, irreplaceable, impossible to ignore', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 150, pts: 15000, hidden: false },
@@ -13579,7 +13585,7 @@ function _renderTopHashesHTML(entries) {
         '</div>';
     }
 
-    var top10 = entries.slice(0, 10);
+        var top10 = entries.slice(0, 10);
     var rest = entries.slice(10);
     for (var i = 0; i < top10.length; i++) html += renderEntry(top10[i], i);
 
@@ -13587,7 +13593,7 @@ function _renderTopHashesHTML(entries) {
         html += '<div id="favorHashesMore" style="display:none;">';
         for (var j = 0; j < rest.length; j++) html += renderEntry(rest[j], 10 + j);
         html += '</div>';
-        html += '<button onclick="(function(){var m=document.getElementById(\'favorHashesMore\');var b=document.getElementById(\'favorHashesMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()" ' +
+        html += '<button onclick="(function(){var m=document.getElementById(\'favorHashesMore\');var b=document.getElementById(\'favorHashesMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()"' +
             'id="favorHashesMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
     }
 
@@ -13723,6 +13729,7 @@ window.showQuestHub = function() {
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
+        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 FLEX</button>' +
         '</div>';
 
     var body = document.createElement('div');
@@ -13740,15 +13747,16 @@ window.showQuestHub = function() {
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
     // Update active tab styles
-    ['Quiz', 'Trivia', 'Poll', 'Raid', 'Favor', 'Charity'].forEach(function(t) {
+    ['Quiz', 'Trivia', 'Poll', 'Raid', 'Favor', 'Charity', 'Flex'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
         if (!btn) return;
         var isActive = tab === t.toLowerCase();
         var raidActive = t === 'Raid' && isActive;
         var charityActive = t === 'Charity' && isActive;
-        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : (isActive ? 'var(--accent)' : 'none');
+        var flexActive = t === 'Flex' && isActive;
+        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : (isActive ? 'var(--accent)' : 'none');
         btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
-        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : (isActive ? 'var(--accent)' : 'var(--border)');
+        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : (isActive ? 'var(--accent)' : 'var(--border)');
     });
 
     var body = document.getElementById('questHubBody');
@@ -13763,6 +13771,7 @@ function _renderQuestHubTab() {
     else if (tab === 'raid') _renderRaidTab(body);
     else if (tab === 'favor') _renderFavorTab(body);
     else if (tab === 'charity') _renderCharityTab(body);
+    else if (tab === 'flex') _renderFlexTab(body);
 }
 
 // ── CHARITY TAB ──
@@ -15204,6 +15213,456 @@ window._raidOnChannelVisit = function(channelId) {
     window._raidContribute('uniqueTopicsVisited', 1, channelId);
     window._raidContribute('uniqueUsers5Topics', 1, channelId);
 };
+
+// ══════════════════════════════════════════════════════════════════════
+// 💪 FLEX TAB — Daily Healthy Bitcoiner Actions
+// ══════════════════════════════════════════════════════════════════════
+
+var FLEX_ACTIONS = [
+    // id, emoji, name, desc, interaction, interactionData
+    { id:'steak',      emoji:'🥩', name:'Eat Steak',           desc:'Fuel up like a carnivore maxi',         pts:5, type:'hold',    holdMs:2000 },
+    { id:'sunlight',   emoji:'☀️', name:'Get Sunlight',        desc:'Touch grass. Outside. On purpose.',     pts:5, type:'drag',    dragTarget:'☀️→🌿' },
+    { id:'dca',        emoji:'📈', name:'DCA Bitcoin',         desc:'Stack sats on schedule. No emotion.',   pts:5, type:'sequence', seq:['2','1','0','0','0','0','0','0'] },
+    { id:'custody',    emoji:'🔑', name:'Self-Custody',        desc:'Not your keys, not your coins.',        pts:5, type:'swipe',   dir:'right' },
+    { id:'lift',       emoji:'🏋️', name:'Lift Weights',        desc:'Proof of strength. Every rep counts.',  pts:5, type:'hold',    holdMs:3000 },
+    { id:'meetup',     emoji:'🤝', name:'Host a Meetup',       desc:'Orange-pill your city. IRL > URL.',     pts:5, type:'doubletap' },
+    { id:'lightning',  emoji:'⚡', name:'Spend via Lightning', desc:'Circular economy. Spend and re-stack.', pts:5, type:'swipe',   dir:'left' },
+    { id:'read',       emoji:'📚', name:'Read Bitcoin',        desc:'One page of Saifedean a day.',          pts:5, type:'sequence', seq:['2','1','0','0','0','0','0','1'] },
+    { id:'sleep',      emoji:'😴', name:'Sleep 8 Hours',       desc:'Low time-preference recovery.',         pts:5, type:'hold',    holdMs:2500 },
+    { id:'nokyc',      emoji:'🕵️', name:'Buy No-KYC',          desc:'Preserve your privacy. Stay sovereign.',pts:5, type:'doubletap' },
+    { id:'node',       emoji:'💻', name:'Run Your Node',       desc:'Don\'t trust. Verify.',                  pts:5, type:'drag',    dragTarget:'💻→🔗' },
+    { id:'cold',       emoji:'🧊', name:'Cold Plunge',         desc:'Hormetic stress. Bitcoin is similar.',  pts:5, type:'hold',    holdMs:3000 },
+    { id:'fast',       emoji:'⏱️', name:'Intermittent Fast',   desc:'Low glucose, high signal.',             pts:5, type:'sequence', seq:['1','6','h','r','s'] },
+    { id:'walk',       emoji:'🚶', name:'Walk 10k Steps',      desc:'Proof of Walk. Calories are energy.',   pts:5, type:'swipe',   dir:'right' },
+    { id:'journal',    emoji:'📝', name:'Journal Today',       desc:'Long-term thinking. Write it down.',    pts:5, type:'drag',    dragTarget:'📝→🗒️' },
+    { id:'meditate',   emoji:'🧘', name:'Meditate',            desc:'Clear mind. Bitcoin is signal.',        pts:5, type:'hold',    holdMs:2000 },
+    { id:'teach',      emoji:'🗣️', name:'Orange-Pill Someone', desc:'Share the truth. One person at a time.',pts:5, type:'doubletap' },
+    { id:'water',      emoji:'💧', name:'Drink Water',         desc:'Hydration is a low time preference act.',pts:5, type:'sequence', seq:['H','2','O'] },
+    { id:'gratitude',  emoji:'🙏', name:'Gratitude Practice',  desc:'Abundance mindset. Stack happiness.',   pts:5, type:'drag',    dragTarget:'🙏→❤️' },
+    { id:'verify',     emoji:'🔍', name:'Verify a Transaction',desc:'Trust no one. Not even Rufus.',         pts:5, type:'sequence', seq:['0','x','B','T','C'] },
+];
+
+var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
+
+function _flexTodayKey() {
+    return new Date().toISOString().slice(0,10); // YYYY-MM-DD
+}
+
+function _flexGetState() {
+    try { return JSON.parse(localStorage.getItem('btc_flex_state') || '{}'); } catch(e) { return {}; }
+}
+
+function _flexSaveState(s) {
+    localStorage.setItem('btc_flex_state', JSON.stringify(s));
+}
+
+function _flexDoneToday(actionId) {
+    var s = _flexGetState();
+    return (s[actionId] && s[actionId].lastDate === _flexTodayKey());
+}
+
+function _flexGetAllTimeCount(actionId) {
+    var s = _flexGetState();
+    return (s[actionId] && s[actionId].total) || 0;
+}
+
+function _flexMarkDone(actionId, onDone) {
+    if (_flexDoneToday(actionId)) return;
+    var s = _flexGetState();
+    if (!s[actionId]) s[actionId] = { total: 0 };
+    s[actionId].lastDate = _flexTodayKey();
+    s[actionId].total = (s[actionId].total || 0) + 1;
+    _flexSaveState(s);
+    var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
+    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name);
+    // Check flex badges
+    _flexCheckBadges(actionId, s[actionId].total);
+    if (onDone) onDone(s[actionId].total);
+}
+
+function _flexCheckBadges(actionId, total) {
+    FLEX_BADGE_MILESTONES.forEach(function(m) {
+        if (total >= m) {
+            var badgeId = 'flex_' + actionId + '_' + m;
+            if (typeof earnedBadges !== 'undefined' && !earnedBadges.has(badgeId)) {
+                var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
+                var fakeBadge = {
+                    id: badgeId,
+                    name: action ? action.name + ' ×' + m : 'FLEX ×' + m,
+                    emoji: action ? action.emoji : '💪',
+                    desc: 'Did "' + (action ? action.name : actionId) + '" ' + m + ' times',
+                    pts: Math.round(m * 2)
+                };
+                earnedBadges.add(badgeId);
+                var cur = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+                if (cur.indexOf(badgeId) === -1) { cur.push(badgeId); localStorage.setItem('btc_badges', JSON.stringify(cur)); }
+                if (typeof window.contributeSatoshiFavor === 'function') window.contributeSatoshiFavor('badge_earned', fakeBadge.emoji + ' ' + fakeBadge.name).catch(function(){});
+                if (typeof showBadgeToast === 'function') showBadgeToast(fakeBadge);
+                if (typeof awardPoints === 'function') awardPoints(fakeBadge.pts, 'Badge: ' + fakeBadge.name + ' ' + fakeBadge.emoji, null, null, null, badgeId);
+            }
+        }
+    });
+}
+
+function _renderFlexTab(body) {
+    var today = _flexTodayKey();
+    var doneCount = FLEX_ACTIONS.filter(function(a) { return _flexDoneToday(a.id); }).length;
+
+    var html = '<style>' +
+        '.flex-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:0.2s;position:relative;overflow:hidden;}' +
+        '.flex-card.done{border-color:#22c55e;background:rgba(34,197,94,0.07);}' +
+        '.flex-card.done::after{content:"✅";position:absolute;top:10px;right:12px;font-size:1.3rem;}' +
+        '.flex-card-name{font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;}' +
+        '.flex-card-desc{font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;}' +
+        '.flex-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent);transition:0.2s;user-select:none;-webkit-user-select:none;touch-action:manipulation;}' +
+        '.flex-btn:active{transform:scale(0.96);}' +
+        '.flex-btn.disabled{opacity:0.4;cursor:default;pointer-events:none;}' +
+        '.flex-progress{position:absolute;bottom:0;left:0;height:3px;background:var(--accent);border-radius:0 0 0 14px;transition:width 0.05s linear;}' +
+        '.flex-counter{font-size:0.68rem;color:var(--text-faint);margin-top:6px;}' +
+        '@keyframes flexPop{0%{transform:scale(1)}40%{transform:scale(1.18)}70%{transform:scale(0.94)}100%{transform:scale(1)}}' +
+        '@keyframes flexShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}' +
+        '.flex-seq-key{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:2px solid var(--border);border-radius:8px;font-size:0.9rem;font-weight:800;font-family:monospace;cursor:pointer;transition:0.1s;background:var(--card-bg);color:var(--text);user-select:none;touch-action:manipulation;}' +
+        '.flex-seq-key.hit{background:var(--accent);border-color:var(--accent);color:#fff;transform:scale(1.15);}' +
+        '.flex-drag-zone{width:100%;height:44px;border:2px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.8rem;color:var(--text-muted);position:relative;overflow:hidden;user-select:none;cursor:grab;touch-action:none;}' +
+        '.flex-drag-thumb{position:absolute;left:8px;width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:grab;transition:none;box-shadow:0 2px 8px rgba(247,147,26,0.4);}' +
+        '.flex-hold-ring{width:56px;height:56px;border-radius:50%;border:3px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;margin:0 auto;}' +
+        '.flex-hold-ring svg{position:absolute;top:-3px;left:-3px;transform:rotate(-90deg);}' +
+        '.flex-streak{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.3);border-radius:10px;font-size:0.65rem;font-weight:700;color:var(--accent);}' +
+    '</style>';
+
+    // Header
+    html += '<div style="text-align:center;margin-bottom:16px;">' +
+        '<div style="font-size:1.8rem;margin-bottom:4px;">💪</div>' +
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily FLEX</div>' +
+        '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Healthy Bitcoiner habits. 5 XP each. Resets daily.</div>' +
+        '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
+        '<div style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round(doneCount/FLEX_ACTIONS.length*100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + doneCount + '/' + FLEX_ACTIONS.length + ' done today</div>' +
+    '</div>';
+
+    FLEX_ACTIONS.forEach(function(action) {
+        var done = _flexDoneToday(action.id);
+        var total = _flexGetAllTimeCount(action.id);
+        var nextMilestone = FLEX_BADGE_MILESTONES.find(function(m) { return total < m; });
+        html += '<div class="flex-card' + (done ? ' done' : '') + '" id="flex-card-' + action.id + '">' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+            '<span style="font-size:1.5rem;">' + action.emoji + '</span>' +
+            '<div style="flex:1;">' +
+            '<div class="flex-card-name">' + action.name + '</div>' +
+            '<div class="flex-card-desc">' + action.desc + '</div>' +
+            '</div>' +
+            (total > 0 ? '<span class="flex-streak">🔥 ×' + total + '</span>' : '') +
+            '</div>';
+        if (!done) {
+            html += _renderFlexInteraction(action);
+        }
+        if (nextMilestone) {
+            html += '<div class="flex-counter">Next badge at ' + nextMilestone + ' completions (' + (nextMilestone - total) + ' to go)</div>';
+        }
+        html += '</div>';
+    });
+
+    body.innerHTML = html;
+    // Wire up interactions after DOM is set
+    setTimeout(function() { _flexWireInteractions(); }, 50);
+}
+
+function _renderFlexInteraction(action) {
+    if (action.type === 'hold') {
+        var r = 24, c = 2*Math.PI*r;
+        return '<div style="display:flex;align-items:center;gap:12px;">' +
+            '<div class="flex-hold-ring" id="hold-ring-' + action.id + '" data-id="' + action.id + '" data-ms="' + action.holdMs + '">' +
+            '<svg width="54" height="54"><circle cx="27" cy="27" r="' + r + '" stroke="var(--accent)" stroke-width="3" fill="none" stroke-dasharray="' + c + '" stroke-dashoffset="' + c + '" id="hold-arc-' + action.id + '" stroke-linecap="round"/></svg>' +
+            '<span style="font-size:1.4rem;" id="hold-emoji-' + action.id + '">' + action.emoji + '</span>' +
+            '</div>' +
+            '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Hold for ' + (action.holdMs/1000).toFixed(1) + 's<br><span style="color:var(--accent);font-size:0.65rem;font-weight:700;">PRESS &amp; HOLD</span></div>' +
+            '</div>';
+    }
+    if (action.type === 'doubletap') {
+        return '<div style="display:flex;align-items:center;gap:12px;">' +
+            '<button class="flex-btn" id="dtap-' + action.id + '" data-id="' + action.id + '" data-taps="0" data-last="0">' +
+            action.emoji + ' Double Tap!</button>' +
+            '<span id="dtap-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);">Tap twice fast ×2</span>' +
+            '</div>';
+    }
+    if (action.type === 'swipe') {
+        var label = action.dir === 'right' ? 'Swipe → right' : 'Swipe ← left';
+        return '<div class="flex-drag-zone" id="swipe-zone-' + action.id + '" data-id="' + action.id + '" data-dir="' + action.dir + '">' +
+            '<div class="flex-drag-thumb" id="swipe-thumb-' + action.id + '">' + action.emoji + '</div>' +
+            '<span style="margin-left:48px;font-size:0.75rem;pointer-events:none;">' + label + '</span>' +
+            '</div>';
+    }
+    if (action.type === 'drag') {
+        var parts = action.dragTarget.split('→');
+        var fromE = parts[0].trim(), toE = parts[1] ? parts[1].trim() : '📍';
+        return '<div class="flex-drag-zone" id="drag-zone-' + action.id + '" style="gap:8px;" data-id="' + action.id + '">' +
+            '<div class="flex-drag-thumb" style="position:relative;left:auto;" id="drag-thumb-' + action.id + '">' + fromE + '</div>' +
+            '<span style="flex:1;text-align:center;font-size:0.75rem;pointer-events:none;">drag → drop</span>' +
+            '<div style="width:36px;height:36px;border-radius:50%;border:2px dashed var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;" id="drag-target-' + action.id + '">' + toE + '</div>' +
+            '</div>';
+    }
+    if (action.type === 'sequence') {
+        var seq = action.seq;
+        var keys = seq;
+        // Build keyboard - for number sequences show a numpad-style grid, for letter sequences a QWERTY subset
+        var allKeys = Array.from(new Set(seq));
+        // Add some decoy keys
+        var decoys = ['0','1','2','3','4','5','6','7','8','9','A','B','C','H','O','x','r','s','h'].filter(function(k){ return allKeys.indexOf(k)===-1; }).slice(0,6);
+        var displayKeys = allKeys.concat(decoys).sort(function(){ return Math.random()-0.5; });
+        return '<div id="seq-wrap-' + action.id + '" data-id="' + action.id + '" data-seq="' + seq.join(',') + '" data-progress="0">' +
+            '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Enter the code: <span id="seq-display-' + action.id + '" style="font-family:monospace;color:var(--accent);letter-spacing:3px;">' + seq.map(function(){ return '·'; }).join(' ') + '</span></div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+            displayKeys.map(function(k) {
+                return '<div class="flex-seq-key" data-id="' + action.id + '" data-key="' + k + '" onclick="_flexSeqTap(this)">' + k + '</div>';
+            }).join('') +
+            '<div class="flex-seq-key" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#ef4444;" onclick="_flexSeqReset(\'' + action.id + '\')">⌫</div>' +
+            '</div></div>';
+    }
+    return '';
+}
+
+// Global seq tap handler
+window._flexSeqTap = function(el) {
+    var id = el.getAttribute('data-id');
+    var key = el.getAttribute('data-key');
+    var wrap = document.getElementById('seq-wrap-' + id);
+    if (!wrap) return;
+    var seq = wrap.getAttribute('data-seq').split(',');
+    var progress = parseInt(wrap.getAttribute('data-progress') || '0');
+    if (key === seq[progress]) {
+        // Correct key
+        el.classList.add('hit');
+        setTimeout(function(){ el.classList.remove('hit'); }, 300);
+        progress++;
+        wrap.setAttribute('data-progress', progress);
+        // Update display
+        var disp = document.getElementById('seq-display-' + id);
+        if (disp) disp.innerHTML = seq.map(function(k,i){
+            if (i < progress) return '<span style="color:#22c55e;">' + k + '</span>';
+            if (i === progress) return '<span style="color:var(--accent);animation:flexPop 0.3s">_</span>';
+            return '<span style="color:var(--text-faint);">·</span>';
+        }).join(' ');
+        if (progress >= seq.length) {
+            _flexMarkDone(id, function(total) { _flexCardSuccess(id); });
+        }
+    } else {
+        // Wrong key — shake the display
+        var disp2 = document.getElementById('seq-display-' + id);
+        if (disp2) { disp2.style.animation='flexShake 0.4s'; setTimeout(function(){ disp2.style.animation=''; },400); }
+        wrap.setAttribute('data-progress', '0');
+        var disp3 = document.getElementById('seq-display-' + id);
+        if (disp3) disp3.innerHTML = seq.map(function(){ return '<span style="color:var(--text-faint);">·</span>'; }).join(' ');
+    }
+};
+window._flexSeqReset = function(id) {
+    var wrap = document.getElementById('seq-wrap-' + id);
+    if (!wrap) return;
+    wrap.setAttribute('data-progress', '0');
+    var seq = wrap.getAttribute('data-seq').split(',');
+    var disp = document.getElementById('seq-display-' + id);
+    if (disp) disp.innerHTML = seq.map(function(){ return '<span style="color:var(--text-faint);">·</span>'; }).join(' ');
+};
+
+function _flexCardSuccess(id) {
+    var card = document.getElementById('flex-card-' + id);
+    if (!card) return;
+    card.style.animation = 'flexPop 0.4s';
+    setTimeout(function() {
+        card.classList.add('done');
+        card.style.animation = '';
+        // Remove interaction widgets, leave the done state
+        var interaction = card.querySelector('.flex-btn, .flex-drag-zone, .flex-hold-ring, [id^="seq-wrap-"], [id^="dtap-"]');
+        // Just remove everything after the header
+        var children = card.children;
+        // Remove everything except first two children (emoji+name row and counter)
+        while (card.children.length > 1) card.removeChild(card.lastChild);
+        var total = _flexGetAllTimeCount(id);
+        var action = FLEX_ACTIONS.find(function(a){ return a.id===id; });
+        var nextMilestone = FLEX_BADGE_MILESTONES.find(function(m){ return total < m; });
+        if (action) {
+            var streak = document.createElement('span');
+            streak.className = 'flex-streak';
+            streak.innerHTML = '🔥 ×' + total;
+            card.querySelector('[class*="flex-card-name"]') && card.children[0] && card.children[0].appendChild(streak);
+        }
+        if (nextMilestone) {
+            var cnt = document.createElement('div');
+            cnt.className = 'flex-counter';
+            cnt.textContent = 'Next badge at ' + nextMilestone + ' completions (' + (nextMilestone - total) + ' to go)';
+            card.appendChild(cnt);
+        }
+        // Refresh header count
+        var doneCount = FLEX_ACTIONS.filter(function(a) { return _flexDoneToday(a.id); }).length;
+        var prog = document.querySelector('#questHubBody .flex-card') && document.querySelector('#questHubBody [style*="linear-gradient(90deg"]');
+        if (prog) prog.style.width = Math.round(doneCount/FLEX_ACTIONS.length*100) + '%';
+        var countEl = document.querySelector('#questHubBody [style*="done today"]');
+        if (countEl) countEl.textContent = doneCount + '/' + FLEX_ACTIONS.length + ' done today';
+        if (typeof showToast === 'function') showToast('💪 +5 XP — ' + (action ? action.name : '') + '!');
+    }, 300);
+}
+
+function _flexWireInteractions() {
+    FLEX_ACTIONS.forEach(function(action) {
+        if (_flexDoneToday(action.id)) return;
+
+        if (action.type === 'hold') {
+            var ring = document.getElementById('hold-ring-' + action.id);
+            if (!ring) return;
+            var arc = document.getElementById('hold-arc-' + action.id);
+            var r = 24, circ = 2*Math.PI*r;
+            var heldFrom = null, raf = null;
+
+            function startHold(e) {
+                e.preventDefault();
+                heldFrom = Date.now();
+                function tick() {
+                    var elapsed = Date.now() - heldFrom;
+                    var pct = Math.min(1, elapsed / action.holdMs);
+                    if (arc) arc.style.strokeDashoffset = circ * (1 - pct);
+                    if (pct < 1) { raf = requestAnimationFrame(tick); }
+                    else { endHold(true); }
+                }
+                raf = requestAnimationFrame(tick);
+            }
+            function endHold(success) {
+                cancelAnimationFrame(raf);
+                if (!success) {
+                    if (arc) arc.style.strokeDashoffset = circ;
+                } else {
+                    _flexMarkDone(action.id, function() { _flexCardSuccess(action.id); });
+                }
+            }
+            ring.addEventListener('mousedown', startHold);
+            ring.addEventListener('touchstart', startHold, {passive:false});
+            ring.addEventListener('mouseup', function(){ endHold(false); });
+            ring.addEventListener('touchend', function(){ endHold(false); });
+            ring.addEventListener('mouseleave', function(){ if(heldFrom) endHold(false); heldFrom=null; });
+        }
+
+        if (action.type === 'doubletap') {
+            var btn = document.getElementById('dtap-' + action.id);
+            if (!btn) return;
+            btn.addEventListener('click', function() {
+                var now = Date.now();
+                var taps = parseInt(btn.getAttribute('data-taps') || '0');
+                var last = parseInt(btn.getAttribute('data-last') || '0');
+                if (now - last < 400) {
+                    taps++;
+                    btn.setAttribute('data-taps', taps);
+                    var hint = document.getElementById('dtap-hint-' + action.id);
+                    if (hint) hint.textContent = taps >= 2 ? '🎉 Double tapped!' : 'One more!';
+                    if (taps >= 2) {
+                        setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 200);
+                    }
+                } else {
+                    btn.setAttribute('data-taps', '1');
+                    var hint2 = document.getElementById('dtap-hint-' + action.id);
+                    if (hint2) hint2.textContent = 'Now tap again fast!';
+                }
+                btn.setAttribute('data-last', now);
+            });
+        }
+
+        if (action.type === 'swipe') {
+            var zone = document.getElementById('swipe-zone-' + action.id);
+            var thumb = document.getElementById('swipe-thumb-' + action.id);
+            if (!zone || !thumb) return;
+            var startX = null, startLeft = 8;
+            var zoneW = 0;
+            var isRight = action.dir === 'right';
+
+            function swipeStart(e) {
+                e.preventDefault();
+                zoneW = zone.getBoundingClientRect().width;
+                startX = (e.touches ? e.touches[0].clientX : e.clientX);
+                thumb.style.transition = 'none';
+            }
+            function swipeMove(e) {
+                if (startX === null) return;
+                var cx = e.touches ? e.touches[0].clientX : e.clientX;
+                var dx = cx - startX;
+                var newLeft = Math.min(Math.max(8, startLeft + dx), zoneW - 44);
+                thumb.style.left = newLeft + 'px';
+                var pct = (newLeft - 8) / (zoneW - 52);
+                thumb.style.opacity = 0.6 + 0.4*pct;
+            }
+            function swipeEnd(e) {
+                if (startX === null) return;
+                var cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                var dx = cx - startX;
+                var success = isRight ? dx > zoneW * 0.55 : dx < -(zoneW * 0.55);
+                thumb.style.transition = 'left 0.3s, opacity 0.3s';
+                if (success) {
+                    thumb.style.left = (isRight ? zoneW - 44 : 8) + 'px';
+                    setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 250);
+                } else {
+                    thumb.style.left = '8px';
+                }
+                startX = null;
+            }
+            zone.addEventListener('mousedown', swipeStart);
+            zone.addEventListener('mousemove', swipeMove);
+            zone.addEventListener('mouseup', swipeEnd);
+            zone.addEventListener('touchstart', swipeStart, {passive:false});
+            zone.addEventListener('touchmove', swipeMove, {passive:false});
+            zone.addEventListener('touchend', swipeEnd);
+        }
+
+        if (action.type === 'drag') {
+            var dzone = document.getElementById('drag-zone-' + action.id);
+            var dthumb = document.getElementById('drag-thumb-' + action.id);
+            var dtarget = document.getElementById('drag-target-' + action.id);
+            if (!dzone || !dthumb || !dtarget) return;
+            var dStartX = null, dStartY = null, origLeft = null, origTop = null;
+
+            function dragStart(e) {
+                e.preventDefault();
+                var et = e.touches ? e.touches[0] : e;
+                var rect = dthumb.getBoundingClientRect();
+                dStartX = et.clientX - rect.left - rect.width/2;
+                dStartY = et.clientY - rect.top - rect.height/2;
+                dthumb.style.transition = 'none';
+                dthumb.style.zIndex = '10';
+                origLeft = dthumb.style.left || '0px';
+                origTop = dthumb.style.top || '0px';
+                dthumb.style.position = 'absolute';
+            }
+            function dragMove(e) {
+                if (dStartX === null) return;
+                var et = e.touches ? e.touches[0] : e;
+                var zrect = dzone.getBoundingClientRect();
+                var nx = et.clientX - zrect.left - 18;
+                var ny = et.clientY - zrect.top - 18;
+                dthumb.style.left = Math.max(0, Math.min(nx, zrect.width-36)) + 'px';
+                dthumb.style.top = Math.max(0, Math.min(ny, zrect.height-36)) + 'px';
+            }
+            function dragEnd(e) {
+                if (dStartX === null) return;
+                var et = e.changedTouches ? e.changedTouches[0] : e;
+                var trect = dtarget.getBoundingClientRect();
+                var hit = et.clientX >= trect.left - 20 && et.clientX <= trect.right + 20 && et.clientY >= trect.top - 20 && et.clientY <= trect.bottom + 20;
+                dthumb.style.transition = 'left 0.3s, top 0.3s';
+                if (hit) {
+                    var tzrect = dzone.getBoundingClientRect();
+                    dthumb.style.left = (trect.left - tzrect.left) + 'px';
+                    dthumb.style.top = (trect.top - tzrect.top) + 'px';
+                    setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 250);
+                } else {
+                    dthumb.style.left = '0px';
+                    dthumb.style.top = '0px';
+                }
+                dStartX = null;
+            }
+            dthumb.addEventListener('mousedown', dragStart);
+            dthumb.addEventListener('touchstart', dragStart, {passive:false});
+            dzone.addEventListener('mousemove', dragMove);
+            dzone.addEventListener('touchmove', dragMove, {passive:false});
+            dzone.addEventListener('mouseup', dragEnd);
+            dzone.addEventListener('touchend', dragEnd);
+            window.addEventListener('mouseup', dragEnd);
+        }
+    });
+}
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -28497,11 +28956,22 @@ if (locked) {
     window.showProofOfWalk = function() {
         var menu = document.getElementById("appsMenu");
         if (menu) menu.style.display = "none";
-        var container = document.getElementById("main");
-        if (container) {
-            container.innerHTML = "<div id=\"explore-apps-grid\" style=\"padding:20px;\"></div>";
-            if (window.renderProofOfWalk) window.renderProofOfWalk();
+        // Use forumContainer pattern so back button works (same as IRL sync, etc.)
+        if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
+        document.getElementById('home').classList.add('hidden');
+        document.getElementById('hero').innerHTML = '';
+        document.getElementById('msgs').innerHTML = '';
+        document.getElementById('msgs').style.display = 'none';
+        document.getElementById('hero').style.display = 'none';
+        var fc = document.getElementById('forumContainer');
+        if (fc) {
+            fc.style.display = 'block';
+            fc.innerHTML = '<div id="explore-apps-grid" style="padding:20px;"></div>';
         }
+        history.pushState({ channel: 'proof-of-walk' }, '', '/app/proof-of-walk');
+        if (isMobile && isMobile()) { var sb = document.getElementById('sidebar'); if (sb) sb.classList.remove('open'); }
+        if (typeof setFloatingElementsVisible === 'function') setFloatingElementsVisible(true);
+        if (window.renderProofOfWalk) window.renderProofOfWalk();
     };
     window.toggleSidebarMenu = function(id) {
         var menu = document.getElementById(id);
@@ -28715,6 +29185,12 @@ if (locked) {
             // IRL Sync browse
             if (hash === 'irl-sync' || state.channel === 'irl-sync') {
                 go('irl-sync', null, true);
+                return;
+            }
+
+            // Proof of Walk
+            if (hash === 'proof-of-walk' || state.channel === 'proof-of-walk') {
+                if (typeof showProofOfWalk === 'function') showProofOfWalk();
                 return;
             }
 
