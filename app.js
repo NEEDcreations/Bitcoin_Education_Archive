@@ -2862,7 +2862,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // P = donate
         if (key === 'p') { showDonateModal(); return; }
         // X = PVP Battle
-        if (key === 'x') { if (typeof enterPVPMode === 'function') enterPVPMode(); return; }
+        if (key === 'x') { if (typeof _launchPVP === 'function') _launchPVP(); return; }
 
         // === Scroll ===
         // J = scroll down
@@ -3836,7 +3836,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
         { id: '_graphic', title: '📊 Random Graphic', desc: 'See a random Bitcoin graphic or chart', keywords: 'graphic chart data visual infographic random graphics', action: 'goRandomGraphic()' },
         { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
-        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia quiz compete multiplayer arena duel challenge opponent leaderboard wins losses', action: 'enterPVPMode()' },
+        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia quiz compete multiplayer arena duel challenge opponent leaderboard wins losses', action: '_launchPVP()' },
         { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
@@ -4510,7 +4510,7 @@ if (locked) {
 
             // PVP Battle
             if (hash === 'pvp' || state.channel === 'pvp') {
-                if (typeof enterPVPMode === 'function') enterPVPMode();
+                if (typeof _launchPVP === 'function') _launchPVP();
                 return;
             }
 
@@ -4714,7 +4714,7 @@ if (locked) {
                     if (typeof enterNachoMode === 'function') { enterNachoMode(); return; }
                     break;
                 case 'pvp':
-                    if (typeof enterPVPMode === 'function') { enterPVPMode(); return; }
+                    if (typeof _launchPVP === 'function') { _launchPVP(); return; }
                     break;
                 case 'forum':
                     if (typeof go === 'function') { go('forum'); return; }

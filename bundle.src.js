@@ -166,15 +166,7 @@ var PREMIUM_CONFIG = {
 // =============================================
 // Bitcoin Education Archive - Ranking System
 // =============================================
-
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk",
-    authDomain: "bitcoin-education-archive.firebaseapp.com",
-    projectId: "bitcoin-education-archive",
-    storageBucket: "bitcoin-education-archive.firebasestorage.app",
-    messagingSenderId: "1055248200518",
-    appId: "1:1055248200518:web:6c6d64a5ee78e19bfbeb47"
-};
+// FIREBASE_CONFIG is now loaded globally via firebase-config.js
 
 // Levels
 const LEVELS = [
@@ -3265,7 +3257,7 @@ async function toggleLeaderboard() {
         html += '<div style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
             '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4>' +
-            '<button onclick="event.stopPropagation();enterPVPMode();" style="padding:6px 14px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:8px;color:#fff;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.5px;transition:0.2s;">Enter PVP Lobby</button>' +
+            '<button onclick="event.stopPropagation();_launchPVP();" style="padding:6px 14px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:8px;color:#fff;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.5px;transition:0.2s;">Enter PVP Lobby</button>' +
             '</div>' +
             '<div id="pvpLeaderboardList"><div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading PVP rankings...</div></div>' +
         '</div>';
@@ -4919,7 +4911,7 @@ function showSettingsPage(tab) {
             html += statRow('PVP Record', _pvpW + 'W – ' + _pvpL + 'L', '⚔️');
             html += statRow('PVP Win Rate', _pvpPct + '%', '📊');
         } else {
-            html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
+            html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();_launchPVP();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
         }
         // Prediction Stats
         if (typeof getPredictionStats === 'function') {
@@ -27732,7 +27724,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // P = donate
         if (key === 'p') { showDonateModal(); return; }
         // X = PVP Battle
-        if (key === 'x') { if (typeof enterPVPMode === 'function') enterPVPMode(); return; }
+        if (key === 'x') { if (typeof _launchPVP === 'function') _launchPVP(); return; }
 
         // === Scroll ===
         // J = scroll down
@@ -28706,7 +28698,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
         { id: '_graphic', title: '📊 Random Graphic', desc: 'See a random Bitcoin graphic or chart', keywords: 'graphic chart data visual infographic random graphics', action: 'goRandomGraphic()' },
         { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
-        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia quiz compete multiplayer arena duel challenge opponent leaderboard wins losses', action: 'enterPVPMode()' },
+        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia quiz compete multiplayer arena duel challenge opponent leaderboard wins losses', action: '_launchPVP()' },
         { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
@@ -29380,7 +29372,7 @@ if (locked) {
 
             // PVP Battle
             if (hash === 'pvp' || state.channel === 'pvp') {
-                if (typeof enterPVPMode === 'function') enterPVPMode();
+                if (typeof _launchPVP === 'function') _launchPVP();
                 return;
             }
 
@@ -29584,7 +29576,7 @@ if (locked) {
                     if (typeof enterNachoMode === 'function') { enterNachoMode(); return; }
                     break;
                 case 'pvp':
-                    if (typeof enterPVPMode === 'function') { enterPVPMode(); return; }
+                    if (typeof _launchPVP === 'function') { _launchPVP(); return; }
                     break;
                 case 'forum':
                     if (typeof go === 'function') { go('forum'); return; }
@@ -31422,71 +31414,10 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 
 // ---- PVP Answer: Server-Side Validation Override ----
 // Routes pvpAnswer through Cloud Function instead of direct Firestore write
+// REMOVED: Cloud function not used in current project
 (function() {
     'use strict';
-    var _origPvpAnswer = null;
-    function patchPvpAnswer() {
-        if (typeof window.pvpAnswer !== 'function') return;
-        if (window._pvpAnswerPatched) return;
-        window._pvpAnswerPatched = true;
-        _origPvpAnswer = window.pvpAnswer;
 
-        window.pvpAnswer = function(questionIdx, answerIdx, btnEl) {
-            // Still do the UI updates from original (disable buttons, show colors)
-            var t = window._pvpState || {};
-            if (t.answered) return;
-            t.answered = true;
-            if (t._questionTimeout) { clearTimeout(t._questionTimeout); t._questionTimeout = null; }
-
-            // UI feedback
-            var questions = t.questions || [];
-            var q = questions[questionIdx];
-            if (q && btnEl) {
-                var opts = btnEl.parentElement;
-                if (opts) {
-                    var btns = opts.querySelectorAll('button');
-                    for (var i = 0; i < btns.length; i++) {
-                        btns[i].disabled = true;
-                        btns[i].style.cursor = 'default';
-                        btns[i].style.opacity = '0.7';
-                    }
-                    if (btns[q.correct]) {
-                        btns[q.correct].style.borderColor = '#22c55e';
-                        btns[q.correct].style.background = 'rgba(34,197,94,0.15)';
-                        btns[q.correct].style.opacity = '1';
-                    }
-                    if (answerIdx >= 0 && answerIdx !== q.correct && btns[answerIdx]) {
-                        btns[answerIdx].style.borderColor = '#ef4444';
-                        btns[answerIdx].style.background = 'rgba(239,68,68,0.15)';
-                    }
-                }
-                if (opts) opts.insertAdjacentHTML('afterend', '<div style="text-align:center;margin-top:12px;color:var(--text-muted);font-size:0.8rem;">' + (answerIdx === q.correct ? '✅ Correct! Waiting...' : answerIdx < 0 ? '⏰ Time\'s up!' : '❌ Wrong! Waiting...') + '</div>');
-            }
-
-            // Submit via Cloud Function
-            if (typeof firebase !== 'undefined' && firebase.functions && t.matchId) {
-                firebase.functions().httpsCallable('pvpSubmitAnswer')({
-                    matchId: t.matchId,
-                    questionIndex: questionIdx,
-                    answerIndex: answerIdx
-                }).then(function(result) {
-                    if (result.data && result.data.alreadyAnswered) {
-                        console.log('[PVP] Already answered, idempotent');
-                    }
-                }).catch(function(err) {
-                    console.error('[PVP] Server answer submission failed:', err);
-                    if (typeof showToast === 'function') showToast('⚠️ Answer submit failed — check connection');
-                });
-            }
-        };
-    }
-
-    // Patch after PVP loads
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() { setTimeout(patchPvpAnswer, 3000); });
-    } else {
-        setTimeout(patchPvpAnswer, 3000);
-    }
     // Also re-patch on enterPVPMode — retry until pvp.js loads
     var _origEnterPVP = null;
     var _pvpPatchAttempts = 0;
@@ -31497,7 +31428,6 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             _origEnterPVP = window.enterPVPMode;
             window.enterPVPMode = function() {
                 _origEnterPVP.apply(this, arguments);
-                setTimeout(patchPvpAnswer, 500);
                 // Announce PVP lobby entry in Global Chat
                 var _pvpName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
                 if (_pvpName && typeof window.nachoGlobalAnnounce === 'function') {

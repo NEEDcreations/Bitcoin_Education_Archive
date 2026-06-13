@@ -1,14 +1,8 @@
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
-firebase.initializeApp({
-    apiKey: "AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk",
-    authDomain: "bitcoin-education-archive.firebaseapp.com",
-    projectId: "bitcoin-education-archive",
-    storageBucket: "bitcoin-education-archive.firebasestorage.app",
-    messagingSenderId: "1055248200518",
-    appId: "1:1055248200518:web:6c6d64a5ee78e19bfbeb47"
-});
+importScripts('/firebase-config.js');
+firebase.initializeApp(FIREBASE_CONFIG);
 
 const messaging = firebase.messaging();
 

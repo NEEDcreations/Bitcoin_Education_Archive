@@ -3,6 +3,8 @@
 <!-- This code is proprietary. See LICENSE file. Do not copy or redistribute. -->
 <html lang="en">
 <head>
+<!-- LOCAL DEV ONLY — remove before committing -->
+<script src="local-dev-override.js" defer></script>
 <script>
 // One-time cache nuke for the SW strategy change (April 2026)
 (function(){
@@ -564,8 +566,10 @@
 
     .no-desktop { display: none !important; } .mobile-back-btn { display: none !important; } @media (max-width: 900px) { .no-desktop { display: flex !important; } .mobile-back-btn { display: inline-flex !important; } }
     </style>
-    <script src="https://accounts.google.com/gsi/client" async defer integrity="sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM" crossorigin="anonymous"></script>
-    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js" integrity="sha384-f7yO6sr2qrvOa6/1Yh/+PnBJyeuC8AvZwVNBWdF/60cWQ1kSpWmT64yiLZEh6T0u"></script>
+    <!-- LOCAL DEV: disabled Google Sign-In (CORS on localhost) -->
+    <!-- <script src="https://accounts.google.com/gsi/client" async defer integrity="sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM" crossorigin="anonymous"></script> -->
+    <!-- LOCAL DEV: disabled Facebook SDK (integrity hash mismatch on localhost) -->
+    <!-- <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js" integrity="sha384-f7yO6sr2qrvOa6/1Yh/+PnBJyeuC8AvZwVNBWdF/60cWQ1kSpWmT64yiLZEh6T0u"></script> -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -1195,8 +1199,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <!-- App Check disabled: not enforced, reCAPTCHA adds 724KB -->
     <!-- App Check: lazy-loaded to avoid 724KB reCAPTCHA on first paint -->
-    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
+    <!-- LOCAL DEV: disabled AppCheck (reCAPTCHA fails on localhost) -->
+    <!-- <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script> -->
     <!-- Critical: needed for initial page render -->
+    <script src="firebase-config.js" defer></script>
     <script src="security-patches.js?v=20260307" defer></script>
     <script src="bundle.js?v=20260613_1847" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
@@ -1212,7 +1218,7 @@
     <script>
     (function(){
         var _lazyScripts = [
-            'pvp.js?v=20260608_1729','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260613_1323',
+            'pvp.js?v=20260613_0445','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260613_1323',
             'scholar.js?v=20260528_1708','beats.js?v=20260613_0017',
             'global-chat.js?v=20260613_0034','lightning.js?v=20260514_1424','lightning-tips.js?v=20260613_0241',
             'notifications.js?v=20260613_0241','guide.js?v=20260526','modules.js?v=20260331',
