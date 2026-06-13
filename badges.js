@@ -291,9 +291,9 @@ const BADGE_DEFS = [
     { id: 'hall_of_fame', name: 'Chancellor on Brink', emoji: '📰', desc: 'Earned 50 distinct badges — Chancellor on brink of second bailout for banks', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
     { id: 'the_archive', name: 'The Archivist', emoji: '🏛️', desc: 'Earned 100 distinct badges — you don\'t just use the Archive, you are it', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 100, pts: 10000, hidden: false },
     { id: 'genesis_block', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 150 distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 150, pts: 15000, hidden: false },
-    { id: 'satoshis_ghost', name: "Satoshi's Revenge", emoji: '👻', desc: 'Earned 200 distinct badges — the network never forgets', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 200, pts: 21000, hidden: false },
-    { id: 'block_250', name: "Satoshi's Vendetta", emoji: '⚡', desc: 'Earned 250 distinct badges — deeper than most will ever go', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 250, pts: 25000, hidden: false },
-    { id: 'the_hodler', name: "Satoshi's Ghost", emoji: '👁️', desc: 'Earned 300 distinct badges — so rare, nobody knows if it has ever been done', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 300, pts: 30000, hidden: false },
+    { id: 'satoshis_ghost', name: "Satoshi's Revenge", emoji: '⚔️', desc: 'Earned 200 distinct badges — the network never forgets', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 200, pts: 21000, hidden: false },
+    { id: 'block_250', name: "Satoshi's Vendetta", emoji: '🗡️', desc: 'Earned 250 distinct badges — deeper than most will ever go', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 250, pts: 25000, hidden: false },
+    { id: 'the_hodler', name: "Satoshi's Ghost", emoji: '👻', desc: 'Earned 300 distinct badges — so rare, nobody knows if it has ever been done', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 300, pts: 30000, hidden: false },
 ];
 
 let earnedBadges = new Set();
