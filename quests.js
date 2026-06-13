@@ -2638,11 +2638,11 @@ window.showQuestHub = function() {
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
         '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
+        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 FLEX</button>' +
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
-        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 FLEX</button>' +
-        '</div>';
+                '</div>';
 
     var body = document.createElement('div');
     body.id = 'questHubBody';
@@ -4130,28 +4130,41 @@ window._raidOnChannelVisit = function(channelId) {
 // 💪 FLEX TAB — Daily Healthy Bitcoiner Actions
 // ══════════════════════════════════════════════════════════════════════
 
+// Daily seed helper — deterministic from date + salt
+function _flexDailySeed(salt) {
+    var d = new Date().toISOString().slice(0,10) + salt;
+    var h = 0;
+    for (var i = 0; i < d.length; i++) { h = (Math.imul(31, h) + d.charCodeAt(i)) | 0; }
+    return Math.abs(h);
+}
+function _flexPickSeq(pools, id) {
+    return pools[_flexDailySeed(id) % pools.length];
+}
+
 var FLEX_ACTIONS = [
-    // id, emoji, name, desc, interaction, interactionData
-    { id:'steak',      emoji:'🥩', name:'Eat Steak',           desc:'Fuel up like a carnivore maxi',         pts:5, type:'hold',    holdMs:2000 },
-    { id:'sunlight',   emoji:'☀️', name:'Get Sunlight',        desc:'Touch grass. Outside. On purpose.',     pts:5, type:'drag',    dragTarget:'☀️→🌿' },
-    { id:'dca',        emoji:'📈', name:'DCA Bitcoin',         desc:'Stack sats on schedule. No emotion.',   pts:5, type:'sequence', seq:['2','1','0','0','0','0','0','0'] },
-    { id:'custody',    emoji:'🔑', name:'Self-Custody',        desc:'Not your keys, not your coins.',        pts:5, type:'swipe',   dir:'right' },
-    { id:'lift',       emoji:'🏋️', name:'Lift Weights',        desc:'Proof of strength. Every rep counts.',  pts:5, type:'hold',    holdMs:3000 },
-    { id:'meetup',     emoji:'🤝', name:'Host a Meetup',       desc:'Orange-pill your city. IRL > URL.',     pts:5, type:'doubletap' },
-    { id:'lightning',  emoji:'⚡', name:'Spend via Lightning', desc:'Circular economy. Spend and re-stack.', pts:5, type:'swipe',   dir:'left' },
-    { id:'read',       emoji:'📚', name:'Read Bitcoin',        desc:'One page of Saifedean a day.',          pts:5, type:'sequence', seq:['2','1','0','0','0','0','0','1'] },
-    { id:'sleep',      emoji:'😴', name:'Sleep 8 Hours',       desc:'Low time-preference recovery.',         pts:5, type:'hold',    holdMs:2500 },
-    { id:'nokyc',      emoji:'🕵️', name:'Buy No-KYC',          desc:'Preserve your privacy. Stay sovereign.',pts:5, type:'doubletap' },
-    { id:'node',       emoji:'💻', name:'Run Your Node',       desc:'Don\'t trust. Verify.',                  pts:5, type:'drag',    dragTarget:'💻→🔗' },
-    { id:'cold',       emoji:'🧊', name:'Cold Plunge',         desc:'Hormetic stress. Bitcoin is similar.',  pts:5, type:'hold',    holdMs:3000 },
-    { id:'fast',       emoji:'⏱️', name:'Intermittent Fast',   desc:'Low glucose, high signal.',             pts:5, type:'sequence', seq:['1','6','h','r','s'] },
-    { id:'walk',       emoji:'🚶', name:'Walk 10k Steps',      desc:'Proof of Walk. Calories are energy.',   pts:5, type:'swipe',   dir:'right' },
-    { id:'journal',    emoji:'📝', name:'Journal Today',       desc:'Long-term thinking. Write it down.',    pts:5, type:'drag',    dragTarget:'📝→🗒️' },
-    { id:'meditate',   emoji:'🧘', name:'Meditate',            desc:'Clear mind. Bitcoin is signal.',        pts:5, type:'hold',    holdMs:2000 },
-    { id:'teach',      emoji:'🗣️', name:'Orange-Pill Someone', desc:'Share the truth. One person at a time.',pts:5, type:'doubletap' },
-    { id:'water',      emoji:'💧', name:'Drink Water',         desc:'Hydration is a low time preference act.',pts:5, type:'sequence', seq:['H','2','O'] },
-    { id:'gratitude',  emoji:'🙏', name:'Gratitude Practice',  desc:'Abundance mindset. Stack happiness.',   pts:5, type:'drag',    dragTarget:'🙏→❤️' },
-    { id:'verify',     emoji:'🔍', name:'Verify a Transaction',desc:'Trust no one. Not even Rufus.',         pts:5, type:'sequence', seq:['0','x','B','T','C'] },
+    { id:'steak',    emoji:'🥩', name:'Eat Steak',            desc:'Fuel up like a carnivore maxi',           pts:5, type:'hold',      holdMs:2000 },
+    { id:'sunlight', emoji:'☀️', name:'Get Sunlight',         desc:'Touch grass. Outside. On purpose.',       pts:5, type:'slider',    dir:'right', label:'Soak it in →' },
+    { id:'dca',      emoji:'📈', name:'DCA Bitcoin',          desc:'Stack sats on schedule. No emotion.',     pts:5, type:'sequence',
+        pools:[['2','1','M','I','L'],['S','A','T','S'],['H','O','D','L'],['1','0','0','K'],['B','T','C'],['S','T','A','C','K']] },
+    { id:'custody',  emoji:'🔑', name:'Self-Custody',         desc:'Not your keys, not your coins.',          pts:5, type:'typeword',  words:['KEYS','WALLET','HODL','COLD','VAULT','SEED'] },
+    { id:'lift',     emoji:'🏋️', name:'Lift Weights',         desc:'Proof of strength. Every rep counts.',    pts:5, type:'hold',      holdMs:3000 },
+    { id:'meetup',   emoji:'🤝', name:'Host a Meetup',        desc:'Orange-pill your city. IRL > URL.',       pts:5, type:'triplclick' },
+    { id:'lightning',emoji:'⚡', name:'Spend via Lightning',  desc:'Circular economy. Spend and re-stack.',   pts:5, type:'slider',    dir:'left',  label:'← Send it' },
+    { id:'read',     emoji:'📚', name:'Read Bitcoin',         desc:'One page of Saifedean a day.',            pts:5, type:'sequence',
+        pools:[['R','E','A','D'],['S','A','T','O','S','H','I'],['2','1','M'],['N','O','D','E','S'],['B','L','O','C','K']] },
+    { id:'sleep',    emoji:'😴', name:'Sleep 8 Hours',        desc:'Low time-preference recovery.',           pts:5, type:'hold',      holdMs:2500 },
+    { id:'nokyc',    emoji:'🕵️', name:'Buy No-KYC',           desc:'Preserve your privacy. Stay sovereign.',  pts:5, type:'mash',      target:8, label:'Buy privately!' },
+    { id:'node',     emoji:'💻', name:'Run Your Node',        desc:"Don't trust. Verify.",                    pts:5, type:'maze' },
+    { id:'cold',     emoji:'🧊', name:'Cold Plunge',          desc:'Hormetic stress. Bitcoin is similar.',    pts:5, type:'hold',      holdMs:3000 },
+    { id:'fast',     emoji:'⏱️', name:'Intermittent Fast',    desc:'Low glucose, high signal.',               pts:5, type:'sequence',
+        pools:[['1','6','H','R'],['F','A','S','T'],['L','E','A','N'],['Z','E','R','O']] },
+    { id:'walk',     emoji:'🚶', name:'Walk 10k Steps',       desc:'Proof of Walk. Calories are energy.',     pts:5, type:'slider',    dir:'right', label:'Keep walking →' },
+    { id:'journal',  emoji:'📝', name:'Journal Today',        desc:'Long-term thinking. Write it down.',      pts:5, type:'typeword',  words:['WRITE','THINK','PLAN','VISION','FUTURE','BUILD'] },
+    { id:'meditate', emoji:'🧘', name:'Meditate',             desc:'Clear mind. Bitcoin is signal.',          pts:5, type:'hold',      holdMs:2000 },
+    { id:'teach',    emoji:'🗣️', name:'Orange-Pill Someone',  desc:'Share the truth. One person at a time.',  pts:5, type:'triplclick' },
+    { id:'water',    emoji:'💧', name:'Drink Water',          desc:'Hydration is a low time preference act.', pts:5, type:'mash',      target:6, label:'Chug chug chug!' },
+    { id:'gratitude',emoji:'🙏', name:'Gratitude Practice',   desc:'Abundance mindset. Stack happiness.',     pts:5, type:'rotary',    targetDeg:120 },
+    { id:'verify',   emoji:'🔍', name:'Verify a Transaction', desc:'Trust no one. Not even Rufus.',           pts:5, type:'typeword',  words:['VERIFY','PROOF','TRUST','CHECK','NODES','VALID'] },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -4290,18 +4303,107 @@ function _renderFlexInteraction(action) {
             '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Hold for ' + (action.holdMs/1000).toFixed(1) + 's<br><span style="color:var(--accent);font-size:0.65rem;font-weight:700;">PRESS &amp; HOLD</span></div>' +
             '</div>';
     }
-    if (action.type === 'doubletap') {
+    if (action.type === 'doubletap' || action.type === 'triplclick') {
+        var clicks = action.type === 'triplclick' ? 3 : 2;
+        var hint = action.type === 'triplclick' ? 'Triple tap!' : 'Double tap!';
         return '<div style="display:flex;align-items:center;gap:12px;">' +
-            '<button class="flex-btn" id="dtap-' + action.id + '" data-id="' + action.id + '" data-taps="0" data-last="0">' +
-            action.emoji + ' Double Tap!</button>' +
-            '<span id="dtap-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);">Tap twice fast ×2</span>' +
+            '<button class="flex-btn" id="dtap-' + action.id + '" data-id="' + action.id + '" data-taps="0" data-last="0" data-target="' + clicks + '">' +
+            action.emoji + ' ' + hint + '</button>' +
+            '<span id="dtap-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);">Tap ' + clicks + '× fast</span>' +
             '</div>';
     }
-    if (action.type === 'swipe') {
-        var label = action.dir === 'right' ? 'Swipe → right' : 'Swipe ← left';
-        return '<div class="flex-drag-zone" id="swipe-zone-' + action.id + '" data-id="' + action.id + '" data-dir="' + action.dir + '">' +
-            '<div class="flex-drag-thumb" id="swipe-thumb-' + action.id + '">' + action.emoji + '</div>' +
-            '<span style="margin-left:48px;font-size:0.75rem;pointer-events:none;">' + label + '</span>' +
+    if (action.type === 'slider') {
+        var isRight = action.dir === 'right';
+        var lbl = action.label || (isRight ? 'Slide right →' : '← Slide left');
+        // Thumb starts at the opposite end from the target
+        var thumbStart = isRight ? 4 : 'calc(100% - 40px)';
+        return '<div style="position:relative;margin-bottom:4px;">' +
+            '<div style="font-size:0.65rem;color:var(--accent);font-weight:700;margin-bottom:4px;">' + lbl + '</div>' +
+            '<div class="flex-slider-track" id="slider-track-' + action.id + '" data-id="' + action.id + '" data-dir="' + action.dir + '" ' +
+                'style="position:relative;height:44px;background:var(--bg-side);border:1px solid var(--border);border-radius:22px;overflow:hidden;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;">' +
+            '<div class="flex-slider-fill" id="slider-fill-' + action.id + '" style="position:absolute;top:0;' + (isRight?'left':'right') + ':0;height:100%;width:0%;background:rgba(247,147,26,0.15);transition:none;"></div>' +
+            '<div class="flex-slider-thumb" id="slider-thumb-' + action.id + '" style="position:absolute;top:4px;' + (isRight?'left:4px':'right:4px') + ';width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:grab;box-shadow:0 2px 8px rgba(247,147,26,0.5);transition:none;">' + action.emoji + '</div>' +
+            '<div style="position:absolute;top:50%;' + (isRight?'right:14px':'left:14px') + ';transform:translateY(-50%);font-size:0.7rem;color:var(--text-faint);pointer-events:none;">' + (isRight?'→→→':'←←←') + '</div>' +
+            '</div></div>';
+    }
+    if (action.type === 'mash') {
+        var target = action.target || 8;
+        return '<div>' +
+            '<button class="flex-btn" id="mash-btn-' + action.id + '" data-id="' + action.id + '" data-count="0" data-target="' + target + '" ' +
+                'style="width:100%;padding:12px;font-size:1rem;justify-content:center;">' +
+            action.emoji + ' ' + (action.label || 'Tap it!') + '</button>' +
+            '<div style="margin-top:6px;background:var(--bg-side);border-radius:6px;height:6px;overflow:hidden;border:1px solid var(--border);">' +
+            '<div id="mash-bar-' + action.id + '" style="height:100%;width:0%;background:var(--accent);border-radius:6px;transition:width 0.1s;"></div>' +
+            '</div>' +
+            '<div id="mash-label-' + action.id + '" style="text-align:center;font-size:0.7rem;color:var(--text-muted);margin-top:4px;">0 / ' + target + '</div>' +
+            '</div>';
+    }
+    if (action.type === 'typeword') {
+        var word = action.words[_flexDailySeed(action.id + '_w') % action.words.length];
+        return '<div>' +
+            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;">Type the word</div>' +
+            '<div style="display:inline-flex;gap:4px;margin-bottom:8px;">' +
+            word.split('').map(function(ch){ return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:28px;background:rgba(247,147,26,0.15);border:1px solid var(--accent);border-radius:6px;font-family:monospace;font-size:0.95rem;font-weight:900;color:var(--accent);padding:0 4px;">' + ch + '</span>'; }).join('') +
+            '</div><br>' +
+            '<input id="typeword-input-' + action.id + '" data-id="' + action.id + '" data-word="' + word + '" type="text" maxlength="' + (word.length + 2) + '" placeholder="Type it here…" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" ' +
+                'style="padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;letter-spacing:3px;outline:none;width:100%;box-sizing:border-box;text-transform:uppercase;" ' +
+                'oninput="_flexTypeWordCheck(this)">' +
+            '<div id="typeword-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">Type the word above, then hit ↵</div>' +
+            '</div>';
+    }
+    if (action.type === 'maze') {
+        // Z-shaped corridor SVG maze: top bar → right col → bottom bar
+        return '<div>' +
+            '<svg id="maze-svg-' + action.id + '" width="180" height="120" style="display:block;border-radius:10px;overflow:visible;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;" viewBox="0 0 180 120">' +
+            // dark bg
+            '<rect width="180" height="120" fill="#111" rx="8"/>' +
+            // Z corridor fills
+            '<rect x="1" y="1" width="178" height="33" fill="rgba(247,147,26,0.09)" rx="4"/>' +
+            '<rect x="145" y="1" width="33" height="118" fill="rgba(247,147,26,0.09)"/>' +
+            '<rect x="1" y="86" width="178" height="33" fill="rgba(247,147,26,0.09)" rx="4"/>' +
+            // Wall fill (middle blocker: left of right col, between top and bottom bars)
+            '<rect x="0" y="34" width="145" height="52" fill="#111"/>' +
+            // Corridor border lines (subtle)
+            '<rect x="0.5" y="0.5" width="179" height="34" fill="none" stroke="rgba(247,147,26,0.25)" stroke-width="1" rx="4"/>' +
+            '<rect x="144.5" y="0.5" width="35" height="119" fill="none" stroke="rgba(247,147,26,0.25)" stroke-width="1"/>' +
+            '<rect x="0.5" y="85.5" width="179" height="34" fill="none" stroke="rgba(247,147,26,0.25)" stroke-width="1" rx="4"/>' +
+            // Exit zone glow
+            '<rect x="145" y="86" width="34" height="33" fill="rgba(247,147,26,0.2)" rx="3"/>' +
+            // Start label
+            '<circle cx="16" cy="17" r="7" fill="#22c55e" opacity="0.9"/>' +
+            '<text x="16" y="21" text-anchor="middle" font-size="8" fill="white" font-weight="bold">S</text>' +
+            // Exit label
+            '<circle cx="164" cy="103" r="7" fill="rgba(247,147,26,0.9)"/>' +
+            '<text x="164" y="107" text-anchor="middle" font-size="8" fill="white" font-weight="bold">E</text>' +
+            // Player dot
+            '<circle id="maze-dot-' + action.id + '" cx="16" cy="17" r="11" fill="var(--accent)" stroke="white" stroke-width="1.5" style="cursor:grab;filter:drop-shadow(0 0 5px rgba(247,147,26,0.7));"/>' +
+            '</svg>' +
+            '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:5px;text-align:center;">Drag <span style="color:var(--accent);">●</span> from <span style="color:#22c55e;font-weight:700;">S</span> to <span style="color:var(--accent);font-weight:700;">E</span></div>' +
+            '</div>';
+    }
+    if (action.type === 'rotary') {
+        // Spin the dial handle from top to target zone
+        return '<div style="display:flex;align-items:center;gap:14px;">' +
+            '<svg id="rotary-svg-' + action.id + '" width="110" height="110" viewBox="0 0 110 110" style="touch-action:none;user-select:none;-webkit-user-select:none;flex-shrink:0;">' +
+            // Background circle
+            '<circle cx="55" cy="55" r="48" fill="#111" stroke="var(--border)" stroke-width="2"/>' +
+            // Target arc (120° = ~2.09 rad; arc from 90° to 150° in SVG coords)
+            // SVG 0° is right (3 o\'clock); 120° in standard math = 30° SVG rotation
+            // Target zone center 120° standard → SVG arc from 60° to 180° (generous 60° window)
+            '<path d="M 55 55 L ' + (55+48*Math.cos((60)*Math.PI/180)).toFixed(1) + ' ' + (55+48*Math.sin((60)*Math.PI/180)).toFixed(1) +
+                ' A 48 48 0 0 1 ' + (55+48*Math.cos((180)*Math.PI/180)).toFixed(1) + ' ' + (55+48*Math.sin((180)*Math.PI/180)).toFixed(1) + ' Z"' +
+                ' fill="rgba(247,147,26,0.18)" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>' +
+            // Center hub
+            '<circle cx="55" cy="55" r="8" fill="var(--accent)" opacity="0.7"/>' +
+            // Start marker (top, 270° SVG = -90° math)
+            '<circle cx="55" cy="7" r="5" fill="#22c55e" opacity="0.8"/>' +
+            // Knob handle (starts at top: angle 270° in SVG = cx=55, cy=7)
+            '<circle id="rotary-knob-' + action.id + '" cx="55" cy="7" r="10" fill="white" stroke="var(--accent)" stroke-width="2.5" style="cursor:grab;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));"/>' +
+            '<text id="rotary-emoji-' + action.id + '" x="55" y="11" text-anchor="middle" font-size="11">🙏</text>' +
+            '</svg>' +
+            '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.5;">' +
+            'Spin the dial into the<br><span style="color:var(--accent);font-weight:700;">gold zone</span> to complete' +
+            '</div>' +
             '</div>';
     }
     if (action.type === 'drag') {
@@ -4314,24 +4416,54 @@ function _renderFlexInteraction(action) {
             '</div>';
     }
     if (action.type === 'sequence') {
-        var seq = action.seq;
-        var keys = seq;
-        // Build keyboard - for number sequences show a numpad-style grid, for letter sequences a QWERTY subset
+        var seq = _flexPickSeq(action.pools, action.id);
         var allKeys = Array.from(new Set(seq));
-        // Add some decoy keys
-        var decoys = ['0','1','2','3','4','5','6','7','8','9','A','B','C','H','O','x','r','s','h'].filter(function(k){ return allKeys.indexOf(k)===-1; }).slice(0,6);
-        var displayKeys = allKeys.concat(decoys).sort(function(){ return Math.random()-0.5; });
+        var decoyPool = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','K','L','N','P','Q','R','S','T','U','W','X','Y','Z'];
+        var decoys = decoyPool.filter(function(k){ return allKeys.indexOf(k)===-1; });
+        var dSeed = _flexDailySeed(action.id + '_d');
+        decoys.sort(function(a,b){ return ((dSeed*(decoys.indexOf(a)+1))%97) - ((dSeed*(decoys.indexOf(b)+1))%97); });
+        decoys = decoys.slice(0,5);
+        var displayKeys = allKeys.concat(decoys);
+        var kSeed = _flexDailySeed(action.id + '_k');
+        displayKeys.sort(function(){ kSeed = (kSeed * 1664525 + 1013904223)|0; return (kSeed & 1) ? 1 : -1; });
         return '<div id="seq-wrap-' + action.id + '" data-id="' + action.id + '" data-seq="' + seq.join(',') + '" data-progress="0">' +
-            '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Enter the code: <span id="seq-display-' + action.id + '" style="font-family:monospace;color:var(--accent);letter-spacing:3px;">' + seq.map(function(){ return '·'; }).join(' ') + '</span></div>' +
+            '<div style="margin-bottom:8px;">' +
+            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;">Today&#39;s code</div>' +
+            '<div style="display:inline-flex;gap:4px;">' +
+            seq.map(function(k){ return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:28px;background:rgba(247,147,26,0.15);border:1px solid var(--accent);border-radius:6px;font-family:monospace;font-size:0.95rem;font-weight:900;color:var(--accent);padding:0 4px;">' + k + '</span>'; }).join('') +
+            '</div></div>' +
+            '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Enter it below: <span id="seq-display-' + action.id + '" style="font-family:monospace;color:var(--accent);letter-spacing:3px;">' + seq.map(function(){ return '\u00b7'; }).join(' ') + '</span></div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
             displayKeys.map(function(k) {
                 return '<div class="flex-seq-key" data-id="' + action.id + '" data-key="' + k + '" onclick="_flexSeqTap(this)">' + k + '</div>';
             }).join('') +
-            '<div class="flex-seq-key" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#ef4444;" onclick="_flexSeqReset(\'' + action.id + '\')">⌫</div>' +
+            '<div class="flex-seq-key" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#ef4444;" onclick="_flexSeqReset(\'' + action.id + '\')">&#x232b;</div>' +
             '</div></div>';
     }
     return '';
 }
+
+
+// Global typeword handler
+window._flexTypeWordCheck = function(input) {
+    var id = input.getAttribute('data-id');
+    var word = input.getAttribute('data-word');
+    var val = input.value.toUpperCase().trim();
+    var hint = document.getElementById('typeword-hint-' + id);
+    if (val === word) {
+        input.style.borderColor = '#22c55e';
+        input.style.color = '#22c55e';
+        if (hint) hint.textContent = '\u2705 Perfect!';
+        setTimeout(function(){ _flexMarkDone(id, function(){ _flexCardSuccess(id); }); }, 300);
+    } else if (word.indexOf(val) === 0) {
+        input.style.borderColor = 'var(--accent)';
+        if (hint) hint.textContent = (word.length - val.length) + ' more letters…';
+    } else {
+        input.style.borderColor = '#ef4444';
+        if (hint) { hint.textContent = 'Not quite — try again'; hint.style.color = '#ef4444'; }
+        setTimeout(function(){ input.style.borderColor = 'var(--border)'; if(hint) hint.style.color = 'var(--text-muted)'; }, 600);
+    }
+};
 
 // Global seq tap handler
 window._flexSeqTap = function(el) {
@@ -4417,161 +4549,236 @@ function _flexWireInteractions() {
     FLEX_ACTIONS.forEach(function(action) {
         if (_flexDoneToday(action.id)) return;
 
+        // ── HOLD ──
         if (action.type === 'hold') {
             var ring = document.getElementById('hold-ring-' + action.id);
             if (!ring) return;
             var arc = document.getElementById('hold-arc-' + action.id);
             var r = 24, circ = 2*Math.PI*r;
             var heldFrom = null, raf = null;
-
             function startHold(e) {
                 e.preventDefault();
+                if (heldFrom) return;
                 heldFrom = Date.now();
-                function tick() {
+                (function tick() {
                     var elapsed = Date.now() - heldFrom;
                     var pct = Math.min(1, elapsed / action.holdMs);
                     if (arc) arc.style.strokeDashoffset = circ * (1 - pct);
                     if (pct < 1) { raf = requestAnimationFrame(tick); }
                     else { endHold(true); }
-                }
-                raf = requestAnimationFrame(tick);
+                })();
             }
             function endHold(success) {
+                if (!heldFrom && !success) return;
+                heldFrom = null;
                 cancelAnimationFrame(raf);
-                if (!success) {
-                    if (arc) arc.style.strokeDashoffset = circ;
-                } else {
-                    _flexMarkDone(action.id, function() { _flexCardSuccess(action.id); });
-                }
+                if (!success) { if (arc) arc.style.strokeDashoffset = circ; }
+                else { _flexMarkDone(action.id, function() { _flexCardSuccess(action.id); }); }
             }
             ring.addEventListener('mousedown', startHold);
             ring.addEventListener('touchstart', startHold, {passive:false});
-            ring.addEventListener('mouseup', function(){ endHold(false); });
+            window.addEventListener('mouseup', function(){ endHold(false); });
             ring.addEventListener('touchend', function(){ endHold(false); });
-            ring.addEventListener('mouseleave', function(){ if(heldFrom) endHold(false); heldFrom=null; });
+            ring.addEventListener('touchcancel', function(){ endHold(false); });
         }
 
-        if (action.type === 'doubletap') {
+        // ── DOUBLETAP / TRIPLCLICK ──
+        if (action.type === 'doubletap' || action.type === 'triplclick') {
             var btn = document.getElementById('dtap-' + action.id);
             if (!btn) return;
+            var target = parseInt(btn.getAttribute('data-target') || '2');
             btn.addEventListener('click', function() {
                 var now = Date.now();
                 var taps = parseInt(btn.getAttribute('data-taps') || '0');
                 var last = parseInt(btn.getAttribute('data-last') || '0');
-                if (now - last < 400) {
+                var hint = document.getElementById('dtap-hint-' + action.id);
+                if (now - last < 500) {
                     taps++;
                     btn.setAttribute('data-taps', taps);
-                    var hint = document.getElementById('dtap-hint-' + action.id);
-                    if (hint) hint.textContent = taps >= 2 ? '🎉 Double tapped!' : 'One more!';
-                    if (taps >= 2) {
-                        setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 200);
+                    var remaining = target - taps;
+                    if (remaining <= 0) {
+                        if (hint) hint.textContent = '\uD83C\uDF89 Done!';
+                        setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 150);
+                    } else {
+                        if (hint) hint.textContent = remaining + ' more tap' + (remaining>1?'s':'') + '!';
                     }
                 } else {
                     btn.setAttribute('data-taps', '1');
-                    var hint2 = document.getElementById('dtap-hint-' + action.id);
-                    if (hint2) hint2.textContent = 'Now tap again fast!';
+                    if (hint) hint.textContent = (target - 1) + ' more tap' + (target-1>1?'s':'') + ' — fast!';
                 }
                 btn.setAttribute('data-last', now);
             });
         }
 
-        if (action.type === 'swipe') {
-            var zone = document.getElementById('swipe-zone-' + action.id);
-            var thumb = document.getElementById('swipe-thumb-' + action.id);
-            if (!zone || !thumb) return;
-            var startX = null, startLeft = 8;
-            var zoneW = 0;
+        // ── SLIDER (desktop + touch, no escape) ──
+        if (action.type === 'slider') {
+            var track = document.getElementById('slider-track-' + action.id);
+            var thumb = document.getElementById('slider-thumb-' + action.id);
+            var fill  = document.getElementById('slider-fill-' + action.id);
+            if (!track || !thumb) return;
             var isRight = action.dir === 'right';
+            var dragging = false;
+            var trackRect = null;
 
-            function swipeStart(e) {
+            function getX(e) { return e.touches ? e.touches[0].clientX : (e.changedTouches ? e.changedTouches[0].clientX : e.clientX); }
+
+            function sliderDown(e) {
                 e.preventDefault();
-                zoneW = zone.getBoundingClientRect().width;
-                startX = (e.touches ? e.touches[0].clientX : e.clientX);
+                dragging = true;
+                trackRect = track.getBoundingClientRect();
                 thumb.style.transition = 'none';
+                fill.style.transition = 'none';
+                sliderMove(e);
             }
-            function swipeMove(e) {
-                if (startX === null) return;
-                var cx = e.touches ? e.touches[0].clientX : e.clientX;
-                var dx = cx - startX;
-                var newLeft = Math.min(Math.max(8, startLeft + dx), zoneW - 44);
-                thumb.style.left = newLeft + 'px';
-                var pct = (newLeft - 8) / (zoneW - 52);
-                thumb.style.opacity = 0.6 + 0.4*pct;
+            function sliderMove(e) {
+                if (!dragging) return;
+                var x = getX(e) - trackRect.left;
+                var thumbW = 44;
+                var trackW = trackRect.width;
+                var clampedX = Math.max(thumbW/2, Math.min(x, trackW - thumbW/2));
+                var pct = (clampedX - thumbW/2) / (trackW - thumbW);
+                // position thumb
+                thumb.style[isRight ? 'left' : 'right'] = (clampedX - thumbW/2) + 'px';
+                fill.style.width = Math.round(pct * 100) + '%';
+                if (pct >= 0.88) { sliderUp(e, true); }
             }
-            function swipeEnd(e) {
-                if (startX === null) return;
-                var cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-                var dx = cx - startX;
-                var success = isRight ? dx > zoneW * 0.55 : dx < -(zoneW * 0.55);
-                thumb.style.transition = 'left 0.3s, opacity 0.3s';
+            function sliderUp(e, forceSuccess) {
+                if (!dragging) return;
+                dragging = false;
+                var x = getX(e) - (trackRect ? trackRect.left : 0);
+                var trackW = trackRect ? trackRect.width : 200;
+                var pct = (x - 22) / (trackW - 44);
+                var success = forceSuccess || pct >= 0.88;
+                thumb.style.transition = 'left 0.3s, right 0.3s';
+                fill.style.transition = 'width 0.3s';
                 if (success) {
-                    thumb.style.left = (isRight ? zoneW - 44 : 8) + 'px';
+                    thumb.style[isRight ? 'left' : 'right'] = (trackW - 40) + 'px';
+                    fill.style.width = '100%';
                     setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 250);
                 } else {
-                    thumb.style.left = '8px';
+                    thumb.style[isRight ? 'left' : 'right'] = '4px';
+                    fill.style.width = '0%';
                 }
-                startX = null;
+                trackRect = null;
             }
-            zone.addEventListener('mousedown', swipeStart);
-            zone.addEventListener('mousemove', swipeMove);
-            zone.addEventListener('mouseup', swipeEnd);
-            zone.addEventListener('touchstart', swipeStart, {passive:false});
-            zone.addEventListener('touchmove', swipeMove, {passive:false});
-            zone.addEventListener('touchend', swipeEnd);
+            track.addEventListener('mousedown', sliderDown);
+            track.addEventListener('touchstart', sliderDown, {passive:false});
+            window.addEventListener('mousemove', function(e){ if(dragging) sliderMove(e); });
+            window.addEventListener('mouseup',   function(e){ if(dragging) sliderUp(e, false); });
+            window.addEventListener('touchmove', function(e){ if(dragging) sliderMove(e); }, {passive:false});
+            window.addEventListener('touchend',  function(e){ if(dragging) sliderUp(e, false); });
         }
 
+        // ── MASH ──
+        if (action.type === 'mash') {
+            var mashBtn = document.getElementById('mash-btn-' + action.id);
+            var mashBar = document.getElementById('mash-bar-' + action.id);
+            var mashLbl = document.getElementById('mash-label-' + action.id);
+            if (!mashBtn) return;
+            var mashTarget = parseInt(mashBtn.getAttribute('data-target') || '8');
+            mashBtn.addEventListener('click', function() {
+                var count = parseInt(mashBtn.getAttribute('data-count') || '0') + 1;
+                mashBtn.setAttribute('data-count', count);
+                if (mashBar) mashBar.style.width = Math.min(100, Math.round(count/mashTarget*100)) + '%';
+                if (mashLbl) mashLbl.textContent = count + ' / ' + mashTarget;
+                mashBtn.style.transform = 'scale(0.93)';
+                setTimeout(function(){ mashBtn.style.transform = ''; }, 80);
+                if (count >= mashTarget) {
+                    setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 150);
+                }
+            });
+        }
+
+        // ── MAZE ──
+        if (action.type === 'maze') {
+            var mazeSvg = document.getElementById('maze-svg-' + action.id);
+            var mazeDot = document.getElementById('maze-dot-' + action.id);
+            if (!mazeSvg || !mazeDot) return;
+            // Z-corridor bounds (matching SVG render above)
+            var corridors = [{x:0,y:0,w:180,h:34},{x:144,y:0,w:36,h:120},{x:0,y:85,w:180,h:35}];
+            var exitZone = {x:144,y:85,w:36,h:35};
+            var mDrag = false, mRect = null, mCx = 16, mCy = 17;
+            function mInCorridor(x,y){ return corridors.some(function(r){ return x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h; }); }
+            function mInExit(x,y){ return x>=exitZone.x&&x<=exitZone.x+exitZone.w&&y>=exitZone.y&&y<=exitZone.y+exitZone.h; }
+            function mXY(e){ var t=e.touches||e.changedTouches; var c=t?t[0]:e; return {x:c.clientX-mRect.left,y:c.clientY-mRect.top}; }
+            function mScale(){ return 180/mRect.width; } // SVG viewBox vs rendered size
+            mazeDot.addEventListener('mousedown',function(e){ e.preventDefault(); mDrag=true; mRect=mazeSvg.getBoundingClientRect(); });
+            mazeDot.addEventListener('touchstart',function(e){ e.preventDefault(); mDrag=true; mRect=mazeSvg.getBoundingClientRect(); },{passive:false});
+            window.addEventListener('mousemove',function(e){ if(!mDrag)return; var p=mXY(e); var sx=p.x*mScale(),sy=p.y*mScale(); if(mInCorridor(sx,sy)){mCx=sx;mCy=sy;mazeDot.setAttribute('cx',sx);mazeDot.setAttribute('cy',sy);} if(mInExit(mCx,mCy)){mDrag=false;_flexMarkDone(action.id,function(){_flexCardSuccess(action.id);});} });
+            window.addEventListener('mouseup',function(){ mDrag=false; });
+            window.addEventListener('touchmove',function(e){ if(!mDrag)return; e.preventDefault(); var p=mXY(e); var sx=p.x*mScale(),sy=p.y*mScale(); if(mInCorridor(sx,sy)){mCx=sx;mCy=sy;mazeDot.setAttribute('cx',sx);mazeDot.setAttribute('cy',sy);} if(mInExit(mCx,mCy)){mDrag=false;_flexMarkDone(action.id,function(){_flexCardSuccess(action.id);});} },{passive:false});
+            window.addEventListener('touchend',function(){ mDrag=false; });
+        }
+
+        // ── ROTARY ──
+        if (action.type === 'rotary') {
+            var rotSvg = document.getElementById('rotary-svg-' + action.id);
+            var rotKnob = document.getElementById('rotary-knob-' + action.id);
+            var rotEmoji = document.getElementById('rotary-emoji-' + action.id);
+            if (!rotSvg || !rotKnob) return;
+            var ROT_CX = 55, ROT_CY = 55, ROT_R = 46;
+            var rDrag = false, rRect = null;
+            // Target: angle 60°-180° in SVG coords (standard math: 60° right of 3-o-clock to 180° = left)
+            // Convert: SVG angle = standard angle (both 0° = right, CW positive)
+            var tMin = 60, tMax = 180;
+            function rAngle(e){ var t=e.touches||e.changedTouches; var c=t?t[0]:e; var dx=c.clientX-rRect.left-ROT_CX*(rRect.width/110); var dy=c.clientY-rRect.top-ROT_CY*(rRect.height/110); return (Math.atan2(dy,dx)*180/Math.PI+360)%360; }
+            function rInTarget(a){ return a>=tMin&&a<=tMax; }
+            rotKnob.addEventListener('mousedown',function(e){ e.preventDefault(); rDrag=true; rRect=rotSvg.getBoundingClientRect(); });
+            rotKnob.addEventListener('touchstart',function(e){ e.preventDefault(); rDrag=true; rRect=rotSvg.getBoundingClientRect(); },{passive:false});
+            window.addEventListener('mousemove',function(e){ if(!rDrag)return; var a=rAngle(e); var kx=ROT_CX+ROT_R*Math.cos(a*Math.PI/180); var ky=ROT_CY+ROT_R*Math.sin(a*Math.PI/180); rotKnob.setAttribute('cx',kx); rotKnob.setAttribute('cy',ky); if(rotEmoji){rotEmoji.setAttribute('x',kx);rotEmoji.setAttribute('y',ky+4);} if(rInTarget(a)){rDrag=false;rotKnob.style.filter='drop-shadow(0 0 8px #f7921a)';setTimeout(function(){_flexMarkDone(action.id,function(){_flexCardSuccess(action.id);});},300);} });
+            window.addEventListener('mouseup',function(){ rDrag=false; });
+            window.addEventListener('touchmove',function(e){ if(!rDrag)return; e.preventDefault(); var a=rAngle(e); var kx=ROT_CX+ROT_R*Math.cos(a*Math.PI/180); var ky=ROT_CY+ROT_R*Math.sin(a*Math.PI/180); rotKnob.setAttribute('cx',kx);rotKnob.setAttribute('cy',ky); if(rotEmoji){rotEmoji.setAttribute('x',kx);rotEmoji.setAttribute('y',ky+4);} if(rInTarget(a)){rDrag=false;rotKnob.style.filter='drop-shadow(0 0 8px #f7921a)';setTimeout(function(){_flexMarkDone(action.id,function(){_flexCardSuccess(action.id);});},300);} },{passive:false});
+            window.addEventListener('touchend',function(){ rDrag=false; });
+        }
+
+        // ── DRAG ──
         if (action.type === 'drag') {
             var dzone = document.getElementById('drag-zone-' + action.id);
             var dthumb = document.getElementById('drag-thumb-' + action.id);
             var dtarget = document.getElementById('drag-target-' + action.id);
             if (!dzone || !dthumb || !dtarget) return;
-            var dStartX = null, dStartY = null, origLeft = null, origTop = null;
-
+            var dDragging = false, dZoneRect = null;
+            function dGetXY(e) { var t = e.touches||e.changedTouches; return t ? {x:t[0].clientX,y:t[0].clientY} : {x:e.clientX,y:e.clientY}; }
             function dragStart(e) {
                 e.preventDefault();
-                var et = e.touches ? e.touches[0] : e;
-                var rect = dthumb.getBoundingClientRect();
-                dStartX = et.clientX - rect.left - rect.width/2;
-                dStartY = et.clientY - rect.top - rect.height/2;
+                dDragging = true;
+                dZoneRect = dzone.getBoundingClientRect();
                 dthumb.style.transition = 'none';
                 dthumb.style.zIndex = '10';
-                origLeft = dthumb.style.left || '0px';
-                origTop = dthumb.style.top || '0px';
-                dthumb.style.position = 'absolute';
             }
             function dragMove(e) {
-                if (dStartX === null) return;
-                var et = e.touches ? e.touches[0] : e;
-                var zrect = dzone.getBoundingClientRect();
-                var nx = et.clientX - zrect.left - 18;
-                var ny = et.clientY - zrect.top - 18;
-                dthumb.style.left = Math.max(0, Math.min(nx, zrect.width-36)) + 'px';
-                dthumb.style.top = Math.max(0, Math.min(ny, zrect.height-36)) + 'px';
+                if (!dDragging) return;
+                var p = dGetXY(e);
+                var nx = p.x - dZoneRect.left - 18;
+                var ny = p.y - dZoneRect.top - 18;
+                dthumb.style.left = Math.max(0, Math.min(nx, dZoneRect.width-36)) + 'px';
+                dthumb.style.top  = Math.max(0, Math.min(ny, dZoneRect.height-36)) + 'px';
             }
             function dragEnd(e) {
-                if (dStartX === null) return;
-                var et = e.changedTouches ? e.changedTouches[0] : e;
-                var trect = dtarget.getBoundingClientRect();
-                var hit = et.clientX >= trect.left - 20 && et.clientX <= trect.right + 20 && et.clientY >= trect.top - 20 && et.clientY <= trect.bottom + 20;
+                if (!dDragging) return;
+                dDragging = false;
+                var p = dGetXY(e);
+                var tr = dtarget.getBoundingClientRect();
+                var hit = p.x >= tr.left-24 && p.x <= tr.right+24 && p.y >= tr.top-24 && p.y <= tr.bottom+24;
                 dthumb.style.transition = 'left 0.3s, top 0.3s';
                 if (hit) {
-                    var tzrect = dzone.getBoundingClientRect();
-                    dthumb.style.left = (trect.left - tzrect.left) + 'px';
-                    dthumb.style.top = (trect.top - tzrect.top) + 'px';
+                    dthumb.style.left = (tr.left - dZoneRect.left) + 'px';
+                    dthumb.style.top  = (tr.top  - dZoneRect.top)  + 'px';
                     setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 250);
                 } else {
                     dthumb.style.left = '0px';
-                    dthumb.style.top = '0px';
+                    dthumb.style.top  = '0px';
                 }
-                dStartX = null;
+                dZoneRect = null;
             }
             dthumb.addEventListener('mousedown', dragStart);
             dthumb.addEventListener('touchstart', dragStart, {passive:false});
-            dzone.addEventListener('mousemove', dragMove);
-            dzone.addEventListener('touchmove', dragMove, {passive:false});
-            dzone.addEventListener('mouseup', dragEnd);
-            dzone.addEventListener('touchend', dragEnd);
-            window.addEventListener('mouseup', dragEnd);
+            window.addEventListener('mousemove', function(e){ if(dDragging) dragMove(e); });
+            window.addEventListener('mouseup',   function(e){ if(dDragging) dragEnd(e); });
+            window.addEventListener('touchmove', function(e){ if(dDragging) dragMove(e); }, {passive:false});
+            window.addEventListener('touchend',  function(e){ if(dDragging) dragEnd(e); });
         }
     });
 }
+
+
