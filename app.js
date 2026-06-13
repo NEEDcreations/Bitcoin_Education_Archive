@@ -3854,6 +3854,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (typeof nachoFly === 'function') setTimeout(nachoFly, 1000);
         }
 
+        // Track search use for Search Sleuth badge
+        if (q && q.length >= 2) {
+            try { var _ss = safeJSON('btc_searches_used', []); if (_ss.indexOf('topic') === -1) { _ss.push('topic'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
+        }
+
         if (!q || q.length < 2) {
             // Show recent searches + trending when empty
             var recentSearches = safeJSON('btc_recent_searches', []);

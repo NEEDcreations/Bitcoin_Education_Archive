@@ -385,6 +385,10 @@ function loadMarketListings(category, search, sort, section) {
     if (!grid || typeof db === 'undefined') {
         return;
     }
+    // Track marketplace search use for Search Sleuth badge
+    if (search && search.length >= 2) {
+        try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('market') === -1) { _ss.push('market'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
+    }
     
     var skeletonHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">';
     for (var i=0; i<6; i++) {

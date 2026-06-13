@@ -2847,6 +2847,9 @@ window.lbSearchUser = function(val) {
     val = (val || '').trim();
     if (!val || val.length < 2) { resultEl.innerHTML = ''; _lbSearchQuery = ''; return; }
 
+    // Track search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('user') === -1) { _ss.push('user'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
+
     clearTimeout(_lbSearchTimer);
     _lbSearchTimer = setTimeout(function() {
         _lbSearchQuery = val;
@@ -7132,6 +7135,9 @@ window._badgeSearch = function(query) {
         resultsEl.innerHTML = '';
         return;
     }
+
+    // Track badge search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('badge') === -1) { _ss.push('badge'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
 
     // Search across BADGE_DEFS + HIDDEN_BADGES
     var allBadges = [];
@@ -16942,6 +16948,8 @@ window.snDoSearch = function() {
     var q = input.value.trim();
     if (q.length < 2) return;
     window._snSearchQuery = q;
+    // Track forum search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('forum') === -1) { _ss.push('forum'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
     renderForum();
 };
 
@@ -17864,6 +17872,10 @@ function loadMarketListings(category, search, sort, section) {
     var countEl = document.getElementById('marketResultCount');
     if (!grid || typeof db === 'undefined') {
         return;
+    }
+    // Track marketplace search use for Search Sleuth badge
+    if (search && search.length >= 2) {
+        try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('market') === -1) { _ss.push('market'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
     }
     
     var skeletonHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">';
@@ -20157,6 +20169,8 @@ const HIDDEN_BADGES = [
     { id: 'silent_donor', name: 'Silent Donor', emoji: '🤫', pts: 777, desc: 'Donated XP to charity without ever sharing your referral link', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 500 && (currentUser.referralCount || 0) === 0; } },
     { id: 'dust_collector', name: 'Dust Collector', emoji: '🧹', pts: 210, desc: 'Claimed sats from the faucet 21 days in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_faucet_streak') || '0') >= 21; } },
     { id: 'hash_obsessed', name: 'Hash Obsessed', emoji: '⛏️', pts: 2100, desc: 'Contributed 25,000 hashes to Satoshi\'s Favor', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.totalHashes || 0) >= 25000; } },
+    // === SEARCH SLEUTH (secret — use all 6 search surfaces) ===
+    { id: 'search_sleuth', name: 'Search Sleuth', emoji: '🔎', pts: 500, desc: 'Used every search in the archive — topics, users, badges, forum, marketplace, and beats', hidden: true, check: function() { var s = safeJSON('btc_searches_used', []); return ['topic','user','badge','forum','market','beats'].every(function(k){ return s.indexOf(k) !== -1; }); } },
 ];
 
 
@@ -27935,6 +27949,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (typeof setPose === 'function') setPose('celebrate');
             speakEasterEgg("Fawntastic! You found the secret buck.");
             if (typeof nachoFly === 'function') setTimeout(nachoFly, 1000);
+        }
+
+        // Track search use for Search Sleuth badge
+        if (q && q.length >= 2) {
+            try { var _ss = safeJSON('btc_searches_used', []); if (_ss.indexOf('topic') === -1) { _ss.push('topic'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
         }
 
         if (!q || q.length < 2) {

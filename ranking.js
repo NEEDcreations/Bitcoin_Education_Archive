@@ -2684,6 +2684,9 @@ window.lbSearchUser = function(val) {
     val = (val || '').trim();
     if (!val || val.length < 2) { resultEl.innerHTML = ''; _lbSearchQuery = ''; return; }
 
+    // Track search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('user') === -1) { _ss.push('user'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
+
     clearTimeout(_lbSearchTimer);
     _lbSearchTimer = setTimeout(function() {
         _lbSearchQuery = val;

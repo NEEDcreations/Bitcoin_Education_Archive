@@ -54,6 +54,8 @@ const HIDDEN_BADGES = [
     { id: 'silent_donor', name: 'Silent Donor', emoji: '🤫', pts: 777, desc: 'Donated XP to charity without ever sharing your referral link', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.pointsDonated || 0) >= 500 && (currentUser.referralCount || 0) === 0; } },
     { id: 'dust_collector', name: 'Dust Collector', emoji: '🧹', pts: 210, desc: 'Claimed sats from the faucet 21 days in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_faucet_streak') || '0') >= 21; } },
     { id: 'hash_obsessed', name: 'Hash Obsessed', emoji: '⛏️', pts: 2100, desc: 'Contributed 25,000 hashes to Satoshi\'s Favor', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.totalHashes || 0) >= 25000; } },
+    // === SEARCH SLEUTH (secret — use all 6 search surfaces) ===
+    { id: 'search_sleuth', name: 'Search Sleuth', emoji: '🔎', pts: 500, desc: 'Used every search in the archive — topics, users, badges, forum, marketplace, and beats', hidden: true, check: function() { var s = safeJSON('btc_searches_used', []); return ['topic','user','badge','forum','market','beats'].every(function(k){ return s.indexOf(k) !== -1; }); } },
 ];
 
 

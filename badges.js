@@ -819,6 +819,9 @@ window._badgeSearch = function(query) {
         return;
     }
 
+    // Track badge search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('badge') === -1) { _ss.push('badge'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
+
     // Search across BADGE_DEFS + HIDDEN_BADGES
     var allBadges = [];
     if (typeof BADGE_DEFS !== 'undefined') allBadges = allBadges.concat(BADGE_DEFS);

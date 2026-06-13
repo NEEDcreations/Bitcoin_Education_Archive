@@ -3279,6 +3279,8 @@ window.beatsPerformSearch = function() {
     if (!input) return;
     var query = input.value.trim().toLowerCase();
     if (!query) { if(typeof showToast==='function') showToast('Type something to search'); return; }
+    // Track beats search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('beats') === -1) { _ss.push('beats'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
 
     window._beatsCurrentTab = 'search';
     ['discover','library','artists','upload','livestream','pumpit'].forEach(function(t) {
