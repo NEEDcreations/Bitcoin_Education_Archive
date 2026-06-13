@@ -33,7 +33,7 @@ service cloud.firestore {
                         'orangeTickets', 'streak', 'bestStreak', 'streakFreezes',
                         'totalVisits', 'badges', 'hiddenBadges', 'tickets',
                         'referralTicketsEarned', 'lastSpinDate', 'spinClosetItems',
-                        'pvpWins', 'pvpLosses', 'forumPosts', 'forumReplies',
+                        'forumPosts', 'forumReplies',
                         'marketListings', 'marketMessages', 'referralCode',
                         'pendingOverflow', 'lastOverflowDate',
                         'pointsDonated', 'donationBadges',
