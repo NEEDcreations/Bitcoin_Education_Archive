@@ -4379,7 +4379,11 @@ function showSettingsPage(tab) {
             '🎰 Daily spin: <strong>25–100 XP</strong> (XP reward spins)',
             '📈 Price prediction: <strong>5 XP</strong> (25 if correct!)',
             '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched',
-            '⚡ Visit Lightning Wallet: <strong>5 XP</strong>'
+            '⚡ Visit Lightning Wallet: <strong>5 XP</strong>',
+            '🎯 Quest Hub – Daily Quiz: <strong>25–100 XP</strong>',
+            '🧠 Quest Hub – Daily Trivia: <strong>10–15 XP</strong>',
+            '📊 Quest Hub – Daily Poll: <strong>5 XP</strong>',
+            '🏆 Complete all three in one day: <strong>bonus Satoshi\'s Favor point!</strong>'
         ]);
         html += _es('ep_quiz', '🧠 Quizzes & Learning', [
             '🎯 Daily quests (perfect): <strong>100 XP</strong> (50 for 3+, 25 retry)',
