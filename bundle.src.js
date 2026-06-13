@@ -3383,6 +3383,24 @@ setInterval(function() {
 }, 2000);
 
 // Username prompt
+// Handle "I need a Lightning Address" from sign-up form:
+// Save whatever is typed so far, mark return intent, open Lightning wallet page.
+window._signupGoGetLnAddress = function() {
+    // Preserve any partial LN address typed
+    var lnEl = document.getElementById('signupLnAddress');
+    if (lnEl && lnEl.value.trim()) localStorage.setItem('btc_pending_ln_address', lnEl.value.trim());
+    // Save username + email if already typed so they're restored on return
+    var unEl = document.getElementById('usernameInput');
+    var emEl = document.getElementById('emailInput');
+    if (unEl && unEl.value.trim()) localStorage.setItem('btc_signup_return_username', unEl.value.trim());
+    if (emEl && emEl.value.trim()) localStorage.setItem('btc_signup_return_email', emEl.value.trim());
+    // Mark that we should reopen the sign-up modal with focus on LN field when returning
+    sessionStorage.setItem('btc_return_to_signup_ln', '1');
+    // Close modal and open Lightning page
+    document.getElementById('usernameModal').classList.remove('open');
+    setTimeout(function() { if (typeof go === 'function') go('lightning'); }, 200);
+};
+
 function showUsernamePrompt() {
     try {
         // If user has an account (real or anonymous with username), show settings
@@ -4435,6 +4453,7 @@ function showSettingsPage(tab) {
         if (!_satsLnAddr) {
             html += '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);line-height:1.5;">💡 Get one from <a href="https://walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);">Wallet of Satoshi</a>, <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);">Alby</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);">Coinos</a>, or <a href="https://strike.me" target="_blank" rel="noopener" style="color:var(--accent);">Strike</a>.</div>';
         }
+        html += '<button onclick="hideUsernamePrompt();setTimeout(function(){go(\'lightning\')},200)" style="margin-top:10px;width:100%;padding:11px;background:none;border:1px dashed rgba(247,147,26,0.5);border-radius:10px;color:var(--accent);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background=\'rgba(247,147,26,0.08)\'" onmouseout="this.style.background=\'none\'">⚡ I need a Lightning Address →</button>';
         html += '</div>';
 
         } else {
@@ -26804,6 +26823,32 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof hideUsernamePrompt === 'function') {
             var _um = document.getElementById('usernameModal');
             if (_um && _um.classList.contains('open')) hideUsernamePrompt();
+        }
+        // Return-to-signup: if user went to Lightning page via "I need a Lightning Address",
+        // reopen signup modal with LN field focused and any previously-typed LN address pre-filled.
+        if (sessionStorage.getItem('btc_return_to_signup_ln') === '1') {
+            sessionStorage.removeItem('btc_return_to_signup_ln');
+            setTimeout(function() {
+                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                setTimeout(function() {
+                    var lnEl = document.getElementById('signupLnAddress');
+                    if (lnEl) {
+                        // Pre-fill if they got an address and it's now in pending storage
+                        var _saved = localStorage.getItem('btc_pending_ln_address') || '';
+                        if (_saved && !lnEl.value) lnEl.value = _saved;
+                        lnEl.focus();
+                        lnEl.style.borderColor = 'var(--accent)';
+                        setTimeout(function() { lnEl.style.borderColor = 'var(--border)'; }, 2000);
+                    }
+                    // Restore username/email if saved
+                    var unEl = document.getElementById('usernameInput');
+                    var emEl = document.getElementById('emailInput');
+                    var _un = localStorage.getItem('btc_signup_return_username');
+                    var _em = localStorage.getItem('btc_signup_return_email');
+                    if (unEl && _un && !unEl.value) { unEl.value = _un; localStorage.removeItem('btc_signup_return_username'); }
+                    if (emEl && _em && !emEl.value) { emEl.value = _em; localStorage.removeItem('btc_signup_return_email'); }
+                }, 350);
+            }, 100);
         }
         if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         

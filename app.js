@@ -2690,6 +2690,32 @@ window.nachoQuizAnswer = function(btn, correct) {
             var _um = document.getElementById('usernameModal');
             if (_um && _um.classList.contains('open')) hideUsernamePrompt();
         }
+        // Return-to-signup: if user went to Lightning page via "I need a Lightning Address",
+        // reopen signup modal with LN field focused and any previously-typed LN address pre-filled.
+        if (sessionStorage.getItem('btc_return_to_signup_ln') === '1') {
+            sessionStorage.removeItem('btc_return_to_signup_ln');
+            setTimeout(function() {
+                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                setTimeout(function() {
+                    var lnEl = document.getElementById('signupLnAddress');
+                    if (lnEl) {
+                        // Pre-fill if they got an address and it's now in pending storage
+                        var _saved = localStorage.getItem('btc_pending_ln_address') || '';
+                        if (_saved && !lnEl.value) lnEl.value = _saved;
+                        lnEl.focus();
+                        lnEl.style.borderColor = 'var(--accent)';
+                        setTimeout(function() { lnEl.style.borderColor = 'var(--border)'; }, 2000);
+                    }
+                    // Restore username/email if saved
+                    var unEl = document.getElementById('usernameInput');
+                    var emEl = document.getElementById('emailInput');
+                    var _un = localStorage.getItem('btc_signup_return_username');
+                    var _em = localStorage.getItem('btc_signup_return_email');
+                    if (unEl && _un && !unEl.value) { unEl.value = _un; localStorage.removeItem('btc_signup_return_username'); }
+                    if (emEl && _em && !emEl.value) { emEl.value = _em; localStorage.removeItem('btc_signup_return_email'); }
+                }, 350);
+            }, 100);
+        }
         if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         
         // Ensure bottom nav is visible on home
