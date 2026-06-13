@@ -6951,18 +6951,20 @@ function getBadgeHTML() {
         '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_') || b.id.startsWith('story_')),
         '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),
         '🎧 DJ Mode': _cat(BADGE_DEFS, b => b.id.startsWith('dj_')),
-        '🎵 Music': _cat(BADGE_DEFS, b => b.id.startsWith('producer')),
+        '🎵 Music': _cat(BADGE_DEFS, b => b.id.startsWith('producer') || b.id.startsWith('beats_')),
         '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
         '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_') || b.id === 'global_citizen' || b.id === 'referred'),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
-        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50'),
+        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50' || b.id === 'react_5' || b.id === 'react_200'),
         '🎡 Spin Wheel': _cat(BADGE_DEFS, b => b.id.startsWith('spin_')),
         '⛏️ Satoshi\'s Favor': _cat(BADGE_DEFS, b => b.id.startsWith('sf_')),
         '🐲 Raid Boss': _cat(BADGE_DEFS, b => b.id.startsWith('raid_')),
         '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
+        '💪 Daily Quest Hub': _cat(BADGE_DEFS, b => b.id.startsWith('flex_') || b.id.startsWith('trivia_') || b.id.startsWith('poll_') || b.id.startsWith('daily_triple') || b.id === 'experienced_pro' || b.id === 'first_purchase'),
+        '🛒 Marketplace': _cat(BADGE_DEFS, b => b.id.startsWith('market_') || b.id === 'bookmarks_1' || b.id === 'bookmarks_10' || b.id === 'favs_10' || b.id === 'favs_25'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
 
