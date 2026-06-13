@@ -4154,7 +4154,7 @@ var FLEX_ACTIONS = [
         pools:[['R','E','A','D'],['S','A','T','O','S','H','I'],['2','1','M'],['N','O','D','E','S'],['B','L','O','C','K']] },
     { id:'sleep',    emoji:'😴', name:'Sleep 8 Hours',        desc:'Low time-preference recovery.',           pts:5, type:'hold',      holdMs:2500 },
     { id:'nokyc',    emoji:'🕵️', name:'Buy No-KYC',           desc:'Preserve your privacy. Stay sovereign.',  pts:5, type:'mash',      target:8, label:'Buy privately!' },
-    { id:'node',     emoji:'💻', name:'Run Your Node',        desc:"Don't trust. Verify.",                    pts:5, type:'drag',      dragTarget:'💻→🔗' },
+    { id:'node',     emoji:'💻', name:'Run Your Node',        desc:"Don't trust. Verify.",                    pts:5, type:'maze' },
     { id:'cold',     emoji:'🧊', name:'Cold Plunge',          desc:'Hormetic stress. Bitcoin is similar.',    pts:5, type:'hold',      holdMs:3000 },
     { id:'fast',     emoji:'⏱️', name:'Intermittent Fast',    desc:'Low glucose, high signal.',               pts:5, type:'sequence',
         pools:[['1','6','H','R'],['F','A','S','T'],['L','E','A','N'],['Z','E','R','O']] },
@@ -4163,7 +4163,7 @@ var FLEX_ACTIONS = [
     { id:'meditate', emoji:'🧘', name:'Meditate',             desc:'Clear mind. Bitcoin is signal.',          pts:5, type:'hold',      holdMs:2000 },
     { id:'teach',    emoji:'🗣️', name:'Orange-Pill Someone',  desc:'Share the truth. One person at a time.',  pts:5, type:'triplclick' },
     { id:'water',    emoji:'💧', name:'Drink Water',          desc:'Hydration is a low time preference act.', pts:5, type:'mash',      target:6, label:'Chug chug chug!' },
-    { id:'gratitude',emoji:'🙏', name:'Gratitude Practice',   desc:'Abundance mindset. Stack happiness.',     pts:5, type:'drag',      dragTarget:'🙏→❤️' },
+    { id:'gratitude',emoji:'🙏', name:'Gratitude Practice',   desc:'Abundance mindset. Stack happiness.',     pts:5, type:'rotary',    targetDeg:120 },
     { id:'verify',   emoji:'🔍', name:'Verify a Transaction', desc:'Trust no one. Not even Rufus.',           pts:5, type:'typeword',  words:['VERIFY','PROOF','TRUST','CHECK','NODES','VALID'] },
 ];
 
@@ -4349,6 +4349,61 @@ function _renderFlexInteraction(action) {
                 'style="padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;letter-spacing:3px;outline:none;width:100%;box-sizing:border-box;text-transform:uppercase;" ' +
                 'oninput="_flexTypeWordCheck(this)">' +
             '<div id="typeword-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">Type the word above, then hit ↵</div>' +
+            '</div>';
+    }
+    if (action.type === 'maze') {
+        // Z-shaped corridor SVG maze: top bar → right col → bottom bar
+        return '<div>' +
+            '<svg id="maze-svg-' + action.id + '" width="180" height="120" style="display:block;border-radius:10px;overflow:visible;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;" viewBox="0 0 180 120">' +
+            // dark bg
+            '<rect width="180" height="120" fill="#111" rx="8"/>' +
+            // Z corridor fills
+            '<rect x="1" y="1" width="178" height="33" fill="rgba(247,147,26,0.09)" rx="4"/>' +
+            '<rect x="145" y="1" width="33" height="118" fill="rgba(247,147,26,0.09)"/>' +
+            '<rect x="1" y="86" width="178" height="33" fill="rgba(247,147,26,0.09)" rx="4"/>' +
+            // Wall fill (middle blocker: left of right col, between top and bottom bars)
+            '<rect x="0" y="34" width="145" height="52" fill="#111"/>' +
+            // Corridor border lines (subtle)
+            '<rect x="0.5" y="0.5" width="179" height="34" fill="none" stroke="rgba(247,147,26,0.25)" stroke-width="1" rx="4"/>' +
+            '<rect x="144.5" y="0.5" width="35" height="119" fill="none" stroke="rgba(247,147,26,0.25)" stroke-width="1"/>' +
+            '<rect x="0.5" y="85.5" width="179" height="34" fill="none" stroke="rgba(247,147,26,0.25)" stroke-width="1" rx="4"/>' +
+            // Exit zone glow
+            '<rect x="145" y="86" width="34" height="33" fill="rgba(247,147,26,0.2)" rx="3"/>' +
+            // Start label
+            '<circle cx="16" cy="17" r="7" fill="#22c55e" opacity="0.9"/>' +
+            '<text x="16" y="21" text-anchor="middle" font-size="8" fill="white" font-weight="bold">S</text>' +
+            // Exit label
+            '<circle cx="164" cy="103" r="7" fill="rgba(247,147,26,0.9)"/>' +
+            '<text x="164" y="107" text-anchor="middle" font-size="8" fill="white" font-weight="bold">E</text>' +
+            // Player dot
+            '<circle id="maze-dot-' + action.id + '" cx="16" cy="17" r="11" fill="var(--accent)" stroke="white" stroke-width="1.5" style="cursor:grab;filter:drop-shadow(0 0 5px rgba(247,147,26,0.7));"/>' +
+            '</svg>' +
+            '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:5px;text-align:center;">Drag <span style="color:var(--accent);">●</span> from <span style="color:#22c55e;font-weight:700;">S</span> to <span style="color:var(--accent);font-weight:700;">E</span></div>' +
+            '</div>';
+    }
+    if (action.type === 'rotary') {
+        // Spin the dial handle from top to target zone
+        return '<div style="display:flex;align-items:center;gap:14px;">' +
+            '<svg id="rotary-svg-' + action.id + '" width="110" height="110" viewBox="0 0 110 110" style="touch-action:none;user-select:none;-webkit-user-select:none;flex-shrink:0;">' +
+            // Background circle
+            '<circle cx="55" cy="55" r="48" fill="#111" stroke="var(--border)" stroke-width="2"/>' +
+            // Target arc (120° = ~2.09 rad; arc from 90° to 150° in SVG coords)
+            // SVG 0° is right (3 o\'clock); 120° in standard math = 30° SVG rotation
+            // Target zone center 120° standard → SVG arc from 60° to 180° (generous 60° window)
+            '<path d="M 55 55 L ' + (55+48*Math.cos((60)*Math.PI/180)).toFixed(1) + ' ' + (55+48*Math.sin((60)*Math.PI/180)).toFixed(1) +
+                ' A 48 48 0 0 1 ' + (55+48*Math.cos((180)*Math.PI/180)).toFixed(1) + ' ' + (55+48*Math.sin((180)*Math.PI/180)).toFixed(1) + ' Z"' +
+                ' fill="rgba(247,147,26,0.18)" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>' +
+            // Center hub
+            '<circle cx="55" cy="55" r="8" fill="var(--accent)" opacity="0.7"/>' +
+            // Start marker (top, 270° SVG = -90° math)
+            '<circle cx="55" cy="7" r="5" fill="#22c55e" opacity="0.8"/>' +
+            // Knob handle (starts at top: angle 270° in SVG = cx=55, cy=7)
+            '<circle id="rotary-knob-' + action.id + '" cx="55" cy="7" r="10" fill="white" stroke="var(--accent)" stroke-width="2.5" style="cursor:grab;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));"/>' +
+            '<text id="rotary-emoji-' + action.id + '" x="55" y="11" text-anchor="middle" font-size="11">🙏</text>' +
+            '</svg>' +
+            '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.5;">' +
+            'Spin the dial into the<br><span style="color:var(--accent);font-weight:700;">gold zone</span> to complete' +
+            '</div>' +
             '</div>';
     }
     if (action.type === 'drag') {
@@ -4632,6 +4687,48 @@ function _flexWireInteractions() {
                     setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 150);
                 }
             });
+        }
+
+        // ── MAZE ──
+        if (action.type === 'maze') {
+            var mazeSvg = document.getElementById('maze-svg-' + action.id);
+            var mazeDot = document.getElementById('maze-dot-' + action.id);
+            if (!mazeSvg || !mazeDot) return;
+            // Z-corridor bounds (matching SVG render above)
+            var corridors = [{x:0,y:0,w:180,h:34},{x:144,y:0,w:36,h:120},{x:0,y:85,w:180,h:35}];
+            var exitZone = {x:144,y:85,w:36,h:35};
+            var mDrag = false, mRect = null, mCx = 16, mCy = 17;
+            function mInCorridor(x,y){ return corridors.some(function(r){ return x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h; }); }
+            function mInExit(x,y){ return x>=exitZone.x&&x<=exitZone.x+exitZone.w&&y>=exitZone.y&&y<=exitZone.y+exitZone.h; }
+            function mXY(e){ var t=e.touches||e.changedTouches; var c=t?t[0]:e; return {x:c.clientX-mRect.left,y:c.clientY-mRect.top}; }
+            function mScale(){ return 180/mRect.width; } // SVG viewBox vs rendered size
+            mazeDot.addEventListener('mousedown',function(e){ e.preventDefault(); mDrag=true; mRect=mazeSvg.getBoundingClientRect(); });
+            mazeDot.addEventListener('touchstart',function(e){ e.preventDefault(); mDrag=true; mRect=mazeSvg.getBoundingClientRect(); },{passive:false});
+            window.addEventListener('mousemove',function(e){ if(!mDrag)return; var p=mXY(e); var sx=p.x*mScale(),sy=p.y*mScale(); if(mInCorridor(sx,sy)){mCx=sx;mCy=sy;mazeDot.setAttribute('cx',sx);mazeDot.setAttribute('cy',sy);} if(mInExit(mCx,mCy)){mDrag=false;_flexMarkDone(action.id,function(){_flexCardSuccess(action.id);});} });
+            window.addEventListener('mouseup',function(){ mDrag=false; });
+            window.addEventListener('touchmove',function(e){ if(!mDrag)return; e.preventDefault(); var p=mXY(e); var sx=p.x*mScale(),sy=p.y*mScale(); if(mInCorridor(sx,sy)){mCx=sx;mCy=sy;mazeDot.setAttribute('cx',sx);mazeDot.setAttribute('cy',sy);} if(mInExit(mCx,mCy)){mDrag=false;_flexMarkDone(action.id,function(){_flexCardSuccess(action.id);});} },{passive:false});
+            window.addEventListener('touchend',function(){ mDrag=false; });
+        }
+
+        // ── ROTARY ──
+        if (action.type === 'rotary') {
+            var rotSvg = document.getElementById('rotary-svg-' + action.id);
+            var rotKnob = document.getElementById('rotary-knob-' + action.id);
+            var rotEmoji = document.getElementById('rotary-emoji-' + action.id);
+            if (!rotSvg || !rotKnob) return;
+            var ROT_CX = 55, ROT_CY = 55, ROT_R = 46;
+            var rDrag = false, rRect = null;
+            // Target: angle 60°-180° in SVG coords (standard math: 60° right of 3-o-clock to 180° = left)
+            // Convert: SVG angle = standard angle (both 0° = right, CW positive)
+            var tMin = 60, tMax = 180;
+            function rAngle(e){ var t=e.touches||e.changedTouches; var c=t?t[0]:e; var dx=c.clientX-rRect.left-ROT_CX*(rRect.width/110); var dy=c.clientY-rRect.top-ROT_CY*(rRect.height/110); return (Math.atan2(dy,dx)*180/Math.PI+360)%360; }
+            function rInTarget(a){ return a>=tMin&&a<=tMax; }
+            rotKnob.addEventListener('mousedown',function(e){ e.preventDefault(); rDrag=true; rRect=rotSvg.getBoundingClientRect(); });
+            rotKnob.addEventListener('touchstart',function(e){ e.preventDefault(); rDrag=true; rRect=rotSvg.getBoundingClientRect(); },{passive:false});
+            window.addEventListener('mousemove',function(e){ if(!rDrag)return; var a=rAngle(e); var kx=ROT_CX+ROT_R*Math.cos(a*Math.PI/180); var ky=ROT_CY+ROT_R*Math.sin(a*Math.PI/180); rotKnob.setAttribute('cx',kx); rotKnob.setAttribute('cy',ky); if(rotEmoji){rotEmoji.setAttribute('x',kx);rotEmoji.setAttribute('y',ky+4);} if(rInTarget(a)){rDrag=false;rotKnob.style.filter='drop-shadow(0 0 8px #f7921a)';setTimeout(function(){_flexMarkDone(action.id,function(){_flexCardSuccess(action.id);});},300);} });
+            window.addEventListener('mouseup',function(){ rDrag=false; });
+            window.addEventListener('touchmove',function(e){ if(!rDrag)return; e.preventDefault(); var a=rAngle(e); var kx=ROT_CX+ROT_R*Math.cos(a*Math.PI/180); var ky=ROT_CY+ROT_R*Math.sin(a*Math.PI/180); rotKnob.setAttribute('cx',kx);rotKnob.setAttribute('cy',ky); if(rotEmoji){rotEmoji.setAttribute('x',kx);rotEmoji.setAttribute('y',ky+4);} if(rInTarget(a)){rDrag=false;rotKnob.style.filter='drop-shadow(0 0 8px #f7921a)';setTimeout(function(){_flexMarkDone(action.id,function(){_flexCardSuccess(action.id);});},300);} },{passive:false});
+            window.addEventListener('touchend',function(){ rDrag=false; });
         }
 
         // ── DRAG ──
