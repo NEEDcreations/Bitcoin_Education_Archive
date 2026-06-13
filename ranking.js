@@ -4228,7 +4228,7 @@ function showSettingsPage(tab) {
             '🎮 Channel quizzes: <strong>10 XP</strong>',
             '🎯 Conversation quests: <strong>5 XP/correct</strong>',
             '📖 Nacho\'s Trails chapters: <strong>25–50 XP</strong> (100 for completing all)',
-            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all)',
+            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all + badges)',
             '🎓 Scholar Certification (Bitcoin): <strong>2,100 XP</strong>',
             '🎓 Scholar Certification (Protocol): <strong>2,100 XP</strong>'
         ]);

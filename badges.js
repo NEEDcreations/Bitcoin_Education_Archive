@@ -254,6 +254,10 @@ const BADGE_DEFS = [
     { id: 'nacho_asked_100', name: 'Nacho Scholar', emoji: '🦌', desc: 'Asked Nacho 100 questions', check: () => parseInt(localStorage.getItem('btc_nacho_sent') || '0') >= 100, pts: 75 },
     { id: 'nacho_whisper', name: 'Nacho\'s Confidant', emoji: '🤫', desc: 'Interacted with Nacho 500+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 500, pts: 500 },
     { id: 'nacho_eli5', name: 'ELI5 Mode', emoji: '👶', desc: 'Used Explain it Like I\'m 5 mode with Nacho', check: () => parseInt(localStorage.getItem('btc_nacho_eli5') || '0') >= 1, pts: 10 },
+    // Nacho's Story
+    { id: 'story_begun', name: 'Story Begun', emoji: '📖', desc: 'Read Chapter 1 of Nacho\'s Story — the Genesis Block', check: () => { try { return safeJSON('btc_nacho_story_awarded', []).length >= 1; } catch(e) { return false; } }, pts: 15 },
+    { id: 'story_halfway', name: 'Halfway There', emoji: '🎙️', desc: 'Read 4 chapters of Nacho\'s Story', check: () => { try { return safeJSON('btc_nacho_story_awarded', []).length >= 4; } catch(e) { return false; } }, pts: 50 },
+    { id: 'story_complete', name: 'Story Master', emoji: '🦧📚', desc: 'Completed all 7 chapters of Nacho\'s Story', check: () => { try { return safeJSON('btc_nacho_story_awarded', []).length >= 7; } catch(e) { return false; } }, pts: 150 },
 
     // ---- Sats milestones ----
     { id: 'sats_10k', name: 'Sat Hoarder', emoji: '🏦', desc: 'Claimed 10,000 sats total from the faucet', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 10000, pts: 500 },
@@ -580,7 +584,7 @@ function getBadgeHTML() {
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_')),
         '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
-        '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_')),
+        '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_') || b.id.startsWith('story_')),
         '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),
         '🎧 DJ Mode': _cat(BADGE_DEFS, b => b.id.startsWith('dj_')),
         '🎵 Music': _cat(BADGE_DEFS, b => b.id.startsWith('producer')),
