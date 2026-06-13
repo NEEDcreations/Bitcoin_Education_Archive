@@ -550,13 +550,23 @@ service cloud.firestore {
                     && (request.resource.data.player1.uid == request.auth.uid
                         || request.resource.data.player2.uid == request.auth.uid)
                     && request.resource.data.player1.uid != request.resource.data.player2.uid;
-      // Only allow: heartbeat and questionStartedAt (for local client sync)
-      // Answers, scores, status, and currentQ handled by pvpSubmitAnswer Cloud Function (Admin SDK)
+      // PVP is fully client-side. Allow players to write:
+      //   - their own answers array (player1.answers / player2.answers)
+      //   - match flow fields (status, currentQ, questionWinner, questionStartedAt)
+      //   - presence heartbeats (player1LastSeen, player2LastSeen)
+      // Scores and correct counts are derived from answers client-side; the score fields
+      // are written by the resolveRound logic which runs in the snapshot listener.
+      // Forfeit fields (forfeitedBy, forfeitReason) are written on manual leave.
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['questionStartedAt', 'player1LastSeen', 'player2LastSeen']);
+                       .hasOnly([
+                         'player1', 'player2',
+                         'status', 'currentQ', 'questionWinner', 'questionStartedAt', 'questions',
+                         'player1LastSeen', 'player2LastSeen',
+                         'forfeitedBy', 'forfeitReason'
+                       ]);
     }
 
     // =============================================
