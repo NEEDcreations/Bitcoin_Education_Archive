@@ -7003,7 +7003,9 @@ function getBadgeHTML() {
     var _hiddenEarnable = typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.filter(function(b) { return b.hidden; }).length : 0;
     var _hiddenEarned = (JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]')).length;
     var _earnedCount = earnedBadges.size;
-    var _grandTotal = _totalEarnable + _hiddenEarnable;
+    // Add dynamic FLEX per-action badges (20 actions × 8 milestones = 160)
+    var _flexDynamic = (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') ? FLEX_ACTIONS.length * FLEX_BADGE_MILESTONES.length : 160;
+    var _grandTotal = _totalEarnable + _hiddenEarnable + _flexDynamic;
     var _grandEarned = _earnedCount + _hiddenEarned;
     var _pct = Math.round((_grandEarned / _grandTotal) * 100);
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:12px;">' +
