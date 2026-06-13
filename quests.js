@@ -4142,31 +4142,29 @@ function _flexPickSeq(pools, id) {
 }
 
 var FLEX_ACTIONS = [
-    { id:'steak',    emoji:'🥩', name:'Eat Steak',           desc:'Fuel up like a carnivore maxi',          pts:5, type:'hold',    holdMs:2000 },
-    { id:'sunlight', emoji:'☀️', name:'Get Sunlight',        desc:'Touch grass. Outside. On purpose.',      pts:5, type:'drag',    dragTarget:'☀️→🌿' },
-    { id:'dca',      emoji:'📈', name:'DCA Bitcoin',         desc:'Stack sats on schedule. No emotion.',    pts:5, type:'sequence',
+    { id:'steak',    emoji:'🥩', name:'Eat Steak',            desc:'Fuel up like a carnivore maxi',           pts:5, type:'hold',      holdMs:2000 },
+    { id:'sunlight', emoji:'☀️', name:'Get Sunlight',         desc:'Touch grass. Outside. On purpose.',       pts:5, type:'slider',    dir:'right', label:'Soak it in →' },
+    { id:'dca',      emoji:'📈', name:'DCA Bitcoin',          desc:'Stack sats on schedule. No emotion.',     pts:5, type:'sequence',
         pools:[['2','1','M','I','L'],['S','A','T','S'],['H','O','D','L'],['1','0','0','K'],['B','T','C'],['S','T','A','C','K']] },
-    { id:'custody',  emoji:'🔑', name:'Self-Custody',        desc:'Not your keys, not your coins.',         pts:5, type:'swipe',   dir:'right' },
-    { id:'lift',     emoji:'🏋️', name:'Lift Weights',        desc:'Proof of strength. Every rep counts.',   pts:5, type:'hold',    holdMs:3000 },
-    { id:'meetup',   emoji:'🤝', name:'Host a Meetup',       desc:'Orange-pill your city. IRL > URL.',      pts:5, type:'doubletap' },
-    { id:'lightning',emoji:'⚡', name:'Spend via Lightning', desc:'Circular economy. Spend and re-stack.',  pts:5, type:'swipe',   dir:'left' },
-    { id:'read',     emoji:'📚', name:'Read Bitcoin',        desc:'One page of Saifedean a day.',           pts:5, type:'sequence',
+    { id:'custody',  emoji:'🔑', name:'Self-Custody',         desc:'Not your keys, not your coins.',          pts:5, type:'typeword',  words:['KEYS','WALLET','HODL','COLD','VAULT','SEED'] },
+    { id:'lift',     emoji:'🏋️', name:'Lift Weights',         desc:'Proof of strength. Every rep counts.',    pts:5, type:'hold',      holdMs:3000 },
+    { id:'meetup',   emoji:'🤝', name:'Host a Meetup',        desc:'Orange-pill your city. IRL > URL.',       pts:5, type:'triplclick' },
+    { id:'lightning',emoji:'⚡', name:'Spend via Lightning',  desc:'Circular economy. Spend and re-stack.',   pts:5, type:'slider',    dir:'left',  label:'← Send it' },
+    { id:'read',     emoji:'📚', name:'Read Bitcoin',         desc:'One page of Saifedean a day.',            pts:5, type:'sequence',
         pools:[['R','E','A','D'],['S','A','T','O','S','H','I'],['2','1','M'],['N','O','D','E','S'],['B','L','O','C','K']] },
-    { id:'sleep',    emoji:'😴', name:'Sleep 8 Hours',       desc:'Low time-preference recovery.',          pts:5, type:'hold',    holdMs:2500 },
-    { id:'nokyc',    emoji:'🕵️', name:'Buy No-KYC',          desc:'Preserve your privacy. Stay sovereign.', pts:5, type:'doubletap' },
-    { id:'node',     emoji:'💻', name:'Run Your Node',       desc:"Don't trust. Verify.",                   pts:5, type:'drag',    dragTarget:'💻→🔗' },
-    { id:'cold',     emoji:'🧊', name:'Cold Plunge',         desc:'Hormetic stress. Bitcoin is similar.',   pts:5, type:'hold',    holdMs:3000 },
-    { id:'fast',     emoji:'⏱️', name:'Intermittent Fast',   desc:'Low glucose, high signal.',              pts:5, type:'sequence',
+    { id:'sleep',    emoji:'😴', name:'Sleep 8 Hours',        desc:'Low time-preference recovery.',           pts:5, type:'hold',      holdMs:2500 },
+    { id:'nokyc',    emoji:'🕵️', name:'Buy No-KYC',           desc:'Preserve your privacy. Stay sovereign.',  pts:5, type:'mash',      target:8, label:'Buy privately!' },
+    { id:'node',     emoji:'💻', name:'Run Your Node',        desc:"Don't trust. Verify.",                    pts:5, type:'drag',      dragTarget:'💻→🔗' },
+    { id:'cold',     emoji:'🧊', name:'Cold Plunge',          desc:'Hormetic stress. Bitcoin is similar.',    pts:5, type:'hold',      holdMs:3000 },
+    { id:'fast',     emoji:'⏱️', name:'Intermittent Fast',    desc:'Low glucose, high signal.',               pts:5, type:'sequence',
         pools:[['1','6','H','R'],['F','A','S','T'],['L','E','A','N'],['Z','E','R','O']] },
-    { id:'walk',     emoji:'🚶', name:'Walk 10k Steps',      desc:'Proof of Walk. Calories are energy.',    pts:5, type:'swipe',   dir:'right' },
-    { id:'journal',  emoji:'📝', name:'Journal Today',       desc:'Long-term thinking. Write it down.',     pts:5, type:'drag',    dragTarget:'📝→🗒️' },
-    { id:'meditate', emoji:'🧘', name:'Meditate',            desc:'Clear mind. Bitcoin is signal.',         pts:5, type:'hold',    holdMs:2000 },
-    { id:'teach',    emoji:'🗣️', name:'Orange-Pill Someone', desc:'Share the truth. One person at a time.', pts:5, type:'doubletap' },
-    { id:'water',    emoji:'💧', name:'Drink Water',         desc:'Hydration is a low time preference act.',pts:5, type:'sequence',
-        pools:[['H','2','O'],['D','R','I','N','K'],['H','Y','D','R','O'],['S','I','P']] },
-    { id:'gratitude',emoji:'🙏', name:'Gratitude Practice',  desc:'Abundance mindset. Stack happiness.',    pts:5, type:'drag',    dragTarget:'🙏→❤️' },
-    { id:'verify',   emoji:'🔍', name:'Verify a Transaction',desc:'Trust no one. Not even Rufus.',          pts:5, type:'sequence',
-        pools:[['P','R','O','O','F'],['V','E','R','I','F','Y'],['T','R','U','S','T'],['C','H','E','C','K'],['N','O','D','E']] },
+    { id:'walk',     emoji:'🚶', name:'Walk 10k Steps',       desc:'Proof of Walk. Calories are energy.',     pts:5, type:'slider',    dir:'right', label:'Keep walking →' },
+    { id:'journal',  emoji:'📝', name:'Journal Today',        desc:'Long-term thinking. Write it down.',      pts:5, type:'typeword',  words:['WRITE','THINK','PLAN','VISION','FUTURE','BUILD'] },
+    { id:'meditate', emoji:'🧘', name:'Meditate',             desc:'Clear mind. Bitcoin is signal.',          pts:5, type:'hold',      holdMs:2000 },
+    { id:'teach',    emoji:'🗣️', name:'Orange-Pill Someone',  desc:'Share the truth. One person at a time.',  pts:5, type:'triplclick' },
+    { id:'water',    emoji:'💧', name:'Drink Water',          desc:'Hydration is a low time preference act.', pts:5, type:'mash',      target:6, label:'Chug chug chug!' },
+    { id:'gratitude',emoji:'🙏', name:'Gratitude Practice',   desc:'Abundance mindset. Stack happiness.',     pts:5, type:'drag',      dragTarget:'🙏→❤️' },
+    { id:'verify',   emoji:'🔍', name:'Verify a Transaction', desc:'Trust no one. Not even Rufus.',           pts:5, type:'typeword',  words:['VERIFY','PROOF','TRUST','CHECK','NODES','VALID'] },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -4305,18 +4303,52 @@ function _renderFlexInteraction(action) {
             '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Hold for ' + (action.holdMs/1000).toFixed(1) + 's<br><span style="color:var(--accent);font-size:0.65rem;font-weight:700;">PRESS &amp; HOLD</span></div>' +
             '</div>';
     }
-    if (action.type === 'doubletap') {
+    if (action.type === 'doubletap' || action.type === 'triplclick') {
+        var clicks = action.type === 'triplclick' ? 3 : 2;
+        var hint = action.type === 'triplclick' ? 'Triple tap!' : 'Double tap!';
         return '<div style="display:flex;align-items:center;gap:12px;">' +
-            '<button class="flex-btn" id="dtap-' + action.id + '" data-id="' + action.id + '" data-taps="0" data-last="0">' +
-            action.emoji + ' Double Tap!</button>' +
-            '<span id="dtap-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);">Tap twice fast ×2</span>' +
+            '<button class="flex-btn" id="dtap-' + action.id + '" data-id="' + action.id + '" data-taps="0" data-last="0" data-target="' + clicks + '">' +
+            action.emoji + ' ' + hint + '</button>' +
+            '<span id="dtap-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);">Tap ' + clicks + '× fast</span>' +
             '</div>';
     }
-    if (action.type === 'swipe') {
-        var label = action.dir === 'right' ? 'Swipe → right' : 'Swipe ← left';
-        return '<div class="flex-drag-zone" id="swipe-zone-' + action.id + '" data-id="' + action.id + '" data-dir="' + action.dir + '">' +
-            '<div class="flex-drag-thumb" id="swipe-thumb-' + action.id + '">' + action.emoji + '</div>' +
-            '<span style="margin-left:48px;font-size:0.75rem;pointer-events:none;">' + label + '</span>' +
+    if (action.type === 'slider') {
+        var isRight = action.dir === 'right';
+        var lbl = action.label || (isRight ? 'Slide right →' : '← Slide left');
+        // Thumb starts at the opposite end from the target
+        var thumbStart = isRight ? 4 : 'calc(100% - 40px)';
+        return '<div style="position:relative;margin-bottom:4px;">' +
+            '<div style="font-size:0.65rem;color:var(--accent);font-weight:700;margin-bottom:4px;">' + lbl + '</div>' +
+            '<div class="flex-slider-track" id="slider-track-' + action.id + '" data-id="' + action.id + '" data-dir="' + action.dir + '" ' +
+                'style="position:relative;height:44px;background:var(--bg-side);border:1px solid var(--border);border-radius:22px;overflow:hidden;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;">' +
+            '<div class="flex-slider-fill" id="slider-fill-' + action.id + '" style="position:absolute;top:0;' + (isRight?'left':'right') + ':0;height:100%;width:0%;background:rgba(247,147,26,0.15);transition:none;"></div>' +
+            '<div class="flex-slider-thumb" id="slider-thumb-' + action.id + '" style="position:absolute;top:4px;' + (isRight?'left:4px':'right:4px') + ';width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:grab;box-shadow:0 2px 8px rgba(247,147,26,0.5);transition:none;">' + action.emoji + '</div>' +
+            '<div style="position:absolute;top:50%;' + (isRight?'right:14px':'left:14px') + ';transform:translateY(-50%);font-size:0.7rem;color:var(--text-faint);pointer-events:none;">' + (isRight?'→→→':'←←←') + '</div>' +
+            '</div></div>';
+    }
+    if (action.type === 'mash') {
+        var target = action.target || 8;
+        return '<div>' +
+            '<button class="flex-btn" id="mash-btn-' + action.id + '" data-id="' + action.id + '" data-count="0" data-target="' + target + '" ' +
+                'style="width:100%;padding:12px;font-size:1rem;justify-content:center;">' +
+            action.emoji + ' ' + (action.label || 'Tap it!') + '</button>' +
+            '<div style="margin-top:6px;background:var(--bg-side);border-radius:6px;height:6px;overflow:hidden;border:1px solid var(--border);">' +
+            '<div id="mash-bar-' + action.id + '" style="height:100%;width:0%;background:var(--accent);border-radius:6px;transition:width 0.1s;"></div>' +
+            '</div>' +
+            '<div id="mash-label-' + action.id + '" style="text-align:center;font-size:0.7rem;color:var(--text-muted);margin-top:4px;">0 / ' + target + '</div>' +
+            '</div>';
+    }
+    if (action.type === 'typeword') {
+        var word = action.words[_flexDailySeed(action.id + '_w') % action.words.length];
+        return '<div>' +
+            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;">Type the word</div>' +
+            '<div style="display:inline-flex;gap:4px;margin-bottom:8px;">' +
+            word.split('').map(function(ch){ return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:28px;background:rgba(247,147,26,0.15);border:1px solid var(--accent);border-radius:6px;font-family:monospace;font-size:0.95rem;font-weight:900;color:var(--accent);padding:0 4px;">' + ch + '</span>'; }).join('') +
+            '</div><br>' +
+            '<input id="typeword-input-' + action.id + '" data-id="' + action.id + '" data-word="' + word + '" type="text" maxlength="' + (word.length + 2) + '" placeholder="Type it here…" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" ' +
+                'style="padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;letter-spacing:3px;outline:none;width:100%;box-sizing:border-box;text-transform:uppercase;" ' +
+                'oninput="_flexTypeWordCheck(this)">' +
+            '<div id="typeword-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">Type the word above, then hit ↵</div>' +
             '</div>';
     }
     if (action.type === 'drag') {
@@ -4329,10 +4361,8 @@ function _renderFlexInteraction(action) {
             '</div>';
     }
     if (action.type === 'sequence') {
-        // Pick today's code from pool using daily seed
         var seq = _flexPickSeq(action.pools, action.id);
         var allKeys = Array.from(new Set(seq));
-        // Build seeded decoy pool
         var decoyPool = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','K','L','N','P','Q','R','S','T','U','W','X','Y','Z'];
         var decoys = decoyPool.filter(function(k){ return allKeys.indexOf(k)===-1; });
         var dSeed = _flexDailySeed(action.id + '_d');
@@ -4347,7 +4377,7 @@ function _renderFlexInteraction(action) {
             '<div style="display:inline-flex;gap:4px;">' +
             seq.map(function(k){ return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:28px;background:rgba(247,147,26,0.15);border:1px solid var(--accent);border-radius:6px;font-family:monospace;font-size:0.95rem;font-weight:900;color:var(--accent);padding:0 4px;">' + k + '</span>'; }).join('') +
             '</div></div>' +
-            '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Enter it below: <span id="seq-display-' + action.id + '" style="font-family:monospace;color:var(--accent);letter-spacing:3px;">' + seq.map(function(){ return '·'; }).join(' ') + '</span></div>' +
+            '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Enter it below: <span id="seq-display-' + action.id + '" style="font-family:monospace;color:var(--accent);letter-spacing:3px;">' + seq.map(function(){ return '\u00b7'; }).join(' ') + '</span></div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
             displayKeys.map(function(k) {
                 return '<div class="flex-seq-key" data-id="' + action.id + '" data-key="' + k + '" onclick="_flexSeqTap(this)">' + k + '</div>';
@@ -4357,6 +4387,28 @@ function _renderFlexInteraction(action) {
     }
     return '';
 }
+
+
+// Global typeword handler
+window._flexTypeWordCheck = function(input) {
+    var id = input.getAttribute('data-id');
+    var word = input.getAttribute('data-word');
+    var val = input.value.toUpperCase().trim();
+    var hint = document.getElementById('typeword-hint-' + id);
+    if (val === word) {
+        input.style.borderColor = '#22c55e';
+        input.style.color = '#22c55e';
+        if (hint) hint.textContent = '\u2705 Perfect!';
+        setTimeout(function(){ _flexMarkDone(id, function(){ _flexCardSuccess(id); }); }, 300);
+    } else if (word.indexOf(val) === 0) {
+        input.style.borderColor = 'var(--accent)';
+        if (hint) hint.textContent = (word.length - val.length) + ' more letters…';
+    } else {
+        input.style.borderColor = '#ef4444';
+        if (hint) { hint.textContent = 'Not quite — try again'; hint.style.color = '#ef4444'; }
+        setTimeout(function(){ input.style.borderColor = 'var(--border)'; if(hint) hint.style.color = 'var(--text-muted)'; }, 600);
+    }
+};
 
 // Global seq tap handler
 window._flexSeqTap = function(el) {
@@ -4442,161 +4494,194 @@ function _flexWireInteractions() {
     FLEX_ACTIONS.forEach(function(action) {
         if (_flexDoneToday(action.id)) return;
 
+        // ── HOLD ──
         if (action.type === 'hold') {
             var ring = document.getElementById('hold-ring-' + action.id);
             if (!ring) return;
             var arc = document.getElementById('hold-arc-' + action.id);
             var r = 24, circ = 2*Math.PI*r;
             var heldFrom = null, raf = null;
-
             function startHold(e) {
                 e.preventDefault();
+                if (heldFrom) return;
                 heldFrom = Date.now();
-                function tick() {
+                (function tick() {
                     var elapsed = Date.now() - heldFrom;
                     var pct = Math.min(1, elapsed / action.holdMs);
                     if (arc) arc.style.strokeDashoffset = circ * (1 - pct);
                     if (pct < 1) { raf = requestAnimationFrame(tick); }
                     else { endHold(true); }
-                }
-                raf = requestAnimationFrame(tick);
+                })();
             }
             function endHold(success) {
+                if (!heldFrom && !success) return;
+                heldFrom = null;
                 cancelAnimationFrame(raf);
-                if (!success) {
-                    if (arc) arc.style.strokeDashoffset = circ;
-                } else {
-                    _flexMarkDone(action.id, function() { _flexCardSuccess(action.id); });
-                }
+                if (!success) { if (arc) arc.style.strokeDashoffset = circ; }
+                else { _flexMarkDone(action.id, function() { _flexCardSuccess(action.id); }); }
             }
             ring.addEventListener('mousedown', startHold);
             ring.addEventListener('touchstart', startHold, {passive:false});
-            ring.addEventListener('mouseup', function(){ endHold(false); });
+            window.addEventListener('mouseup', function(){ endHold(false); });
             ring.addEventListener('touchend', function(){ endHold(false); });
-            ring.addEventListener('mouseleave', function(){ if(heldFrom) endHold(false); heldFrom=null; });
+            ring.addEventListener('touchcancel', function(){ endHold(false); });
         }
 
-        if (action.type === 'doubletap') {
+        // ── DOUBLETAP / TRIPLCLICK ──
+        if (action.type === 'doubletap' || action.type === 'triplclick') {
             var btn = document.getElementById('dtap-' + action.id);
             if (!btn) return;
+            var target = parseInt(btn.getAttribute('data-target') || '2');
             btn.addEventListener('click', function() {
                 var now = Date.now();
                 var taps = parseInt(btn.getAttribute('data-taps') || '0');
                 var last = parseInt(btn.getAttribute('data-last') || '0');
-                if (now - last < 400) {
+                var hint = document.getElementById('dtap-hint-' + action.id);
+                if (now - last < 500) {
                     taps++;
                     btn.setAttribute('data-taps', taps);
-                    var hint = document.getElementById('dtap-hint-' + action.id);
-                    if (hint) hint.textContent = taps >= 2 ? '🎉 Double tapped!' : 'One more!';
-                    if (taps >= 2) {
-                        setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 200);
+                    var remaining = target - taps;
+                    if (remaining <= 0) {
+                        if (hint) hint.textContent = '\uD83C\uDF89 Done!';
+                        setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 150);
+                    } else {
+                        if (hint) hint.textContent = remaining + ' more tap' + (remaining>1?'s':'') + '!';
                     }
                 } else {
                     btn.setAttribute('data-taps', '1');
-                    var hint2 = document.getElementById('dtap-hint-' + action.id);
-                    if (hint2) hint2.textContent = 'Now tap again fast!';
+                    if (hint) hint.textContent = (target - 1) + ' more tap' + (target-1>1?'s':'') + ' — fast!';
                 }
                 btn.setAttribute('data-last', now);
             });
         }
 
-        if (action.type === 'swipe') {
-            var zone = document.getElementById('swipe-zone-' + action.id);
-            var thumb = document.getElementById('swipe-thumb-' + action.id);
-            if (!zone || !thumb) return;
-            var startX = null, startLeft = 8;
-            var zoneW = 0;
+        // ── SLIDER (desktop + touch, no escape) ──
+        if (action.type === 'slider') {
+            var track = document.getElementById('slider-track-' + action.id);
+            var thumb = document.getElementById('slider-thumb-' + action.id);
+            var fill  = document.getElementById('slider-fill-' + action.id);
+            if (!track || !thumb) return;
             var isRight = action.dir === 'right';
+            var dragging = false;
+            var trackRect = null;
 
-            function swipeStart(e) {
+            function getX(e) { return e.touches ? e.touches[0].clientX : (e.changedTouches ? e.changedTouches[0].clientX : e.clientX); }
+
+            function sliderDown(e) {
                 e.preventDefault();
-                zoneW = zone.getBoundingClientRect().width;
-                startX = (e.touches ? e.touches[0].clientX : e.clientX);
+                dragging = true;
+                trackRect = track.getBoundingClientRect();
                 thumb.style.transition = 'none';
+                fill.style.transition = 'none';
+                sliderMove(e);
             }
-            function swipeMove(e) {
-                if (startX === null) return;
-                var cx = e.touches ? e.touches[0].clientX : e.clientX;
-                var dx = cx - startX;
-                var newLeft = Math.min(Math.max(8, startLeft + dx), zoneW - 44);
-                thumb.style.left = newLeft + 'px';
-                var pct = (newLeft - 8) / (zoneW - 52);
-                thumb.style.opacity = 0.6 + 0.4*pct;
+            function sliderMove(e) {
+                if (!dragging) return;
+                var x = getX(e) - trackRect.left;
+                var thumbW = 44;
+                var trackW = trackRect.width;
+                var clampedX = Math.max(thumbW/2, Math.min(x, trackW - thumbW/2));
+                var pct = (clampedX - thumbW/2) / (trackW - thumbW);
+                // position thumb
+                thumb.style[isRight ? 'left' : 'right'] = (clampedX - thumbW/2) + 'px';
+                fill.style.width = Math.round(pct * 100) + '%';
+                if (pct >= 0.88) { sliderUp(e, true); }
             }
-            function swipeEnd(e) {
-                if (startX === null) return;
-                var cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-                var dx = cx - startX;
-                var success = isRight ? dx > zoneW * 0.55 : dx < -(zoneW * 0.55);
-                thumb.style.transition = 'left 0.3s, opacity 0.3s';
+            function sliderUp(e, forceSuccess) {
+                if (!dragging) return;
+                dragging = false;
+                var x = getX(e) - (trackRect ? trackRect.left : 0);
+                var trackW = trackRect ? trackRect.width : 200;
+                var pct = (x - 22) / (trackW - 44);
+                var success = forceSuccess || pct >= 0.88;
+                thumb.style.transition = 'left 0.3s, right 0.3s';
+                fill.style.transition = 'width 0.3s';
                 if (success) {
-                    thumb.style.left = (isRight ? zoneW - 44 : 8) + 'px';
+                    thumb.style[isRight ? 'left' : 'right'] = (trackW - 40) + 'px';
+                    fill.style.width = '100%';
                     setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 250);
                 } else {
-                    thumb.style.left = '8px';
+                    thumb.style[isRight ? 'left' : 'right'] = '4px';
+                    fill.style.width = '0%';
                 }
-                startX = null;
+                trackRect = null;
             }
-            zone.addEventListener('mousedown', swipeStart);
-            zone.addEventListener('mousemove', swipeMove);
-            zone.addEventListener('mouseup', swipeEnd);
-            zone.addEventListener('touchstart', swipeStart, {passive:false});
-            zone.addEventListener('touchmove', swipeMove, {passive:false});
-            zone.addEventListener('touchend', swipeEnd);
+            track.addEventListener('mousedown', sliderDown);
+            track.addEventListener('touchstart', sliderDown, {passive:false});
+            window.addEventListener('mousemove', function(e){ if(dragging) sliderMove(e); });
+            window.addEventListener('mouseup',   function(e){ if(dragging) sliderUp(e, false); });
+            window.addEventListener('touchmove', function(e){ if(dragging) sliderMove(e); }, {passive:false});
+            window.addEventListener('touchend',  function(e){ if(dragging) sliderUp(e, false); });
         }
 
+        // ── MASH ──
+        if (action.type === 'mash') {
+            var mashBtn = document.getElementById('mash-btn-' + action.id);
+            var mashBar = document.getElementById('mash-bar-' + action.id);
+            var mashLbl = document.getElementById('mash-label-' + action.id);
+            if (!mashBtn) return;
+            var mashTarget = parseInt(mashBtn.getAttribute('data-target') || '8');
+            mashBtn.addEventListener('click', function() {
+                var count = parseInt(mashBtn.getAttribute('data-count') || '0') + 1;
+                mashBtn.setAttribute('data-count', count);
+                if (mashBar) mashBar.style.width = Math.min(100, Math.round(count/mashTarget*100)) + '%';
+                if (mashLbl) mashLbl.textContent = count + ' / ' + mashTarget;
+                mashBtn.style.transform = 'scale(0.93)';
+                setTimeout(function(){ mashBtn.style.transform = ''; }, 80);
+                if (count >= mashTarget) {
+                    setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 150);
+                }
+            });
+        }
+
+        // ── DRAG ──
         if (action.type === 'drag') {
             var dzone = document.getElementById('drag-zone-' + action.id);
             var dthumb = document.getElementById('drag-thumb-' + action.id);
             var dtarget = document.getElementById('drag-target-' + action.id);
             if (!dzone || !dthumb || !dtarget) return;
-            var dStartX = null, dStartY = null, origLeft = null, origTop = null;
-
+            var dDragging = false, dZoneRect = null;
+            function dGetXY(e) { var t = e.touches||e.changedTouches; return t ? {x:t[0].clientX,y:t[0].clientY} : {x:e.clientX,y:e.clientY}; }
             function dragStart(e) {
                 e.preventDefault();
-                var et = e.touches ? e.touches[0] : e;
-                var rect = dthumb.getBoundingClientRect();
-                dStartX = et.clientX - rect.left - rect.width/2;
-                dStartY = et.clientY - rect.top - rect.height/2;
+                dDragging = true;
+                dZoneRect = dzone.getBoundingClientRect();
                 dthumb.style.transition = 'none';
                 dthumb.style.zIndex = '10';
-                origLeft = dthumb.style.left || '0px';
-                origTop = dthumb.style.top || '0px';
-                dthumb.style.position = 'absolute';
             }
             function dragMove(e) {
-                if (dStartX === null) return;
-                var et = e.touches ? e.touches[0] : e;
-                var zrect = dzone.getBoundingClientRect();
-                var nx = et.clientX - zrect.left - 18;
-                var ny = et.clientY - zrect.top - 18;
-                dthumb.style.left = Math.max(0, Math.min(nx, zrect.width-36)) + 'px';
-                dthumb.style.top = Math.max(0, Math.min(ny, zrect.height-36)) + 'px';
+                if (!dDragging) return;
+                var p = dGetXY(e);
+                var nx = p.x - dZoneRect.left - 18;
+                var ny = p.y - dZoneRect.top - 18;
+                dthumb.style.left = Math.max(0, Math.min(nx, dZoneRect.width-36)) + 'px';
+                dthumb.style.top  = Math.max(0, Math.min(ny, dZoneRect.height-36)) + 'px';
             }
             function dragEnd(e) {
-                if (dStartX === null) return;
-                var et = e.changedTouches ? e.changedTouches[0] : e;
-                var trect = dtarget.getBoundingClientRect();
-                var hit = et.clientX >= trect.left - 20 && et.clientX <= trect.right + 20 && et.clientY >= trect.top - 20 && et.clientY <= trect.bottom + 20;
+                if (!dDragging) return;
+                dDragging = false;
+                var p = dGetXY(e);
+                var tr = dtarget.getBoundingClientRect();
+                var hit = p.x >= tr.left-24 && p.x <= tr.right+24 && p.y >= tr.top-24 && p.y <= tr.bottom+24;
                 dthumb.style.transition = 'left 0.3s, top 0.3s';
                 if (hit) {
-                    var tzrect = dzone.getBoundingClientRect();
-                    dthumb.style.left = (trect.left - tzrect.left) + 'px';
-                    dthumb.style.top = (trect.top - tzrect.top) + 'px';
+                    dthumb.style.left = (tr.left - dZoneRect.left) + 'px';
+                    dthumb.style.top  = (tr.top  - dZoneRect.top)  + 'px';
                     setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 250);
                 } else {
                     dthumb.style.left = '0px';
-                    dthumb.style.top = '0px';
+                    dthumb.style.top  = '0px';
                 }
-                dStartX = null;
+                dZoneRect = null;
             }
             dthumb.addEventListener('mousedown', dragStart);
             dthumb.addEventListener('touchstart', dragStart, {passive:false});
-            dzone.addEventListener('mousemove', dragMove);
-            dzone.addEventListener('touchmove', dragMove, {passive:false});
-            dzone.addEventListener('mouseup', dragEnd);
-            dzone.addEventListener('touchend', dragEnd);
-            window.addEventListener('mouseup', dragEnd);
+            window.addEventListener('mousemove', function(e){ if(dDragging) dragMove(e); });
+            window.addEventListener('mouseup',   function(e){ if(dDragging) dragEnd(e); });
+            window.addEventListener('touchmove', function(e){ if(dDragging) dragMove(e); }, {passive:false});
+            window.addEventListener('touchend',  function(e){ if(dDragging) dragEnd(e); });
         }
     });
 }
+
+
