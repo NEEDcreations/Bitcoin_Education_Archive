@@ -2497,17 +2497,8 @@ function _renderTopHashesHTML(entries) {
         '</div>';
     }
 
-    var top10 = entries.slice(0, 10);
-    var rest = entries.slice(10);
-    for (var i = 0; i < top10.length; i++) html += renderEntry(top10[i], i);
-
-    if (rest.length > 0) {
-        html += '<div id="favorHashesMore" style="display:none;">';
-        for (var j = 0; j < rest.length; j++) html += renderEntry(rest[j], 10 + j);
-        html += '</div>';
-        html += '<button onclick="(function(){var m=document.getElementById(\'favorHashesMore\');var b=document.getElementById(\'favorHashesMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()" ' +
-            'id="favorHashesMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
-    }
+    // Show all top 25 entries
+    for (var i = 0; i < entries.length; i++) html += renderEntry(entries[i], i);
 
     return html;
 }
