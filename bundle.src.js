@@ -28505,11 +28505,22 @@ if (locked) {
     window.showProofOfWalk = function() {
         var menu = document.getElementById("appsMenu");
         if (menu) menu.style.display = "none";
-        var container = document.getElementById("main");
-        if (container) {
-            container.innerHTML = "<div id=\"explore-apps-grid\" style=\"padding:20px;\"></div>";
-            if (window.renderProofOfWalk) window.renderProofOfWalk();
+        // Use forumContainer pattern so back button works (same as IRL sync, etc.)
+        if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
+        document.getElementById('home').classList.add('hidden');
+        document.getElementById('hero').innerHTML = '';
+        document.getElementById('msgs').innerHTML = '';
+        document.getElementById('msgs').style.display = 'none';
+        document.getElementById('hero').style.display = 'none';
+        var fc = document.getElementById('forumContainer');
+        if (fc) {
+            fc.style.display = 'block';
+            fc.innerHTML = '<div id="explore-apps-grid" style="padding:20px;"></div>';
         }
+        history.pushState({ channel: 'proof-of-walk' }, '', '/app/proof-of-walk');
+        if (isMobile && isMobile()) { var sb = document.getElementById('sidebar'); if (sb) sb.classList.remove('open'); }
+        if (typeof setFloatingElementsVisible === 'function') setFloatingElementsVisible(true);
+        if (window.renderProofOfWalk) window.renderProofOfWalk();
     };
     window.toggleSidebarMenu = function(id) {
         var menu = document.getElementById(id);
@@ -28723,6 +28734,12 @@ if (locked) {
             // IRL Sync browse
             if (hash === 'irl-sync' || state.channel === 'irl-sync') {
                 go('irl-sync', null, true);
+                return;
+            }
+
+            // Proof of Walk
+            if (hash === 'proof-of-walk' || state.channel === 'proof-of-walk') {
+                if (typeof showProofOfWalk === 'function') showProofOfWalk();
                 return;
             }
 
