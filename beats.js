@@ -424,6 +424,8 @@ window.beatsPlayTrack = function(idx) {
     window._beatsQueueIdx = idx;
     // Daily challenge: track that user played a beat
     try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_beats_played_' + _t, 'true'); } catch(e) {}
+    // Lifetime play count for badges
+    try { var _pc = parseInt(localStorage.getItem('btc_beats_play_count') || '0'); localStorage.setItem('btc_beats_play_count', String(_pc + 1)); } catch(e) {}
 
     // Stop existing
     if (window._beatsAudio) { window._beatsAudio.pause(); window._beatsAudio = null; }
@@ -3277,6 +3279,8 @@ window.beatsPerformSearch = function() {
     if (!input) return;
     var query = input.value.trim().toLowerCase();
     if (!query) { if(typeof showToast==='function') showToast('Type something to search'); return; }
+    // Track beats search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('beats') === -1) { _ss.push('beats'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
 
     window._beatsCurrentTab = 'search';
     ['discover','library','artists','upload','livestream','pumpit'].forEach(function(t) {

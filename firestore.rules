@@ -36,7 +36,11 @@ service cloud.firestore {
                         'pvpWins', 'pvpLosses', 'forumPosts', 'forumReplies',
                         'marketListings', 'marketMessages', 'referralCode',
                         'pendingOverflow', 'lastOverflowDate',
-                        'pointsDonated', 'donationBadges'
+                        'pointsDonated', 'donationBadges',
+                        // [AUDIT FIX] daily_all_three fields — must be written by CF only
+                        'dailyAllThreeDate', 'dailyQuizDone', 'dailyTriviaDone', 'dailyPollDone',
+                        // [AUDIT FIX] visibleBadges must be written by awardPoints CF only
+                        'visibleBadges'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
@@ -282,10 +286,12 @@ service cloud.firestore {
     // =============================================
     match /giveaway_entries/{entryId} {
       allow read: if false;
+      // [AUDIT FIX H-3] One entry per user — force entryId == uid so duplicates are impossible
       allow create: if request.auth != null
-                    && (request.auth.uid == entryId 
-                        || request.resource.data.uid == request.auth.uid);
+                    && entryId == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid;
       allow update: if request.auth != null
+                    && entryId == request.auth.uid
                     && resource.data.uid == request.auth.uid;
     }
 
@@ -1023,6 +1029,11 @@ service cloud.firestore {
     }
 
     // ===== RAID BOSS =====
+    // Per-user daily contribution caps — Cloud Function writes only
+    match /raid_daily_caps/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
     // Boss documents — read-only for all, server (admin SDK) writes
     match /raid_bosses/{bossId} {
       allow read: if true;

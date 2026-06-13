@@ -54,14 +54,14 @@ const BADGE_DEFS = [
         const h = new Date().getHours();
         return h >= 5 && h < 7;
     }, pts: 15},
-    { id: 'cert_scholar', name: 'Bitcoin Scholar', emoji: '🎓', desc: 'Passed the Bitcoin Scholar Certification', check: () => localStorage.getItem('btc_scholar_prop_passed') === 'true', pts: 50 },
+    { id: 'cert_scholar', name: 'Bitcoin Scholar', emoji: '🎓', desc: 'Passed the Bitcoin Scholar Certification', check: () => localStorage.getItem('btc_scholar_prop_passed') === 'true', pts: 50, displayPts: 2100 },
     // --- Timechain TV watch-time badges ---
     { id: 'tctv_tuned_in', name: 'Tuned In', emoji: '📺', desc: 'Watched 10 min of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 10, pts: 10 },
     { id: 'tctv_couch_potato', name: 'Couch Potato', emoji: '🛋️', desc: 'Watched 60 min of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 60, pts: 25 },
     { id: 'tctv_binge_watcher', name: 'Binge Watcher', emoji: '🍿', desc: 'Watched 5 hours of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 300, pts: 50 },
     { id: 'tctv_couch_king', name: 'Couch King', emoji: '🛌', desc: 'Watched 24 hours of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 1440, pts: 100 },
     { id: 'tctv_satellite', name: 'Satellite', emoji: '🛰️', desc: 'Watched 100 hours of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 6000, pts: 750 },
-    { id: 'cert_tech', name: 'Protocol Expert', emoji: '🛠️', desc: 'Passed the Technical Protocol Expert Certification', check: () => localStorage.getItem('btc_scholar_tech_passed') === 'true', pts: 100 },
+    { id: 'cert_tech', name: 'Protocol Expert', emoji: '🛠️', desc: 'Passed the Technical Protocol Expert Certification', check: () => localStorage.getItem('btc_scholar_tech_passed') === 'true', pts: 100, displayPts: 2100 },
     { id: 'nacho_chatterbox', name: 'Nacho Chatterbox', emoji: '🦌', desc: 'Interacted with Nacho 50+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 50, pts: 30 },
     { id: 'nacho_bestie', name: 'Nacho\'s Bestie', emoji: '🧡', desc: 'Interacted with Nacho 250+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 250, pts: 200 },
 
@@ -189,6 +189,103 @@ const BADGE_DEFS = [
     { id: 'raid_boss_slayer_5', name: 'Boss Hunter', emoji: '🐉', desc: 'Participated in defeating 5 Raid Bosses', check: () => parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') >= 5, pts: 150 },
     { id: 'raid_boss_slayer_10', name: 'Dragon Slayer', emoji: '🐲', desc: 'Participated in defeating 10 Raid Bosses', check: () => parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') >= 10, pts: 500 },
     { id: 'raid_winner', name: 'Raid Champion', emoji: '🎖️', desc: 'Won the sats lottery after a Raid Boss defeat', check: () => localStorage.getItem('btc_raid_winner') === 'true', pts: 250 },
+
+    // ---- Trivia ----
+    { id: 'trivia_first', name: 'Quiz Curious', emoji: '🧠', desc: 'Answered your first daily trivia question', check: () => { try { var s = JSON.parse(localStorage.getItem('btc_trivia_state') || '{}'); return !!s.date; } catch(e) { return false; } }, pts: 10 },
+    { id: 'trivia_correct_1', name: 'Trivia Warm-Up', emoji: '✅', desc: 'Got your first trivia question correct', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaCorrect || 0) >= 1, pts: 15 },
+    { id: 'trivia_correct_10', name: 'Fact Checker', emoji: '🔎', desc: 'Got 10 trivia questions correct', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaCorrect || 0) >= 10, pts: 30 },
+    { id: 'trivia_correct_30', name: 'Big Brain', emoji: '🦾', desc: 'Got 30 trivia questions correct', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaCorrect || 0) >= 30, pts: 75 },
+    { id: 'trivia_correct_100', name: 'Trivia Titan', emoji: '🏅', desc: 'Got 100 trivia questions correct — absolute Bitcoin scholar', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaCorrect || 0) >= 100, pts: 500 },
+    { id: 'trivia_streak_7', name: 'Daily Habit', emoji: '📆', desc: 'Answered trivia 7 days in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaStreak || 0) >= 7, pts: 50 },
+    { id: 'trivia_streak_30', name: 'Trivia Devotee', emoji: '🔱', desc: 'Answered trivia 30 days in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.triviaStreak || 0) >= 30, pts: 300 },
+
+    // ---- Daily Poll ----
+    { id: 'poll_first', name: 'Opinionated', emoji: '🗳️', desc: 'Cast your first vote in the daily poll', check: () => { try { var s = JSON.parse(localStorage.getItem('btc_poll_state') || '{}'); return !!s.date; } catch(e) { return false; } }, pts: 10 },
+    { id: 'poll_10', name: 'Regular Voter', emoji: '🗓️', desc: 'Voted in 10 daily polls', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.pollsVoted || 0) >= 10, pts: 25 },
+    { id: 'poll_50', name: 'Civic Plebian', emoji: '🏛️', desc: 'Voted in 50 daily polls', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.pollsVoted || 0) >= 50, pts: 100 },
+    { id: 'poll_100', name: 'Democracy Maxi', emoji: '⚖️', desc: 'Voted in 100 daily polls — never missed an opinion', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.pollsVoted || 0) >= 100, pts: 400 },
+
+    // ---- Daily All-Three ----
+    { id: 'daily_triple_1', name: 'Triple Play', emoji: '🎯', desc: 'Completed quiz, trivia AND poll in one day', check: () => { try { var s = JSON.parse(localStorage.getItem('btc_daily_activities') || '{}'); return !!(s.sfAwarded); } catch(e) { return false; } }, pts: 25 },
+    { id: 'daily_triple_7', name: 'Consistent Stacker', emoji: '📚', desc: 'Completed all three daily activities 7 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 7, pts: 100 },
+    { id: 'daily_triple_30', name: 'Unstoppable', emoji: '🚂', desc: 'Completed all three daily activities 30 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 30, pts: 500 },
+
+    // ---- Marketplace ----
+    { id: 'market_browse', name: 'Window Shopper', emoji: '🛍️', desc: 'Visited the Lightning Marketplace', check: () => localStorage.getItem('btc_market_rules_accepted') === 'true', pts: 10 },
+    { id: 'market_listed_1', name: 'Vendor', emoji: '🏪', desc: 'Listed your first item in the Marketplace', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketListings || 0) >= 1, pts: 30 },
+    { id: 'market_listed_5', name: 'Merchant', emoji: '💼', desc: 'Listed 5 items in the Marketplace', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketListings || 0) >= 5, pts: 75 },
+    { id: 'market_saved_5', name: 'Wishlist', emoji: '❤️‍🔥', desc: 'Saved 5 items in the Marketplace', check: () => { try { return (JSON.parse(localStorage.getItem('btc_market_saved') || '[]')).length >= 5; } catch(e) { return false; } }, pts: 15 },
+    { id: 'market_message', name: 'Dealmaker', emoji: '🤜', desc: 'Sent your first Marketplace message to a seller', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketMessages || 0) >= 1, pts: 20 },
+
+    // ---- Bookmarks & Favorites ----
+    { id: 'bookmarks_1', name: 'Earmarked', emoji: '🔖', desc: 'Bookmarked your first article', check: () => { try { return (JSON.parse(localStorage.getItem('btc_bookmarks') || '[]')).length >= 1; } catch(e) { return false; } }, pts: 10 },
+    { id: 'bookmarks_10', name: 'Archivist', emoji: '🗄️', desc: 'Bookmarked 10 articles', check: () => { try { return (JSON.parse(localStorage.getItem('btc_bookmarks') || '[]')).length >= 10; } catch(e) { return false; } }, pts: 30 },
+    { id: 'favs_10', name: 'Curator', emoji: '🧹', desc: 'Saved 10 topics to favorites', check: () => { try { return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 10; } catch(e) { return false; } }, pts: 25 },
+    { id: 'favs_25', name: 'Collection', emoji: '🗂️', desc: 'Saved 25 topics to favorites', check: () => { try { return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 25; } catch(e) { return false; } }, pts: 75 },
+
+    // ---- DMs & Social ----
+    { id: 'dm_10', name: 'Inbox Zero', emoji: '📥', desc: 'Sent 10 direct messages', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 10, pts: 25 },
+    { id: 'dm_buddy', name: 'Buddy Up', emoji: '🫂', desc: 'Matched with a Bitcoin learning buddy', check: () => localStorage.getItem('btc_buddy_matched') === 'true', pts: 30 },
+    { id: 'react_5', name: 'Reactor', emoji: '⚡', desc: 'Reacted to 5 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 5, pts: 10 },
+    { id: 'react_200', name: 'Emoji Sensei', emoji: '🧘', desc: 'Reacted to 200 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 200, pts: 150 },
+    { id: 'tip_sats_10k', name: 'Sat Slinger', emoji: '💰', desc: 'Tipped 10,000+ sats total', check: () => parseInt(localStorage.getItem('btc_tips_total_sats') || '0') >= 10000, pts: 300 },
+    { id: 'tip_received_1', name: 'Tip Received', emoji: '🎁', desc: 'Received your first tip from another user', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 1, pts: 20 },
+    { id: 'tip_received_50', name: 'Community Darling', emoji: '🌟', desc: 'Received 50 tips from others', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 50, pts: 500 },
+
+    // ---- Price Predictions ----
+    { id: 'predict_10', name: 'Market Watcher', emoji: '📊', desc: 'Made 10 price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.total || 0 : 0) >= 10, pts: 25 },
+    { id: 'predict_50', name: 'Chartist', emoji: '📈', desc: 'Made 50 price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.total || 0 : 0) >= 50, pts: 75 },
+    { id: 'predict_correct_25', name: 'Pattern Reader', emoji: '🌊', desc: '25 correct price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 25, pts: 200 },
+    { id: 'predict_correct_100', name: 'Time Traveler', emoji: '⏳', desc: '100 correct price predictions — you can see the future', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 100, pts: 750 },
+
+    // ---- IRL Attendance ----
+    { id: 'irl_attend_1', name: 'Show Up', emoji: '📍', desc: 'RSVPed to your first IRL event', check: () => parseInt(localStorage.getItem('btc_irl_attended') || '0') >= 1, pts: 25 },
+    { id: 'irl_attend_5', name: 'Scene Regular', emoji: '🗺️', desc: 'Attended 5 IRL Bitcoin events', check: () => parseInt(localStorage.getItem('btc_irl_attended') || '0') >= 5, pts: 100 },
+    { id: 'irl_host_10', name: 'Regional Leader', emoji: '🌆', desc: 'Hosted 10 IRL Bitcoin events', check: () => parseInt(localStorage.getItem('btc_irl_hosted') || '0') >= 10, pts: 500 },
+
+    // ---- Bitcoin Beats listening ----
+    { id: 'beats_first_listen', name: 'First Listen', emoji: '🎵', desc: 'Listened to your first track on Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_play_count') || '0') >= 1, pts: 10 },
+    { id: 'beats_50_plays', name: 'Audiophile', emoji: '🎧', desc: 'Played 50 tracks on Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_play_count') || '0') >= 50, pts: 30 },
+    { id: 'beats_liked_10', name: 'Music Fan', emoji: '🩷', desc: 'Liked 10 tracks on Bitcoin Beats', check: () => { try { return (JSON.parse(localStorage.getItem('btc_beats_liked') || '[]')).length >= 10; } catch(e) { return false; } }, pts: 20 },
+    { id: 'beats_liked_50', name: 'Taste Maker', emoji: '🎼', desc: 'Liked 50 tracks on Bitcoin Beats', check: () => { try { return (JSON.parse(localStorage.getItem('btc_beats_liked') || '[]')).length >= 50; } catch(e) { return false; } }, pts: 75 },
+
+    // ---- Nacho ----
+    { id: 'nacho_asked_10', name: 'Curious', emoji: '🤔', desc: 'Asked Nacho 10 questions', check: () => parseInt(localStorage.getItem('btc_nacho_sent') || '0') >= 10, pts: 15 },
+    { id: 'nacho_asked_100', name: 'Nacho Scholar', emoji: '🦌', desc: 'Asked Nacho 100 questions', check: () => parseInt(localStorage.getItem('btc_nacho_sent') || '0') >= 100, pts: 75 },
+    { id: 'nacho_whisper', name: 'Nacho\'s Confidant', emoji: '🤫', desc: 'Interacted with Nacho 500+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 500, pts: 500 },
+    { id: 'nacho_eli5', name: 'ELI5 Mode', emoji: '👶', desc: 'Used Explain it Like I\'m 5 mode with Nacho', check: () => parseInt(localStorage.getItem('btc_nacho_eli5') || '0') >= 1, pts: 10 },
+    // Nacho's Story
+    { id: 'story_begun', name: 'Story Begun', emoji: '📖', desc: 'Read Chapter 1 of Nacho\'s Story — the Genesis Block', check: () => { try { return safeJSON('btc_nacho_story_awarded', []).length >= 1; } catch(e) { return false; } }, pts: 15 },
+    { id: 'story_halfway', name: 'Halfway There', emoji: '🎙️', desc: 'Read 4 chapters of Nacho\'s Story', check: () => { try { return safeJSON('btc_nacho_story_awarded', []).length >= 4; } catch(e) { return false; } }, pts: 50 },
+    { id: 'story_complete', name: 'Story Master', emoji: '🦧📚', desc: 'Completed all 7 chapters of Nacho\'s Story', check: () => { try { return safeJSON('btc_nacho_story_awarded', []).length >= 7; } catch(e) { return false; } }, pts: 150 },
+
+    // ---- Sats milestones ----
+    { id: 'sats_10k', name: 'Sat Hoarder', emoji: '🏦', desc: 'Claimed 10,000 sats total from the faucet', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 10000, pts: 500 },
+    { id: 'sats_21k', name: '21 Million Dreams', emoji: '₿', desc: 'Claimed 21,000 sats — because 21 million is the magic number', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 21000, pts: 2100, hidden: false },
+
+    // ---- Streak milestones (fill the gap between 30 and 100) ----
+    { id: 'streak_14', name: 'Two Weeks Strong', emoji: '📅', desc: '14-day visit streak', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 14, pts: 75 },
+    { id: 'streak_60', name: 'Two Month Maxi', emoji: '🗓️', desc: '60-day visit streak', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 60, pts: 400 },
+    { id: 'streak_200', name: 'Sovereign Individual', emoji: '🗽', desc: '200-day visit streak — this is dedication', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 200, pts: 2100 },
+
+    // ---- Very Difficult ----
+    { id: 'all_certs', name: 'Grand Scholar', emoji: '🎓', desc: 'Earned all three Bitcoin certifications (Scholar, Protocol Expert, and all Trails)', check: () => localStorage.getItem('btc_scholar_prop_passed') === 'true' && localStorage.getItem('btc_scholar_tech_passed') === 'true' && (function(){ try { var p = JSON.parse(localStorage.getItem('btc_trail_passed') || '[]'); return p.includes('meadow') && p.includes('mountain') && p.includes('summit'); } catch(e) { return false; } })(), pts: 1500 },
+    { id: 'jack_of_all', name: 'Jack of All Trades', emoji: '🃏', desc: 'Earned at least one badge in every major category', check: () => {
+        var b = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+        var has = function(ids) { return ids.some(function(id) { return b.indexOf(id) !== -1; }); };
+        return has(['quest_1','quest_3','quest_5','quest_10','quest_25','quest_50','quest_100'])
+            && has(['chat_first','chat_10','chat_50','chat_100','chat_500'])
+            && has(['pvp_first','pvp_5','pvp_25','pvp_50','pvp_100'])
+            && has(['tctv_tuned_in','tctv_couch_potato','tctv_binge_watcher','tctv_couch_king','tctv_satellite'])
+            && has(['sf_first_hash','sf_10_hashes','sf_50_hashes','sf_100_hashes','sf_500_hashes','sf_1000_hashes','sf_10000_hashes'])
+            && has(['raid_first','raid_5','raid_10','raid_25','raid_50','raid_100'])
+            && has(['tip_first','tip_10','tip_whale'])
+            && has(['streak_7','streak_30','streak_100']);
+    }, pts: 3000 },
+    { id: 'hall_of_fame', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 50 or more distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
+    { id: 'the_archive', name: 'The Archive', emoji: '🏛️', desc: 'Earned 100 distinct badges — you don\'t just use the Archive, you are it', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 100, pts: 10000, hidden: false },
+    { id: 'genesis_block', name: 'Genesis Block', emoji: '⚡', desc: 'Earned 150 distinct badges — foundational, irreplaceable, impossible to ignore', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 150, pts: 15000, hidden: false },
+    { id: 'satoshis_ghost', name: "Satoshi's Ghost", emoji: '👻', desc: 'Earned 200 distinct badges — so rare, nobody knows if it has ever been done', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 200, pts: 21000, hidden: false },
 ];
 
 let earnedBadges = new Set();
@@ -248,14 +345,7 @@ window.markVisibleBadgesReady = function() {
 
     if (migrated) {
         localStorage.setItem('btc_badges', JSON.stringify([...earnedBadges]));
-        // Save to Firebase so this migration only happens once
-        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
-            try {
-                db.collection('users').doc(auth.currentUser.uid).update({
-                    visibleBadges: [...earnedBadges]
-                });
-            } catch(e) {}
-        }
+        // visibleBadges is now CF-only (blocked from client writes). Migration is read-only here.
     }
 
     window._visibleBadgesReady = true;
@@ -307,14 +397,8 @@ function checkBadges() {
                 if (typeof awardPoints === 'function') {
                     awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji, null, null, null, badge.id);
                 }
-                // Save to Firebase so badges persist across devices/browsers
-                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
-                    try {
-                        db.collection('users').doc(auth.currentUser.uid).update({
-                            visibleBadges: firebase.firestore.FieldValue.arrayUnion(badge.id)
-                        });
-                    } catch(e) {}
-                }
+                // visibleBadges is now written server-side by the awardPoints CF
+                // (blocked from client writes in firestore.rules — [AUDIT FIX H-2])
             }
         } catch(e) {}
     }
@@ -329,11 +413,25 @@ function showBadgeToast(badge) {
 
     const isMajor = MAJOR_BADGES.includes(badge.id);
 
-    // Minor badges: just a small toast, no fullscreen overlay
+    // Minor badges: small toast + Option D (Bitcoin ding — bright fifth, ~300ms)
     if (!isMajor) {
         if (typeof showToast === 'function') {
-            showToast(badge.emoji + ' Badge: ' + badge.name + ' (+' + (badge.pts || 20) + ' XP)');
+            showToast(badge.emoji + ' Badge: ' + badge.name + ' (+' + (badge.displayPts || badge.pts || 20) + ' XP)');
         }
+        try {
+            if ((typeof canPlaySound !== 'function' || canPlaySound()) && (typeof audioEnabled === 'undefined' || audioEnabled)) {
+                var _actx = new (window.AudioContext || window.webkitAudioContext)();
+                var _vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+                [[1046.50, 0], [1568.00, 0]].forEach(function(pair) {
+                    var o = _actx.createOscillator(), g = _actx.createGain();
+                    o.connect(g); g.connect(_actx.destination);
+                    o.frequency.value = pair[0]; o.type = 'sine';
+                    g.gain.setValueAtTime(0.18 * _vol, _actx.currentTime + pair[1]);
+                    g.gain.exponentialRampToValueAtTime(0.001, _actx.currentTime + 0.35);
+                    o.start(_actx.currentTime); o.stop(_actx.currentTime + 0.35);
+                });
+            }
+        } catch(e) {}
         return;
     }
 
@@ -370,7 +468,7 @@ function showBadgeToast(badge) {
         '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">🎉 Badge Earned!</div>' +
         '<div style="color:var(--heading);font-size:1.4rem;font-weight:900;margin-bottom:8px;">' + badge.name + '</div>' +
         '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">' + badge.desc + '</div>' +
-        '<div style="color:var(--accent);font-size:0.9rem;font-weight:700;">+20 XP</div>' +
+        '<div style="color:var(--accent);font-size:0.9rem;font-weight:700;">+' + (badge.displayPts || badge.pts || 20) + ' XP</div>' +
         shareHtml +
         '<button onclick="document.getElementById(\'badgeCelebration\').remove()" style="margin-top:20px;padding:10px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Awesome! ✨</button>' +
         '</div>';
@@ -486,7 +584,7 @@ function getBadgeHTML() {
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_')),
         '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
-        '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_')),
+        '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_') || b.id.startsWith('story_')),
         '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),
         '🎧 DJ Mode': _cat(BADGE_DEFS, b => b.id.startsWith('dj_')),
         '🎵 Music': _cat(BADGE_DEFS, b => b.id.startsWith('producer')),
@@ -503,6 +601,14 @@ function getBadgeHTML() {
         '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
+
+    // Sort ALL categories strictly alphabetically by label (strip emoji for sort key)
+    var _sortedCatKeys = Object.keys(categories).sort(function(a, b) {
+        var _strip = function(s) { return s.replace(/^[^a-zA-Z]+/, '').toLowerCase(); };
+        return _strip(a).localeCompare(_strip(b));
+    });
+    var _sortedCategories = {};
+    _sortedCatKeys.forEach(function(k) { _sortedCategories[k] = categories[k]; });
 
     // Build a reverse-lookup map: badgeId → category name (used by search tooltip + grid hover)
     window._badgeCatMap = {};
@@ -524,6 +630,19 @@ function getBadgeHTML() {
         '@keyframes badgeHighlightPop { 0% { transform:scale(1); } 50% { transform:scale(1.12); } 100% { transform:scale(1); } }' +
         '</style>';
 
+    // Badge count summary
+    var _totalEarnable = BADGE_DEFS.filter(function(b) { try { return b.check.toString().trim() !== '() => false'; } catch(e) { return true; } }).length;
+    var _hiddenEarnable = typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.filter(function(b) { return b.hidden; }).length : 0;
+    var _hiddenEarned = (JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]')).length;
+    var _earnedCount = earnedBadges.size;
+    var _grandTotal = _totalEarnable + _hiddenEarnable;
+    var _grandEarned = _earnedCount + _hiddenEarned;
+    var _pct = Math.round((_grandEarned / _grandTotal) * 100);
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:12px;">' +
+        '<span style="font-size:0.85rem;color:var(--text-muted);">🏅 <strong style="color:var(--text);">' + _grandEarned + '</strong> / ' + _grandTotal + ' badges earned</span>' +
+        '<span style="font-size:0.78rem;font-weight:700;color:' + (_pct >= 75 ? '#f7931a' : _pct >= 40 ? '#4caf50' : 'var(--text-faint)') + ';">' + _pct + '%</span>' +
+        '</div>';
+
     // Badge search bar
     html += '<div style="margin-bottom:14px;position:relative;">' +
         '<input id="badgeSearchInput" type="text" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
@@ -531,102 +650,112 @@ function getBadgeHTML() {
         '<div id="badgeSearchResults" style="display:none;margin-top:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;"></div>' +
         '</div>';
 
+        // Build all category sections into a sortable map, then render in strict alpha order
+    var _sections = {}; // sortKey -> html string
     var _bcIdx = 0;
-    for (const [catName, badgeList] of Object.entries(categories)) {
+    var _strip = function(s) { return s.replace(/^[^a-zA-Z]+/, '').toLowerCase(); };
+
+    for (const [catName, badgeList] of Object.entries(_sortedCategories)) {
         if (badgeList.length === 0) continue;
         _bcIdx++;
         var _bcId = 'bc_' + _bcIdx;
         const catEarned = badgeList.filter(b => earnedBadges.has(b.id)).length;
         const allEarned = catEarned === badgeList.length;
-        
-        html += '<div style="margin-bottom:6px;border:1px solid ' + (allEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
-        html += '<button onclick="var c=document.getElementById(\'' + _bcId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
-        html += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
-        html += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + catName + '</span>';
-        html += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + catEarned + '/' + badgeList.length + (allEarned ? ' ✅' : '') + '</span>';
-        html += '</button>';
-        html += '<div id="' + _bcId + '" class="badges-grid" style="display:none;">';
-        
+        var _sec = '';
+        _sec += '<div style="margin-bottom:6px;border:1px solid ' + (allEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
+        _sec += '<button onclick="var c=document.getElementById(\'' + _bcId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        _sec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+        _sec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + catName + '</span>';
+        _sec += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + catEarned + '/' + badgeList.length + (allEarned ? ' ✅' : '') + '</span>';
+        _sec += '</button>';
+        _sec += '<div id="' + _bcId + '" class="badges-grid" style="display:none;">';
         for (const badge of badgeList) {
             const earned = earnedBadges.has(badge.id);
             const pts = badge.pts || 20;
+            const shownPts = badge.displayPts || pts; // displayPts overrides for display only (e.g. cert badges where exam awards the bulk)
             const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
-            const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' XP)' : '🔒 Locked — ' + badge.desc;
-            
-            html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="' + escapeHtml(catName) + '" title="' + escapeHtml(badge.desc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
+            const tip = earned ? '✅ ' + badge.desc + ' (+' + shownPts + ' XP)' : '🔒 Locked — ' + badge.desc + ' <span style="color:var(--accent);font-weight:700;">(+' + shownPts + ' XP)</span>';
+            _sec += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="' + escapeHtml(catName) + '" title="' + escapeHtml(badge.desc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
                 '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
                 '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + badge.name + '</div>' +
                 '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +
             '</div>';
         }
-        html += '</div></div>';
+        _sec += '</div></div>';
+        _sections[_strip(catName)] = _sec;
     }
 
-    // Hidden badges section...
-
-    // Goal badges (visible with progress) and Hidden badges (surprise)
+    // Goals and Secret Badges — build and slot into the same sorted map
     if (typeof HIDDEN_BADGES !== 'undefined') {
         const earnedHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
 
-        // Visible goal badges — shown with name, progress, and hints
+        // Goals section
         const visibleGoals = HIDDEN_BADGES.filter(function(b) { return !b.hidden; });
         if (visibleGoals.length > 0) {
             _bcIdx++;
             var _goalId = 'bc_' + _bcIdx;
             var goalEarned = visibleGoals.filter(function(b) { return earnedHidden.includes(b.id); }).length;
             var allGoalsEarned = goalEarned === visibleGoals.length;
-            html += '<div style="margin-bottom:6px;border:1px solid ' + (allGoalsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
-            html += '<button onclick="var c=document.getElementById(\'' + _goalId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allGoalsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
-            html += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
-            html += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">🎯 Goals</span>';
-            html += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allGoalsEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + goalEarned + '/' + visibleGoals.length + (allGoalsEarned ? ' ✅' : '') + '</span>';
-            html += '</button>';
-            html += '<div id="' + _goalId + '" class="badges-grid" style="display:none;">';
+            var _gsec = '';
+            _gsec += '<div style="margin-bottom:6px;border:1px solid ' + (allGoalsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
+            _gsec += '<button onclick="var c=document.getElementById(\'' + _goalId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allGoalsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+            _gsec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+            _gsec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">🎯 Goals</span>';
+            _gsec += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allGoalsEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + goalEarned + '/' + visibleGoals.length + (allGoalsEarned ? ' ✅' : '') + '</span>';
+            _gsec += '</button>';
+            _gsec += '<div id="' + _goalId + '" class="badges-grid" style="display:none;">';
             for (const badge of visibleGoals) {
                 const unlocked = earnedHidden.includes(badge.id);
                 const progressText = (!unlocked && badge.progress) ? badge.progress() : '';
                 const hintText = (!unlocked && badge.hint) ? badge.hint : '';
-                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="🎯 Goals" style="position:relative;padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;" onclick="window._showBadgeTip(event,this)">' +
+                _gsec += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="🎯 Goals" style="position:relative;padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;" onclick="window._showBadgeTip(event,this)">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '🔒') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + badge.name + '</div>' +
                     (progressText ? '<div style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">' + progressText + '</div>' : '') +
-                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 ' + badge.desc + (hintText ? ' — ' + hintText : '')) + '</div>' +
+                    '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 ' + badge.desc + (hintText ? ' — ' + hintText : '') + ' <span style="color:var(--accent);font-weight:700;">(+' + badge.pts + ' XP)</span>') + '</div>' +
                 '</div>';
             }
-            html += '</div></div>';
+            _gsec += '</div></div>';
+            _sections['goals'] = _gsec; // 'goals' sorts under G
         }
 
-        // True hidden badges — only show after at least one is earned
+        // Secret Badges section
         const hiddenBadges = HIDDEN_BADGES.filter(function(b) { return b.hidden; });
         const anyHiddenEarned = hiddenBadges.some(function(b) { return earnedHidden.includes(b.id); });
         const hiddenCount = hiddenBadges.length;
         const hiddenEarnedCount = hiddenBadges.filter(function(b) { return earnedHidden.includes(b.id); }).length;
-
         _bcIdx++;
         var _secretId = 'bc_' + _bcIdx;
         var allSecretsEarned = hiddenEarnedCount === hiddenCount;
-        html += '<div style="margin-bottom:6px;border:1px solid ' + (allSecretsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
-        html += '<button onclick="var c=document.getElementById(\'' + _secretId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allSecretsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
-        html += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
-        html += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">🔮 Secret Badges</span>';
-        html += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allSecretsEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + hiddenEarnedCount + '/' + hiddenCount + (allSecretsEarned ? ' ✅' : '') + '</span>';
-        html += '</button>';
-        html += '<div id="' + _secretId + '" class="badges-grid" style="display:none;">';
+        var _ssec = '';
+        _ssec += '<div style="margin-bottom:6px;border:1px solid ' + (allSecretsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
+        _ssec += '<button onclick="var c=document.getElementById(\'' + _secretId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allSecretsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        _ssec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+        _ssec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">🔮 Secret Badges</span>';
+        _ssec += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allSecretsEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + hiddenEarnedCount + '/' + hiddenCount + (allSecretsEarned ? ' ✅' : '') + '</span>';
+        _ssec += '</button>';
+        _ssec += '<div id="' + _secretId + '" class="badges-grid" style="display:none;">';
         if (anyHiddenEarned) {
             for (const badge of hiddenBadges) {
                 const unlocked = earnedHidden.includes(badge.id);
-                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="🔮 Secret Badges" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
+                _ssec += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="🔮 Secret Badges" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
                     '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (unlocked ? badge.emoji : '❓') + '</div>' +
                     '<div class="badge-name" style="font-size:0.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (unlocked ? badge.name : '???') + '</div>' +
                     '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;z-index:200;">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' XP)' : '🔒 Keep exploring!') + '</div>' +
                 '</div>';
             }
         } else {
-            html += '<div style="text-align:center;padding:10px;color:var(--text-faint);font-size:0.8rem;grid-column:1/-1;">' +
+            _ssec += '<div style="text-align:center;padding:10px;color:var(--text-faint);font-size:0.8rem;grid-column:1/-1;">' +
                 hiddenCount + ' secret badges waiting to be discovered... 🔮</div>';
         }
-        html += '</div></div>';
+        _ssec += '</div></div>';
+        _sections['secret badges'] = _ssec; // 'secret badges' sorts under S
     }
+
+    // Render all sections in strict alphabetical order
+    Object.keys(_sections).sort(function(a, b) { return a.localeCompare(b); }).forEach(function(k) {
+        html += _sections[k];
+    });
 
     return html;
 }
@@ -709,6 +838,9 @@ window._badgeSearch = function(query) {
         return;
     }
 
+    // Track badge search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('badge') === -1) { _ss.push('badge'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
+
     // Search across BADGE_DEFS + HIDDEN_BADGES
     var allBadges = [];
     if (typeof BADGE_DEFS !== 'undefined') allBadges = allBadges.concat(BADGE_DEFS);
@@ -729,6 +861,7 @@ window._badgeSearch = function(query) {
         var earned = earnedBadges.has(b.id) || JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]').includes(b.id);
         var cat = (window._badgeCatMap && window._badgeCatMap[b.id]) || '';
         var pts = b.pts || 20;
+        var shownPts = b.displayPts || pts;
         var safeId = b.id.replace(/[^a-zA-Z0-9_]/g, '_');
         rhtml += '<div id="bsr_' + safeId + '" style="border-bottom:1px solid var(--border);">';
         // Collapsed row (always visible)
@@ -739,7 +872,7 @@ window._badgeSearch = function(query) {
             + '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.5;margin-bottom:8px;">' + escapeHtml(b.desc) + '</div>'
             + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'
                 + (cat ? '<span style="font-size:0.7rem;padding:2px 8px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.25);border-radius:12px;color:var(--accent);font-weight:700;">' + escapeHtml(cat) + '</span>' : '')
-                + '<span style="font-size:0.7rem;padding:2px 8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:12px;color:#22c55e;font-weight:700;">+' + pts + ' XP</span>'
+                + '<span style="font-size:0.7rem;padding:2px 8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:12px;color:#22c55e;font-weight:700;">+' + shownPts + ' XP</span>'
                 + (earned ? '<span style="font-size:0.7rem;padding:2px 8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:12px;color:#22c55e;">Earned ✅</span>' : '')
             + '</div>'
             + '<button onclick="window._badgeSearchJump(\'' + b.id + '\')" style="font-size:0.75rem;padding:6px 14px;background:var(--accent);color:#000;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">View in collection →</button>'

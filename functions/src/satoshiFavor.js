@@ -128,12 +128,28 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
   const userData = userDoc.data();
 
   // Server-side validation for daily_all_three
+  // [AUDIT FIX C-1] Validate against CF-written daily_action_counts records,
+  // NOT client-writable user doc fields (dailyAllThreeDate etc are now blocked in rules).
   if (source === 'daily_all_three') {
-    const allThreeDate = userData.dailyAllThreeDate || '';
-    if (allThreeDate !== today) {
+    const dailyPtsBase = db.collection('users').doc(uid).collection('daily_action_counts');
+    const [triviaDoc, pollDoc, questDoc] = await Promise.all([
+      dailyPtsBase.doc(today + '_trivia').get(),
+      dailyPtsBase.doc(today + '_poll_vote').get(),
+      dailyPtsBase.where ? null : null, // gradeQuest CF sets today + '_quest' doc
+      dailyPtsBase.doc(today + '_quest').get(),
+    ]).then(results => [
+      results[0], results[1], results[3]
+    ]).catch(() => [null, null, null]);
+
+    const triviaComplete = triviaDoc && triviaDoc.exists;
+    const pollComplete = pollDoc && pollDoc.exists;
+    // Quest: gradeQuest CF writes daily_action_counts/today_quest with count >= 1
+    const questComplete = questDoc && questDoc.exists && (questDoc.data().count || 0) >= 1;
+
+    if (!triviaComplete || !pollComplete || !questComplete) {
       throw new functions.https.HttpsError(
         'failed-precondition',
-        'Must complete daily quiz, trivia, and poll to earn Satoshi\'s Favor.'
+        `Must complete all three today: quiz=${questComplete}, trivia=${triviaComplete}, poll=${pollComplete}.`
       );
     }
   }

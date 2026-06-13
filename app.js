@@ -1,5 +1,14 @@
 (function() {
     window._sessionStart = window._sessionStart || Date.now();
+    // Secret badge: Insomniac — track late night visits (2am–4am), once per session
+    (function() {
+        var _h = new Date().getHours();
+        if (_h >= 2 && _h < 4 && !sessionStorage.getItem('btc_late_night_logged')) {
+            sessionStorage.setItem('btc_late_night_logged', '1');
+            var _ln = parseInt(localStorage.getItem('btc_late_night_visits') || '0') + 1;
+            localStorage.setItem('btc_late_night_visits', String(_ln));
+        }
+    })();
     var _lastTickerPrice = null;
     var _hasInited = false;
     var nachoLiveData = { price: null, blockHeight: null };
@@ -2681,6 +2690,32 @@ window.nachoQuizAnswer = function(btn, correct) {
             var _um = document.getElementById('usernameModal');
             if (_um && _um.classList.contains('open')) hideUsernamePrompt();
         }
+        // Return-to-signup: if user went to Lightning page via "I need a Lightning Address",
+        // reopen signup modal with LN field focused and any previously-typed LN address pre-filled.
+        if (sessionStorage.getItem('btc_return_to_signup_ln') === '1') {
+            sessionStorage.removeItem('btc_return_to_signup_ln');
+            setTimeout(function() {
+                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                setTimeout(function() {
+                    var lnEl = document.getElementById('signupLnAddress');
+                    if (lnEl) {
+                        // Pre-fill if they got an address and it's now in pending storage
+                        var _saved = localStorage.getItem('btc_pending_ln_address') || '';
+                        if (_saved && !lnEl.value) lnEl.value = _saved;
+                        lnEl.focus();
+                        lnEl.style.borderColor = 'var(--accent)';
+                        setTimeout(function() { lnEl.style.borderColor = 'var(--border)'; }, 2000);
+                    }
+                    // Restore username/email if saved
+                    var unEl = document.getElementById('usernameInput');
+                    var emEl = document.getElementById('emailInput');
+                    var _un = localStorage.getItem('btc_signup_return_username');
+                    var _em = localStorage.getItem('btc_signup_return_email');
+                    if (unEl && _un && !unEl.value) { unEl.value = _un; localStorage.removeItem('btc_signup_return_username'); }
+                    if (emEl && _em && !emEl.value) { emEl.value = _em; localStorage.removeItem('btc_signup_return_email'); }
+                }, 350);
+            }, 100);
+        }
         if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         
         // Ensure bottom nav is visible on home
@@ -2869,6 +2904,26 @@ window.nachoQuizAnswer = function(btn, correct) {
             localStorage.setItem('btc_bitcoin_eyes_unlocked', 'true');
             if (typeof showToast === 'function') showToast('₿₿ Secret unlocked: Bitcoin Eyes! Check Nacho\'s Closet!');
             if (typeof haptic === 'function') haptic('success');
+        }
+
+        // === Block 42 — Konami Code easter egg ===
+        // Up Up Down Down Left Right Left Right B A
+        var _konamiSeq = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
+        window._konamiBuffer = window._konamiBuffer || [];
+        window._konamiBuffer.push(e.key.toLowerCase());
+        if (window._konamiBuffer.length > 10) window._konamiBuffer.shift();
+        if (window._konamiBuffer.join(',') === _konamiSeq.join(',') && localStorage.getItem('btc_block42_found') !== 'true') {
+            window._konamiBuffer = [];
+            localStorage.setItem('btc_block42_found', 'true');
+            if (typeof launchConfetti === 'function') launchConfetti();
+            if (typeof haptic === 'function') haptic('success');
+            if (typeof showToast === 'function') showToast('🎱 Block 42 unlocked! Secret badge discovered...');
+            setTimeout(function() {
+                if (typeof window._nachoSay === 'function') {
+                    window._nachoSay('\u26cf\ufe0f ...Did you just find Block 42? I didn\'t think anyone would actually try that. You\'re different.');
+                }
+            }, 1500);
+            if (typeof checkHiddenBadges === 'function') setTimeout(checkHiddenBadges, 500);
         }
 
         // === Escape = close modals ===
@@ -3271,6 +3326,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         return window.audioEnabled && window.audioVolume > 0 && document.visibilityState === 'visible';
     };
 
+    // Option A — Coin pickup: two quick ascending dings (used for Lightning tip sent/received)
+    window.playCoinSound = function() {
+        if (!window.canPlaySound()) return;
+        try {
+            var _ac = new (window.AudioContext || window.webkitAudioContext)();
+            var _v = window.audioVolume;
+            [[1046.50, 0], [1318.51, 0.09]].forEach(function(pair) {
+                var o = _ac.createOscillator(), g = _ac.createGain();
+                o.connect(g); g.connect(_ac.destination);
+                o.frequency.value = pair[0]; o.type = 'triangle';
+                g.gain.setValueAtTime(0.22 * _v, _ac.currentTime + pair[1]);
+                g.gain.exponentialRampToValueAtTime(0.001, _ac.currentTime + pair[1] + 0.18);
+                o.start(_ac.currentTime + pair[1]);
+                o.stop(_ac.currentTime + pair[1] + 0.18);
+            });
+        } catch(e) {}
+    };
+
     function getVolume() { return window.audioEnabled ? window.audioVolume : 0; }
 
     function playChannelSound() {
@@ -3591,6 +3664,17 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Raid Boss contribution for channel visits
         if (typeof window._raidOnChannelVisit === 'function') window._raidOnChannelVisit(id);
 
+        // Secret badge: Whitepaper Pilgrim — track separate sessions visiting whitepaper
+        if (id === 'whitepaper') {
+            var _wpKey = 'btc_wp_last_session';
+            var _wpSession = sessionStorage.getItem(_wpKey);
+            if (!_wpSession) {
+                sessionStorage.setItem(_wpKey, '1');
+                var _wpCount = parseInt(localStorage.getItem('btc_whitepaper_visits') || '0') + 1;
+                localStorage.setItem('btc_whitepaper_visits', String(_wpCount));
+            }
+        }
+
         // Update SEO metrics (id, title, desc)
         if (typeof _updateSEO === 'function' && typeof CHANNELS !== 'undefined' && CHANNELS[id]) {
             var ch = CHANNELS[id];
@@ -3812,6 +3896,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (typeof setPose === 'function') setPose('celebrate');
             speakEasterEgg("Fawntastic! You found the secret buck.");
             if (typeof nachoFly === 'function') setTimeout(nachoFly, 1000);
+        }
+
+        // Track search use for Search Sleuth badge
+        if (q && q.length >= 2) {
+            try { var _ss = safeJSON('btc_searches_used', []); if (_ss.indexOf('topic') === -1) { _ss.push('topic'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
         }
 
         if (!q || q.length < 2) {

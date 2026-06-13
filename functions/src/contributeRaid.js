@@ -13,6 +13,31 @@ const admin = require('firebase-admin');
 
 const db = admin.firestore();
 
+// ── Per-metric contribution rules ──────────────────────────────────────────
+// maxAmount: maximum amount per single call (must reflect one real action)
+// dailyUserCap: maximum a single user can contribute to THIS metric per UTC day
+// These values match what real activity can produce:
+//   - binary actions (quiz, trivia, poll) = 1 per call, small daily real limits
+//   - XP: capped at 500/day server-side in awardPoints, so 500 is the honest max
+//   - chat/forum/read: generous but bounded
+const METRIC_RULES = {
+  quizCompletions:      { maxAmount: 1,    dailyUserCap: 3    },  // 3 quests/day server limit
+  triviaCorrect:        { maxAmount: 1,    dailyUserCap: 1    },  // 1 trivia/day
+  pollVotes:            { maxAmount: 1,    dailyUserCap: 1    },  // 1 poll/day
+  flashcardCompletions: { maxAmount: 1,    dailyUserCap: 50   },  // generous study cap
+  totalXP:              { maxAmount: 500,  dailyUserCap: 500  },  // matches daily XP cap
+  chatMessages:         { maxAmount: 1,    dailyUserCap: 100  },  // 100 chat msgs/day max
+  badgesEarned:         { maxAmount: 1,    dailyUserCap: 20   },  // realistic badge earn rate
+  tipsSent:             { maxAmount: 1,    dailyUserCap: 50   },  // tip rate
+  forumPosts:           { maxAmount: 1,    dailyUserCap: 20   },  // reasonable post rate
+  totalTopicReads:      { maxAmount: 1,    dailyUserCap: 100  },  // topic browsing
+  uniqueTopicsVisited:  { maxAmount: 1,    dailyUserCap: 100  },  // topic browsing
+  uniqueUsers5Topics:   { maxAmount: 1,    dailyUserCap: 1    },  // once per user per day
+  watchMinutes:         { maxAmount: 10,   dailyUserCap: 240  },  // 4h TCTV max per day
+  beatsMinutes:         { maxAmount: 10,   dailyUserCap: 120  },  // 2h Beats per day
+  streakUsers:          { maxAmount: 1,    dailyUserCap: 1    },  // once per day
+};
+
 exports.contributeRaid = functions.https.onCall(async (data, context) => {
   // Auth required
   if (!context.auth) {
@@ -22,23 +47,35 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     );
   }
 
+  // Anonymous users cannot contribute
+  if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to Raid Bosses.');
+  }
+
   const uid = context.auth.uid;
   const { metric, amount, detail } = data;
 
-  // Validate input
+  // Validate metric
   if (!metric || typeof metric !== 'string') {
     throw new functions.https.HttpsError('invalid-argument', 'metric is required and must be a string.');
   }
-  if (!amount || typeof amount !== 'number' || amount <= 0 || !Number.isFinite(amount)) {
+
+  const metricRules = METRIC_RULES[metric];
+  if (!metricRules) {
+    throw new functions.https.HttpsError('invalid-argument', `Unknown metric: ${metric}`);
+  }
+
+  // Validate amount against per-metric max
+  const parsedAmount = typeof amount === 'number' ? amount : parseFloat(amount);
+  if (!parsedAmount || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
     throw new functions.https.HttpsError('invalid-argument', 'amount must be a positive number.');
   }
-  if (amount > 10000) {
-    throw new functions.https.HttpsError('invalid-argument', 'amount exceeds maximum allowed per contribution.');
-  }
+  const clampedAmount = Math.min(parsedAmount, metricRules.maxAmount);
 
   const now = admin.firestore.Timestamp.now();
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD UTC
 
-  // Find active boss: fetch recent docs and filter in code (avoids composite index)
+  // Find active boss
   const bossQuery = await db.collection('raid_bosses')
     .orderBy('startTime', 'desc')
     .limit(5)
@@ -63,7 +100,7 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('not-found', 'No active Raid Boss found.');
   }
 
-  // Check if the contribution metric matches the boss metric
+  // Check metric matches boss
   if (activeBoss.metric !== metric) {
     return {
       success: false,
@@ -74,7 +111,59 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     };
   }
 
-  // Get username from users collection
+  // Per-user daily cap check (atomic via transaction on a rate-limit doc)
+  const dailyCapRef = db.collection('raid_daily_caps').doc(`${uid}_${today}_${metric}`);
+
+  const result = await db.runTransaction(async (tx) => {
+    // Check daily user cap for this metric
+    const capDoc = await tx.get(dailyCapRef);
+    const usedToday = capDoc.exists ? (capDoc.data().contributed || 0) : 0;
+    const remaining = metricRules.dailyUserCap - usedToday;
+
+    if (remaining <= 0) {
+      throw new functions.https.HttpsError(
+        'resource-exhausted',
+        `Daily contribution limit reached for ${metric}. Try again tomorrow.`
+      );
+    }
+
+    // Clamp to remaining daily allowance
+    const effectiveAmount = Math.min(clampedAmount, remaining);
+
+    // Update daily cap
+    tx.set(dailyCapRef, {
+      contributed: admin.firestore.FieldValue.increment(effectiveAmount),
+      lastAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // Update participant doc
+    const participantRef = activeBossRef.collection('participants').doc(uid);
+    const participantUpdate = {
+      contributed: admin.firestore.FieldValue.increment(effectiveAmount),
+      lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (detail) {
+      participantUpdate.detailSet = admin.firestore.FieldValue.arrayUnion(
+        typeof detail === 'string' ? detail.substring(0, 100) : String(detail)
+      );
+    }
+    tx.set(participantRef, participantUpdate, { merge: true });
+
+    return { effectiveAmount };
+  });
+
+  const { effectiveAmount } = result;
+
+  // Track all-time raid damage on user doc (outside transaction — not security-critical)
+  try {
+    await db.collection('users').doc(uid).set({
+      raidDamageAllTime: admin.firestore.FieldValue.increment(effectiveAmount)
+    }, { merge: true });
+  } catch (e) {
+    console.warn('[RAID] raidDamageAllTime update failed:', e.message);
+  }
+
+  // Fetch username
   let username = 'Anonymous';
   try {
     const userDoc = await db.collection('users').doc(uid).get();
@@ -83,51 +172,40 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
       username = userData.username || userData.displayName || 'Anonymous';
     }
   } catch (e) {
-    console.warn(`Could not fetch username for ${uid}:`, e.message);
+    console.warn(`[RAID] Could not fetch username for ${uid}:`, e.message);
   }
 
-  // Update participant doc
-  const participantRef = activeBossRef.collection('participants').doc(uid);
-  const updateData = {
-    username: username,
-    contributed: admin.firestore.FieldValue.increment(amount),
-    lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-  };
-  if (detail) {
-    updateData.detailSet = admin.firestore.FieldValue.arrayUnion(detail);
-  }
-  await participantRef.set(updateData, { merge: true });
+  // Persist username on participant doc
+  try {
+    await activeBossRef.collection('participants').doc(uid).set({ username }, { merge: true });
+  } catch (e) {}
 
-  // Track all-time raid damage on the user doc for leaderboard
-  await db.collection('users').doc(uid).set({
-    raidDamageAllTime: admin.firestore.FieldValue.increment(amount)
-  }, { merge: true });
-
-  // Recalculate total current from all participants
+  // Recalculate total from all participants
   const participantsSnap = await activeBossRef.collection('participants').get();
   let totalCurrent = 0;
   participantsSnap.forEach((pDoc) => {
-    const pData = pDoc.data();
-    totalCurrent += (pData.contributed || 0);
+    totalCurrent += (pDoc.data().contributed || 0);
   });
 
-  // Update the boss current total
   const updateBoss = { current: totalCurrent };
   let defeated = false;
 
-  // Check if boss is defeated
-  if (totalCurrent >= activeBoss.target) {
+  if (totalCurrent >= activeBoss.target && !activeBoss.defeated) {
     updateBoss.defeated = true;
     defeated = true;
 
-    // Pick 2 random winners from participants
+    // Random winner selection from all participants
     const participantUIDs = [];
     participantsSnap.forEach((pDoc) => {
-      participantUIDs.push({ uid: pDoc.id, username: pDoc.data().username });
+      participantUIDs.push({ uid: pDoc.id, username: pDoc.data().username || 'Anonymous' });
     });
 
-    // Shuffle and pick up to 2
-    const shuffled = participantUIDs.sort(() => 0.5 - Math.random());
+    // Fisher-Yates shuffle using crypto-safe method
+    const shuffled = [...participantUIDs];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
     const winners = shuffled.slice(0, Math.min(2, shuffled.length));
 
     const batch = db.batch();
@@ -142,7 +220,7 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     }
     await batch.commit();
 
-    console.log(`Raid Boss "${activeBoss.name}" DEFEATED! Winners: ${winners.map(w => w.uid).join(', ')}`);
+    console.log(`[RAID] Boss "${activeBoss.name}" DEFEATED! Winners: ${winners.map(w => w.uid).join(', ')}`);
   }
 
   await activeBossRef.update(updateBoss);

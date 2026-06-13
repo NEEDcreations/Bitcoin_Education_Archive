@@ -43,7 +43,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260611_2157" as="script">
+    <link rel="preload" href="bundle.js?v=20260613_0300" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -335,7 +335,6 @@
         #aiToolsBtn     { right:128px; background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 4px 20px rgba(99,102,241,0.4); }
         #dashboardFloatBtn { right:72px; background:linear-gradient(135deg,#f97316,#eab308); box-shadow:0 4px 20px rgba(249,115,22,0.4); }
         #lbFloatBtn     { right:16px; background:var(--accent,#f7931a); box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:200002; }
-        #lbFloatBtn.chat-shifted { bottom:120px !important; }
 
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
@@ -367,7 +366,7 @@
         .badge-name { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; }
         /* Badge tooltip — rendered via JS, one at a time */
         .badge-tooltip { display: none !important; } /* inline tooltips hidden; JS handles it */
-        #badgeFloatTip { position:fixed; background:var(--bg-side,#1a1a2e); border:1px solid var(--accent,#f7931a); color:var(--text); padding:10px 14px; border-radius:10px; font-size:0.78rem; white-space:normal; min-width:180px; max-width:260px; z-index:210000; box-shadow:0 8px 24px rgba(0,0,0,0.55); pointer-events:none; text-align:center; line-height:1.5; display:none; }
+        #badgeFloatTip { position:fixed; background:var(--bg-side,#1a1a2e); border:1px solid var(--accent,#f7931a); color:var(--text); padding:10px 14px; border-radius:10px; font-size:0.78rem; white-space:normal; min-width:180px; max-width:260px; z-index:400000; box-shadow:0 8px 24px rgba(0,0,0,0.55); pointer-events:none; text-align:center; line-height:1.5; display:none; }
         .badge-item.tapped { border-color:var(--accent) !important; }
         /* TCTV home button: dark purple text for light mode, light purple for dark */
         .tctv-home-btn { color: #6b21a8 !important; }
@@ -1137,6 +1136,7 @@
             <div id="signupLnSection" style="margin-bottom:16px;">
                 <input type="text" id="signupLnAddress" placeholder="⚡ Lightning address (optional)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="200" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="this.style.borderColor='var(--border)'">
                 <p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Used so others can tip you ⚡ (e.g. you@walletofsatoshi.com)</p>
+                <button type="button" onclick="window._signupGoGetLnAddress()" style="margin-top:8px;width:100%;padding:10px;background:none;border:1px dashed rgba(247,147,26,0.5);border-radius:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='rgba(247,147,26,0.08)'" onmouseout="this.style.background='none'">⚡ I need a Lightning Address →</button>
             </div>
             <div id="factionPickerSignup" style="margin-bottom:16px;text-align:left;">
                 <div style="color:#94a3b8;font-size:0.8rem;font-weight:700;margin-bottom:4px;text-align:center;">⚔️ Choose Your Faction</div>
@@ -1203,10 +1203,10 @@
     <!-- <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script> -->
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260611_2157" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260613_0300" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260610_1637" defer></script>
-    <script src="timechain-tv.js?v=20260607_2339" defer></script>
+    <script src="timechain-tv.js?v=20260612_2300" defer></script>
     <script src="mobile-optimize.js?v=20260411" defer></script>
     <script src="audit-fixes-v2.js?v=20260307" defer></script>
     <script src="ux-improvements.js?v=20260307" defer></script>
@@ -1218,13 +1218,13 @@
     (function(){
         var _lazyScripts = [
             'pvp.js?v=20260608_1729','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260610_1637',
-            'scholar.js?v=20260528_1708','beats.js?v=20260608_0317',
-            'global-chat.js?v=20260611_1803','lightning.js?v=20260514_1424','lightning-tips.js?v=20260603_1701',
-            'notifications.js?v=20260528_1251','guide.js?v=20260526','modules.js?v=20260331',
+            'scholar.js?v=20260528_1708','beats.js?v=20260613_0017',
+            'global-chat.js?v=20260613_0034','lightning.js?v=20260514_1424','lightning-tips.js?v=20260613_0241',
+            'notifications.js?v=20260613_0241','guide.js?v=20260526','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260523_batch','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
-            'lightning-prompt.js?v=20260307','irl-sync.js?v=20260511_1849',
-            'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602','timechain-tv.js?v=20260607_2339','satoshi-favor.js?v=20260604_allthree'
+            'lightning-prompt.js?v=20260307','irl-sync.js?v=20260612_1842',
+            'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602','timechain-tv.js?v=20260612_2300','satoshi-favor.js?v=20260604_allthree'
         ];
         var _loaded = false;
         function _loadDeferred() {

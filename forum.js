@@ -1795,6 +1795,8 @@ window.snDoSearch = function() {
     var q = input.value.trim();
     if (q.length < 2) return;
     window._snSearchQuery = q;
+    // Track forum search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('forum') === -1) { _ss.push('forum'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
     renderForum();
 };
 

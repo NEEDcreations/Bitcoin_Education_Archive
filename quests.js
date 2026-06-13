@@ -1354,18 +1354,22 @@ function _checkDailyAllThree() {
     if (state.quiz && state.trivia && state.poll && !state.sfAwarded) {
         state.sfAwarded = true;
         localStorage.setItem('btc_daily_activities', JSON.stringify(state));
-        // Sync to Firestore for server-side validation
-        var todayKey = new Date().toISOString().split('T')[0];
+        // [AUDIT FIX C-1] The CF now validates completion against daily_action_counts records
+        // written server-side by awardPoints CF (trivia) and poll transaction. No client
+        // doc write needed here — dailyAllThreeDate and related fields are now CF-only.
+        // Small delay to ensure prior awardPoints CF calls have committed their dedup records.
+        setTimeout(function() {
+            if (typeof window.contributeSatoshiFavor === 'function') {
+                window.contributeSatoshiFavor('daily_all_three').catch(function(err) {
+                    console.error('[DAILY] contributeSatoshiFavor failed:', err.message || err);
+                });
+            }
+        }, 2000);
+        // Track cumulative daily triple completions for badge checks
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
-                dailyAllThreeDate: todayKey,
-                dailyQuizDone: true,
-                dailyTriviaDone: true,
-                dailyPollDone: true
+                dailyTripleCount: firebase.firestore.FieldValue.increment(1)
             }).catch(function() {});
-        }
-        if (typeof window.contributeSatoshiFavor === 'function') {
-            window.contributeSatoshiFavor('daily_all_three');
         }
     }
 }
@@ -3145,11 +3149,27 @@ window.triviaAnswer = function(chosenIdx) {
 
     // Also sync to Firestore for signed-in users
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({
-            lastTriviaDate: todayKey,
-            triviaAnswered: firebase.firestore.FieldValue.increment(1),
-            triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
-        }).catch(function() {});
+        // Calculate trivia streak server-side-friendly: read lastTriviaDate, check if yesterday
+        var _yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
+            var data = doc.exists ? doc.data() : {};
+            var lastDate = data.lastTriviaDate || '';
+            var currentStreak = data.triviaStreak || 0;
+            var newStreak = (lastDate === _yesterday) ? currentStreak + 1 : (lastDate === todayKey ? currentStreak : 1);
+            return db.collection('users').doc(auth.currentUser.uid).update({
+                lastTriviaDate: todayKey,
+                triviaAnswered: firebase.firestore.FieldValue.increment(1),
+                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0),
+                triviaStreak: newStreak
+            });
+        }).catch(function() {
+            // Fallback: update without streak calc
+            db.collection('users').doc(auth.currentUser.uid).update({
+                lastTriviaDate: todayKey,
+                triviaAnswered: firebase.firestore.FieldValue.increment(1),
+                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
+            }).catch(function() {});
+        });
     }
 
     // Track answer distribution for community stats
@@ -3271,6 +3291,21 @@ function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
 }
 
 function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
+    // Secret badge: The Contrarian — track when user voted for minority option
+    try {
+        if (typeof chosen === 'number' && chosen >= 0 && total > 1) {
+            var _maxVotes = Math.max.apply(null, votes);
+            if (votes[chosen] < _maxVotes) {
+                var _minKey = 'btc_poll_minority_votes';
+                var _minDay = 'btc_poll_minority_day';
+                var _todayStr = new Date().toISOString().split('T')[0];
+                if (localStorage.getItem(_minDay) !== _todayStr) {
+                    localStorage.setItem(_minDay, _todayStr);
+                    localStorage.setItem(_minKey, String(parseInt(localStorage.getItem(_minKey) || '0') + 1));
+                }
+            }
+        }
+    } catch(e) {}
     var html = htmlPrefix;
     var colors = ['#f7931a', '#3b82f6', '#22c55e', '#8b5cf6'];
     html += '<div style="display:flex;flex-direction:column;gap:10px;">';

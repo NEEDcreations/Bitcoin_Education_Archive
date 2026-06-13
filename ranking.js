@@ -437,6 +437,8 @@ async function finishEmailSignIn(email, _signInUrl) {
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (pendingLnAddress) { userData.lightning = pendingLnAddress; userData.lightningAddress = pendingLnAddress; }
+            var _emailSrc = localStorage.getItem('btc_signup_source');
+            if (_emailSrc) { userData.signupSource = _emailSrc; }
             await db.collection('users').doc(emailUid).set(userData);
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
 
@@ -1616,6 +1618,9 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     if (_signupLn) userData.lightningAddress = _signupLn;
     // Faction choice from signup
     if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
+    // Campaign source tracking — written once at signup, never overwritten
+    var _signupSrc = localStorage.getItem('btc_signup_source');
+    if (_signupSrc) { userData.signupSource = _signupSrc; }
 
     await db.collection('users').doc(uid).set(userData);
     // Increment global registered user count
@@ -2271,13 +2276,6 @@ function updateRankUI() {
         showLevelUpCelebration(lv);
         localStorage.setItem('btc_highest_level_seen', lv.min.toString());
         if (typeof notifySelfLevelUp === 'function') notifySelfLevelUp(lv.min, lv.name, lv.emoji);
-        // Announce level-up in Global Chat
-        var _luName = (currentUser && currentUser.username) ? currentUser.username : null;
-        var _luUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
-        if (_luName && typeof window.nachoGlobalAnnounce === 'function') {
-            window.nachoGlobalAnnounce(lv.emoji + ' @' + _luName + ' just leveled up to ' + lv.emoji + ' ' + lv.name + '! Congrats! \uD83C\uDF89', _luUid);
-        }
-
         // Satoshi's Favor contribution for level-ups
         if (typeof window.contributeSatoshiFavor === 'function') {
             var levelName = lv.name || '';
@@ -2677,6 +2675,9 @@ window.lbSearchUser = function(val) {
     if (!resultEl) return;
     val = (val || '').trim();
     if (!val || val.length < 2) { resultEl.innerHTML = ''; _lbSearchQuery = ''; return; }
+
+    // Track search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('user') === -1) { _ss.push('user'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
 
     clearTimeout(_lbSearchTimer);
     _lbSearchTimer = setTimeout(function() {
@@ -3211,6 +3212,24 @@ setInterval(function() {
 }, 2000);
 
 // Username prompt
+// Handle "I need a Lightning Address" from sign-up form:
+// Save whatever is typed so far, mark return intent, open Lightning wallet page.
+window._signupGoGetLnAddress = function() {
+    // Preserve any partial LN address typed
+    var lnEl = document.getElementById('signupLnAddress');
+    if (lnEl && lnEl.value.trim()) localStorage.setItem('btc_pending_ln_address', lnEl.value.trim());
+    // Save username + email if already typed so they're restored on return
+    var unEl = document.getElementById('usernameInput');
+    var emEl = document.getElementById('emailInput');
+    if (unEl && unEl.value.trim()) localStorage.setItem('btc_signup_return_username', unEl.value.trim());
+    if (emEl && emEl.value.trim()) localStorage.setItem('btc_signup_return_email', emEl.value.trim());
+    // Mark that we should reopen the sign-up modal with focus on LN field when returning
+    sessionStorage.setItem('btc_return_to_signup_ln', '1');
+    // Close modal and open Lightning page
+    document.getElementById('usernameModal').classList.remove('open');
+    setTimeout(function() { if (typeof go === 'function') go('lightning'); }, 200);
+};
+
 function showUsernamePrompt() {
     try {
         // If user has an account (real or anonymous with username), show settings
@@ -4180,22 +4199,30 @@ function showSettingsPage(tab) {
             '📖 Open a channel: <strong>10 XP</strong>',
             '⏱️ Read for 30 sec: <strong>15 XP</strong>',
             '🧭 Explore 10+ topics/session: <strong>50 XP</strong>',
-            '🗺️ Exploration milestones: <strong>50-500 XP</strong>'
+            '🗺️ Exploration milestones: <strong>50–2,000 XP</strong> (10 / 25 / 50 / 100 / all topics)',
+            '🔖 Bookmark a message: <strong>5 XP</strong>'
         ]);
         html += _es('ep_daily', '✅ Daily Activities', [
             '✅ Daily visit: <strong>5 XP</strong>',
             '🔥 Streak bonus: <strong>100 XP/day</strong>',
-            '🎰 Daily spin: <strong>10-50 XP</strong>',
+            '🎰 Daily spin: <strong>25–100 XP</strong> (XP reward spins)',
             '📈 Price prediction: <strong>5 XP</strong> (25 if correct!)',
-            '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched'
+            '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched',
+            '⚡ Visit Lightning Wallet: <strong>5 XP</strong>',
+            '🎯 Quest Hub – Daily Quiz: <strong>25–100 XP</strong>',
+            '🧠 Quest Hub – Daily Trivia: <strong>10–15 XP</strong>',
+            '📊 Quest Hub – Daily Poll: <strong>5 XP</strong>',
+            '🏆 Complete all three in one day: <strong>bonus Satoshi\'s Favor point!</strong>'
         ]);
         html += _es('ep_quiz', '🧠 Quizzes & Learning', [
             '🎯 Daily quests (perfect): <strong>100 XP</strong> (50 for 3+, 25 retry)',
-            '🧠 Nacho trivia pop-ups: <strong>10-15 XP</strong>',
+            '🧠 Nacho trivia pop-ups: <strong>10–15 XP</strong>',
             '🎮 Channel quizzes: <strong>10 XP</strong>',
             '🎯 Conversation quests: <strong>5 XP/correct</strong>',
-            '📖 Nacho\'s Trails chapters: <strong>25-50 XP</strong> (100 for all)',
-            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all)'
+            '📖 Nacho\'s Trails chapters: <strong>25–50 XP</strong> (100 for completing all)',
+            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all + badges)',
+            '🎓 Scholar Certification (Bitcoin): <strong>2,100 XP</strong>',
+            '🎓 Scholar Certification (Protocol): <strong>2,100 XP</strong>'
         ]);
         html += _es('ep_social', '💬 Community & Social', [
             '📝 Forum post: <strong>10 XP</strong>',
@@ -4204,26 +4231,40 @@ function showSettingsPage(tab) {
             '📖 Read an article: <strong>5 XP</strong>',
             '💬 Article comment: <strong>5 XP</strong>',
             '🌍 Global Chat message: <strong>5 XP</strong>',
-            '🔥 Chat streaks: <strong>10-25 XP</strong> (3-day / 7-day)',
-            '🤝 Host IRL event: <strong>15 XP</strong>'
+            '🔥 Chat streaks: <strong>10–25 XP</strong> (3-day / 7-day)',
+            '🤝 Host IRL event: <strong>15 XP</strong>',
+            '🤝 Refer a friend: <strong>bonus XP per referral</strong>',
+            '💬 Feedback bonus: <strong>5 XP</strong>'
+        ]);
+        html += _es('ep_lightning', '⚡ Lightning & Marketplace', [
+            '⚡ Send a Lightning tip: <strong>10 XP</strong>',
+            '⚡ Lightning wallet setup: <strong>100 XP</strong>',
+            '🛍️ Contact a seller: <strong>5 XP</strong>',
+            '🏪 List an item for sale: <strong>10 XP</strong>'
         ]);
         html += _es('ep_music', '🎵 Music & Content', [
-            '🎵 Upload a song: <strong>50 XP</strong>',
-            '🎧 Listen to full track: <strong>10 XP</strong>',
-            '💬 Comment on Beats: <strong>10 XP</strong>'
+            '🎵 Upload a song to Beats: <strong>50 XP</strong>',
+            '🎧 Listen to a full track: <strong>10 XP</strong>',
+            '💬 Comment on a Beats track: <strong>10 XP</strong>'
         ]);
         html += _es('ep_pvp', '⚔️ PVP & Competitions', [
-            '⚔️ PVP victory: <strong>score-based XP</strong>',
-            '🧠 PVP practice: <strong>10 XP/correct</strong>',
-            '🏅 PVP badges: <strong>25-500 XP</strong>'
+            '⚔️ PVP match victory: <strong>score-based XP</strong>',
+            '🧠 PVP practice question: <strong>10 XP/correct</strong>',
+            '🏅 PVP badges: <strong>25–500 XP</strong>'
+        ]);
+        html += _es('ep_badges', '🏅 Badges', [
+            '📚 Standard badges: <strong>20–2,000 XP each</strong>',
+            '🔑 Hidden / secret badges: <strong>50–2,100 XP each</strong>',
+            '🎯 Goal badges (Tickets, Exploration, Charity): <strong>200–15,000 XP</strong>',
+            '🛒 First Purchase guide: <strong>100 XP</strong>',
+            '🏆 Milestone badges (50 / 100 / 150 / 200 badges): <strong>5,000–21,000 XP</strong>',
+            '💡 Tip: secret badges are discovered, not unlocked — explore everything!'
         ]);
         html += _es('ep_big', '🏆 Big Achievements', [
-            '🎓 Scholar Certification: <strong>2,100 XP</strong>',
-            '🛒 First Purchase guide: <strong>100 XP</strong>',
-            '⚡ Lightning wallet setup: <strong>100 XP</strong>',
-            '🎤 Music badges: <strong>50-100 XP</strong>',
-            '🔑 Hidden badges: <strong>varies</strong>',
-            '💬 Feedback bonus: <strong>5 XP</strong>'
+            '🌍 Set your country: <strong>100 XP</strong>',
+            '🎓 Reach <em>Maxi</em> rank or higher: <strong>bonus SF points for the community</strong>',
+            '🥇 Level-up milestones (Pleb → Satoshi): <strong>community Satoshi\'s Favor points</strong>',
+            '🧩 Anonymous progress merged on sign-in: <strong>all XP preserved</strong>'
         ]);
         html += '</div></div>';
 
@@ -4245,6 +4286,7 @@ function showSettingsPage(tab) {
         if (!_satsLnAddr) {
             html += '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);line-height:1.5;">💡 Get one from <a href="https://walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);">Wallet of Satoshi</a>, <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);">Alby</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);">Coinos</a>, or <a href="https://strike.me" target="_blank" rel="noopener" style="color:var(--accent);">Strike</a>.</div>';
         }
+        html += '<button onclick="hideUsernamePrompt();setTimeout(function(){go(\'lightning\')},200)" style="margin-top:10px;width:100%;padding:11px;background:none;border:1px dashed rgba(247,147,26,0.5);border-radius:10px;color:var(--accent);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background=\'rgba(247,147,26,0.08)\'" onmouseout="this.style.background=\'none\'">⚡ I need a Lightning Address →</button>';
         html += '</div>';
 
         } else {
@@ -5976,6 +6018,20 @@ window.submitSatsClaim = async function() {
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
             window._satsClaimInProgress = false;
+            // Secret badge: Dust Collector — track consecutive faucet claim days
+            try {
+                var _fcToday = new Date().toISOString().split('T')[0];
+                var _fcLast = localStorage.getItem('btc_faucet_last_day');
+                var _fcYest = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                var _fcStreak = parseInt(localStorage.getItem('btc_faucet_streak') || '0');
+                if (_fcLast === _fcYest) {
+                    _fcStreak++;
+                } else if (_fcLast !== _fcToday) {
+                    _fcStreak = 1;
+                }
+                localStorage.setItem('btc_faucet_streak', String(_fcStreak));
+                localStorage.setItem('btc_faucet_last_day', _fcToday);
+            } catch(e) {}
 
             if (typeof notifySelfSatsClaim === 'function') notifySelfSatsClaim(paidAmount);
             // Fun celebration popup + confetti

@@ -1499,6 +1499,8 @@ window.searchGifs = function(query) {
         el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Type to search</div>';
         return;
     }
+    // Track GIF search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('gif') === -1) { _ss.push('gif'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
     var input = document.getElementById('gifSearchInput');
     if (input && input.value !== query) input.value = query;
     el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Searching...</div>';
@@ -2820,9 +2822,10 @@ window.lookupUserByName = function(username) {
 window.nachoGlobalAnnounce = function(text, mentionUid) {
     if (!text || typeof db === 'undefined' || !db) return;
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'nacho-bot';
-    // Rate limit: max 1 announcement per 30s per type
+    // Rate limit: max 1 announcement per 30s per unique message.
+    // Key uses 100 chars so different badge names / point counts don't collide.
     var now = Date.now();
-    var key = '_nachoAnnounce_' + text.substring(0, 20);
+    var key = '_nachoAnnounce_' + text.substring(0, 100);
     if (window[key] && now - window[key] < 30000) return;
     window[key] = now;
     var msgData = {
