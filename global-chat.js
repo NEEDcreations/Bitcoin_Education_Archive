@@ -1499,6 +1499,8 @@ window.searchGifs = function(query) {
         el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Type to search</div>';
         return;
     }
+    // Track GIF search use for Search Sleuth badge
+    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('gif') === -1) { _ss.push('gif'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
     var input = document.getElementById('gifSearchInput');
     if (input && input.value !== query) input.value = query;
     el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Searching...</div>';
