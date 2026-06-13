@@ -72,6 +72,9 @@
         practiceCorrect: 0,
         practiceCount: 0,      // how many practiced this session
         _practicePromptTimer: null,
+        // Disconnect presence tracking
+        opponentLastSeenTime: null,
+        _presenceCheckInterval: null,
     };
 
     // =============================================
@@ -726,6 +729,8 @@
         if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
         if (pvpState._oppTimeoutTimer) { clearTimeout(pvpState._oppTimeoutTimer); pvpState._oppTimeoutTimer = null; }
         if (pvpState._p1AdvanceTimer) { clearTimeout(pvpState._p1AdvanceTimer); pvpState._p1AdvanceTimer = null; }
+        if (pvpState._presenceCheckInterval) { clearInterval(pvpState._presenceCheckInterval); pvpState._presenceCheckInterval = null; }
+        pvpState.opponentLastSeenTime = null;
         stopPractice();
         stopFunFactRotation();
         stopPvpTickerUpdates();
@@ -1432,15 +1437,51 @@
         firstBeat[myPresenceKey] = Date.now();
         db.collection('pvp_matches').doc(matchId).update(firstBeat).catch(function(){});
 
+        // Initialize presence check (12s initial grace period for opponent to connect)
+        pvpState.opponentLastSeenTime = Date.now();
+        if (pvpState._presenceCheckInterval) clearInterval(pvpState._presenceCheckInterval);
+        pvpState._presenceCheckInterval = setInterval(function() {
+            if (!pvpState.inMatch || !pvpState.matchId) {
+                clearInterval(pvpState._presenceCheckInterval);
+                pvpState._presenceCheckInterval = null;
+                return;
+            }
+            if (pvpState.opponentLastSeenTime && (Date.now() - pvpState.opponentLastSeenTime > 12000)) {
+                console.warn('[PVP Matchmaker] Opponent presence timeout! Opponent has disconnected.');
+                clearInterval(pvpState._presenceCheckInterval);
+                pvpState._presenceCheckInterval = null;
+
+                db.collection('pvp_matches').doc(matchId).update({
+                    status: 'forfeit',
+                    forfeitedBy: pvpState.opponentUid,
+                    forfeitReason: 'disconnect'
+                }).catch(function(err) {
+                    console.error('[PVP Matchmaker] Error marking disconnect forfeit:', err);
+                });
+            }
+        }, 3000);
+
         pvpState.listenerUnsub = db.collection('pvp_matches').doc(matchId)
             .onSnapshot(function(doc) {
                 if (!doc.exists) return;
                 var data = doc.data();
 
+                // Update opponent's last seen time
+                var oppPresenceKey = pvpState.isPlayer1 ? 'player2LastSeen' : 'player1LastSeen';
+                if (data[oppPresenceKey]) {
+                    pvpState.opponentLastSeenTime = data[oppPresenceKey];
+                }
+
                 // Clear active timers if match is no longer active
                 if (data.status !== 'active') {
                     if (pvpState._oppTimeoutTimer) { clearTimeout(pvpState._oppTimeoutTimer); pvpState._oppTimeoutTimer = null; }
                     if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
+                }
+                if (data.status === 'finished' || data.status === 'forfeit') {
+                    if (pvpState._presenceCheckInterval) {
+                        clearInterval(pvpState._presenceCheckInterval);
+                        pvpState._presenceCheckInterval = null;
+                    }
                 }
 
                 pvpState.questions = data.questions || [];
