@@ -6644,11 +6644,11 @@ const BADGE_DEFS = [
             && has(['streak_7','streak_30','streak_100']);
     }, pts: 3000 },
     // FLEX badges (total actions across all categories)
-    { id: 'flex_rookie',    name: 'Healthy Start',     emoji: '🌱', desc: 'Completed 10 FLEX actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=10;  } catch(e){return false;} }, pts: 25 },
-    { id: 'flex_committed', name: 'Committed',          emoji: '💪', desc: 'Completed 50 FLEX actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=50;  } catch(e){return false;} }, pts: 75 },
-    { id: 'flex_athlete',   name: 'Bitcoin Athlete',   emoji: '🏅', desc: 'Completed 200 FLEX actions total',   check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=200; } catch(e){return false;} }, pts: 200 },
-    { id: 'flex_legend',    name: 'FLEX Legend',       emoji: '🦁', desc: 'Completed 1,000 FLEX actions total', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=1000;} catch(e){return false;} }, pts: 1000 },
-    { id: 'flex_all_once',  name: 'Full Stack Human',  emoji: '🧬', desc: 'Completed every FLEX action at least once', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); var ids=['steak','sunlight','dca','custody','lift','meetup','lightning','read','sleep','nokyc','node','cold','fast','walk','journal','meditate','teach','water','gratitude','verify']; return ids.every(function(id){return s[id]&&s[id].total>=1;}); } catch(e){return false;} }, pts: 150 },
+    { id: 'flex_rookie',    name: 'Healthy Start',     emoji: '🌱', desc: 'Completed 10 Flex actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=10;  } catch(e){return false;} }, pts: 25 },
+    { id: 'flex_committed', name: 'Committed',          emoji: '💪', desc: 'Completed 50 Flex actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=50;  } catch(e){return false;} }, pts: 75 },
+    { id: 'flex_athlete',   name: 'Bitcoin Athlete',   emoji: '🏅', desc: 'Completed 200 Flex actions total',   check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=200; } catch(e){return false;} }, pts: 200 },
+    { id: 'flex_legend',    name: 'Flex Legend',       emoji: '🦁', desc: 'Completed 1,000 Flex actions total', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=1000;} catch(e){return false;} }, pts: 1000 },
+    { id: 'flex_all_once',  name: 'Full Stack Human',  emoji: '🧬', desc: 'Completed every Flex action at least once', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); var ids=['steak','sunlight','dca','custody','lift','meetup','lightning','read','sleep','nokyc','node','cold','fast','walk','journal','meditate','teach','water','gratitude','verify']; return ids.every(function(id){return s[id]&&s[id].total>=1;}); } catch(e){return false;} }, pts: 150 },
     { id: 'hall_of_fame', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 50 or more distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
     { id: 'the_archive', name: 'The Archive', emoji: '🏛️', desc: 'Earned 100 distinct badges — you don\'t just use the Archive, you are it', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 100, pts: 10000, hidden: false },
     { id: 'genesis_block', name: 'Genesis Block', emoji: '⚡', desc: 'Earned 150 distinct badges — foundational, irreplaceable, impossible to ignore', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 150, pts: 15000, hidden: false },
@@ -7060,7 +7060,7 @@ function getBadgeHTML() {
     if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
         _bcIdx++;
         var _flexCatId = 'bc_' + _bcIdx;
-        var _flexCatName = '💪 FLEX Per-Action';
+        var _flexCatName = '💪 Flex Per-Action';
         var _flexEarned = 0, _flexTotal = 0;
         var _flexSec = '';
         _flexSec += '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:visible;">';
@@ -7090,7 +7090,7 @@ function getBadgeHTML() {
             });
         });
         _flexSec += '</div></div>';
-        _sections['z_flex_per_action'] = _flexSec; // 'z_' puts it near the end alphabetically
+        _sections['flex per-action'] = _flexSec; // 'z_' puts it near the end alphabetically
     }
 
     // Goals and Secret Badges — build and slot into the same sorted map
@@ -13778,7 +13778,7 @@ window.showQuestHub = function() {
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
         '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
-        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 FLEX</button>' +
+        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 Flex</button>' +
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
@@ -15353,7 +15353,7 @@ function _flexCheckBadges(actionId, total) {
                 var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
                 var fakeBadge = {
                     id: badgeId,
-                    name: action ? action.name + ' ×' + m : 'FLEX ×' + m,
+                    name: action ? action.name + ' ×' + m : 'Flex ×' + m,
                     emoji: action ? action.emoji : '💪',
                     desc: 'Did "' + (action ? action.name : actionId) + '" ' + m + ' times',
                     pts: Math.round(m * 2)
@@ -15398,7 +15398,7 @@ function _renderFlexTab(body) {
     // Header
     html += '<div style="text-align:center;margin-bottom:16px;">' +
         '<div style="font-size:1.8rem;margin-bottom:4px;">💪</div>' +
-        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily FLEX</div>' +
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Flex</div>' +
         '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Healthy Bitcoiner habits. 5 XP each. Resets daily.</div>' +
         '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
         '<div style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round(doneCount/FLEX_ACTIONS.length*100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +

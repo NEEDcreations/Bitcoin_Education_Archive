@@ -283,11 +283,11 @@ const BADGE_DEFS = [
             && has(['streak_7','streak_30','streak_100']);
     }, pts: 3000 },
     // FLEX badges (total actions across all categories)
-    { id: 'flex_rookie',    name: 'Healthy Start',     emoji: '🌱', desc: 'Completed 10 FLEX actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=10;  } catch(e){return false;} }, pts: 25 },
-    { id: 'flex_committed', name: 'Committed',          emoji: '💪', desc: 'Completed 50 FLEX actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=50;  } catch(e){return false;} }, pts: 75 },
-    { id: 'flex_athlete',   name: 'Bitcoin Athlete',   emoji: '🏅', desc: 'Completed 200 FLEX actions total',   check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=200; } catch(e){return false;} }, pts: 200 },
-    { id: 'flex_legend',    name: 'FLEX Legend',       emoji: '🦁', desc: 'Completed 1,000 FLEX actions total', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=1000;} catch(e){return false;} }, pts: 1000 },
-    { id: 'flex_all_once',  name: 'Full Stack Human',  emoji: '🧬', desc: 'Completed every FLEX action at least once', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); var ids=['steak','sunlight','dca','custody','lift','meetup','lightning','read','sleep','nokyc','node','cold','fast','walk','journal','meditate','teach','water','gratitude','verify']; return ids.every(function(id){return s[id]&&s[id].total>=1;}); } catch(e){return false;} }, pts: 150 },
+    { id: 'flex_rookie',    name: 'Healthy Start',     emoji: '🌱', desc: 'Completed 10 Flex actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=10;  } catch(e){return false;} }, pts: 25 },
+    { id: 'flex_committed', name: 'Committed',          emoji: '💪', desc: 'Completed 50 Flex actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=50;  } catch(e){return false;} }, pts: 75 },
+    { id: 'flex_athlete',   name: 'Bitcoin Athlete',   emoji: '🏅', desc: 'Completed 200 Flex actions total',   check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=200; } catch(e){return false;} }, pts: 200 },
+    { id: 'flex_legend',    name: 'Flex Legend',       emoji: '🦁', desc: 'Completed 1,000 Flex actions total', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=1000;} catch(e){return false;} }, pts: 1000 },
+    { id: 'flex_all_once',  name: 'Full Stack Human',  emoji: '🧬', desc: 'Completed every Flex action at least once', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); var ids=['steak','sunlight','dca','custody','lift','meetup','lightning','read','sleep','nokyc','node','cold','fast','walk','journal','meditate','teach','water','gratitude','verify']; return ids.every(function(id){return s[id]&&s[id].total>=1;}); } catch(e){return false;} }, pts: 150 },
     { id: 'hall_of_fame', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 50 or more distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
     { id: 'the_archive', name: 'The Archive', emoji: '🏛️', desc: 'Earned 100 distinct badges — you don\'t just use the Archive, you are it', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 100, pts: 10000, hidden: false },
     { id: 'genesis_block', name: 'Genesis Block', emoji: '⚡', desc: 'Earned 150 distinct badges — foundational, irreplaceable, impossible to ignore', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 150, pts: 15000, hidden: false },
@@ -699,7 +699,7 @@ function getBadgeHTML() {
     if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
         _bcIdx++;
         var _flexCatId = 'bc_' + _bcIdx;
-        var _flexCatName = '💪 FLEX Per-Action';
+        var _flexCatName = '💪 Flex Per-Action';
         var _flexEarned = 0, _flexTotal = 0;
         var _flexSec = '';
         _flexSec += '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:visible;">';
@@ -729,7 +729,7 @@ function getBadgeHTML() {
             });
         });
         _flexSec += '</div></div>';
-        _sections['z_flex_per_action'] = _flexSec; // 'z_' puts it near the end alphabetically
+        _sections['flex per-action'] = _flexSec; // 'z_' puts it near the end alphabetically
     }
 
     // Goals and Secret Badges — build and slot into the same sorted map
