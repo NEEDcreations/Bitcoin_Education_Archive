@@ -409,11 +409,25 @@ function showBadgeToast(badge) {
 
     const isMajor = MAJOR_BADGES.includes(badge.id);
 
-    // Minor badges: just a small toast, no fullscreen overlay
+    // Minor badges: small toast + Option D (Bitcoin ding — bright fifth, ~300ms)
     if (!isMajor) {
         if (typeof showToast === 'function') {
             showToast(badge.emoji + ' Badge: ' + badge.name + ' (+' + (badge.displayPts || badge.pts || 20) + ' XP)');
         }
+        try {
+            if ((typeof canPlaySound !== 'function' || canPlaySound()) && (typeof audioEnabled === 'undefined' || audioEnabled)) {
+                var _actx = new (window.AudioContext || window.webkitAudioContext)();
+                var _vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+                [[1046.50, 0], [1568.00, 0]].forEach(function(pair) {
+                    var o = _actx.createOscillator(), g = _actx.createGain();
+                    o.connect(g); g.connect(_actx.destination);
+                    o.frequency.value = pair[0]; o.type = 'sine';
+                    g.gain.setValueAtTime(0.18 * _vol, _actx.currentTime + pair[1]);
+                    g.gain.exponentialRampToValueAtTime(0.001, _actx.currentTime + 0.35);
+                    o.start(_actx.currentTime); o.stop(_actx.currentTime + 0.35);
+                });
+            }
+        } catch(e) {}
         return;
     }
 

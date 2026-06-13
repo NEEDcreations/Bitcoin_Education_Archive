@@ -3326,6 +3326,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         return window.audioEnabled && window.audioVolume > 0 && document.visibilityState === 'visible';
     };
 
+    // Option A — Coin pickup: two quick ascending dings (used for Lightning tip sent/received)
+    window.playCoinSound = function() {
+        if (!window.canPlaySound()) return;
+        try {
+            var _ac = new (window.AudioContext || window.webkitAudioContext)();
+            var _v = window.audioVolume;
+            [[1046.50, 0], [1318.51, 0.09]].forEach(function(pair) {
+                var o = _ac.createOscillator(), g = _ac.createGain();
+                o.connect(g); g.connect(_ac.destination);
+                o.frequency.value = pair[0]; o.type = 'triangle';
+                g.gain.setValueAtTime(0.22 * _v, _ac.currentTime + pair[1]);
+                g.gain.exponentialRampToValueAtTime(0.001, _ac.currentTime + pair[1] + 0.18);
+                o.start(_ac.currentTime + pair[1]);
+                o.stop(_ac.currentTime + pair[1] + 0.18);
+            });
+        } catch(e) {}
+    };
+
     function getVolume() { return window.audioEnabled ? window.audioVolume : 0; }
 
     function playChannelSound() {
