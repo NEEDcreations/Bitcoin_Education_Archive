@@ -862,101 +862,106 @@
 
         overlay.innerHTML =
             // ---- TOP BAR: Back, Logo, Ticker, Donate ----
-            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#030712;border-bottom:1px solid rgba(247,147,26,0.3);flex-shrink:0;">' +
-                // Left: Back button
-                '<button onclick="exitPVPMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;display:flex;align-items:center;touch-action:manipulation;" title="Leave Lobby">←</button>' +
-                // Center: Logo + Ticker info
-                '<div style="display:flex;align-items:center;gap:12px;">' +
-                    '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:28px;height:28px;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(247,147,26,0.3);" onclick="exitPVPMode();goHome();">' +
-                    '<div style="display:flex;align-items:center;gap:10px;font-size:0.7rem;">' +
-                        '<span style="color:#f7931a;font-weight:900;">₿</span>' +
-                        '<span id="pvpTickerPrice" style="color:#fff;font-weight:800;">' + td.price + '</span>' +
-                        '<span style="color:rgba(255,255,255,0.2);">|</span>' +
-                        '<span style="color:#f7931a;font-size:0.65rem;">⛏️</span>' +
-                        '<span id="pvpTickerHeight" style="color:#fff;font-weight:700;">' + td.height + '</span>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(10,10,26,0.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(247,147,26,0.15);flex-shrink:0;">' +
+                '<button onclick="exitPVPMode()" class="pvp-btn-hover" style="background:none;border:none;color:#e2e8f0;font-size:1.4rem;cursor:pointer;padding:4px 8px;display:flex;align-items:center;touch-action:manipulation;transition:color 0.2s;" title="Leave Lobby">←</button>' +
+                '<div style="display:flex;align-items:center;gap:16px;">' +
+                    '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:32px;height:32px;border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.4);" onclick="exitPVPMode();goHome();">' +
+                    '<div style="display:flex;align-items:center;gap:12px;font-size:0.75rem;background:rgba(255,255,255,0.03);padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.05);">' +
+                        '<span style="color:#f7931a;font-weight:900;font-size:0.9rem;">₿</span>' +
+                        '<span id="pvpTickerPrice" style="color:#f8fafc;font-weight:700;letter-spacing:0.5px;">' + td.price + '</span>' +
+                        '<span style="color:rgba(255,255,255,0.15);">|</span>' +
+                        '<span style="color:#f7931a;font-weight:900;font-size:0.8rem;">▤</span>' +
+                        '<span id="pvpTickerHeight" style="color:#f8fafc;font-weight:700;letter-spacing:0.5px;">' + td.height + '</span>' +
                     '</div>' +
                 '</div>' +
-                // Right: Donate button
-                '<span onclick="showDonateModal()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:#f7931a;border-radius:50%;touch-action:manipulation;" title="Donate"><svg viewBox="0 0 64 64" width="16" height="16"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+                '<span onclick="showDonateModal()" class="pvp-btn-hover" style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,#f7931a,#d97706);border-radius:50%;box-shadow:0 4px 12px rgba(247,147,26,0.3);touch-action:manipulation;" title="Donate"><svg viewBox="0 0 64 64" width="16" height="16"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
             '</div>' +
             // ---- MAIN CONTENT ----
-            '<div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 16px 24px;overflow-y:auto;">' +
-                '<div style="width:100%;max-width:480px;">' +
+            '<div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:32px 20px;overflow-y:auto;background:radial-gradient(circle at center top, rgba(247,147,26,0.05) 0%, transparent 60%);">' +
+                '<div style="width:100%;max-width:440px;">' +
                     // PVP Header + Stats row
-                    '<div style="text-align:center;margin-bottom:20px;">' +
-                        '<div style="font-size:2.2rem;margin-bottom:4px;">⚔️</div>' +
-                        '<h1 style="color:var(--accent,#f7931a);font-size:1.4rem;margin:0 0 4px;">PVP MODE</h1>' +
-                        '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:14px;">Bitcoin Trivia Battles — 1v1</div>' +
-                        '<div style="display:flex;justify-content:center;gap:20px;">' +
-                            '<div style="text-align:center;">' +
-                                '<div style="font-size:1.5rem;font-weight:800;color:#22c55e;">' + wins + '</div>' +
-                                '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Wins</div>' +
+                    '<div style="text-align:center;margin-bottom:32px;">' +
+                        '<h1 style="color:#f7931a;font-size:2rem;font-weight:800;letter-spacing:2px;margin:0 0 8px;text-shadow:0 0 20px rgba(247,147,26,0.3);">PVP MATCHMAKING</h1>' +
+                        '<div style="color:#94a3b8;font-size:0.9rem;font-weight:500;letter-spacing:0.5px;margin-bottom:24px;">BITCOIN TRIVIA BATTLES — 1V1</div>' +
+                        '<div style="display:flex;justify-content:center;gap:24px;">' +
+                            '<div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:12px 24px;box-shadow:0 4px 12px rgba(0,0,0,0.2);">' +
+                                '<div style="font-size:1.8rem;font-weight:800;color:#4ade80;line-height:1;">' + wins + '</div>' +
+                                '<div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px;font-weight:600;">Wins</div>' +
                             '</div>' +
-                            '<div style="text-align:center;">' +
-                                '<div style="font-size:1.5rem;font-weight:800;color:#ef4444;">' + losses + '</div>' +
-                                '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Losses</div>' +
+                            '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px 24px;box-shadow:0 4px 12px rgba(0,0,0,0.2);">' +
+                                '<div style="font-size:1.8rem;font-weight:800;color:#f87171;line-height:1;">' + losses + '</div>' +
+                                '<div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px;font-weight:600;">Losses</div>' +
                             '</div>' +
                         '</div>' +
                     '</div>' +
-                    // Rules (compact) — shown first
-                    '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;text-align:left;">' +
-                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">How It Works</div>' +
-                        '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.6;">' +
-                            '5 questions per round · First correct answer wins · Streaks = bonus pts · Win 3 of 5 for victory!' +
+                    // Rules
+                    '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:20px;margin-bottom:24px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2);">' +
+                        '<div style="font-size:0.75rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">How It Works</div>' +
+                        '<div style="color:#cbd5e1;font-size:0.85rem;line-height:1.6;font-weight:400;">' +
+                            '<span style="color:#f8fafc;font-weight:600;">5</span> questions per round <span style="color:#475569;margin:0 6px;">|</span> ' +
+                            'First correct answer wins <span style="color:#475569;margin:0 6px;">|</span> ' +
+                            '<span style="color:#f8fafc;font-weight:600;">Win 3</span> for victory!' +
                         '</div>' +
                     '</div>' +
                     // Searching animation
-                    '<div id="pvpLobbyStatus" style="margin-bottom:20px;text-align:center;">' +
-                        '<div class="pvp-pulse" style="width:64px;height:64px;border-radius:50%;background:rgba(247,147,26,0.15);border:3px solid var(--accent);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;animation:pvpPulse 2s ease-in-out infinite;">' +
-                            '<span style="font-size:1.6rem;">🔍</span>' +
+                    '<div id="pvpLobbyStatus" style="margin-bottom:32px;text-align:center;padding:24px 0;">' +
+                        '<div class="pvp-pulse" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg, rgba(247,147,26,0.2), rgba(247,147,26,0.05));border:2px solid rgba(247,147,26,0.8);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 0 20px rgba(247,147,26,0.4);">' +
+                            '<div style="width:24px;height:24px;border-radius:50%;background:#f7931a;box-shadow:0 0 15px #f7931a;animation:pvpInnerPulse 1.5s ease-in-out infinite alternate;"></div>' +
                         '</div>' +
-                        '<div style="color:var(--text);font-weight:700;font-size:0.95rem;">Searching for opponent...</div>' +
-                        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">First come, first served matchmaking</div>' +
+                        '<div style="color:#f8fafc;font-weight:600;font-size:1.1rem;letter-spacing:0.5px;margin-bottom:6px;">Searching for opponent...</div>' +
+                        '<div style="color:#64748b;font-size:0.8rem;font-weight:500;">First come, first served matchmaking</div>' +
                     '</div>' +
-                    // Share link to challenge a friend
-                    '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.4);border-radius:16px;padding:16px;margin-bottom:16px;text-align:center;">' +
-                        '<div style="font-size:1.3rem;margin-bottom:6px;">🔗⚔️</div>' +
-                        '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">Send this link to a friend right now to battle them in PVP Bitcoin trivia!</div>' +
-                        '<div style="display:flex;gap:6px;margin-top:10px;">' +
-                            '<div style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.7rem;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest/#pvp\');if(typeof showToast===\'function\')showToast(\'📋 Link copied!\')">https://bitcoineducation.quest/#pvp</div>' +
-                            '<button onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest/#pvp\');if(typeof showToast===\'function\')showToast(\'📋 Link copied! Send it to a friend!\')" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Copy</button>' +
+                    // Share link
+                    '<div class="pvp-invite-card" style="background:rgba(247,147,26,0.03);border:1px dashed rgba(247,147,26,0.5);border-radius:16px;padding:24px;margin-bottom:24px;text-align:center;transition:all 0.3s ease;">' +
+                        '<div style="color:#f7931a;font-weight:700;font-size:0.9rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">Challenge a Friend</div>' +
+                        '<div style="color:#94a3b8;font-weight:400;font-size:0.85rem;margin-bottom:16px;line-height:1.5;">Send this link to battle them instantly.</div>' +
+                        '<div style="display:flex;gap:8px;">' +
+                            '<div style="flex:1;padding:10px 12px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:8px;font-family:monospace;font-size:0.75rem;color:#f8fafc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;display:flex;align-items:center;" onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest/#pvp\');if(typeof showToast===\'function\')showToast(\'Link copied!\')">https://bitcoineducation.quest/#pvp</div>' +
+                            '<button onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest/#pvp\');if(typeof showToast===\'function\')showToast(\'Link copied!\')" class="pvp-btn-action" style="padding:10px 16px;background:#f7931a;color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.2s;box-shadow:0 4px 12px rgba(247,147,26,0.3);">Copy Link</button>' +
                         '</div>' +
-                        (navigator.share ? '<button onclick="navigator.share({title:\'PVP Bitcoin Trivia Battle!\',text:\'Challenge me to a Bitcoin trivia battle right now! ⚔️\',url:\'https://bitcoineducation.quest/#pvp\'}).catch(function(){})" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">📤 Share with a friend</button>' : '') +
+                        (navigator.share ? '<button onclick="navigator.share({title:\'PVP Bitcoin Trivia Battle!\',text:\'Challenge me to a Bitcoin trivia battle right now!\',url:\'https://bitcoineducation.quest/#pvp\'}).catch(function(){})" class="pvp-btn-outline" style="width:100%;margin-top:12px;padding:12px;background:transparent;border:1px solid rgba(247,147,26,0.5);border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s;">Share Invitation</button>' : '') +
                     '</div>' +
-                    // Fun Fact card (rotates)
-                    '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;text-align:left;">' +
-                        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
-                            '<span style="font-size:0.9rem;">🎉</span>' +
-                            '<span style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">Did You Know?</span>' +
-                        '</div>' +
-                        '<div id="pvpFunFact" style="color:var(--text-muted);font-size:0.8rem;line-height:1.6;min-height:40px;transition:opacity 0.3s ease;">Loading fun facts...</div>' +
+                    // Fun Fact
+                    '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:20px;margin-bottom:24px;text-align:left;position:relative;overflow:hidden;">' +
+                        '<div style="position:absolute;top:0;left:0;width:4px;height:100%;background:#f7931a;box-shadow:0 0 10px #f7931a;"></div>' +
+                        '<div style="font-size:0.7rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;margin-left:8px;">Did You Know?</div>' +
+                        '<div id="pvpFunFact" style="color:#cbd5e1;font-size:0.85rem;line-height:1.6;min-height:48px;transition:opacity 0.4s ease;margin-left:8px;">Loading fun facts...</div>' +
                     '</div>' +
-                    // Badges preview
-                    '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:20px;text-align:left;">' +
-                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">PVP Badges</div>' +
-                        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+                    // Badges
+                    '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:20px;margin-bottom:32px;text-align:left;">' +
+                        '<div style="font-size:0.7rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">PVP Badges</div>' +
+                        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
                             PVP_BADGE_DEFS.map(function(b) {
                                 var earned = parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= b.threshold;
-                                return '<div style="padding:5px 9px;border-radius:8px;font-size:0.7rem;border:1px solid ' + (earned ? 'var(--accent)' : 'var(--border)') + ';background:' + (earned ? 'rgba(247,147,26,0.15)' : 'transparent') + ';color:' + (earned ? 'var(--accent)' : 'var(--text-faint)') + ';font-weight:' + (earned ? '700' : '500') + ';">' +
-                                    b.emoji + ' ' + b.name + ' (' + b.threshold + 'W)</div>';
+                                var bg = earned ? 'rgba(247,147,26,0.1)' : 'rgba(255,255,255,0.02)';
+                                var border = earned ? 'rgba(247,147,26,0.4)' : 'rgba(255,255,255,0.05)';
+                                var color = earned ? '#f7931a' : '#64748b';
+                                return '<div style="padding:6px 10px;border-radius:6px;font-size:0.75rem;border:1px solid ' + border + ';background:' + bg + ';color:' + color + ';font-weight:' + (earned ? '600' : '500') + ';transition:all 0.2s;">' +
+                                    (earned ? '★ ' : '') + b.name + ' (' + b.threshold + 'W)</div>';
                             }).join('') +
                         '</div>' +
                     '</div>' +
-                    // Exit button (prominent)
+                    // Exit button
                     '<div style="text-align:center;">' +
-                        '<button onclick="exitPVPMode()" style="padding:12px 32px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">← Leave Lobby</button>' +
+                        '<button onclick="exitPVPMode()" class="pvp-btn-leave" style="padding:12px 40px;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:24px;color:#94a3b8;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s;">Leave Lobby</button>' +
                     '</div>' +
                 '</div>' +
             '</div>' +
             // PVP styles
             '<style>' +
-                '@keyframes pvpPulse { 0%,100% { transform:scale(1); box-shadow:0 0 0 0 rgba(247,147,26,0.4); } 50% { transform:scale(1.08); box-shadow:0 0 30px rgba(247,147,26,0.3); } }' +
+                '@keyframes pvpPulse { 0% { box-shadow: 0 0 0 0 rgba(247,147,26,0.4); transform:scale(1); } 70% { box-shadow: 0 0 0 20px rgba(247,147,26,0); transform:scale(1.05); } 100% { box-shadow: 0 0 0 0 rgba(247,147,26,0); transform:scale(1); } }' +
+                '@keyframes pvpInnerPulse { from { transform:scale(0.8); opacity:0.8; } to { transform:scale(1.2); opacity:1; } }' +
                 '@keyframes pvpSlideIn { from { transform:translateY(20px);opacity:0; } to { transform:translateY(0);opacity:1; } }' +
                 '@keyframes pvpCorrect { 0% { transform:scale(1); } 50% { transform:scale(1.05); } 100% { transform:scale(1); } }' +
                 '@keyframes pvpShake { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-5px); } 75% { transform:translateX(5px); } }' +
                 '@keyframes pvpCountdown { from { transform:scale(0.5);opacity:0; } to { transform:scale(1);opacity:1; } }' +
                 '.pvp-btn:hover { filter:brightness(1.15);transform:translateY(-1px); }' +
                 '.pvp-btn:active { transform:translateY(0); }' +
+                '.pvp-btn-action:hover { background:#d97706 !important; transform:translateY(-1px); }' +
+                '.pvp-btn-outline:hover { background:rgba(247,147,26,0.1) !important; color:#fff !important; }' +
+                '.pvp-btn-leave:hover { background:rgba(255,255,255,0.05) !important; color:#f8fafc !important; }' +
+                '.pvp-invite-card:hover { border-color:rgba(247,147,26,0.8) !important; background:rgba(247,147,26,0.05) !important; }' +
+                '.pvp-btn-hover:hover { opacity:0.8; transform:scale(1.05); }' +
             '</style>';
 
         document.body.appendChild(overlay);
