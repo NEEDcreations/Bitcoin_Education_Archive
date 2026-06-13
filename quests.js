@@ -2282,7 +2282,9 @@ function _renderFavorTab(body) {
 
     // ── Faction Scoreboard (below progress bar) ──
     html += '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
-        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:12px;">⚔️ Faction SF Competition</div>' +
+        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:4px;">⚔️ Faction SF Competition</div>' +
+        '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:2px;">Race to 1,000 points</div>' +
+        '<div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:12px;">🏆 Winning Faction receives a special prize!</div>' +
         '<div id="factionScoreboardInner" style="display:flex;gap:10px;align-items:stretch;">' +
             '<div style="flex:1;background:rgba(247,147,26,0.07);border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:12px;text-align:center;">' +
                 '<div style="font-size:1.4rem;margin-bottom:4px;">🐝</div>' +
@@ -2292,7 +2294,7 @@ function _renderFavorTab(body) {
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
                 '<div style="font-size:0.9rem;font-weight:900;color:var(--text-faint);">VS</div>' +
-                '<div id="sfScoreLeader" style="font-size:0.6rem;color:var(--text-faint);text-align:center;max-width:40px;"></div>' +
+                '<div id="sfScoreLeader" style="display:none;"></div>' +
             '</div>' +
             '<div style="flex:1;background:rgba(168,85,247,0.07);border:2px solid rgba(168,85,247,0.3);border-radius:12px;padding:12px;text-align:center;">' +
                 '<div style="font-size:1.4rem;margin-bottom:4px;">🦡</div>' +
@@ -2426,10 +2428,7 @@ function _startFactionScoreboardListener() {
 
         // Leader label
         if (elLeader) {
-            if (hornets > badgers) elLeader.textContent = '🐝 Leading';
-            else if (badgers > hornets) elLeader.textContent = '🦡 Leading';
-            else if (total > 0) elLeader.textContent = 'Tied!';
-            else elLeader.textContent = '';
+            // leader label hidden per design (removed)
         }
 
         // Progress bar showing split
