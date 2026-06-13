@@ -4352,22 +4352,26 @@ function showSettingsPage(tab) {
             '📖 Open a channel: <strong>10 XP</strong>',
             '⏱️ Read for 30 sec: <strong>15 XP</strong>',
             '🧭 Explore 10+ topics/session: <strong>50 XP</strong>',
-            '🗺️ Exploration milestones: <strong>50-500 XP</strong>'
+            '🗺️ Exploration milestones: <strong>50–2,000 XP</strong> (10 / 25 / 50 / 100 / all topics)',
+            '🔖 Bookmark a message: <strong>5 XP</strong>'
         ]);
         html += _es('ep_daily', '✅ Daily Activities', [
             '✅ Daily visit: <strong>5 XP</strong>',
             '🔥 Streak bonus: <strong>100 XP/day</strong>',
-            '🎰 Daily spin: <strong>10-50 XP</strong>',
+            '🎰 Daily spin: <strong>25–100 XP</strong> (XP reward spins)',
             '📈 Price prediction: <strong>5 XP</strong> (25 if correct!)',
-            '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched'
+            '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched',
+            '⚡ Visit Lightning Wallet: <strong>5 XP</strong>'
         ]);
         html += _es('ep_quiz', '🧠 Quizzes & Learning', [
             '🎯 Daily quests (perfect): <strong>100 XP</strong> (50 for 3+, 25 retry)',
-            '🧠 Nacho trivia pop-ups: <strong>10-15 XP</strong>',
+            '🧠 Nacho trivia pop-ups: <strong>10–15 XP</strong>',
             '🎮 Channel quizzes: <strong>10 XP</strong>',
             '🎯 Conversation quests: <strong>5 XP/correct</strong>',
-            '📖 Nacho\'s Trails chapters: <strong>25-50 XP</strong> (100 for all)',
-            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all)'
+            '📖 Nacho\'s Trails chapters: <strong>25–50 XP</strong> (100 for completing all)',
+            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all)',
+            '🎓 Scholar Certification (Bitcoin): <strong>2,100 XP</strong>',
+            '🎓 Scholar Certification (Protocol): <strong>2,100 XP</strong>'
         ]);
         html += _es('ep_social', '💬 Community & Social', [
             '📝 Forum post: <strong>10 XP</strong>',
@@ -4376,26 +4380,40 @@ function showSettingsPage(tab) {
             '📖 Read an article: <strong>5 XP</strong>',
             '💬 Article comment: <strong>5 XP</strong>',
             '🌍 Global Chat message: <strong>5 XP</strong>',
-            '🔥 Chat streaks: <strong>10-25 XP</strong> (3-day / 7-day)',
-            '🤝 Host IRL event: <strong>15 XP</strong>'
+            '🔥 Chat streaks: <strong>10–25 XP</strong> (3-day / 7-day)',
+            '🤝 Host IRL event: <strong>15 XP</strong>',
+            '🤝 Refer a friend: <strong>bonus XP per referral</strong>',
+            '💬 Feedback bonus: <strong>5 XP</strong>'
+        ]);
+        html += _es('ep_lightning', '⚡ Lightning & Marketplace', [
+            '⚡ Send a Lightning tip: <strong>10 XP</strong>',
+            '⚡ Lightning wallet setup: <strong>100 XP</strong>',
+            '🛍️ Contact a seller: <strong>5 XP</strong>',
+            '🏪 List an item for sale: <strong>10 XP</strong>'
         ]);
         html += _es('ep_music', '🎵 Music & Content', [
-            '🎵 Upload a song: <strong>50 XP</strong>',
-            '🎧 Listen to full track: <strong>10 XP</strong>',
-            '💬 Comment on Beats: <strong>10 XP</strong>'
+            '🎵 Upload a song to Beats: <strong>50 XP</strong>',
+            '🎧 Listen to a full track: <strong>10 XP</strong>',
+            '💬 Comment on a Beats track: <strong>10 XP</strong>'
         ]);
         html += _es('ep_pvp', '⚔️ PVP & Competitions', [
-            '⚔️ PVP victory: <strong>score-based XP</strong>',
-            '🧠 PVP practice: <strong>10 XP/correct</strong>',
-            '🏅 PVP badges: <strong>25-500 XP</strong>'
+            '⚔️ PVP match victory: <strong>score-based XP</strong>',
+            '🧠 PVP practice question: <strong>10 XP/correct</strong>',
+            '🏅 PVP badges: <strong>25–500 XP</strong>'
+        ]);
+        html += _es('ep_badges', '🏅 Badges', [
+            '📚 Standard badges: <strong>20–2,000 XP each</strong>',
+            '🔑 Hidden / secret badges: <strong>50–2,100 XP each</strong>',
+            '🎯 Goal badges (Tickets, Exploration, Charity): <strong>200–15,000 XP</strong>',
+            '🛒 First Purchase guide: <strong>100 XP</strong>',
+            '🏆 Milestone badges (50 / 100 / 150 / 200 badges): <strong>5,000–21,000 XP</strong>',
+            '💡 Tip: secret badges are discovered, not unlocked — explore everything!'
         ]);
         html += _es('ep_big', '🏆 Big Achievements', [
-            '🎓 Scholar Certification: <strong>2,100 XP</strong>',
-            '🛒 First Purchase guide: <strong>100 XP</strong>',
-            '⚡ Lightning wallet setup: <strong>100 XP</strong>',
-            '🎤 Music badges: <strong>50-100 XP</strong>',
-            '🔑 Hidden badges: <strong>varies</strong>',
-            '💬 Feedback bonus: <strong>5 XP</strong>'
+            '🌍 Set your country: <strong>100 XP</strong>',
+            '🎓 Reach <em>Maxi</em> rank or higher: <strong>bonus SF points for the community</strong>',
+            '🥇 Level-up milestones (Pleb → Satoshi): <strong>community Satoshi\'s Favor points</strong>',
+            '🧩 Anonymous progress merged on sign-in: <strong>all XP preserved</strong>'
         ]);
         html += '</div></div>';
 
