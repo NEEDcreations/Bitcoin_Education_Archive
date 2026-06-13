@@ -4818,8 +4818,8 @@ function showSettingsPage(tab) {
         
         // Badges earned count
         var _badgeCount = typeof earnedBadges !== 'undefined' ? earnedBadges.size || 0 : JSON.parse(localStorage.getItem('btc_badges') || '[]').length;
-        // BADGE_DEFS = 177 static badges. Dynamic per-action FLEX badges: 20 actions × 8 milestones = 160.
-        var _totalBadges = (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 177) +
+        // BADGE_DEFS = 190 static badges. Dynamic per-action FLEX badges: 20 actions × 8 milestones = 160.
+        var _totalBadges = (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 190) +
             (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined' ? FLEX_ACTIONS.length * FLEX_BADGE_MILESTONES.length : 160);
         html += statRow('Badges Earned', _badgeCount + ' / ' + _totalBadges, '🏅');
         
