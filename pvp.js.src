@@ -1076,9 +1076,15 @@
                             return;
                         }
                         // Found a live opponent — match them!
-                        clearInterval(pvpState._matchPoll);
-                        pvpState._matchPoll = null;
-                        createMatch(doc.id, data);
+                        // Race condition prevention: only the player with the smaller UID
+                        // creates the match. If our UID is larger, we wait for the opponent
+                        // to create it (their listenForMatch listener will pick it up).
+                        if (myUid < data.uid) {
+                            clearInterval(pvpState._matchPoll);
+                            pvpState._matchPoll = null;
+                            createMatch(doc.id, data);
+                        }
+                        // else: opponent has smaller UID — they will create the match
                     });
                 })
                 .catch(function(){});
@@ -1135,17 +1141,32 @@
             questionStartedAt: null,
         };
 
-        db.collection('pvp_matches').add(matchData).then(function(docRef) {
-            var matchId = docRef.id;
+        // Atomic transaction: check lobby doc is still 'waiting' before creating the match.
+        // Prevents double-match race condition where both players call createMatch simultaneously.
+        var matchRef = db.collection('pvp_matches').doc();
+        var lobbyRef = db.collection('pvp_lobby').doc(waitingDocId);
 
-            // Update the waiting player's lobby entry
-            db.collection('pvp_lobby').doc(waitingDocId).update({
-                status: 'matched',
-                matchId: matchId,
-                opponentName: getMyDisplayName(),
-                opponentUid: uid,
-                opponentProfilePic: getMyProfilePic()
+        db.runTransaction(function(transaction) {
+            return transaction.get(lobbyRef).then(function(lobbyDoc) {
+                if (!lobbyDoc.exists) {
+                    throw new Error('LOBBY_GONE');
+                }
+                var currentStatus = lobbyDoc.data().status;
+                if (currentStatus !== 'waiting') {
+                    throw new Error('LOBBY_ALREADY_MATCHED');
+                }
+                // Atomic: write match doc + update lobby in one transaction
+                transaction.set(matchRef, matchData);
+                transaction.update(lobbyRef, {
+                    status: 'matched',
+                    matchId: matchRef.id,
+                    opponentName: getMyDisplayName(),
+                    opponentUid: uid,
+                    opponentProfilePic: getMyProfilePic()
+                });
             });
+        }).then(function() {
+            var matchId = matchRef.id;
 
             // Remove our own lobby entry if we had one
             if (pvpState.lobbyDocId) {
@@ -1162,10 +1183,15 @@
 
             listenToMatch(matchId);
             showMatchFound();
-
         }).catch(function(err) {
-            console.error('PVP match create error:', err);
-            if (typeof showToast === 'function') showToast('⚠️ Failed to create PVP match');
+            if (err.message === 'LOBBY_GONE' || err.message === 'LOBBY_ALREADY_MATCHED') {
+                // Opponent was already claimed — rejoin lobby and keep waiting
+                console.log('[PVP Matchmaker] createMatch: lobby already claimed, re-entering lobby.');
+                addToLobbyAndListen(uid);
+            } else {
+                console.error('[PVP Matchmaker] createMatch transaction error:', err);
+                if (typeof showToast === 'function') showToast('⚠️ Failed to create PVP match');
+            }
         });
     }
 
