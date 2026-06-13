@@ -5044,7 +5044,20 @@ const TOP_NOTCH_ENTRIES = [
 
 { keys: ['donation badge','charity badge','donor badge','giving badge','sats saint','stack sharer'],
       answer: "Earn glory for giving, {name}! 🏅🦌 Badges: 🫷 Giving Pleb (100 XP) → 💛 Stack Sharer (500) → 🧡 Community Builder (1K) → ❤️ Archive Patron (5K) → 🔥 Sats Saint (10K) → ⚡ Lightning Philanthropist (25K) → 🏆 Satoshi's Steward (50K) → 👑 Legend of the Archive (100K). Each rewards bonus XP!",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+{ keys: ['flex', 'flex tab', 'flex quest', 'healthy bitcoiner', 'healthy habits', 'bitcoin lifestyle', 'daily habits', 'eat steak', 'lift weights', 'cold plunge', 'sunlight', 'self custody habits', 'flex points', 'flex xp', 'daily flex'],
+      answer: "The FLEX tab in Quest Hub is where Bitcoiners prove they walk the walk, {name}! \uD83D\uDCAA\uD83E\uDD8C 20 daily healthy-bitcoiner actions — each worth 5 XP. Eat steak, get sunlight, DCA, move to self-custody, lift weights, host a meetup, spend via Lightning, read Bitcoin, sleep 8 hours, buy no-KYC, run your node, cold plunge, intermittent fast, walk 10k steps, journal, meditate, orange-pill someone, drink water, practice gratitude, verify a transaction. Each has a unique interaction: press & hold rings, sliders, type-a-word, code sequences, a mini maze, a rotary dial, triple taps, and button mashing. Do all 20 daily for 100 XP. Resets at midnight — flex again tomorrow! \uD83D\uDD04",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+{ keys: ['flex badge', 'healthy start badge', 'committed badge', 'bitcoin athlete badge', 'flex legend badge', 'full stack human badge', 'flex milestone', 'flex achievement'],
+      answer: "FLEX badges reward stacking healthy habits, {name}! \uD83C\uDFC5\uD83E\uDD8C 5 aggregate badges based on total actions across all 20: \uD83C\uDF31 Healthy Start (10 total) \u2192 \uD83D\uDCAA Committed (50) \u2192 \uD83C\uDFC5 Bitcoin Athlete (200) \u2192 \uD83E\uDD81 FLEX Legend (1,000) \u2192 \uD83E\uDDEC Full Stack Human (all 20 actions done at least once). Each of the 20 individual actions ALSO has per-action milestone badges at 1, 5, 10, 25, 50, 100, 500, and 1,000 completions. That's a lot of reps! \uD83D\uDCAA",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+{ keys: ['maze', 'rotary dial', 'flex puzzle', 'run your node maze', 'gratitude dial', 'quest puzzle', 'flex interaction'],
+      answer: "FLEX has some fun mini-puzzles, {name}! \uD83E\uDDE9\uD83E\uDD8C 'Run Your Node' is a Z-shaped SVG maze — drag the dot from S to E without leaving the corridor or it stops you. 'Gratitude Practice' is a rotary dial — spin the \uD83D\uDE4F knob around the circle into the orange target zone. Both work on desktop and mobile. Other interactions: sliders (drag thumb all the way across), type-a-word (type the shown word — autocapitalizes), code sequences (tap keys in displayed order), triple tap, rapid mash buttons, and press-and-hold rings. Different every day — keeps it fresh! \u26A1",
       channel: 'quest-hub', channelName: 'Quest Hub' }
+
 ];
 
 // Combine into main KB
