@@ -1913,7 +1913,7 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
-async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId) {
+async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
     if (!currentUser || !rankingReady) return;
 
     // Anti-abuse: validate pts is a reasonable number
@@ -2045,6 +2045,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
+        if (extra && typeof extra === 'object') Object.assign(payload, extra);
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
             if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Daily limit reached for this action.'), 6000);
@@ -4972,7 +4973,9 @@ function showSettingsPage(tab) {
         
         // Badges earned count
         var _badgeCount = typeof earnedBadges !== 'undefined' ? earnedBadges.size || 0 : JSON.parse(localStorage.getItem('btc_badges') || '[]').length;
-        var _totalBadges = typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 63;
+        // BADGE_DEFS = 190 static badges. Dynamic per-action FLEX badges: 20 actions × 8 milestones = 160.
+        var _totalBadges = (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 190) +
+            (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined' ? FLEX_ACTIONS.length * FLEX_BADGE_MILESTONES.length : 160);
         html += statRow('Badges Earned', _badgeCount + ' / ' + _totalBadges, '🏅');
         
         // Reading progress
@@ -6633,15 +6636,17 @@ const BADGE_DEFS = [
             && has(['streak_7','streak_30','streak_100']);
     }, pts: 3000 },
     // FLEX badges (total actions across all categories)
-    { id: 'flex_rookie',    name: 'Healthy Start',     emoji: '🌱', desc: 'Completed 10 FLEX actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=10;  } catch(e){return false;} }, pts: 25 },
-    { id: 'flex_committed', name: 'Committed',          emoji: '💪', desc: 'Completed 50 FLEX actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=50;  } catch(e){return false;} }, pts: 75 },
-    { id: 'flex_athlete',   name: 'Bitcoin Athlete',   emoji: '🏅', desc: 'Completed 200 FLEX actions total',   check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=200; } catch(e){return false;} }, pts: 200 },
-    { id: 'flex_legend',    name: 'FLEX Legend',       emoji: '🦁', desc: 'Completed 1,000 FLEX actions total', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=1000;} catch(e){return false;} }, pts: 1000 },
-    { id: 'flex_all_once',  name: 'Full Stack Human',  emoji: '🧬', desc: 'Completed every FLEX action at least once', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); var ids=['steak','sunlight','dca','custody','lift','meetup','lightning','read','sleep','nokyc','node','cold','fast','walk','journal','meditate','teach','water','gratitude','verify']; return ids.every(function(id){return s[id]&&s[id].total>=1;}); } catch(e){return false;} }, pts: 150 },
-    { id: 'hall_of_fame', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 50 or more distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
-    { id: 'the_archive', name: 'The Archive', emoji: '🏛️', desc: 'Earned 100 distinct badges — you don\'t just use the Archive, you are it', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 100, pts: 10000, hidden: false },
-    { id: 'genesis_block', name: 'Genesis Block', emoji: '⚡', desc: 'Earned 150 distinct badges — foundational, irreplaceable, impossible to ignore', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 150, pts: 15000, hidden: false },
-    { id: 'satoshis_ghost', name: "Satoshi's Ghost", emoji: '👻', desc: 'Earned 200 distinct badges — so rare, nobody knows if it has ever been done', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 200, pts: 21000, hidden: false },
+    { id: 'flex_rookie',    name: 'Healthy Start',     emoji: '🌱', desc: 'Completed 10 Flex actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=10;  } catch(e){return false;} }, pts: 25 },
+    { id: 'flex_committed', name: 'Committed',          emoji: '💪', desc: 'Completed 50 Flex actions total',    check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=50;  } catch(e){return false;} }, pts: 75 },
+    { id: 'flex_athlete',   name: 'Bitcoin Athlete',   emoji: '🏅', desc: 'Completed 200 Flex actions total',   check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=200; } catch(e){return false;} }, pts: 200 },
+    { id: 'flex_legend',    name: 'Flex Legend',       emoji: '🦁', desc: 'Completed 1,000 Flex actions total', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); return Object.values(s).reduce(function(acc,v){return acc+(v.total||0);},0)>=1000;} catch(e){return false;} }, pts: 1000 },
+    { id: 'flex_all_once',  name: 'Full Stack Human',  emoji: '🧬', desc: 'Completed every Flex action at least once', check: () => { try { var s=JSON.parse(localStorage.getItem('btc_flex_state')||'{}'); var ids=['steak','sunlight','dca','custody','lift','meetup','lightning','read','sleep','nokyc','node','cold','fast','walk','journal','meditate','teach','water','gratitude','verify']; return ids.every(function(id){return s[id]&&s[id].total>=1;}); } catch(e){return false;} }, pts: 150 },
+    { id: 'hall_of_fame', name: 'Chancellor on Brink', emoji: '📰', desc: 'Earned 50 distinct badges — Chancellor on brink of second bailout for banks', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 50, pts: 5000, hidden: false },
+    { id: 'the_archive', name: 'The Archivist', emoji: '🏛️', desc: 'Earned 100 distinct badges — you don\'t just use the Archive, you are it', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 100, pts: 10000, hidden: false },
+    { id: 'genesis_block', name: 'Hall of Fame', emoji: '🏆', desc: 'Earned 150 distinct badges — a true legend of the Archive', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 150, pts: 15000, hidden: false },
+    { id: 'satoshis_ghost', name: "Satoshi's Revenge", emoji: '⚔️', desc: 'Earned 200 distinct badges — the network never forgets', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 200, pts: 21000, hidden: false },
+    { id: 'block_250', name: "Satoshi's Vendetta", emoji: '🗡️', desc: 'Earned 250 distinct badges — deeper than most will ever go', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 250, pts: 25000, hidden: false },
+    { id: 'the_hodler', name: "Satoshi's Ghost", emoji: '👻', desc: 'Earned 300 distinct badges — so rare, nobody knows if it has ever been done', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 300, pts: 30000, hidden: false },
 ];
 
 let earnedBadges = new Set();
@@ -6936,25 +6941,28 @@ function getBadgeHTML() {
     var _used = {};
     function _cat(list, filter) { var r = list.filter(function(b) { return !_used[b.id] && filter(b); }); r.forEach(function(b) { _used[b.id] = true; }); return r; }
     const categories = {
-        '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm'),
-        '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_')),
+        '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm' || b.id === 'first_purchase'),
+        '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_') || b.id === 'experienced_pro'),
         '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
         '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_') || b.id.startsWith('story_')),
         '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),
         '🎧 DJ Mode': _cat(BADGE_DEFS, b => b.id.startsWith('dj_')),
-        '🎵 Music': _cat(BADGE_DEFS, b => b.id.startsWith('producer')),
+        '🎵 Music': _cat(BADGE_DEFS, b => b.id.startsWith('producer') || b.id.startsWith('beats_')),
         '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
         '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_') || b.id === 'global_citizen' || b.id === 'referred'),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
-        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50'),
+        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50' || b.id === 'react_5' || b.id === 'react_200'),
+        '🚶 Proof of Walk': _cat(BADGE_DEFS, b => b.id.startsWith('pow_')),
         '🎡 Spin Wheel': _cat(BADGE_DEFS, b => b.id.startsWith('spin_')),
         '⛏️ Satoshi\'s Favor': _cat(BADGE_DEFS, b => b.id.startsWith('sf_')),
         '🐲 Raid Boss': _cat(BADGE_DEFS, b => b.id.startsWith('raid_')),
         '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
+        '💪 Daily Quest Hub': _cat(BADGE_DEFS, b => b.id.startsWith('flex_') || b.id.startsWith('trivia_') || b.id.startsWith('poll_') || b.id.startsWith('daily_triple')),
+        '🛒 Marketplace': _cat(BADGE_DEFS, b => b.id.startsWith('market_') || b.id === 'bookmarks_1' || b.id === 'bookmarks_10' || b.id === 'favs_10' || b.id === 'favs_25'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
 
@@ -6991,7 +6999,9 @@ function getBadgeHTML() {
     var _hiddenEarnable = typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.filter(function(b) { return b.hidden; }).length : 0;
     var _hiddenEarned = (JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]')).length;
     var _earnedCount = earnedBadges.size;
-    var _grandTotal = _totalEarnable + _hiddenEarnable;
+    // Add dynamic FLEX per-action badges (20 actions × 8 milestones = 160)
+    var _flexDynamic = (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') ? FLEX_ACTIONS.length * FLEX_BADGE_MILESTONES.length : 160;
+    var _grandTotal = _totalEarnable + _hiddenEarnable + _flexDynamic;
     var _grandEarned = _earnedCount + _hiddenEarned;
     var _pct = Math.round((_grandEarned / _grandTotal) * 100);
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:12px;">' +
@@ -7039,6 +7049,43 @@ function getBadgeHTML() {
         }
         _sec += '</div></div>';
         _sections[_strip(catName)] = _sec;
+    }
+
+    // Dynamic FLEX Per-Action badges — 20 actions × 8 milestones = 160
+    if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
+        _bcIdx++;
+        var _flexCatId = 'bc_' + _bcIdx;
+        var _flexCatName = '💪 Flex Per-Action';
+        var _flexEarned = 0, _flexTotal = 0;
+        var _flexSec = '';
+        _flexSec += '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:visible;">';
+        _flexSec += '<button onclick="var c=document.getElementById(\''+_flexCatId+'\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'\u25b6\':\'\u25bc\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        _flexSec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+        _flexSec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + _flexCatName + '</span>';
+        // Count earned dynamically
+        var _allFlexBadgeIds = [];
+        FLEX_ACTIONS.forEach(function(a) {
+            FLEX_BADGE_MILESTONES.forEach(function(m) { _allFlexBadgeIds.push('flex_' + a.id + '_' + m); });
+        });
+        _flexEarned = _allFlexBadgeIds.filter(function(bid) { return earnedBadges.has(bid); }).length;
+        _flexTotal = _allFlexBadgeIds.length;
+        _flexSec += '<span style="margin-left:auto;font-size:0.7rem;color:var(--accent);font-weight:700;">' + _flexEarned + '/' + _flexTotal + '</span>';
+        _flexSec += '</button>';
+        _flexSec += '<div id="' + _flexCatId + '" class="badges-grid" style="display:none;">';
+        FLEX_ACTIONS.forEach(function(a) {
+            FLEX_BADGE_MILESTONES.forEach(function(m) {
+                var bid = 'flex_' + a.id + '_' + m;
+                var earned = earnedBadges.has(bid);
+                var bname = a.name + ' ×' + m;
+                var bdesc = 'Did "' + a.name + '" ' + m + ' time' + (m === 1 ? '' : 's');
+                _flexSec += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + bid + '" data-badge-cat="' + escapeHtml(_flexCatName) + '" title="' + escapeHtml(bdesc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
+                    '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (earned ? a.emoji : '🔘') + '</div>' +
+                    '<div style="font-size:0.65rem;font-weight:700;color:' + (earned ? 'var(--heading)' : 'var(--text-faint)') + ';text-align:center;line-height:1.2;">' + escapeHtml(bname) + '</div>' +
+                    '</div>';
+            });
+        });
+        _flexSec += '</div></div>';
+        _sections['flex per-action'] = _flexSec; // 'z_' puts it near the end alphabetically
     }
 
     // Goals and Secret Badges — build and slot into the same sorted map
@@ -13370,7 +13417,9 @@ function _renderFavorTab(body) {
 
     // ── Faction Scoreboard (below progress bar) ──
     html += '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
-        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:12px;">⚔️ Faction SF Competition</div>' +
+        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:4px;">⚔️ Faction SF Competition</div>' +
+        '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:2px;">Race to 1,000 points</div>' +
+        '<div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:12px;">🏆 Winning Faction receives a special prize!</div>' +
         '<div id="factionScoreboardInner" style="display:flex;gap:10px;align-items:stretch;">' +
             '<div style="flex:1;background:rgba(247,147,26,0.07);border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:12px;text-align:center;">' +
                 '<div style="font-size:1.4rem;margin-bottom:4px;">🐝</div>' +
@@ -13380,7 +13429,7 @@ function _renderFavorTab(body) {
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
                 '<div style="font-size:0.9rem;font-weight:900;color:var(--text-faint);">VS</div>' +
-                '<div id="sfScoreLeader" style="font-size:0.6rem;color:var(--text-faint);text-align:center;max-width:40px;"></div>' +
+                '<div id="sfScoreLeader" style="display:none;"></div>' +
             '</div>' +
             '<div style="flex:1;background:rgba(168,85,247,0.07);border:2px solid rgba(168,85,247,0.3);border-radius:12px;padding:12px;text-align:center;">' +
                 '<div style="font-size:1.4rem;margin-bottom:4px;">🦡</div>' +
@@ -13514,10 +13563,7 @@ function _startFactionScoreboardListener() {
 
         // Leader label
         if (elLeader) {
-            if (hornets > badgers) elLeader.textContent = '🐝 Leading';
-            else if (badgers > hornets) elLeader.textContent = '🦡 Leading';
-            else if (total > 0) elLeader.textContent = 'Tied!';
-            else elLeader.textContent = '';
+            // leader label hidden per design (removed)
         }
 
         // Progress bar showing split
@@ -13726,7 +13772,7 @@ window.showQuestHub = function() {
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
         '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
-        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 FLEX</button>' +
+        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 Flex</button>' +
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
@@ -15287,7 +15333,7 @@ function _flexMarkDone(actionId, onDone) {
     s[actionId].total = (s[actionId].total || 0) + 1;
     _flexSaveState(s);
     var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
-    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name);
+    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
     // Check flex badges
     _flexCheckBadges(actionId, s[actionId].total);
     if (onDone) onDone(s[actionId].total);
@@ -15301,7 +15347,7 @@ function _flexCheckBadges(actionId, total) {
                 var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
                 var fakeBadge = {
                     id: badgeId,
-                    name: action ? action.name + ' ×' + m : 'FLEX ×' + m,
+                    name: action ? action.name + ' ×' + m : 'Flex ×' + m,
                     emoji: action ? action.emoji : '💪',
                     desc: 'Did "' + (action ? action.name : actionId) + '" ' + m + ' times',
                     pts: Math.round(m * 2)
@@ -15346,7 +15392,7 @@ function _renderFlexTab(body) {
     // Header
     html += '<div style="text-align:center;margin-bottom:16px;">' +
         '<div style="font-size:1.8rem;margin-bottom:4px;">💪</div>' +
-        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily FLEX</div>' +
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Flex</div>' +
         '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Healthy Bitcoiner habits. 5 XP each. Resets daily.</div>' +
         '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
         '<div style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round(doneCount/FLEX_ACTIONS.length*100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +

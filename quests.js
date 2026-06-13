@@ -2282,7 +2282,9 @@ function _renderFavorTab(body) {
 
     // ── Faction Scoreboard (below progress bar) ──
     html += '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
-        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:12px;">⚔️ Faction SF Competition</div>' +
+        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:4px;">⚔️ Faction SF Competition</div>' +
+        '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:2px;">Race to 1,000 points</div>' +
+        '<div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:12px;">🏆 Winning Faction receives a special prize!</div>' +
         '<div id="factionScoreboardInner" style="display:flex;gap:10px;align-items:stretch;">' +
             '<div style="flex:1;background:rgba(247,147,26,0.07);border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:12px;text-align:center;">' +
                 '<div style="font-size:1.4rem;margin-bottom:4px;">🐝</div>' +
@@ -2292,7 +2294,7 @@ function _renderFavorTab(body) {
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
                 '<div style="font-size:0.9rem;font-weight:900;color:var(--text-faint);">VS</div>' +
-                '<div id="sfScoreLeader" style="font-size:0.6rem;color:var(--text-faint);text-align:center;max-width:40px;"></div>' +
+                '<div id="sfScoreLeader" style="display:none;"></div>' +
             '</div>' +
             '<div style="flex:1;background:rgba(168,85,247,0.07);border:2px solid rgba(168,85,247,0.3);border-radius:12px;padding:12px;text-align:center;">' +
                 '<div style="font-size:1.4rem;margin-bottom:4px;">🦡</div>' +
@@ -2426,10 +2428,7 @@ function _startFactionScoreboardListener() {
 
         // Leader label
         if (elLeader) {
-            if (hornets > badgers) elLeader.textContent = '🐝 Leading';
-            else if (badgers > hornets) elLeader.textContent = '🦡 Leading';
-            else if (total > 0) elLeader.textContent = 'Tied!';
-            else elLeader.textContent = '';
+            // leader label hidden per design (removed)
         }
 
         // Progress bar showing split
@@ -2638,7 +2637,7 @@ window.showQuestHub = function() {
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
         '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
-        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 FLEX</button>' +
+        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 Flex</button>' +
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
@@ -4199,7 +4198,7 @@ function _flexMarkDone(actionId, onDone) {
     s[actionId].total = (s[actionId].total || 0) + 1;
     _flexSaveState(s);
     var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
-    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name);
+    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
     // Check flex badges
     _flexCheckBadges(actionId, s[actionId].total);
     if (onDone) onDone(s[actionId].total);
@@ -4213,7 +4212,7 @@ function _flexCheckBadges(actionId, total) {
                 var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
                 var fakeBadge = {
                     id: badgeId,
-                    name: action ? action.name + ' ×' + m : 'FLEX ×' + m,
+                    name: action ? action.name + ' ×' + m : 'Flex ×' + m,
                     emoji: action ? action.emoji : '💪',
                     desc: 'Did "' + (action ? action.name : actionId) + '" ' + m + ' times',
                     pts: Math.round(m * 2)
@@ -4258,7 +4257,7 @@ function _renderFlexTab(body) {
     // Header
     html += '<div style="text-align:center;margin-bottom:16px;">' +
         '<div style="font-size:1.8rem;margin-bottom:4px;">💪</div>' +
-        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily FLEX</div>' +
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Flex</div>' +
         '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Healthy Bitcoiner habits. 5 XP each. Resets daily.</div>' +
         '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
         '<div style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round(doneCount/FLEX_ACTIONS.length*100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +

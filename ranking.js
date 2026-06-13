@@ -1750,7 +1750,7 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
-async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId) {
+async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
     if (!currentUser || !rankingReady) return;
 
     // Anti-abuse: validate pts is a reasonable number
@@ -1882,6 +1882,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
+        if (extra && typeof extra === 'object') Object.assign(payload, extra);
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
             if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Daily limit reached for this action.'), 6000);
@@ -4809,7 +4810,9 @@ function showSettingsPage(tab) {
         
         // Badges earned count
         var _badgeCount = typeof earnedBadges !== 'undefined' ? earnedBadges.size || 0 : JSON.parse(localStorage.getItem('btc_badges') || '[]').length;
-        var _totalBadges = typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 63;
+        // BADGE_DEFS = 190 static badges. Dynamic per-action FLEX badges: 20 actions × 8 milestones = 160.
+        var _totalBadges = (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 190) +
+            (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined' ? FLEX_ACTIONS.length * FLEX_BADGE_MILESTONES.length : 160);
         html += statRow('Badges Earned', _badgeCount + ' / ' + _totalBadges, '🏅');
         
         // Reading progress

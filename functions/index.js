@@ -1900,6 +1900,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'trivia_correct': 50,          // Daily trivia correct answer
         'trivia_attempt': 10,          // Daily trivia attempt (wrong answer)
         'poll_vote': 50,               // Daily poll quest vote
+        'flex_action': 5,              // Daily FLEX healthy action (one per action-id per day)
     };
 
     // Look up max allowed points for this action using keyword matching
@@ -1951,6 +1952,8 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'trivia_correct': ['trivia quest correct', 'trivia_correct', '🧠 trivia quest correct'],
         'trivia_attempt': ['trivia quest attempt', 'trivia_attempt', '🧠 trivia quest attempt'],
         'poll_vote': ['poll quest vote', 'poll_vote', '📊 poll quest vote'],
+    
+        'flex_action': ['💪 flex:'],
     };
 
     let pts = 0;
@@ -2073,6 +2076,17 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                     throw new Error('ALREADY_CLAIMED_TODAY:poll');
                 }
                 t.set(pollRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            }
+            // 1d. Daily dedup for FLEX — one award per action-id per UTC day
+            if (matchedAction === 'flex_action') {
+                const flexId = (data.flexActionId || '').replace(/[^a-z0-9_]/g, '').substring(0, 30);
+                if (!flexId) throw new Error('FLEX_MISSING_ACTION_ID');
+                const flexRef = userRef.collection('daily_action_counts').doc(today + '_flex_' + flexId);
+                const flexDoc = await t.get(flexRef);
+                if (flexDoc.exists) {
+                    throw new Error('ALREADY_CLAIMED_TODAY:flex_' + flexId);
+                }
+                t.set(flexRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'flex_action', flexId });
             }
 
             // 1b. Check per-day action count (anti-spam)
