@@ -15226,28 +15226,43 @@ window._raidOnChannelVisit = function(channelId) {
 // 💪 FLEX TAB — Daily Healthy Bitcoiner Actions
 // ══════════════════════════════════════════════════════════════════════
 
+// Daily seed helper — deterministic from date + salt
+function _flexDailySeed(salt) {
+    var d = new Date().toISOString().slice(0,10) + salt;
+    var h = 0;
+    for (var i = 0; i < d.length; i++) { h = (Math.imul(31, h) + d.charCodeAt(i)) | 0; }
+    return Math.abs(h);
+}
+function _flexPickSeq(pools, id) {
+    return pools[_flexDailySeed(id) % pools.length];
+}
+
 var FLEX_ACTIONS = [
-    // id, emoji, name, desc, interaction, interactionData
-    { id:'steak',      emoji:'🥩', name:'Eat Steak',           desc:'Fuel up like a carnivore maxi',         pts:5, type:'hold',    holdMs:2000 },
-    { id:'sunlight',   emoji:'☀️', name:'Get Sunlight',        desc:'Touch grass. Outside. On purpose.',     pts:5, type:'drag',    dragTarget:'☀️→🌿' },
-    { id:'dca',        emoji:'📈', name:'DCA Bitcoin',         desc:'Stack sats on schedule. No emotion.',   pts:5, type:'sequence', seq:['2','1','0','0','0','0','0','0'] },
-    { id:'custody',    emoji:'🔑', name:'Self-Custody',        desc:'Not your keys, not your coins.',        pts:5, type:'swipe',   dir:'right' },
-    { id:'lift',       emoji:'🏋️', name:'Lift Weights',        desc:'Proof of strength. Every rep counts.',  pts:5, type:'hold',    holdMs:3000 },
-    { id:'meetup',     emoji:'🤝', name:'Host a Meetup',       desc:'Orange-pill your city. IRL > URL.',     pts:5, type:'doubletap' },
-    { id:'lightning',  emoji:'⚡', name:'Spend via Lightning', desc:'Circular economy. Spend and re-stack.', pts:5, type:'swipe',   dir:'left' },
-    { id:'read',       emoji:'📚', name:'Read Bitcoin',        desc:'One page of Saifedean a day.',          pts:5, type:'sequence', seq:['2','1','0','0','0','0','0','1'] },
-    { id:'sleep',      emoji:'😴', name:'Sleep 8 Hours',       desc:'Low time-preference recovery.',         pts:5, type:'hold',    holdMs:2500 },
-    { id:'nokyc',      emoji:'🕵️', name:'Buy No-KYC',          desc:'Preserve your privacy. Stay sovereign.',pts:5, type:'doubletap' },
-    { id:'node',       emoji:'💻', name:'Run Your Node',       desc:'Don\'t trust. Verify.',                  pts:5, type:'drag',    dragTarget:'💻→🔗' },
-    { id:'cold',       emoji:'🧊', name:'Cold Plunge',         desc:'Hormetic stress. Bitcoin is similar.',  pts:5, type:'hold',    holdMs:3000 },
-    { id:'fast',       emoji:'⏱️', name:'Intermittent Fast',   desc:'Low glucose, high signal.',             pts:5, type:'sequence', seq:['1','6','h','r','s'] },
-    { id:'walk',       emoji:'🚶', name:'Walk 10k Steps',      desc:'Proof of Walk. Calories are energy.',   pts:5, type:'swipe',   dir:'right' },
-    { id:'journal',    emoji:'📝', name:'Journal Today',       desc:'Long-term thinking. Write it down.',    pts:5, type:'drag',    dragTarget:'📝→🗒️' },
-    { id:'meditate',   emoji:'🧘', name:'Meditate',            desc:'Clear mind. Bitcoin is signal.',        pts:5, type:'hold',    holdMs:2000 },
-    { id:'teach',      emoji:'🗣️', name:'Orange-Pill Someone', desc:'Share the truth. One person at a time.',pts:5, type:'doubletap' },
-    { id:'water',      emoji:'💧', name:'Drink Water',         desc:'Hydration is a low time preference act.',pts:5, type:'sequence', seq:['H','2','O'] },
-    { id:'gratitude',  emoji:'🙏', name:'Gratitude Practice',  desc:'Abundance mindset. Stack happiness.',   pts:5, type:'drag',    dragTarget:'🙏→❤️' },
-    { id:'verify',     emoji:'🔍', name:'Verify a Transaction',desc:'Trust no one. Not even Rufus.',         pts:5, type:'sequence', seq:['0','x','B','T','C'] },
+    { id:'steak',    emoji:'🥩', name:'Eat Steak',           desc:'Fuel up like a carnivore maxi',          pts:5, type:'hold',    holdMs:2000 },
+    { id:'sunlight', emoji:'☀️', name:'Get Sunlight',        desc:'Touch grass. Outside. On purpose.',      pts:5, type:'drag',    dragTarget:'☀️→🌿' },
+    { id:'dca',      emoji:'📈', name:'DCA Bitcoin',         desc:'Stack sats on schedule. No emotion.',    pts:5, type:'sequence',
+        pools:[['2','1','M','I','L'],['S','A','T','S'],['H','O','D','L'],['1','0','0','K'],['B','T','C'],['S','T','A','C','K']] },
+    { id:'custody',  emoji:'🔑', name:'Self-Custody',        desc:'Not your keys, not your coins.',         pts:5, type:'swipe',   dir:'right' },
+    { id:'lift',     emoji:'🏋️', name:'Lift Weights',        desc:'Proof of strength. Every rep counts.',   pts:5, type:'hold',    holdMs:3000 },
+    { id:'meetup',   emoji:'🤝', name:'Host a Meetup',       desc:'Orange-pill your city. IRL > URL.',      pts:5, type:'doubletap' },
+    { id:'lightning',emoji:'⚡', name:'Spend via Lightning', desc:'Circular economy. Spend and re-stack.',  pts:5, type:'swipe',   dir:'left' },
+    { id:'read',     emoji:'📚', name:'Read Bitcoin',        desc:'One page of Saifedean a day.',           pts:5, type:'sequence',
+        pools:[['R','E','A','D'],['S','A','T','O','S','H','I'],['2','1','M'],['N','O','D','E','S'],['B','L','O','C','K']] },
+    { id:'sleep',    emoji:'😴', name:'Sleep 8 Hours',       desc:'Low time-preference recovery.',          pts:5, type:'hold',    holdMs:2500 },
+    { id:'nokyc',    emoji:'🕵️', name:'Buy No-KYC',          desc:'Preserve your privacy. Stay sovereign.', pts:5, type:'doubletap' },
+    { id:'node',     emoji:'💻', name:'Run Your Node',       desc:"Don't trust. Verify.",                   pts:5, type:'drag',    dragTarget:'💻→🔗' },
+    { id:'cold',     emoji:'🧊', name:'Cold Plunge',         desc:'Hormetic stress. Bitcoin is similar.',   pts:5, type:'hold',    holdMs:3000 },
+    { id:'fast',     emoji:'⏱️', name:'Intermittent Fast',   desc:'Low glucose, high signal.',              pts:5, type:'sequence',
+        pools:[['1','6','H','R'],['F','A','S','T'],['L','E','A','N'],['Z','E','R','O']] },
+    { id:'walk',     emoji:'🚶', name:'Walk 10k Steps',      desc:'Proof of Walk. Calories are energy.',    pts:5, type:'swipe',   dir:'right' },
+    { id:'journal',  emoji:'📝', name:'Journal Today',       desc:'Long-term thinking. Write it down.',     pts:5, type:'drag',    dragTarget:'📝→🗒️' },
+    { id:'meditate', emoji:'🧘', name:'Meditate',            desc:'Clear mind. Bitcoin is signal.',         pts:5, type:'hold',    holdMs:2000 },
+    { id:'teach',    emoji:'🗣️', name:'Orange-Pill Someone', desc:'Share the truth. One person at a time.', pts:5, type:'doubletap' },
+    { id:'water',    emoji:'💧', name:'Drink Water',         desc:'Hydration is a low time preference act.',pts:5, type:'sequence',
+        pools:[['H','2','O'],['D','R','I','N','K'],['H','Y','D','R','O'],['S','I','P']] },
+    { id:'gratitude',emoji:'🙏', name:'Gratitude Practice',  desc:'Abundance mindset. Stack happiness.',    pts:5, type:'drag',    dragTarget:'🙏→❤️' },
+    { id:'verify',   emoji:'🔍', name:'Verify a Transaction',desc:'Trust no one. Not even Rufus.',          pts:5, type:'sequence',
+        pools:[['P','R','O','O','F'],['V','E','R','I','F','Y'],['T','R','U','S','T'],['C','H','E','C','K'],['N','O','D','E']] },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -15410,20 +15425,30 @@ function _renderFlexInteraction(action) {
             '</div>';
     }
     if (action.type === 'sequence') {
-        var seq = action.seq;
-        var keys = seq;
-        // Build keyboard - for number sequences show a numpad-style grid, for letter sequences a QWERTY subset
+        // Pick today's code from pool using daily seed
+        var seq = _flexPickSeq(action.pools, action.id);
         var allKeys = Array.from(new Set(seq));
-        // Add some decoy keys
-        var decoys = ['0','1','2','3','4','5','6','7','8','9','A','B','C','H','O','x','r','s','h'].filter(function(k){ return allKeys.indexOf(k)===-1; }).slice(0,6);
-        var displayKeys = allKeys.concat(decoys).sort(function(){ return Math.random()-0.5; });
+        // Build seeded decoy pool
+        var decoyPool = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','K','L','N','P','Q','R','S','T','U','W','X','Y','Z'];
+        var decoys = decoyPool.filter(function(k){ return allKeys.indexOf(k)===-1; });
+        var dSeed = _flexDailySeed(action.id + '_d');
+        decoys.sort(function(a,b){ return ((dSeed*(decoys.indexOf(a)+1))%97) - ((dSeed*(decoys.indexOf(b)+1))%97); });
+        decoys = decoys.slice(0,5);
+        var displayKeys = allKeys.concat(decoys);
+        var kSeed = _flexDailySeed(action.id + '_k');
+        displayKeys.sort(function(){ kSeed = (kSeed * 1664525 + 1013904223)|0; return (kSeed & 1) ? 1 : -1; });
         return '<div id="seq-wrap-' + action.id + '" data-id="' + action.id + '" data-seq="' + seq.join(',') + '" data-progress="0">' +
-            '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Enter the code: <span id="seq-display-' + action.id + '" style="font-family:monospace;color:var(--accent);letter-spacing:3px;">' + seq.map(function(){ return '·'; }).join(' ') + '</span></div>' +
+            '<div style="margin-bottom:8px;">' +
+            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;">Today&#39;s code</div>' +
+            '<div style="display:inline-flex;gap:4px;">' +
+            seq.map(function(k){ return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:28px;background:rgba(247,147,26,0.15);border:1px solid var(--accent);border-radius:6px;font-family:monospace;font-size:0.95rem;font-weight:900;color:var(--accent);padding:0 4px;">' + k + '</span>'; }).join('') +
+            '</div></div>' +
+            '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Enter it below: <span id="seq-display-' + action.id + '" style="font-family:monospace;color:var(--accent);letter-spacing:3px;">' + seq.map(function(){ return '·'; }).join(' ') + '</span></div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
             displayKeys.map(function(k) {
                 return '<div class="flex-seq-key" data-id="' + action.id + '" data-key="' + k + '" onclick="_flexSeqTap(this)">' + k + '</div>';
             }).join('') +
-            '<div class="flex-seq-key" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#ef4444;" onclick="_flexSeqReset(\'' + action.id + '\')">⌫</div>' +
+            '<div class="flex-seq-key" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#ef4444;" onclick="_flexSeqReset(\'' + action.id + '\')">&#x232b;</div>' +
             '</div></div>';
     }
     return '';
