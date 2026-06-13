@@ -1168,7 +1168,7 @@
         var rawQuestions = pickRandomQuestions(5);
         var questions = rawQuestions.map(formatQuestionForFirestore);
 
-        // Create match document
+        // Create match document data
         var matchData = {
             player1: { uid: waitingData.uid, name: waitingData.name, profilePic: waitingData.profilePic || '', score: 0, correct: 0, answers: [] },
             player2: { uid: uid, name: getMyDisplayName(), profilePic: getMyProfilePic(), score: 0, correct: 0, answers: [] },
@@ -1180,24 +1180,35 @@
             questionStartedAt: null,
         };
 
-        console.log('[PVP Matchmaker] Creating pvp_matches document...');
-        db.collection('pvp_matches').add(matchData).then(function(docRef) {
-            var matchId = docRef.id;
-            console.log('[PVP Matchmaker] Successfully created match document with ID:', matchId);
+        console.log('[PVP Matchmaker] Initiating transaction to create match...');
+        var matchRef = db.collection('pvp_matches').doc();
+        var lobbyRef = db.collection('pvp_lobby').doc(waitingDocId);
 
-            // Update the waiting player's lobby entry
-            console.log('[PVP Matchmaker] Updating Player 1 lobby doc status to matched...');
-            db.collection('pvp_lobby').doc(waitingDocId).update({
-                status: 'matched',
-                matchId: matchId,
-                opponentName: getMyDisplayName(),
-                opponentUid: uid,
-                opponentProfilePic: getMyProfilePic()
-            }).then(function() {
-                console.log('[PVP Matchmaker] Successfully updated Player 1 lobby doc.');
-            }).catch(function(err) {
-                console.error('[PVP Matchmaker] FAILED to update Player 1 lobby doc:', err);
+        db.runTransaction(function(transaction) {
+            return transaction.get(lobbyRef).then(function(lobbyDoc) {
+                if (!lobbyDoc.exists) {
+                    throw new Error("lobby_doc_does_not_exist");
+                }
+                var lobbyData = lobbyDoc.data();
+                if (lobbyData.status !== 'waiting') {
+                    throw new Error("lobby_doc_already_matched");
+                }
+
+                // Reserve the opponent by updating their lobby doc status to matched
+                transaction.update(lobbyRef, {
+                    status: 'matched',
+                    matchId: matchRef.id,
+                    opponentName: getMyDisplayName(),
+                    opponentUid: uid,
+                    opponentProfilePic: getMyProfilePic()
+                });
+
+                // Create the match document
+                transaction.set(matchRef, matchData);
+                return matchRef.id;
             });
+        }).then(function(matchId) {
+            console.log('[PVP Matchmaker] Match created successfully via transaction. ID:', matchId);
 
             // Remove our own lobby entry if we had one
             if (pvpState.lobbyDocId) {
@@ -1219,10 +1230,15 @@
 
             listenToMatch(matchId);
             showMatchFound();
-
         }).catch(function(err) {
-            console.error('[PVP Matchmaker] PVP match create error:', err);
-            if (typeof showToast === 'function') showToast('⚠️ Failed to create PVP match');
+            console.error('[PVP Matchmaker] Match creation transaction failed:', err);
+            // If the opponent is already matched or left, retry joining the lobby
+            if (err && (err.message === "lobby_doc_already_matched" || err.message === "lobby_doc_does_not_exist")) {
+                console.log('[PVP Matchmaker] Opponent was already matched or left. Re-joining lobby...');
+                joinLobby();
+            } else {
+                if (typeof showToast === 'function') showToast('⚠️ Failed to create PVP match');
+            }
         });
     }
 
