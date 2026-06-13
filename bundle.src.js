@@ -1921,7 +1921,7 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
-async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId) {
+async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
     if (!currentUser || !rankingReady) return;
 
     // Anti-abuse: validate pts is a reasonable number
@@ -2053,6 +2053,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
+        if (extra && typeof extra === 'object') Object.assign(payload, extra);
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
             if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Daily limit reached for this action.'), 6000);
@@ -7053,6 +7054,43 @@ function getBadgeHTML() {
         }
         _sec += '</div></div>';
         _sections[_strip(catName)] = _sec;
+    }
+
+    // Dynamic FLEX Per-Action badges — 20 actions × 8 milestones = 160
+    if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
+        _bcIdx++;
+        var _flexCatId = 'bc_' + _bcIdx;
+        var _flexCatName = '💪 FLEX Per-Action';
+        var _flexEarned = 0, _flexTotal = 0;
+        var _flexSec = '';
+        _flexSec += '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:visible;">';
+        _flexSec += '<button onclick="var c=document.getElementById(\''+_flexCatId+'\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'\u25b6\':\'\u25bc\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        _flexSec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+        _flexSec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + _flexCatName + '</span>';
+        // Count earned dynamically
+        var _allFlexBadgeIds = [];
+        FLEX_ACTIONS.forEach(function(a) {
+            FLEX_BADGE_MILESTONES.forEach(function(m) { _allFlexBadgeIds.push('flex_' + a.id + '_' + m); });
+        });
+        _flexEarned = _allFlexBadgeIds.filter(function(bid) { return earnedBadges.has(bid); }).length;
+        _flexTotal = _allFlexBadgeIds.length;
+        _flexSec += '<span style="margin-left:auto;font-size:0.7rem;color:var(--accent);font-weight:700;">' + _flexEarned + '/' + _flexTotal + '</span>';
+        _flexSec += '</button>';
+        _flexSec += '<div id="' + _flexCatId + '" class="badges-grid" style="display:none;">';
+        FLEX_ACTIONS.forEach(function(a) {
+            FLEX_BADGE_MILESTONES.forEach(function(m) {
+                var bid = 'flex_' + a.id + '_' + m;
+                var earned = earnedBadges.has(bid);
+                var bname = a.name + ' ×' + m;
+                var bdesc = 'Did "' + a.name + '" ' + m + ' time' + (m === 1 ? '' : 's');
+                _flexSec += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + bid + '" data-badge-cat="' + escapeHtml(_flexCatName) + '" title="' + escapeHtml(bdesc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border);overflow:visible;">' +
+                    '<div class="badge-emoji" style="font-size:1.8rem;margin-bottom:4px;">' + (earned ? a.emoji : '🔘') + '</div>' +
+                    '<div style="font-size:0.65rem;font-weight:700;color:' + (earned ? 'var(--heading)' : 'var(--text-faint)') + ';text-align:center;line-height:1.2;">' + escapeHtml(bname) + '</div>' +
+                    '</div>';
+            });
+        });
+        _flexSec += '</div></div>';
+        _sections['z_flex_per_action'] = _flexSec; // 'z_' puts it near the end alphabetically
     }
 
     // Goals and Secret Badges — build and slot into the same sorted map
@@ -15301,7 +15339,7 @@ function _flexMarkDone(actionId, onDone) {
     s[actionId].total = (s[actionId].total || 0) + 1;
     _flexSaveState(s);
     var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
-    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name);
+    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
     // Check flex badges
     _flexCheckBadges(actionId, s[actionId].total);
     if (onDone) onDone(s[actionId].total);

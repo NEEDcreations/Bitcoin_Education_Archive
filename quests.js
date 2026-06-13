@@ -4199,7 +4199,7 @@ function _flexMarkDone(actionId, onDone) {
     s[actionId].total = (s[actionId].total || 0) + 1;
     _flexSaveState(s);
     var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
-    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name);
+    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
     // Check flex badges
     _flexCheckBadges(actionId, s[actionId].total);
     if (onDone) onDone(s[actionId].total);

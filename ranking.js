@@ -1758,7 +1758,7 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
-async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId) {
+async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
     if (!currentUser || !rankingReady) return;
 
     // Anti-abuse: validate pts is a reasonable number
@@ -1890,6 +1890,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
+        if (extra && typeof extra === 'object') Object.assign(payload, extra);
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
             if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Daily limit reached for this action.'), 6000);
