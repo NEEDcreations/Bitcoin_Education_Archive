@@ -3941,13 +3941,13 @@ function renderNachoAnswer(textEl, answerHtml, match) {
 
     // Site navigation action button
     if (match && match.isSiteNav && match.siteAction) {
-        html += '<button onclick="' + match.siteAction + ';hideBubble();" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + match.siteLabel + '</button>';
+        html += '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;' + match.siteAction + ';hideBubble(true);" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + match.siteLabel + '</button>';
     }
 
     if (match && match.channel && match.channelName) {
         html += '<div style="margin-top:10px;text-align:center;">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Study more about this topic:</div>' +
-            '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(247,147,26,0.2);">📖 ' + match.channelName + ' →</button>' +
+            '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble(true);" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(247,147,26,0.2);touch-action:manipulation;">📖 ' + match.channelName + ' →</button>' +
         '</div>';
     }
 
@@ -4045,11 +4045,11 @@ window.nachoAnswer = function() {
 
                 // Add channel link if available
                 if (result.channel) {
-                    html += '<br><a href="#" onclick="event.preventDefault();hideBubble(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;font-size:0.85rem;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+                    html += '<br><a href="#" ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();window._nachoActionClicked=true;hideBubble(true);setTimeout(function(){go(\'' + result.channel + '\')},100)" style="color:var(--accent);font-weight:600;font-size:0.85rem;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
                 }
                 // Add site action button if available
                 if (result.siteAction) {
-                    html += '<br><button onclick="event.preventDefault();hideBubble(true);' + result.siteAction + '" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
+                    html += '<br><button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();window._nachoActionClicked=true;hideBubble(true);' + result.siteAction + '" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + (result.siteLabel || 'Go →') + '</button>';
                 }
 
                 // "Dive deeper" link to Nacho Mode
