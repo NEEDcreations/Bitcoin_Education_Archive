@@ -923,8 +923,21 @@ window.sendGlobalChat = function() {
     if (totalMsgs === 100 && typeof awardPoints === 'function') awardPoints(25, '📢 100 messages sent!');
     if (totalMsgs === 500 && typeof awardPoints === 'function') awardPoints(50, '👑 500 messages sent!');
 
-    // Nacho auto-answer: any question (contains ?) gets passed to nachoUnifiedAnswer
-    if (text.includes('?') && typeof nachoUnifiedAnswer === 'function') {
+    // Nacho auto-answer: only fire on questions that are relevant to Bitcoin/the site
+    // Pure social chit-chat ("how's your weekend?") must be ignored — Nacho only speaks when useful
+    var _nachoShouldAnswer = (function(t) {
+        if (!t.includes('?')) return false;
+        var lower = t.toLowerCase();
+        // Block pure social/greetings — Nacho stays quiet for these in group chat
+        var socialOnly = /^(how'?s|how is|how was|what'?s|hows)\s+(your|everyone'?s|the|ur)\s+(weekend|day|week|night|morning|evening|life|family|summer|holiday|trip|vacation|monday|tuesday|wednesday|thursday|friday|saturday|sunday)[.!?,\s]*$/i;
+        if (socialOnly.test(t.trim())) return false;
+        var pureGreetings = /^(how are you|how r u|how do you do|how you doing|how ya doing|how's it going|what'?s up|wassup|whats up|you good|you okay|how have you been|how'?s everyone doing|how'?s everybody)[.!?,\s]*$/i;
+        if (pureGreetings.test(t.trim())) return false;
+        // Must have at least one Bitcoin-relevant keyword to trigger Nacho
+        var btcKeywords = /bitcoin|btc|satoshi|sats|lightning|lightning network|lnurl|wallet|seed|private key|public key|mining|miner|hash|blockchain|block|halving|node|mempool|utxo|segwit|taproot|schnorr|ordinals|inscription|nostr|defi|altcoin|ethereum|eth|crypto|hodl|dca|cold storage|hardware wallet|ledger|trezor|coldcard|nwc|invoice|channel|payment|fee|transaction|tx|address|receive|send|self.?custody|inflation|fiat|money|currency|dollar|euro|store of value|gold|silver|bank|finance|invest|etf|yield|price|market|exchange|coinbase|binance|kraken|bitfinex|layer 2|l2|lnbc|bolt|rgb|ark |dlc|coinjoin|whirlpool|wasabi|sparrow|phoenix|breez|bluewallet|umbrel|mynode|raspiblitz|electrum|green|muun|strike|cash app|alby|zeus|blink|fountain|podcast|bitcoin magazine|nakamoto|genesis block|white ?paper|proof of work|pow|consensus|decentraliz|censor|privacy|sovereign|freedom|shield|archive|quest|quiz|nacho|channel|article|forum|plebtalk|marketplace|leaderboard|badge|points|sats|ticket|spin|scholar|scholar cert|pvp|beats|irl|global chat|settings|profile|theme|sign in|log in|sign up|register|account/i;
+        return btcKeywords.test(lower);
+    })(text);
+    if (_nachoShouldAnswer && typeof nachoUnifiedAnswer === 'function') {
         nachoUnifiedAnswer(text, function(result) {
             if (!result || !result.answer) return;
             // Skip web search and deep search answers (contain HTML, not suitable for chat)
