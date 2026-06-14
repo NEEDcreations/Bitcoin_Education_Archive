@@ -222,6 +222,15 @@
         if (overlay) overlay.remove();
         if (hashListener) hashListener();
         if (minerCountdownInterval) clearInterval(minerCountdownInterval);
+        // Reopen Quest Hub if we came from there
+        if (window._qhReopenOnMinerClose) {
+            window._qhReopenOnMinerClose = false;
+            if (typeof showQuestHub === 'function') {
+                showQuestHub();
+                window._questHubTab = 'favor';
+                setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 50);
+            }
+        }
     };
 
     function showMinerModal() {
@@ -240,7 +249,7 @@
                             <div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ${DIFFICULTY_TARGET} · Win 21,000 sats!</div>
                         </div>
                     </div>
-                    <button onclick="window.closeSatoshiFavorMiner()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">✕</button>
+                    <div style="display:flex;align-items:center;gap:8px;"><button onclick="window.closeSatoshiFavorMiner()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">← Back</button><button onclick="window._qhReopenOnMinerClose=false;window.closeSatoshiFavorMiner()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">✕</button></div>
                 </div>
                 <div style="padding:16px 20px;overflow-y:auto;">
                     <div style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">

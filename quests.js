@@ -2382,6 +2382,8 @@ window.closeQuestHubForFavor = function() {
     window._cleanupRaidBoss && window._cleanupRaidBoss();
     // Clean up faction listener
     if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
+    // Store that we should reopen Quest Hub on miner close
+    window._qhReopenOnMinerClose = true;
 };
 
 // Admin one-click backfill
@@ -2589,6 +2591,46 @@ if (typeof _renderQuestHubTab !== "undefined") window._renderQuestHubTab = _rend
 
 window._questHubTab = 'quiz';
 
+// Show quiz topic picker inside Quest Hub with back button
+window._questHubShowQuizPicker = function() {
+    var body = document.getElementById('questHubBody');
+    var tabs = document.getElementById('questHubTabs');
+    if (!body) { // fallback: open old modal flow
+        document.getElementById('questHubOverlay').remove();
+        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
+        return;
+    }
+    // Swap header: hide tabs, show back button
+    if (tabs) tabs.style.display = 'none';
+    var header = tabs && tabs.parentElement;
+    var backBar = document.getElementById('qhBackBar');
+    if (!backBar && header) {
+        backBar = document.createElement('div');
+        backBar.id = 'qhBackBar';
+        backBar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:12px;';
+        backBar.innerHTML = '<button onclick="window._questHubBackToTabs()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:6px 14px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">← Back</button>' +
+            '<span style="color:var(--heading);font-size:0.95rem;font-weight:800;">Choose a Quiz Topic</span>';
+        tabs.parentNode.insertBefore(backBar, tabs);
+    }
+    if (backBar) backBar.style.display = 'flex';
+    // Render topic picker inline
+    if (typeof _renderQuestHubQuizPicker === 'function') _renderQuestHubQuizPicker(body);
+    else {
+        // Fallback: open old modal
+        document.getElementById('questHubOverlay').remove();
+        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
+    }
+};
+
+window._questHubBackToTabs = function() {
+    var tabs = document.getElementById('questHubTabs');
+    var backBar = document.getElementById('qhBackBar');
+    if (tabs) tabs.style.display = '';
+    if (backBar) backBar.style.display = 'none';
+    window._questHubTab = 'quiz';
+    if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+};
+
 window.showQuestHub = function() {
     // Minimize global chat if open (so Quest Hub is visible on mobile)
     if (window._chatOverlayOpen && typeof toggleChatOverlay === 'function') {
@@ -2602,7 +2644,7 @@ window.showQuestHub = function() {
     var overlay = document.createElement('div');
     overlay.id = 'questHubOverlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;animation:nachoPop 0.25s ease;';
-    overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); overlay.remove(); } };
+    overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') history.back(); } };
 
     var modal = document.createElement('div');
     modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
@@ -2631,7 +2673,7 @@ window.showQuestHub = function() {
     header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
         '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div></div>' +
-        '<button onclick="window._cleanupRaidBoss();document.getElementById(\'questHubOverlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
+        '<button onclick="window._cleanupRaidBoss();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\')history.back();" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
         // Tabs
         '<div id="questHubTabs" style="display:flex;gap:8px;margin-bottom:16px;">' +
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
@@ -2653,6 +2695,21 @@ window.showQuestHub = function() {
     document.body.appendChild(overlay);
 
     _renderQuestHubTab();
+
+    // History: push state so browser/swipe back closes/reopens Quest Hub
+    if (window.location.hash !== '#questhub') {
+        history.pushState({ overlay: 'questhub' }, '', '#questhub');
+    }
+    // Popstate: back gesture/button returns to Quest Hub
+    function _qhPopHandler(e) {
+        var ov = document.getElementById('questHubOverlay');
+        if (!ov) return; // already closed
+        // If user navigated back, close gracefully (don't re-push)
+        window._cleanupRaidBoss && window._cleanupRaidBoss();
+        ov.remove();
+    }
+    window._qhPopHandler = _qhPopHandler;
+    window.addEventListener('popstate', _qhPopHandler, { once: true });
 };
 
 function _renderQuestHubTab() {
@@ -2988,6 +3045,73 @@ window._renderCharityHome = function() {
 };
 
 // ── QUIZ TAB (existing system) ──
+// Inline quiz topic picker rendered inside questHubBody
+function _renderQuestHubQuizPicker(body) {
+    if (!body) return;
+    var topics = [];
+    var topicEmojis = {
+        '_general': '🌐', 'mining': '⛏️', 'nodes': '🖥️', 'privacy-nonkyc': '🕵️', 'problems-of-money': '💸',
+        'layer-2-lightning': '⚡', 'self-custody': '🔑', 'halving': '📉', 'history': '📜', 'satoshi-nakamoto': '🧩',
+        'whitepaper': '📄', 'money': '💰', 'scarce': '💎', 'secure': '🛡️', 'decentralized': '🌍',
+        'programmable': '💻', 'dominant': '👑', 'philosophy': '🤔', 'energy': '🔋', 'cryptography': '🔐',
+        'consensus': '🤝', 'taproot': '🌳', 'regulation': '⚖️', 'maximalism': '🔥', 'utxos': '📦',
+        'difficulty-adjustment': '🎯', 'transaction_fees': '💳', 'game_theory': '♟️', 'books': '📚',
+        'orange-pilling': '🍊', 'nostr': '🟣', 'use-cases': '🛠️', 'investment-strategy': '📊',
+        'geopolitics___macroeconomics': '🌎', 'human_rights__social_justice_and_freedo': '✊',
+        'smart-contracts': '📝', 'sidechains': '🔗', 'stablecoins': '🏦', 'fedimints': '🏛️',
+        'pow-vs-pos': '⚔️', 'blockchain-timechain': '⛓️', 'softwar': '🪖', 'time_preference': '⏳',
+        'governance': '🏛️', 'apps-tools': '🧰', 'misconceptions-fud': '🚫', 'elevator_pitches': '🗣️'
+    };
+    if (typeof STATIC_QUESTS !== 'undefined') {
+        STATIC_QUESTS.forEach(function(sq) {
+            var key = sq.topicKey;
+            var baseKey2 = key.replace(/_pt\d+$/, '');
+            var emoji = topicEmojis[key] || topicEmojis[baseKey2] || '📖';
+            var baseLabel = key.replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+            var label = sq.totalParts > 1 ? baseLabel + ' — Part ' + sq.partNum : baseLabel;
+            var done = typeof completedQuests !== 'undefined' && completedQuests.has(sq.id);
+            topics.push({ key: key + '||' + sq.partNum, label: label, emoji: emoji, done: done });
+        });
+        topics.sort(function(a, b) { if (a.done !== b.done) return a.done ? 1 : -1; return a.label.localeCompare(b.label); });
+    }
+    var doneCount = topics.filter(function(t) { return t.done; }).length;
+
+    var html = '<div style="text-align:center;margin-bottom:12px;">' +
+        '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;">' + doneCount + '/' + topics.length + ' topics completed</div>' +
+        '<div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">' +
+            '<div style="height:100%;background:var(--accent);width:' + (topics.length > 0 ? Math.round(doneCount/topics.length*100) : 0) + '%;border-radius:2px;"></div>' +
+        '</div></div>';
+
+    // Daily recommended
+    if (typeof _getDailyRecommendedQuiz === 'function') {
+        var daily = _getDailyRecommendedQuiz(topics);
+        if (daily) {
+            html += '<button onclick="window._questHubBackToTabs();setTimeout(function(){if(typeof _startQuestTopic===\'function\')_startQuestTopic(\''+daily.key.replace(/['\"]/g,'')+'\')}' + ',50)" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03));border:2px solid #22c55e;border-radius:12px;color:#22c55e;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+                '<span>📚</span> Daily Recommended — ' + daily.emoji + ' ' + daily.label + '</button>';
+        }
+    }
+    html += '<button onclick="window._questHubBackToTabs();setTimeout(function(){if(typeof _startQuestTopic===\'function\')_startQuestTopic(null)},50)" style="width:100%;padding:10px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(247,147,26,0.03));border:1px solid var(--accent);border-radius:12px;color:var(--accent);font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:10px;">🎲 Random Topic</button>';
+    html += '<input id="qhQuizSearch" type="text" placeholder="Search topics..." oninput="window._qhQuizFilter(this.value)" style="width:100%;padding:8px;margin-bottom:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:0.85rem;box-sizing:border-box;" />';
+    html += '<div id="qhQuizTopicList" style="display:flex;flex-direction:column;gap:5px;">';
+    topics.forEach(function(t) {
+        var safeKey = t.key.replace(/['"\\]/g, '');
+        html += '<button onclick="window._questHubBackToTabs();setTimeout(function(){if(typeof _startQuestTopic===\'function\')_startQuestTopic(\''+safeKey+'\')},50)" data-label="'+t.label.toLowerCase()+'" style="padding:10px 14px;background:var(--card-bg,#1a1a2e);border:1px solid '+(t.done ? 'rgba(34,197,94,0.3)' : 'var(--border)')+';border-radius:10px;color:'+(t.done ? '#22c55e' : 'var(--text)')+';font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:8px;transition:0.15s;">' +
+            (t.done ? '<span style="font-size:0.75rem;color:#22c55e;">✅</span>' : '<span style="font-size:0.9rem;">'+t.emoji+'</span>') +
+            t.label + '</button>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+}
+
+window._qhQuizFilter = function(val) {
+    var list = document.getElementById('qhQuizTopicList');
+    if (!list) return;
+    var q = val.toLowerCase();
+    list.querySelectorAll('button[data-label]').forEach(function(btn) {
+        btn.style.display = (!q || btn.getAttribute('data-label').indexOf(q) !== -1) ? '' : 'none';
+    });
+};
+
 function _renderQuizTab(body) {
     var todayKey = new Date().toISOString().split('T')[0];
     var qLog = safeJSON('btc_quest_daily', {});
@@ -3019,7 +3143,7 @@ function _renderQuizTab(body) {
             '<div style="padding:6px 14px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;">Perfect = 100 XP</div>' +
         '</div>' +
         retakeHtml +
-        '<button onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){if(typeof _showQuestTopicPicker===\'function\')_showQuestTopicPicker();else if(typeof startQuestManual===\'function\')startQuestManual()},200)" style="padding:14px 32px;background:' + (canRetake ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#f7931a,#e8720c)') + ';border:' + (canRetake ? '1px solid var(--border)' : 'none') + ';border-radius:14px;color:' + (canRetake ? 'var(--text-muted)' : '#fff') + ';font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:0.2s;">' + (canRetake ? 'Choose New Topic' : 'Start Quiz Quest ⚔️') + '</button>' +
+        '<button onclick="window._questHubShowQuizPicker()" style="padding:14px 32px;background:' + (canRetake ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#f7931a,#e8720c)') + ';border:' + (canRetake ? '1px solid var(--border)' : 'none') + ';border-radius:14px;color:' + (canRetake ? 'var(--text-muted)' : '#fff') + ';font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:0.2s;">' + (canRetake ? 'Choose New Topic' : 'Start Quiz Quest ⚔️') + '</button>' +
     '</div>';
 }
 
