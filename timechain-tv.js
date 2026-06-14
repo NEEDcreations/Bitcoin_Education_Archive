@@ -9125,6 +9125,13 @@ window.switchStation = function(stationId, forceUpdate) {
 
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
 
+    // Track channel switches for badges
+    try {
+        var _sw = parseInt(localStorage.getItem('btc_tctv_channel_switches') || '0') + 1;
+        localStorage.setItem('btc_tctv_channel_switches', _sw);
+        if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    } catch(e) {}
+
     // Couch Nacho reacts to the channel change (after a short beat for the noise overlay)
     setTimeout(function() { try { _couchReactToStationChange(); } catch(e) {} }, 1500);
 
