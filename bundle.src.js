@@ -58,7 +58,10 @@ function escapeHtml(str) {
     if (!str) return '';
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
+    // div.innerHTML encodes <, >, & but NOT " or ' — both can break out of
+    // HTML attribute contexts (e.g. src="...", onerror="..."). Encode them
+    // explicitly so escapeHtml is safe in element-text AND attribute contexts.
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
@@ -3237,7 +3240,7 @@ async function toggleLeaderboard() {
             if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
 
             var _rowPfp = d.profilePic
-                ? '<img src="' + escapeHtml(d.profilePic) + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
+                ? '<img src="' + escapeHtml(sanitizeUrl(d.profilePic)) + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
                 : '';
             var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
             var _lbNameStyle = d.faction ? window._factionNameStyle(d.faction) : '';
@@ -3728,7 +3731,7 @@ function showSettingsPage(tab) {
         var settingsEmoji = getUserDisplayEmoji(lvl);
         var _pfpUrl = currentUser ? currentUser.profilePic || '' : '';
         var _pfpHtml = _pfpUrl
-            ? '<img src="' + escapeHtml(_pfpUrl) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Change profile picture">'
+            ? '<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Change profile picture">'
             : '<div style="font-size:2.5rem;margin-bottom:0;">' + settingsEmoji + '</div>';
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
@@ -3775,7 +3778,7 @@ function showSettingsPage(tab) {
             '<input type="file" id="pfpFileInput" accept="image/*" style="display:none;" onchange="handleProfilePicUpload(this)">' +
             '<div style="display:flex;align-items:center;gap:12px;">' +
                 (_pfpUrl
-                    ? '<img src="' + escapeHtml(_pfpUrl) + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;">'
+                    ? '<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;">'
                     : '<div style="width:48px;height:48px;border-radius:50%;background:var(--bg);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">👤</div>') +
                 '<div style="flex:1;">' +
                     '<button onclick="document.getElementById(\'pfpFileInput\').click()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (_pfpUrl ? 'Change Photo' : 'Upload Photo') + '</button>' +
@@ -20682,7 +20685,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 // Image support
                 var imgHtml = '';
                 if (m.imageUrl) {
-                    imgHtml = '<img src="' + escapeHtml(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    imgHtml = '<img src="' + escapeHtml(sanitizeUrl(m.imageUrl)) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
@@ -20920,7 +20923,7 @@ window.sendDMGif = function(gifUrl) {
         var nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         container.innerHTML += '<div data-optimistic style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
             '<div style="max-width:85%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--accent);color:#fff;">' +
-                '<img src="' + escapeHtml(gifUrl) + '" style="max-width:100%;max-height:200px;border-radius:8px;display:block;" loading="lazy">' +
+                '<img src="' + escapeHtml(sanitizeUrl(gifUrl)) + '" style="max-width:100%;max-height:200px;border-radius:8px;display:block;" loading="lazy">' +
                 '<div style="font-size:0.6rem;color:rgba(255,255,255,0.6);margin-top:4px;text-align:right;">' + nowStr + '</div>' +
             '</div></div>';
         container.scrollTop = container.scrollHeight;

@@ -2462,7 +2462,7 @@ window.beatsShowArtistPage = function(uid) {
             '<div style="text-align:center;margin-bottom:20px;">' +
                 // Artist image (custom or fallback to level emoji)
                 (artistImage
-                    ? '<div style="width:80px;height:80px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Change artist image"' : '') + '><img src="' + escapeHtml(artistImage) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
+                    ? '<div style="width:80px;height:80px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Change artist image"' : '') + '><img src="' + escapeHtml(sanitizeUrl(artistImage)) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
                     : '<div style="font-size:2.5rem;margin-bottom:8px;' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Upload artist image"' : '') + '>' + lvl.emoji + (isOwner ? '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:2px;">📷 Add Photo</div>' : '') + '</div>') +
                 '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + escapeHtml(artistName) + '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
@@ -2482,7 +2482,7 @@ window.beatsShowArtistPage = function(uid) {
             (artistBio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;"><div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">About the Artist</div><div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + escapeHtml(artistBio) + '</div></div>' : '') +
             // Music links
             (musicLinks.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
-                musicLinks.map(function(l) { return '<a href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener" style="padding:6px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.75rem;text-decoration:none;font-weight:600;transition:0.2s;display:flex;align-items:center;gap:4px;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + l.emoji + ' ' + escapeHtml(l.label) + '</a>'; }).join('') +
+                musicLinks.map(function(l) { return '<a href="' + escapeHtml(sanitizeUrl(l.url)) + '" target="_blank" rel="noopener" style="padding:6px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.75rem;text-decoration:none;font-weight:600;transition:0.2s;display:flex;align-items:center;gap:4px;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + l.emoji + ' ' + escapeHtml(l.label) + '</a>'; }).join('') +
             '</div>' : '') +
             // Action buttons
             '<div style="display:flex;gap:8px;margin-bottom:20px;">' +

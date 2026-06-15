@@ -58,7 +58,10 @@ function escapeHtml(str) {
     if (!str) return '';
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
+    // div.innerHTML encodes <, >, & but NOT " or ' — both can break out of
+    // HTML attribute contexts (e.g. src="...", onerror="..."). Encode them
+    // explicitly so escapeHtml is safe in element-text AND attribute contexts.
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
