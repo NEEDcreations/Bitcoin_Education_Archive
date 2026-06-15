@@ -4508,7 +4508,7 @@ if (locked) {
                 return;
             }
 
-            var _overlayIds = ['guideOverlay','onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal','forumRulesOverlay','chatRulesOverlay','marketRulesOverlay','irlRulesOverlay'];
+            var _overlayIds = ['questHubOverlay','guideOverlay','onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal','forumRulesOverlay','chatRulesOverlay','marketRulesOverlay','irlRulesOverlay'];
             for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
                 var _oel = document.getElementById(_overlayIds[_oi]);
                 if (_oel) { _oel.remove(); return; }

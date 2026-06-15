@@ -3366,7 +3366,9 @@ function _renderPollTab(body) {
     } else {
         // Check server-side if user already voted (covers localStorage cleared / different device)
         var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-        var pollId = p.id || ('poll_day_' + todayKey);
+        // Scope pollId to the date so the same poll reused in a later year
+        // doesn't carry over old voters and falsely block new votes.
+        var pollId = (p.id ? p.id + '_' + todayKey : 'poll_day_' + todayKey);
         if (uid && typeof db !== 'undefined') {
             db.collection('poll_votes').doc(pollId).get().then(function(doc) {
                 if (doc.exists && doc.data().voters && doc.data().voters.indexOf(uid) !== -1) {
@@ -3412,7 +3414,7 @@ function _showPollVoteButtons(body, html, p) {
 }
 
 function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
-    var pollId = poll.id || ('poll_day_' + todayKey);
+    var pollId = (poll.id ? poll.id + '_' + todayKey : 'poll_day_' + todayKey);
     // Fetch results from Firestore
     if (typeof db !== 'undefined') {
         db.collection('poll_votes').doc(pollId).get().then(function(doc) {
@@ -3485,7 +3487,7 @@ window.pollVote = function(chosenIdx) {
     var pollBtns = document.querySelectorAll('#pollOptions button');
     pollBtns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; b.style.cursor = 'default'; });
 
-    var pollId = p.id || ('poll_day_' + todayKey);
+    var pollId = (p.id ? p.id + '_' + todayKey : 'poll_day_' + todayKey);
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
 
     // Server-side duplicate check + atomic vote via transaction
