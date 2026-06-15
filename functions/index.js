@@ -32,23 +32,23 @@ const FAUCET = {
 // Generate TOTP secret and QR code for user
 exports.totpSetup = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    
+
     const uid = context.auth.uid;
     const email = context.auth.token.email || 'user';
-    
+
     // Generate secret
     const secret = authenticator.generateSecret();
-    
+
     // Store temporarily (not verified yet)
     await db.collection('totp_pending').doc(uid).set({
         secret: secret,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    
+
     // Generate QR code
     const otpauth = authenticator.keyuri(email, "Bitcoin Education Archive", secret);
     const qrDataUrl = await QRCode.toDataURL(otpauth);
-    
+
     return { qr: qrDataUrl, secret: secret };
 });
 
@@ -56,7 +56,7 @@ exports.totpSetup = functions.https.onCall(async (data, context) => {
 exports.totpVerify = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
-    
+
     const uid = context.auth.uid;
 
     // Rate limiting: max 5 attempts per 2-minute window (atomic transaction)
@@ -76,30 +76,30 @@ exports.totpVerify = functions.https.onCall(async (data, context) => {
             tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
         }
     });
-    
+
     // Get pending secret
     const pending = await db.collection('totp_pending').doc(uid).get();
     if (!pending.exists) throw new functions.https.HttpsError('not-found', 'No pending TOTP setup. Start setup first.');
-    
+
     const secret = pending.data().secret;
-    
+
     // Verify the code
     var isValid = authenticator.verify({ token: data.code, secret: secret });
     if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code. Try again.');
-    
+
     // Store verified secret
     await db.collection('totp_secrets').doc(uid).set({
         secret: secret,
         enabled: true,
         enabledAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    
+
     // Update user doc
     await db.collection('users').doc(uid).update({ totpEnabled: true });
-    
+
     // Clean up pending
     await db.collection('totp_pending').doc(uid).delete();
-    
+
     return { success: true };
 });
 
@@ -107,7 +107,7 @@ exports.totpVerify = functions.https.onCall(async (data, context) => {
 exports.totpCheck = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
-    
+
     const uid = context.auth.uid;
 
     // Rate limiting: max 5 attempts per 2-minute window (atomic transaction to prevent race condition)
@@ -128,26 +128,26 @@ exports.totpCheck = functions.https.onCall(async (data, context) => {
             t.set(totpRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
         }
     });
-    
+
     const doc = await db.collection('totp_secrets').doc(uid).get();
     if (!doc.exists || !doc.data().enabled) {
         throw new functions.https.HttpsError('not-found', 'TOTP not enabled');
     }
-    
+
     const secret = doc.data().secret;
     var isValid = authenticator.verify({ token: data.code, secret: secret });
-    
+
     if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code');
-    
+
     // Reset rate limit on success
     await totpRateRef.delete().catch(function() {});
-    
+
     // Mark session as verified
     await db.collection('totp_sessions').doc(uid).set({
         verified: true,
         verifiedAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    
+
     return { success: true };
 });
 
@@ -155,7 +155,7 @@ exports.totpCheck = functions.https.onCall(async (data, context) => {
 exports.totpDisable = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Enter your current code to disable');
-    
+
     const uid = context.auth.uid;
 
     // Rate limiting: max 5 attempts per 2-minute window (atomic transaction)
@@ -175,29 +175,29 @@ exports.totpDisable = functions.https.onCall(async (data, context) => {
             tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
         }
     });
-    
+
     const doc = await db.collection('totp_secrets').doc(uid).get();
     if (!doc.exists) throw new functions.https.HttpsError('not-found', 'TOTP not enabled');
-    
+
     // Verify code before disabling
     var isValid = authenticator.verify({ token: data.code, secret: doc.data().secret });
     if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code. Must verify to disable.');
-    
+
     await db.collection('totp_secrets').doc(uid).delete();
     await db.collection('totp_sessions').doc(uid).delete();
     await db.collection('users').doc(uid).update({ totpEnabled: false });
-    
+
     return { success: true };
 });
 
 // Check if user has TOTP enabled
 exports.totpStatus = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    
+
     const uid = context.auth.uid;
     const doc = await db.collection('totp_secrets').doc(uid).get();
     const sessionDoc = await db.collection('totp_sessions').doc(uid).get();
-    
+
     return {
         enabled: doc.exists && doc.data().enabled === true,
         sessionVerified: sessionDoc.exists && sessionDoc.data().verified === true
@@ -369,7 +369,7 @@ exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' },
 // =============================================
 exports.nostrAuth = functions.https.onCall(async (data, context) => {
     const { pubkey, sig, event } = data;
-    
+
     if (!pubkey || !sig || !event) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing pubkey, sig, or event');
     }
@@ -426,7 +426,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
     try {
         const secp = require('@noble/secp256k1');
         const crypto = require('crypto');
-        
+
         // Required for @noble/secp256k1 v1.x on Node 22+
         if (!secp.utils.sha256Sync) {
             secp.utils.sha256Sync = (...msgs) => {
@@ -442,7 +442,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
                 return Uint8Array.from(h.digest());
             };
         }
-        
+
         // Compute event ID (SHA256 of serialized event per NIP-01)
         const serialized = JSON.stringify([
             0,
@@ -453,7 +453,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
             nostrEvent.content || ''
         ]);
         const eventId = crypto.createHash('sha256').update(serialized).digest('hex');
-        
+
         // SECURITY: Always verify the signature against our OWN recomputed eventId,
         // never against a client-supplied id. Accepting a client-supplied id allows an
         // attacker to harvest any real (id, sig, pubkey) triple from a public Nostr note
@@ -464,10 +464,10 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
         // This is the canonical NIP-01 requirement: id = SHA256 of the serialized event.
         if (nostrEvent.id && nostrEvent.id !== eventId) {
             console.error('Nostr event id mismatch. client:', nostrEvent.id.substring(0,16), 'computed:', eventId.substring(0,16));
-            throw new functions.https.HttpsError('permission-denied', 'Event id mismatch — signature not bound to this event');
+            throw new functions.https.HttpsError('permission-denied', 'Event id mismatch - signature not bound to this event');
         }
 
-        // Get the actual signature — from the event object or the top-level sig param
+        // Get the actual signature - from the event object or the top-level sig param
         const actualSig = (nostrEvent.sig && /^[a-f0-9]{128}$/.test(nostrEvent.sig)) ? nostrEvent.sig : sig;
 
         // Verify signature against the server-recomputed eventId only
@@ -491,7 +491,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 
     // Create or get Firebase user by Nostr pubkey
     const nostrUid = 'nostr:' + pubkey;
-    
+
     try {
         // Try to get existing user
         await admin.auth().getUser(nostrUid);
@@ -518,7 +518,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 });
 
 // =============================================
-// LNURL-auth — Lightning Login
+// LNURL-auth - Lightning Login
 // =============================================
 
 // Step 1: Generate a challenge (k1) and return LNURL
@@ -566,7 +566,7 @@ exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
     return { k1, lnurl: lnurlEncoded, callbackUrl };
 });
 
-// Step 2: HTTP callback endpoint — wallet calls this with sig + key
+// Step 2: HTTP callback endpoint - wallet calls this with sig + key
 exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
     // CORS headers
     res.set('Access-Control-Allow-Origin', 'https://bitcoineducation.quest');
@@ -596,7 +596,7 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
     try {
         const secp = require('@noble/secp256k1');
         const crypto2 = require('crypto');
-        
+
         // Required for @noble/secp256k1 v1.x on Node 22+
         if (!secp.utils.sha256Sync) {
             secp.utils.sha256Sync = (...msgs) => {
@@ -612,7 +612,7 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
                 return Uint8Array.from(h.digest());
             };
         }
-        
+
         const k1Bytes = Buffer.from(k1, 'hex');
         const sigBytes = Buffer.from(sig, 'hex');
         const keyBytes = Buffer.from(key, 'hex');
@@ -635,7 +635,7 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
         return res.json({ status: 'ERROR', reason: 'Signature verification failed' });
     }
 
-    // Signature valid — mark challenge as completed with the linking key
+    // Signature valid - mark challenge as completed with the linking key
     // Firebase UIDs max 128 chars. If key is too long (uncompressed pubkey = 130 hex), hash it.
     const crypto3 = require('crypto');
     const lnUid = ('ln:' + key).length <= 128 ? 'ln:' + key : 'ln:' + crypto3.createHash('sha256').update(key).digest('hex');
@@ -667,7 +667,7 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
     }
 
     // Update challenge doc with auth result
-    // Mark challenge as completed — token is generated fresh by lnAuthVerify (never stored)
+    // Mark challenge as completed - token is generated fresh by lnAuthVerify (never stored)
     await db.collection('lnauth_challenges').doc(k1).update({
         status: 'completed',
         linkingKey: key,
@@ -838,7 +838,7 @@ function bech32Encode(url) {
 }
 
 // =============================================
-// Forum Post Notification — email admin on new post
+// Forum Post Notification - email admin on new post
 // =============================================
 exports.onForumPost = functions.firestore
     .document('forum_posts/{postId}')
@@ -969,7 +969,7 @@ exports.spinReminder = onSchedule({
 });
 
 // =============================================
-// Nacho Feedback Report — runs daily, reports every 100 interactions
+// Nacho Feedback Report - runs daily, reports every 100 interactions
 // =============================================
 exports.nachoFeedbackReport = onSchedule({
     schedule: 'every day 09:00',
@@ -1176,7 +1176,7 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
         return { success: false, reason: 'Referral rejected: sanity check failed', flags };
     }
 
-    // ===== Passed all checks — award tickets =====
+    // ===== Passed all checks - award tickets =====
     const batch = db.batch();
     batch.update(referralDoc.ref, {
         verified: true,
@@ -1200,7 +1200,7 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
 });
 
 // =============================================
-// NOTE: Old allowedAwards-based awardPoints removed — replaced by daily-cap version below (line ~1527)
+// NOTE: Old allowedAwards-based awardPoints removed - replaced by daily-cap version below (line ~1527)
 // That version enforces 500 pts/day via atomic Firestore transaction in daily_points subcollection
 
 // =============================================
@@ -1209,32 +1209,32 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
 // =============================================
 exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    
+
     const uid = context.auth.uid;
     const action = data.action || '';
     const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
-    
+
     const allowedActions = {
         'spin': { max: 1, field: 'lastSpinDate' },
         'scholar_exam': { max: 1, field: 'lastScholarDate' },
         'quest': { max: 3, field: 'questDate', countField: 'questCountToday' }
     };
-    
+
     if (!allowedActions[action]) {
         throw new functions.https.HttpsError('invalid-argument', 'Invalid action');
     }
-    
+
     const config = allowedActions[action];
-    
+
     try {
         const result = await db.runTransaction(async (t) => {
             const userDoc = await t.get(userRef);
             if (!userDoc.exists) throw new Error('NOT_FOUND');
-            
+
             const userData = userDoc.data();
             const lastDate = userData[config.field] || '';
-            
+
             if (config.countField) {
                 // Count-based limit (quests)
                 const count = (lastDate === today) ? (userData[config.countField] || 0) : 0;
@@ -1270,10 +1270,10 @@ exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
 // =============================================
 exports.moderateContent = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    
+
     const text = (data.text || '').trim();
     if (!text) return { clean: true };
-    
+
     // Normalize leetspeak
     const normalized = text.toLowerCase()
         .replace(/[@4]/g, 'a')
@@ -1285,13 +1285,13 @@ exports.moderateContent = functions.https.onCall(async (data, context) => {
         .replace(/[7+]/g, 't')
         .replace(/[*._\-]/g, '')
         .replace(/\s+/g, ' ');
-    
+
     const profanityList = [
         'fuck', 'shit', 'bitch', 'asshole', 'damn', 'cunt',
         'dick', 'cock', 'pussy', 'whore', 'slut', 'fag',
         'nigger', 'nigga', 'retard', 'kill yourself', 'kys'
     ];
-    
+
     // Word boundary matching to avoid Scunthorpe problem
     for (const word of profanityList) {
         const regex = new RegExp('\\b' + word + '\\b', 'i');
@@ -1299,7 +1299,7 @@ exports.moderateContent = functions.https.onCall(async (data, context) => {
             return { clean: false, reason: 'Content contains inappropriate language' };
         }
     }
-    
+
     // Check for scam patterns
     const scamPatterns = [
         /send me \d+ btc/i,
@@ -1308,13 +1308,13 @@ exports.moderateContent = functions.https.onCall(async (data, context) => {
         /invest.*guaranteed/i,
         /free bitcoin.*send/i,
     ];
-    
+
     for (const pattern of scamPatterns) {
         if (pattern.test(text)) {
             return { clean: false, reason: 'Content contains potential scam patterns' };
         }
     }
-    
+
     return { clean: true };
 });
 
@@ -1329,7 +1329,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('invalid-argument', 'Missing content');
     }
 
-    // Server-side content filtering — prevents bypassing client-side filters via direct CF calls
+    // Server-side content filtering - prevents bypassing client-side filters via direct CF calls
     if (data.text) {
         const text = data.text.toLowerCase()
             .replace(/0/g,'o').replace(/1/g,'i').replace(/3/g,'e').replace(/4/g,'a')
@@ -1359,7 +1359,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
         if (rateLimitDoc.exists) {
             const lastCall = rateLimitDoc.data().lastCall;
             if (lastCall && Date.now() - (lastCall.toDate ? lastCall.toDate() : new Date(lastCall)).getTime() < 3000) {
-                throw new functions.https.HttpsError('resource-exhausted', 'Too fast — wait 3 seconds');
+                throw new functions.https.HttpsError('resource-exhausted', 'Too fast - wait 3 seconds');
             }
         }
         tx.set(rateLimitRef, { lastCall: admin.firestore.FieldValue.serverTimestamp() });
@@ -1370,7 +1370,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
     const BRIDGE_SECRET = process.env.BRIDGE_SECRET;
 
     if (!BRIDGE_SECRET) {
-        console.error('[BRIDGE] No bridge secret configured — run: firebase functions:config:set bridge.secret="YOUR_SECRET"');
+        console.error('[BRIDGE] No bridge secret configured - run: firebase functions:config:set bridge.secret="YOUR_SECRET"');
         return { ok: false, error: 'Bridge not configured' };
     }
 
@@ -1404,7 +1404,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
             })
         });
         const json = await resp.json();
-        
+
         // Store telegramMsgId if returned by bridge worker
         if (json.telegramMsgId && json.chatId) {
             try {
@@ -1419,7 +1419,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
                 console.log('[BRIDGE] Could not store telegramMsgId:', e.message);
             }
         }
-        
+
         return { ok: json.ok || false, telegramMsgId: json.telegramMsgId };
     } catch(e) {
         console.error('[BRIDGE] Error:', e.message);
@@ -1427,7 +1427,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
     }
 });
 
-// ===== SATS FAUCET — claimSats Cloud Function =====
+// ===== SATS FAUCET - claimSats Cloud Function =====
 exports.claimSats = functions.https.onCall(async (data, context) => {
     // 1. Must be authenticated
     if (!context.auth) {
@@ -1458,7 +1458,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Invalid Lightning invoice length.' };
     }
 
-    // 5. Cryptographic BOLT11 decode (C4 fix — proper library, not regex)
+    // 5. Cryptographic BOLT11 decode (C4 fix - proper library, not regex)
     let decoded;
     try {
         decoded = bolt11.decode(invoice);
@@ -1482,7 +1482,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Invoice has expired. Generate a fresh one.' };
     }
 
-    // 7. Invoice replay protection — full invoice SHA-256 hash (C3 fix)
+    // 7. Invoice replay protection - full invoice SHA-256 hash (C3 fix)
     const invoiceHash = require('crypto').createHash('sha256').update(invoice).digest('hex').substring(0, 32);
     const replayDoc = await db.collection('faucet_invoices').doc(invoiceHash).get();
     if (replayDoc.exists) {
@@ -1509,7 +1509,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Sats faucet is temporarily paused.' };
     }
 
-    // 6a. IP RATE LIMITING (Fix #6) — flag same IP claiming across multiple accounts
+    // 6a. IP RATE LIMITING (Fix #6) - flag same IP claiming across multiple accounts
     const clientIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (clientIP === 'unknown') {
         console.error('[FAUCET] Could not determine client IP for uid=' + uid);
@@ -1533,7 +1533,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 return { success: false, error: 'A claim was recently made from this network. Try again later.' };
             }
         }
-        // Log this IP claim (after payment succeeds — moved to post-payment batch below)
+        // Log this IP claim (after payment succeeds - moved to post-payment batch below)
     }
 
     // 6b. DEVICE FINGERPRINT CHECK (Mandatory - Fix M-NEW-12)
@@ -1542,7 +1542,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         console.warn('[FAUCET] FINGERPRINT MISSING: uid=' + uid);
         return { success: false, error: 'Device verification required.' };
     }
-    
+
     const fpRef = db.collection('faucet_fingerprints').doc(fingerprint.substring(0, 64));
     const fpDoc = await fpRef.get();
     if (fpDoc.exists) {
@@ -1554,13 +1554,13 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         }
     }
 
-    // 7. ATOMIC TRANSACTION — All balance/limit checks + point deduction in one transaction
+    // 7. ATOMIC TRANSACTION - All balance/limit checks + point deduction in one transaction
     //    This prevents race conditions from concurrent requests
     const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
     const dailyRef = userRef.collection('sats_daily').doc(today);
     const globalRef = db.collection('faucet_stats').doc(today);
-    // Server-only ledger — immune to client account-deletion (C-NEW-6 fix)
+    // Server-only ledger - immune to client account-deletion (C-NEW-6 fix)
     // Firestore rules DENY all client reads/writes to this collection.
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
 
@@ -1571,7 +1571,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             if (!userDoc.exists) throw new Error('User profile not found.');
             const user = userDoc.data();
 
-            // SATS DISABLED CHECK — admin ban for farming/abuse
+            // SATS DISABLED CHECK - admin ban for farming/abuse
             if (user.satsDisabled === true) {
                 throw new Error('Sats withdrawals are disabled on this account. Contact support if you believe this is an error.');
             }
@@ -1600,7 +1600,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 throw new Error('Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.');
             }
 
-            // Check points balance (points are NEVER deducted — we track pointsClaimed separately)
+            // Check points balance (points are NEVER deducted - we track pointsClaimed separately)
             const userPoints = user.points || 0;
             const pointsClaimed = user.pointsClaimed || 0;
             const availablePoints = userPoints - pointsClaimed;
@@ -1610,8 +1610,8 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             }
 
             // Server-side points sanity check: max 500 pts/day × account age + 2100 (scholar)
-            // Uses Firebase Auth metadata (immutable) — NOT client-writable Firestore field
-            // Points sanity check — log suspicious but do NOT block claims.
+            // Uses Firebase Auth metadata (immutable) - NOT client-writable Firestore field
+            // Points sanity check - log suspicious but do NOT block claims.
             // All other rules (cooldown, lifetime cap, daily cap, min channels, min age)
             // still enforce. Phil: "as long as all rules are followed, allow it." (2026-04-25)
             {
@@ -1623,11 +1623,11 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 }
             }
 
-            // Read server-only ledger (survives account deletion) — C-NEW-6 fix
+            // Read server-only ledger (survives account deletion) - C-NEW-6 fix
             const ledgerDoc = await t.get(ledgerRef);
             const ledger = ledgerDoc.exists ? ledgerDoc.data() : {};
 
-            // Check lifetime cap — use MAX of user doc and ledger to handle both
+            // Check lifetime cap - use MAX of user doc and ledger to handle both
             // pre-existing users (only have user.satsWithdrawn) and post-deletion
             // attackers (user doc reset, ledger intact).
             const userSatsWithdrawn = user.satsWithdrawn || 0;
@@ -1638,7 +1638,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 throw new Error('Lifetime cap reached. You can withdraw ' + remaining + ' more sats.');
             }
 
-            // Check 24h cooldown — again use max(user, ledger)
+            // Check 24h cooldown - again use max(user, ledger)
             function _toDate(v) {
                 if (!v) return null;
                 if (v.toDate) return v.toDate();
@@ -1675,7 +1675,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 throw new Error('Daily faucet limit reached. Try again tomorrow.');
             }
 
-            // ALL CHECKS PASSED — mark points as claimed (NEVER deduct points)
+            // ALL CHECKS PASSED - mark points as claimed (NEVER deduct points)
             // This locks the unclaimed balance so concurrent requests fail
             const pointsToClaim = amount * FAUCET.POINTS_PER_SAT;
             t.update(userRef, {
@@ -1725,7 +1725,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Could not connect to payment wallet. Try again later.' };
     }
 
-    // FINAL SAFETY CHECK — absolute hard cap before touching the wallet
+    // FINAL SAFETY CHECK - absolute hard cap before touching the wallet
     if (amount > 500) {
         console.error('[FAUCET] BLOCKED: amount ' + amount + ' exceeds hard cap of 500 sats for uid=' + uid);
         await _rollbackClaim(uid, amount, today);
@@ -1740,7 +1740,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             return { success: false, error: 'Payment failed. Check your invoice and try again.' };
         }
 
-        // 9. Payment succeeded — record withdrawal history, clear pending flag, mark invoice used
+        // 9. Payment succeeded - record withdrawal history, clear pending flag, mark invoice used
         const batch = db.batch();
         batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete() });
         batch.set(userRef.collection('sats_withdrawals').doc(), {
@@ -1789,7 +1789,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         };
     } catch (e) {
         console.error('[FAUCET] Payment error:', e.message);
-        // Payment failed — rollback the points deduction
+        // Payment failed - rollback the points deduction
         await _rollbackClaim(uid, amount, today);
         return { success: false, error: 'Payment failed: ' + (e.message || 'Unknown error') };
     }
@@ -1837,10 +1837,120 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
     const channelId = (data.channelId || '').substring(0, 100);
     const tickets = parseInt(data.tickets) || 0;
     const streakFreezes = parseInt(data.streakFreezes) || 0;
-    // Badge ID for server-side dedup (optional — only sent for badge_earned actions)
+    // Badge ID for server-side dedup (optional - only sent for badge_earned actions)
     const badgeId = (data.badgeId || '').replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 60);
 
-    // ── ACTION-BASED POINT VALIDATION ──
+    // ── SERVER-SIDE BADGE VALUE CATALOG ──
+    // Every badge the client can earn mapped to its exact XP value.
+    // If a badgeId is not in this map it is rejected - closes the money-printer exploit
+    // where any badgeId minted the full 21,000 XP ceiling regardless of actual badge value.
+    const BADGE_VALUES = {
+        // Discovery / exploration
+        first_channel: 10,
+        explorer_10: 15, explorer_25: 30, explorer_50: 50, explorer_100: 100, explorer_all: 500,
+        global_citizen: 100,
+        // Daily Quest Hub
+        quest_1: 10, quest_3: 25, quest_5: 50, quest_10: 100, quest_25: 200, quest_50: 400, quest_100: 750,
+        // Certs
+        cert_scholar: 50, cert_tech: 100, cert_double: 250, all_certs: 1500,
+        // Timechain TV - watch time
+        tctv_tuned_in: 10, tctv_couch_potato: 25, tctv_binge_watcher: 50, tctv_couch_king: 100, tctv_satellite: 750,
+        // Timechain TV - channel switching
+        tctv_channel_hopper: 5, tctv_remote_warrior: 10, tctv_dial_spinner: 15,
+        tctv_signal_seeker: 25, tctv_antenna_wizard: 50, tctv_timechain_surfer: 100,
+        // Nacho
+        nacho_chatterbox: 30, nacho_bestie: 200, nacho_asked_10: 15, nacho_asked_100: 75,
+        nacho_whisper: 500, nacho_eli5: 10,
+        // Global chat
+        chat_first: 10, chat_10: 15, chat_50: 25, chat_100: 50, chat_500: 250,
+        chat_streak_3: 20, chat_streak_7: 50, chat_streak_30: 300,
+        // DJ / Beats
+        dj_first: 25, dj_5: 50, dj_25: 300, dj_songs_10: 30, dj_songs_50: 75, dj_songs_100: 400,
+        dj_listener: 20, dj_listener_50: 150,
+        producer_1: 50, producer_10: 100,
+        beats_first_listen: 10, beats_50_plays: 30, beats_liked_10: 20, beats_liked_50: 75,
+        // DMs
+        dm_first: 15, dm_10: 25, dm_buddy: 30,
+        // Reactions
+        react_5: 10, react_50: 50, react_200: 150,
+        // PVP
+        pvp_first: 25, pvp_5: 50, pvp_25: 100, pvp_50: 200, pvp_100: 1000,
+        // Referrals
+        referral_1: 50, referral_5: 100, referral_10: 200, referral_25: 500,
+        referral_50: 1000, referral_100: 2500, referred: 25,
+        // Satoshi's Favor (SF)
+        sf_first_hash: 10, sf_10_hashes: 25, sf_50_hashes: 75, sf_100_hashes: 150,
+        sf_500_hashes: 500, sf_1000_hashes: 1000, sf_10000_hashes: 2100,
+        sf_low_hash: 50, sf_ultra_low: 200, sf_block_solver: 1000,
+        sf_contributor: 50, sf_contributor_10: 200,
+        // Raid Boss
+        raid_first: 10, raid_5: 50, raid_10: 100, raid_25: 250, raid_50: 750, raid_100: 1500,
+        raid_boss_slayer: 50, raid_boss_slayer_5: 150, raid_boss_slayer_10: 500, raid_winner: 250,
+        // Trivia
+        trivia_first: 10, trivia_correct_1: 15, trivia_correct_10: 30,
+        trivia_correct_30: 75, trivia_correct_100: 500,
+        trivia_streak_7: 50, trivia_streak_30: 300,
+        // Poll
+        poll_first: 10, poll_10: 25, poll_50: 100, poll_100: 400,
+        // Daily triple
+        daily_triple_1: 25, daily_triple_7: 100, daily_triple_30: 500,
+        // Marketplace
+        market_browse: 10, market_listed_1: 30, market_listed_5: 75,
+        market_saved_5: 15, market_message: 20,
+        // Bookmarks / favs
+        bookmarks_1: 10, bookmarks_10: 30, favs_10: 25, favs_25: 75,
+        // Tips
+        tip_first: 25, tip_10: 75, tip_magnet: 100, tip_whale: 150,
+        tip_received_1: 20, tip_received_50: 500, tip_sats_10k: 300,
+        // Price prediction
+        predict_1: 10, predict_10: 25, predict_50: 75,
+        predict_correct_5: 75, predict_correct_25: 200, predict_correct_100: 750,
+        predict_streak_3: 50, predict_streak_10: 250,
+        // IRL Sync
+        irl_attend_1: 25, irl_attend_5: 100, irl_host: 50, irl_host_5: 150, irl_host_10: 500,
+        // Spin wheel
+        spin_30: 75, spin_streak_7: 50, spin_jackpot: 100,
+        // Lightning
+        lightning_setup: 100,
+        // Forum / articles
+        forum_5: 25, forum_25: 75, article_1: 50,
+        // First purchase
+        first_purchase: 100,
+        // Sats milestones
+        sats_first: 25, sats_1k: 100, sats_5k: 250, sats_10k: 500, sats_21k: 2100,
+        // Streaks
+        streak_7: 50, streak_14: 75, streak_30: 150, streak_60: 400,
+        streak_100: 1000, streak_200: 2100, streak_365: 5000,
+        // Nacho story
+        story_begun: 15, story_halfway: 50, story_complete: 150,
+        // Trails
+        trail_meadow: 200, trail_mountain: 400, trail_summit: 750, trail_all: 500,
+        // FLEX aggregate badges
+        flex_rookie: 25, flex_committed: 75, flex_athlete: 200, flex_legend: 1000, flex_all_once: 150,
+        // Proof of Walk
+        pow_first_step: 50, pow_marathoner: 200,
+        pow_streak_3: 100, pow_streak_7: 300, pow_streak_30: 1000,
+        pow_km_10: 50, pow_km_50: 100, pow_km_100: 200, pow_km_500: 500,
+        pow_km_1000: 1000, pow_km_5000: 2500,
+        // Milestones (lifetime)
+        hall_of_fame: 5000, the_archive: 10000, genesis_block: 15000,
+        satoshis_ghost: 21000, block_250: 25000, the_hodler: 30000,
+    };
+    // FLEX per-action badge catalog - 23 actions × 8 milestones
+    // Pattern: flex_<actionId>_<milestone>  → always 5 pts each
+    const FLEX_ACTION_IDS = [
+        'steak','sunlight','dca','custody','lift','meetup','lightning','read','sleep',
+        'nokyc','node','cold','fast','walk','journal','meditate','teach','water',
+        'gratitude','verify','focus','risk','pattern'
+    ];
+    const FLEX_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
+    for (const aid of FLEX_ACTION_IDS) {
+        for (const m of FLEX_MILESTONES) {
+            BADGE_VALUES['flex_' + aid + '_' + m] = 5;
+        }
+    }
+
+// ── ACTION-BASED POINT VALIDATION ──
     // Server defines exact point values per action type. Client cannot choose amounts.
     const ACTION_POINTS = {
         'channel_read': 10,           // Open a new channel
@@ -1858,7 +1968,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'quest_retry': 25,            // Quest retry
         'quest_partial': 50,          // Quest 3+ correct
         'scholar_cert': 2100,         // Scholar certification
-        'badge_earned': 21000,        // Max badge points — Satoshi's Ghost is 21,000 (actual varies by badge)
+        'badge_earned': 30000,        // Ceiling only — actual pts are overridden by BADGE_VALUES lookup below
         'pvp_victory': 50,            // PVP win (score-based, capped)
         'pvp_practice': 10,           // PVP practice correct
         'pvp_draw': 5,               // PVP draw
@@ -1945,20 +2055,20 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'trivia_correct': ['trivia quest correct', 'trivia_correct', '🧠 trivia quest correct'],
         'trivia_attempt': ['trivia quest attempt', 'trivia_attempt', '🧠 trivia quest attempt'],
         'poll_vote': ['poll quest vote', 'poll_vote', '📊 poll quest vote'],
-    
+
         'flex_action': ['💪 flex:'],
     };
 
     let pts = 0;
     let matchedAction = null;
 
-    // Priority 1: Explicit actionKey (exact enum match — not gameable)
+    // Priority 1: Explicit actionKey (exact enum match - not gameable)
     if (actionKey && ACTION_POINTS.hasOwnProperty(actionKey)) {
         matchedAction = actionKey;
         pts = ACTION_POINTS[actionKey];
     }
 
-    // Priority 2: Keyword matching (backward compat — will be deprecated)
+    // Priority 2: Keyword matching (backward compat - will be deprecated)
     if (!matchedAction) {
         for (const [key, keywords] of Object.entries(ACTION_KEYWORDS)) {
             for (const kw of keywords) {
@@ -1972,7 +2082,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         }
     }
 
-    // Reject unknown actions — no backward-compat fallback
+    // Reject unknown actions - no backward-compat fallback
     if (!matchedAction) {
         return { success: false, error: 'Unknown action', awarded: 0 };
     }
@@ -1985,8 +2095,21 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         }
     }
 
-    // Validate — badge_earned can go up to 21,000
-    const absMax = (matchedAction === 'badge_earned') ? 21000 : 2200;
+    // For badge_earned: override pts from server catalog; reject unknown badges entirely.
+    // This closes the money-printer exploit: previously any badgeId minted the full
+    // 21,000-pt ceiling. Now pts are always server-authoritative and unknown badges
+    // are rejected rather than silently accepted.
+    let badgeKnown = false;
+    if (matchedAction === 'badge_earned') {
+        if (!badgeId || !Object.prototype.hasOwnProperty.call(BADGE_VALUES, badgeId)) {
+            console.warn('[awardPoints] badge_earned rejected: unknown badgeId:', badgeId, 'uid:', uid);
+            return { success: false, error: 'Unknown badge' };
+        }
+        pts = BADGE_VALUES[badgeId]; // server value always wins
+        badgeKnown = true;
+    }
+
+    const absMax = (matchedAction === 'badge_earned') ? 30000 : 2200;
     if (pts < 0 || pts > absMax) {
         return { success: false, error: 'Invalid points amount' };
     }
@@ -2011,12 +2134,12 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'article_comment': 10000,
         'tctv_watch_10m': 600000, // 10 minutes (Fix: server-side verification)
     };
-    const cooldownRef = (matchedAction && ACTION_COOLDOWNS[matchedAction]) 
+    const cooldownRef = (matchedAction && ACTION_COOLDOWNS[matchedAction])
         ? db.collection('action_cooldowns').doc(uid + '_' + matchedAction)
         : null;
 
     // DAILY ACTION COUNT LIMIT: Cap certain actions per UTC day independent of point cap.
-    // (Empty by default — beats_upload abuse is addressed by the 15s minimum duration
+    // (Empty by default - beats_upload abuse is addressed by the 15s minimum duration
     // gate in Firestore rules + client, not here, so albums of many short tracks work.)
     const ACTION_DAILY_LIMITS = {};
     const dailyActionRef = (matchedAction && ACTION_DAILY_LIMITS[matchedAction])
@@ -2039,8 +2162,10 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 }
             }
 
-            // 1a. Badge dedup — each badge can only award XP once per user, ever
-            if (matchedAction === 'badge_earned' && badgeId) {
+            // 1a. Badge dedup - each badge can only award XP once per user, ever
+            // Use badgeKnown (set only when badge is in BADGE_VALUES catalog) so that
+            // omitting badgeId can no longer bypass this guard (exploit B).
+            if (badgeKnown) {
                 const badgeAwardRef = userRef.collection('badge_awards').doc(badgeId);
                 const badgeAwardDoc = await t.get(badgeAwardRef);
                 if (badgeAwardDoc.exists) {
@@ -2052,7 +2177,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 t.update(userRef, { visibleBadges: admin.firestore.FieldValue.arrayUnion(badgeId) });
             }
 
-            // 1c. Daily dedup for trivia and poll — one award per UTC day per action
+            // 1c. Daily dedup for trivia and poll - one award per UTC day per action
             // Uses daily_action_counts subcollection (CF-only, rules block client writes)
             if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
                 const triviaRef = userRef.collection('daily_action_counts').doc(today + '_trivia');
@@ -2070,7 +2195,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 }
                 t.set(pollRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
             }
-            // 1d. Daily dedup for FLEX — one award per action-id per UTC day
+            // 1d. Daily dedup for FLEX - one award per action-id per UTC day
             if (matchedAction === 'flex_action') {
                 const flexId = (data.flexActionId || '').replace(/[^a-z0-9_]/g, '').substring(0, 30);
                 if (!flexId) throw new Error('FLEX_MISSING_ACTION_ID');
@@ -2132,14 +2257,15 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
             // Compute today's award against the daily cap. Any excess is added to
             // pendingOverflow for a future day.
-            // EXCEPTION: badge_earned is a one-time lifetime award — always awarded in full,
+            // EXCEPTION: badge_earned is a one-time lifetime award - always awarded in full,
             // never capped or deferred to overflow. A 21,000-pt badge should land immediately.
             let awarded = 0;
             let capped = false;
             let overflowAdded = 0;
             if (pts > 0) {
-                if (matchedAction === 'badge_earned') {
-                    // Badges bypass the daily cap entirely — one-time lifetime award
+                if (badgeKnown) {
+                    // Known badges bypass the daily cap entirely - one-time lifetime award
+                    // (badgeKnown is only true when badgeId is in BADGE_VALUES catalog)
                     awarded = pts;
                 } else if (dailyUsed < DAILY_CAP) {
                     awarded = pts;
@@ -2149,13 +2275,13 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                     }
                     if (awarded < 0) awarded = 0;
                 } else {
-                    // Already at cap — entire award goes to overflow
+                    // Already at cap - entire award goes to overflow
                     overflowAdded = pts;
                 }
-                capped = (matchedAction !== 'badge_earned') && (dailyUsed + awarded >= DAILY_CAP);
+                capped = !badgeKnown && (dailyUsed + awarded >= DAILY_CAP);
             }
 
-            // 4. Build Atomic Update — channel tracking is a visit record (not a reward),
+            // 4. Build Atomic Update - channel tracking is a visit record (not a reward),
             // so it happens regardless of whether the daily points cap is hit.
             const userUpdate = {};
 
@@ -2166,7 +2292,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             let channelTracked = false;
             if (channelId && channelId.length > 0 && channelId.length <= 100) {
                 userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
-                // channelsVisited is a display counter — only bump on first read of this channel
+                // channelsVisited is a display counter - only bump on first read of this channel
                 const currentList = Array.isArray(userData.visitedChannelsList) ? userData.visitedChannelsList : [];
                 if (currentList.indexOf(channelId) === -1) {
                     userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
@@ -2174,7 +2300,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 channelTracked = true;
             }
 
-            // Points/tickets/freezes — award today's legitimate portion PLUS any
+            // Points/tickets/freezes - award today's legitimate portion PLUS any
             // overflow we're redeeming from prior days.
             const totalPointsOut = awarded + overflowRedeemed;
             if (totalPointsOut > 0) {
@@ -2210,7 +2336,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 t.set(cooldownRef, { ts: admin.firestore.FieldValue.serverTimestamp() });
             }
 
-            // Per-day action count — increment even when points hit daily cap
+            // Per-day action count - increment even when points hit daily cap
             // (so 5-upload hard limit applies regardless of point balance)
             if (dailyActionRef) {
                 t.set(dailyActionRef, {
@@ -2231,7 +2357,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         });
     } catch (e) {
         if (e.message === 'TOO_FAST') {
-            return { success: false, error: 'Too fast — wait a moment', cooldown: true };
+            return { success: false, error: 'Too fast - wait a moment', cooldown: true };
         }
         if (e.message && e.message.startsWith('BADGE_ALREADY_AWARDED:')) {
             return { success: false, error: 'Badge already awarded', badgeDuplicate: true };
@@ -2248,10 +2374,10 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         return { success: false, error: e.message || 'Internal error' };
     }
 
-    // (dead-code block below removed 2026-04-16 — was a leftover from a pre-refactor commit that prevented Cloud Functions deploys)
+    // (dead-code block below removed 2026-04-16 - was a leftover from a pre-refactor commit that prevented Cloud Functions deploys)
 });
 
-// ===== FAUCET ADMIN — getFaucetStats =====
+// ===== FAUCET ADMIN - getFaucetStats =====
 exports.getFaucetStats = functions.https.onCall(async (data, context) => {
     if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com'].indexOf(context.auth.token.email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
@@ -2259,7 +2385,7 @@ exports.getFaucetStats = functions.https.onCall(async (data, context) => {
     const today = new Date().toISOString().split('T')[0];
     const statsDoc = await db.collection('faucet_stats').doc(today).get();
     const configDoc = await db.collection('faucet_config').doc('settings').get();
-    
+
     let walletBalance = 0;
     try {
         const nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
@@ -2275,7 +2401,7 @@ exports.getFaucetStats = functions.https.onCall(async (data, context) => {
     };
 });
 
-// ===== FAUCET ADMIN — toggleFaucet =====
+// ===== FAUCET ADMIN - toggleFaucet =====
 exports.toggleFaucet = functions.https.onCall(async (data, context) => {
     if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com'].indexOf(context.auth.token.email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
@@ -2406,7 +2532,7 @@ exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
             totalPredictions += u.predictions.total || 0;
             totalPredictionsCorrect += u.predictions.correct || 0;
         }
-        // Spins — estimate: if user has lastSpinDate, they've spun at least once
+        // Spins - estimate: if user has lastSpinDate, they've spun at least once
         // Better estimate: users with streak > 0 have been active, avg ~10 spins each
         if (u.lastSpinDate) totalSpins += 1;
     });
@@ -2688,7 +2814,7 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
         if (keyDoc.exists && keyDoc.data().keys && keyDoc.data().keys[questionIndex] !== undefined) {
             correctAnswer = keyDoc.data().keys[questionIndex].correct;
         } else {
-            // Legacy fallback — old matches still have correct in the match doc
+            // Legacy fallback - old matches still have correct in the match doc
             correctAnswer = question.correct;
         }
 
@@ -2729,7 +2855,7 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
                 update[oppKey + '.correct'] = (match[oppKey].correct || 0) + 1;
                 update.questionWinner = oppKey;
             } else if (myCorrect && oppCorrect) {
-                // Both correct — second answerer wins (already answered = opponent was first)
+                // Both correct - second answerer wins (already answered = opponent was first)
                 const newOppAnswers = oppAnswers.slice();
                 newOppAnswers[questionIndex] = Object.assign({}, oppAnswer, { won: true });
                 update[oppKey + '.answers'] = newOppAnswers;
@@ -2737,7 +2863,7 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
                 update[oppKey + '.correct'] = (match[oppKey].correct || 0) + 1;
                 update.questionWinner = oppKey;
             } else {
-                // Both wrong — reroll
+                // Both wrong - reroll
                 update.questionWinner = 'reroll';
             }
 
@@ -2850,7 +2976,7 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
             rareLabel = rareDrop.label;
         }
 
-        // Handle closet (award 25 pts as bonus if all items owned — client handles item logic)
+        // Handle closet (award 25 pts as bonus if all items owned - client handles item logic)
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
@@ -2884,7 +3010,7 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
 });
 
 // ---- Update PVP Stats (server-side) ----
-// updatePvpStats and incrementUserStat REMOVED — exploitable without verification.
+// updatePvpStats and incrementUserStat REMOVED - exploitable without verification.
 // PVP stats are handled atomically inside pvpSubmitAnswer when match finishes.
 // Forum/market stats are display-only (not gated or redeemable).
 
@@ -3002,7 +3128,7 @@ exports.startScholarExam = functions.https.onCall(async (data, context) => {
     const examId = uid + '_' + type + '_' + Date.now();
 
     // SERVER picks the questions (by index into its own bank). The client
-    // never gets to supply answer keys — this closes C-NEW-7.
+    // never gets to supply answer keys - this closes C-NEW-7.
     const indices = _pickScholarQuestions(type);
     // Build the authoritative key array: the correct answer for each picked question
     const keys = indices.map((idx, i) => ({
@@ -3014,8 +3140,8 @@ exports.startScholarExam = functions.https.onCall(async (data, context) => {
     await db.collection('scholar_exam_keys').doc(examId).set({
         uid,
         type,
-        indices, // indices into the pool — client fetches these
-        keys,    // correct answers — never sent to client
+        indices, // indices into the pool - client fetches these
+        keys,    // correct answers - never sent to client
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         graded: false,
     });
@@ -3265,10 +3391,10 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
 // =============================================
 exports.issueCertificate = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    
+
     const uid = context.auth.uid;
     const { type, name } = data || {};
-    
+
     if (!type || !['scholar', 'technical', 'trail_meadow', 'trail_mountain', 'trail_summit'].includes(type)) {
         throw new functions.https.HttpsError('invalid-argument', 'Invalid certificate type');
     }
@@ -3305,7 +3431,7 @@ exports.issueCertificate = functions.https.onCall(async (data, context) => {
 
     // Generate unique Cert ID
     const certId = 'CERT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
-    
+
     const certData = {
         id: certId,
         uid: uid,
@@ -3324,7 +3450,7 @@ exports.issueCertificate = functions.https.onCall(async (data, context) => {
 });
 
 // =============================================
-// COMMUNITY STATS — server-side increments via triggers
+// COMMUNITY STATS - server-side increments via triggers
 // =============================================
 // Prevents client abuse: stats/global is now admin-only writable.
 // Each counter is bumped by a Firestore trigger on the authoritative event.
@@ -3416,7 +3542,7 @@ exports.onUserQuestCompleted = functions.firestore
 
 // NOTE: watchTimeMinutes is already incremented client-side every minute
 // via direct Firestore set({merge:true}) in app.js TCTV watch tracker.
-// No server trigger needed — would double-count.
+// No server trigger needed - would double-count.
 
 // ---- One-shot admin reset for community stats (remove after running) ----
 exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
@@ -3426,7 +3552,7 @@ exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
 
-    // Defaults based on Phil's estimate — callable accepts overrides.
+    // Defaults based on Phil's estimate - callable accepts overrides.
     const defaults = {
         channelVisits: 500,
         questsCompleted: 50,
@@ -3456,7 +3582,7 @@ exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
 });
 
 // ───────────────────────────────────────────────────────────────
-// Daily Active Users — HTTP endpoint (GET). Returns count of users with
+// Daily Active Users - HTTP endpoint (GET). Returns count of users with
 // lastActive / lastLogin / lastVisit within the last 24h.
 // Usage: curl "https://us-central1-bitcoin-education-archive.cloudfunctions.net/dailyActiveUsers?t=dau-2026"
 // ───────────────────────────────────────────────────────────────
@@ -3485,7 +3611,7 @@ exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
         const sevenAgoStr = sevenDaysAgo.toISOString().split('T')[0];
         const thirtyAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-        // Auth method breakdown — total users & active-24h per method
+        // Auth method breakdown - total users & active-24h per method
         const authTotals = { password: 0, google: 0, twitter: 0, github: 0, facebook: 0, nostr: 0, lightning: 0, anonymous: 0, unknown: 0 };
         const authActive24h = { password: 0, google: 0, twitter: 0, github: 0, facebook: 0, nostr: 0, lightning: 0, anonymous: 0, unknown: 0 };
         const authNew24h = { password: 0, google: 0, twitter: 0, github: 0, facebook: 0, nostr: 0, lightning: 0, anonymous: 0, unknown: 0 };
@@ -3679,7 +3805,7 @@ exports.investigateUsers = functions.https.onRequest(async (req, res) => {
                 rec.mergedAnon = d.mergedAnon || false;
                 rec.pvpWins = d.pvpWins || 0;
                 rec.pvpLosses = d.pvpLosses || 0;
-                // Scholar cert + quest signals — may explain point totals above daily cap
+                // Scholar cert + quest signals - may explain point totals above daily cap
                 const certKeys = Object.keys(d).filter(k => k.startsWith('certPassed_') || k.startsWith('certPassedAt_'));
                 rec.certs = certKeys.reduce((o,k) => { o[k] = d[k]; return o; }, {});
                 rec.lastSpinDate = d.lastSpinDate || null;
@@ -3910,7 +4036,7 @@ exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
 });
 
 // =============================================
-// AUDIT WITHDRAWALS — Admin endpoint for monitoring blocked accounts & investigating withdrawal clusters
+// AUDIT WITHDRAWALS - Admin endpoint for monitoring blocked accounts & investigating withdrawal clusters
 // =============================================
 exports.auditWithdrawals = functions.https.onRequest(async (req, res) => {
     const token = req.query.t || req.headers['x-dau-token'];
@@ -4005,7 +4131,7 @@ exports.auditWithdrawals = functions.https.onRequest(async (req, res) => {
 });
 
 // =============================================
-// TCTV Presence Aggregation — Scalable Live Viewer Counter
+// TCTV Presence Aggregation - Scalable Live Viewer Counter
 // Runs every 10 seconds, aggregates presence docs into per-station counts
 // =============================================
 exports.tctvAggregatePresence = onSchedule({
@@ -4016,27 +4142,27 @@ exports.tctvAggregatePresence = onSchedule({
     try {
         const now = Date.now();
         const staleThreshold = 65000; // 65 seconds (matches client-side filter)
-        
+
         // Get all presence docs
         const presenceSnap = await db.collection('tctv_presence').get();
-        
+
         // Aggregate by station
         const counts = {};
         presenceSnap.forEach(doc => {
             const d = doc.data();
             if (!d.station) return;
-            
+
             // Check staleness (same logic as client)
             let docTime = 0;
             if (d.ts && d.ts.toMillis) docTime = d.ts.toMillis();
             else if (typeof d.tsClient === 'number') docTime = d.tsClient;
-            
+
             if (!docTime) return;
             if (now - docTime > staleThreshold) return; // Stale
-            
+
             counts[d.station] = (counts[d.station] || 0) + 1;
         });
-        
+
         // Write aggregated counts to tctv_counts (one doc per station)
         const batch = db.batch();
         for (const [stationId, count] of Object.entries(counts)) {
@@ -4046,7 +4172,7 @@ exports.tctvAggregatePresence = onSchedule({
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }
-        
+
         // Handle stations with 0 viewers (delete the doc or set count to 0)
         // Get existing count docs to find ones that should be 0
         const existingSnap = await db.collection('tctv_counts').get();
@@ -4056,9 +4182,9 @@ exports.tctvAggregatePresence = onSchedule({
                 batch.delete(doc.ref);
             }
         });
-        
+
         await batch.commit();
-        
+
         console.log('[TCTV] Aggregated presence:', Object.keys(counts).length + ' stations, total viewers:', Object.values(counts).reduce((a,b)=>a+b, 0));
         return null;
     } catch (e) {
@@ -4075,7 +4201,7 @@ exports.stravaAuth = functions.https.onRequest(async (req, res) => {
     try {
         const code = req.query.code;
         const uid = req.query.state; // Passed from frontend via state param
-        
+
         if (!code || !uid) {
             return res.redirect('https://bitcoineducation.quest/#explore?strava=error-missing-params');
         }
@@ -4100,7 +4226,7 @@ exports.stravaAuth = functions.https.onRequest(async (req, res) => {
         });
 
         const data = await response.json();
-        
+
         if (data.access_token) {
             await db.collection('users').doc(uid).collection('integrations').doc('strava').set({
                 access_token: data.access_token,
@@ -4127,15 +4253,15 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
     const uid = context.auth.uid;
     console.log('[POW] uid:', uid);
-    
+
     const stravaRef = db.collection('users').doc(uid).collection('integrations').doc('strava');
     const stravaDoc = await stravaRef.get();
     if (!stravaDoc.exists) throw new functions.https.HttpsError('not-found', 'Strava not connected');
-    
+
     let tokenData = stravaDoc.data();
     let access_token = tokenData.access_token;
     console.log('[POW] token expires_at:', tokenData.expires_at, 'now:', Math.floor(Date.now()/1000));
-    
+
     // Refresh token if expired (buffer of 5 mins)
     if (Date.now() / 1000 > (tokenData.expires_at - 300)) {
         const resp = await fetch('https://www.strava.com/api/v3/oauth/token', {
@@ -4160,7 +4286,7 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError('permission-denied', 'Strava auth expired, please reconnect');
         }
     }
-    
+
     // Fetch recent activities
     const actResp = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=30', {
         headers: { 'Authorization': `Bearer ${access_token}` }
@@ -4171,20 +4297,20 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
         console.error('[POW] Strava API Failed', activities);
         throw new functions.https.HttpsError('internal', 'Strava API failed: ' + JSON.stringify(activities).substring(0, 100));
     }
-    
+
     let totalPoints = 0;
     let syncedCount = 0;
-    
+
     const userRef = db.collection('users').doc(uid);
     const statsRef = userRef.collection('proof_of_walk_stats').doc('daily');
     const validTypes = ["Walk", "Run", "Hike"];
     const results = [];
-    
+
     // Filter eligible activities first
     const eligible = activities.filter(act => validTypes.includes(act.type));
     if (eligible.length === 0) return { success: true, synced: 0, pointsEarned: 0, activities: [] };
 
-    // Atomic transaction — all reads first, then all writes (Firestore requirement)
+    // Atomic transaction - all reads first, then all writes (Firestore requirement)
     await db.runTransaction(async (transaction) => {
         // Phase 1: READ all docs we need
         const dailyDoc = await transaction.get(statsRef);
@@ -4239,7 +4365,7 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
             });
         }
     });
-    
+
     console.log('[POW] Done. synced:', syncedCount, 'pts:', totalPoints);
     return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
 });
@@ -4384,7 +4510,7 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
         const pointsDonated = u.pointsDonated || 0;
         const available = points - pointsClaimed - pointsDonated;
 
-        // Faction required — donations must be attributed to a side
+        // Faction required - donations must be attributed to a side
         if (!u.faction || (u.faction !== 'cyber_hornets' && u.faction !== 'honey_badgers')) {
             throw new functions.https.HttpsError('failed-precondition',
                 'You must choose a faction (Cyber Hornets or Honey Badgers) before donating.');
@@ -4458,7 +4584,7 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
     const afterRank = parseInt(data.afterRank) || 0; // cursor: skip users already returned
 
     // Fetch users ordered by points desc
-    // We scan up to 5000 users to find substring matches — sufficient for this app's scale
+    // We scan up to 5000 users to find substring matches - sufficient for this app's scale
     const SCAN_LIMIT = 5000;
     const snap = await db.collection('users')
         .where('points', '>', 0)
