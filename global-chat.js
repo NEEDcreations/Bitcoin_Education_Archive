@@ -2952,17 +2952,54 @@ window.lookupUserByName = function(username) {
 // ---- Announcement link navigation helper ----
 // Closes whichever chat surface is open, then routes to the hash.
 window._annNavToHash = function(hash) {
+    var wasOverlayOpen = !!window._chatOverlayOpen;
     // Close overlay if open
-    if (window._chatOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
-    // Close full chat panel if open (go() will hide forumContainer automatically)
+    if (wasOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
+    var delay = wasOverlayOpen ? 320 : 0;
     setTimeout(function() {
-        // Use location.hash to trigger the existing handleHash() router
-        // which knows about #quests, #favor, #pvp, #forum etc.
-        window.location.hash = hash;
-        // Also fire hashchange manually in case hash didn't change
-        window.dispatchEvent(new HashChangeEvent('hashchange'));
-    }, window._chatOverlayOpen ? 320 : 0);
+        // Map hash → proper navigation action
+        // showQuestHub / showUserProfile etc. are overlays that work on top of any view
+        // but channel routes (forum, marketplace, beats…) need go() so forumContainer is hidden first
+        var overlayRoutes = { 'quests':1, 'favor':1, 'sf':1, 'satoshi-favor':1, 'pvp':1, 'nacho':1,
+                             'dashboard':1, 'bitcoin-dashboard':1, 'metrics':1, 'network':1,
+                             'pow-support':1 };
+        if (overlayRoutes[hash]) {
+            // These open on top of whatever view is current — fine for both surfaces
+            if (hash === 'quests' && typeof showQuestHub === 'function') { showQuestHub(); return; }
+            if ((hash === 'favor' || hash === 'sf' || hash === 'satoshi-favor') && typeof showQuestHub === 'function') {
+                showQuestHub(); window._questHubTab = 'favor';
+                setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 50);
+                return;
+            }
+        }
+        // For channel routes (and full chat panel): call go() which properly hides forumContainer
+        if (typeof go === 'function') {
+            // Map common aliases
+            var id = hash === 'tv' ? 'timechain-tv' : hash === 'meet' ? 'irl-sync' :
+                     hash === 'buy' || hash === 'first-purchase' ? 'first-purchase' :
+                     hash === 'learn' || hash === 'modules' ? 'trails' : hash;
+            go(id);
+        } else {
+            // Fallback: change hash to fire existing router
+            window.location.hash = hash;
+        }
+    }, delay);
 };
+
+// ---- Shared reaction-bar builder — used by renderer + optimistic updater ----
+function _buildAnnReactBar(docId, reactions, myUid, esc) {
+    esc = esc || (typeof escapeHtml === 'function' ? escapeHtml : function(s){return String(s);});
+    var html = '<div data-react-bar style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;align-items:center;">';
+    Object.keys(reactions).forEach(function(emoji) {
+        var uids = reactions[emoji] || [];
+        if (!uids.length) return;
+        var reacted = myUid && uids.indexOf(myUid) !== -1;
+        html += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
+    });
+    html += '<button onclick="event.stopPropagation();_showAnnReactPicker(this,\''+esc(docId)+'\')" style="padding:3px 7px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.75rem;cursor:pointer;color:var(--text-faint);">➕</button>';
+    html += '</div>';
+    return html;
+}
 
 // ---- Shared Announcement Item Renderer ----
 // context: 'panel' = full chat hub, 'overlay' = floating overlay
@@ -2999,17 +3036,7 @@ function _renderAnnouncementItem(doc, context) {
     // Emoji reactions — show existing counts + a ➕ button to open the full picker
     var reactions = m.reactions || {};
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    var reactHtml = '<div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;align-items:center;">';
-    // Render existing reactions with counts
-    Object.keys(reactions).forEach(function(emoji) {
-        var uids = reactions[emoji] || [];
-        if (!uids.length) return;
-        var reacted = myUid && uids.indexOf(myUid) !== -1;
-        reactHtml += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
-    });
-    // ➕ button opens the full emoji picker (same one used in global chat)
-    reactHtml += '<button onclick="event.stopPropagation();_showAnnReactPicker(this,\''+esc(docId)+'\')" style="padding:3px 7px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.75rem;cursor:pointer;color:var(--text-faint);">➕</button>';
-    reactHtml += '</div>';
+    var reactHtml = _buildAnnReactBar(docId, m.reactions || {}, myUid, esc);
 
     return '<div data-ann-id="'+esc(docId)+'" style="display:flex;gap:10px;align-items:flex-start;padding:'+pad+';background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:'+borderR+';">' +
         '<div style="font-size:'+avatarSize+';flex-shrink:0;line-height:1;padding-top:2px;">🦌</div>' +
@@ -3029,25 +3056,40 @@ window._toggleAnnouncementReaction = function(docId, emoji) {
     if (!docId || typeof db === 'undefined' || !db) return;
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     if (!myUid) { if (typeof showToast === 'function') showToast('Sign in to react'); return; }
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s){return String(s);};
     var ref = db.collection(ANNOUNCEMENTS_COLLECTION).doc(docId);
     ref.get().then(function(snap) {
         if (!snap.exists) return;
-        var current = (snap.data().reactions || {})[emoji] || [];
+        var reactions = snap.data().reactions || {};
+        var current = reactions[emoji] || [];
         var already = current.indexOf(myUid) !== -1;
+        // Optimistic local patch — build new reactions map in memory, update DOM immediately
+        var patched = {};
+        Object.keys(reactions).forEach(function(k) { patched[k] = reactions[k].slice(); });
+        if (!patched[emoji]) patched[emoji] = [];
+        if (already) {
+            patched[emoji] = patched[emoji].filter(function(u) { return u !== myUid; });
+        } else {
+            patched[emoji] = patched[emoji].concat([myUid]);
+        }
+        function _applyReactBar(r) {
+            var newBar = _buildAnnReactBar(docId, r, myUid, esc);
+            document.querySelectorAll('[data-ann-id="' + esc(docId) + '"]').forEach(function(el) {
+                var bar = el.querySelector('[data-react-bar]');
+                if (bar) {
+                    var tmp = document.createElement('div');
+                    tmp.innerHTML = newBar;
+                    bar.replaceWith(tmp.firstChild);
+                }
+            });
+        }
+        _applyReactBar(patched);
+        // Fire Firestore write in background; revert if it fails
         var update = {};
         update['reactions.' + emoji] = already
             ? firebase.firestore.FieldValue.arrayRemove(myUid)
             : firebase.firestore.FieldValue.arrayUnion(myUid);
-        ref.update(update).then(function() {
-            // Re-render both visible surfaces
-            if (typeof renderAnnouncementsTab === 'function' && document.getElementById('announcementsMessages')) renderAnnouncementsTab();
-            if (document.getElementById('overlayAnnouncementsBody')) {
-                var _tab = window._overlayTab;
-                window._overlayTab = 'announcements';
-                if (typeof _renderOverlayBody === 'function') _renderOverlayBody();
-                window._overlayTab = _tab;
-            }
-        }).catch(function() {});
+        ref.update(update).catch(function() { _applyReactBar(reactions); });
     }).catch(function() {});
 };
 
