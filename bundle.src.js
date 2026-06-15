@@ -27695,6 +27695,9 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
+        window._navGeneration = (window._navGeneration || 0) + 1;
+
         // Dismiss keyboard on mobile
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         // Close settings modal if open
@@ -28446,6 +28449,10 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.go = async function go(id, btn, fromPopState) {
+        // Increment nav generation and capture it — any previously in-flight go() call
+        // will see its captured navId !== window._navGeneration and abort after its await.
+        var _navId = (window._navGeneration = (window._navGeneration || 0) + 1);
+
         if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         // Ensure bottom nav is visible on navigation
         var _bnav = document.getElementById('bottomNav');
@@ -28662,9 +28669,19 @@ window.nachoQuizAnswer = function(btn, correct) {
                 d = await resp.json();
                 channelCache[id] = d;
             } catch(e) {
-                document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:#ef4444;">Error loading channel data</div>';
+                // Only show error if this navigation is still current
+                if (_navId === window._navGeneration) {
+                    document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:#ef4444;">Error loading channel data</div>';
+                }
                 return;
             }
+        }
+
+        // Stale-navigation guard: if a newer go() call started while we were awaiting fetch,
+        // silently abort. This prevents ghost skeletons from stale in-flight loads.
+        if (_navId !== window._navGeneration) {
+            console.log('[NAV] Aborting stale go(' + id + ') — superseded by newer navigation');
+            return;
         }
 
         // Store channel data and render
