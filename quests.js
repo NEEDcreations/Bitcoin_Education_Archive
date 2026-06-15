@@ -4306,6 +4306,9 @@ var FLEX_ACTIONS = [
     { id:'water',    emoji:'💧', name:'Drink Water',          desc:'Hydration is a low time preference act.', pts:5, type:'mash',      target:6, label:'Chug chug chug!' },
     { id:'gratitude',emoji:'🙏', name:'Gratitude Practice',   desc:'Abundance mindset. Stack happiness.',     pts:5, type:'rotary',    targetDeg:120 },
     { id:'verify',   emoji:'🔍', name:'Verify a Transaction', desc:'Trust no one. Not even Rufus.',           pts:5, type:'typeword',  words:['VERIFY','PROOF','TRUST','CHECK','NODES','VALID'] },
+    { id:'focus',    emoji:'🐍', name:'Focus Mode',            desc:'Clear your head. Guide the snake.',       pts:5, type:'snake' },
+    { id:'risk',     emoji:'💣', name:'Risk Assessment',       desc:'Navigate uncertainty. Find the safe path.', pts:5, type:'mine' },
+    { id:'pattern',  emoji:'🧩', name:'Pattern Recognition',   desc:'Spot recurring patterns like a Bitcoiner.', pts:5, type:'pattern' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -4547,6 +4550,66 @@ function _renderFlexInteraction(action) {
             '</div>' +
             '</div>';
     }
+    if (action.type === 'snake') {
+        // 8×8 grid mini snake: render canvas placeholder; game is wired in _flexWireInteractions
+        return '<div id="snake-wrap-' + action.id + '" style="display:flex;flex-direction:column;align-items:center;gap:8px;">' +
+            '<canvas id="snake-canvas-' + action.id + '" width="200" height="200" ' +
+                'style="display:block;border:1px solid var(--border);border-radius:10px;background:#0d0d1a;touch-action:none;cursor:none;"></canvas>' +
+            '<div style="display:flex;justify-content:center;gap:6px;user-select:none;">' +
+                '<button type="button" id="sn-up-' + action.id + '" style="width:40px;height:40px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:1rem;cursor:pointer;">▲</button>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:center;gap:6px;user-select:none;">' +
+                '<button type="button" id="sn-left-' + action.id + '" style="width:40px;height:40px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:1rem;cursor:pointer;">◀</button>' +
+                '<button type="button" id="sn-down-' + action.id + '" style="width:40px;height:40px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:1rem;cursor:pointer;">▼</button>' +
+                '<button type="button" id="sn-right-' + action.id + '" style="width:40px;height:40px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:1rem;cursor:pointer;">▶</button>' +
+            '</div>' +
+            '<div id="snake-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);">Eat <strong style="color:var(--accent);">3 dots</strong> to complete</div>' +
+        '</div>';
+    }
+    if (action.type === 'mine') {
+        // 5×5 minesweeper, 4 mines
+        var mineState = _flexMineInit(action.id);
+        var mineHtml = '<table id="mine-grid-' + action.id + '" style="border-collapse:separate;border-spacing:4px;margin:0 auto;">';
+        for (var mr = 0; mr < 5; mr++) {
+            mineHtml += '<tr>';
+            for (var mc = 0; mc < 5; mc++) {
+                mineHtml += '<td><button type="button" id="mine-cell-' + action.id + '-' + (mr*5+mc) + '" ' +
+                    'data-id="' + action.id + '" data-cell="' + (mr*5+mc) + '" ' +
+                    'onclick="_flexMineReveal(this)" ' +
+                    'style="width:38px;height:38px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;font-size:1rem;cursor:pointer;font-weight:700;">?</button></td>';
+            }
+            mineHtml += '</tr>';
+        }
+        mineHtml += '</table>';
+        return '<div id="mine-wrap-' + action.id + '" style="text-align:center;">' +
+            '<div id="mine-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Reveal all <strong style="color:#22c55e;">safe squares</strong> · avoid 💣</div>' +
+            mineHtml +
+        '</div>';
+    }
+    if (action.type === 'pattern') {
+        // Show 4 shapes, user picks the next one in the sequence
+        var pSeq = _flexPatternGen(action.id);
+        var shapes = ['▲','●','■','★'];
+        var shapeNames = ['triangle','circle','square','star'];
+        var shown = pSeq.slice(0, 4);
+        var answer = pSeq[4];
+        var choices = Array.from(new Set(shapes)).slice(0, 4);
+        return '<div id="pattern-wrap-' + action.id + '" data-id="' + action.id + '" data-answer="' + answer + '">' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">What comes next?</div>' +
+            '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">' +
+            shown.map(function(s){ return '<span style="font-size:1.6rem;">' + s + '</span>'; }).join('<span style="color:var(--text-faint);">›</span>') +
+            '<span style="color:var(--text-faint);">›</span>' +
+            '<span style="width:36px;height:36px;border:2px dashed var(--accent);border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--text-faint);">?</span>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
+            choices.map(function(s) {
+                return '<button type="button" onclick="_flexPatternPick(this)" data-id="' + action.id + '" data-shape="' + s + '" ' +
+                    'style="width:56px;height:56px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.6rem;cursor:pointer;transition:0.15s;">' + s + '</button>';
+            }).join('') +
+            '</div>' +
+            '<div id="pattern-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">Pick the next shape in the sequence</div>' +
+        '</div>';
+    }
     if (action.type === 'drag') {
         var parts = action.dragTarget.split('→');
         var fromE = parts[0].trim(), toE = parts[1] ? parts[1].trim() : '📍';
@@ -4685,6 +4748,122 @@ function _flexCardSuccess(id) {
         if (typeof showToast === 'function') showToast('💪 +5 XP — ' + (action ? action.name : '') + '!');
     }, 300);
 }
+
+// ---- Mine helpers ----
+var _flexMineStates = {}; // id -> {mines:[], revealed:[]}
+function _flexMineInit(id) {
+    if (_flexMineStates[id]) return _flexMineStates[id];
+    // 4 mines in a 5x5 grid, seeded by today
+    var seed = _flexDailySeed(id + '_mine');
+    var mines = [];
+    var positions = Array.from({length:25}, function(_,i){ return i; });
+    // Fisher-Yates with seed
+    for (var i = positions.length - 1; i > 0; i--) {
+        var j = Math.abs(seed = (seed * 1664525 + 1013904223)|0) % (i + 1);
+        var tmp = positions[i]; positions[i] = positions[j]; positions[j] = tmp;
+    }
+    _flexMineStates[id] = { mines: positions.slice(0, 4), revealed: [] };
+    return _flexMineStates[id];
+}
+
+window._flexMineReveal = function(btn) {
+    var id = btn.getAttribute('data-id');
+    var cell = parseInt(btn.getAttribute('data-cell'));
+    var state = _flexMineStates[id] || _flexMineInit(id);
+    if (state.revealed.indexOf(cell) !== -1) return;
+    var isMine = state.mines.indexOf(cell) !== -1;
+    if (isMine) {
+        // Reveal all mines
+        state.mines.forEach(function(m) {
+            var b = document.getElementById('mine-cell-' + id + '-' + m);
+            if (b) { b.textContent = '💣'; b.style.background = 'rgba(239,68,68,0.2)'; b.style.borderColor = '#ef4444'; b.disabled = true; }
+        });
+        var hint = document.getElementById('mine-hint-' + id);
+        if (hint) { hint.textContent = '💥 Boom! Try again'; hint.style.color = '#ef4444'; }
+        // Reset after 1.5s
+        setTimeout(function() {
+            delete _flexMineStates[id];
+            _flexMineInit(id);
+            for (var c = 0; c < 25; c++) {
+                var b2 = document.getElementById('mine-cell-' + id + '-' + c);
+                if (b2) { b2.textContent = '?'; b2.style.background = 'var(--card-bg)'; b2.style.borderColor = 'var(--border)'; b2.style.color = 'var(--text)'; b2.disabled = false; }
+            }
+            if (hint) { hint.textContent = 'Reveal all safe squares · avoid 💣'; hint.style.color = 'var(--text-muted)'; }
+        }, 1500);
+        return;
+    }
+    // Safe — flood fill zeros
+    var queue = [cell];
+    while (queue.length) {
+        var c3 = queue.shift();
+        if (state.revealed.indexOf(c3) !== -1) continue;
+        state.revealed.push(c3);
+        var row = Math.floor(c3/5), col = c3%5;
+        var adjacentMines = 0;
+        [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(function(d) {
+            var nr = row+d[0], nc = col+d[1];
+            if (nr>=0&&nr<5&&nc>=0&&nc<5) { if (state.mines.indexOf(nr*5+nc)!==-1) adjacentMines++; }
+        });
+        var b3 = document.getElementById('mine-cell-' + id + '-' + c3);
+        if (b3) {
+            b3.disabled = true;
+            if (adjacentMines === 0) {
+                b3.textContent = '·'; b3.style.background = 'rgba(34,197,94,0.08)'; b3.style.color = 'var(--text-faint)';
+                // Flood fill neighbours
+                [[-1,0],[0,-1],[0,1],[1,0]].forEach(function(d) {
+                    var nr2 = row+d[0], nc2 = col+d[1];
+                    if (nr2>=0&&nr2<5&&nc2>=0&&nc2<5) {
+                        var nc3 = nr2*5+nc2;
+                        if (state.mines.indexOf(nc3)===-1 && state.revealed.indexOf(nc3)===-1) queue.push(nc3);
+                    }
+                });
+            } else {
+                b3.textContent = adjacentMines; b3.style.background = 'rgba(34,197,94,0.12)'; b3.style.color = ['','#22c55e','#f7931a','#ef4444','#8b5cf6','#ef4444','#f7931a','#22c55e','#6b7280'][adjacentMines] || '#22c55e';
+            }
+        }
+    }
+    // Check win: all non-mine cells revealed
+    var safe = 25 - state.mines.length;
+    if (state.revealed.length >= safe) {
+        var hint2 = document.getElementById('mine-hint-' + id);
+        if (hint2) { hint2.textContent = '✅ Area cleared!'; hint2.style.color = '#22c55e'; }
+        setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 400);
+    }
+};
+
+// ---- Pattern helpers ----
+function _flexPatternGen(id) {
+    // Cycle of 2-3 shapes, length 5 (show 4, guess 5th)
+    var shapes = ['▲','●','■','★'];
+    var seed = _flexDailySeed(id + '_pat');
+    var period = 2 + (Math.abs(seed) % 2); // 2 or 3
+    var offset = Math.abs((seed * 1664525 + 1013904223)|0) % shapes.length;
+    var seq = [];
+    for (var i = 0; i < 5; i++) seq.push(shapes[(offset + i) % period === 0 ? offset : (offset + (i % period)) % shapes.length]);
+    // Ensure there's a cycle (period must divide evenly)
+    var cycleShapes = [];
+    for (var j = 0; j < period; j++) cycleShapes.push(shapes[(offset + j) % shapes.length]);
+    return Array.from({length:5}, function(_,i){ return cycleShapes[i % period]; });
+}
+
+window._flexPatternPick = function(btn) {
+    var id = btn.getAttribute('data-id');
+    var shape = btn.getAttribute('data-shape');
+    var wrap = document.getElementById('pattern-wrap-' + id);
+    var answer = wrap ? wrap.getAttribute('data-answer') : null;
+    var hint = document.getElementById('pattern-hint-' + id);
+    if (shape === answer) {
+        btn.style.borderColor = '#22c55e'; btn.style.background = 'rgba(34,197,94,0.12)';
+        if (hint) { hint.textContent = '✅ Correct!'; hint.style.color = '#22c55e'; }
+        // disable all
+        wrap && wrap.querySelectorAll('button').forEach(function(b) { b.disabled = true; });
+        setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 400);
+    } else {
+        btn.style.borderColor = '#ef4444'; btn.style.background = 'rgba(239,68,68,0.1)';
+        if (hint) { hint.textContent = 'Not quite — look at the cycle'; hint.style.color = '#ef4444'; }
+        setTimeout(function() { btn.style.borderColor = 'var(--border)'; btn.style.background = 'var(--card-bg)'; if(hint){hint.style.color='var(--text-muted)';hint.textContent='Pick the next shape in the sequence';} }, 900);
+    }
+};
 
 function _flexWireInteractions() {
     FLEX_ACTIONS.forEach(function(action) {
@@ -4918,6 +5097,115 @@ function _flexWireInteractions() {
             window.addEventListener('mouseup',   function(e){ if(dDragging) dragEnd(e); });
             window.addEventListener('touchmove', function(e){ if(dDragging) dragMove(e); }, {passive:false});
             window.addEventListener('touchend',  function(e){ if(dDragging) dragEnd(e); });
+        }
+
+        // ── SNAKE ──
+        if (action.type === 'snake') {
+            var snCanvas = document.getElementById('snake-canvas-' + action.id);
+            if (!snCanvas) return;
+            var snCtx = snCanvas.getContext('2d');
+            var SN = 8, CELL = 25; // 8x8 grid, 25px per cell = 200px canvas
+            var snSnake, snDir, snFood, snFoodEaten, snLoop, snDead;
+            function snInit() {
+                snSnake = [{x:3,y:3},{x:3,y:4},{x:3,y:5}];
+                snDir = {x:0,y:-1};
+                snFoodEaten = 0;
+                snDead = false;
+                snPlaceFood();
+                snDraw();
+            }
+            function snPlaceFood() {
+                var tries = 0;
+                do {
+                    snFood = {x: Math.floor(Math.random()*SN), y: Math.floor(Math.random()*SN)};
+                    tries++;
+                } while (tries < 50 && snSnake.some(function(s){ return s.x===snFood.x&&s.y===snFood.y; }));
+            }
+            function snTick() {
+                if (snDead) return;
+                var head = {x: snSnake[0].x + snDir.x, y: snSnake[0].y + snDir.y};
+                // Wall collision
+                if (head.x < 0 || head.x >= SN || head.y < 0 || head.y >= SN) { snCrash(); return; }
+                // Self collision
+                if (snSnake.some(function(s){ return s.x===head.x&&s.y===head.y; })) { snCrash(); return; }
+                snSnake.unshift(head);
+                if (head.x === snFood.x && head.y === snFood.y) {
+                    snFoodEaten++;
+                    var hint = document.getElementById('snake-hint-' + action.id);
+                    if (snFoodEaten >= 3) {
+                        snDead = true;
+                        clearInterval(snLoop);
+                        if (hint) { hint.textContent = '✅ Done!'; hint.style.color = '#22c55e'; }
+                        snDraw();
+                        setTimeout(function(){ _flexMarkDone(action.id, function(){ _flexCardSuccess(action.id); }); }, 500);
+                        return;
+                    } else {
+                        if (hint) hint.textContent = 'Eat ' + (3 - snFoodEaten) + ' more dot' + (3-snFoodEaten>1?'s':'') + ' to complete';
+                        snPlaceFood();
+                    }
+                } else {
+                    snSnake.pop();
+                }
+                snDraw();
+            }
+            function snCrash() {
+                snDead = true;
+                clearInterval(snLoop);
+                var hint = document.getElementById('snake-hint-' + action.id);
+                if (hint) { hint.textContent = '💥 Crashed! Tap any arrow to retry'; hint.style.color = '#ef4444'; }
+                snDraw();
+            }
+            function snDraw() {
+                snCtx.fillStyle = '#0d0d1a';
+                snCtx.fillRect(0, 0, SN*CELL, SN*CELL);
+                // Grid dots
+                snCtx.fillStyle = 'rgba(255,255,255,0.05)';
+                for (var gr = 0; gr < SN; gr++) for (var gc = 0; gc < SN; gc++) { snCtx.fillRect(gr*CELL+CELL/2-1, gc*CELL+CELL/2-1, 2, 2); }
+                // Food
+                snCtx.fillStyle = '#f7931a';
+                snCtx.beginPath();
+                snCtx.arc(snFood.x*CELL+CELL/2, snFood.y*CELL+CELL/2, CELL/2-4, 0, Math.PI*2);
+                snCtx.fill();
+                // Snake
+                snSnake.forEach(function(seg, i) {
+                    snCtx.fillStyle = i===0 ? '#22c55e' : 'rgba(34,197,94,' + (0.9-i*0.05).toFixed(2) + ')';
+                    var pad = i===0?2:3;
+                    snCtx.beginPath();
+                    snCtx.roundRect(seg.x*CELL+pad, seg.y*CELL+pad, CELL-pad*2, CELL-pad*2, 4);
+                    snCtx.fill();
+                });
+                // Dead overlay
+                if (snDead && snFoodEaten < 3) {
+                    snCtx.fillStyle = 'rgba(239,68,68,0.25)';
+                    snCtx.fillRect(0,0,SN*CELL,SN*CELL);
+                }
+            }
+            function snSetDir(dx, dy) {
+                if (snDead) { clearInterval(snLoop); snInit(); snLoop = setInterval(snTick, 200); return; }
+                // Prevent reversing
+                if (dx !== 0 && snDir.x !== 0) return;
+                if (dy !== 0 && snDir.y !== 0) return;
+                snDir = {x:dx,y:dy};
+            }
+            // Arrow buttons
+            document.getElementById('sn-up-' + action.id).addEventListener('click', function(){ snSetDir(0,-1); });
+            document.getElementById('sn-down-' + action.id).addEventListener('click', function(){ snSetDir(0,1); });
+            document.getElementById('sn-left-' + action.id).addEventListener('click', function(){ snSetDir(-1,0); });
+            document.getElementById('sn-right-' + action.id).addEventListener('click', function(){ snSetDir(1,0); });
+            // Swipe
+            var snTouchX = null, snTouchY = null;
+            snCanvas.addEventListener('touchstart', function(e){ var t=e.touches[0]; snTouchX=t.clientX; snTouchY=t.clientY; }, {passive:true});
+            snCanvas.addEventListener('touchend', function(e) {
+                if (snTouchX===null) return;
+                var t=e.changedTouches[0];
+                var dx=t.clientX-snTouchX, dy=t.clientY-snTouchY;
+                snTouchX=snTouchY=null;
+                if (Math.abs(dx)+Math.abs(dy)<10) return;
+                if (Math.abs(dx)>Math.abs(dy)) snSetDir(dx>0?1:-1,0);
+                else snSetDir(0,dy>0?1:-1);
+            }, {passive:true});
+            snInit();
+            snLoop = setInterval(snTick, 200);
         }
     });
 }
