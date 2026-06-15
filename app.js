@@ -4784,6 +4784,16 @@ if (locked) {
                 case 'quests':
                     if (typeof showQuestHub === 'function') { showQuestHub(); return; }
                     break;
+                case 'favor':
+                case 'satoshi-favor':
+                case 'sf':
+                    if (typeof showQuestHub === 'function') {
+                        showQuestHub();
+                        window._questHubTab = 'favor';
+                        setTimeout(function() { if (typeof window._renderQuestHubTab === 'function') window._renderQuestHubTab(); }, 50);
+                        return;
+                    }
+                    break;
                 case 'dashboard':
                 case 'bitcoin-dashboard':
                 case 'metrics':

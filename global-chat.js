@@ -1509,7 +1509,8 @@ window.showReactPicker = function(msgId, btnEl) {
     _reactExpanded = false;
     var picker = document.createElement('div');
     picker.id = 'reactPicker';
-    picker.style.cssText = 'position:fixed;z-index:260000;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:280px;';
+    var _rIsDark = document.body.getAttribute('data-theme') !== 'light';
+    picker.style.cssText = 'position:fixed;z-index:260000;background:' + (_rIsDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:14px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);max-width:280px;';
 
     function renderEmojis() {
         var emojis = _reactExpanded ? REACT_EMOJIS_EXPANDED : REACT_EMOJIS_DEFAULT;
@@ -2948,6 +2949,21 @@ window.lookupUserByName = function(username) {
         });
 };
 
+// ---- Announcement link navigation helper ----
+// Closes whichever chat surface is open, then routes to the hash.
+window._annNavToHash = function(hash) {
+    // Close overlay if open
+    if (window._chatOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
+    // Close full chat panel if open (go() will hide forumContainer automatically)
+    setTimeout(function() {
+        // Use location.hash to trigger the existing handleHash() router
+        // which knows about #quests, #favor, #pvp, #forum etc.
+        window.location.hash = hash;
+        // Also fire hashchange manually in case hash didn't change
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+    }, window._chatOverlayOpen ? 320 : 0);
+};
+
 // ---- Shared Announcement Item Renderer ----
 // context: 'panel' = full chat hub, 'overlay' = floating overlay
 function _renderAnnouncementItem(doc, context) {
@@ -2960,22 +2976,16 @@ function _renderAnnouncementItem(doc, context) {
     // Process text: escape first, then linkify in order
     var text = esc(m.text || '');
 
-    // 1. [text](#hash) markdown links — close panel/overlay then navigate
-    if (context === 'overlay') {
-        text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, function(_, label, hash) {
-            return '<a href="#' + hash + '" onclick="event.preventDefault();event.stopPropagation();toggleChatOverlay();setTimeout(function(){if(typeof go===\'function\')go(\''+hash+'\')},300)" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
-        });
-    } else {
-        text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, function(_, label, hash) {
-            return '<a href="#' + hash + '" onclick="event.preventDefault();event.stopPropagation();if(typeof go===\'function\')go(\''+hash+'\')" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
-        });
-    }
+    // 1. [text](#hash) markdown links — use _annNavToHash which closes chat then routes
+    text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, function(_, label, hash) {
+        return '<a href="#' + hash + '" onclick="event.preventDefault();event.stopPropagation();if(typeof _annNavToHash===\'function\')_annNavToHash(\''+hash+'\')" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
+    });
 
     // 2. @username mentions — link to user profile using stored mentionUid
     var mentionUid = m.mentionUid || '';
     text = text.replace(/@([A-Za-z0-9_]+)/g, function(_, username) {
         if (mentionUid) {
-            return '<a onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\')" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
+            return '<a onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\')" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
         }
         return '<span style="color:#6366f1;font-weight:700;">@'+username+'</span>';
     });
@@ -2986,17 +2996,19 @@ function _renderAnnouncementItem(doc, context) {
     var avatarSize = isOverlay ? '1.2rem' : '1.6rem';
     var borderR = isOverlay ? '12px' : '14px';
 
-    // Emoji reactions
-    var reactionEmojis = ['👍','❤️','🔥','🎉','🦌'];
+    // Emoji reactions — show existing counts + a ➕ button to open the full picker
     var reactions = m.reactions || {};
-    var reactHtml = '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">';
-    reactionEmojis.forEach(function(emoji) {
-        var count = (reactions[emoji] || []).length;
-        var reacted = false;
-        var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-        if (myUid && reactions[emoji] && reactions[emoji].indexOf(myUid) !== -1) reacted = true;
-        reactHtml += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+ emoji + (count > 0 ? '<span style="font-size:0.65rem;color:var(--text-muted);">'+count+'</span>' : '') +'</button>';
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    var reactHtml = '<div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;align-items:center;">';
+    // Render existing reactions with counts
+    Object.keys(reactions).forEach(function(emoji) {
+        var uids = reactions[emoji] || [];
+        if (!uids.length) return;
+        var reacted = myUid && uids.indexOf(myUid) !== -1;
+        reactHtml += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
     });
+    // ➕ button opens the full emoji picker (same one used in global chat)
+    reactHtml += '<button onclick="event.stopPropagation();_showAnnReactPicker(this,\''+esc(docId)+'\')" style="padding:3px 7px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.75rem;cursor:pointer;color:var(--text-faint);">➕</button>';
     reactHtml += '</div>';
 
     return '<div data-ann-id="'+esc(docId)+'" style="display:flex;gap:10px;align-items:flex-start;padding:'+pad+';background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:'+borderR+';">' +
@@ -3037,6 +3049,59 @@ window._toggleAnnouncementReaction = function(docId, emoji) {
             }
         }).catch(function() {});
     }).catch(function() {});
+};
+
+// Full emoji picker for announcement reactions — same categories as global chat
+window._showAnnReactPicker = function(btnEl, docId) {
+    var old = document.getElementById('annReactPicker');
+    if (old) { old.remove(); return; }
+    var picker = document.createElement('div');
+    picker.id = 'annReactPicker';
+    var _isDark = document.body.getAttribute('data-theme') !== 'light';
+    // Solid background — never transparent
+    var bg = _isDark ? '#1a1a2e' : '#f0f0f5';
+    picker.style.cssText = 'position:fixed;z-index:260000;background:'+bg+';border:1px solid var(--border);border-radius:16px;padding:10px;width:280px;max-height:300px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+    var cats = Object.keys(EMOJI_CATEGORIES);
+    var tabHtml = '<div style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
+    cats.forEach(function(cat, i) {
+        var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : '🔥';
+        tabHtml += '<button onclick="window._switchAnnEmojiTab(\''+cat+'\')" id="annEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.9rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
+    });
+    tabHtml += '<button onclick="document.getElementById(\'annReactPicker\').remove()" style="margin-left:auto;padding:4px 7px;background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;flex-shrink:0;">✕</button></div>';
+    picker.innerHTML = tabHtml + '<div id="annEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:220px;justify-content:center;"></div>';
+
+    // Position above the button
+    document.body.appendChild(picker);
+    var rect = btnEl.getBoundingClientRect();
+    var top = rect.top - picker.offsetHeight - 8;
+    if (top < 8) top = rect.bottom + 8;
+    picker.style.top = top + 'px';
+    picker.style.left = Math.max(8, Math.min(rect.left - 100, window.innerWidth - 296)) + 'px';
+
+    window._switchAnnEmojiTab = function(cat) {
+        var grid = document.getElementById('annEmojiGrid');
+        if (!grid) return;
+        var emojis = EMOJI_CATEGORIES[cat] || [];
+        var html = '';
+        emojis.forEach(function(e) {
+            html += '<button onclick="document.getElementById(\'annReactPicker\').remove();_toggleAnnouncementReaction(\''+docId+'\',\''+e+'\')" style="padding:5px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        });
+        grid.innerHTML = html;
+        var catKeys = Object.keys(EMOJI_CATEGORIES);
+        catKeys.forEach(function(c, i) {
+            var t = document.getElementById('annEmojiTab_'+i);
+            if (t) { t.style.background = c===cat?'var(--accent-bg)':'none'; t.style.borderColor = c===cat?'var(--accent)':'var(--border)'; }
+        });
+    };
+    window._switchAnnEmojiTab(cats[0]);
+
+    setTimeout(function() {
+        document.addEventListener('click', function _dismiss(e) {
+            var p = document.getElementById('annReactPicker');
+            if (p && !p.contains(e.target)) { p.remove(); document.removeEventListener('click', _dismiss); }
+        });
+    }, 50);
 };
 
 // ---- Nacho Global Announcements (callable from other modules) ----
