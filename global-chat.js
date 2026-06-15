@@ -5,6 +5,7 @@
 'use strict';
 
 var CHAT_COLLECTION = 'global_chat';
+var ANNOUNCEMENTS_COLLECTION = 'announcements';
 var MAX_MSG_LENGTH = 300;
 var RATE_LIMIT_MS = 3000; // 3 seconds between messages
 var MAX_MSGS_DISPLAY = 100; // Fetch from Firestore
@@ -30,7 +31,7 @@ var CHAT_INITIAL_SHOW = 20; // Render initially (reduced to save Firestore reads
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
 var _lastSendTime = 0;
-var _chatTab = 'global'; // 'global' or 'dms'
+var _chatTab = 'global'; // 'global', 'announcements', or 'dms'
 var _replyTo = null; // {_id, name, text} when replying
 var _acType = null; // 'hash' or 'at' for autocomplete
 var _acQuery = ''; // current autocomplete search
@@ -165,11 +166,14 @@ window.renderChatHub = function(initialTab) {
 
     var html = '<div style="max-width:600px;margin:0 auto;padding:0;height:calc(100dvh - 120px - env(safe-area-inset-top, 0px));height:calc(100vh - 120px - env(safe-area-inset-top, 0px));display:flex;flex-direction:column;">';
 
-    // Tab bar
+    // Tab bar — compact labels so all 4 tabs + Rules fit
+    var _tA = function(t) { return t === _chatTab ? 'var(--accent)' : 'var(--text-muted)'; };
+    var _tB = function(t) { return t === _chatTab ? 'var(--accent)' : 'transparent'; };
     html += '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg-side);">';
-    html += '<button id="chatTabGlobal" onclick="switchChatTab(\'global\')" style="flex:1;padding:14px 0;background:none;border:none;border-bottom:2px solid ' + (_chatTab === 'global' ? 'var(--accent)' : 'transparent') + ';color:' + (_chatTab === 'global' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Global Chat</button>';
-    html += '<button id="chatTabDMs" onclick="switchChatTab(\'dms\')" style="flex:1;padding:14px 0;background:none;border:none;border-bottom:2px solid ' + (_chatTab === 'dms' ? 'var(--accent)' : 'transparent') + ';color:' + (_chatTab === 'dms' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✉️ Direct Messages</button>';
-    html += '<button onclick="showChatRules()" style="padding:14px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:nowrap;">📋 Rules</button>';
+    html += '<button id="chatTabGlobal" onclick="switchChatTab(\'global\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('global') + ';color:' + _tA('global') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Global</button>';
+    html += '<button id="chatTabAnnouncements" onclick="switchChatTab(\'announcements\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('announcements') + ';color:' + _tA('announcements') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📣 News</button>';
+    html += '<button id="chatTabDMs" onclick="switchChatTab(\'dms\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('dms') + ';color:' + _tA('dms') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✉️ DMs</button>';
+    html += '<button onclick="showChatRules()" style="padding:12px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:nowrap;">📋 Rules</button>';
     html += '</div>';
 
     // Content area
@@ -194,17 +198,15 @@ window.renderChatHub = function(initialTab) {
 window.switchChatTab = function(tab) {
     _chatTab = tab;
 
-    // Update tab styles
-    var gTab = document.getElementById('chatTabGlobal');
-    var dTab = document.getElementById('chatTabDMs');
-    if (gTab) {
-        gTab.style.borderBottomColor = tab === 'global' ? 'var(--accent)' : 'transparent';
-        gTab.style.color = tab === 'global' ? 'var(--accent)' : 'var(--text-muted)';
-    }
-    if (dTab) {
-        dTab.style.borderBottomColor = tab === 'dms' ? 'var(--accent)' : 'transparent';
-        dTab.style.color = tab === 'dms' ? 'var(--accent)' : 'var(--text-muted)';
-    }
+    // Update tab styles for all tabs
+    ['Global', 'Announcements', 'DMs'].forEach(function(t) {
+        var btn = document.getElementById('chatTab' + t);
+        var key = t.toLowerCase();
+        if (btn) {
+            btn.style.borderBottomColor = tab === key ? 'var(--accent)' : 'transparent';
+            btn.style.color = tab === key ? 'var(--accent)' : 'var(--text-muted)';
+        }
+    });
 
     // Unsubscribe from global chat listener when switching away
     if (tab !== 'global' && _chatUnsub) {
@@ -214,6 +216,8 @@ window.switchChatTab = function(tab) {
 
     if (tab === 'global') {
         renderGlobalChat();
+    } else if (tab === 'announcements') {
+        renderAnnouncementsTab();
     } else {
         renderDMsTab();
     }
@@ -299,6 +303,7 @@ function startChatListener() {
 
     window._chatShowCount = 0; // Reset on fresh load
     _chatUnsub = db.collection(CHAT_COLLECTION)
+        .where('isNachoAuto', '==', false)
         .orderBy('ts', 'desc')
         .limit(CHAT_INITIAL_SHOW)
         .onSnapshot(function(snapshot) {
@@ -311,9 +316,26 @@ function startChatListener() {
             msgs.reverse(); // oldest first
             renderChatMessages(msgs);
         }, function(err) {
-            console.error('[CHAT] Listener error:', err);
-            var el = document.getElementById('globalChatMessages');
-            if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Chat connection lost. Refresh to retry.</div>';
+            // Fallback: query without the isNachoAuto filter (index may not exist yet)
+            console.warn('[CHAT] Filtered query failed, falling back:', err.message);
+            _chatUnsub = db.collection(CHAT_COLLECTION)
+                .orderBy('ts', 'desc')
+                .limit(CHAT_INITIAL_SHOW)
+                .onSnapshot(function(snapshot) {
+                    var msgs = [];
+                    snapshot.forEach(function(doc) {
+                        var d = doc.data();
+                        d._id = doc.id;
+                        // Filter out Nacho auto-messages client-side as fallback
+                        if (!d.isNachoAuto) msgs.push(d);
+                    });
+                    msgs.reverse();
+                    renderChatMessages(msgs);
+                }, function(err2) {
+                    console.error('[CHAT] Listener error:', err2);
+                    var el = document.getElementById('globalChatMessages');
+                    if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Chat connection lost. Refresh to retry.</div>';
+                });
         });
 }
 
@@ -862,7 +884,9 @@ window.sendGlobalChat = function() {
     }
 
     // Write to Firestore
-    var msgData = {uid: uid, name: username, text: text, ts: firebase.firestore.FieldValue.serverTimestamp()};
+    // isNachoAuto: false ensures this message is included when the chat listener
+    // filters with .where('isNachoAuto', '==', false) to exclude Nacho announcements.
+    var msgData = {uid: uid, name: username, text: text, isNachoAuto: false, ts: firebase.firestore.FieldValue.serverTimestamp()};
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) msgData.faction = currentUser.faction;
     if (replyData.replyTo) { msgData.replyTo = replyData.replyTo; msgData.replyToName = replyData.replyToName; msgData.replyToText = replyData.replyToText; }
     db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
@@ -998,6 +1022,71 @@ window.deleteChatMsg = function(msgId) {
         if (typeof showToast === 'function') showToast('Failed to delete');
     });
 };
+
+// ---- Announcements Tab — Nacho news feed ----
+function renderAnnouncementsTab() {
+    var content = document.getElementById('chatContent');
+    if (!content) return;
+
+    content.innerHTML =
+        '<div id="announcementsMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-height:0;">' +
+            '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading announcements...</div>' +
+        '</div>';
+
+    if (typeof db === 'undefined' || !db) {
+        document.getElementById('announcementsMessages').innerHTML =
+            '<div style="text-align:center;padding:30px;color:var(--text-faint);font-size:0.8rem;">Not connected</div>';
+        return;
+    }
+
+    // Load from the announcements collection
+    db.collection(ANNOUNCEMENTS_COLLECTION)
+        .orderBy('ts', 'desc')
+        .limit(50)
+        .get()
+        .then(function(snapshot) {
+            var el = document.getElementById('announcementsMessages');
+            if (!el) return;
+            if (snapshot.empty) {
+                el.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
+                    '<div style="font-size:2.5rem;margin-bottom:12px;">🦌</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">No announcements yet</div>' +
+                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Nacho posts updates here — badge unlocks, perfect scores, PVP alerts &amp; more</div>' +
+                '</div>';
+                return;
+            }
+            var html = '<div style="text-align:center;padding:8px 0 16px;">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);">Nacho\'s updates · badges, scores, events &amp; more</div>' +
+            '</div>';
+            snapshot.forEach(function(doc) {
+                var m = doc.data();
+                var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+                var timeStr = '';
+                if (m.ts && m.ts.toDate) {
+                    try { timeStr = timeAgo ? timeAgo(m.ts) : ''; } catch(e) {}
+                }
+                // Linkify [text](#hash) markdown links
+                var text = esc(m.text || '');
+                text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, '<a href="#$2" onclick="event.preventDefault();if(typeof routeHash===\'function\')routeHash(\'$2\')" style="color:var(--accent);font-weight:700;text-decoration:none;">$1</a>');
+                html += '<div style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:14px;">' +
+                    '<div style="font-size:1.6rem;flex-shrink:0;line-height:1;padding-top:2px;">🦌</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+                            '<span style="font-size:0.75rem;font-weight:700;color:#22c55e;">🦌 Nacho</span>' +
+                            (timeStr ? '<span style="font-size:0.65rem;color:var(--text-faint);">' + esc(timeStr) + '</span>' : '') +
+                        '</div>' +
+                        '<div style="font-size:0.82rem;color:var(--text);line-height:1.5;word-break:break-word;">' + text + '</div>' +
+                    '</div>' +
+                '</div>';
+            });
+            el.innerHTML = html;
+        })
+        .catch(function(err) {
+            console.error('[ANNOUNCEMENTS] Load error:', err);
+            var el = document.getElementById('announcementsMessages');
+            if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Could not load announcements</div>';
+        });
+}
 
 // ---- DMs Tab (wraps existing showInbox) ----
 function renderDMsTab() {
@@ -1179,12 +1268,62 @@ function renderOverlayChat() {
     var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
     var hasUsername = typeof currentUser !== 'undefined' && currentUser && currentUser.username;
 
-    // Tab bar
+    // Tab bar — compact so all 4 fit in the overlay
+    var _oA = function(t) { return t === _overlayTab ? 'var(--accent)' : 'var(--text-muted)'; };
+    var _oB = function(t) { return t === _overlayTab ? 'var(--accent)' : 'transparent'; };
     var tabHtml = '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;">' +
-        '<button onclick="window._switchOverlayTab(\'global\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + (_overlayTab === 'global' ? 'var(--accent)' : 'transparent') + ';color:' + (_overlayTab === 'global' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🌍 Global</button>' +
-        '<button onclick="window._switchOverlayTab(\'dms\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + (_overlayTab === 'dms' ? 'var(--accent)' : 'transparent') + ';color:' + (_overlayTab === 'dms' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
-        '<button onclick="if(typeof showChatRules===\'function\')showChatRules()" style="padding:10px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Rules</button>' +
+        '<button onclick="window._switchOverlayTab(\'global\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('global') + ';color:' + _oA('global') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">🌍 Global</button>' +
+        '<button onclick="window._switchOverlayTab(\'announcements\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('announcements') + ';color:' + _oA('announcements') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">📣 News</button>' +
+        '<button onclick="window._switchOverlayTab(\'dms\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('dms') + ';color:' + _oA('dms') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
+        '<button onclick="if(typeof showChatRules===\'function\')showChatRules()" style="padding:10px 7px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Rules</button>' +
     '</div>';
+
+    if (_overlayTab === 'announcements') {
+        body.innerHTML = tabHtml +
+            '<div id="overlayAnnouncementsBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:0;">' +
+                '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading...</div>' +
+            '</div>';
+        // Load announcements into overlay
+        if (typeof db !== 'undefined' && db) {
+            db.collection(ANNOUNCEMENTS_COLLECTION)
+                .orderBy('ts', 'desc')
+                .limit(40)
+                .get()
+                .then(function(snapshot) {
+                    var el = document.getElementById('overlayAnnouncementsBody');
+                    if (!el) return;
+                    if (snapshot.empty) {
+                        el.innerHTML = '<div style="text-align:center;padding:30px 16px;"><div style="font-size:2rem;margin-bottom:8px;">🦌</div><div style="color:var(--text-muted);font-size:0.8rem;">No announcements yet</div></div>';
+                        return;
+                    }
+                    var html = '';
+                    snapshot.forEach(function(doc) {
+                        var m = doc.data();
+                        var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+                        var timeStr = '';
+                        if (m.ts && m.ts.toDate) { try { timeStr = typeof timeAgo === 'function' ? timeAgo(m.ts) : ''; } catch(e) {} }
+                        var text = esc(m.text || '');
+                        text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, '<a href="#$2" onclick="event.preventDefault();toggleChatOverlay();setTimeout(function(){if(typeof routeHash===\'function\')routeHash(\'$2\')},300)" style="color:var(--accent);font-weight:700;text-decoration:none;">$1</a>');
+                        html += '<div style="display:flex;gap:8px;align-items:flex-start;padding:10px 12px;background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:12px;">' +
+                            '<div style="font-size:1.2rem;flex-shrink:0;">🦌</div>' +
+                            '<div style="flex:1;min-width:0;">' +
+                                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">' +
+                                    '<span style="font-size:0.7rem;font-weight:700;color:#22c55e;">🦌 Nacho</span>' +
+                                    (timeStr ? '<span style="font-size:0.6rem;color:var(--text-faint);">' + esc(timeStr) + '</span>' : '') +
+                                '</div>' +
+                                '<div style="font-size:0.78rem;color:var(--text);line-height:1.5;word-break:break-word;">' + text + '</div>' +
+                            '</div>' +
+                        '</div>';
+                    });
+                    el.innerHTML = html;
+                })
+                .catch(function() {
+                    var el = document.getElementById('overlayAnnouncementsBody');
+                    if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Could not load</div>';
+                });
+        }
+        return;
+    }
 
     if (_overlayTab === 'dms') {
         body.innerHTML = tabHtml +
@@ -2832,6 +2971,8 @@ window.lookupUserByName = function(username) {
 };
 
 // ---- Nacho Global Announcements (callable from other modules) ----
+// Announcements go to the ANNOUNCEMENTS_COLLECTION (separate from global chat)
+// so they don\'t spam the conversation.
 window.nachoGlobalAnnounce = function(text, mentionUid) {
     if (!text || typeof db === 'undefined' || !db) return;
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'nacho-bot';
@@ -2849,9 +2990,12 @@ window.nachoGlobalAnnounce = function(text, mentionUid) {
         ts: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (mentionUid) msgData.mentionUid = mentionUid;
-    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
-        bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
-    }).catch(function(e) { console.error('[CHAT] Nacho announce failed:', e); });
+    // Write to announcements collection (keeps global chat human-only)
+    db.collection(ANNOUNCEMENTS_COLLECTION).add(msgData).catch(function(e) {
+        console.error('[CHAT] Nacho announce failed:', e);
+    });
+    // Still bridge to Telegram for visibility
+    bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
 };
 
 console.log('[CHAT] Global chat module loaded');

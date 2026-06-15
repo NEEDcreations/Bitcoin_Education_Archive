@@ -791,6 +791,25 @@ service cloud.firestore {
     }
 
     // =============================================
+    // ANNOUNCEMENTS (Nacho news feed — separate from global chat)
+    // =============================================
+    match /announcements/{msgId} {
+      allow read: if true;
+      // Only Nacho auto-messages are allowed here (written by authenticated users via nachoGlobalAnnounce)
+      allow create: if request.auth != null
+                    && request.resource.data.isNachoAuto == true
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() >= 1
+                    && request.resource.data.text.size() <= 2000
+                    && request.resource.data.ts == request.time
+                    && (request.resource.data.uid == request.auth.uid
+                        || ((request.resource.data.uid == 'nacho-bot')
+                            && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')));
+      allow update, delete: if request.auth != null
+                    && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
+    }
+
+    // =============================================
     // GLOBAL CHAT
     // =============================================
     match /global_chat/{msgId} {
