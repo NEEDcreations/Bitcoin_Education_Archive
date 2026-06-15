@@ -1935,6 +1935,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         // Milestones (lifetime)
         hall_of_fame: 5000, the_archive: 10000, genesis_block: 15000,
         satoshis_ghost: 21000, block_250: 25000, the_hodler: 30000,
+        satoshis_covenant: 42000, satoshis_cipher: 100000,
     };
     // FLEX per-action badge catalog - 23 actions × 8 milestones
     // Pattern: flex_<actionId>_<milestone>  → always 5 pts each
@@ -2109,7 +2110,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         badgeKnown = true;
     }
 
-    const absMax = (matchedAction === 'badge_earned') ? 30000 : 2200;
+    const absMax = (matchedAction === 'badge_earned') ? 100000 : 2200;
     if (pts < 0 || pts > absMax) {
         return { success: false, error: 'Invalid points amount' };
     }
