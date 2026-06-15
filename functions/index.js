@@ -454,40 +454,33 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
         ]);
         const eventId = crypto.createHash('sha256').update(serialized).digest('hex');
         
-        // Use the client-provided event ID first (Alby/extensions compute this correctly)
-        // Fall back to our own computation if client didn't provide one
-        const clientId = (nostrEvent.id && /^[a-f0-9]{64}$/.test(nostrEvent.id)) ? nostrEvent.id : null;
-        
-        // Get the actual signature — prefer from the event object itself
+        // SECURITY: Always verify the signature against our OWN recomputed eventId,
+        // never against a client-supplied id. Accepting a client-supplied id allows an
+        // attacker to harvest any real (id, sig, pubkey) triple from a public Nostr note
+        // and replay it as a login event, forging kind/created_at to pass freshness checks
+        // while the signature still verifies correctly against the original note's id.
+        //
+        // If the client provides an id it must match our computation, otherwise reject.
+        // This is the canonical NIP-01 requirement: id = SHA256 of the serialized event.
+        if (nostrEvent.id && nostrEvent.id !== eventId) {
+            console.error('Nostr event id mismatch. client:', nostrEvent.id.substring(0,16), 'computed:', eventId.substring(0,16));
+            throw new functions.https.HttpsError('permission-denied', 'Event id mismatch — signature not bound to this event');
+        }
+
+        // Get the actual signature — from the event object or the top-level sig param
         const actualSig = (nostrEvent.sig && /^[a-f0-9]{128}$/.test(nostrEvent.sig)) ? nostrEvent.sig : sig;
-        
-        // Verify signature using schnorr
+
+        // Verify signature against the server-recomputed eventId only
         const sigBytes = Buffer.from(actualSig, 'hex');
         const pubkeyBytes = Buffer.from(pubkey, 'hex');
-        
+
         let valid = false;
-        // Try client event ID first (most reliable — matches what the extension signed)
-        if (clientId) {
-            try {
-                valid = secp.schnorr.verifySync(sigBytes, Buffer.from(clientId, 'hex'), pubkeyBytes);
-            } catch(e1) { /* try next */ }
-        }
-        // Try our computed event ID
+        try {
+            valid = secp.schnorr.verifySync(sigBytes, Buffer.from(eventId, 'hex'), pubkeyBytes);
+        } catch(e1) { /* falls through to !valid throw below */ }
+
         if (!valid) {
-            try {
-                valid = secp.schnorr.verifySync(sigBytes, Buffer.from(eventId, 'hex'), pubkeyBytes);
-            } catch(e2) { /* try next */ }
-        }
-        // Last resort: try verifying against raw sig hash (some older extensions)
-        if (!valid && sig !== actualSig) {
-            try {
-                const altSigBytes = Buffer.from(sig, 'hex');
-                valid = secp.schnorr.verifySync(altSigBytes, Buffer.from(clientId || eventId, 'hex'), pubkeyBytes);
-            } catch(e3) { /* give up */ }
-        }
-        
-        if (!valid) {
-            console.error('Nostr sig verify FAILED. clientId:', clientId ? clientId.substring(0,16) : 'none', 'computedId:', eventId.substring(0,16), 'sigLen:', actualSig.length, 'pubkey:', pubkey.substring(0,16));
+            console.error('Nostr sig verify FAILED. computedId:', eventId.substring(0,16), 'sigLen:', actualSig.length, 'pubkey:', pubkey.substring(0,16));
             throw new functions.https.HttpsError('permission-denied', 'Signature verification failed');
         }
     } catch(e) {

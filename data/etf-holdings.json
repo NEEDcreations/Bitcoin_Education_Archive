@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-15T15:08:30.126Z",
+  "updated": "2026-06-15T15:14:57.841Z",
   "btcPrice": 66601,
   "holdings": [
     {
@@ -8,7 +8,7 @@
       "color": "#6366f1",
       "btc": 787325,
       "aum": 52436632325,
-      "sharePrice": 37.74
+      "sharePrice": 37.725
     },
     {
       "ticker": "FBTC",
@@ -16,7 +16,7 @@
       "color": "#22c55e",
       "btc": 213302,
       "aum": 14206126502,
-      "sharePrice": 57.975
+      "sharePrice": 57.977
     },
     {
       "ticker": "GBTC",
@@ -24,7 +24,7 @@
       "color": "#eab308",
       "btc": 180525,
       "aum": 12023145525,
-      "sharePrice": 51.685
+      "sharePrice": 51.65
     },
     {
       "ticker": "ARKB",
@@ -32,7 +32,7 @@
       "color": "#f97316",
       "btc": 63911,
       "aum": 4256536511,
-      "sharePrice": 22.09
+      "sharePrice": 22.085
     },
     {
       "ticker": "BITB",
@@ -40,7 +40,7 @@
       "color": "#06b6d4",
       "btc": 53954,
       "aum": 3593390354,
-      "sharePrice": 36.165
+      "sharePrice": 36.145
     }
   ],
   "totalBtc": 1367386,
