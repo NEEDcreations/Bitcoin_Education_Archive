@@ -9129,7 +9129,8 @@ window.switchStation = function(stationId, forceUpdate) {
     try {
         var _sw = parseInt(localStorage.getItem('btc_tctv_channel_switches') || '0') + 1;
         localStorage.setItem('btc_tctv_channel_switches', _sw);
-        if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+        // checkBadges handles BADGE_DEFS (the channel-switch badges live there)
+        if (typeof checkBadges === 'function') checkBadges();
     } catch(e) {}
 
     // Couch Nacho reacts to the channel change (after a short beat for the noise overlay)
