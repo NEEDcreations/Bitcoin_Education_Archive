@@ -302,10 +302,15 @@ function startChatListener() {
     }
 
     window._chatShowCount = 0; // Reset on fresh load
+    // Use orderBy('ts','asc') + limitToLast(N) so Firestore returns the N most recent
+    // messages in chronological order (oldest first, newest last). This means:
+    // - No .reverse() needed — messages arrive in render order
+    // - New messages append naturally at the bottom (no phantom deletions)
+    // - limitToLast correctly pages back when loadEarlierMessages is called
     _chatUnsub = db.collection(CHAT_COLLECTION)
         .where('isNachoAuto', '==', false)
-        .orderBy('ts', 'desc')
-        .limit(CHAT_INITIAL_SHOW)
+        .orderBy('ts', 'asc')
+        .limitToLast(CHAT_INITIAL_SHOW)
         .onSnapshot(function(snapshot) {
             var msgs = [];
             snapshot.forEach(function(doc) {
@@ -313,14 +318,14 @@ function startChatListener() {
                 d._id = doc.id;
                 msgs.push(d);
             });
-            msgs.reverse(); // oldest first
+            // msgs is already oldest→newest — no reverse needed
             renderChatMessages(msgs);
         }, function(err) {
             // Fallback: query without the isNachoAuto filter (index may not exist yet)
             console.warn('[CHAT] Filtered query failed, falling back:', err.message);
             _chatUnsub = db.collection(CHAT_COLLECTION)
-                .orderBy('ts', 'desc')
-                .limit(CHAT_INITIAL_SHOW)
+                .orderBy('ts', 'asc')
+                .limitToLast(CHAT_INITIAL_SHOW)
                 .onSnapshot(function(snapshot) {
                     var msgs = [];
                     snapshot.forEach(function(doc) {
@@ -329,7 +334,7 @@ function startChatListener() {
                         // Filter out Nacho auto-messages client-side as fallback
                         if (!d.isNachoAuto) msgs.push(d);
                     });
-                    msgs.reverse();
+                    // already oldest→newest
                     renderChatMessages(msgs);
                 }, function(err2) {
                     console.error('[CHAT] Listener error:', err2);
@@ -491,10 +496,12 @@ window.loadEarlierMessages = function() {
     var el = document.getElementById('globalChatMessages');
     var oldHeight = el ? el.scrollHeight : 0;
 
+    // With asc ordering + limitToLast, "earlier" messages are those BEFORE the oldest
+    // we currently have. Use endBefore(oldest.ts) + limitToLast to page backward.
     db.collection(CHAT_COLLECTION)
-        .orderBy('ts', 'desc')
-        .startAfter(oldest.ts)
-        .limit(CHAT_LOAD_MORE_COUNT)
+        .orderBy('ts', 'asc')
+        .endBefore(oldest.ts)
+        .limitToLast(CHAT_LOAD_MORE_COUNT)
         .get().then(function(snap) {
             var older = [];
             snap.forEach(function(doc) {
@@ -502,7 +509,7 @@ window.loadEarlierMessages = function() {
                 d._id = doc.id;
                 older.push(d);
             });
-            older.reverse(); // oldest first
+            // snap is already oldest→newest — no reverse needed
             if (older.length > 0) {
                 window._chatAllMsgs = older.concat(window._chatAllMsgs);
                 window._chatShowCount = window._chatAllMsgs.length;
@@ -1039,9 +1046,9 @@ function renderAnnouncementsTab() {
         return;
     }
 
-    // Load from the announcements collection
+    // Load from the announcements collection (asc = oldest first, newest at bottom)
     db.collection(ANNOUNCEMENTS_COLLECTION)
-        .orderBy('ts', 'desc')
+        .orderBy('ts', 'asc')
         .limit(50)
         .get()
         .then(function(snapshot) {
@@ -1080,6 +1087,8 @@ function renderAnnouncementsTab() {
                 '</div>';
             });
             el.innerHTML = html;
+            // Scroll to bottom so newest announcement is visible
+            setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
         })
         .catch(function(err) {
             console.error('[ANNOUNCEMENTS] Load error:', err);
@@ -1286,7 +1295,7 @@ function renderOverlayChat() {
         // Load announcements into overlay
         if (typeof db !== 'undefined' && db) {
             db.collection(ANNOUNCEMENTS_COLLECTION)
-                .orderBy('ts', 'desc')
+                .orderBy('ts', 'asc')
                 .limit(40)
                 .get()
                 .then(function(snapshot) {
@@ -1316,6 +1325,8 @@ function renderOverlayChat() {
                         '</div>';
                     });
                     el.innerHTML = html;
+                    // Scroll to bottom so newest announcement is visible
+                    setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
                 })
                 .catch(function() {
                     var el = document.getElementById('overlayAnnouncementsBody');
