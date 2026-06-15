@@ -3667,9 +3667,17 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Stale-navigation guard: if a newer go() call started while we were awaiting fetch,
         // silently abort. This prevents ghost skeletons from stale in-flight loads.
+        // Exception: if _navGeneration was externally reset to 0 (audit scripts etc.),
+        // treat this navigation as still current and restore the counter.
         if (_navId !== window._navGeneration) {
-            console.log('[NAV] Aborting stale go(' + id + ') — superseded by newer navigation');
-            return;
+            if (window._navGeneration === 0) {
+                // External reset — reclaim ownership of this navigation
+                window._navGeneration = _navId;
+                console.log('[NAV] External navGeneration reset detected — restoring for go(' + id + ')');
+            } else {
+                console.log('[NAV] Aborting stale go(' + id + ') — superseded by newer navigation');
+                return;
+            }
         }
 
         // Store channel data and render
@@ -4671,38 +4679,8 @@ if (locked) {
                 if (typeof showNacho === 'function' && localStorage.getItem('btc_nacho_hidden') !== 'user') showNacho();
             }, 120000);
         }
-        if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
-        else if (h.indexOf('cert/') === 0) { setTimeout(function() { go(h); }, 1500); }
-        else if (h === 'first-purchase' || h === 'buy') { setTimeout(function() { go('first-purchase'); }, 500); }
-        // timechain-tv routing handled by tryRoute switch case below
-        else if (h === 'trails' || h === 'learn' || h === 'modules') { setTimeout(function() { go('trails'); }, 500); }
-        else if (h === 'meetup-builder' && !window._mbRouted) { window._mbRouted = true; window._skipIRLRules = true; localStorage.setItem('btc_irl_rules_accepted', 'true'); setTimeout(function() { var ro = document.getElementById('irlRulesOverlay'); if (ro) ro.remove(); go('irl-sync'); setTimeout(function() { var ro2 = document.getElementById('irlRulesOverlay'); if (ro2) ro2.remove(); }, 100); history.replaceState({channel:'meetup-builder'}, '', '#meetup-builder'); var _mbTries = 0; var _mbInt = setInterval(function() { var ro3 = document.getElementById('irlRulesOverlay'); if (ro3) ro3.remove(); var el = document.getElementById('meetupBuilderSection'); if (el) { clearInterval(_mbInt); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } if (++_mbTries > 30) clearInterval(_mbInt); }, 300); }, 1500); }
-        else if (h === 'irl-sync' || h === 'meet') { go('irl-sync', null, true); }
-        else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
-        else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
-        else if (h === 'bitcoin-beats' || h.indexOf('beats/') === 0) {
-            // Stash deep link params before go() changes the hash
-            if (h.indexOf('beats/playlist/') === 0) {
-                var _plParts = h.replace('beats/playlist/', '').split('/');
-                if (_plParts.length === 2) window._beatsDeepLink = { type: 'playlist', ownerUid: _plParts[0], playlistId: _plParts[1] };
-            } else if (h.indexOf('beats/') === 0 && h !== 'bitcoin-beats') {
-                var _trackId = h.replace('beats/', '');
-                if (_trackId && _trackId.indexOf('/') === -1) window._beatsDeepLink = { type: 'track', trackId: _trackId };
-            }
-            window._beatsRouted = true;
-            setTimeout(function() { go('bitcoin-beats', null, true); }, 500);
-        }
-        else if (h === 'chat') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('global'); }, 500); }
-        else if (h === 'dms') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('dms'); else if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
-        else if (h === 'lightning') { setTimeout(function() { go('lightning'); }, 500); }
-        else if (h === 'pow-support') { setTimeout(function() { if (typeof renderPOWSupport === 'function') renderPOWSupport(); }, 500); }
-        // NOTE: #dashboard / #metrics / #network are handled by tryRoute() below — don't duplicate here or the overlay toggles twice (opens then closes = 'crash')
-        else if (h === 'dashboard' || h === 'metrics' || h === 'network') { /* handled by tryRoute */ }
-        // Only call go(h) if no navigation is already in-flight from the earlier handleHash() call.
-        // The IIFE handleHash() below fires synchronously before window.onload, so if it already
-        // started a go(), we must not start a second one — that would increment _navGeneration
-        // and abort the first fetch, leaving the skeleton stuck forever (the SW-update reload bug).
-        else if (h && !(window._navGeneration > 0)) go(h);
+        // Hash routing is handled by the IIFE handleHash() below and its 800ms load fallback.
+        // Do not add go() / route calls here — they race with the IIFE and cause skeleton lock.
     };
 // =============================================
 // DIRECT HASH ROUTING (#nacho, #forum, #marketplace, etc.)
