@@ -1066,25 +1066,7 @@ function renderAnnouncementsTab() {
                 '<div style="font-size:0.7rem;color:var(--text-faint);">Nacho\'s updates · badges, scores, events &amp; more</div>' +
             '</div>';
             snapshot.forEach(function(doc) {
-                var m = doc.data();
-                var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
-                var timeStr = '';
-                if (m.ts && m.ts.toDate) {
-                    try { timeStr = timeAgo ? timeAgo(m.ts) : ''; } catch(e) {}
-                }
-                // Linkify [text](#hash) markdown links
-                var text = esc(m.text || '');
-                text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, '<a href="#$2" onclick="event.preventDefault();if(typeof routeHash===\'function\')routeHash(\'$2\')" style="color:var(--accent);font-weight:700;text-decoration:none;">$1</a>');
-                html += '<div style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:14px;">' +
-                    '<div style="font-size:1.6rem;flex-shrink:0;line-height:1;padding-top:2px;">🦌</div>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-                            '<span style="font-size:0.75rem;font-weight:700;color:#22c55e;">🦌 Nacho</span>' +
-                            (timeStr ? '<span style="font-size:0.65rem;color:var(--text-faint);">' + esc(timeStr) + '</span>' : '') +
-                        '</div>' +
-                        '<div style="font-size:0.82rem;color:var(--text);line-height:1.5;word-break:break-word;">' + text + '</div>' +
-                    '</div>' +
-                '</div>';
+                html += _renderAnnouncementItem(doc, 'panel');
             });
             el.innerHTML = html;
             // Scroll to bottom so newest announcement is visible
@@ -1307,22 +1289,7 @@ function renderOverlayChat() {
                     }
                     var html = '';
                     snapshot.forEach(function(doc) {
-                        var m = doc.data();
-                        var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
-                        var timeStr = '';
-                        if (m.ts && m.ts.toDate) { try { timeStr = typeof timeAgo === 'function' ? timeAgo(m.ts) : ''; } catch(e) {} }
-                        var text = esc(m.text || '');
-                        text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, '<a href="#$2" onclick="event.preventDefault();toggleChatOverlay();setTimeout(function(){if(typeof routeHash===\'function\')routeHash(\'$2\')},300)" style="color:var(--accent);font-weight:700;text-decoration:none;">$1</a>');
-                        html += '<div style="display:flex;gap:8px;align-items:flex-start;padding:10px 12px;background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:12px;">' +
-                            '<div style="font-size:1.2rem;flex-shrink:0;">🦌</div>' +
-                            '<div style="flex:1;min-width:0;">' +
-                                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">' +
-                                    '<span style="font-size:0.7rem;font-weight:700;color:#22c55e;">🦌 Nacho</span>' +
-                                    (timeStr ? '<span style="font-size:0.6rem;color:var(--text-faint);">' + esc(timeStr) + '</span>' : '') +
-                                '</div>' +
-                                '<div style="font-size:0.78rem;color:var(--text);line-height:1.5;word-break:break-word;">' + text + '</div>' +
-                            '</div>' +
-                        '</div>';
+                        html += _renderAnnouncementItem(doc, 'overlay');
                     });
                     el.innerHTML = html;
                     // Scroll to bottom so newest announcement is visible
@@ -2979,6 +2946,97 @@ window.lookupUserByName = function(username) {
         }).catch(function() {
             if (typeof showToast === 'function') showToast('Could not look up user');
         });
+};
+
+// ---- Shared Announcement Item Renderer ----
+// context: 'panel' = full chat hub, 'overlay' = floating overlay
+function _renderAnnouncementItem(doc, context) {
+    var m = doc.data ? doc.data() : doc;
+    var docId = doc.id || '';
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+    var timeStr = '';
+    if (m.ts && m.ts.toDate) { try { timeStr = typeof timeAgo === 'function' ? timeAgo(m.ts) : ''; } catch(e) {} }
+
+    // Process text: escape first, then linkify in order
+    var text = esc(m.text || '');
+
+    // 1. [text](#hash) markdown links — close panel/overlay then navigate
+    if (context === 'overlay') {
+        text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, function(_, label, hash) {
+            return '<a href="#' + hash + '" onclick="event.preventDefault();event.stopPropagation();toggleChatOverlay();setTimeout(function(){if(typeof go===\'function\')go(\''+hash+'\')},300)" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
+        });
+    } else {
+        text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, function(_, label, hash) {
+            return '<a href="#' + hash + '" onclick="event.preventDefault();event.stopPropagation();if(typeof go===\'function\')go(\''+hash+'\')" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
+        });
+    }
+
+    // 2. @username mentions — link to user profile using stored mentionUid
+    var mentionUid = m.mentionUid || '';
+    text = text.replace(/@([A-Za-z0-9_]+)/g, function(_, username) {
+        if (mentionUid) {
+            return '<a onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\')" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
+        }
+        return '<span style="color:#6366f1;font-weight:700;">@'+username+'</span>';
+    });
+
+    var isOverlay = context === 'overlay';
+    var pad = isOverlay ? '10px 12px' : '12px 14px';
+    var fontSize = isOverlay ? '0.78rem' : '0.82rem';
+    var avatarSize = isOverlay ? '1.2rem' : '1.6rem';
+    var borderR = isOverlay ? '12px' : '14px';
+
+    // Emoji reactions
+    var reactionEmojis = ['👍','❤️','🔥','🎉','🦌'];
+    var reactions = m.reactions || {};
+    var reactHtml = '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">';
+    reactionEmojis.forEach(function(emoji) {
+        var count = (reactions[emoji] || []).length;
+        var reacted = false;
+        var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+        if (myUid && reactions[emoji] && reactions[emoji].indexOf(myUid) !== -1) reacted = true;
+        reactHtml += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+ emoji + (count > 0 ? '<span style="font-size:0.65rem;color:var(--text-muted);">'+count+'</span>' : '') +'</button>';
+    });
+    reactHtml += '</div>';
+
+    return '<div data-ann-id="'+esc(docId)+'" style="display:flex;gap:10px;align-items:flex-start;padding:'+pad+';background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:'+borderR+';">' +
+        '<div style="font-size:'+avatarSize+';flex-shrink:0;line-height:1;padding-top:2px;">🦌</div>' +
+        '<div style="flex:1;min-width:0;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+                '<span style="font-size:0.75rem;font-weight:700;color:#22c55e;">🦌 Nacho</span>' +
+                (timeStr ? '<span style="font-size:0.65rem;color:var(--text-faint);">'+esc(timeStr)+'</span>' : '') +
+            '</div>' +
+            '<div style="font-size:'+fontSize+';color:var(--text);line-height:1.5;word-break:break-word;">'+text+'</div>' +
+            reactHtml +
+        '</div>' +
+    '</div>';
+}
+
+// Toggle emoji reaction on an announcement doc
+window._toggleAnnouncementReaction = function(docId, emoji) {
+    if (!docId || typeof db === 'undefined' || !db) return;
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!myUid) { if (typeof showToast === 'function') showToast('Sign in to react'); return; }
+    var ref = db.collection(ANNOUNCEMENTS_COLLECTION).doc(docId);
+    ref.get().then(function(snap) {
+        if (!snap.exists) return;
+        var current = (snap.data().reactions || {})[emoji] || [];
+        var already = current.indexOf(myUid) !== -1;
+        var update = {};
+        update['reactions.' + emoji] = already
+            ? firebase.firestore.FieldValue.arrayRemove(myUid)
+            : firebase.firestore.FieldValue.arrayUnion(myUid);
+        ref.update(update).then(function() {
+            // Re-render both visible surfaces
+            if (typeof renderAnnouncementsTab === 'function' && document.getElementById('announcementsMessages')) renderAnnouncementsTab();
+            if (document.getElementById('overlayAnnouncementsBody')) {
+                var _tab = window._overlayTab;
+                window._overlayTab = 'announcements';
+                if (typeof _renderOverlayBody === 'function') _renderOverlayBody();
+                window._overlayTab = _tab;
+            }
+        }).catch(function() {});
+    }).catch(function() {});
 };
 
 // ---- Nacho Global Announcements (callable from other modules) ----

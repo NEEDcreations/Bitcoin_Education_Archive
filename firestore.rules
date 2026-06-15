@@ -805,7 +805,11 @@ service cloud.firestore {
                     && (request.resource.data.uid == request.auth.uid
                         || ((request.resource.data.uid == 'nacho-bot')
                             && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')));
-      allow update, delete: if request.auth != null
+      // Any signed-in user can toggle their own emoji reaction (only the reactions map is touched)
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+      // Admin-only delete and full update
+      allow delete: if request.auth != null
                     && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
     }
 
