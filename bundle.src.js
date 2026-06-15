@@ -30008,7 +30008,11 @@ if (locked) {
         else if (h === 'pow-support') { setTimeout(function() { if (typeof renderPOWSupport === 'function') renderPOWSupport(); }, 500); }
         // NOTE: #dashboard / #metrics / #network are handled by tryRoute() below — don't duplicate here or the overlay toggles twice (opens then closes = 'crash')
         else if (h === 'dashboard' || h === 'metrics' || h === 'network') { /* handled by tryRoute */ }
-        else if (h) go(h);
+        // Only call go(h) if no navigation is already in-flight from the earlier handleHash() call.
+        // The IIFE handleHash() below fires synchronously before window.onload, so if it already
+        // started a go(), we must not start a second one — that would increment _navGeneration
+        // and abort the first fetch, leaving the skeleton stuck forever (the SW-update reload bug).
+        else if (h && !(window._navGeneration > 0)) go(h);
     };
 // =============================================
 // DIRECT HASH ROUTING (#nacho, #forum, #marketplace, etc.)
@@ -30133,8 +30137,15 @@ if (locked) {
     window.addEventListener('load', function() {
         setTimeout(function() {
             var h = window.location.hash.replace('#', '');
-            // Only re-route if we're still on the home page (hash wasn't consumed)
-            if (h && document.getElementById('home') && !document.getElementById('home').classList.contains('hidden')) {
+            // Only re-route if:
+            // (a) there is a hash to route to
+            // (b) no navigation is already in-flight (_navGeneration === 0 means nothing started yet)
+            // (c) home is still visible (hash wasn't already consumed by the first handleHash() call)
+            // Skipping when _navGeneration > 0 prevents the fallback from incrementing the
+            // generation counter and cancelling the already-in-progress go() call, which
+            // is what causes the "skeleton that never resolves" on SW-update reloads.
+            var navInFlight = (window._navGeneration || 0) > 0;
+            if (h && !navInFlight && document.getElementById('home') && !document.getElementById('home').classList.contains('hidden')) {
                 console.log('[HASH] Post-load fallback routing to:', h);
                 handleHash();
             }
