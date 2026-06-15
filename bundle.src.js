@@ -14487,7 +14487,8 @@ function _renderPollTab(body) {
 
     var state = _getPollState();
     var todayKey = new Date().toISOString().split('T')[0];
-    var hasVoted = state.date === todayKey && typeof state.chosen === 'number';
+    // chosen must be a non-negative number (index 0..3) to count as a real vote
+    var hasVoted = state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0;
     var p = today.poll;
 
     var html = '<div style="text-align:center;padding:8px 0 16px;">' +
@@ -14512,19 +14513,26 @@ function _renderPollTab(body) {
         if (uid && typeof db !== 'undefined') {
             db.collection('poll_votes').doc(pollId).get().then(function(doc) {
                 if (doc.exists && doc.data().voters && doc.data().voters.indexOf(uid) !== -1) {
-                    // User already voted server-side - sync local state and show results
-                    var serverVoterIdx = state.chosen; // May not have local chosen
-                    state = { date: todayKey, index: today.index, chosen: typeof serverVoterIdx === 'number' ? serverVoterIdx : -1, pollId: p.id };
+                    // User already voted server-side - sync local state and show results.
+                    // Only use state.chosen if it belongs to today AND is a valid index (>=0).
+                    // If we can't recover which option they chose (e.g. localStorage was cleared
+                    // or it's from a previous day), pass -1 so nothing gets highlighted.
+                    var recoveredChoice = (state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0)
+                        ? state.chosen : -1;
+                    state = { date: todayKey, index: today.index, chosen: recoveredChoice, pollId: p.id };
                     _setPollState(state);
                     _renderPollResults(body, html, p, state, todayKey);
                 } else {
-                    _showPollVoteButtons(body, html, p);
+                    // Not voted yet — delay button render slightly to prevent ghost taps
+                    // from the tab-switch touch event landing on poll buttons
+                    setTimeout(function() { _showPollVoteButtons(body, html, p); }, 350);
                 }
             }).catch(function() {
-                _showPollVoteButtons(body, html, p);
+                setTimeout(function() { _showPollVoteButtons(body, html, p); }, 350);
             });
         } else {
-            _showPollVoteButtons(body, html, p);
+            // No auth / offline — delay button render to avoid ghost taps from tab switch
+            setTimeout(function() { _showPollVoteButtons(body, html, p); }, 350);
         }
     }
 }
@@ -14533,13 +14541,17 @@ function _showPollVoteButtons(body, html, p) {
     html += '<div id="pollOptions" style="display:flex;flex-direction:column;gap:8px;">';
     for (var i = 0; i < p.options.length; i++) {
         var optText = typeof escapeHtml === 'function' ? escapeHtml(p.options[i]) : p.options[i];
-        html += '<button onclick="pollVote(' + i + ')" style="padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+        html += '<button type="button" onclick="pollVote(' + i + ')" style="padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
             '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
             optText +
         '</button>';
     }
     html += '</div>';
+    // Mark ready after DOM settles — guard window gives touch events time to drain
+    window._pollVoteReady = false;
     body.innerHTML = html;
+    clearTimeout(window._pollVoteReadyTimer);
+    window._pollVoteReadyTimer = setTimeout(function() { window._pollVoteReady = true; }, 400);
 }
 
 function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
@@ -14598,13 +14610,19 @@ function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
     body.innerHTML = html;
 }
 
+// Guard against ghost taps being processed before the 350ms delay expires
+window._pollVoteReady = false;
+window._pollVoteReadyTimer = null;
+
 window.pollVote = function(chosenIdx) {
+    // Reject calls that arrive before the delayed button render has settled
+    if (!window._pollVoteReady) return;
     var today = _getPollToday();
     if (!today || !today.poll) return;
     var p = today.poll;
     var todayKey = new Date().toISOString().split('T')[0];
     var state = _getPollState();
-    if (state.date === todayKey && typeof state.chosen === 'number') return; // Already voted (local)
+    if (state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0) return; // Already voted (local)
 
     // Disable buttons immediately to prevent double-tap
     var pollBtns = document.querySelectorAll('#pollOptions button');
