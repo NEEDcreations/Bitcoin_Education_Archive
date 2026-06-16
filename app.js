@@ -4516,6 +4516,11 @@ if (locked) {
                 return;
             }
 
+            // Check history state first — the overlay may already be removed by its own
+            // popstate handler (_qhPopHandler) that fired in the same tick, so DOM check alone
+            // is not sufficient. If state marks this as a questhub overlay pop, just return.
+            if (state.overlay === 'questhub') { return; }
+
             var _overlayIds = ['questHubOverlay','guideOverlay','onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal','forumRulesOverlay','chatRulesOverlay','marketRulesOverlay','irlRulesOverlay'];
             for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
                 var _oel = document.getElementById(_overlayIds[_oi]);
