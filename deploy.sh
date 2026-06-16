@@ -51,7 +51,7 @@ fi
 # Compares each file to its last committed version; if changed, stamps
 # a fresh ?v=YYYYMMDD_HHMM suffix in index.html.
 DEPLOY_STAMP=$(date -u +%Y%m%d_%H%M)
-LAZY_FILES="timechain-tv.js nacho-qa.js scholar.js beats.js irl-sync.js pvp.js onboarding.js global-chat.js lightning.js lightning-tips.js notifications.js"
+LAZY_FILES="timechain-tv.js nacho-qa.js scholar.js beats.js irl-sync.js pvp.js onboarding.js global-chat.js lightning.js lightning-tips.js notifications.js satoshi-favor.js"
 for LFILE in $LAZY_FILES; do
     if [ -f "$LFILE" ] && ! git diff --quiet HEAD -- "$LFILE" 2>/dev/null; then
         OLD_BUSTER=$(grep -oP "${LFILE}\\?v=\\K[^ \"']+" index.html | head -1)

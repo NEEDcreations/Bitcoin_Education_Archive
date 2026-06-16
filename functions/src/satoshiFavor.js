@@ -194,9 +194,9 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
     const validatedLevel = detail; // already validated above against whitelist
     contributorKey = `${uid}_level_${validatedLevel}`;
   } else if (source === 'badge_earned') {
-    // Dedup by uid + sanitized badge name only — NO date, badges are one-time permanent
+    // Dedup by uid + sanitized badge name + date — resets each SF cycle so new cycles announce correctly
     const safeBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
-    contributorKey = `${uid}_badge_${safeBadge}`;
+    contributorKey = `${uid}_${today}_badge_${safeBadge}`;
   } else {
     contributorKey = `${uid}_${source}_${today}`;
   }

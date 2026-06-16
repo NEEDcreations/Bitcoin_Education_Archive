@@ -391,12 +391,22 @@ function checkBadges() {
                 // Raid Boss contribution
                 if (typeof window._raidOnBadgeEarned === 'function') window._raidOnBadgeEarned();
 
-                // Satoshi's Favor contribution (1 point per badge)
-                // contributeSatoshiFavor handles Nacho announcements for activation/extension.
-                // We announce the badge + SF progress separately for the "not yet active" case.
+                // Announce badge earned directly to News tab (independent of SF contribution)
+                // Don't rely on SF contribution to announce — dedup keys block repeat calls silently
+                if (typeof window.nachoGlobalAnnounce === 'function'
+                    && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    var _badgeUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username)
+                        ? currentUser.username : null;
+                    if (_badgeUsername) {
+                        window.nachoGlobalAnnounce(
+                            '🏅 @' + _badgeUsername + ' just earned the ' + badge.emoji + ' ' + badge.name + ' badge! ⚡ ➡️ [Quest Hub](#quests)',
+                            auth.currentUser.uid
+                        );
+                    }
+                }
+
+                // Satoshi's Favor contribution (1 point per badge) — fire-and-forget
                 if (typeof window.contributeSatoshiFavor === 'function') {
-                    var _badgeUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                    // satoshi-favor.js handles the GC announcement for badge_earned
                     window.contributeSatoshiFavor('badge_earned', badge.emoji + ' ' + badge.name).catch(function() {});
                 }
 

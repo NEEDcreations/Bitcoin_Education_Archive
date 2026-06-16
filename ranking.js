@@ -2285,11 +2285,22 @@ function updateRankUI() {
         showLevelUpCelebration(lv);
         localStorage.setItem('btc_highest_level_seen', lv.min.toString());
         if (typeof notifySelfLevelUp === 'function') notifySelfLevelUp(lv.min, lv.name, lv.emoji);
-        // Satoshi's Favor contribution for level-ups
+        // Announce level-up directly to News tab (independent of SF contribution)
+        if (typeof window.nachoGlobalAnnounce === 'function'
+            && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            var _lvUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+            if (_lvUsername) {
+                window.nachoGlobalAnnounce(
+                    '📊 @' + _lvUsername + ' just leveled up to ' + (lv.emoji || '') + ' ' + lv.name + '! ➡️ [Leaderboard](#leaderboard)',
+                    auth.currentUser.uid
+                );
+            }
+        }
+
+        // Satoshi's Favor contribution for level-ups — fire-and-forget
         if (typeof window.contributeSatoshiFavor === 'function') {
             var levelName = lv.name || '';
             var source = null;
-            // Check rank tier
             if (['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'].includes(levelName)) {
                 source = 'level_up';
             } else if (['Maxi','Maxi II','Maxi III'].includes(levelName)) {
@@ -2298,7 +2309,6 @@ function updateRankUI() {
                 source = 'level_up_10';
             }
             if (source) {
-                // contributeSatoshiFavor handles all Nacho announcements internally
                 window.contributeSatoshiFavor(source, levelName);
             }
         }
