@@ -1730,6 +1730,7 @@ window.sendGifMessage = function(url, caption) {
         name: username,
         text: url,
         isGif: true,
+        isNachoAuto: false,
         ts: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) msgData.faction = currentUser.faction;
@@ -2006,6 +2007,7 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 name: username,
                 text: url,
                 isGif: true,
+                isNachoAuto: false,
                 ts: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (caption) msgData.caption = caption;
