@@ -30,6 +30,7 @@ function bridgeToTelegram(data) {
 var CHAT_INITIAL_SHOW = 20; // Render initially (reduced to save Firestore reads)
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
+var _annUnsub = null; // announcements live listener
 var _lastSendTime = 0;
 var _chatTab = 'global'; // 'global', 'announcements', or 'dms'
 var _replyTo = null; // {_id, name, text} when replying
@@ -212,6 +213,11 @@ window.switchChatTab = function(tab) {
     if (tab !== 'global' && _chatUnsub) {
         _chatUnsub();
         _chatUnsub = null;
+    }
+    // Unsubscribe from announcements listener when switching away
+    if (tab !== 'announcements' && _annUnsub) {
+        _annUnsub();
+        _annUnsub = null;
     }
 
     if (tab === 'global') {
@@ -1051,12 +1057,15 @@ function renderAnnouncementsTab() {
         return;
     }
 
-    // Load from the announcements collection (asc = oldest first, newest at bottom)
-    db.collection(ANNOUNCEMENTS_COLLECTION)
+    // Unsub any previous listener
+    if (_annUnsub) { _annUnsub(); _annUnsub = null; }
+
+    // Live listener — announcements appear instantly without reopening the tab
+    var _firstLoad = true;
+    _annUnsub = db.collection(ANNOUNCEMENTS_COLLECTION)
         .orderBy('ts', 'asc')
-        .limit(50)
-        .get()
-        .then(function(snapshot) {
+        .limitToLast(50)
+        .onSnapshot(function(snapshot) {
             var el = document.getElementById('announcementsMessages');
             if (!el) return;
             if (snapshot.empty) {
@@ -1065,6 +1074,7 @@ function renderAnnouncementsTab() {
                     '<div style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">No announcements yet</div>' +
                     '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Nacho posts updates here — badge unlocks, perfect scores, PVP alerts &amp; more</div>' +
                 '</div>';
+                _firstLoad = false;
                 return;
             }
             var html = '<div style="text-align:center;padding:8px 0 16px;">' +
@@ -1074,11 +1084,16 @@ function renderAnnouncementsTab() {
                 html += _renderAnnouncementItem(doc, 'panel');
             });
             el.innerHTML = html;
-            // Scroll to bottom so newest announcement is visible
-            setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
-        })
-        .catch(function(err) {
-            console.error('[ANNOUNCEMENTS] Load error:', err);
+            // Scroll to bottom on first load; on subsequent updates only scroll if already near bottom
+            if (_firstLoad) {
+                setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
+                _firstLoad = false;
+            } else {
+                var distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+                if (distFromBottom < 120) { el.scrollTop = el.scrollHeight; }
+            }
+        }, function(err) {
+            console.error('[ANNOUNCEMENTS] Listener error:', err);
             var el = document.getElementById('announcementsMessages');
             if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Could not load announcements</div>';
         });
@@ -1123,6 +1138,7 @@ var _origGoHome = window.goHome;
 if (_origGoHome) {
     window.goHome = function() {
         if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+        if (_annUnsub) { _annUnsub(); _annUnsub = null; }
         return _origGoHome.apply(this, arguments);
     };
 }
@@ -1137,6 +1153,7 @@ if (_origGo) {
             return;
         }
         if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+        if (_annUnsub) { _annUnsub(); _annUnsub = null; }
         return _origGo.apply(this, arguments);
     };
 }
@@ -1250,6 +1267,7 @@ window.toggleChatOverlay = function() {
     } else {
         // Unsubscribe when closing
         if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+        if (_annUnsub) { _annUnsub(); _annUnsub = null; }
     }
 };
 
@@ -1279,17 +1297,19 @@ function renderOverlayChat() {
             '<div id="overlayAnnouncementsBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:0;">' +
                 '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading...</div>' +
             '</div>';
-        // Load announcements into overlay
+        // Live listener for overlay announcements
         if (typeof db !== 'undefined' && db) {
-            db.collection(ANNOUNCEMENTS_COLLECTION)
+            if (_annUnsub) { _annUnsub(); _annUnsub = null; }
+            var _overlayFirstLoad = true;
+            _annUnsub = db.collection(ANNOUNCEMENTS_COLLECTION)
                 .orderBy('ts', 'asc')
-                .limit(40)
-                .get()
-                .then(function(snapshot) {
+                .limitToLast(40)
+                .onSnapshot(function(snapshot) {
                     var el = document.getElementById('overlayAnnouncementsBody');
-                    if (!el) return;
+                    if (!el) { if (_annUnsub) { _annUnsub(); _annUnsub = null; } return; }
                     if (snapshot.empty) {
                         el.innerHTML = '<div style="text-align:center;padding:30px 16px;"><div style="font-size:2rem;margin-bottom:8px;">🦌</div><div style="color:var(--text-muted);font-size:0.8rem;">No announcements yet</div></div>';
+                        _overlayFirstLoad = false;
                         return;
                     }
                     var html = '';
@@ -1297,10 +1317,14 @@ function renderOverlayChat() {
                         html += _renderAnnouncementItem(doc, 'overlay');
                     });
                     el.innerHTML = html;
-                    // Scroll to bottom so newest announcement is visible
-                    setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
-                })
-                .catch(function() {
+                    if (_overlayFirstLoad) {
+                        setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
+                        _overlayFirstLoad = false;
+                    } else {
+                        var distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+                        if (distFromBottom < 120) { el.scrollTop = el.scrollHeight; }
+                    }
+                }, function() {
                     var el = document.getElementById('overlayAnnouncementsBody');
                     if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Could not load</div>';
                 });
@@ -1437,6 +1461,7 @@ function renderOverlayChat() {
 window._switchOverlayTab = function(tab) {
     _overlayTab = tab;
     if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+    if (tab !== 'announcements' && _annUnsub) { _annUnsub(); _annUnsub = null; }
     renderOverlayChat();
 };
 
