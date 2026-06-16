@@ -268,8 +268,8 @@ window.renderModules = function(container) {
     html += '<div style="margin-bottom:16px;">' +
         '<div style="font-size:0.8rem;font-weight:800;color:var(--heading);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">🎓 Certifications</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px;">' +
-            '<button onclick="if(typeof startScholarQuest===\'function\')startScholarQuest(\'properties\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #f7931a;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🎓</span><div><div style="font-weight:800;">Properties Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s core properties — 2,100 XP reward</div></div></button>' +
-            '<button onclick="if(typeof startScholarQuest===\'function\')startScholarQuest(\'technical\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #3b82f6;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🛠️</span><div><div style="font-weight:800;">Technical Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s technical side — 2,100 XP reward</div></div></button>' +
+            '<button onclick="if(typeof startScholarQuest===\'function\'){startScholarQuest(\'properties\')}else if(typeof showToast===\'function\')showToast(\'⏳ Loading... try again in a second!\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #f7931a;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🎓</span><div><div style="font-weight:800;">Properties Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s core properties — 2,100 XP reward</div></div></button>' +
+            '<button onclick="if(typeof startScholarQuest===\'function\'){startScholarQuest(\'technical\')}else if(typeof showToast===\'function\')showToast(\'⏳ Loading... try again in a second!\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #3b82f6;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🛠️</span><div><div style="font-weight:800;">Technical Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s technical side — 2,100 XP reward</div></div></button>' +
         '</div>' +
         '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:8px;text-align:center;">Take certifications anytime — no trail completion required!</div>' +
     '</div>';
@@ -618,41 +618,39 @@ window.reviewTrailWithNacho = function() {
 
     // After Nacho Mode loads, inject the review
     setTimeout(function() {
-        if (typeof P !== 'function' || typeof U !== 'function') return;
+        var _append = typeof nachoChatAppend === 'function' ? nachoChatAppend : null;
+        if (!_append) return;
 
         var mod = MODULES.find(function(m) { return m.id === exam.moduleId; });
         var modName = mod ? mod.emoji + ' ' + mod.name : 'Trail';
+        var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
 
-        P('nacho', '', '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);border-radius:14px;padding:16px;text-align:center;margin-bottom:8px;"><div style="font-size:1.3rem;margin-bottom:4px;">📚🦌</div><div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">' + modName + ' Trail Quest Review</div><div style="color:var(--text-muted);font-size:0.82rem;">Let\'s go over the ' + wrong.length + ' question' + (wrong.length > 1 ? 's' : '') + ' you got wrong!</div></div>');
-        U('nacho', '', '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);border-radius:14px;padding:16px;text-align:center;margin-bottom:8px;"><div style="font-size:1.3rem;margin-bottom:4px;">📚🦌</div><div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">' + modName + ' Trail Quest Review</div><div style="color:var(--text-muted);font-size:0.82rem;">Let\'s go over the ' + wrong.length + ' question' + (wrong.length > 1 ? 's' : '') + ' you got wrong!</div></div>');
+        // Header card
+        _append('nacho', '', '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);border-radius:14px;padding:16px;text-align:center;margin-bottom:4px;"><div style="font-size:1.3rem;margin-bottom:4px;">📚🦌</div><div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">' + modName + ' Trail Quest Review</div><div style="color:var(--text-muted);font-size:0.82rem;">Let\'s go over the ' + wrong.length + ' question' + (wrong.length > 1 ? 's' : '') + ' you got wrong. I\'ll explain each one!</div></div>');
 
-        // Feed each wrong question to Nacho with explanation
+        // Feed each wrong question, staggered
         wrong.forEach(function(q, i) {
             setTimeout(function() {
                 var reviewHtml = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:4px;">' +
                     '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:6px;">Question ' + (i + 1) + ' of ' + wrong.length + '</div>' +
-                    '<div style="color:var(--text);font-size:0.88rem;font-weight:600;margin-bottom:8px;">' + (typeof escapeHtml === 'function' ? escapeHtml(q.q) : q.q) + '</div>' +
-                    '<div style="padding:6px 10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-bottom:6px;font-size:0.82rem;color:#ef4444;">❌ Your answer: ' + (typeof escapeHtml === 'function' ? escapeHtml(q._selected || '?') : q._selected || '?') + '</div>' +
-                    '<div style="padding:6px 10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;margin-bottom:8px;font-size:0.82rem;color:#22c55e;">✅ Correct answer: ' + (typeof escapeHtml === 'function' ? escapeHtml(q.a) : q.a) + '</div>' +
+                    '<div style="color:var(--text);font-size:0.88rem;font-weight:600;margin-bottom:8px;">' + esc(q.q) + '</div>' +
+                    '<div style="padding:6px 10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-bottom:6px;font-size:0.82rem;color:#ef4444;">❌ You answered: ' + esc(q._selected || '?') + '</div>' +
+                    '<div style="padding:6px 10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;font-size:0.82rem;color:#22c55e;">✅ Correct: ' + esc(q.a) + '</div>' +
                 '</div>';
+                _append('nacho', '', reviewHtml);
 
-                P('nacho', '', reviewHtml);
-                U('nacho', '', reviewHtml);
-
-                // Ask Nacho KB to explain
+                // Ask Nacho KB to explain — result comes via callback
                 if (typeof nachoUnifiedAnswer === 'function') {
-                    nachoUnifiedAnswer('Explain why: ' + q.q + ' Answer: ' + q.a, function(result) {
+                    nachoUnifiedAnswer('Explain in simple terms why this Bitcoin question has this answer. Question: ' + q.q + ' Correct answer: ' + q.a, function(result) {
                         if (result && result.answer) {
-                            var clean = result.answer.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').substring(0, 400);
-                            var explainHtml = '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.6;padding:8px 12px;background:rgba(247,147,26,0.05);border-radius:8px;">💡 ' + clean + '</div>';
-                            P('nacho', '', explainHtml);
-                            U('nacho', '', explainHtml);
+                            var clean = result.answer.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim().substring(0, 500);
+                            _append('nacho', '', '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.6;padding:10px 12px;background:rgba(247,147,26,0.05);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;margin-bottom:4px;">💡 ' + esc(clean) + '</div>');
                         }
                     });
                 }
-            }, (i + 1) * 2000); // Stagger each question 2s apart
+            }, i * 2500);
         });
-    }, 1000);
+    }, 800);
 };
 
 // ---- EXPOSE MODULES DATA for Nacho integration ----
