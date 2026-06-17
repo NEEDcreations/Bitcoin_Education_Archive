@@ -4375,6 +4375,7 @@ var FLEX_ACTIONS = [
     { id:'pattern',  emoji:'🧩', name:'Pattern Recognition',   desc:'Spot recurring patterns like a Bitcoiner.', pts:5, type:'pattern' },
     { id:'findq',    emoji:'🏦', name:'Spot the FED',            desc:'One impostor among the p\'s. Hunt it down.', pts:5, type:'findq' },
     { id:'noleverage', emoji:'🧮', name:'Avoid Leverage',           desc:'Stay humble. Do the math, not the margin.', pts:5, type:'addthree' },
+    { id:'gunrange',   emoji:'🎯', name:'Gun Range',               desc:'Lock and load. Hit all three targets.',      pts:5, type:'gunrange' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -4693,6 +4694,24 @@ function _renderFlexInteraction(action) {
             '<div id="pattern-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">Pick the next shape in the sequence</div>' +
         '</div>';
     }
+    if (action.type === 'gunrange') {
+        // 3 targets appear sequentially in random positions; tap each to hit it
+        var _grTargets = ['💀','🧙‍♂️','🦖','👾','🦄','🐻','💸','🤡','👹','👸'];
+        var _grSeed = _flexDailySeed(action.id + '_gr');
+        var _grPick = function(i) { return _grTargets[(_grSeed * (i+7) * 1664525 >>> 0) % _grTargets.length]; };
+        return '<div id="gunrange-wrap-' + action.id + '" data-id="' + action.id + '" ' +
+            'style="position:relative;width:100%;height:140px;background:linear-gradient(180deg,#0d1117 60%,#1a2a1a 100%);border:1px solid var(--border);border-radius:12px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;">' +
+            '<div id="gr-lane-' + action.id + '" style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(247,147,26,0.15);"></div>' +
+            '<div id="gr-crosshair-' + action.id + '" style="display:none;position:absolute;width:44px;height:44px;pointer-events:none;transform:translate(-50%,-50%);font-size:2rem;z-index:10;">🎯</div>' +
+            '<div id="gr-target-' + action.id + '" ' +
+                'onclick="_flexGunRangeHit(this)" data-id="' + action.id + '" ' +
+                'style="display:none;position:absolute;font-size:2rem;cursor:crosshair;transform:translate(-50%,-50%);transition:none;z-index:5;"></div>' +
+            '<div id="gr-status-' + action.id + '" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:0.72rem;font-weight:700;color:rgba(247,147,26,0.7);white-space:nowrap;">TAP TO START</div>' +
+            '<div id="gr-hits-' + action.id + '" style="position:absolute;top:8px;right:10px;font-size:0.8rem;"></div>' +
+            '<button type="button" id="gr-start-' + action.id + '" onclick="_flexGunRangeStart(\'' + action.id + '\')" ' +
+                'style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:6px 20px;background:var(--accent);border:none;border-radius:20px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔫 Take aim</button>' +
+        '</div>';
+    }
     if (action.type === 'addthree') {
         // Three 1-2 digit numbers, seeded daily
         function _at_num(salt) {
@@ -4979,6 +4998,95 @@ function _flexPatternGen(id) {
     for (var j = 0; j < period; j++) cycleShapes.push(shapes[(offset + j) % shapes.length]);
     return Array.from({length:5}, function(_,i){ return cycleShapes[i % period]; });
 }
+
+// ── GUN RANGE ──
+var _grState = {};
+var _grTargetEmojis = ['💀','🧙‍♂️','🦖','👾','🦄','🐻','💸','🤡','👹','👸'];
+
+window._flexGunRangeStart = function(id) {
+    var wrap = document.getElementById('gunrange-wrap-' + id);
+    var startBtn = document.getElementById('gr-start-' + id);
+    var status = document.getElementById('gr-status-' + id);
+    if (!wrap || _grState[id] && _grState[id].running) return;
+    if (startBtn) startBtn.style.display = 'none';
+    var seed = _flexDailySeed(id + '_gr');
+    // Pick 3 distinct target emojis for today
+    var pool = _grTargetEmojis.slice();
+    var targets = [];
+    for (var i = 0; i < 3; i++) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+        var idx = Math.abs(seed) % pool.length;
+        targets.push(pool.splice(idx, 1)[0]);
+    }
+    _grState[id] = { running: true, hits: 0, total: 3, targets: targets, timer: null };
+    _flexGunRangeNext(id);
+};
+
+window._flexGunRangeNext = function(id) {
+    var state = _grState[id];
+    if (!state || !state.running) return;
+    var wrap = document.getElementById('gunrange-wrap-' + id);
+    var el = document.getElementById('gr-target-' + id);
+    var status = document.getElementById('gr-status-' + id);
+    var hitsEl = document.getElementById('gr-hits-' + id);
+    if (!wrap || !el) return;
+    if (state.hits >= state.total) return;
+    // Random x/y inside the range area avoiding edges
+    var rect = wrap.getBoundingClientRect();
+    var W = wrap.offsetWidth || 260, H = wrap.offsetHeight || 140;
+    var px = 18 + Math.floor((Math.abs(_flexDailySeed(id + '_gx' + state.hits + Date.now().toString(36))) % (W - 36)));
+    var py = 20 + Math.floor((Math.abs(_flexDailySeed(id + '_gy' + state.hits + Date.now().toString(36).slice(-4))) % (H - 50)));
+    el.textContent = state.targets[state.hits];
+    el.style.left = px + 'px';
+    el.style.top = py + 'px';
+    el.style.display = 'block';
+    el.style.opacity = '1';
+    el.style.transform = 'translate(-50%,-50%) scale(1)';
+    el.style.transition = 'none';
+    if (status) { status.textContent = 'Target ' + (state.hits + 1) + ' of ' + state.total + ' — hit it!'; }
+    if (hitsEl) { hitsEl.textContent = Array(state.hits + 1).join('🟠') + Array(state.total - state.hits + 1).join('⚪'); }
+    // Auto-miss if not tapped in 2.5s
+    clearTimeout(state.timer);
+    state.timer = setTimeout(function() {
+        if (!_grState[id] || !_grState[id].running) return;
+        el.style.transition = 'opacity 0.3s, transform 0.3s';
+        el.style.opacity = '0';
+        el.style.transform = 'translate(-50%,-50%) scale(0.5)';
+        if (status) { status.textContent = 'Missed! Try again…'; status.style.color = '#ef4444'; }
+        setTimeout(function() {
+            if (status) status.style.color = 'rgba(247,147,26,0.7)';
+            // Restart from 0
+            _grState[id].hits = 0;
+            if (hitsEl) hitsEl.textContent = '';
+            setTimeout(function() { _flexGunRangeNext(id); }, 600);
+        }, 700);
+    }, 2500);
+};
+
+window._flexGunRangeHit = function(el) {
+    var id = el.getAttribute('data-id');
+    var state = _grState[id];
+    if (!state || !state.running) return;
+    clearTimeout(state.timer);
+    var status = document.getElementById('gr-status-' + id);
+    var hitsEl = document.getElementById('gr-hits-' + id);
+    // Flash hit
+    el.style.transition = 'transform 0.15s, opacity 0.15s';
+    el.style.transform = 'translate(-50%,-50%) scale(1.5)';
+    el.style.opacity = '0';
+    state.hits++;
+    if (hitsEl) { hitsEl.textContent = Array(state.hits + 1).join('🟠') + Array(state.total - state.hits + 1).join('⚪'); }
+    setTimeout(function() {
+        el.style.display = 'none';
+        if (state.hits >= state.total) {
+            state.running = false;
+            if (status) { status.textContent = '🟠🟠🟠 All targets down!'; status.style.color = '#22c55e'; }
+            setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 500);
+        } else {
+            setTimeout(function() { _flexGunRangeNext(id); }, 300);
+        }
+    }, 150);
+};
 
 window._flexAddThreeCheck = function(input) {
     var id = input.getAttribute('data-id');
