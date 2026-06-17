@@ -3008,12 +3008,28 @@ window._charityThankYou = function(amt, newBadges, bonusPts) {
     overlay.id = 'charityThankYouOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:300000;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:20px;';
     var modal = document.createElement('div');
-    modal.style.cssText = 'background:var(--card-bg);border:1px solid rgba(239,68,68,0.4);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;';
+    modal.style.cssText = 'background:#111827;border:1px solid rgba(239,68,68,0.4);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.8);';
     var html = '<div style="font-size:3rem;margin-bottom:12px;">❤️</div>' +
         '<div style="font-size:1.2rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Thank You!</div>' +
         '<div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:16px;">You donated <strong>' + amt.toLocaleString() + ' XP</strong> - that\'s <strong>' + amt.toLocaleString() + ' sats</strong> pledged to charity.</div>';
     if (bonusPts > 0) html += '<div style="font-size:0.85rem;color:#ef4444;font-weight:700;margin-bottom:10px;">+' + bonusPts.toLocaleString() + ' bonus XP earned!</div>';
-    if (newBadges && newBadges.length > 0) html += '<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:16px;">🏼 New badge' + (newBadges.length > 1 ? 's' : '') + ' unlocked: ' + newBadges.join(', ') + '</div>';
+    if (newBadges && newBadges.length > 0) {
+        var _tyBadgeMap = {
+            donor_100:    { emoji: '🫷', name: 'Giving Pleb' },
+            donor_500:    { emoji: '💛', name: 'Stack Sharer' },
+            donor_1000:   { emoji: '🧡', name: 'Community Builder' },
+            donor_5000:   { emoji: '❤️', name: 'Archive Patron' },
+            donor_10000:  { emoji: '🔥', name: 'Sats Saint' },
+            donor_25000:  { emoji: '⚡', name: 'Lightning Philanthropist' },
+            donor_50000:  { emoji: '🏆', name: "Satoshi's Steward" },
+            donor_100000: { emoji: '👑', name: 'Legend of the Archive' },
+        };
+        var _badgeLabels = newBadges.map(function(id) {
+            var b = _tyBadgeMap[id];
+            return b ? (b.emoji + ' ' + b.name) : id;
+        });
+        html += '<div style="font-size:0.82rem;color:#f7931a;font-weight:700;margin-bottom:16px;">🏅 New badge' + (newBadges.length > 1 ? 's' : '') + ' unlocked: ' + _badgeLabels.join(', ') + '</div>';
+    }
     html += '<div style="font-size:0.75rem;color:var(--text-faint);margin-bottom:20px;">The community will vote on which charities receive these sats.</div>' +
         '<button onclick="document.getElementById(\'charityThankYouOverlay\').remove()" style="padding:12px 32px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Close 💕</button>';
     modal.innerHTML = html;
