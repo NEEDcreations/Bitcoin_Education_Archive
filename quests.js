@@ -4474,7 +4474,20 @@ function _renderFlexTab(body) {
         '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + doneCount + '/' + FLEX_ACTIONS.length + ' done today</div>' +
     '</div>';
 
-    FLEX_ACTIONS.forEach(function(action) {
+    // Daily shuffle: undone first (seeded so same order all day), done appended after
+    function _fqShuffle(arr, seed) {
+        var a = arr.slice(), s = seed;
+        for (var i = a.length - 1; i > 0; i--) {
+            s = (Math.imul(s, 1664525) + 1013904223) | 0;
+            var j = Math.abs(s) % (i + 1);
+            var t = a[i]; a[i] = a[j]; a[j] = t;
+        }
+        return a;
+    }
+    var _fqUndone = FLEX_ACTIONS.filter(function(a){ return !_flexDoneToday(a.id); });
+    var _fqDone   = FLEX_ACTIONS.filter(function(a){ return  _flexDoneToday(a.id); });
+    var _fqOrdered = _fqShuffle(_fqUndone, _flexDailySeed('flexorder')).concat(_fqShuffle(_fqDone, _flexDailySeed('flexdone')));
+    _fqOrdered.forEach(function(action) {
         var done = _flexDoneToday(action.id);
         var total = _flexGetAllTimeCount(action.id);
         var nextMilestone = FLEX_BADGE_MILESTONES.find(function(m) { return total < m; });
@@ -4504,17 +4517,21 @@ function _renderFlexTab(body) {
 function _renderFlexInteraction(action) {
     if (action.type === 'hold') {
         var r = 24, c = 2*Math.PI*r;
+        var _holdOpts = [1500, 2000, 2500, 3000, 3500];
+        var _holdMs = _holdOpts[_flexDailySeed(action.id + '_hold') % _holdOpts.length];
         return '<div style="display:flex;align-items:center;gap:12px;">' +
-            '<div class="flex-hold-ring" id="hold-ring-' + action.id + '" data-id="' + action.id + '" data-ms="' + action.holdMs + '">' +
+            '<div class="flex-hold-ring" id="hold-ring-' + action.id + '" data-id="' + action.id + '" data-ms="' + _holdMs + '">' +
             '<svg width="54" height="54"><circle cx="27" cy="27" r="' + r + '" stroke="var(--accent)" stroke-width="3" fill="none" stroke-dasharray="' + c + '" stroke-dashoffset="' + c + '" id="hold-arc-' + action.id + '" stroke-linecap="round"/></svg>' +
             '<span style="font-size:1.4rem;" id="hold-emoji-' + action.id + '">' + action.emoji + '</span>' +
             '</div>' +
-            '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Hold for ' + (action.holdMs/1000).toFixed(1) + 's<br><span style="color:var(--accent);font-size:0.65rem;font-weight:700;">PRESS &amp; HOLD</span></div>' +
+            '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Hold for ' + (_holdMs/1000).toFixed(1) + 's<br><span style="color:var(--accent);font-size:0.65rem;font-weight:700;">PRESS &amp; HOLD</span></div>' +
             '</div>';
     }
     if (action.type === 'doubletap' || action.type === 'triplclick') {
-        var clicks = action.type === 'triplclick' ? 3 : 2;
-        var hint = action.type === 'triplclick' ? 'Triple tap!' : 'Double tap!';
+        var _tapOpts = [2, 3, 4, 5];
+        var clicks = _tapOpts[_flexDailySeed(action.id + '_taps') % _tapOpts.length];
+        var _tapLabels = {2:'Double tap!', 3:'Triple tap!', 4:'Quad tap!', 5:'Five-tap!'};
+        var hint = _tapLabels[clicks] || (clicks + '× tap!');
         return '<div style="display:flex;align-items:center;gap:12px;">' +
             '<button class="flex-btn" id="dtap-' + action.id + '" data-id="' + action.id + '" data-taps="0" data-last="0" data-target="' + clicks + '">' +
             action.emoji + ' ' + hint + '</button>' +
@@ -4522,13 +4539,12 @@ function _renderFlexInteraction(action) {
             '</div>';
     }
     if (action.type === 'slider') {
-        var isRight = action.dir === 'right';
-        var lbl = action.label || (isRight ? 'Slide right →' : '← Slide left');
-        // Thumb starts at the opposite end from the target
-        var thumbStart = isRight ? 4 : 'calc(100% - 40px)';
+        var _sliderDir = (_flexDailySeed(action.id + '_sdir') % 2 === 0) ? 'right' : 'left';
+        var isRight = _sliderDir === 'right';
+        var lbl = isRight ? 'Slide right →' : '← Slide left';
         return '<div style="position:relative;margin-bottom:4px;">' +
             '<div style="font-size:0.65rem;color:var(--accent);font-weight:700;margin-bottom:4px;">' + lbl + '</div>' +
-            '<div class="flex-slider-track" id="slider-track-' + action.id + '" data-id="' + action.id + '" data-dir="' + action.dir + '" ' +
+            '<div class="flex-slider-track" id="slider-track-' + action.id + '" data-id="' + action.id + '" data-dir="' + _sliderDir + '" ' +
                 'style="position:relative;height:44px;background:var(--bg-side);border:1px solid var(--border);border-radius:22px;overflow:hidden;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;">' +
             '<div class="flex-slider-fill" id="slider-fill-' + action.id + '" style="position:absolute;top:0;' + (isRight?'left':'right') + ':0;height:100%;width:0%;background:rgba(247,147,26,0.15);transition:none;"></div>' +
             '<div class="flex-slider-thumb" id="slider-thumb-' + action.id + '" style="position:absolute;top:4px;' + (isRight?'left:4px':'right:4px') + ';width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:grab;box-shadow:0 2px 8px rgba(247,147,26,0.5);transition:none;">' + action.emoji + '</div>' +
@@ -4536,7 +4552,8 @@ function _renderFlexInteraction(action) {
             '</div></div>';
     }
     if (action.type === 'mash') {
-        var target = action.target || 8;
+        var _mashOpts = [5, 6, 7, 8, 9, 10, 12];
+        var target = _mashOpts[_flexDailySeed(action.id + '_mash') % _mashOpts.length];
         return '<div>' +
             '<button class="flex-btn" id="mash-btn-' + action.id + '" data-id="' + action.id + '" data-count="0" data-target="' + target + '" ' +
                 'style="width:100%;padding:12px;font-size:1rem;justify-content:center;">' +
@@ -4544,7 +4561,7 @@ function _renderFlexInteraction(action) {
             '<div style="margin-top:6px;background:var(--bg-side);border-radius:6px;height:6px;overflow:hidden;border:1px solid var(--border);">' +
             '<div id="mash-bar-' + action.id + '" style="height:100%;width:0%;background:var(--accent);border-radius:6px;transition:width 0.1s;"></div>' +
             '</div>' +
-            '<div id="mash-label-' + action.id + '" style="text-align:center;font-size:0.7rem;color:var(--text-muted);margin-top:4px;">0 / ' + target + '</div>' +
+            '<div id="mash-label-' + action.id + '" style="text-align:center;font-size:0.7rem;color:var(--text-muted);margin-top:4px;">0 / ' + target + ' taps</div>' +
             '</div>';
     }
     if (action.type === 'typeword') {
@@ -4678,7 +4695,9 @@ function _renderFlexInteraction(action) {
     if (action.type === 'findq') {
         // Grid of p’s with exactly one q hidden — position seeded daily
         var fqSeed = _flexDailySeed(action.id + '_fq');
-        var COLS = 9, ROWS = 7, TOTAL = COLS * ROWS; // 63 cells
+        var _fqGrids = [{cols:8,rows:6},{cols:9,rows:7},{cols:10,rows:6},{cols:7,rows:8},{cols:10,rows:7},{cols:8,rows:8}];
+        var _fqGrid = _fqGrids[_flexDailySeed(action.id + '_fqgrid') % _fqGrids.length];
+        var COLS = _fqGrid.cols, ROWS = _fqGrid.rows, TOTAL = COLS * ROWS;
         var qIdx = Math.abs(fqSeed) % TOTAL;
         var fqHtml = '<div id="findq-wrap-' + action.id + '" data-id="' + action.id + '" ' +
             'style="display:grid;grid-template-columns:repeat(' + COLS + ',1fr);gap:3px;max-width:280px;margin:0 auto;">';
@@ -4986,6 +5005,7 @@ function _flexWireInteractions() {
             if (!ring) return;
             var arc = document.getElementById('hold-arc-' + action.id);
             var r = 24, circ = 2*Math.PI*r;
+            var holdMs = parseInt(ring.getAttribute('data-ms')) || action.holdMs || 2000;
             var heldFrom = null, raf = null;
             function startHold(e) {
                 e.preventDefault();
@@ -4993,7 +5013,7 @@ function _flexWireInteractions() {
                 heldFrom = Date.now();
                 (function tick() {
                     var elapsed = Date.now() - heldFrom;
-                    var pct = Math.min(1, elapsed / action.holdMs);
+                    var pct = Math.min(1, elapsed / holdMs);
                     if (arc) arc.style.strokeDashoffset = circ * (1 - pct);
                     if (pct < 1) { raf = requestAnimationFrame(tick); }
                     else { endHold(true); }
@@ -5047,7 +5067,7 @@ function _flexWireInteractions() {
             var thumb = document.getElementById('slider-thumb-' + action.id);
             var fill  = document.getElementById('slider-fill-' + action.id);
             if (!track || !thumb) return;
-            var isRight = action.dir === 'right';
+            var isRight = (track.getAttribute('data-dir') || 'right') === 'right';
             var dragging = false;
             var trackRect = null;
 
