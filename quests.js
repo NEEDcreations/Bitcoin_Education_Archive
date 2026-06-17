@@ -4373,7 +4373,7 @@ var FLEX_ACTIONS = [
     { id:'focus',    emoji:'🐍', name:'Focus Mode',            desc:'Clear your head. Guide the snake.',       pts:5, type:'snake' },
     { id:'risk',     emoji:'💣', name:'Risk Assessment',       desc:'Navigate uncertainty. Find the safe path.', pts:5, type:'mine' },
     { id:'pattern',  emoji:'🧩', name:'Pattern Recognition',   desc:'Spot recurring patterns like a Bitcoiner.', pts:5, type:'pattern' },
-    { id:'findq',    emoji:'🔎', name:'Find the Q',              desc:'One impostor among the p\'s. Can you spot it?', pts:5, type:'findq' },
+    { id:'findq',    emoji:'🏦', name:'Spot the FED',            desc:'One impostor among the p\'s. Hunt it down.', pts:5, type:'findq' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
