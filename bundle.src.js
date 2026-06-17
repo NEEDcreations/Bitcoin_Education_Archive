@@ -15551,6 +15551,7 @@ var FLEX_ACTIONS = [
     { id:'findq',    emoji:'🏦', name:'Spot the FED',            desc:'One impostor among the p\'s. Hunt it down.', pts:5, type:'findq' },
     { id:'noleverage', emoji:'🧮', name:'Avoid Leverage',           desc:'Stay humble. Do the math, not the margin.', pts:5, type:'addthree' },
     { id:'gunrange',   emoji:'🎯', name:'Gun Range',               desc:'Lock and load. Hit all three targets.',      pts:5, type:'gunrange' },
+    { id:'sellchairs',  emoji:'🪑', name:'Sell Your Chairs',        desc:'Stack sats, not stuff. Color it in.',        pts:5, type:'paintbox' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -15869,6 +15870,21 @@ function _renderFlexInteraction(action) {
             '<div id="pattern-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">Pick the next shape in the sequence</div>' +
         '</div>';
     }
+    if (action.type === 'paintbox') {
+        // Daily accent color variation
+        var _pbColors = ['#f7931a','#22c55e','#f59e0b','#8b5cf6','#ef4444','#3b82f6','#ec4899','#14b8a6'];
+        var _pbColor = _pbColors[_flexDailySeed(action.id + '_pbcol') % _pbColors.length];
+        var _pbThresh = 80; // % fill needed
+        return '<div id="paintbox-wrap-' + action.id + '" data-id="' + action.id + '" style="text-align:center;">' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Shade it in</div>' +
+            '<div style="position:relative;display:inline-block;">' +
+            '<canvas id="paintbox-canvas-' + action.id + '" width="220" height="120" data-id="' + action.id + '" data-color="' + _pbColor + '" data-thresh="' + _pbThresh + '" ' +
+                'style="display:block;border:2px solid var(--border);border-radius:10px;background:#111;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none;"></canvas>' +
+            '<div id="paintbox-pct-' + action.id + '" style="position:absolute;top:6px;right:10px;font-size:0.72rem;font-weight:800;color:' + _pbColor + ';">0%</div>' +
+            '</div>' +
+            '<div id="paintbox-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">Drag to fill — hit ' + _pbThresh + '% to sell</div>' +
+        '</div>';
+    }
     if (action.type === 'gunrange') {
         // 3 targets appear sequentially in random positions; tap each to hit it
         var _grTargets = ['💀','🧙‍♂️','🦖','👾','🦄','🐻','💸','🤡','👹','👸'];
@@ -16174,6 +16190,73 @@ function _flexPatternGen(id) {
     return Array.from({length:5}, function(_,i){ return cycleShapes[i % period]; });
 }
 
+// ── PAINT BOX ──
+window._flexPaintBoxWire = function(id) {
+    var canvas = document.getElementById('paintbox-canvas-' + id);
+    if (!canvas || canvas._pbWired) return;
+    canvas._pbWired = true;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    var color = canvas.getAttribute('data-color') || '#f7931a';
+    var thresh = parseInt(canvas.getAttribute('data-thresh') || '80');
+    var hint   = document.getElementById('paintbox-hint-' + id);
+    var pctEl  = document.getElementById('paintbox-pct-' + id);
+    var painting = false;
+    var brushR = 18;
+    var done = false;
+    var totalPx = W * H;
+    // Track painted pixels via a boolean grid (bucket-based, 4px blocks for perf)
+    var BLOCK = 4;
+    var COLS = Math.ceil(W / BLOCK), ROWS = Math.ceil(H / BLOCK);
+    var painted = new Uint8Array(COLS * ROWS);
+    var paintedCount = 0;
+
+    function getXY(e) {
+        var rect = canvas.getBoundingClientRect();
+        var scaleX = W / rect.width, scaleY = H / rect.height;
+        var src = e.touches ? e.touches[0] : e;
+        return { x: (src.clientX - rect.left) * scaleX, y: (src.clientY - rect.top) * scaleY };
+    }
+    function paint(x, y) {
+        if (done) return;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.arc(x, y, brushR, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Mark blocks covered
+        var bx0 = Math.max(0, Math.floor((x - brushR) / BLOCK));
+        var bx1 = Math.min(COLS - 1, Math.ceil((x + brushR) / BLOCK));
+        var by0 = Math.max(0, Math.floor((y - brushR) / BLOCK));
+        var by1 = Math.min(ROWS - 1, Math.ceil((y + brushR) / BLOCK));
+        for (var bx = bx0; bx <= bx1; bx++) {
+            for (var by = by0; by <= by1; by++) {
+                var idx = by * COLS + bx;
+                if (!painted[idx]) { painted[idx] = 1; paintedCount++; }
+            }
+        }
+        var pct = Math.min(100, Math.round(paintedCount / (COLS * ROWS) * 100));
+        if (pctEl) pctEl.textContent = pct + '%';
+        if (pct >= thresh && !done) {
+            done = true;
+            if (hint) { hint.textContent = '✅ Sold! Chairs out, sats in.'; hint.style.color = '#22c55e'; }
+            if (pctEl) pctEl.style.color = '#22c55e';
+            setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 500);
+        }
+    }
+    function onStart(e) { e.preventDefault(); painting = true; var p = getXY(e); paint(p.x, p.y); }
+    function onMove(e) { e.preventDefault(); if (!painting) return; var p = getXY(e); paint(p.x, p.y); }
+    function onEnd(e) { painting = false; }
+    canvas.addEventListener('mousedown', onStart);
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('mouseup',   onEnd);
+    canvas.addEventListener('mouseleave',onEnd);
+    canvas.addEventListener('touchstart', onStart, {passive:false});
+    canvas.addEventListener('touchmove',  onMove,  {passive:false});
+    canvas.addEventListener('touchend',   onEnd);
+};
+
 // ── GUN RANGE ──
 var _grState = {};
 var _grTargetEmojis = ['💀','🧙‍♂️','🦖','👾','🦄','🐻','💸','🤡','👹','👸'];
@@ -16337,6 +16420,11 @@ window._flexPatternPick = function(btn) {
 function _flexWireInteractions() {
     FLEX_ACTIONS.forEach(function(action) {
         if (_flexDoneToday(action.id)) return;
+
+        // ── PAINT BOX ──
+        if (action.type === 'paintbox') {
+            window._flexPaintBoxWire(action.id);
+        }
 
         // ── HOLD ──
         if (action.type === 'hold') {
