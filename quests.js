@@ -4415,9 +4415,54 @@ function _flexMarkDone(actionId, onDone) {
     _flexSaveState(s);
     var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
     if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
-    // Check flex badges
+    // Check per-action badges
     _flexCheckBadges(actionId, s[actionId].total);
+    // Check all-daily-flex-complete badge
+    _flexCheckAllDoneBadge(s);
     if (onDone) onDone(s[actionId].total);
+}
+
+var FLEX_ALL_MILESTONES = [1, 5, 10, 25, 50, 100];
+var FLEX_ALL_BADGE_DEFS = [
+    { m:1,   id:'flex_all_1',   emoji:'💪', name:'Full Stack Bitcoiner',    desc:'Completed every daily Flex action in one day',            pts:25  },
+    { m:5,   id:'flex_all_5',   emoji:'🔥', name:'Consistent Stacker',      desc:'Completed all daily Flex actions 5 times',                pts:50  },
+    { m:10,  id:'flex_all_10',  emoji:'⚡',  name:'Orange-Pilled Routine',   desc:'Completed all daily Flex actions 10 times',               pts:100 },
+    { m:25,  id:'flex_all_25',  emoji:'🧱', name:'Citadel Builder',          desc:'Completed all daily Flex actions 25 times',               pts:200 },
+    { m:50,  id:'flex_all_50',  emoji:'🔑', name:'Sovereign Individual',     desc:'Completed all daily Flex actions 50 times',               pts:400 },
+    { m:100, id:'flex_all_100', emoji:'🏆', name:'Proof of Discipline',       desc:'Completed all daily Flex actions 100 times',              pts:1000 },
+];
+
+function _flexCheckAllDoneBadge(s) {
+    // All actions completed today?
+    var allDone = FLEX_ACTIONS.every(function(a) {
+        return s[a.id] && s[a.id].lastDate === _flexTodayKey();
+    });
+    if (!allDone) return;
+    // Increment all-done streak counter (once per day)
+    var allKey = '__flex_all_done__';
+    if (!s[allKey]) s[allKey] = { total: 0, lastDate: '' };
+    if (s[allKey].lastDate === _flexTodayKey()) return; // already counted today
+    s[allKey].lastDate = _flexTodayKey();
+    s[allKey].total = (s[allKey].total || 0) + 1;
+    _flexSaveState(s);
+    var total = s[allKey].total;
+    // Award bonus XP
+    if (typeof awardPoints === 'function') awardPoints(50, '💪 FLEX: All Daily Actions Complete! Day #' + total);
+    // Toast
+    if (typeof showToast === 'function') showToast('💪 Full Stack! All Flex done today! +50 XP');
+    // Check milestones
+    FLEX_ALL_BADGE_DEFS.forEach(function(def) {
+        if (total >= def.m) {
+            if (typeof earnedBadges !== 'undefined' && !earnedBadges.has(def.id)) {
+                earnedBadges.add(def.id);
+                var cur = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+                if (cur.indexOf(def.id) === -1) { cur.push(def.id); localStorage.setItem('btc_badges', JSON.stringify(cur)); }
+                if (typeof window.contributeSatoshiFavor === 'function') window.contributeSatoshiFavor('badge_earned', def.emoji + ' ' + def.name).catch(function(){});
+                if (typeof showBadgeToast === 'function') showBadgeToast(def);
+                if (typeof awardPoints === 'function') awardPoints(def.pts, 'Badge: ' + def.name + ' ' + def.emoji, null, null, null, def.id);
+            }
+        }
+    });
 }
 
 function _flexCheckBadges(actionId, total) {
@@ -4471,13 +4516,21 @@ function _renderFlexTab(body) {
     '</style>';
 
     // Header
+    var _flexAllState = _flexGetState()['__flex_all_done__'] || { total: 0 };
+    var _flexAllTotal = _flexAllState.total || 0;
+    var _flexNextBadge = FLEX_ALL_BADGE_DEFS.find(function(d){ return _flexAllTotal < d.m; });
+    var _flexAllDoneToday = FLEX_ACTIONS.every(function(a){ return _flexDoneToday(a.id); });
     html += '<div style="text-align:center;margin-bottom:16px;">' +
-        '<div style="font-size:1.8rem;margin-bottom:4px;">💪</div>' +
+        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (_flexAllDoneToday ? '🏆' : '💪') + '</div>' +
         '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Flex</div>' +
         '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Healthy Bitcoiner habits. 5 XP each. Resets daily.</div>' +
         '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
         '<div style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round(doneCount/FLEX_ACTIONS.length*100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + doneCount + '/' + FLEX_ACTIONS.length + ' done today</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + doneCount + '/' + FLEX_ACTIONS.length + ' done today' + (_flexAllDoneToday ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Stack!</span>' : '') + '</div>' +
+        (_flexAllTotal > 0 || _flexAllDoneToday ? '<div style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;padding:4px 10px;font-size:0.68rem;font-weight:700;color:var(--accent);">'
+            + '💪 Full Stack ×' + _flexAllTotal
+            + (_flexNextBadge ? ' — next badge at ' + _flexNextBadge.m : ' — 🏆 Max badges!')
+            + '</div>' : '') +
     '</div>';
 
     // Daily shuffle: undone first (seeded so same order all day), done appended after
