@@ -25,42 +25,72 @@ function fetch(url) {
     });
 }
 
+// Follow redirects to get the real destination URL (HEAD-only, no body)
+function resolveRedirect(url, depth) {
+    if (!url || depth > 5) return Promise.resolve(url);
+    return new Promise((resolve) => {
+        try {
+            const mod = url.startsWith('https') ? https : http;
+            const req = mod.request(url, { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; bot)' }, timeout: 8000 }, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    const next = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, url).href;
+                    resolve(resolveRedirect(next, depth + 1));
+                } else {
+                    resolve(url);
+                }
+            });
+            req.on('error', () => resolve(url));
+            req.on('timeout', () => { req.destroy(); resolve(url); });
+            req.end();
+        } catch(e) { resolve(url); }
+    });
+}
+
 async function main() {
     const headlines = [];
     const badWords = /ethereum|eth\b|solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft\b|defi\b|web3|meme.?coin|pepeto|pepe\b|doge\b|shib/i;
     const mustHaveBtc = /bitcoin|btc|\bbtc\b|satoshi|sats\b|halving|lightning.?network|hash.?rate|block.?height|miner|mining|nakamoto/i;
 
-    // Source 1: Google News RSS — Bitcoin headlines
-    try {
-        const xml = await fetch('https://news.google.com/rss/search?q=bitcoin&hl=en-US&gl=US&ceid=US:en');
-        const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
-        for (const item of items.slice(0, 15)) {
-            const titleMatch = item.match(/<title>([^<]+)<\/title>/);
-            const dateMatch = item.match(/<pubDate>([^<]+)<\/pubDate>/);
-            const linkMatch = item.match(/<link>([^<]+)<\/link>/);
-            if (!titleMatch) continue;
-            let title = titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
-            // Extract source from " - Source Name" at end
-            const sourceParts = title.match(/^(.+?)\s*-\s*([^-]+)$/);
-            if (sourceParts) title = sourceParts[1].trim();
-            // Filter: must be Bitcoin-related, no altcoins
-            if (badWords.test(title)) continue;
-            if (!mustHaveBtc.test(title)) continue;
-            // Skip very short titles
-            if (title.length < 20) continue;
-            const pubDate = dateMatch ? new Date(dateMatch[1]) : new Date();
-            headlines.push({
-                date: pubDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                title: title,
-                snippet: sourceParts ? sourceParts[2].trim() : '',
-                link: linkMatch ? linkMatch[1] : '',
-                source: 'googlenews',
-                timestamp: pubDate.getTime()
-            });
+    // Source 1: Direct Bitcoin publication RSS feeds (real article URLs, no redirects)
+    const directFeeds = [
+        { url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', name: 'CoinDesk' },
+        { url: 'https://bitcoinmagazine.com/feed', name: 'Bitcoin Magazine' },
+        { url: 'https://www.theblock.co/rss.xml', name: 'The Block' },
+        { url: 'https://cointelegraph.com/rss/tag/bitcoin', name: 'Cointelegraph' },
+    ];
+    for (const feed of directFeeds) {
+        try {
+            const xml = await fetch(feed.url);
+            const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+            for (const item of items.slice(0, 8)) {
+                const titleMatch = item.match(/<title>([^<]+|<!\[CDATA\[[^\]]+\]\]>)<\/title>/);
+                const dateMatch = item.match(/<pubDate>([^<]+)<\/pubDate>/);
+                // Prefer <link> before <guid> — for most feeds <link> is the real URL
+                const linkMatch = item.match(/<link>(?:<!\[CDATA\[)?([^<\]]+)(?:\]\]>)?<\/link>/) ||
+                                  item.match(/<guid[^>]*isPermaLink=["']true["'][^>]*>([^<]+)<\/guid>/);
+                if (!titleMatch || !linkMatch) continue;
+                let title = titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+                const link = linkMatch[1].trim();
+                // Skip Google News redirect links that slipped through
+                if (link.includes('news.google.com')) continue;
+                if (badWords.test(title)) continue;
+                if (!mustHaveBtc.test(title)) continue;
+                if (title.length < 20) continue;
+                const pubDate = dateMatch ? new Date(dateMatch[1]) : new Date();
+                headlines.push({
+                    date: pubDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    title: title,
+                    snippet: feed.name,
+                    link: link,
+                    source: feed.name.toLowerCase().replace(/ /g,'-'),
+                    timestamp: pubDate.getTime()
+                });
+            }
+            console.log('[Ticker] Got ' + headlines.length + ' headlines so far after ' + feed.name);
+        } catch(e) {
+            console.error('[Ticker] ' + feed.name + ' RSS failed:', e.message);
         }
-        console.log('[Ticker] Got ' + headlines.length + ' Bitcoin headlines from Google News');
-    } catch(e) {
-        console.error('[Ticker] Google News failed:', e.message);
+        if (headlines.length >= 6) break; // enough sources, stop fetching
     }
 
     // Source 2: Luke Mikic YouTube RSS — Bitcoin/macro content only
@@ -104,11 +134,10 @@ async function main() {
     headlines.sort((a, b) => b.timestamp - a.timestamp);
     const top3 = headlines.slice(0, 3);
 
-    // Fix Google News RSS redirect URLs — convert /rss/articles/ to /articles/ 
-    // which works in browsers (shows article page with redirect to actual source)
+    // Sanity check: drop any Google News redirect links that slipped through
     for (let i = 0; i < top3.length; i++) {
-        if (top3[i].link && top3[i].link.includes('news.google.com/rss/')) {
-            top3[i].link = top3[i].link.replace('/rss/articles/', '/articles/').replace(/[?&]oc=\d+/, '');
+        if (top3[i].link && top3[i].link.includes('news.google.com')) {
+            top3[i].link = ''; // blank it; card will render without link
         }
     }
 
