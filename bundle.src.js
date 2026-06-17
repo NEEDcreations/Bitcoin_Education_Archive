@@ -12533,13 +12533,15 @@ function _checkDailyAllThree() {
         // written server-side by awardPoints CF (trivia) and poll transaction. No client
         // doc write needed here — dailyAllThreeDate and related fields are now CF-only.
         // Small delay to ensure prior awardPoints CF calls have committed their dedup records.
+        // Delay gives gradeQuest + awardPoints CF transactions time to commit
+        // before contributeFavor reads daily_action_counts to validate completion.
         setTimeout(function() {
             if (typeof window.contributeSatoshiFavor === 'function') {
                 window.contributeSatoshiFavor('daily_all_three').catch(function(err) {
                     console.error('[DAILY] contributeSatoshiFavor failed:', err.message || err);
                 });
             }
-        }, 2000);
+        }, 4000);
         // Track cumulative daily triple completions for badge checks
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
@@ -12620,8 +12622,9 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
             });
             currentQuest = { id: _staticQuestId, topicKey: _actualTopicKey, partNum: parseInt(_parts[1]), totalParts: _staticQuest.totalParts, title: _getStaticQuestTitle(_actualTopicKey, parseInt(_parts[1]), _staticQuest.totalParts), questions: _staticSelected };
             window._currentQuestServerId = null;
+            window._currentQuestServerIdPromise = null;
             if (typeof firebase !== 'undefined' && firebase.functions) {
-                firebase.functions().httpsCallable('startQuest')({ questions: _staticSelected.map(function(q) { return { answer: q.answer }; }), topicKey: _actualTopicKey }).then(function(res) { window._currentQuestServerId = res.data.questId; }).catch(function(e) { console.warn('Quest registration failed:', e); });
+                window._currentQuestServerIdPromise = firebase.functions().httpsCallable('startQuest')({ questions: _staticSelected.map(function(q) { return { answer: q.answer }; }), topicKey: _actualTopicKey }).then(function(res) { window._currentQuestServerId = res.data.questId; return res.data.questId; }).catch(function(e) { console.warn('Quest registration failed:', e); return null; });
             }
             showQuest(currentQuest, false);
             return;
@@ -12745,14 +12748,17 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
     currentQuest = { id: questId, topicKey: _actualTopicKey || null, title: getQuestTitle(questCount, _actualTopicKey), questions };
 
     // Register quest server-side for secure grading
+    // Store the promise so submitQuest can await it if the user finishes quickly
     window._currentQuestServerId = null;
+    window._currentQuestServerIdPromise = null;
     if (typeof firebase !== 'undefined' && firebase.functions) {
-        firebase.functions().httpsCallable('startQuest')({
+        window._currentQuestServerIdPromise = firebase.functions().httpsCallable('startQuest')({
             questions: questions.map(function(q) { return { answer: q.answer }; }),
             topicKey: targetChannelId || null
         }).then(function(res) {
             window._currentQuestServerId = res.data.questId;
-        }).catch(function(e) { console.warn('Quest registration failed:', e); });
+            return res.data.questId;
+        }).catch(function(e) { console.warn('Quest registration failed:', e); return null; });
     }
 
     showQuest(currentQuest, false);
@@ -12929,7 +12935,11 @@ async function submitQuest() {
     let score = 0;
     let pts = 0;
 
-    // Grade server-side if registered
+    // Grade server-side if registered.
+    // If startQuest hasn't resolved yet (fast user), await the pending promise first.
+    if (!window._currentQuestServerId && window._currentQuestServerIdPromise) {
+        try { await window._currentQuestServerIdPromise; } catch(e) {}
+    }
     if (window._currentQuestServerId && typeof firebase !== 'undefined' && firebase.functions) {
         try {
             var gradeResult = await firebase.functions().httpsCallable('gradeQuest')({
