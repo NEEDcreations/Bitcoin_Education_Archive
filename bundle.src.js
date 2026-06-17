@@ -15567,7 +15567,7 @@ var FLEX_ACTIONS = [
     { id:'pumpndump',   emoji:'📉', name:'Observe a Pump & Dump',    desc:'Watch the rug pull happen in real time.',    pts:5, type:'redcandle' },
 ];
 
-var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
+var FLEX_BADGE_MILESTONES = [1, 5, 50, 500];
 
 function _flexTodayKey() {
     return new Date().toISOString().slice(0,10); // YYYY-MM-DD
@@ -15607,14 +15607,12 @@ function _flexMarkDone(actionId, onDone) {
     if (onDone) onDone(s[actionId].total);
 }
 
-var FLEX_ALL_MILESTONES = [1, 5, 10, 25, 50, 100];
+var FLEX_ALL_MILESTONES = [1, 5, 50, 500];
 var FLEX_ALL_BADGE_DEFS = [
-    { m:1,   id:'flex_all_1',   emoji:'💪', name:'Full Stack Bitcoiner',    desc:'Completed every daily Flex action in one day',            pts:25  },
-    { m:5,   id:'flex_all_5',   emoji:'🔥', name:'Consistent Stacker',      desc:'Completed all daily Flex actions 5 times',                pts:50  },
-    { m:10,  id:'flex_all_10',  emoji:'⚡',  name:'Orange-Pilled Routine',   desc:'Completed all daily Flex actions 10 times',               pts:100 },
-    { m:25,  id:'flex_all_25',  emoji:'🧱', name:'Citadel Builder',          desc:'Completed all daily Flex actions 25 times',               pts:200 },
-    { m:50,  id:'flex_all_50',  emoji:'🔑', name:'Sovereign Individual',     desc:'Completed all daily Flex actions 50 times',               pts:400 },
-    { m:100, id:'flex_all_100', emoji:'🏆', name:'Proof of Discipline',       desc:'Completed all daily Flex actions 100 times',              pts:1000 },
+    { m:1,   id:'flex_all_1',   emoji:'💪', name:'Full Stack Bitcoiner',    desc:'Completed every daily Flex action in one day',            pts:25   },
+    { m:5,   id:'flex_all_5',   emoji:'🔥', name:'Consistent Stacker',      desc:'Completed all daily Flex actions 5 times',                pts:100  },
+    { m:50,  id:'flex_all_50',  emoji:'🔑', name:'Sovereign Individual',     desc:'Completed all daily Flex actions 50 times',               pts:500  },
+    { m:500, id:'flex_all_500', emoji:'🏆', name:'Proof of Discipline',       desc:'Completed all daily Flex actions 500 times',              pts:5000 },
 ];
 
 function _flexCheckAllDoneBadge(s) {
