@@ -15548,6 +15548,7 @@ var FLEX_ACTIONS = [
     { id:'focus',    emoji:'🐍', name:'Focus Mode',            desc:'Clear your head. Guide the snake.',       pts:5, type:'snake' },
     { id:'risk',     emoji:'💣', name:'Risk Assessment',       desc:'Navigate uncertainty. Find the safe path.', pts:5, type:'mine' },
     { id:'pattern',  emoji:'🧩', name:'Pattern Recognition',   desc:'Spot recurring patterns like a Bitcoiner.', pts:5, type:'pattern' },
+    { id:'findq',    emoji:'🔎', name:'Find the Q',              desc:'One impostor among the p\'s. Can you spot it?', pts:5, type:'findq' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -15849,6 +15850,26 @@ function _renderFlexInteraction(action) {
             '<div id="pattern-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">Pick the next shape in the sequence</div>' +
         '</div>';
     }
+    if (action.type === 'findq') {
+        // Grid of p’s with exactly one q hidden — position seeded daily
+        var fqSeed = _flexDailySeed(action.id + '_fq');
+        var COLS = 9, ROWS = 7, TOTAL = COLS * ROWS; // 63 cells
+        var qIdx = Math.abs(fqSeed) % TOTAL;
+        var fqHtml = '<div id="findq-wrap-' + action.id + '" data-id="' + action.id + '" ' +
+            'style="display:grid;grid-template-columns:repeat(' + COLS + ',1fr);gap:3px;max-width:280px;margin:0 auto;">';
+        for (var fi = 0; fi < TOTAL; fi++) {
+            var isQ = fi === qIdx;
+            fqHtml += '<button type="button" ' +
+                'onclick="_flexFindQTap(this)" ' +
+                'data-id="' + action.id + '" ' +
+                'data-isq="' + (isQ ? '1' : '0') + '" ' +
+                'style="width:100%;aspect-ratio:1;background:var(--card-bg);border:1px solid var(--border);border-radius:5px;font-family:monospace;font-size:0.9rem;font-weight:700;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:0.1s;line-height:1;">' +
+                (isQ ? 'q' : 'p') + '</button>';
+        }
+        fqHtml += '</div>' +
+            '<div id="findq-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:8px;text-align:center;">Find the <strong style="color:var(--accent);">q</strong> hiding among the p’s</div>';
+        return '<div>' + fqHtml + '</div>';
+    }
     if (action.type === 'drag') {
         var parts = action.dragTarget.split('→');
         var fromE = parts[0].trim(), toE = parts[1] ? parts[1].trim() : '📍';
@@ -16084,6 +16105,32 @@ function _flexPatternGen(id) {
     for (var j = 0; j < period; j++) cycleShapes.push(shapes[(offset + j) % shapes.length]);
     return Array.from({length:5}, function(_,i){ return cycleShapes[i % period]; });
 }
+
+window._flexFindQTap = function(btn) {
+    var id = btn.getAttribute('data-id');
+    var isQ = btn.getAttribute('data-isq') === '1';
+    var hint = document.getElementById('findq-hint-' + id);
+    var wrap = document.getElementById('findq-wrap-' + id);
+    if (isQ) {
+        btn.style.background = 'rgba(34,197,94,0.18)';
+        btn.style.borderColor = '#22c55e';
+        btn.style.color = '#22c55e';
+        if (hint) { hint.textContent = '✅ Found it!'; hint.style.color = '#22c55e'; }
+        if (wrap) wrap.querySelectorAll('button').forEach(function(b) { b.disabled = true; });
+        setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 400);
+    } else {
+        btn.style.background = 'rgba(239,68,68,0.12)';
+        btn.style.borderColor = '#ef4444';
+        btn.style.color = '#ef4444';
+        if (hint) { hint.textContent = 'That\'s a p — keep looking!'; hint.style.color = '#ef4444'; }
+        setTimeout(function() {
+            btn.style.background = 'var(--card-bg)';
+            btn.style.borderColor = 'var(--border)';
+            btn.style.color = 'var(--text-muted)';
+            if (hint) { hint.textContent = 'Find the q hiding among the p’s'; hint.style.color = 'var(--text-muted)'; }
+        }, 700);
+    }
+};
 
 window._flexPatternPick = function(btn) {
     var id = btn.getAttribute('data-id');
