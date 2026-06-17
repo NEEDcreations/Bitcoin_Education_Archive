@@ -4374,6 +4374,7 @@ var FLEX_ACTIONS = [
     { id:'risk',     emoji:'💣', name:'Risk Assessment',       desc:'Navigate uncertainty. Find the safe path.', pts:5, type:'mine' },
     { id:'pattern',  emoji:'🧩', name:'Pattern Recognition',   desc:'Spot recurring patterns like a Bitcoiner.', pts:5, type:'pattern' },
     { id:'findq',    emoji:'🏦', name:'Spot the FED',            desc:'One impostor among the p\'s. Hunt it down.', pts:5, type:'findq' },
+    { id:'noleverage', emoji:'🧮', name:'Avoid Leverage',           desc:'Stay humble. Do the math, not the margin.', pts:5, type:'addthree' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -4692,6 +4693,35 @@ function _renderFlexInteraction(action) {
             '<div id="pattern-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">Pick the next shape in the sequence</div>' +
         '</div>';
     }
+    if (action.type === 'addthree') {
+        // Three 1-2 digit numbers, seeded daily
+        function _at_num(salt) {
+            var s = _flexDailySeed(action.id + salt);
+            return 10 + (s % 81); // 10–90
+        }
+        var _atA = _at_num('_ata'), _atB = _at_num('_atb'), _atC = _at_num('_atc');
+        // Keep at least one single-digit for variety some days
+        if (_flexDailySeed(action.id + '_single') % 3 === 0) {
+            _atA = 2 + (_flexDailySeed(action.id + '_atsa') % 8); // 2–9
+        }
+        var _atSum = _atA + _atB + _atC;
+        return '<div id="addthree-wrap-' + action.id + '" data-id="' + action.id + '" data-answer="' + _atSum + '">' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">What is the sum?</div>' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+            '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:44px;background:rgba(247,147,26,0.12);border:1px solid var(--accent);border-radius:10px;font-size:1.3rem;font-weight:900;font-family:monospace;color:var(--accent);">' + _atA + '</span>' +
+            '<span style="font-size:1.2rem;color:var(--text-muted);font-weight:700;">+</span>' +
+            '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:44px;background:rgba(247,147,26,0.12);border:1px solid var(--accent);border-radius:10px;font-size:1.3rem;font-weight:900;font-family:monospace;color:var(--accent);">' + _atB + '</span>' +
+            '<span style="font-size:1.2rem;color:var(--text-muted);font-weight:700;">+</span>' +
+            '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:44px;background:rgba(247,147,26,0.12);border:1px solid var(--accent);border-radius:10px;font-size:1.3rem;font-weight:900;font-family:monospace;color:var(--accent);">' + _atC + '</span>' +
+            '<span style="font-size:1.2rem;color:var(--text-muted);font-weight:700;">=</span>' +
+            '<input id="addthree-input-' + action.id + '" type="number" inputmode="numeric" min="0" max="999" ' +
+                'placeholder="?" autocomplete="off" ' +
+                'oninput="_flexAddThreeCheck(this)" data-id="' + action.id + '" ' +
+                'style="width:64px;height:44px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1.3rem;font-family:monospace;font-weight:900;text-align:center;outline:none;-moz-appearance:textfield;">' +
+            '</div>' +
+            '<div id="addthree-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);">Type the answer — no calculator, no leverage</div>' +
+            '</div>';
+    }
     if (action.type === 'findq') {
         // Grid of p’s with exactly one q hidden — position seeded daily
         var fqSeed = _flexDailySeed(action.id + '_fq');
@@ -4949,6 +4979,32 @@ function _flexPatternGen(id) {
     for (var j = 0; j < period; j++) cycleShapes.push(shapes[(offset + j) % shapes.length]);
     return Array.from({length:5}, function(_,i){ return cycleShapes[i % period]; });
 }
+
+window._flexAddThreeCheck = function(input) {
+    var id = input.getAttribute('data-id');
+    var wrap = document.getElementById('addthree-wrap-' + id);
+    var hint = document.getElementById('addthree-hint-' + id);
+    var answer = parseInt(wrap ? wrap.getAttribute('data-answer') : 0);
+    var val = parseInt(input.value);
+    if (isNaN(val)) return;
+    if (val === answer) {
+        input.style.borderColor = '#22c55e';
+        input.style.color = '#22c55e';
+        input.disabled = true;
+        if (hint) { hint.textContent = '✅ Correct! ' + answer + ' — stay humble, no margin needed.'; hint.style.color = '#22c55e'; }
+        setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 500);
+    } else if (input.value.length >= (answer > 99 ? 3 : 2)) {
+        input.style.borderColor = '#ef4444';
+        input.style.color = '#ef4444';
+        if (hint) { hint.textContent = 'Wrong — try again, no peeking'; hint.style.color = '#ef4444'; }
+        setTimeout(function() {
+            input.value = '';
+            input.style.borderColor = 'var(--border)';
+            input.style.color = 'var(--text)';
+            if (hint) { hint.textContent = 'Type the answer — no calculator, no leverage'; hint.style.color = 'var(--text-muted)'; }
+        }, 800);
+    }
+};
 
 window._flexFindQTap = function(btn) {
     var id = btn.getAttribute('data-id');
