@@ -13839,6 +13839,7 @@ window.showQuestHub = function() {
         '#questHubOverlay p,[id="questHubBody"] div{font-size:inherit}' +
         '#questHubBody{font-size:1rem}' +
         '#questHubTabs button{font-size:0.88rem!important;padding:12px 0!important}' +
+        '#questHubTabs{grid-template-columns:repeat(4,1fr)!important}' +
     '}';
     modal.appendChild(qhStyle);
 
@@ -13850,14 +13851,15 @@ window.showQuestHub = function() {
         '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div></div>' +
         '<button onclick="window._cleanupRaidBoss();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\'){history.replaceState({home:true},\'\',(window._qhReturnPath||\'/\'));if(typeof goHome===\'function\')goHome(true);}" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
         // Tabs
-        '<div id="questHubTabs" style="display:flex;gap:8px;margin-bottom:16px;">' +
-        '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
-        '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
-        '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
-        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 Flex</button>' +
-        '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
-        '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
-        '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
+        '<div id="questHubTabs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;">' +
+        '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
+        '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
+        '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
+        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 Flex</button>' +
+        '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
+        '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
+        '<button id="qhTabCitadel" onclick="window._questHubTab=\'citadel\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏰 Citadel</button>' +
+        '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
                 '</div>';
 
     var body = document.createElement('div');
@@ -13892,16 +13894,17 @@ window.showQuestHub = function() {
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
     // Update active tab styles
-    ['Quiz', 'Trivia', 'Poll', 'Raid', 'Favor', 'Charity', 'Flex'].forEach(function(t) {
+    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
         if (!btn) return;
         var isActive = tab === t.toLowerCase();
         var raidActive = t === 'Raid' && isActive;
         var charityActive = t === 'Charity' && isActive;
         var flexActive = t === 'Flex' && isActive;
-        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : (isActive ? 'var(--accent)' : 'none');
+        var citadelActive = t === 'Citadel' && isActive;
+        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : (isActive ? 'var(--accent)' : 'none');
         btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
-        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : (isActive ? 'var(--accent)' : 'var(--border)');
+        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : (isActive ? 'var(--accent)' : 'var(--border)');
     });
 
     var body = document.getElementById('questHubBody');
@@ -13917,6 +13920,20 @@ function _renderQuestHubTab() {
     else if (tab === 'favor') _renderFavorTab(body);
     else if (tab === 'charity') _renderCharityTab(body);
     else if (tab === 'flex') _renderFlexTab(body);
+    else if (tab === 'citadel') _renderCitadelTab(body);
+}
+
+// ── CITADEL TAB ──
+function _renderCitadelTab(body) {
+    body.innerHTML =
+        '<div style="text-align:center;padding:32px 16px;">' +
+        '<div style="font-size:3rem;margin-bottom:16px;">🏰</div>' +
+        '<div style="display:inline-block;background:linear-gradient(135deg,#f59e0b22,#d9770622);border:1px solid #f59e0b55;border-radius:16px;padding:24px 28px;max-width:360px;">' +
+        '<div style="font-size:0.7rem;font-weight:900;letter-spacing:2px;color:#f59e0b;text-transform:uppercase;margin-bottom:10px;">Coming Soon</div>' +
+        '<div style="font-size:1.15rem;font-weight:800;color:var(--heading);line-height:1.4;margin-bottom:12px;">USE POINTS TO CONSTRUCT YOUR OWN CITADEL!</div>' +
+        '<div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;">Spend your hard-earned sats and XP to build, upgrade, and defend your own Bitcoin citadel. Stack points now — construction begins soon.</div>' +
+        '</div>' +
+        '</div>';
 }
 
 // ── CHARITY TAB ──
