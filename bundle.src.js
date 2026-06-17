@@ -15553,6 +15553,8 @@ var FLEX_ACTIONS = [
     { id:'gunrange',   emoji:'🎯', name:'Gun Range',               desc:'Lock and load. Hit all three targets.',      pts:5, type:'gunrange' },
     { id:'sellchairs',  emoji:'🪑', name:'Sell Your Chairs',        desc:'Stack sats, not stuff. Color it in.',        pts:5, type:'paintbox' },
     { id:'starebtc',    emoji:'📈', name:'Stare at the Price',       desc:'Hold the candle. Zoom out. Never sell.',     pts:5, type:'candle' },
+    { id:'itoldyou',    emoji:'🙏', name:'I Told You So',            desc:'Say it. They never listened.',               pts:5, type:'typesentence', sentence:'I told you so' },
+    { id:'pumpndump',   emoji:'📉', name:'Observe a Pump & Dump',    desc:'Watch the rug pull happen in real time.',    pts:5, type:'redcandle' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 10, 25, 50, 100, 500, 1000];
@@ -15869,6 +15871,55 @@ function _renderFlexInteraction(action) {
             }).join('') +
             '</div>' +
             '<div id="pattern-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">Pick the next shape in the sequence</div>' +
+        '</div>';
+    }
+    if (action.type === 'typesentence') {
+        var _ts = action.sentence || 'Bitcoin';
+        return '<div id="typesentence-wrap-' + action.id + '" data-id="' + action.id + '" data-sentence="' + _ts + '">' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Type it out</div>' +
+            '<div style="display:inline-flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">' +
+            _ts.split('').map(function(ch) {
+                return ch === ' '
+                    ? '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:10px;height:28px;color:var(--text-faint);font-size:0.7rem;">␣</span>'
+                    : '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:28px;background:rgba(247,147,26,0.12);border:1px solid var(--accent);border-radius:5px;font-family:monospace;font-size:0.9rem;font-weight:900;color:var(--accent);padding:0 3px;">' + ch + '</span>';
+            }).join('') +
+            '</div>' +
+            '<input id="typesentence-input-' + action.id + '" type="text" ' +
+                'maxlength="' + (_ts.length + 3) + '" placeholder="Type it here…" ' +
+                'autocomplete="off" autocorrect="off" spellcheck="false" ' +
+                'oninput="_flexTypeSentenceCheck(this)" data-id="' + action.id + '" ' +
+                'style="width:100%;padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;outline:none;box-sizing:border-box;">' +
+            '<div id="typesentence-hint-' + action.id + '" style="font-size:0.7rem;color:var(--text-muted);margin-top:6px;">Type exactly as shown above</div>' +
+        '</div>';
+    }
+    if (action.type === 'redcandle') {
+        return '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;">' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Hold the candle for 5 seconds</div>' +
+            '<div style="display:flex;align-items:center;gap:18px;">' +
+            '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+            '<div style="width:2px;height:10px;background:#555;border-radius:1px;"></div>' +
+            '<div id="redcandle-body-' + action.id + '" ' +
+                'onmousedown="_flexRedCandleStart(\'' + action.id + '\')" onmouseup="_flexRedCandleEnd(\'' + action.id + '\')" onmouseleave="_flexRedCandleEnd(\'' + action.id + '\')" ' +
+                'ontouchstart="event.preventDefault();_flexRedCandleStart(\'' + action.id + '\')" ontouchend="_flexRedCandleEnd(\'' + action.id + '\')" ' +
+                'style="width:48px;height:140px;background:#1a0d0d;border:2px solid #ef4444;border-radius:3px 3px 4px 4px;position:relative;overflow:hidden;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;">' +
+            // Fill falls from top
+            '<div id="redcandle-fill-' + action.id + '" style="position:absolute;top:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#dc2626 0%,#ef4444 100%);transition:none;"></div>' +
+            '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">' +
+            '<span id="redcandle-label-' + action.id + '" style="font-size:0.62rem;font-weight:900;color:#ef4444;font-family:monospace;text-align:center;line-height:1.4;z-index:1;">HOLD</span>' +
+            '</div>' +
+            '</div>' +
+            '<div style="width:2px;height:14px;background:#555;border-radius:1px;"></div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;gap:5px;">' +
+            '<div style="font-size:0.7rem;color:#ef4444;font-weight:700;font-family:monospace;letter-spacing:1px;">BTC / USD</div>' +
+            '<div id="redcandle-price-' + action.id + '" style="font-size:1.15rem;font-weight:900;color:#ef4444;font-family:monospace;">$———</div>' +
+            '<div style="font-size:0.72rem;color:#ef4444;font-weight:800;">↓∞%</div>' +
+            '<div id="redcandle-hint-' + action.id + '" style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;line-height:1.5;">Watch it bleed.<br>Press &amp; hold.</div>' +
+            '</div>' +
+            '</div>' +
+            '<div style="width:160px;height:5px;background:var(--bg-side);border-radius:4px;overflow:hidden;border:1px solid #ef444433;">' +
+            '<div id="redcandle-prog-' + action.id + '" style="height:100%;width:0%;background:linear-gradient(90deg,#dc2626,#ef4444);border-radius:4px;transition:none;"></div>' +
+            '</div>' +
         '</div>';
     }
     if (action.type === 'candle') {
@@ -16286,6 +16337,94 @@ window._flexPaintBoxWire = function(id) {
     canvas.addEventListener('touchmove',  onMove,  {passive:false});
     canvas.addEventListener('touchend',   onEnd);
 };
+
+// ── TYPE SENTENCE ──
+window._flexTypeSentenceCheck = function(input) {
+    var id = input.getAttribute('data-id');
+    var wrap = document.getElementById('typesentence-wrap-' + id);
+    var hint = document.getElementById('typesentence-hint-' + id);
+    var sentence = wrap ? wrap.getAttribute('data-sentence') : '';
+    var val = input.value;
+    if (val === sentence) {
+        input.style.borderColor = '#22c55e';
+        input.style.color = '#22c55e';
+        input.disabled = true;
+        if (hint) { hint.textContent = '✅ They know now.'; hint.style.color = '#22c55e'; }
+        setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 400);
+    } else if (sentence.indexOf(val) !== 0) {
+        // Typed something that can't match — shake and clear
+        input.style.borderColor = '#ef4444';
+        input.style.color = '#ef4444';
+        setTimeout(function() {
+            input.value = '';
+            input.style.borderColor = 'var(--border)';
+            input.style.color = 'var(--text)';
+        }, 500);
+    } else {
+        input.style.borderColor = 'var(--accent)';
+        input.style.color = 'var(--text)';
+    }
+};
+
+// ── RED CANDLE HOLD ──
+(function() {
+    var _rcState = {};
+    var HOLD_MS = 5000;
+
+    window._flexRedCandleStart = function(id) {
+        if (_flexDoneToday(id)) return;
+        if (_rcState[id] && _rcState[id].running) return;
+        var fill  = document.getElementById('redcandle-fill-'  + id);
+        var prog  = document.getElementById('redcandle-prog-'  + id);
+        var label = document.getElementById('redcandle-label-' + id);
+        var hint  = document.getElementById('redcandle-hint-'  + id);
+        var price = document.getElementById('redcandle-price-' + id);
+        if (price) {
+            var p = window._btcPrice || (window.tickerData && window.tickerData.price) || null;
+            if (p) price.textContent = '$' + Number(p).toLocaleString();
+        }
+        var start = Date.now();
+        _rcState[id] = { running: true, raf: null };
+        function tick() {
+            var elapsed = Date.now() - start;
+            var pct = Math.min(100, (elapsed / HOLD_MS) * 100);
+            if (fill)  fill.style.height = pct + '%';
+            if (prog)  prog.style.width  = pct + '%';
+            var secs = Math.ceil((HOLD_MS - elapsed) / 1000);
+            if (label) label.textContent = pct < 100 ? secs + 's' : 'REKT';
+            if (pct >= 100) {
+                _rcState[id].running = false;
+                if (label) { label.textContent = '✅'; label.style.color = '#22c55e'; }
+                if (hint)  { hint.textContent = 'Witnessed. Now you know.'; hint.style.color = '#22c55e'; }
+                setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 400);
+            } else {
+                _rcState[id].raf = requestAnimationFrame(tick);
+            }
+        }
+        _rcState[id].raf = requestAnimationFrame(tick);
+    };
+
+    window._flexRedCandleEnd = function(id) {
+        var state = _rcState[id];
+        if (!state || !state.running) return;
+        cancelAnimationFrame(state.raf);
+        state.running = false;
+        var fill  = document.getElementById('redcandle-fill-'  + id);
+        var prog  = document.getElementById('redcandle-prog-'  + id);
+        var label = document.getElementById('redcandle-label-' + id);
+        var hint  = document.getElementById('redcandle-hint-'  + id);
+        if (fill)  { fill.style.transition  = 'height 0.4s ease'; fill.style.height  = '0%'; }
+        if (prog)  { prog.style.transition  = 'width 0.4s ease';  prog.style.width   = '0%'; }
+        if (label) { label.textContent = 'HOLD'; label.style.color = '#ef4444'; }
+        if (hint)  { hint.textContent = 'Don\'t look away!'; hint.style.color = '#ef4444'; }
+        setTimeout(function() {
+            if (fill) fill.style.transition = 'none';
+            if (prog) prog.style.transition = 'none';
+            if (hint) { hint.textContent = 'Watch it bleed.\nPress & hold.'; hint.style.color = 'var(--text-muted)'; }
+        }, 500);
+        delete _rcState[id];
+    };
+})();
 
 // ── CANDLE HOLD ──
 (function() {
