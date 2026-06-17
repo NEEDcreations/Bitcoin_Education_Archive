@@ -14412,26 +14412,46 @@ function _renderTriviaTab(body) {
     }
     html += '</div>';
 
-    // Fetch and display community answer stats
+    // Community stats label — shown when answered
+    if (answered) {
+        html += '<div style="margin-top:14px;margin-bottom:6px;font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;text-align:center;">👥 Community Answers</div>';
+    }
+
+    // Fetch and display community answer stats (fires after body.innerHTML = html below)
     if (answered && typeof db !== 'undefined') {
+        // show loading dots first
+        for (var li = 0; li < t.options.length; li++) {
+            html = html.replace('id="triviaPct_' + li + '" style="', 'id="triviaPct_' + li + '" style="');
+        }
         db.collection('trivia_stats').doc(todayKey).get().then(function(doc) {
             var stats = doc.exists ? doc.data() : {};
             var total = stats.total || 0;
-            if (total < 1) return;
+            if (total < 1) {
+                // Stats not ingested yet (race after first answer) — show pending
+                for (var j = 0; j < t.options.length; j++) {
+                    var pctEl = document.getElementById('triviaPct_' + j);
+                    if (pctEl) pctEl.textContent = '...';
+                }
+                return;
+            }
             for (var j = 0; j < t.options.length; j++) {
                 var count = stats['option_' + j] || 0;
                 var pct = Math.round((count / total) * 100);
                 var barEl = document.getElementById('triviaBar_' + j);
                 var pctEl = document.getElementById('triviaPct_' + j);
                 if (barEl) barEl.style.width = pct + '%';
-                if (pctEl) pctEl.textContent = pct + '%';
+                if (pctEl) pctEl.textContent = pct + '% (' + count + ')';
             }
+            // Update total count
+            var totEl = document.getElementById('triviaTotalVotes');
+            if (totEl) totEl.textContent = total + ' answer' + (total !== 1 ? 's' : '');
         }).catch(function() {});
     }
 
     // Show explanation if answered
     if (answered) {
-        html += '<div style="margin-top:16px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
+        html += '<div id="triviaTotalVotes" style="text-align:center;margin-top:4px;margin-bottom:14px;color:var(--text-faint);font-size:0.72rem;">Loading community results...</div>';
+        html += '<div style="margin-top:4px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
             '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
             '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.explanation) : t.explanation) + '</div>' +
         '</div>';
@@ -14495,10 +14515,14 @@ window.triviaAnswer = function(chosenIdx) {
     if (typeof db !== 'undefined') {
         var statsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
         statsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-        db.collection('trivia_stats').doc(todayKey).set(statsUpdate, { merge: true }).catch(function() {});
+        db.collection('trivia_stats').doc(todayKey).set(statsUpdate, { merge: true }).then(function() {
+            // Write confirmed — now safe to fetch fresh stats
+            var body2 = document.getElementById('questHubBody');
+            if (body2) _renderTriviaTab(body2);
+        }).catch(function() {});
     }
 
-    // Re-render to show result
+    // Re-render immediately to show correct/wrong answer state
     var body = document.getElementById('questHubBody');
     if (body) _renderTriviaTab(body);
 
@@ -14653,7 +14677,10 @@ function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
                     '<span style="min-width:22px;height:22px;border-radius:50%;background:' + (isChosen ? colors[i] : 'transparent') + ';border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + (isChosen ? '#fff' : 'var(--text-faint)') + ';">' + (isChosen ? '✓' : String.fromCharCode(65 + i)) + '</span>' +
                     '<span style="color:var(--text);font-size:0.85rem;font-weight:' + (isChosen ? '700' : '600') + ';">' + optText + '</span>' +
                 '</div>' +
-                '<span style="font-size:0.85rem;font-weight:800;color:' + colors[i] + ';">' + pct + '%</span>' +
+                '<div style="text-align:right;">' +
+                    '<span style="font-size:0.85rem;font-weight:800;color:' + colors[i] + ';">' + pct + '%</span>' +
+                    '<div style="font-size:0.68rem;color:var(--text-faint);">' + votes[i] + ' vote' + (votes[i] !== 1 ? 's' : '') + '</div>' +
+                '</div>' +
             '</div>' +
         '</div>';
     }
