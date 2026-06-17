@@ -1500,10 +1500,11 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             _origEnterPVP = window.enterPVPMode;
             window.enterPVPMode = function() {
                 _origEnterPVP.apply(this, arguments);
-                // Announce PVP lobby entry in Global Chat
+                // Announce PVP lobby entry — post to Global Chat (visible, not hidden in News)
                 var _pvpName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                if (_pvpName && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce('\u2694\uFE0F @' + _pvpName + ' just entered the PVP arena! Think you can beat them? \u27A1\uFE0F [Enter PVP Lobby](#pvp)');
+                if (_pvpName && (typeof window.nachoPostToGlobalChat === 'function' || typeof window.nachoGlobalAnnounce === 'function')) {
+                    var _fn = typeof window.nachoPostToGlobalChat === 'function' ? window.nachoPostToGlobalChat : window.nachoGlobalAnnounce;
+                    _fn('⚔️ @' + _pvpName + ' just entered the PVP arena! Think you can beat them? ➡️ [Enter PVP Lobby](#pvp)');
                 }
             };
         } else if (_pvpPatchAttempts < 20) {

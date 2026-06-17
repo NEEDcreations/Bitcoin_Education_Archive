@@ -3179,6 +3179,35 @@ window._showAnnReactPicker = function(btnEl, docId) {
 };
 
 // ---- Nacho Global Announcements (callable from other modules) ----
+
+// ---- Nacho Global Chat Post (callable from other modules) ----
+// Posts directly to the Global Chat tab (visible to all users, not hidden in News).
+// Use for high-value activity announcements like PVP lobby joins.
+window.nachoPostToGlobalChat = function(text, mentionUid) {
+    if (!text || typeof db === 'undefined' || !db) return;
+    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'nacho-bot';
+    // Rate limit: max 1 post per 60s per unique message key.
+    var now = Date.now();
+    var key = '_nachoGlobalPost_' + text.substring(0, 100);
+    if (window[key] && now - window[key] < 60000) return;
+    window[key] = now;
+    var msgData = {
+        uid: uid,
+        name: '\uD83E\uDD8C Nacho',
+        text: text,
+        isNachoAuto: false,
+        isSystemPost: true,
+        ts: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (mentionUid) msgData.mentionUid = mentionUid;
+    // Write to global_chat so it appears in the Global tab
+    db.collection(CHAT_COLLECTION).add(msgData).catch(function(e) {
+        console.error('[CHAT] Nacho global post failed:', e);
+    });
+    // Bridge to Telegram for visibility
+    if (typeof bridgeToTelegram === 'function') bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
+};
+
 // Announcements go to the ANNOUNCEMENTS_COLLECTION (separate from global chat)
 // so they don\'t spam the conversation.
 window.nachoGlobalAnnounce = function(text, mentionUid) {
