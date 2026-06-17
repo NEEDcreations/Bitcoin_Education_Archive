@@ -1286,6 +1286,11 @@ async function loadUser(uid, prefetchedDoc) {
         awardVisitPoints();
         startReadTimer();
 
+        // Restore flex completions from server (signed-in users only)
+        if (isRealUser && typeof window._flexRestoreFromServer === 'function') {
+            window._flexRestoreFromServer(uid);
+        }
+
         // Update high-res lastActive timestamp for DAU tracking
         if (!auth.currentUser.isAnonymous) {
             db.collection('users').doc(uid).update({ 

@@ -4425,6 +4425,13 @@ function _flexMarkDone(actionId, onDone) {
     _flexSaveState(s);
     var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
     if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
+    // Persist lifetime total to Firestore so it survives localStorage wipes
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        var _flexTotalsRef = db.collection('users').doc(auth.currentUser.uid);
+        var _update = {};
+        _update['flexTotals.' + actionId] = firebase.firestore.FieldValue.increment(1);
+        _flexTotalsRef.update(_update).catch(function() {});
+    }
     // Check per-action badges
     _flexCheckBadges(actionId, s[actionId].total);
     // Check all-daily-flex-complete badge
@@ -4439,6 +4446,55 @@ var FLEX_ALL_BADGE_DEFS = [
     { m:50,  id:'flex_all_50',  emoji:'🔑', name:'Sovereign Individual',     desc:'Completed all daily Flex actions 50 times',               pts:500  },
     { m:500, id:'flex_all_500', emoji:'🏆', name:'Proof of Discipline',       desc:'Completed all daily Flex actions 500 times',              pts:5000 },
 ];
+
+// Restore today's flex completions from server daily_action_counts
+// Runs once on sign-in for real users — merges server state into localStorage
+window._flexRestoreFromServer = function(uid) {
+    if (!uid || typeof db === 'undefined') return;
+    var today = new Date().toISOString().split('T')[0];
+    // Fetch both: today's completion docs + lifetime totals from user doc
+    Promise.all([
+        db.collection('users').doc(uid).collection('daily_action_counts')
+            .where(firebase.firestore.FieldPath.documentId(), '>=', today + '_flex_')
+            .where(firebase.firestore.FieldPath.documentId(), '<=', today + '_flex_\uf8ff')
+            .get({ source: 'server' }),
+        db.collection('users').doc(uid).get({ source: 'server' })
+    ]).then(function(results) {
+        var snap = results[0];
+        var userDoc = results[1];
+        var flexTotals = (userDoc.exists && userDoc.data().flexTotals) ? userDoc.data().flexTotals : {};
+        var s = _flexGetState();
+        var restored = 0;
+        // Restore today's completions
+        snap.forEach(function(doc) {
+            var actionId = doc.id.replace(today + '_flex_', '');
+            if (!actionId) return;
+            if (!s[actionId]) s[actionId] = { total: 0 };
+            if (s[actionId].lastDate !== today) {
+                s[actionId].lastDate = today;
+                restored++;
+            }
+        });
+        // Restore lifetime totals (server wins if higher — protects against localStorage wipe)
+        Object.keys(flexTotals).forEach(function(actionId) {
+            var serverTotal = flexTotals[actionId] || 0;
+            if (!s[actionId]) s[actionId] = { total: 0 };
+            if (serverTotal > (s[actionId].total || 0)) {
+                s[actionId].total = serverTotal;
+                restored++;
+            }
+        });
+        if (restored > 0) {
+            _flexSaveState(s);
+            console.log('[FLEX] Restored ' + restored + ' entries from server');
+            var body = document.getElementById('questHubBody');
+            if (body && window._questHubTab === 'flex') {
+                if (typeof _renderFlexTab === 'function') _renderFlexTab(body);
+            }
+            if (typeof showToast === 'function') showToast('✅ Flex progress restored', 3000);
+        }
+    }).catch(function(e) { console.warn('[FLEX] Server restore failed:', e.message); });
+};
 
 function _flexCheckAllDoneBadge(s) {
     // All actions completed today?
