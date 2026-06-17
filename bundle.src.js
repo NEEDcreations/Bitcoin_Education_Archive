@@ -13930,8 +13930,8 @@ function _renderCitadelTab(body) {
         '<div style="font-size:3rem;margin-bottom:16px;">🏰</div>' +
         '<div style="display:inline-block;background:linear-gradient(135deg,#f59e0b22,#d9770622);border:1px solid #f59e0b55;border-radius:16px;padding:24px 28px;max-width:360px;">' +
         '<div style="font-size:0.7rem;font-weight:900;letter-spacing:2px;color:#f59e0b;text-transform:uppercase;margin-bottom:10px;">Coming Soon</div>' +
-        '<div style="font-size:1.15rem;font-weight:800;color:var(--heading);line-height:1.4;margin-bottom:12px;">USE POINTS TO CONSTRUCT YOUR OWN CITADEL!</div>' +
-        '<div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;">Spend your hard-earned sats and XP to build, upgrade, and defend your own Bitcoin citadel. Stack points now — construction begins soon.</div>' +
+        '<div style="font-size:1.15rem;font-weight:800;color:var(--heading);line-height:1.4;margin-bottom:12px;">USE XP TO CONSTRUCT YOUR OWN CITADEL!</div>' +
+        '<div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;">Spend your hard-earned XP to build, upgrade, and defend your own Bitcoin citadel. Stack XP now — construction begins soon.</div>' +
         '</div>' +
         '</div>';
 }
