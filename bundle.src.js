@@ -13440,6 +13440,11 @@ function closeQuest() {
     document.getElementById('questModal').classList.remove('open');
     currentQuest = null;
     isRetry = false;
+    // If the Quest Hub overlay is still open, restore its tabs + re-render so
+    // the updated XP/retake state is visible (tabs were hidden during quiz picker flow)
+    if (document.getElementById('questHubOverlay')) {
+        if (typeof window._questHubBackToTabs === 'function') window._questHubBackToTabs();
+    }
 }
 
 setTimeout(initQuests, 3000);
