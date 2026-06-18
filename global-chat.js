@@ -1534,11 +1534,18 @@ window.addEventListener('popstate', function() {
 // ---- Emoji Reaction System ----
 window.showReactPicker = function(msgId, btnEl) {
     var old = document.getElementById('reactPicker');
-    if (old) { old.remove(); return; }
+    // If the existing picker is for THIS same message, toggle it closed
+    if (old) {
+        var sameMsgId = old.dataset.msgId === msgId;
+        old.remove();
+        if (sameMsgId) return; // toggle closed
+        // Otherwise fall through and open fresh picker for new message
+    }
 
     _reactExpanded = false;
     var picker = document.createElement('div');
     picker.id = 'reactPicker';
+    picker.dataset.msgId = msgId; // track which message this picker belongs to
     var _rIsDark = document.body.getAttribute('data-theme') !== 'light';
     picker.style.cssText = 'position:fixed;z-index:260000;background:' + (_rIsDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:14px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);max-width:280px;';
 
