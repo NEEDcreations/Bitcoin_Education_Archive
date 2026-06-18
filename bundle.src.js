@@ -28862,7 +28862,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (hdiv) { hdiv.style.display = 'none'; hdiv.innerHTML = ''; }
         var mdiv = document.getElementById('msgs');
         if (mdiv) { mdiv.style.display = 'none'; mdiv.innerHTML = ''; }
-        document.getElementById('home').classList.remove('hidden');
+        var _homeShowEl = document.getElementById('home');
+        _homeShowEl.classList.remove('hidden');
+        if (_homeShowEl.style.visibility) _homeShowEl.style.visibility = ''; // clear direct-link preload hide
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
@@ -29570,7 +29572,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:20%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:90%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:65%;"></div></div></div>' +
         '</div>';
         msgs.style.display = '';
-        document.getElementById('home').classList.add('hidden');
+        var _homeEl = document.getElementById('home');
+        _homeEl.classList.add('hidden');
+        if (_homeEl.style.visibility) _homeEl.style.visibility = ''; // clear direct-link preload hide
         hero.style.display = 'none';
 
         if (isMobile()) {
@@ -30898,7 +30902,7 @@ if (locked) {
             setTimeout(tryRoute, 200);
         }
         // Small initial delay for app to load
-        setTimeout(tryRoute, 500);
+        setTimeout(tryRoute, window._directLinkPreload ? 50 : 500);
     }
     
     // Handle on page load
