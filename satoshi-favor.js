@@ -470,10 +470,9 @@
     }
 
     function announceWinner(value) {
-        var _fn = window.nachoPostToGlobalChat || window.nachoGlobalAnnounce;
-        if (typeof _fn !== 'function') return;
+        if (typeof window.nachoGlobalAnnounce !== 'function') return;
         const name = currentUser && currentUser.username ? currentUser.username : 'Someone';
-        _fn(`\uD83C\uDFC6 @${name} SOLVED A BLOCK with hash ${value.toLocaleString()}! 21,000 sats earned! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`, auth.currentUser ? auth.currentUser.uid : '');
+        window.nachoGlobalAnnounce(`\uD83C\uDFC6 @${name} SOLVED A BLOCK with hash ${value.toLocaleString()}! 21,000 sats earned! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`, auth.currentUser ? auth.currentUser.uid : '');
     }
 
     // ─── CONTRIBUTION HOOKS ───
@@ -514,22 +513,18 @@
                 var activateMsg = '\u26CF\uFE0F SATOSHI\'S FAVOR IS NOW ACTIVE!';
                 if (howEarned) activateMsg += ' ' + howEarned;
                 activateMsg += ' Mine now for 60 minutes! \u27A1\uFE0F [Satoshi\'s Favor](#favor)';
-                // SF activation: post to Global Chat so users see it
-                var _sfAnnounce = window.nachoPostToGlobalChat || window.nachoGlobalAnnounce;
-                _sfAnnounce && _sfAnnounce(activateMsg, '');
+                window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, '');
             } else if (data.favorActive && wasFavorActive) {
-                // Extension while active — post to Global Chat
-                var _sfExtAnnounce = window.nachoPostToGlobalChat || window.nachoGlobalAnnounce;
-                if (howEarned && typeof _sfExtAnnounce === 'function') {
-                    _sfExtAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +' + bonusAdded + ' bonus minutes \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
+                // Extension while active
+                if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +' + bonusAdded + ' bonus minutes \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                 }
             } else if (!data.favorActive) {
-                // Not active yet — announce progress in Global Chat
+                // Not active yet — announce progress
                 var ptsRem = 21 - (data.points || 0);
-                var _sfProgressAnnounce = window.nachoPostToGlobalChat || window.nachoGlobalAnnounce;
-                if (ptsRem > 0 && howEarned && typeof _sfProgressAnnounce === 'function') {
+                if (ptsRem > 0 && howEarned && typeof window.nachoGlobalAnnounce === 'function') {
                     var ptLabel = earnedPoints > 1 ? ('+' + earnedPoints) : '+1';
-                    _sfProgressAnnounce('\uD83E\uDD8C ' + howEarned + ' ' + ptLabel + ' toward Satoshi\'s Favor! ' + ptsRem + ' more to go \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
+                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' ' + ptLabel + ' toward Satoshi\'s Favor! ' + ptsRem + ' more to go \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                 }
             }
 
@@ -540,10 +535,9 @@
         }
     };
 
-    // ─── ANNOUNCEMENTS ─── (always post to Global Chat so users see them)
+    // ─── ANNOUNCEMENTS ───
     window.announceSatoshiFavorProgress = function(pointsRemaining) {
-        var _fn = window.nachoPostToGlobalChat || window.nachoGlobalAnnounce;
-        if (typeof _fn !== 'function') return;
+        if (typeof window.nachoGlobalAnnounce !== 'function') return;
 
         const msgs = [
             `\uD83E\uDD8C The community just earned a Satoshi's Favor point! ${pointsRemaining} more to activate mining! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`,
@@ -551,13 +545,12 @@
             `\uD83E\uDD8C Getting closer! ${pointsRemaining} more points and Satoshi's Favor activates! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`
         ];
         const msg = msgs[Math.floor(Math.random() * msgs.length)];
-        _fn(msg, '');
+        window.nachoGlobalAnnounce(msg, '');
     };
 
     window.announceSatoshiFavorCompleted = function(pointsRemaining) {
-        var _fn = window.nachoPostToGlobalChat || window.nachoGlobalAnnounce;
-        if (typeof _fn !== 'function') return;
-        _fn(`\uD83E\uDD8C Daily quests completed! ${pointsRemaining} more points needed for Satoshi's Favor! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`, '');
+        if (typeof window.nachoGlobalAnnounce !== 'function') return;
+        window.nachoGlobalAnnounce(`\uD83E\uDD8C Daily quests completed! ${pointsRemaining} more points needed for Satoshi's Favor! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`, '');
     };
 
     // ─── UTILS ───
