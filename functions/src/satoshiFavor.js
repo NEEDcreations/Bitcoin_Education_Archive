@@ -132,19 +132,26 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
   // NOT client-writable user doc fields (dailyAllThreeDate etc are now blocked in rules).
   if (source === 'daily_all_three') {
     const dailyPtsBase = db.collection('users').doc(uid).collection('daily_action_counts');
-    const [triviaDoc, pollDoc, questDoc] = await Promise.all([
-      dailyPtsBase.doc(today + '_trivia').get(),
-      dailyPtsBase.doc(today + '_poll_vote').get(),
-      dailyPtsBase.where ? null : null, // gradeQuest CF sets today + '_quest' doc
-      dailyPtsBase.doc(today + '_quest').get(),
-    ]).then(results => [
-      results[0], results[1], results[3]
-    ]).catch(() => [null, null, null]);
+    let triviaDoc, pollDoc, questDoc;
+    try {
+      const results = await Promise.all([
+        dailyPtsBase.doc(today + '_trivia').get(),
+        dailyPtsBase.doc(today + '_poll_vote').get(),
+        dailyPtsBase.doc(today + '_quest').get(),
+      ]);
+      triviaDoc = results[0];
+      pollDoc   = results[1];
+      questDoc  = results[2];
+    } catch (readErr) {
+      console.error('[SF] daily_all_three validation read failed:', readErr);
+      throw new functions.https.HttpsError('internal', 'Could not verify completion — please try again.');
+    }
 
     const triviaComplete = triviaDoc && triviaDoc.exists;
-    const pollComplete = pollDoc && pollDoc.exists;
-    // Quest: gradeQuest CF writes daily_action_counts/today_quest with count >= 1
-    const questComplete = questDoc && questDoc.exists && (questDoc.data().count || 0) >= 1;
+    const pollComplete   = pollDoc   && pollDoc.exists;
+    const questComplete  = questDoc  && questDoc.exists && (questDoc.data().count || 0) >= 1;
+
+    console.log(`[SF] daily_all_three check uid=${uid} today=${today} trivia=${triviaComplete} poll=${pollComplete} quest=${questComplete}`);
 
     if (!triviaComplete || !pollComplete || !questComplete) {
       throw new functions.https.HttpsError(

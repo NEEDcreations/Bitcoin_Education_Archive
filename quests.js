@@ -1351,29 +1351,49 @@ function _markDailyActivity(type) {
 
 function _checkDailyAllThree() {
     var state = _getDailyActivities();
-    if (state.quiz && state.trivia && state.poll && !state.sfAwarded) {
-        state.sfAwarded = true;
-        localStorage.setItem('btc_daily_activities', JSON.stringify(state));
-        // [AUDIT FIX C-1] The CF now validates completion against daily_action_counts records
-        // written server-side by awardPoints CF (trivia) and poll transaction. No client
-        // doc write needed here — dailyAllThreeDate and related fields are now CF-only.
-        // Small delay to ensure prior awardPoints CF calls have committed their dedup records.
-        // Delay gives gradeQuest + awardPoints CF transactions time to commit
-        // before contributeFavor reads daily_action_counts to validate completion.
-        setTimeout(function() {
-            if (typeof window.contributeSatoshiFavor === 'function') {
-                window.contributeSatoshiFavor('daily_all_three').catch(function(err) {
-                    console.error('[DAILY] contributeSatoshiFavor failed:', err.message || err);
-                });
-            }
-        }, 4000);
-        // Track cumulative daily triple completions for badge checks
-        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            db.collection('users').doc(auth.currentUser.uid).update({
-                dailyTripleCount: firebase.firestore.FieldValue.increment(1)
-            }).catch(function() {});
-        }
+    if (!(state.quiz && state.trivia && state.poll)) return;
+    if (state.sfAwarded) return; // already triggered this session
+
+    state.sfAwarded = true;
+    localStorage.setItem('btc_daily_activities', JSON.stringify(state));
+
+    // Track cumulative daily triple completions
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({
+            dailyTripleCount: firebase.firestore.FieldValue.increment(1)
+        }).catch(function() {});
     }
+
+    // Wait for gradeQuest + awardPoints CF transactions to fully commit before
+    // contributeFavor reads daily_action_counts to validate all three docs exist.
+    setTimeout(function() {
+        _triggerDailyAllThreeSF(0);
+    }, 5000);
+}
+
+function _triggerDailyAllThreeSF(attempt) {
+    if (typeof window.contributeSatoshiFavor !== 'function') {
+        // satoshi-favor.js not loaded yet — retry up to 5x with 2s gap
+        if (attempt < 5) setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, 2000);
+        return;
+    }
+    window.contributeSatoshiFavor('daily_all_three').then(function(data) {
+        if (data) console.log('[DAILY] SF point awarded:', data);
+    }).catch(function(err) {
+        var code = err && err.code;
+        var msg  = err && (err.message || String(err));
+        console.warn('[DAILY] contributeSatoshiFavor failed (attempt ' + attempt + '):', msg);
+        // already-exists = dedup already recorded, silent success
+        if (code === 'already-exists') return;
+        // failed-precondition = CF docs not written yet, retry up to 3x with 3s gap
+        if (code === 'failed-precondition' && attempt < 3) {
+            console.log('[DAILY] Retrying SF contribution in 3s...');
+            setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, 3000);
+            return;
+        }
+        // Any other error: show toast so user knows it didn\'t count
+        if (typeof showToast === 'function') showToast('⚠️ Daily triple not counted — please try again later', 5000);
+    });
 }
 
 async function loadCompletedQuests(uid) {
