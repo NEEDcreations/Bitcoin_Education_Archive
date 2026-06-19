@@ -1366,9 +1366,10 @@ function _checkDailyAllThree() {
 
     // Wait for gradeQuest + awardPoints CF transactions to fully commit before
     // contributeFavor reads daily_action_counts to validate all three docs exist.
+    // 8s gives the CF writes more breathing room than 5s did.
     setTimeout(function() {
         _triggerDailyAllThreeSF(0);
-    }, 5000);
+    }, 8000);
 }
 
 function _triggerDailyAllThreeSF(attempt) {
@@ -1385,10 +1386,10 @@ function _triggerDailyAllThreeSF(attempt) {
         console.warn('[DAILY] contributeSatoshiFavor failed (attempt ' + attempt + '):', msg);
         // already-exists = dedup already recorded, silent success
         if (code === 'already-exists') return;
-        // failed-precondition = CF docs not written yet, retry up to 3x with 3s gap
-        if (code === 'failed-precondition' && attempt < 3) {
-            console.log('[DAILY] Retrying SF contribution in 3s...');
-            setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, 3000);
+        // failed-precondition = CF docs not written yet, retry up to 5x with 4s gap
+        if (code === 'failed-precondition' && attempt < 5) {
+            console.log('[DAILY] Retrying SF contribution in 4s (attempt ' + (attempt + 1) + '/5)...');
+            setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, 4000);
             return;
         }
         // Any other error: show toast so user knows it didn\'t count

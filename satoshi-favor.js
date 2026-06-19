@@ -485,12 +485,21 @@
             const fn = firebase.functions().httpsCallable('contributeFavor');
             const result = await fn({ source, detail });
             const data = result.data;
+            var userUid = auth.currentUser ? auth.currentUser.uid : '';
 
-            // Build description of what earned the point
+            // --- Guaranteed announcement for daily_all_three ---
+            // Fires unconditionally on CF success, independent of SF state.
+            // This ensures the News tab always gets the trifecta message.
+            if (source === 'daily_all_three' && typeof window.nachoGlobalAnnounce === 'function') {
+                window.nachoGlobalAnnounce(
+                    '\uD83E\uDD8C @' + username + ' completed the daily trifecta — quiz, trivia & poll! +1 SF point \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
+                    userUid
+                );
+            }
+
+            // --- SF state announcements (activation / extension / progress) ---
             var howEarned = '';
-            if (source === 'daily_all_three') {
-                howEarned = '@' + username + ' completed the daily quiz, trivia & poll! ➡️ [Quest Hub](#quests)';
-            } else if (source === 'level_up') {
+            if (source === 'level_up') {
                 howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
             } else if (source === 'level_up_5') {
                 howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+5 points)';
@@ -499,6 +508,8 @@
             } else if (source === 'badge_earned') {
                 howEarned = '@' + username + ' earned a badge: ' + (detail || '\uD83C\uDFC5') + '!';
             }
+            // Note: daily_all_three howEarned deliberately omitted here —
+            // it has its own guaranteed announcement above.
 
             // Calculate bonus minutes added based on source (3 min per point)
             var SF_BONUS_PER_POINT = 3;
@@ -519,10 +530,10 @@
                 if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
                     window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +' + bonusAdded + ' bonus minutes \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                 }
-            } else if (!data.favorActive) {
-                // Not active yet — announce progress
+            } else if (!data.favorActive && howEarned) {
+                // Not active yet — announce progress for non-trifecta sources
                 var ptsRem = 21 - (data.points || 0);
-                if (ptsRem > 0 && howEarned && typeof window.nachoGlobalAnnounce === 'function') {
+                if (ptsRem > 0 && typeof window.nachoGlobalAnnounce === 'function') {
                     var ptLabel = earnedPoints > 1 ? ('+' + earnedPoints) : '+1';
                     window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' ' + ptLabel + ' toward Satoshi\'s Favor! ' + ptsRem + ' more to go \u26CF\uFE0F \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
                 }
@@ -531,7 +542,9 @@
             return data;
         } catch (err) {
             console.error('[FAVOR] Contribution error:', err);
-            return null;
+            // Re-throw so callers (e.g. _triggerDailyAllThreeSF) can retry on
+            // failed-precondition or handle already-exists silently.
+            throw err;
         }
     };
 
