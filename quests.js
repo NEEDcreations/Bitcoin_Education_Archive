@@ -1357,6 +1357,20 @@ function _checkDailyAllThree() {
     state.sfAwarded = true;
     localStorage.setItem('btc_daily_activities', JSON.stringify(state));
 
+    // ── Immediate announcement in the News tab ──
+    // Fires right away, independent of the SF CF call.
+    // Uses a short delay (1s) so local state settles and global-chat is ready.
+    setTimeout(function() {
+        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username)
+            ? currentUser.username : null;
+        if (username && typeof window.nachoGlobalAnnounce === 'function') {
+            window.nachoGlobalAnnounce(
+                '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! +1 SF point \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
+                (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : ''
+            );
+        }
+    }, 1000);
+
     // Track cumulative daily triple completions
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
         db.collection('users').doc(auth.currentUser.uid).update({
@@ -1364,9 +1378,10 @@ function _checkDailyAllThree() {
         }).catch(function() {});
     }
 
-    // Wait for gradeQuest + awardPoints CF transactions to fully commit before
+    // ── SF point contribution (background, retried) ──
+    // Wait for gradeQuest + awardPoints CF writes to fully commit before
     // contributeFavor reads daily_action_counts to validate all three docs exist.
-    // 8s gives the CF writes more breathing room than 5s did.
+    // 8s gives CF writes more breathing room; retries handle remaining lag.
     setTimeout(function() {
         _triggerDailyAllThreeSF(0);
     }, 8000);

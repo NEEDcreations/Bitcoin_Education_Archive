@@ -485,17 +485,9 @@
             const fn = firebase.functions().httpsCallable('contributeFavor');
             const result = await fn({ source, detail });
             const data = result.data;
-            var userUid = auth.currentUser ? auth.currentUser.uid : '';
 
-            // --- Guaranteed announcement for daily_all_three ---
-            // Fires unconditionally on CF success, independent of SF state.
-            // This ensures the News tab always gets the trifecta message.
-            if (source === 'daily_all_three' && typeof window.nachoGlobalAnnounce === 'function') {
-                window.nachoGlobalAnnounce(
-                    '\uD83E\uDD8C @' + username + ' completed the daily trifecta — quiz, trivia & poll! +1 SF point \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
-                    userUid
-                );
-            }
+            // Note: daily_all_three trifecta announcement fires in _checkDailyAllThree (quests.js)
+            // immediately on completion — independent of this SF CF call.
 
             // --- SF state announcements (activation / extension / progress) ---
             var howEarned = '';
@@ -509,7 +501,7 @@
                 howEarned = '@' + username + ' earned a badge: ' + (detail || '\uD83C\uDFC5') + '!';
             }
             // Note: daily_all_three howEarned deliberately omitted here —
-            // it has its own guaranteed announcement above.
+            // its announcement is handled above in _checkDailyAllThree.
 
             // Calculate bonus minutes added based on source (3 min per point)
             var SF_BONUS_PER_POINT = 3;
