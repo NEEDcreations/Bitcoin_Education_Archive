@@ -553,7 +553,7 @@ function formatChatText(text, mentionUid) {
     var _inAppLinks = [];
     var _safeMentions = [];
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(match, label, route) {
-        var _action = route === 'pvp' ? "event.preventDefault();if(typeof enterPVPMode==='function')enterPVPMode();"
+        var _action = route === 'pvp' ? "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof enterPVPMode==='function')enterPVPMode();"
                      : route === 'nacho' ? "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();"
                      : route === 'quests' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();"
                      : route === 'favor' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();},100);"
