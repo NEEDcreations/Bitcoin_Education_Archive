@@ -519,8 +519,16 @@
                 window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, '');
             } else if (data.favorActive && wasFavorActive) {
                 // Extension while active
-                if (howEarned && typeof window.nachoGlobalAnnounce === 'function') {
-                    window.nachoGlobalAnnounce('\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +' + bonusAdded + ' bonus minutes \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)', '');
+                if (typeof window.nachoGlobalAnnounce === 'function') {
+                    var extMsg;
+                    if (source === 'daily_all_three') {
+                        // Trifecta announce already went out in _checkDailyAllThree;
+                        // now confirm the +3 min time addition so users see it.
+                        extMsg = '\u26CF\uFE0F @' + username + "'s daily trifecta extended Satoshi's Favor by +" + bonusAdded + ' minutes! \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)';
+                    } else if (howEarned) {
+                        extMsg = '\uD83E\uDD8C ' + howEarned + ' Satoshi extended his blessing! +' + bonusAdded + ' bonus minutes \u23F3 \u27A1\uFE0F [Satoshi\'s Favor](#favor)';
+                    }
+                    if (extMsg) window.nachoGlobalAnnounce(extMsg, '');
                 }
             } else if (!data.favorActive && howEarned) {
                 // Not active yet — announce progress for non-trifecta sources
