@@ -598,6 +598,8 @@ async function finishEmailSignIn(email, _signInUrl) {
         const pendingUsername = localStorage.getItem('btc_pending_username');
         const pendingEmail = localStorage.getItem('btc_pending_email');
         const pendingLnAddress = localStorage.getItem('btc_pending_ln_address') || '';
+        const pendingFaction  = localStorage.getItem('btc_pending_faction')    || '';
+        const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
         if (pendingUsername && !existingDoc.exists) {
             // New user verifying their email — create their full account now
             const userData = {
@@ -611,6 +613,8 @@ async function finishEmailSignIn(email, _signInUrl) {
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (pendingLnAddress) { userData.lightning = pendingLnAddress; userData.lightningAddress = pendingLnAddress; }
+            if (pendingFaction)   { userData.faction = pendingFaction; }
+            if (pendingCountry)   { userData.country = pendingCountry; }
             var _emailSrc = localStorage.getItem('btc_signup_source');
             if (_emailSrc) { userData.signupSource = _emailSrc; }
             await db.collection('users').doc(emailUid).set(userData);
@@ -624,6 +628,8 @@ async function finishEmailSignIn(email, _signInUrl) {
         localStorage.removeItem('btc_pending_username');
         localStorage.removeItem('btc_pending_email');
         localStorage.removeItem('btc_pending_ln_address');
+        localStorage.removeItem('btc_pending_faction');
+        localStorage.removeItem('btc_pending_country');
         // 🗑️ SECURITY HARDENING (C-NEW-13): Wipe ghost on-chain wallet data
         localStorage.removeItem('btc_wallet_enc');
         localStorage.removeItem('btc_wallet_addrs');
@@ -653,6 +659,7 @@ async function finishEmailSignIn(email, _signInUrl) {
 var GOOGLE_CLIENT_ID = '1055248200518-jcn5efjp7vhk0vm8cbmj4mfsgc0edkga.apps.googleusercontent.com';
 
 window.signInWithGoogle = async function() {
+    window._captureSignupFormState();
     var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     // On desktop, try GIS One Tap (fast if available)
     // On mobile, skip GIS entirely — go straight to Firebase popup (faster, more reliable)
@@ -716,6 +723,7 @@ async function signInWithGIS() {
 
 // Twitter/X Sign-In — no client SDK, must use Firebase popup/redirect
 window.signInWithTwitter = async function() {
+    window._captureSignupFormState();
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
@@ -734,6 +742,7 @@ window.signInWithTwitter = async function() {
 
 // GitHub Sign-In
 window.signInWithGithub = async function() {
+    window._captureSignupFormState();
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
@@ -773,6 +782,7 @@ window.fbAsyncInit = function() {
 };
 
 window.signInWithFacebook = async function() {
+    window._captureSignupFormState();
     if (typeof FB !== 'undefined') {
         try {
             await signInWithFBSDK();
@@ -803,6 +813,7 @@ async function signInWithFBSDK() {
 // Uses nostr-tools CDN for nsec decoding, signing, and key derivation
 window.signInWithNostr = async function() {
     if (!checkRateLimit()) return;
+    window._captureSignupFormState();
     // Close the sign-in modal so the Nostr overlay isn't buried under it
     var _um = document.getElementById('usernameModal');
     if (_um) _um.classList.remove('open');
@@ -954,6 +965,7 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
 // Lightning (LNURL-auth) Sign-In
 window.signInWithLightning = async function() {
     if (!checkRateLimit()) return;
+    window._captureSignupFormState();
     // Close the sign-in modal so the LN overlay isn't buried under it
     var _um = document.getElementById('usernameModal');
     if (_um) _um.classList.remove('open');
@@ -1115,32 +1127,54 @@ async function _saveAnonDataGlobal() {
 }
 
 async function _handleSignInResultGlobal(user, anonUid, anonData) {
-    // Pick up Lightning address typed in the sign-up form before provider auth
-    var _pendingLn = localStorage.getItem('btc_pending_ln_address') || '';
+    // Pick up all fields the user may have typed in the sign-up form before hitting a provider button.
+    var _pendingLn      = localStorage.getItem('btc_pending_ln_address') || '';
+    var _pendingUN      = localStorage.getItem('btc_pending_username')   || '';
+    var _pendingFaction = localStorage.getItem('btc_pending_faction')    || window._signupFaction || '';
+    var _pendingCountry = localStorage.getItem('btc_pending_country')    || '';
+    // Clean up so they don't leak into future sign-ins
     localStorage.removeItem('btc_pending_ln_address');
+    localStorage.removeItem('btc_pending_faction');
+    localStorage.removeItem('btc_pending_country');
+    window._signupFaction = null;
 
     var existingDoc = await db.collection('users').doc(user.uid).get();
     if (!existingDoc.exists) {
         if (anonData) {
             anonData.email = user.email || '';
-            if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
-            if (_pendingLn) { anonData.lightning = _pendingLn; anonData.lightningAddress = _pendingLn; }
+            if (!anonData.username) anonData.username = _pendingUN || user.displayName || 'Bitcoiner';
+            if (_pendingLn)      { anonData.lightning = _pendingLn; anonData.lightningAddress = _pendingLn; }
+            if (_pendingFaction) { anonData.faction = _pendingFaction; }
+            if (_pendingCountry) { anonData.country = _pendingCountry; }
             await db.collection('users').doc(user.uid).set(anonData);
         } else {
             var _newProviderDoc = {
-                username: user.displayName || 'Bitcoiner',
+                username: _pendingUN || user.displayName || 'Bitcoiner',
                 email: user.email || '',
                 points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
                 lastVisit: new Date().toISOString().split('T')[0],
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
-            if (_pendingLn) { _newProviderDoc.lightning = _pendingLn; _newProviderDoc.lightningAddress = _pendingLn; }
+            if (_pendingLn)      { _newProviderDoc.lightning = _pendingLn; _newProviderDoc.lightningAddress = _pendingLn; }
+            if (_pendingFaction) { _newProviderDoc.faction = _pendingFaction; }
+            if (_pendingCountry) { _newProviderDoc.country = _pendingCountry; }
             await db.collection('users').doc(user.uid).set(_newProviderDoc);
         }
     } else {
-        // Returning user — save LN if they typed one and don't already have one
+        // Returning user — apply fields they typed only if not already set
+        var _returnUpdates = {};
         if (_pendingLn && !existingDoc.data().lightningAddress && !existingDoc.data().lightning) {
-            try { await existingDoc.ref.update({ lightning: _pendingLn, lightningAddress: _pendingLn }); } catch(e) {}
+            _returnUpdates.lightning = _pendingLn;
+            _returnUpdates.lightningAddress = _pendingLn;
+        }
+        if (_pendingFaction && !existingDoc.data().faction) {
+            _returnUpdates.faction = _pendingFaction;
+        }
+        if (_pendingCountry && !existingDoc.data().country) {
+            _returnUpdates.country = _pendingCountry;
+        }
+        if (Object.keys(_returnUpdates).length) {
+            try { await existingDoc.ref.update(_returnUpdates); } catch(e) {}
         }
         if (anonData) {
             var existData = existingDoc.data();
@@ -1309,6 +1343,7 @@ async function signInWithProvider(provider) {
 
 // Returning user: send magic link to sign back in
 window.sendReturningMagicLink = async function() {
+    window._captureSignupFormState();
     var input = document.getElementById('returningEmailInput');
     if (!input) return;
     var email = input.value.trim();
@@ -3406,6 +3441,24 @@ setInterval(function() {
         _showToastNow(_toastQueue.shift());
     }
 }, 2000);
+
+// Capture all sign-up form fields to localStorage before any auth provider fires.
+// This ensures username, LN address, faction, and country survive popup/redirect auth.
+window._captureSignupFormState = function() {
+    var unEl  = document.getElementById('usernameInput');
+    var lnEl  = document.getElementById('signupLnAddress');
+    var emEl  = document.getElementById('emailInput');
+    var ctEl  = document.getElementById('signupCountryInput');
+    var un    = unEl  && unEl.value.trim();
+    var ln    = lnEl  && lnEl.value.trim();
+    var em    = emEl  && emEl.value.trim();
+    var ct    = ctEl  && ctEl.value.trim();
+    if (un) localStorage.setItem('btc_pending_username', un);
+    if (ln && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ln)) localStorage.setItem('btc_pending_ln_address', ln);
+    if (em) localStorage.setItem('btc_pending_email', em);
+    if (ct) localStorage.setItem('btc_pending_country', ct);
+    if (window._signupFaction) localStorage.setItem('btc_pending_faction', window._signupFaction);
+};
 
 // Username prompt
 // Handle "I need a Lightning Address" from sign-up form:
@@ -5740,7 +5793,7 @@ window.minimizeSignUpBanner = function() {
 };
 
 function clearUserLocalStorage() {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username'];
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country'];
     var toRemove = [];
     for (var i = 0; i < localStorage.length; i++) {
         var key = localStorage.key(i);
