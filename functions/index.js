@@ -4582,39 +4582,73 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
     if (!query || query.length < 2) return { users: [], hasMore: false };
 
     const pageSize = parseInt(data.pageSize) || 10;
-    const afterRank = parseInt(data.afterRank) || 0; // cursor: skip users already returned
+    const afterRank = parseInt(data.afterRank) || 0;
 
-    // Fetch users ordered by points desc
-    // We scan up to 5000 users to find substring matches - sufficient for this app's scale
-    const SCAN_LIMIT = 5000;
-    const snap = await db.collection('users')
+    // ── Path 1: fast prefix search on username_lower index ──────────────────
+    // Firestore range query: username_lower >= query AND <= query + \uf8ff
+    // Covers all users who have the username_lower field (written on create/update).
+    // Returns up to 200 results ordered by username_lower; we re-sort by points below.
+    const PREFIX_LIMIT = 200;
+    const prefixSnap = await db.collection('users')
+        .where('username_lower', '>=', query)
+        .where('username_lower', '<=', query + '\uf8ff')
+        .limit(PREFIX_LIMIT)
+        .get();
+
+    const seenUids = new Set();
+    const prefixDocs = [];
+    prefixSnap.forEach(doc => {
+        const d = doc.data();
+        if (d.ghostMode) return;
+        seenUids.add(doc.id);
+        prefixDocs.push({ id: doc.id, data: d });
+    });
+
+    // ── Path 2: small ranked scan for substring / missing-index fallback ────
+    // Only scan top 500 by points (was 5000). Catches:
+    //  - users whose username_lower field hasn't been written yet
+    //  - mid/suffix substring matches in the top cohort
+    const SCAN_LIMIT = 500;
+    const scanSnap = await db.collection('users')
         .where('points', '>', 0)
         .orderBy('points', 'desc')
         .limit(SCAN_LIMIT)
         .get();
 
-    // Build ranked list with substring filter
-    const matched = [];
-    let rank = 0;
-    snap.forEach(doc => {
-        rank++;
+    const scanDocs = [];
+    scanSnap.forEach(doc => {
+        if (seenUids.has(doc.id)) return; // already have from prefix path
         const d = doc.data();
-        if (d.ghostMode) return; // respect ghost mode
+        if (d.ghostMode) return;
         const name = (d.username || '').toLowerCase();
         if (!name.includes(query)) return;
-        matched.push({
-            uid: doc.id,
-            username: d.username || 'Anon',
-            points: d.points || 0,
-            rank,
-            faction: d.faction || null,
-            country: d.country || null,
-            lightningAddress: d.lightningAddress || d.lightning || null,
-        });
+        scanDocs.push({ id: doc.id, data: d });
     });
 
-    // Pagination: skip already-seen results by rank cursor
-    const page = afterRank > 0 ? matched.filter(u => u.rank > afterRank) : matched;
+    // ── Merge, assign global rank from scan order, sort by points ───────────
+    // Build a points-desc index from the scan for rank assignment.
+    // Prefix-only docs get rank = 9999 (not in top-500, but still valid results).
+    const rankMap = new Map();
+    let ri = 0;
+    scanSnap.forEach(doc => { rankMap.set(doc.id, ++ri); });
+
+    const toEntry = ({ id, data: d }) => ({
+        uid: id,
+        username: d.username || 'Anon',
+        points: d.points || 0,
+        rank: rankMap.get(id) || 9999,
+        faction: d.faction || null,
+        country: d.country || null,
+        lightningAddress: d.lightningAddress || d.lightning || null,
+    });
+
+    const merged = [
+        ...prefixDocs.map(toEntry),
+        ...scanDocs.map(toEntry),
+    ].sort((a, b) => b.points - a.points);
+
+    // Pagination by rank cursor
+    const page = afterRank > 0 ? merged.filter(u => u.rank > afterRank) : merged;
     const results = page.slice(0, pageSize);
     const hasMore = page.length > pageSize;
 

@@ -1148,8 +1148,10 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
             if (_pendingCountry) { anonData.country = _pendingCountry; }
             await db.collection('users').doc(user.uid).set(anonData);
         } else {
+            var _newUN = _pendingUN || user.displayName || 'Bitcoiner';
             var _newProviderDoc = {
-                username: _pendingUN || user.displayName || 'Bitcoiner',
+                username: _newUN,
+                username_lower: _newUN.toLowerCase(),
                 email: user.email || '',
                 points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
                 lastVisit: new Date().toISOString().split('T')[0],
@@ -1819,6 +1821,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     if (email) email = sanitizeInput(email);
     const userData = {
         username: username,
+        username_lower: username.toLowerCase(),
         points: 0,
         channelsVisited: 0,
         totalVisits: 1,
