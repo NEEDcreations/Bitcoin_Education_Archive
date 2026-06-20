@@ -803,10 +803,13 @@ async function signInWithFBSDK() {
 // Uses nostr-tools CDN for nsec decoding, signing, and key derivation
 window.signInWithNostr = async function() {
     if (!checkRateLimit()) return;
+    // Close the sign-in modal so the Nostr overlay isn't buried under it
+    var _um = document.getElementById('usernameModal');
+    if (_um) _um.classList.remove('open');
     var hasExtension = !!window.nostr;
     var overlay = document.createElement('div');
     overlay.id = 'nostrAuthOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:500000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #7B2DE4;border-radius:20px;padding:28px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">' +
@@ -951,11 +954,14 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
 // Lightning (LNURL-auth) Sign-In
 window.signInWithLightning = async function() {
     if (!checkRateLimit()) return;
+    // Close the sign-in modal so the LN overlay isn't buried under it
+    var _um = document.getElementById('usernameModal');
+    if (_um) _um.classList.remove('open');
 
     // Show modal immediately with loading skeleton (Cloud Function can be slow on cold start)
     var qrModal = document.createElement('div');
     qrModal.id = 'lnAuthModal';
-    qrModal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
+    qrModal.style.cssText = 'position:fixed;inset:0;z-index:500000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
     qrModal.onclick = function(e) { if (e.target === qrModal) qrModal.remove(); };
     qrModal.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
