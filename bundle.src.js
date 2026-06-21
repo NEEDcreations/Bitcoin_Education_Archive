@@ -13627,7 +13627,7 @@ function _renderFavorTab(body) {
         '• At 21 points, a mining competition opens for 60 minutes<br>' +
         '• Extra points beyond 21 add +3 min each (even while active!)<br>' +
         '• 10 hashes max per minute per user (60 second cooldown)<br>' +
-        '• Generate a random hash. Below 1,000 = win 21,000 sats!'
+        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' = win 21,000 sats!'
     '</div>';
 
     // Top 10 lowest hashes + personal best sections

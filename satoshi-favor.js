@@ -9,6 +9,7 @@
     // 2026-06-02  |   1,000 |      0       | Genesis (launch)
     // 2026-06-21  |  30,000 |      0       | +2,900% — no winner in 19 days, ~1:3,333 odds now
     const DIFFICULTY_TARGET = 30000;
+    window.SF_DIFFICULTY_TARGET = DIFFICULTY_TARGET; // expose for other modules
     const HASH_MAX = 100000000;
     const HASHES_PER_MINUTE = 10;
     const HASH_WINDOW_MS = 60000; // 60 seconds
