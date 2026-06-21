@@ -4,7 +4,11 @@
 (function() {
     'use strict';
 
-    const DIFFICULTY_TARGET = 1000;
+    // ── Difficulty History ────────────────────────────────────────
+    // Date        | Target  | Blocks Found | Change
+    // 2026-06-02  |   1,000 |      0       | Genesis (launch)
+    // 2026-06-21  |  30,000 |      0       | +2,900% — no winner in 19 days, ~1:3,333 odds now
+    const DIFFICULTY_TARGET = 30000;
     const HASH_MAX = 100000000;
     const HASHES_PER_MINUTE = 10;
     const HASH_WINDOW_MS = 60000; // 60 seconds
@@ -253,7 +257,7 @@
                 </div>
                 <div style="padding:16px 20px;overflow-y:auto;">
                     <div style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">
-                        Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">${DIFFICULTY_TARGET.toLocaleString()}</strong> (the difficulty target), you win <strong style="color:var(--accent);">21,000 sats!</strong> That's a 1 in 100,000 chance per hash. You get 10 hashes per minute.
+                        Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">${DIFFICULTY_TARGET.toLocaleString()}</strong> (the difficulty target), you win <strong style="color:var(--accent);">21,000 sats!</strong> That's a 1 in 3,333 chance per hash (~0.03%). You get 10 hashes per minute.
                     </div>
 
                     <div style="text-align:center;margin-bottom:16px;">
@@ -269,11 +273,41 @@
 
                     <div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px;font-size:0.8rem;">
                         <div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ${DIFFICULTY_TARGET}</div></div>
-                        <div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:100,000</div></div>
+                        <div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:3,333</div></div>
                         <div style="text-align:center;"><div style="color:var(--text-muted);">Cooldown</div><div id="hashCooldown" style="font-weight:800;color:var(--accent);">Ready</div></div>
                     </div>
 
                     <button id="minerHashBtn" onclick="window.minerDoHash()" style="width:100%;padding:16px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:12px;color:#fff;font-size:1.1rem;font-weight:800;cursor:pointer;margin-bottom:16px;">⛏️ HASH</button>
+
+                    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;">
+                        <div style="font-weight:700;color:var(--heading);margin-bottom:8px;font-size:0.82rem;">📊 Difficulty History</div>
+                        <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
+                            <thead><tr style="color:var(--text-faint);">
+                                <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);">Date</th>
+                                <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Target</th>
+                                <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Odds</th>
+                                <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Blocks</th>
+                                <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Change</th>
+                            </tr></thead>
+                            <tbody>
+                                <tr style="color:var(--text-muted);">
+                                    <td style="padding:5px 6px;">2026-06-02</td>
+                                    <td style="text-align:right;padding:5px 6px;font-family:monospace;">1,000</td>
+                                    <td style="text-align:right;padding:5px 6px;">1:100,000</td>
+                                    <td style="text-align:right;padding:5px 6px;">0</td>
+                                    <td style="text-align:right;padding:5px 6px;color:var(--text-faint);">Genesis</td>
+                                </tr>
+                                <tr style="color:var(--heading);background:rgba(247,147,26,0.06);">
+                                    <td style="padding:5px 6px;font-weight:700;">2026-06-21</td>
+                                    <td style="text-align:right;padding:5px 6px;font-family:monospace;font-weight:700;color:#22c55e;">30,000</td>
+                                    <td style="text-align:right;padding:5px 6px;">1:3,333</td>
+                                    <td style="text-align:right;padding:5px 6px;">0</td>
+                                    <td style="text-align:right;padding:5px 6px;color:var(--accent);font-weight:700;">+2,900%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div style="color:var(--text-faint);font-size:0.62rem;margin-top:4px;">No block found in 19 days at target 1,000 — difficulty raised to give miners a fighting chance.</div>
+                    </div>
 
                     <div style="border-top:1px solid var(--border);padding-top:12px;">
                         <div style="font-weight:700;color:var(--heading);margin-bottom:8px;">⛏️ Community Hashes</div>

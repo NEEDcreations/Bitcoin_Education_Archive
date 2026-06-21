@@ -16,7 +16,10 @@ function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
 }
 
-const DIFFICULTY_TARGET = 1000;
+// Difficulty history:
+// 2026-06-02: 1000  (genesis — 1:100,000 odds)
+// 2026-06-21: 30000 (raised — no winner in 19 days, now 1:3,333 odds)
+const DIFFICULTY_TARGET = 30000;
 const HASHES_PER_MINUTE = 10;
 const HASH_WINDOW_MS = 60000; // 60 seconds
 const FAVOR_DURATION_MINUTES = 60;
