@@ -2510,7 +2510,7 @@ window.beatsShowArtistPage = function(uid) {
             // Action buttons
             '<div style="display:flex;gap:8px;margin-bottom:20px;">' +
                 ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();showTipOverlay({recipientName:\'' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',recipientUid:\'' + uid + '\',label:\'Tip ' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',context:\'Artist page\'})" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
-                '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">👤 Full Profile</button>' +
+                (!isV4V ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">👤 Full Profile</button>' : (ad.wavlakeUrl || ad.sourceUrl ? '<a href="' + escapeHtml(sanitizeUrl(ad.wavlakeUrl || ad.sourceUrl || '')) + '" target="_blank" rel="noopener" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">🌐 Artist Page</a>' : '')) +
             '</div>' +
             // Discography — grouped by album, then singles
             '';
@@ -3371,37 +3371,32 @@ window.beatsRenderArtists=function(){
             artistById[doc.id]={id:doc.id, name:d.name||doc.id, avatarUrl:d.avatarUrl||'', slug:d.slug||doc.id, claimed:d.claimed||false, count:0};
         });
 
-        // Count tracks per artist
-        db.collection('beats_tracks').where('source','==','podcastindex').get().then(function(tSnap){
+        // Count ALL tracks per artist in one query
+        db.collection('beats_tracks').get().then(function(tSnap){
             tSnap.forEach(function(doc){
                 var t=doc.data();
                 var aid=t.authorId||t.artistDocId;
                 if(aid && artistById[aid]) artistById[aid].count++;
             });
-            // Also count user-uploaded tracks
-            db.collection('beats_tracks').where('source','!=','podcastindex').get().then(function(uSnap){
-                uSnap.forEach(function(doc){
-                    var t=doc.data();
-                    var aid=t.authorId;
-                    if(aid && artistById[aid]) artistById[aid].count++;
-                });
 
-                var artistList=Object.values(artistById).sort(function(a,b){return b.count-a.count||a.name.localeCompare(b.name);});
-                var n=artistList.length;
+            // Filter out artists with 0 tracks
+            var artistList=Object.values(artistById)
+                .filter(function(a){return a.count>0;})
+                .sort(function(a,b){return b.count-a.count||a.name.localeCompare(b.name);});
+            var n=artistList.length;
 
-                var html='<div style="margin-bottom:16px;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:4px;">🎤 Artists</div><div style="color:var(--text-faint);font-size:0.75rem;">'+n+' artist'+(n!==1?'s':'')+' on Bitcoin Beats</div></div>';
-                html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;">';
-                artistList.forEach(function(artist){
-                    var img=artist.avatarUrl ? '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,#1e293b,#0f172a);overflow:hidden;flex-shrink:0;"><img src="'+_safeCover(artist.avatarUrl)+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'"></div>' : '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,var(--accent),#ea580c);display:flex;align-items:center;justify-content:center;font-size:1.6rem;">🎤</div>';
-                    html+='<div onclick="beatsShowArtistPage(\''+artist.id+'\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'\'">';
-                    html+=img;
-                    html+='<div style="color:var(--heading);font-weight:700;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;">'+escapeHtml(artist.name)+'</div>';
-                    html+='<div style="color:var(--text-faint);font-size:0.65rem;">'+artist.count+' track'+(artist.count!==1?'s':'')+(artist.claimed?' • ✓ claimed':'')+'</div>';
-                    html+='</div>';
-                });
+            var html='<div style="margin-bottom:16px;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:4px;">🎤 Artists</div><div style="color:var(--text-faint);font-size:0.75rem;">'+n+' artist'+(n!==1?'s':'')+' on Bitcoin Beats</div></div>';
+            html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;">';
+            artistList.forEach(function(artist){
+                var img=artist.avatarUrl ? '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,#1e293b,#0f172a);overflow:hidden;flex-shrink:0;"><img src="'+_safeCover(artist.avatarUrl)+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'"></div>' : '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,var(--accent),#ea580c);display:flex;align-items:center;justify-content:center;font-size:1.6rem;">🎤</div>';
+                html+='<div onclick="beatsShowArtistPage(\''+artist.id+'\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'\'">';
+                html+=img;
+                html+='<div style="color:var(--heading);font-weight:700;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;">'+escapeHtml(artist.name)+'</div>';
+                html+='<div style="color:var(--text-faint);font-size:0.65rem;">'+artist.count+' track'+(artist.count!==1?'s':'')+(artist.claimed&&artist.claimed!==false?' • ⚡ V4V':'')+'</div>';
                 html+='</div>';
-                listEl.innerHTML=html;
-            }).catch(function(){listEl.innerHTML='<div style="text-align:center;padding:40px;">Error</div>';});
+            });
+            html+='</div>';
+            listEl.innerHTML=html;
         }).catch(function(e){console.error('[Beats Artists]',e);listEl.innerHTML='<div style="text-align:center;padding:40px;">Error loading artists</div>';});
     }).catch(function(e){console.error('[Beats Artists]',e);listEl.innerHTML='<div style="text-align:center;padding:40px;">Error loading artists</div>';});
 };
@@ -3478,9 +3473,13 @@ window.beatsShowV4VTip = async function(track) {
     }).join('');
 
     var hasKeysend = splits.some(function(r) { return r.paymentType && r.paymentType.startsWith('keysend'); });
+    var hasWebLN = !!(window.webln);
     var keysendNote = hasKeysend ?
         '<div style="padding:8px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;margin-bottom:12px;font-size:0.7rem;color:#f59e0b;line-height:1.5;">' +
-        '🔑 <strong>Keysend required</strong> for some artists. Keysend payments are sent directly from your Alby/Zeus wallet via WebLN. Make sure your browser extension is enabled.' +
+        (hasWebLN
+            ? '🔑 <strong>Keysend detected</strong> — your wallet will auto-pay these artists directly.'
+            : '🔑 <strong>No wallet detected.</strong> For keysend artists, you can tip them on <a href="https://wavlake.com" target="_blank" rel="noopener" style="color:var(--accent);">Wavlake.com</a> directly, or ' +
+              '<a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);">install Alby</a> (free) for one-click payments. Lightning address artists below can be paid by copying their address into any wallet.') +
         '</div>' : '';
 
     overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:22px;padding:24px;max-width:400px;width:100%;animation:fadeSlideIn 0.3s ease-out;">' +
@@ -3582,12 +3581,23 @@ window.beatsExecuteV4VTip = async function(trackId) {
                         rowHtml += _v4vRow(ks.name, ks.amountSats, 'fail', 'keysend failed: ' + escapeHtml(ke.message||'unknown'));
                     }
                 } else {
-                    // No keysend support — show node info
-                    rowHtml += _v4vRow(ks.name, ks.amountSats, 'info',
-                        '🔑 Node: <span style="font-family:monospace;font-size:0.58rem;">' + escapeHtml(ksData.nodeAddress.slice(0,24)) + '…</span>' +
-                        (ksData.customValue ? '<br>Key: ' + ksData.customKey + ' / Value: ' + escapeHtml(ksData.customValue.slice(0,20)) : '') +
-                        '<br><span style="color:#f59e0b;font-size:0.62rem;">Install Alby extension for auto keysend</span>'
-                    );
+                    // No keysend / no Alby — give user actionable alternatives
+                    var wavlakeSlug = ksData.customValue ? ksData.customValue : null;
+                    var wavlakeArtistUrl = (ks.paymentType === 'keysend_wavlake' && wavlakeSlug)
+                        ? 'https://wavlake.com' // artist root — best we can do without slug→url lookup
+                        : null;
+                    var altHtml = '';
+                    if (ks.paymentType === 'keysend_wavlake') {
+                        altHtml = '🎧 <a href="https://wavlake.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;">Tip on Wavlake.com</a> ' +
+                            '<span style="color:var(--text-faint);font-size:0.62rem;">or get <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#f59e0b;">Alby wallet</a> for auto-pay</span>';
+                    } else if (ks.lightningAddress || ks.displayAddress) {
+                        var la = ks.lightningAddress || ks.displayAddress;
+                        altHtml = '⚡ <span style="font-family:monospace;font-size:0.7rem;cursor:pointer;color:var(--accent);" onclick="navigator.clipboard.writeText(\'' + escapeHtml(la).replace(/[\x27]/g,"\'\\\\'\'"+'\') + '\');if(typeof showToast===\'function\')showToast(\'\u26a1 Address copied!\')">'+escapeHtml(la)+'</span> ' +
+                            '<button onclick="navigator.clipboard.writeText(\''+escapeHtml(la).replace(/[\x27]/g,"\'\\\\'\'"+'\')+'\');if(typeof showToast===\'function\')showToast(\'\u26a1 Copied!\')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:0.6rem;cursor:pointer;color:var(--text-muted);">copy</button>';
+                    } else {
+                        altHtml = '<span style="color:#f59e0b;font-size:0.62rem;">Get <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#f59e0b;">Alby wallet</a> for keysend support</span>';
+                    }
+                    rowHtml += _v4vRow(ks.name, ks.amountSats, 'info', altHtml);
                 }
             }
         }
