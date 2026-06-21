@@ -2444,27 +2444,32 @@ window.beatsShowArtistPage = function(uid) {
     overlay.innerHTML = '<div style="max-width:500px;margin:40px auto;text-align:center;"><div style="color:var(--text-muted);">Loading artist...</div></div>';
     document.body.appendChild(overlay);
 
-    // Fetch user + their tracks in parallel
+    // Fetch user (may be Firebase user or V4V artist), artist doc, and their tracks in parallel
     Promise.all([
         db.collection('users').doc(uid).get(),
+        db.collection('beats_artists').doc(uid).get(),
         db.collection('beats_tracks').where('authorId', '==', uid).orderBy('createdAt', 'desc').limit(50).get()
     ]).then(function(results) {
-        var userDoc = results[0];
-        var trackSnap = results[1];
-        var u = userDoc.exists ? userDoc.data() : {};
+        var userDoc    = results[0];
+        var artistDoc  = results[1];
+        var trackSnap  = results[2];
+        // Merge: user doc wins for registered users, artist doc fills in for V4V imports
+        var u = userDoc.exists ? userDoc.data() : (artistDoc.exists ? artistDoc.data() : {});
         var tracks = [];
         trackSnap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
 
         var totalPlays = 0, totalLikes = 0;
         tracks.forEach(function(t) { totalPlays += (t.plays || 0); totalLikes += (t.likes || 0); });
 
-        var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '🌱', name: 'Newbie' };
+        var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '🎵', name: '' };
         var ap = u.artistProfile || {};
-        var artistName = ap.stageName || u.username || tracks[0] && (tracks[0].artist || tracks[0].authorName) || 'Unknown Artist';
-        var artistBio = ap.bio || u.bio || '';
+        var isV4V = artistDoc.exists && !userDoc.exists; // V4V import, no real user account
+        var ad = artistDoc.exists ? artistDoc.data() : {};
+        var artistName = ap.stageName || ad.name || u.username || (tracks[0] && (tracks[0].artist || tracks[0].authorName)) || 'Unknown Artist';
+        var artistBio = ap.bio || u.bio || ad.bio || '';
         var artistGenres = ap.genres ? ap.genres.split(',').map(function(g) { return g.trim(); }).filter(Boolean) : [];
-        var artistImage = ap.artistImage || ''; // custom artist profile image
-        var isOwner = auth && auth.currentUser && auth.currentUser.uid === uid;
+        var artistImage = ap.artistImage || ad.avatarUrl || ''; // custom artist profile image
+        var isOwner = !isV4V && auth && auth.currentUser && auth.currentUser.uid === uid;
 
         // Collect music links
         var musicLinks = [];
@@ -2478,10 +2483,12 @@ window.beatsShowArtistPage = function(uid) {
             '<div style="text-align:center;margin-bottom:20px;">' +
                 // Artist image (custom or fallback to level emoji)
                 (artistImage
-                    ? '<div style="width:80px;height:80px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Change artist image"' : '') + '><img src="' + escapeHtml(sanitizeUrl(artistImage)) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
-                    : '<div style="font-size:2.5rem;margin-bottom:8px;' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Upload artist image"' : '') + '>' + lvl.emoji + (isOwner ? '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:2px;">📷 Add Photo</div>' : '') + '</div>') +
+                    ? '<div style="width:88px;height:88px;border-radius:50%;margin:0 auto 12px;overflow:hidden;border:3px solid var(--accent);box-shadow:0 0 24px rgba(247,147,26,0.35);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Change artist image"' : '') + '><img src="' + escapeHtml(sanitizeUrl(artistImage)) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
+                    : '<div style="width:88px;height:88px;border-radius:50%;margin:0 auto 12px;background:linear-gradient(135deg,var(--accent),#1e293b);display:flex;align-items:center;justify-content:center;font-size:2.2rem;border:3px solid var(--border);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Upload artist image"' : '') + '>🎤' + (isOwner ? '<div style="font-size:0.55rem;color:var(--text-faint);position:absolute;margin-top:56px;">📷</div>' : '') + '</div>') +
                 '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + escapeHtml(artistName) + '</div>' +
-                '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
+                (isV4V
+                    ? '<div style="display:inline-block;margin-top:6px;padding:2px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;font-size:0.68rem;color:var(--accent);font-weight:700;">⚡ V4V Artist · Unclaimed</div>'
+                    : '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>') +
                 // Genre tags
                 (artistGenres.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px;">' +
                     artistGenres.map(function(g) { return '<span style="padding:2px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);border-radius:12px;font-size:0.7rem;color:var(--accent);font-weight:600;">' + escapeHtml(g) + '</span>'; }).join('') +
@@ -3351,23 +3358,53 @@ window.beatsRenderArtists=function(){
     var listEl=document.getElementById('beatsTrackList');
     if(!listEl)return;
     listEl.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-faint);">Loading artists...</div>';
-    
     if(typeof db==='undefined'){listEl.innerHTML='<div style="text-align:center;padding:40px;">Firebase not ready</div>';return;}
-    
-    db.collection('beats_tracks').orderBy('createdAt','desc').limit(200).get().then(function(snap){
+
+    // Read directly from beats_artists collection (populated by importer and user uploads)
+    db.collection('beats_artists').orderBy('name','asc').limit(200).get().then(function(snap){
         if(snap.empty){listEl.innerHTML='<div style="text-align:center;padding:40px;"><div style="font-size:2.5rem;">🎤</div><div style="color:var(--text-muted);">No artists yet</div></div>';return;}
-        
-        var artists={};
-        snap.forEach(function(doc){var t=doc.data();if(t.authorId){ var key=t.authorId; if(!artists[key]){artists[key]={name:t.artist||t.authorName||'Unknown',uid:t.authorId,count:0,covers:[]};} artists[key].count++;if((t.coverArt||t.coverUrl)&&artists[key].covers.length<4){artists[key].covers.push(t.coverArt||t.coverUrl);} }});
-        
-        var artistList=Object.values(artists).sort(function(a,b){return b.count-a.count;});
-        
-        var html='<div style="margin-bottom:16px;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:4px;">🎤 Artists</div><div style="color:var(--text-faint);font-size:0.75rem;">'+artistList.length+' artist'+(artistList.length!==1?'s':'')+' on Bitcoin Beats</div></div>';
-        html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;">';
-        artistList.forEach(function(artist){html+='<div onclick="beatsShowArtistPage(\''+artist.uid+'\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;text-align:center;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + (artist.covers.length>0?'<div style="width:64px;height:64px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,#1e293b,#0f172a);overflow:hidden;"><img src="'+_safeCover(artist.covers[0])+'" style="width:100%;height:100%;object-fit:cover;"></div>':'<div style="width:64px;height:64px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,var(--accent),#ea580c);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">🎤</div>') + '<div style="color:var(--heading);font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;">'+escapeHtml(artist.name)+'</div><div style="color:var(--text-faint);font-size:0.7rem;">'+artist.count+' track'+(artist.count!==1?'s':'')+'</div></div>';});
-        html+='</div>';
-        listEl.innerHTML=html;
-    }).catch(function(e){console.error('[Beats Artists]',e);listEl.innerHTML='<div style="text-align:center;padding:40px;">Error loading artists</div>';});};
+
+        // Build artist list — count tracks per artist from the tracks collection
+        var artistById={};
+        snap.forEach(function(doc){
+            var d=doc.data();
+            artistById[doc.id]={id:doc.id, name:d.name||doc.id, avatarUrl:d.avatarUrl||'', slug:d.slug||doc.id, claimed:d.claimed||false, count:0};
+        });
+
+        // Count tracks per artist
+        db.collection('beats_tracks').where('source','==','podcastindex').get().then(function(tSnap){
+            tSnap.forEach(function(doc){
+                var t=doc.data();
+                var aid=t.authorId||t.artistDocId;
+                if(aid && artistById[aid]) artistById[aid].count++;
+            });
+            // Also count user-uploaded tracks
+            db.collection('beats_tracks').where('source','!=','podcastindex').get().then(function(uSnap){
+                uSnap.forEach(function(doc){
+                    var t=doc.data();
+                    var aid=t.authorId;
+                    if(aid && artistById[aid]) artistById[aid].count++;
+                });
+
+                var artistList=Object.values(artistById).sort(function(a,b){return b.count-a.count||a.name.localeCompare(b.name);});
+                var n=artistList.length;
+
+                var html='<div style="margin-bottom:16px;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:4px;">🎤 Artists</div><div style="color:var(--text-faint);font-size:0.75rem;">'+n+' artist'+(n!==1?'s':'')+' on Bitcoin Beats</div></div>';
+                html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;">';
+                artistList.forEach(function(artist){
+                    var img=artist.avatarUrl ? '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,#1e293b,#0f172a);overflow:hidden;flex-shrink:0;"><img src="'+_safeCover(artist.avatarUrl)+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'"></div>' : '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,var(--accent),#ea580c);display:flex;align-items:center;justify-content:center;font-size:1.6rem;">🎤</div>';
+                    html+='<div onclick="beatsShowArtistPage(\''+artist.id+'\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'\'">';
+                    html+=img;
+                    html+='<div style="color:var(--heading);font-weight:700;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;">'+escapeHtml(artist.name)+'</div>';
+                    html+='<div style="color:var(--text-faint);font-size:0.65rem;">'+artist.count+' track'+(artist.count!==1?'s':'')+(artist.claimed?' • ✓ claimed':'')+'</div>';
+                    html+='</div>';
+                });
+                html+='</div>';
+                listEl.innerHTML=html;
+            }).catch(function(){listEl.innerHTML='<div style="text-align:center;padding:40px;">Error</div>';});
+        }).catch(function(e){console.error('[Beats Artists]',e);listEl.innerHTML='<div style="text-align:center;padding:40px;">Error loading artists</div>';});
+    }).catch(function(e){console.error('[Beats Artists]',e);listEl.innerHTML='<div style="text-align:center;padding:40px;">Error loading artists</div>';});
+};
 
 // NOTE: Artist Catalog is already rendered by the original beatsShowArtistPage
 // (see "Discography" section). No override needed.
