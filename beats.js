@@ -2302,90 +2302,27 @@ window.beatsSetGenre = function(genre) {
             return;
         }
 
-        // Fetch tracks — up to 200 for section/genre browsing
-        db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(200).get().then(function(snap) {
-            if (snap.empty) {
-                listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2.5rem;margin-bottom:12px;">🎸</div><div style="color:var(--text-muted);font-weight:600;">No tracks yet</div></div>';
-                return;
-            }
+        // Paginated fetch — load 40 tracks immediately, more on scroll
+        var PAGE_SIZE = 40;
+        window._beatsCursor = null;
+        window._beatsExhausted = false;
+        window._beatsCachedAllTracks = window._beatsCachedAllTracks || null;
 
-            var allTracks = [];
-            snap.forEach(function(doc) { allTracks.push({ id: doc.id, ...doc.data() }); });
-
-// Build genre chips with nice labels
-            var GENRE_META = {
-              bitcoin:    '⚡ Bitcoin / Freedom',
-              indie:      '🎸 Indie',
-              folk:       '🪕 Folk',
-              rock:       '🤘 Rock',
-              electronic: '🎛 Electronic',
-              'hip-hop':  '🎤 Hip-Hop',
-              classical:  '🎹 Classical',
-              jazz:       '🎷 Jazz',
-              podcast:    '🎙 Podcast',
-            };
-            var GENRE_ORDER = ['bitcoin','indie','folk','rock','electronic','hip-hop','classical','jazz','podcast'];
-            var genres = {};
-            allTracks.forEach(function(t) { if (t.genre) genres[t.genre] = (genres[t.genre] || 0) + 1; });
-            var genreChips = document.getElementById('beatsGenreChips');
-            if (genreChips) {
-                var chipStyle = 'padding:5px 12px;border-radius:16px;border:1px solid var(--border);background:var(--card-bg);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;color:var(--text-muted);white-space:nowrap;';
-                var chipHtml = '<button class="beats-genre-btn" data-genre="" onclick="beatsSetGenre(\'\')" style="' + chipStyle + (window._beatsGenreFilter === '' ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">🎵 All</button>';
-                var orderedGenres = GENRE_ORDER.filter(function(g) { return genres[g]; });
-                Object.keys(genres).filter(function(g) { return GENRE_ORDER.indexOf(g) === -1; }).sort().forEach(function(g) { orderedGenres.push(g); });
-                orderedGenres.forEach(function(g) {
-                    if (!genres[g]) return;
-                    var active = window._beatsGenreFilter === g;
-                    var label = GENRE_META[g] || g;
-                    chipHtml += '<button class="beats-genre-btn" data-genre="' + g + '" onclick="beatsSetGenre(\'' + g + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + label + ' <span style="font-size:0.6rem;opacity:0.65;">(' + genres[g] + ')</span></button>';
-                });
-                genreChips.innerHTML = chipHtml;
-            }
-
-            // Filter by genre
-            var tracks = allTracks;
-            if (window._beatsGenreFilter) {
-                tracks = tracks.filter(function(t) { return t.genre === window._beatsGenreFilter; });
-            }
-
-            // Sort
-            var sort = window._beatsDiscoverSort || 'newest';
-            if (sort === 'trending') {
-                var weekAgo = Date.now() - 7 * 86400000;
-                tracks.sort(function(a, b) {
-                    var aRecent = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().getTime() > weekAgo : false;
-                    var bRecent = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate().getTime() > weekAgo : false;
-                    var aScore = (a.plays || 0) * 2 + (a.likes || 0) * 5 + (aRecent ? 100 : 0);
-                    var bScore = (b.plays || 0) * 2 + (b.likes || 0) * 5 + (bRecent ? 100 : 0);
-                    return bScore - aScore;
-                });
-            } else if (sort === 'most-played') {
-                tracks.sort(function(a, b) { return (b.plays || 0) - (a.plays || 0); });
-            } else if (sort === 'most-liked') {
-                tracks.sort(function(a, b) { return (b.likes || 0) - (a.likes || 0); });
-            } else if (sort === 'shuffle') {
-                for (var i = tracks.length - 1; i > 0; i--) {
-                    var j = Math.floor(Math.random() * (i + 1));
-                    var tmp = tracks[i]; tracks[i] = tracks[j]; tracks[j] = tmp;
-                }
-            }
-            // 'newest' is default (already sorted by createdAt desc)
-
-            window._beatsQueue = tracks;
-            // Render using the existing rendering logic
+        function beatsRenderTrackList(tracks, append) {
             var liked = safeJSON('btc_beats_liked', []);
             var html = '';
-            tracks.forEach(function(t, idx) {
+            tracks.forEach(function(t, rawIdx) {
+                var idx = append ? (window._beatsQueue.length - tracks.length + rawIdx) : rawIdx;
                 var isLiked = liked.indexOf(t.id) !== -1;
                 var isPlaying = window._beatsQueueIdx === idx;
                 var duration = t.duration ? beatsFormatTime(t.duration) : '--:--';
                 html += '<div class="beats-track-row" onclick="beatsPlayTrack(' + idx + ')" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;">' +
                     '<div style="display:flex;align-items:center;gap:10px;">' +
                         '<div style="width:28px;text-align:center;color:' + (isPlaying ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;flex-shrink:0;">' + (isPlaying ? '<span style="display:flex;gap:1px;justify-content:center;align-items:flex-end;height:14px;"><div style="width:2px;height:60%;background:var(--accent);animation:beatsEqualizer 0.8s infinite alternate;"></div><div style="width:2px;height:100%;background:var(--accent);animation:beatsEqualizer 1.1s infinite alternate;"></div><div style="width:2px;height:40%;background:var(--accent);animation:beatsEqualizer 0.9s infinite alternate;"></div></span>' : (idx + 1)) + '</div>' +
-                        '<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
+                        '<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
                         '<div onclick="event.stopPropagation();beatsShowTrackDetail(' + idx + ')" style="flex:1;min-width:0;cursor:pointer;">' +
                             '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                            '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(t.artist || t.authorName || 'Unknown') + '</span>' : escapeHtml(t.artist || t.authorName || 'Unknown')) + (t.genre ? ' · ' + t.genre : '') + '</div>' +
+                            '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">'+escapeHtml(t.artist || t.authorName || 'Unknown')+'</span>' : escapeHtml(t.artist||t.authorName||'Unknown')) + (t.genre ? ' · ' + t.genre : '') + '</div>' +
                         '</div>' +
                         '<div style="flex-shrink:0;text-align:right;">' +
                             '<div style="color:var(--text-faint);font-size:0.7rem;">' + duration + '</div>' +
@@ -2399,18 +2336,133 @@ window.beatsSetGenre = function(genre) {
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
-                        (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\\'"]/g, "") + '\',\'' + escapeHtml(t.title || '').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
-                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\',\'' + escapeHtml(t.title || 'Track').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
+                        (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\x27]/g, '') + '\',\'' + escapeHtml(t.title || '').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
+                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\',\'' + escapeHtml(t.title || 'Track').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;" title="More">⋮</button>' +
                     '</div>' +
                 '</div>';
             });
-            if (tracks.length === 0) html = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks in this genre</div>';
-            listEl.innerHTML = html;
-        }).catch(function(e) {
-            console.error('Beats load error:', e);
-            listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">Error loading tracks.</div>';
+            return html;
+        }
+
+        function beatsApplySort(tracks, sort) {
+            var weekAgo = Date.now() - 7 * 86400000;
+            if (sort === 'trending') {
+                tracks.sort(function(a, b) {
+                    var aR = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().getTime() > weekAgo : false;
+                    var bR = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate().getTime() > weekAgo : false;
+                    return ((b.plays||0)*2+(b.likes||0)*5+(bR?100:0)) - ((a.plays||0)*2+(a.likes||0)*5+(aR?100:0));
+                });
+            } else if (sort === 'most-played') {
+                tracks.sort(function(a, b) { return (b.plays||0) - (a.plays||0); });
+            } else if (sort === 'most-liked') {
+                tracks.sort(function(a, b) { return (b.likes||0) - (a.likes||0); });
+            } else if (sort === 'shuffle') {
+                for (var i = tracks.length - 1; i > 0; i--) { var j = Math.floor(Math.random()*(i+1)); var tmp=tracks[i]; tracks[i]=tracks[j]; tracks[j]=tmp; }
+            }
+            return tracks;
+        }
+
+        function beatsLoadPage(append) {
+            if (window._beatsExhausted) return;
+            var sentinel = document.getElementById('beatsLoadSentinel');
+            if (sentinel) sentinel.style.display = 'block';
+
+            var genre = window._beatsGenreFilter || null;
+            var sort  = window._beatsDiscoverSort || 'newest';
+            var needsClientSort = sort !== 'newest';
+
+            if (needsClientSort) {
+                // For non-chronological sorts, fetch all tracks of genre once, sort client-side, paginate locally
+                if (!append) {
+                    var csQ = db.collection('beats_tracks');
+                    if (genre) csQ = csQ.where('genre', '==', genre);
+                    csQ.orderBy('createdAt', 'desc').limit(500).get().then(function(snap) {
+                        if (sentinel) sentinel.style.display = 'none';
+                        var all = [];
+                        snap.forEach(function(doc) { all.push({ id: doc.id, ...doc.data() }); });
+                        all = beatsApplySort(all, sort);
+                        window._beatsQueue = all;
+                        window._beatsExhausted = true; // all loaded
+                        var html = beatsRenderTrackList(all, false);
+                        if (!html) html = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
+                        listEl.innerHTML = html;
+                    }).catch(function(e) { console.error('[Beats] sort load error:', e); if (sentinel) sentinel.style.display='none'; });
+                }
+                return;
+            }
+
+            // Newest: cursor pagination
+            var q = db.collection('beats_tracks');
+            if (genre) q = q.where('genre', '==', genre);
+            q = q.orderBy('createdAt', 'desc');
+            if (append && window._beatsCursor) q = q.startAfter(window._beatsCursor);
+            q = q.limit(PAGE_SIZE);
+
+            q.get().then(function(snap) {
+                if (sentinel) sentinel.style.display = 'none';
+                if (snap.empty || snap.docs.length < PAGE_SIZE) window._beatsExhausted = true;
+                if (snap.empty) {
+                    if (!append) listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
+                    return;
+                }
+                window._beatsCursor = snap.docs[snap.docs.length - 1];
+                var newTracks = [];
+                snap.forEach(function(doc) { newTracks.push({ id: doc.id, ...doc.data() }); });
+                if (!append) { window._beatsQueue = newTracks; } else { window._beatsQueue = (window._beatsQueue||[]).concat(newTracks); }
+                var html = beatsRenderTrackList(newTracks, append);
+                if (!append) {
+                    listEl.innerHTML = html + '<div id="beatsLoadSentinel" style="text-align:center;padding:16px;color:var(--text-faint);font-size:0.75rem;display:none;">Loading more…</div>';
+                    if (window._beatsScrollObs) window._beatsScrollObs.disconnect();
+                    var s2 = document.getElementById('beatsLoadSentinel');
+                    if (s2 && 'IntersectionObserver' in window) {
+                        window._beatsScrollObs = new IntersectionObserver(function(entries) {
+                            if (entries[0].isIntersecting && !window._beatsExhausted) beatsLoadPage(true);
+                        }, { rootMargin: '300px' });
+                        window._beatsScrollObs.observe(s2);
+                    }
+                } else {
+                    var s2 = document.getElementById('beatsLoadSentinel');
+                    if (s2) s2.insertAdjacentHTML('beforebegin', html);
+                }
+            }).catch(function(e) { console.error('[Beats] load page error:', e); if (sentinel) sentinel.style.display='none'; });
+        }
+
+        // Load genre chips from cached stats doc (fast — 1 doc read instead of 420)
+        db.collection('beats_meta').doc('stats').get().then(function(statsDoc) {
+            var genreData = statsDoc.exists ? (statsDoc.data().genreCounts || {}) : {};
+            var GENRE_META = {
+              bitcoin:    '⚡ Bitcoin / Freedom',
+              indie:      '🎸 Indie',
+              folk:       '🪕 Folk',
+              rock:       '🤘 Rock',
+              electronic: '🎛 Electronic',
+              'hip-hop':  '🎤 Hip-Hop',
+              classical:  '🎹 Classical',
+              jazz:       '🎷 Jazz',
+              podcast:    '🎙️ Podcast',
+            };
+            var GENRE_ORDER = ['bitcoin','indie','folk','rock','electronic','hip-hop','classical','jazz','podcast'];
+            var genreChips = document.getElementById('beatsGenreChips');
+            if (genreChips) {
+                var chipStyle = 'padding:5px 12px;border-radius:16px;border:1px solid var(--border);background:var(--card-bg);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;color:var(--text-muted);white-space:nowrap;';
+                var chipHtml = '<button class="beats-genre-btn" data-genre="" onclick="beatsSetGenre(\'\')" style="' + chipStyle + (window._beatsGenreFilter === '' ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">🎵 All</button>';
+                var orderedGenres = GENRE_ORDER.filter(function(g) { return genreData[g]; });
+                Object.keys(genreData).filter(function(g) { return GENRE_ORDER.indexOf(g) === -1; }).sort().forEach(function(g) { orderedGenres.push(g); });
+                orderedGenres.forEach(function(g) {
+                    if (!genreData[g]) return;
+                    var active = window._beatsGenreFilter === g;
+                    var label = GENRE_META[g] || g;
+                    chipHtml += '<button class="beats-genre-btn" data-genre="' + g + '" onclick="beatsSetGenre(\'' + g + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + label + ' <span style="font-size:0.6rem;opacity:0.65;">(' + genreData[g] + ')</span></button>';
+                });
+                genreChips.innerHTML = chipHtml;
+            }
         });
+
+        // Reset cursor and load first page
+        window._beatsCursor = null;
+        window._beatsExhausted = false;
+        beatsLoadPage(false);
     };
 })();
 
@@ -3589,15 +3641,17 @@ window.beatsExecuteV4VTip = async function(trackId) {
                     var altHtml = '';
                     if (ks.paymentType === 'keysend_wavlake') {
                         altHtml = '🎧 <a href="https://wavlake.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;">Tip on Wavlake.com</a> ' +
-                            '<span style="color:var(--text-faint);font-size:0.62rem;">or get <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#f59e0b;">Alby wallet</a> for auto-pay</span>';
+                            '<span style="color:var(--text-faint);font-size:0.62rem;">or install <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#f59e0b;">Alby</a> for auto-pay</span>';
                     } else if (ks.lightningAddress || ks.displayAddress) {
                         var la = ks.lightningAddress || ks.displayAddress;
-                        altHtml = '⚡ <span style="font-family:monospace;font-size:0.7rem;cursor:pointer;color:var(--accent);" onclick="navigator.clipboard.writeText(\'' + escapeHtml(la).replace(/[\x27]/g,"\'\\\\'\'"+'\') + '\');if(typeof showToast===\'function\')showToast(\'\u26a1 Address copied!\')">'+escapeHtml(la)+'</span> ' +
-                            '<button onclick="navigator.clipboard.writeText(\''+escapeHtml(la).replace(/[\x27]/g,"\'\\\\'\'"+'\')+'\');if(typeof showToast===\'function\')showToast(\'\u26a1 Copied!\')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:0.6rem;cursor:pointer;color:var(--text-muted);">copy</button>';
+                        var laSafe = escapeHtml(la);
+                        altHtml = '<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+                            '<span style="font-family:monospace;font-size:0.68rem;color:var(--accent);">' + laSafe + '</span>' +
+                            '<button data-la="' + laSafe + '" onclick="navigator.clipboard.writeText(this.dataset.la);if(typeof showToast===\'function\')showToast(\'⚡ Copied!\')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:0.6rem;cursor:pointer;color:var(--text-muted);">copy</button>' +
+                            '</span>';
                     } else {
-                        altHtml = '<span style="color:#f59e0b;font-size:0.62rem;">Get <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#f59e0b;">Alby wallet</a> for keysend support</span>';
+                        altHtml = '<span style="color:#f59e0b;font-size:0.62rem;">Install <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#f59e0b;">Alby wallet</a> for keysend payments</span>';
                     }
-                    rowHtml += _v4vRow(ks.name, ks.amountSats, 'info', altHtml);
                 }
             }
         }
