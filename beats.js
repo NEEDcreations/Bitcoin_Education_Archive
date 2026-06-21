@@ -2302,8 +2302,8 @@ window.beatsSetGenre = function(genre) {
             return;
         }
 
-        // Fetch all tracks for client-side sorting
-        db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(30).get().then(function(snap) {
+        // Fetch tracks — up to 200 for section/genre browsing
+        db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(200).get().then(function(snap) {
             if (snap.empty) {
                 listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2.5rem;margin-bottom:12px;">🎸</div><div style="color:var(--text-muted);font-weight:600;">No tracks yet</div></div>';
                 return;
@@ -2312,16 +2312,32 @@ window.beatsSetGenre = function(genre) {
             var allTracks = [];
             snap.forEach(function(doc) { allTracks.push({ id: doc.id, ...doc.data() }); });
 
-            // Build genre chips
+// Build genre chips with nice labels
+            var GENRE_META = {
+              bitcoin:    '⚡ Bitcoin / Freedom',
+              indie:      '🎸 Indie',
+              folk:       '🪕 Folk',
+              rock:       '🤘 Rock',
+              electronic: '🎛 Electronic',
+              'hip-hop':  '🎤 Hip-Hop',
+              classical:  '🎹 Classical',
+              jazz:       '🎷 Jazz',
+              podcast:    '🎙 Podcast',
+            };
+            var GENRE_ORDER = ['bitcoin','indie','folk','rock','electronic','hip-hop','classical','jazz','podcast'];
             var genres = {};
             allTracks.forEach(function(t) { if (t.genre) genres[t.genre] = (genres[t.genre] || 0) + 1; });
             var genreChips = document.getElementById('beatsGenreChips');
             if (genreChips) {
-                var chipStyle = 'padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:var(--card-bg);font-size:0.68rem;font-weight:600;cursor:pointer;font-family:inherit;transition:0.2s;color:var(--text-muted);';
-                var chipHtml = '<button class="beats-genre-btn" data-genre="" onclick="beatsSetGenre(\'\')" style="' + chipStyle + (window._beatsGenreFilter === '' ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">All</button>';
-                Object.keys(genres).sort().forEach(function(g) {
+                var chipStyle = 'padding:5px 12px;border-radius:16px;border:1px solid var(--border);background:var(--card-bg);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;color:var(--text-muted);white-space:nowrap;';
+                var chipHtml = '<button class="beats-genre-btn" data-genre="" onclick="beatsSetGenre(\'\')" style="' + chipStyle + (window._beatsGenreFilter === '' ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">🎵 All</button>';
+                var orderedGenres = GENRE_ORDER.filter(function(g) { return genres[g]; });
+                Object.keys(genres).filter(function(g) { return GENRE_ORDER.indexOf(g) === -1; }).sort().forEach(function(g) { orderedGenres.push(g); });
+                orderedGenres.forEach(function(g) {
+                    if (!genres[g]) return;
                     var active = window._beatsGenreFilter === g;
-                    chipHtml += '<button class="beats-genre-btn" data-genre="' + g + '" onclick="beatsSetGenre(\'' + g.replace(/[\\'"]/g, "") + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + escapeHtml(g) + ' (' + genres[g] + ')</button>';
+                    var label = GENRE_META[g] || g;
+                    chipHtml += '<button class="beats-genre-btn" data-genre="' + g + '" onclick="beatsSetGenre(\'' + g + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + label + ' <span style="font-size:0.6rem;opacity:0.65;">(' + genres[g] + ')</span></button>';
                 });
                 genreChips.innerHTML = chipHtml;
             }
