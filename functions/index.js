@@ -4680,44 +4680,54 @@ exports.v4vSplitRelay = functions.https.onCall(async (data, context) => {
     // Build invoice requests
     const invoices = [];
     for (const recipient of splits) {
-        const fraction   = recipient.split / totalSplit;
-        const recipSats  = Math.max(1, Math.round(amountSats * fraction));
-        const recipMsats = recipSats * 1000;
-        const ln         = (recipient.lightningAddress || '').trim();
+        const fraction    = recipient.split / totalSplit;
+        const recipSats   = Math.max(1, Math.round(amountSats * fraction));
+        const recipMsats  = recipSats * 1000;
+        const payType     = recipient.paymentType || 'keysend';
+        const ln          = (recipient.lightningAddress || '').trim();
+        const nodeAddress = (recipient.nodeAddress || '').trim();
+        const customKey   = recipient.customKey   || '';
+        const customValue = recipient.customValue || '';
 
-        let invoice = null;
         let paymentRequest = null;
+        let keysendData    = null;
+        let displayAddress = '';
 
         try {
-            if (ln.startsWith('wavlake:')) {
-                // Wavlake — resolve via their LNURL-pay: artistUUID → wavlake username
-                // Wavlake's artist lightning address format: artist@wavlake.com
-                // We use their generic address and include customValue in memo
-                const wavlakeUser = `wavlake@wavlake.com`;
-                paymentRequest = await fetchLnurlInvoice(wavlakeUser, recipMsats, `V4V: ${track.title}`);
-            } else if (ln.includes('@') && !ln.startsWith('keysend://')) {
-                // Standard LNURL-pay Lightning address
+            if (payType === 'lnaddress' && ln.includes('@')) {
+                // Standard LNURL-pay Lightning address — fetch invoice server-side
                 paymentRequest = await fetchLnurlInvoice(ln, recipMsats, `V4V: ${track.title}`);
-            } else if (ln.startsWith('keysend://')) {
-                // Keysend-only node — return metadata so client can display info
-                // (actual keysend requires node integration; return null invoice)
-                paymentRequest = null;
+                displayAddress = ln;
+            } else if (payType === 'keysend_wavlake') {
+                // Wavlake keysend — use client-side webln.keysend
+                // Return the node info; client handles the actual keysend
+                keysendData = { nodeAddress, customKey: customKey || '16180339', customValue, platform: 'wavlake' };
+                displayAddress = `Wavlake (${recipient.name})`;
+            } else if (payType === 'keysend' && nodeAddress) {
+                // Generic keysend node — client-side webln.keysend
+                keysendData = { nodeAddress, customKey, customValue };
+                displayAddress = nodeAddress.slice(0,16) + '…';
             }
         } catch(e) {
-            console.error(`[v4vSplitRelay] Invoice error for ${ln}:`, e.message);
+            console.error(`[v4vSplitRelay] Error for ${payType} ${ln||nodeAddress}:`, e.message);
         }
 
         invoices.push({
-            name:          recipient.name,
-            split:         recipient.split,
-            splitPct:      Math.round(fraction * 100),
-            amountSats:    recipSats,
+            name:             recipient.name,
+            split:            recipient.split,
+            splitPct:         Math.round(fraction * 100),
+            amountSats:       recipSats,
+            paymentType:      payType,
             lightningAddress: ln,
-            invoice:       paymentRequest,
-            qr:            paymentRequest
+            displayAddress,
+            invoice:          paymentRequest,
+            keysend:          keysendData,
+            qr:               paymentRequest
                 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=1a1a2e&color=ffffff&data=${encodeURIComponent('lightning:' + paymentRequest)}`
                 : null,
-            canPay:        !!paymentRequest
+            canPayLnurl:      !!paymentRequest,
+            canKeysend:       !!keysendData,
+            canPay:           !!(paymentRequest || keysendData)
         });
     }
 

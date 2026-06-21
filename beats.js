@@ -3375,51 +3375,79 @@ window.beatsRenderPumpIt = function() {
 // V4V — Split Tip Overlay + V4V Badge support
 // ================================================================
 
+// Payment type icons and labels
+function _v4vPayIcon(paymentType) {
+    if (paymentType === 'lnaddress') return '⚡';
+    if (paymentType === 'keysend_wavlake') return '🎵';
+    return '🔑';
+}
+function _v4vPayLabel(r) {
+    if (r.paymentType === 'lnaddress')        return r.lightningAddress || r.displayAddress || '';
+    if (r.paymentType === 'keysend_wavlake')  return 'via Wavlake · keysend';
+    if (r.nodeAddress) return r.nodeAddress.slice(0,16) + '…';
+    return 'keysend';
+}
+
 // Show V4V split tip overlay — fans out to each artist's Lightning address
 window.beatsShowV4VTip = async function(track) {
     if (!track || !track.id) return;
     var splits = track.v4vSplits || [];
     if (!splits.length) {
-        // Fall back to normal tip
         if (typeof showTipOverlay === 'function') showTipOverlay({ recipientName: track.artist || 'Artist', recipientUid: track.authorId || '', context: 'Bitcoin Beats tip', label: 'Tip Artist' });
         return;
     }
 
     var overlay = document.createElement('div');
     overlay.id = 'v4vTipOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeSlideIn 0.25s ease-out;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeSlideIn 0.25s ease-out;overflow-y:auto;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var totalSplit = splits.reduce(function(s, r) { return s + (r.split || 0); }, 0) || 100;
     var splitsHtml = splits.map(function(r) {
         var pct = Math.round((r.split / totalSplit) * 100);
-        var hasLn = r.lightningAddress && !r.lightningAddress.startsWith('keysend://');
+        var label = _v4vPayLabel(r);
+        var icon  = _v4vPayIcon(r.paymentType);
+        var hasDirectPay = r.paymentType === 'lnaddress' && r.lightningAddress;
+        var isKeysend    = r.paymentType === 'keysend' || r.paymentType === 'keysend_wavlake';
+        var statusColor  = hasDirectPay ? '#22c55e' : (isKeysend ? '#f59e0b' : '#6b7280');
+        var statusDot    = hasDirectPay ? '●' : '●';
         return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;">' +
-            '<div style="min-width:38px;text-align:center;padding:3px 7px;background:rgba(247,147,26,0.15);border-radius:6px;color:var(--accent);font-weight:800;font-size:0.78rem;">' + pct + '%</div>' +
+            '<div style="min-width:36px;text-align:center;padding:3px 6px;background:rgba(247,147,26,0.15);border-radius:6px;color:var(--accent);font-weight:800;font-size:0.78rem;">' + pct + '%</div>' +
             '<div style="flex:1;min-width:0;">' +
                 '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(r.name || 'Artist') + '</div>' +
-                (hasLn ? '<div style="color:var(--text-faint);font-size:0.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">⚡ ' + escapeHtml(r.lightningAddress.replace('wavlake:','').slice(0,40)) + '</div>' : '<div style="color:#ef4444;font-size:0.65rem;">keysend only</div>') +
+                '<div style="color:' + statusColor + ';font-size:0.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px;">' +
+                    '<span style="font-size:0.45rem;">' + statusDot + '</span>' + icon + ' ' + escapeHtml(label.slice(0,42)) +
+                '</div>' +
             '</div>' +
+            (hasDirectPay ? '<div style="font-size:0.6rem;color:#22c55e;font-weight:700;white-space:nowrap;">LNURL</div>' :
+             isKeysend    ? '<div style="font-size:0.6rem;color:#f59e0b;font-weight:700;white-space:nowrap;">keysend</div>' : '') +
         '</div>';
     }).join('');
 
-    overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:22px;padding:26px;max-width:400px;width:100%;animation:fadeSlideIn 0.3s ease-out;">' +
-        '<div style="text-align:center;margin-bottom:16px;">' +
-            '<div style="font-size:2rem;margin-bottom:6px;">⚡</div>' +
-            '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:0 0 4px;">V4V Tip — Split to All Artists</h3>' +
-            '<p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 12px;">' + escapeHtml(track.title || '') + '</p>' +
+    var hasKeysend = splits.some(function(r) { return r.paymentType && r.paymentType.startsWith('keysend'); });
+    var keysendNote = hasKeysend ?
+        '<div style="padding:8px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;margin-bottom:12px;font-size:0.7rem;color:#f59e0b;line-height:1.5;">' +
+        '🔑 <strong>Keysend required</strong> for some artists. Keysend payments are sent directly from your Alby/Zeus wallet via WebLN. Make sure your browser extension is enabled.' +
+        '</div>' : '';
+
+    overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:22px;padding:24px;max-width:400px;width:100%;animation:fadeSlideIn 0.3s ease-out;">' +
+        '<div style="text-align:center;margin-bottom:14px;">' +
+            '<div style="font-size:2rem;margin-bottom:4px;">⚡</div>' +
+            '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0 0 4px;">V4V Split — Pay Each Artist</h3>' +
+            '<p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 10px;">' + escapeHtml(track.title || '') + '</p>' +
         '</div>' +
-        '<div style="margin-bottom:16px;">' + splitsHtml + '</div>' +
-        '<div style="margin-bottom:12px;">' +
-            '<input type="number" id="v4vTipAmount" placeholder="Amount in sats" min="10" value="1000" style="width:100%;padding:13px;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1.1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;font-weight:700;">' +
-            '<div style="text-align:center;color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Split proportionally to each artist above</div>' +
+        '<div style="margin-bottom:12px;max-height:220px;overflow-y:auto;">' + splitsHtml + '</div>' +
+        keysendNote +
+        '<div style="margin-bottom:10px;">' +
+            '<input type="number" id="v4vTipAmount" placeholder="Amount in sats" min="10" value="1000" style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1.05rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;font-weight:700;">' +
+            '<div style="text-align:center;color:var(--text-faint);font-size:0.68rem;margin-top:3px;">Split proportionally to each artist</div>' +
         '</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;justify-content:center;">' +
-            [100,500,1000,5000,21000].map(function(v){return '<button onclick="document.getElementById(\'v4vTipAmount\').value='+v+'" style="padding:5px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;">'+(v>=1000?v/1000+'K':v)+' sats</button>';}).join('') +
+        '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;justify-content:center;">' +
+            [100,500,1000,5000,21000].map(function(v){return '<button onclick="document.getElementById(\'v4vTipAmount\').value='+v+'" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">'+(v>=1000?v/1000+'K':v)+' sats</button>';}).join('') +
         '</div>' +
-        '<div id="v4vTipResult" style="margin-bottom:12px;"></div>' +
-        '<button id="v4vTipBtn" onclick="beatsExecuteV4VTip(\'' + track.id + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px;">⚡ Split Tip</button>' +
-        '<button onclick="document.getElementById(\'v4vTipOverlay\').remove()" style="width:100%;padding:10px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '<div id="v4vTipResult" style="margin-bottom:10px;"></div>' +
+        '<button id="v4vTipBtn" onclick="beatsExecuteV4VTip(\'' + track.id + '\')" style="width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px;">⚡ Pay All Artists</button>' +
+        '<button onclick="document.getElementById(\'v4vTipOverlay\').remove()" style="width:100%;padding:9px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
     '</div>';
     document.body.appendChild(overlay);
 };
@@ -3429,71 +3457,124 @@ window.beatsExecuteV4VTip = async function(trackId) {
     var result = document.getElementById('v4vTipResult');
     var amount = parseInt(document.getElementById('v4vTipAmount') ? document.getElementById('v4vTipAmount').value : 0) || 0;
     if (amount < 10) { result.innerHTML = '<div style="color:#ef4444;text-align:center;font-size:0.82rem;">Minimum 10 sats</div>'; return; }
-    btn.disabled = true; btn.textContent = '⏳ Getting invoices…';
+    btn.disabled = true; btn.textContent = '⏳ Getting payment info…';
 
     try {
         var fn = firebase.functions().httpsCallable('v4vSplitRelay');
         var resp = await fn({ trackId: trackId, amountSats: amount });
         var data = resp.data;
         var invoices = data.invoices || [];
-        var payable = invoices.filter(function(i) { return i.canPay && i.invoice; });
-        var noLn    = invoices.filter(function(i) { return !i.canPay; });
 
-        if (!payable.length) {
-            result.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-size:0.82rem;text-align:center;">No payable Lightning addresses found for these artists yet.</div>';
-            btn.disabled = false; btn.textContent = '⚡ Split Tip';
+        // Split into payment types
+        var lnurlPayable  = invoices.filter(function(i) { return i.canPayLnurl && i.invoice; });
+        var keysendable   = invoices.filter(function(i) { return i.canKeysend && i.keysend; });
+        var unpayable     = invoices.filter(function(i) { return !i.canPay; });
+
+        if (!lnurlPayable.length && !keysendable.length) {
+            result.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-size:0.82rem;text-align:center;">No payable routes found.</div>';
+            btn.disabled = false; btn.textContent = '⚡ Pay All Artists';
             return;
         }
 
-        // Try to pay each invoice via user's connected wallet
         var lnState = null; try { lnState = JSON.parse(localStorage.getItem('btc_ln_state')); } catch(e) {}
-        var canAutoPay = lnState && ((lnState.method === 'nwc' && lnState.nwcRelay) || (lnState.method === 'webln' && window.webln));
+        var hasWallet = lnState && ((lnState.method === 'nwc' && lnState.nwcRelay) || (lnState.method === 'webln' && window.webln));
+        var hasWebLN  = !!(window.webln);
 
         var paidCount = 0;
-        var invoiceHtml = '';
+        var rowHtml = '';
 
-        if (canAutoPay) {
-            btn.textContent = '⏳ Paying ' + payable.length + ' invoices…';
-            for (var i = 0; i < payable.length; i++) {
-                var inv = payable[i];
+        // 1. Pay LNURL invoices
+        if (lnurlPayable.length && hasWallet) {
+            btn.textContent = '⏳ Paying ' + lnurlPayable.length + ' LNURL…';
+            for (var i = 0; i < lnurlPayable.length; i++) {
+                var inv = lnurlPayable[i];
                 try {
                     if (typeof window.lnSendPaymentDirect === 'function') {
                         await window.lnSendPaymentDirect(inv.invoice);
                         paidCount++;
-                        invoiceHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(34,197,94,0.08);border-radius:8px;margin-bottom:4px;font-size:0.75rem;"><span style="color:#22c55e;">✓</span><span style="color:var(--heading);">' + escapeHtml(inv.name) + '</span><span style="color:var(--text-faint);margin-left:auto;">' + inv.amountSats.toLocaleString() + ' sats</span></div>';
+                        rowHtml += _v4vRow(inv.name, inv.amountSats, 'paid', '✓ ' + escapeHtml(inv.lightningAddress||inv.displayAddress||''));
                     }
                 } catch(pe) {
-                    invoiceHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(239,68,68,0.08);border-radius:8px;margin-bottom:4px;font-size:0.75rem;"><span style="color:#ef4444;">✗</span><span style="color:var(--heading);">' + escapeHtml(inv.name) + '</span><span style="color:#ef4444;margin-left:auto;">failed</span></div>';
+                    rowHtml += _v4vRow(inv.name, inv.amountSats, 'fail', 'failed: ' + escapeHtml(pe.message||'unknown'));
                 }
             }
-            result.innerHTML = '<div style="margin-bottom:8px;">' + invoiceHtml + '</div>' +
-                (paidCount > 0 ? '<div style="text-align:center;color:#22c55e;font-size:0.85rem;font-weight:700;">⚡ ' + paidCount + ' of ' + payable.length + ' payments sent!</div>' : '') +
-                (noLn.length ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">' + noLn.length + ' artist(s) skipped (keysend only)</div>' : '');
-            if (paidCount > 0) {
-                if (typeof launchConfetti === 'function') launchConfetti();
-                if (typeof awardPoints === 'function') awardPoints(10, 'V4V tip sent');
+        } else if (lnurlPayable.length) {
+            // No wallet — show QR codes
+            lnurlPayable.forEach(function(inv) {
+                rowHtml += _v4vRow(inv.name, inv.amountSats, 'qr',
+                    (inv.qr ? '<img src="'+inv.qr+'" style="width:120px;height:120px;border-radius:8px;display:block;margin:6px auto 4px;">' : '') +
+                    '<div onclick="navigator.clipboard.writeText(this.dataset.inv);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')" data-inv="'+escapeHtml(inv.invoice)+'" style="font-family:monospace;font-size:0.52rem;cursor:pointer;color:var(--text-faint);word-break:break-all;padding:2px 4px;background:var(--input-bg);border-radius:4px;">'+inv.invoice.slice(0,40)+'…</div>'
+                );
+            });
+        }
+
+        // 2. Pay keysend (requires WebLN keysend support)
+        if (keysendable.length) {
+            btn.textContent = '⏳ Keysend ' + keysendable.length + ' artist(s)…';
+            for (var j = 0; j < keysendable.length; j++) {
+                var ks = keysendable[j];
+                var ksData = ks.keysend;
+                var ksLabel = ks.paymentType === 'keysend_wavlake' ? 'Wavlake node' : ksData.nodeAddress.slice(0,12)+'…';
+                if (hasWebLN && window.webln && typeof window.webln.keysend === 'function') {
+                    try {
+                        var customRecords = {};
+                        if (ksData.customKey && ksData.customValue) {
+                            customRecords[ksData.customKey] = ksData.customValue;
+                        }
+                        await window.webln.enable();
+                        await window.webln.keysend({ destination: ksData.nodeAddress, amount: ks.amountSats, customRecords: customRecords });
+                        paidCount++;
+                        rowHtml += _v4vRow(ks.name, ks.amountSats, 'paid', '✓ keysend → ' + ksLabel);
+                    } catch(ke) {
+                        rowHtml += _v4vRow(ks.name, ks.amountSats, 'fail', 'keysend failed: ' + escapeHtml(ke.message||'unknown'));
+                    }
+                } else {
+                    // No keysend support — show node info
+                    rowHtml += _v4vRow(ks.name, ks.amountSats, 'info',
+                        '🔑 Node: <span style="font-family:monospace;font-size:0.58rem;">' + escapeHtml(ksData.nodeAddress.slice(0,24)) + '…</span>' +
+                        (ksData.customValue ? '<br>Key: ' + ksData.customKey + ' / Value: ' + escapeHtml(ksData.customValue.slice(0,20)) : '') +
+                        '<br><span style="color:#f59e0b;font-size:0.62rem;">Install Alby extension for auto keysend</span>'
+                    );
+                }
             }
-        } else {
-            // Show QR codes for manual payment
-            var qrHtml = payable.map(function(inv) {
-                return '<div style="text-align:center;margin-bottom:16px;">' +
-                    '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:4px;">' + escapeHtml(inv.name) + ' — ' + inv.amountSats.toLocaleString() + ' sats</div>' +
-                    (inv.qr ? '<img src="' + inv.qr + '" style="width:160px;height:160px;border-radius:10px;display:block;margin:0 auto 8px;">' : '') +
-                    '<div onclick="navigator.clipboard.writeText(\'' + inv.invoice.slice(0,20) + '...\');showToast(\'📋 Copied!\')" style="font-family:monospace;font-size:0.55rem;color:var(--text-faint);word-break:break-all;cursor:pointer;padding:4px 8px;background:var(--input-bg);border-radius:6px;">' + inv.invoice.slice(0,40) + '…</div>' +
-                '</div>';
-            }).join('<hr style="border-color:var(--border);margin:12px 0;">');
-            result.innerHTML = '<div style="max-height:300px;overflow-y:auto;">' + qrHtml + '</div>' +
-                (noLn.length ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">' + noLn.length + ' artist(s) skipped (keysend only)</div>' : '');
+        }
+
+        if (unpayable.length) {
+            unpayable.forEach(function(u) {
+                rowHtml += _v4vRow(u.name, u.amountSats, 'skip', 'no payment route available');
+            });
+        }
+
+        result.innerHTML = '<div style="margin-bottom:8px;">' + rowHtml + '</div>' +
+            (paidCount > 0 ? '<div style="text-align:center;color:#22c55e;font-size:0.85rem;font-weight:700;">⚡ ' + paidCount + ' payment(s) sent!</div>' : '');
+
+        if (paidCount > 0) {
+            if (typeof launchConfetti === 'function') launchConfetti();
+            if (typeof awardPoints === 'function') awardPoints(10, 'V4V split tip sent');
         }
 
         btn.textContent = '✓ Done';
-        setTimeout(function() { var o = document.getElementById('v4vTipOverlay'); if (o) o.remove(); }, 4000);
+        if (paidCount > 0) setTimeout(function() { var o = document.getElementById('v4vTipOverlay'); if (o) o.remove(); }, 5000);
+        else { btn.disabled = false; }
+
     } catch(e) {
         console.error('[V4V Tip]', e);
         result.innerHTML = '<div style="color:#ef4444;text-align:center;font-size:0.82rem;">Error: ' + escapeHtml(e.message || 'unknown') + '</div>';
-        btn.disabled = false; btn.textContent = '⚡ Split Tip';
+        btn.disabled = false; btn.textContent = '⚡ Pay All Artists';
     }
 };
+
+function _v4vRow(name, sats, status, detail) {
+    var colors = { paid:'rgba(34,197,94,0.08)', fail:'rgba(239,68,68,0.08)', qr:'var(--card-bg)', info:'rgba(245,158,11,0.08)', skip:'rgba(100,100,100,0.06)' };
+    var border = { paid:'rgba(34,197,94,0.3)', fail:'rgba(239,68,68,0.3)', qr:'var(--border)', info:'rgba(245,158,11,0.3)', skip:'var(--border)' };
+    return '<div style="padding:8px 12px;background:'+colors[status]+';border:1px solid '+border[status]+';border-radius:8px;margin-bottom:6px;">' +
+        '<div style="display:flex;justify-content:space-between;margin-bottom:3px;">' +
+            '<span style="color:var(--heading);font-size:0.8rem;font-weight:700;">' + escapeHtml(name) + '</span>' +
+            '<span style="color:var(--text-faint);font-size:0.75rem;">' + sats.toLocaleString() + ' sats</span>' +
+        '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.68rem;line-height:1.4;">' + detail + '</div>' +
+    '</div>';
+}
 
 // Patch beatsShowTrackDetail to add V4V tip button + badge for v4v tracks
 (function() {
