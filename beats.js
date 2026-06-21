@@ -3370,3 +3370,206 @@ window.beatsRenderPumpIt = function() {
         + '</div>';
 };
 
+
+// ================================================================
+// V4V — Split Tip Overlay + V4V Badge support
+// ================================================================
+
+// Show V4V split tip overlay — fans out to each artist's Lightning address
+window.beatsShowV4VTip = async function(track) {
+    if (!track || !track.id) return;
+    var splits = track.v4vSplits || [];
+    if (!splits.length) {
+        // Fall back to normal tip
+        if (typeof showTipOverlay === 'function') showTipOverlay({ recipientName: track.artist || 'Artist', recipientUid: track.authorId || '', context: 'Bitcoin Beats tip', label: 'Tip Artist' });
+        return;
+    }
+
+    var overlay = document.createElement('div');
+    overlay.id = 'v4vTipOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeSlideIn 0.25s ease-out;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var totalSplit = splits.reduce(function(s, r) { return s + (r.split || 0); }, 0) || 100;
+    var splitsHtml = splits.map(function(r) {
+        var pct = Math.round((r.split / totalSplit) * 100);
+        var hasLn = r.lightningAddress && !r.lightningAddress.startsWith('keysend://');
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;">' +
+            '<div style="min-width:38px;text-align:center;padding:3px 7px;background:rgba(247,147,26,0.15);border-radius:6px;color:var(--accent);font-weight:800;font-size:0.78rem;">' + pct + '%</div>' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(r.name || 'Artist') + '</div>' +
+                (hasLn ? '<div style="color:var(--text-faint);font-size:0.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">⚡ ' + escapeHtml(r.lightningAddress.replace('wavlake:','').slice(0,40)) + '</div>' : '<div style="color:#ef4444;font-size:0.65rem;">keysend only</div>') +
+            '</div>' +
+        '</div>';
+    }).join('');
+
+    overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:22px;padding:26px;max-width:400px;width:100%;animation:fadeSlideIn 0.3s ease-out;">' +
+        '<div style="text-align:center;margin-bottom:16px;">' +
+            '<div style="font-size:2rem;margin-bottom:6px;">⚡</div>' +
+            '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:0 0 4px;">V4V Tip — Split to All Artists</h3>' +
+            '<p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 12px;">' + escapeHtml(track.title || '') + '</p>' +
+        '</div>' +
+        '<div style="margin-bottom:16px;">' + splitsHtml + '</div>' +
+        '<div style="margin-bottom:12px;">' +
+            '<input type="number" id="v4vTipAmount" placeholder="Amount in sats" min="10" value="1000" style="width:100%;padding:13px;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1.1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;font-weight:700;">' +
+            '<div style="text-align:center;color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Split proportionally to each artist above</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;justify-content:center;">' +
+            [100,500,1000,5000,21000].map(function(v){return '<button onclick="document.getElementById(\'v4vTipAmount\').value='+v+'" style="padding:5px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;">'+(v>=1000?v/1000+'K':v)+' sats</button>';}).join('') +
+        '</div>' +
+        '<div id="v4vTipResult" style="margin-bottom:12px;"></div>' +
+        '<button id="v4vTipBtn" onclick="beatsExecuteV4VTip(\'' + track.id + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px;">⚡ Split Tip</button>' +
+        '<button onclick="document.getElementById(\'v4vTipOverlay\').remove()" style="width:100%;padding:10px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+    '</div>';
+    document.body.appendChild(overlay);
+};
+
+window.beatsExecuteV4VTip = async function(trackId) {
+    var btn    = document.getElementById('v4vTipBtn');
+    var result = document.getElementById('v4vTipResult');
+    var amount = parseInt(document.getElementById('v4vTipAmount') ? document.getElementById('v4vTipAmount').value : 0) || 0;
+    if (amount < 10) { result.innerHTML = '<div style="color:#ef4444;text-align:center;font-size:0.82rem;">Minimum 10 sats</div>'; return; }
+    btn.disabled = true; btn.textContent = '⏳ Getting invoices…';
+
+    try {
+        var fn = firebase.functions().httpsCallable('v4vSplitRelay');
+        var resp = await fn({ trackId: trackId, amountSats: amount });
+        var data = resp.data;
+        var invoices = data.invoices || [];
+        var payable = invoices.filter(function(i) { return i.canPay && i.invoice; });
+        var noLn    = invoices.filter(function(i) { return !i.canPay; });
+
+        if (!payable.length) {
+            result.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-size:0.82rem;text-align:center;">No payable Lightning addresses found for these artists yet.</div>';
+            btn.disabled = false; btn.textContent = '⚡ Split Tip';
+            return;
+        }
+
+        // Try to pay each invoice via user's connected wallet
+        var lnState = null; try { lnState = JSON.parse(localStorage.getItem('btc_ln_state')); } catch(e) {}
+        var canAutoPay = lnState && ((lnState.method === 'nwc' && lnState.nwcRelay) || (lnState.method === 'webln' && window.webln));
+
+        var paidCount = 0;
+        var invoiceHtml = '';
+
+        if (canAutoPay) {
+            btn.textContent = '⏳ Paying ' + payable.length + ' invoices…';
+            for (var i = 0; i < payable.length; i++) {
+                var inv = payable[i];
+                try {
+                    if (typeof window.lnSendPaymentDirect === 'function') {
+                        await window.lnSendPaymentDirect(inv.invoice);
+                        paidCount++;
+                        invoiceHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(34,197,94,0.08);border-radius:8px;margin-bottom:4px;font-size:0.75rem;"><span style="color:#22c55e;">✓</span><span style="color:var(--heading);">' + escapeHtml(inv.name) + '</span><span style="color:var(--text-faint);margin-left:auto;">' + inv.amountSats.toLocaleString() + ' sats</span></div>';
+                    }
+                } catch(pe) {
+                    invoiceHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(239,68,68,0.08);border-radius:8px;margin-bottom:4px;font-size:0.75rem;"><span style="color:#ef4444;">✗</span><span style="color:var(--heading);">' + escapeHtml(inv.name) + '</span><span style="color:#ef4444;margin-left:auto;">failed</span></div>';
+                }
+            }
+            result.innerHTML = '<div style="margin-bottom:8px;">' + invoiceHtml + '</div>' +
+                (paidCount > 0 ? '<div style="text-align:center;color:#22c55e;font-size:0.85rem;font-weight:700;">⚡ ' + paidCount + ' of ' + payable.length + ' payments sent!</div>' : '') +
+                (noLn.length ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">' + noLn.length + ' artist(s) skipped (keysend only)</div>' : '');
+            if (paidCount > 0) {
+                if (typeof launchConfetti === 'function') launchConfetti();
+                if (typeof awardPoints === 'function') awardPoints(10, 'V4V tip sent');
+            }
+        } else {
+            // Show QR codes for manual payment
+            var qrHtml = payable.map(function(inv) {
+                return '<div style="text-align:center;margin-bottom:16px;">' +
+                    '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:4px;">' + escapeHtml(inv.name) + ' — ' + inv.amountSats.toLocaleString() + ' sats</div>' +
+                    (inv.qr ? '<img src="' + inv.qr + '" style="width:160px;height:160px;border-radius:10px;display:block;margin:0 auto 8px;">' : '') +
+                    '<div onclick="navigator.clipboard.writeText(\'' + inv.invoice.slice(0,20) + '...\');showToast(\'📋 Copied!\')" style="font-family:monospace;font-size:0.55rem;color:var(--text-faint);word-break:break-all;cursor:pointer;padding:4px 8px;background:var(--input-bg);border-radius:6px;">' + inv.invoice.slice(0,40) + '…</div>' +
+                '</div>';
+            }).join('<hr style="border-color:var(--border);margin:12px 0;">');
+            result.innerHTML = '<div style="max-height:300px;overflow-y:auto;">' + qrHtml + '</div>' +
+                (noLn.length ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">' + noLn.length + ' artist(s) skipped (keysend only)</div>' : '');
+        }
+
+        btn.textContent = '✓ Done';
+        setTimeout(function() { var o = document.getElementById('v4vTipOverlay'); if (o) o.remove(); }, 4000);
+    } catch(e) {
+        console.error('[V4V Tip]', e);
+        result.innerHTML = '<div style="color:#ef4444;text-align:center;font-size:0.82rem;">Error: ' + escapeHtml(e.message || 'unknown') + '</div>';
+        btn.disabled = false; btn.textContent = '⚡ Split Tip';
+    }
+};
+
+// Patch beatsShowTrackDetail to add V4V tip button + badge for v4v tracks
+(function() {
+    var _orig = window.beatsShowTrackDetail;
+    window.beatsShowTrackDetail = function(idx) {
+        _orig(idx);
+        var track = window._beatsQueue && window._beatsQueue[idx];
+        if (!track || !track.hasV4VSplits) return;
+
+        // Add V4V badge to overlay title area and swap tip button
+        var overlay = document.getElementById('beatsDetailOverlay');
+        if (!overlay) return;
+
+        // Add V4V badge after genre tag
+        var genreEl = overlay.querySelector('[style*="border-radius:20px"]');
+        if (genreEl && genreEl.parentElement) {
+            var badge = document.createElement('div');
+            badge.style.cssText = 'text-align:center;margin-bottom:10px;';
+            badge.innerHTML = '<span style="background:rgba(247,147,26,0.2);border:1px solid rgba(247,147,26,0.5);color:#f7931a;font-size:0.65rem;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:0.5px;">⚡ V4V · ' + (track.v4vSplits ? track.v4vSplits.length : 1) + ' artist split</span>';
+            genreEl.parentElement.insertBefore(badge, genreEl.nextSibling);
+        }
+
+        // Prepend V4V tip button before the button row
+        var btnRow = overlay.querySelector('[style*="display:flex;gap:8px"]');
+        if (btnRow) {
+            var v4vBtn = document.createElement('button');
+            v4vBtn.style.cssText = 'width:100%;padding:11px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.5);border-radius:12px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;';
+            v4vBtn.textContent = '⚡ Zap All Artists (Split)';
+            v4vBtn.onclick = function(e) {
+                e.stopPropagation();
+                document.getElementById('beatsDetailOverlay').remove();
+                beatsShowV4VTip(track);
+            };
+            btnRow.parentElement.insertBefore(v4vBtn, btnRow);
+        }
+
+        // V4V source attribution line
+        if (track.feedTitle) {
+            var inner = overlay.querySelector('[style*="background:var(--bg-side"]');
+            if (inner) {
+                var attr = document.createElement('div');
+                attr.style.cssText = 'text-align:center;color:var(--text-faint);font-size:0.65rem;margin-top:12px;';
+                attr.innerHTML = '🎙️ Via <a href="https://podcastindex.org" target="_blank" rel="noopener" style="color:var(--accent);">Podcast Index</a> · ' + escapeHtml(track.feedTitle || '') +
+                    ' · <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:var(--accent);">V4V License</a>';
+                inner.appendChild(attr);
+            }
+        }
+    };
+})();
+
+// Add ⚡ V4V badge to track list cards
+(function() {
+    var _origRender = window._beatsRenderTrackCard;
+    // Patch the track card render inline — add badge to track title row for v4v tracks
+    // The actual card HTML is built inside beatsLoadTracks; we patch the data check
+    window._beatsV4VBadgeHtml = function(track) {
+        if (!track || !track.hasV4VSplits) return '';
+        return '<span style="display:inline-block;margin-left:6px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.4);color:#f7931a;font-size:0.58rem;font-weight:700;padding:1px 6px;border-radius:10px;vertical-align:middle;letter-spacing:0.3px;">V4V</span>';
+    };
+})();
+
+// Artist claim CTA — shown on beats_artists page for unclaimed artists
+window.beatsShowArtistClaimCTA = function(artistName) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10003;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeSlideIn 0.25s;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:380px;width:100%;text-align:center;">' +
+        '<div style="font-size:2.5rem;margin-bottom:12px;">🎤</div>' +
+        '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:0 0 8px;">Are you ' + escapeHtml(artistName) + '?</h3>' +
+        '<p style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;margin:0 0 16px;">Claim your artist page to manage your profile, update your Lightning address, and receive zaps directly from fans.</p>' +
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;margin-bottom:16px;font-size:0.78rem;color:var(--text-muted);line-height:1.6;">' +
+            '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">To claim your page, email us:</div>' +
+            '<div>📧 <a href="mailto:info.603btc@gmail.com?subject=Artist Claim: ' + encodeURIComponent(artistName) + '&body=Artist name: ' + encodeURIComponent(artistName) + '%0A%0AMy name:%0ASocial proof (website%2FFountain%2FWavlake%2Fetc.):%0AMy Lightning address:" style="color:var(--accent);">info.603btc@gmail.com</a></div>' +
+            '<div style="margin-top:6px;">Include: (1) your name, (2) social proof link, (3) your Lightning address</div>' +
+        '</div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Got it</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+};

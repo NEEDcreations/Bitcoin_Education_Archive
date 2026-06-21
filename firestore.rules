@@ -626,6 +626,27 @@ service cloud.firestore {
     }
 
     // =============================================
+    // BITCOIN BEATS — V4V ARTISTS
+    // =============================================
+    match /beats_artists/{artistId} {
+      allow read: if true;
+      // Only admin can create/update (import script uses Admin SDK)
+      allow write: if request.auth != null
+                   && (request.auth.token.email == 'needcreations@gmail.com'
+                       || request.auth.token.email == 'info.603btc@gmail.com');
+    }
+
+    // =============================================
+    // BITCOIN BEATS — V4V SPLIT EVENTS (log)
+    // =============================================
+    match /beats_v4v_events/{eventId} {
+      allow read: if request.auth != null
+                  && (request.auth.token.email == 'needcreations@gmail.com'
+                      || request.auth.token.email == 'info.603btc@gmail.com');
+      allow write: if false; // written by Cloud Function only
+    }
+
+    // =============================================
     // BITCOIN BEATS — REPORTS
     // =============================================
     match /beats_reports/{reportId} {

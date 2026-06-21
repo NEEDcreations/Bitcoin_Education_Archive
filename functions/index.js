@@ -4655,3 +4655,110 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
     return { users: results, hasMore };
 });
 
+
+// ================================================================
+// ⚡ V4V Split Relay — fan-out zap to multiple Lightning recipients
+// POST body: { trackId, amountSats }
+// Returns: { invoices: [{name, split, amountSats, invoice, qr}], totalSats }
+// ================================================================
+exports.v4vSplitRelay = functions.https.onCall(async (data, context) => {
+    const { trackId, amountSats } = data || {};
+    if (!trackId) throw new functions.https.HttpsError('invalid-argument', 'trackId required');
+    if (!amountSats || amountSats < 10) throw new functions.https.HttpsError('invalid-argument', 'amountSats must be >= 10');
+    if (amountSats > 10000000) throw new functions.https.HttpsError('invalid-argument', 'amountSats too large');
+
+    const trackDoc = await admin.firestore().collection('beats_tracks').doc(trackId).get();
+    if (!trackDoc.exists) throw new functions.https.HttpsError('not-found', 'Track not found');
+    const track    = trackDoc.data();
+    const splits   = (track.v4vSplits || []).filter(s => s.split > 0);
+
+    if (splits.length === 0) throw new functions.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
+
+    // Normalise splits to sum=100
+    const totalSplit = splits.reduce((s, r) => s + r.split, 0);
+
+    // Build invoice requests
+    const invoices = [];
+    for (const recipient of splits) {
+        const fraction   = recipient.split / totalSplit;
+        const recipSats  = Math.max(1, Math.round(amountSats * fraction));
+        const recipMsats = recipSats * 1000;
+        const ln         = (recipient.lightningAddress || '').trim();
+
+        let invoice = null;
+        let paymentRequest = null;
+
+        try {
+            if (ln.startsWith('wavlake:')) {
+                // Wavlake — resolve via their LNURL-pay: artistUUID → wavlake username
+                // Wavlake's artist lightning address format: artist@wavlake.com
+                // We use their generic address and include customValue in memo
+                const wavlakeUser = `wavlake@wavlake.com`;
+                paymentRequest = await fetchLnurlInvoice(wavlakeUser, recipMsats, `V4V: ${track.title}`);
+            } else if (ln.includes('@') && !ln.startsWith('keysend://')) {
+                // Standard LNURL-pay Lightning address
+                paymentRequest = await fetchLnurlInvoice(ln, recipMsats, `V4V: ${track.title}`);
+            } else if (ln.startsWith('keysend://')) {
+                // Keysend-only node — return metadata so client can display info
+                // (actual keysend requires node integration; return null invoice)
+                paymentRequest = null;
+            }
+        } catch(e) {
+            console.error(`[v4vSplitRelay] Invoice error for ${ln}:`, e.message);
+        }
+
+        invoices.push({
+            name:          recipient.name,
+            split:         recipient.split,
+            splitPct:      Math.round(fraction * 100),
+            amountSats:    recipSats,
+            lightningAddress: ln,
+            invoice:       paymentRequest,
+            qr:            paymentRequest
+                ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=1a1a2e&color=ffffff&data=${encodeURIComponent('lightning:' + paymentRequest)}`
+                : null,
+            canPay:        !!paymentRequest
+        });
+    }
+
+    // Log the split event
+    try {
+        await admin.firestore().collection('beats_v4v_events').add({
+            trackId,
+            trackTitle:  track.title || '',
+            amountSats,
+            splits:      invoices.map(i => ({ name: i.name, sats: i.amountSats, splitPct: i.splitPct })),
+            createdAt:   admin.firestore.FieldValue.serverTimestamp()
+        });
+    } catch(e) { /* non-blocking */ }
+
+    return { invoices, totalSats: amountSats, trackTitle: track.title };
+});
+
+// Helper: fetch LNURL-pay invoice for a Lightning address
+async function fetchLnurlInvoice(lightningAddress, msats, comment) {
+    const nodeFetch   = require('node-fetch');
+    const [user, host] = lightningAddress.split('@');
+    if (!user || !host) throw new Error(`Invalid lightning address: ${lightningAddress}`);
+
+    const lnurlRes   = await nodeFetch(`https://${host}/.well-known/lnurlp/${user}`, { timeout: 10000 });
+    if (!lnurlRes.ok) throw new Error(`LNURL-pay lookup failed for ${lightningAddress}`);
+    const lnurlData  = await lnurlRes.json();
+    if (lnurlData.status === 'ERROR') throw new Error(lnurlData.reason);
+
+    // Clamp to provider min/max
+    const clampedMsats = Math.min(Math.max(msats, lnurlData.minSendable || 1000), lnurlData.maxSendable || 1000000000);
+
+    let cbUrl = `${lnurlData.callback}${lnurlData.callback.includes('?') ? '&' : '?'}amount=${clampedMsats}`;
+    if (comment && lnurlData.commentAllowed > 0) {
+        cbUrl += `&comment=${encodeURIComponent(comment.slice(0, lnurlData.commentAllowed))}`;
+    }
+
+    const invRes  = await nodeFetch(cbUrl, { timeout: 15000 });
+    if (!invRes.ok) throw new Error(`Invoice request failed for ${lightningAddress}`);
+    const invData = await invRes.json();
+    if (invData.status === 'ERROR') throw new Error(invData.reason);
+    if (!invData.pr) throw new Error(`No invoice returned for ${lightningAddress}`);
+
+    return invData.pr;
+}

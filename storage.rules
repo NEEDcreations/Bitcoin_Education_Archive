@@ -1,6 +1,17 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // V4V imported audio (read-only public, write via Admin SDK only)
+    match /beats-v4v/{feedSlug}/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+    // V4V imported cover art
+    match /beats-v4v-covers/{feedSlug}/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Beats audio files
     match /beats/{userId}/{fileName} {
       allow read: if true;
