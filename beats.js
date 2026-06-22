@@ -473,15 +473,19 @@ window.beatsPlayTrack = function(idx) {
     };
     window._beatsCurrentAuthorId = track.authorId || track.authorUid || '';
 
-    // Play count: increment after 30s of continuous listening
+    // Play count: increment after 30s of continuous listening.
+    // Counts every play (no per-session dedup) so trending reflects actual listen volume.
+    // A per-track cooldown of 5 minutes prevents rapid replay inflation.
     if (window._beatsPlayCountTimer) { clearTimeout(window._beatsPlayCountTimer); window._beatsPlayCountTimer = null; }
-    if (!window._beatsPlayCountedIds) window._beatsPlayCountedIds = {};
+    if (!window._beatsPlayCooldowns) window._beatsPlayCooldowns = {};
     window._beatsPlayCountTimer = setTimeout(function() {
         if (!window._beatsAudio || window._beatsAudio.paused) return;
         if (!track.id) return;
-        // Only count each track once per session
-        if (window._beatsPlayCountedIds[track.id]) return;
-        window._beatsPlayCountedIds[track.id] = true;
+        var now = Date.now();
+        var lastCount = window._beatsPlayCooldowns[track.id] || 0;
+        // 5-minute cooldown per track — prevents spam but allows genuine replays
+        if (now - lastCount < 5 * 60 * 1000) return;
+        window._beatsPlayCooldowns[track.id] = now;
         if (typeof db !== 'undefined') {
             db.collection('beats_tracks').doc(track.id).update({
                 plays: firebase.firestore.FieldValue.increment(1)
@@ -3464,26 +3468,27 @@ function _beatsShowSuggestions(terms) {
     var container = wrap.parentElement;
     var box = document.createElement('div');
     box.id = 'beatsSuggestBox';
-    box.style.cssText = 'position:absolute;left:0;right:0;top:' + (wrap.offsetTop + wrap.offsetHeight + 4) + 'px;background:var(--card-bg);border:1px solid var(--accent);border-radius:12px;z-index:10050;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.5);';
+    // Use literal dark colour so the box is always fully opaque regardless of theme variable
+    box.style.cssText = 'position:absolute;left:0;right:0;top:' + (wrap.offsetTop + wrap.offsetHeight + 4) + 'px;background:#1a1a2e;border:1px solid var(--accent);border-radius:12px;z-index:10050;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.85);';
     terms.slice(0,8).forEach(function(item) {
         var row = document.createElement('div');
         row.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:0.83rem;color:var(--text);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;';
-        row.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">' + (item.type==='artist'?'🎤':item.type==='album'?'💿':'🎵') + '</span><span>' + escapeHtml(item.label) + '</span>';
-        row.addEventListener('mousedown', function(e) {
-            e.preventDefault(); // don't blur input
-            var input2 = document.getElementById('beatsSearchInput');
-            if (input2) input2.value = item.label;
-            _beatsHideSuggestions();
-            beatsPerformSearch();
-        });
-        row.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            var input2 = document.getElementById('beatsSearchInput');
-            if (input2) input2.value = item.label;
-            _beatsHideSuggestions();
-            beatsPerformSearch();
-        }, {passive:false});
-        row.addEventListener('mouseover', function() { row.style.background='rgba(247,147,26,0.12)'; });
+        row.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">' + (item.type==='artist'?'🎤':item.type==='album'?'💿':'🎵') + '</span><span style="color:#fff;font-weight:500;">' + escapeHtml(item.label) + '</span>';
+        (function(label) {
+            function _pick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window._beatsSuggestPicking = true;
+                var inp = document.getElementById('beatsSearchInput');
+                if (inp) inp.value = label;
+                _beatsHideSuggestions();
+                beatsPerformSearch();
+                setTimeout(function() { window._beatsSuggestPicking = false; }, 400);
+            }
+            row.addEventListener('mousedown', _pick);
+            row.addEventListener('touchstart', _pick, {passive:false});
+        })(item.label);
+        row.addEventListener('mouseover', function() { row.style.background='rgba(247,147,26,0.2)'; });
         row.addEventListener('mouseout',  function() { row.style.background=''; });
         box.appendChild(row);
     });
@@ -3564,8 +3569,11 @@ window.beatsWireSearchInput = function() {
     });
 
     input.addEventListener('blur', function() {
-        // Small delay so mousedown on a suggestion fires first
-        setTimeout(_beatsHideSuggestions, 180);
+        // Delay hiding so mousedown/touchstart on a suggestion fires first.
+        // If _beatsSuggestPicking is set, skip hiding entirely (pick handler manages it).
+        setTimeout(function() {
+            if (!window._beatsSuggestPicking) _beatsHideSuggestions();
+        }, 250);
     });
 };
 
