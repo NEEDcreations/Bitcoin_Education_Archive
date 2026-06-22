@@ -4400,8 +4400,7 @@ function _flexPickSeq(pools, id) {
 var FLEX_ACTIONS = [
     { id:'steak',    emoji:'🥩', name:'Eat Steak',            desc:'Fuel up like a carnivore maxi',           pts:5, type:'hold',      holdMs:2000 },
     { id:'sunlight', emoji:'☀️', name:'Get Sunlight',         desc:'Touch grass. Outside. On purpose.',       pts:5, type:'slider',    dir:'right', label:'Soak it in →' },
-    { id:'dca',      emoji:'📈', name:'DCA Bitcoin',          desc:'Stack sats on schedule. No emotion.',     pts:5, type:'sequence',
-        pools:[['2','1','M','I','L'],['S','A','T','S'],['H','O','D','L'],['1','0','0','K'],['B','T','C'],['S','T','A','C','K']] },
+    { id:'dca',      emoji:'📈', name:'DCA Bitcoin',          desc:'Stack sats on schedule. No emotion.',     pts:5, type:'blackjack' },
     { id:'custody',  emoji:'🔑', name:'Self-Custody',         desc:'Not your keys, not your coins.',          pts:5, type:'typeword',  words:['KEYS','WALLET','HODL','COLD','VAULT','SEED'] },
     { id:'lift',     emoji:'🏋️', name:'Lift Weights',         desc:'Proof of strength. Every rep counts.',    pts:5, type:'hold',      holdMs:3000 },
     { id:'meetup',   emoji:'🤝', name:'Host a Meetup',        desc:'Orange-pill your city. IRL > URL.',       pts:5, type:'triplclick' },
@@ -5027,6 +5026,19 @@ function _renderFlexInteraction(action) {
             '<div style="width:36px;height:36px;border-radius:50%;border:2px dashed var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;" id="drag-target-' + action.id + '">' + toE + '</div>' +
             '</div>';
     }
+    if (action.type === 'blackjack') {
+        return '<div id="bj-wrap-' + action.id + '" data-id="' + action.id + '">' +
+            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:8px;">Your hand vs the dealer</div>' +
+            '<div id="bj-hand-' + action.id + '" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>' +
+            '<div id="bj-total-' + action.id + '" style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;"></div>' +
+            '<div id="bj-dealer-' + action.id + '" style="font-size:0.75rem;color:var(--text-faint);margin-bottom:10px;"></div>' +
+            '<div id="bj-msg-' + action.id + '" style="font-size:0.8rem;font-weight:700;margin-bottom:10px;"></div>' +
+            '<div id="bj-btns-' + action.id + '" style="display:flex;gap:8px;">' +
+                '<button class="flex-btn" onclick="_bjHit(\'' + action.id + '\')" style="padding:8px 18px;font-size:0.8rem;">Hit 🃏</button>' +
+                '<button class="flex-btn" onclick="_bjStand(\'' + action.id + '\')" style="padding:8px 18px;font-size:0.8rem;background:rgba(100,100,100,0.15);border-color:var(--border);">Stand 🤚</button>' +
+            '</div>' +
+            '</div>';
+    }
     if (action.type === 'sequence') {
         var seq = _flexPickSeq(action.pools, action.id);
         var allKeys = Array.from(new Set(seq));
@@ -5118,6 +5130,137 @@ window._flexSeqReset = function(id) {
     var disp = document.getElementById('seq-display-' + id);
     if (disp) disp.innerHTML = seq.map(function(){ return '<span style="color:var(--text-faint);">·</span>'; }).join(' ');
 };
+
+// ---- Blackjack (DCA) helpers ----
+var _bjDecks = {
+    suits: ['♦️','♥️','♠️','♣️'],
+    faces: ['A','2','3','4','5','6','7','8','9','10','J','Q','K']
+};
+function _bjDeck() {
+    var d = [];
+    _bjDecks.suits.forEach(function(s){
+        _bjDecks.faces.forEach(function(f){ d.push({s:s,f:f}); });
+    });
+    for (var i=d.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1));var t=d[i];d[i]=d[j];d[j]=t; }
+    return d;
+}
+function _bjVal(card) {
+    if (card.f==='A') return 11;
+    if (['J','Q','K'].indexOf(card.f)!==-1) return 10;
+    return parseInt(card.f);
+}
+function _bjHandVal(hand) {
+    var total=0,aces=0;
+    hand.forEach(function(c){ total+=_bjVal(c); if(c.f==='A')aces++; });
+    while(total>21&&aces>0){ total-=10;aces--; }
+    return total;
+}
+function _bjCardHtml(card, hidden) {
+    if (hidden) return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:44px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;font-size:1rem;">🂠</span>';
+    var red = card.s==='♦️'||card.s==='♥️';
+    return '<span style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:32px;height:44px;background:var(--card-bg);border:1px solid '+(red?'rgba(239,68,68,0.5)':'var(--border)')+';border-radius:6px;font-size:0.7rem;font-weight:900;color:'+(red?'#ef4444':'var(--text)')+';padding:0 4px;line-height:1.2;">'+card.f+'<span style="font-size:0.9rem;">'+card.s+'</span></span>';
+}
+function _bjInit(id) {
+    var deck = _bjDeck();
+    var playerHand = [deck.pop(), deck.pop()];
+    var dealerHand = [deck.pop(), deck.pop()];
+    var state = { deck:deck, player:playerHand, dealer:dealerHand, done:false };
+    localStorage.setItem('btc_bj_'+id, JSON.stringify(state));
+    return state;
+}
+function _bjGetState(id) {
+    try { return JSON.parse(localStorage.getItem('btc_bj_'+id)); } catch(e){ return null; }
+}
+function _bjSaveState(id, state) {
+    localStorage.setItem('btc_bj_'+id, JSON.stringify(state));
+}
+function _bjRender(id, state, revealed) {
+    var hand = document.getElementById('bj-hand-'+id);
+    var totalEl = document.getElementById('bj-total-'+id);
+    var dealerEl = document.getElementById('bj-dealer-'+id);
+    var msgEl = document.getElementById('bj-msg-'+id);
+    var btnsEl = document.getElementById('bj-btns-'+id);
+    if (!hand) return;
+    var pVal = _bjHandVal(state.player);
+    hand.innerHTML = state.player.map(function(c){ return _bjCardHtml(c,false); }).join(' ');
+    totalEl.innerHTML = 'Your total: <strong style="color:var(--accent);">' + pVal + '</strong>';
+    if (revealed) {
+        var dVal = _bjHandVal(state.dealer);
+        dealerEl.innerHTML = 'Dealer: ' + state.dealer.map(function(c){ return _bjCardHtml(c,false); }).join(' ') + ' <strong style="color:var(--text-muted);">(' + dVal + ')</strong>';
+    } else {
+        dealerEl.innerHTML = 'Dealer: ' + _bjCardHtml(state.dealer[0],false) + ' ' + _bjCardHtml(state.dealer[1],true);
+    }
+    if (msgEl) msgEl.textContent = '';
+    if (btnsEl) btnsEl.style.display = revealed ? 'none' : 'flex';
+}
+function _bjResolve(id, state) {
+    var pVal = _bjHandVal(state.player);
+    var dVal = _bjHandVal(state.dealer);
+    // Dealer draws to 17
+    while (dVal < 17) {
+        if (state.deck.length === 0) state.deck = _bjDeck();
+        state.dealer.push(state.deck.pop());
+        dVal = _bjHandVal(state.dealer);
+    }
+    _bjSaveState(id, state);
+    _bjRender(id, state, true);
+    var pBust = pVal > 21;
+    var dBust = dVal > 21;
+    var win = !pBust && (dBust || pVal > dVal);
+    var push = !pBust && !dBust && pVal === dVal;
+    var msgEl = document.getElementById('bj-msg-'+id);
+    var btnsEl = document.getElementById('bj-btns-'+id);
+    if (win) {
+        if (msgEl) { msgEl.textContent = '✅ You beat the dealer! +5 XP'; msgEl.style.color = '#22c55e'; }
+        if (btnsEl) btnsEl.style.display = 'none';
+        setTimeout(function(){ _flexMarkDone(id, function(){ _flexCardSuccess(id); }); }, 700);
+    } else if (push) {
+        if (msgEl) { msgEl.textContent = '🤝 Push — try again!'; msgEl.style.color = '#eab308'; }
+        _bjNewRound(id);
+    } else {
+        var reason = pBust ? '💥 Bust! (' + pVal + ')' : '😞 Dealer wins (' + dVal + ' vs ' + pVal + ')';
+        if (msgEl) { msgEl.textContent = reason + ' — new round...'; msgEl.style.color = '#ef4444'; }
+        setTimeout(function(){ _bjNewRound(id); }, 1200);
+    }
+}
+function _bjNewRound(id) {
+    var state = _bjInit(id);
+    _bjRender(id, state, false);
+    // Auto-handle blackjack on deal
+    if (_bjHandVal(state.player) === 21) {
+        _bjStand(id);
+    }
+}
+window._bjHit = function(id) {
+    var state = _bjGetState(id);
+    if (!state || state.done) return;
+    if (state.deck.length === 0) state.deck = _bjDeck();
+    state.player.push(state.deck.pop());
+    _bjSaveState(id, state);
+    var pVal = _bjHandVal(state.player);
+    _bjRender(id, state, false);
+    if (pVal >= 21) _bjStand(id);
+};
+window._bjStand = function(id) {
+    var state = _bjGetState(id);
+    if (!state) return;
+    _bjResolve(id, state);
+};
+// Auto-start blackjack game when card renders
+function _bjStart(id) {
+    var existing = _bjGetState(id);
+    // Start fresh each time the card renders (new session/day)
+    var state = _bjInit(id);
+    _bjRender(id, state, false);
+    if (_bjHandVal(state.player) === 21) _bjStand(id);
+}
+function _bjAttachStart(id) {
+    // Called after card HTML is injected into DOM
+    setTimeout(function(){
+        var wrap = document.getElementById('bj-wrap-'+id);
+        if (wrap) _bjStart(id);
+    }, 50);
+}
 
 function _flexCardSuccess(id) {
     var card = document.getElementById('flex-card-' + id);
@@ -5634,6 +5777,11 @@ window._flexPatternPick = function(btn) {
 function _flexWireInteractions() {
     FLEX_ACTIONS.forEach(function(action) {
         if (_flexDoneToday(action.id)) return;
+
+        // ── BLACKJACK ──
+        if (action.type === 'blackjack') {
+            _bjStart(action.id);
+        }
 
         // ── PAINT BOX ──
         if (action.type === 'paintbox') {
