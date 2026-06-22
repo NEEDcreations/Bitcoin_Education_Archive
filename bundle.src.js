@@ -30592,9 +30592,9 @@ window.nachoQuizAnswer = function(btn, correct) {
                 else if (id === 'chat' && typeof renderChatHub === 'function') renderChatHub('global');
                 else if (id === 'trails' && typeof renderModules === 'function') renderModules();
                 else if (id === 'forum' && typeof renderForum === 'function') renderForum();
-                else if (attempt < 20) {
-                    // Script not loaded yet — retry (lazy scripts load in batches)
-                    setTimeout(function() { _routeApp(id, attempt + 1); }, 250);
+                else if (attempt < 50) {
+                    // Script not loaded yet — retry quickly (lazy scripts load on-demand for direct links)
+                    setTimeout(function() { _routeApp(id, attempt + 1); }, 100);
                     if (attempt === 0) {
                         var fc2 = document.getElementById('forumContainer');
                         if (fc2) fc2.innerHTML = '<div style="text-align:center;padding:60px;"><div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><div style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;">Loading...</div></div>';
@@ -31756,6 +31756,12 @@ if (locked) {
         }
         if (!hash) return;
         console.log('[ROUTE] Routing to:', hash);
+        // If this is a deep link to a lazy-loaded feature, kick off deferred loading immediately
+        // so the script is ready when _routeApp starts polling for it.
+        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv'];
+        if (_lazyRoutes.indexOf(hash.split('/')[0]) !== -1 && typeof window._loadDeferred === 'function') {
+            window._loadDeferred();
+        }
         
         // Wait for app to be ready (up to 8 seconds)
         var maxWait = 8000;
