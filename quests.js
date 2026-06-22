@@ -2534,8 +2534,17 @@ function _renderTopHashesHTML(entries) {
         var rank = i + 1;
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
         var name = typeof escapeHtml === 'function' ? escapeHtml(e.username || 'Anon') : (e.username || 'Anon');
-           // Winner = any hash below the current difficulty target (SF_DIFFICULTY_TARGET, currently 30,000)
-        var diffTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 30000;
+           // Winner = hash beat the difficulty target that was ACTIVE when it was mined.
+        // e.difficultyTarget is stored by the cloud function (backfilled for legacy entries).
+        // Fall back to inferring from timestamp using the known history if missing.
+        var diffTarget;
+        if (e.difficultyTarget != null) {
+            diffTarget = e.difficultyTarget;
+        } else {
+            // Infer from timestamp: target was 1000 before 2026-06-21, then 30000
+            var _cutover = new Date('2026-06-21').getTime();
+            diffTarget = (tsMs && tsMs >= _cutover) ? 30000 : 1000;
+        }
         var isWin = e.value < diffTarget;
         var tsMs = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp.toMillis() : (e.timestamp ? Number(e.timestamp) : 0);
         var isNew = tsMs && (now - tsMs) < SEVENTY_TWO_HOURS;

@@ -16,10 +16,19 @@ function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
 }
 
-// Difficulty history:
-// 2026-06-02: 1000  (genesis — 1:100,000 odds)
-// 2026-06-21: 30000 (raised — no winner in 19 days, now 1:3,333 odds)
-const DIFFICULTY_TARGET = 30000;
+// Difficulty history (ordered oldest first):
+// Each entry: { target, since: ISO-date string (UTC midnight) }
+const DIFFICULTY_HISTORY = [
+  { target: 1000,  since: '2026-06-02' },
+  { target: 30000, since: '2026-06-21' },
+];
+const DIFFICULTY_TARGET = DIFFICULTY_HISTORY[DIFFICULTY_HISTORY.length - 1].target;
+
+// Return the difficulty target that was active at a given timestamp (ms)
+function difficultyAtTime(tsMs) {
+  const active = DIFFICULTY_HISTORY.filter(h => new Date(h.since).getTime() <= tsMs);
+  return active.length ? active[active.length - 1].target : DIFFICULTY_HISTORY[0].target;
+}
 const HASHES_PER_MINUTE = 10;
 const HASH_WINDOW_MS = 60000; // 60 seconds
 const FAVOR_DURATION_MINUTES = 60;
@@ -441,15 +450,16 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     const qualifies = entries.length < 25 || value < entries[entries.length - 1].value;
 
     if (qualifies) {
-      entries.push({ username, value, timestamp: admin.firestore.Timestamp.now() });
+      const nowTs = admin.firestore.Timestamp.now();
+      entries.push({ username, value, timestamp: nowTs, difficultyTarget: DIFFICULTY_TARGET });
       entries.sort((a, b) => a.value - b.value);
       entries = entries.slice(0, 25);
-      // Strip any serverTimestamp sentinels from legacy entries (can't be inside arrays)
-      entries = entries.map(e => ({
-        username: e.username || 'Anon',
-        value: e.value,
-        timestamp: (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now()
-      }));
+      // Normalise entries: backfill difficultyTarget for legacy entries that lack it
+      entries = entries.map(e => {
+        const ts = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now();
+        const target = e.difficultyTarget != null ? e.difficultyTarget : difficultyAtTime(ts.toMillis());
+        return { username: e.username || 'Anon', value: e.value, timestamp: ts, difficultyTarget: target };
+      });
       await lbRef.set({ entries });
     }
   } catch (e) {
