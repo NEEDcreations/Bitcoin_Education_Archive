@@ -4584,16 +4584,23 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
     const pageSize = parseInt(data.pageSize) || 10;
     const afterRank = parseInt(data.afterRank) || 0;
 
-    // ── Path 1: fast prefix search on username_lower index ──────────────────
-    // Firestore range query: username_lower >= query AND <= query + \uf8ff
-    // Covers all users who have the username_lower field (written on create/update).
-    // Returns up to 200 results ordered by username_lower; we re-sort by points below.
+    // ── Run both queries in parallel for speed ──────────────────────────────
+    // Path 1: fast prefix search on username_lower index
+    // Path 2: top-500 ranked scan for substring / missing-index fallback
     const PREFIX_LIMIT = 200;
-    const prefixSnap = await db.collection('users')
-        .where('username_lower', '>=', query)
-        .where('username_lower', '<=', query + '\uf8ff')
-        .limit(PREFIX_LIMIT)
-        .get();
+    const SCAN_LIMIT = 500;
+    const [prefixSnap, scanSnap] = await Promise.all([
+        db.collection('users')
+            .where('username_lower', '>=', query)
+            .where('username_lower', '<=', query + '\uf8ff')
+            .limit(PREFIX_LIMIT)
+            .get(),
+        db.collection('users')
+            .where('points', '>', 0)
+            .orderBy('points', 'desc')
+            .limit(SCAN_LIMIT)
+            .get()
+    ]);
 
     const seenUids = new Set();
     const prefixDocs = [];
@@ -4603,17 +4610,6 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
         seenUids.add(doc.id);
         prefixDocs.push({ id: doc.id, data: d });
     });
-
-    // ── Path 2: small ranked scan for substring / missing-index fallback ────
-    // Only scan top 500 by points (was 5000). Catches:
-    //  - users whose username_lower field hasn't been written yet
-    //  - mid/suffix substring matches in the top cohort
-    const SCAN_LIMIT = 500;
-    const scanSnap = await db.collection('users')
-        .where('points', '>', 0)
-        .orderBy('points', 'desc')
-        .limit(SCAN_LIMIT)
-        .get();
 
     const scanDocs = [];
     scanSnap.forEach(doc => {

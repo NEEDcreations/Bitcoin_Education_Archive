@@ -2747,6 +2747,27 @@ window.lbSearchUser = function(val) {
     // Track search use for Search Sleuth badge
     try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('user') === -1) { _ss.push('user'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
 
+    // Instant local search against already-loaded leaderboard cache (zero latency for top 150)
+    var q = val.toLowerCase();
+    var localHits = window._lbCache ? window._lbCache.filter(function(u) {
+        return (u.username || '').toLowerCase().includes(q);
+    }) : [];
+    if (localHits.length) {
+        resultEl.innerHTML = localHits.slice(0, 10).map(function(u, i) {
+            var rank = (window._lbCache ? window._lbCache.indexOf(u) : i) + 1;
+            var pts = (u.points || 0).toLocaleString();
+            var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
+            var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
+            return '<div class="lb-search-result">' +
+                '<span>' + (lv.emoji || '') + '</span>' +
+                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">'
+                    + escapeHtml(u.username || 'Anon') + '</a>' +
+                '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + rank + '</strong></span>' +
+                '</div>';
+        }).join('');
+        // Still fire cloud search in background to catch users not in top 150
+    }
+
     clearTimeout(_lbSearchTimer);
     _lbSearchTimer = setTimeout(function() {
         _lbSearchQuery = val;
