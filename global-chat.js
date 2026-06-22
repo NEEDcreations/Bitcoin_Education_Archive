@@ -31,6 +31,73 @@ var CHAT_INITIAL_SHOW = 20; // Render initially (reduced to save Firestore reads
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
 var _annUnsub = null; // announcements live listener
+
+// ---- Typing indicator ----
+var _typingUnsub = null;
+var _typingDebTimer = null;
+var _myTypingUid = null; // uid of the local user, set when they start typing
+
+function _gcSetTyping(isTyping) {
+    if (typeof db === 'undefined') return;
+    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!uid) return;
+    _myTypingUid = uid;
+    var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+    var ref = db.collection('global_chat_meta').doc('typing');
+    if (isTyping) {
+        ref.set({ [uid]: { username: username, at: firebase.firestore.FieldValue.serverTimestamp() } }, { merge: true }).catch(function() {});
+    } else {
+        ref.update({ [uid]: firebase.firestore.FieldValue.delete() }).catch(function() {});
+    }
+}
+
+function _gcOnInputTyping() {
+    var input = document.getElementById('globalChatInput');
+    if (!input || !input.value.trim()) { _gcSetTyping(false); return; }
+    _gcSetTyping(true);
+    // Auto-clear typing flag 5s after last keystroke
+    clearTimeout(_typingDebTimer);
+    _typingDebTimer = setTimeout(function() { _gcSetTyping(false); }, 5000);
+}
+
+function _gcClearTyping() {
+    clearTimeout(_typingDebTimer);
+    _gcSetTyping(false);
+}
+
+function _gcSubscribeTyping() {
+    if (typeof db === 'undefined') return;
+    if (_typingUnsub) { _typingUnsub(); _typingUnsub = null; }
+    var ref = db.collection('global_chat_meta').doc('typing');
+    _typingUnsub = ref.onSnapshot(function(snap) {
+        var el = document.getElementById('gcTypingIndicator');
+        if (!el) return;
+        if (!snap.exists) { el.textContent = ''; return; }
+        var data = snap.data() || {};
+        var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+        var now = Date.now();
+        var typers = [];
+        Object.keys(data).forEach(function(uid) {
+            if (uid === myUid) return; // don't show yourself
+            var entry = data[uid];
+            var atMs = entry.at && typeof entry.at.toMillis === 'function' ? entry.at.toMillis() : 0;
+            if (atMs && now - atMs > 7000) return; // stale — ignore
+            typers.push(entry.username || 'Someone');
+        });
+        if (typers.length === 0) { el.textContent = ''; return; }
+        var text;
+        if (typers.length === 1) {
+            text = typers[0] + ' is typing…';
+        } else if (typers.length === 2) {
+            text = typers[0] + ' & ' + typers[1] + ' are typing…';
+        } else {
+            // Abbreviate: show first name + count of others
+            var abbrev = typers.map(function(n) { return n.length > 10 ? n.substring(0, 8) + '…' : n; });
+            text = abbrev[0] + ' + ' + (typers.length - 1) + ' others are typing…';
+        }
+        el.textContent = text;
+    }, function() {});
+}
 var _lastSendTime = 0;
 var _chatTab = 'global'; // 'global', 'announcements', or 'dms'
 var _replyTo = null; // {_id, name, text} when replying
@@ -254,7 +321,8 @@ function renderGlobalChat() {
                         '<button onclick="showGifPicker()" style="padding:6px;background:none;border:none;font-size:0.75rem;font-weight:700;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Send GIF">GIF</button>' +
                     '</div>' +
                 '</div>' +
-                '<div style="text-align:right;font-size:0.6rem;color:var(--text-faint);margin-top:3px;"><span id="globalChatCharCount">0</span>/' + MAX_MSG_LENGTH + '</div>'
+                '<div style="text-align:right;font-size:0.6rem;color:var(--text-faint);margin-top:3px;"><span id="globalChatCharCount">0</span>/' + MAX_MSG_LENGTH + '</div>' +
+                '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:1em;padding:2px 4px;"></div>'
             :
                 '<div style="text-align:center;padding:8px;color:var(--text-muted);font-size:0.8rem;">' +
                     (isSignedIn ? 'Set a username in <a href="#" onclick="if(typeof showSettings===\'function\')showSettings();return false;" style="color:var(--accent);">Settings</a> to chat' :
@@ -271,6 +339,11 @@ function renderGlobalChat() {
             var counter = document.getElementById('globalChatCharCount');
             if (counter) counter.textContent = this.value.length;
             handleAutocomplete(this);
+            _gcOnInputTyping();
+        });
+        input.addEventListener('blur', function() {
+            // Clear typing flag when user leaves the input
+            setTimeout(_gcClearTyping, 500);
         });
         input.addEventListener('keydown', function(e) {
             var ac = document.getElementById('chatAutocomplete');
@@ -287,8 +360,9 @@ function renderGlobalChat() {
         });
     }
 
-    // Start listening for messages
+    // Start listening for messages and typing indicators
     startChatListener();
+    _gcSubscribeTyping();
 }
 
 function startChatListener() {
@@ -784,6 +858,8 @@ function handlePaste(e) {
 
 // ---- Send Message ----
 window.sendGlobalChat = function() {
+    // Clear typing indicator immediately on send
+    _gcClearTyping();
     // Dismiss pickers on send
     var _ep = document.getElementById('gcEmojiPicker'); if (_ep) _ep.remove();
     var _gp = document.getElementById('gifPicker'); if (_gp) _gp.remove();
@@ -1439,6 +1515,10 @@ function renderOverlayChat() {
         input.addEventListener('paste', handlePaste);
         input.addEventListener('input', function() {
             handleAutocomplete(this);
+            _gcOnInputTyping();
+        });
+        input.addEventListener('blur', function() {
+            setTimeout(_gcClearTyping, 500);
         });
         input.addEventListener('keydown', function(e) {
             var ac = document.getElementById('chatAutocomplete');
