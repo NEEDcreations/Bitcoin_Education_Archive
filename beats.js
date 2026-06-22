@@ -155,10 +155,10 @@ window.beatsEnsureGlobalPlayer = function() {
             '<div id="beatsProgressBar" style="height:100%;background:linear-gradient(90deg,var(--accent),#ea580c);width:0%;transition:width 0.3s linear;border-radius:0 2px 2px 0;"></div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;">' +
-            '<div id="beatsNowArt" onclick="if(window._beatsCurrentAuthorId&&typeof showUserProfile===\'function\')showUserProfile(window._beatsCurrentAuthorId)" style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;overflow:hidden;cursor:pointer;">🎵</div>' +
+            '<div id="beatsNowArt" onclick="if(window._beatsCurrentAuthorId&&typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(window._beatsCurrentAuthorId)" style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;overflow:hidden;cursor:pointer;">🎵</div>' +
             '<div onclick="if(window._beatsQueueIdx>=0){beatsShowTrackDetail(window._beatsQueueIdx)}else if(typeof go===\'function\'){go(\'bitcoin-beats\')}" style="min-width:0;max-width:140px;cursor:pointer;flex-shrink:1;">' +
                 '<div id="beatsNowTitle" style="color:#fff;font-size:0.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Not Playing</div>' +
-                '<div id="beatsNowArtist" onclick="event.stopPropagation();if(window._beatsCurrentAuthorId&&typeof showUserProfile===\'function\')showUserProfile(window._beatsCurrentAuthorId)" style="color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">Bitcoin Beats</div>' +
+                '<div id="beatsNowArtist" onclick="event.stopPropagation();if(window._beatsCurrentAuthorId&&typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(window._beatsCurrentAuthorId)" style="color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">Bitcoin Beats</div>' +
             '</div>' +
             '<div id="beatsTime" style="color:rgba(255,255,255,0.4);font-size:0.65rem;white-space:nowrap;">0:00 / 0:00</div>' +
             '<button onclick="beatsPrevTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏮</button>' +
@@ -2559,8 +2559,19 @@ window.beatsShowArtistPage = function(uid) {
         else if (u.twitter) musicLinks.push({ emoji: '𝕏', label: '@' + u.twitter.replace('@', ''), url: 'https://x.com/' + u.twitter.replace('@', '') });
         if (ap.instagram) { var igHandle = ap.instagram.replace('@', ''); musicLinks.push({ emoji: '📸', label: '@' + igHandle, url: 'https://instagram.com/' + igHandle }); }
 
+        // Profile mode toggle (only show if user has a real app account)
+        var hasAppProfile = !isV4V && userDoc.exists;
+        var toggleHtml = hasAppProfile ? (
+            '<div style="display:flex;gap:0;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px;">' +
+                '<button id="beatsProfileTab_artist" onclick="document.getElementById(\'beatsProfileTab_artist\').style.background=\'var(--accent)\';document.getElementById(\'beatsProfileTab_artist\').style.color=\'#fff\';document.getElementById(\'beatsProfileTab_app\').style.background=\'\';document.getElementById(\'beatsProfileTab_app\').style.color=\'var(--text-muted)\';document.getElementById(\'beatsArtistBody\').style.display=\'block\';document.getElementById(\'beatsAppBody\').style.display=\'none\'" style="flex:1;padding:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">🎤 Artist Profile</button>' +
+                '<button id="beatsProfileTab_app" onclick="document.getElementById(\'beatsProfileTab_app\').style.background=\'var(--accent)\';document.getElementById(\'beatsProfileTab_app\').style.color=\'#fff\';document.getElementById(\'beatsProfileTab_artist\').style.background=\'\';document.getElementById(\'beatsProfileTab_artist\').style.color=\'var(--text-muted)\';document.getElementById(\'beatsArtistBody\').style.display=\'none\';document.getElementById(\'beatsAppBody\').style.display=\'block\'" style="flex:1;padding:9px;border:none;background:;color:var(--text-muted);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">👤 App Profile</button>' +
+            '</div>'
+        ) : '';
+
         var html = '<div style="max-width:500px;margin:40px auto;background:var(--bg-side);border:1px solid var(--border);border-radius:24px;padding:28px;animation:fadeSlideIn 0.3s ease-out;">' +
             '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
+            toggleHtml +
+            '<div id="beatsArtistBody">'+
             '<div style="text-align:center;margin-bottom:20px;">' +
                 // Artist image (custom or fallback to level emoji)
                 (artistImage
@@ -2591,7 +2602,7 @@ window.beatsShowArtistPage = function(uid) {
             // Action buttons
             '<div style="display:flex;gap:8px;margin-bottom:20px;">' +
                 ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();showTipOverlay({recipientName:\'' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',recipientUid:\'' + uid + '\',label:\'Tip ' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',context:\'Artist page\'})" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
-                (!isV4V ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">👤 Full Profile</button>' : (ad.wavlakeUrl || ad.sourceUrl ? '<a href="' + escapeHtml(sanitizeUrl(ad.wavlakeUrl || ad.sourceUrl || '')) + '" target="_blank" rel="noopener" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">🌐 Artist Page</a>' : '')) +
+                (isV4V && (ad.wavlakeUrl || ad.sourceUrl) ? '<a href="' + escapeHtml(sanitizeUrl(ad.wavlakeUrl || ad.sourceUrl || '')) + '" target="_blank" rel="noopener" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">🌐 Artist Page</a>' : '') +
             '</div>' +
             // Discography — grouped by album, then singles
             '';
@@ -2699,8 +2710,42 @@ window.beatsShowArtistPage = function(uid) {
         }
 
         if (tracks.length === 0) html += '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks uploaded yet</div>';
-        html += '</div>';
+        html += '</div>'; // close discography container
+        html += '</div>'; // close beatsArtistBody
+        // App profile body — only injected when the user has a real app account
+        if (hasAppProfile) {
+            html += '<div id="beatsAppBody" style="display:none;padding:8px 0;"><div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">Loading app profile...</div></div>';
+        }
         overlay.innerHTML = html;
+        // After rendering, load the app profile content into beatsAppBody if applicable
+        if (hasAppProfile) {
+            var appBody = document.getElementById('beatsAppBody');
+            if (appBody && typeof showUserProfile === 'function') {
+                // Render the app profile inline — hook into the existing profile card builder
+                // We replicate a compact version: avatar, name, XP, badges, bio, tip/message buttons
+                db.collection('users').doc(uid).get().then(function(udoc) {
+                    if (!udoc.exists) { appBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No app profile found</div>'; return; }
+                    var ud = udoc.data();
+                    var lvlApp = typeof getLevel === 'function' ? getLevel(ud.points || 0) : { emoji: '🎵', name: 'Learner' };
+                    var avatarHtml = ud.photoURL
+                        ? '<img src="' + escapeHtml(sanitizeUrl(ud.photoURL)) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);">'
+                        : '<div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#1e293b);display:flex;align-items:center;justify-content:center;font-size:1.8rem;">' + lvlApp.emoji + '</div>';
+                    appBody.innerHTML =
+                        '<div style="text-align:center;margin-bottom:16px;">' +
+                            '<div style="margin:0 auto 10px;width:72px;height:72px;">' + avatarHtml + '</div>' +
+                            '<div style="font-weight:800;font-size:1.1rem;color:var(--heading);">' + escapeHtml(ud.username || ud.displayName || 'User') + '</div>' +
+                            '<div style="color:var(--text-muted);font-size:0.8rem;">' + lvlApp.name + ' · ' + (ud.points || 0).toLocaleString() + ' XP</div>' +
+                            (ud.bio ? '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;line-height:1.4;">' + escapeHtml(ud.bio) + '</div>' : '') +
+                        '</div>' +
+                        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
+                            '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);">' + (ud.badges ? Object.keys(ud.badges).length : 0) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Badges</div></div>' +
+                            '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);">' + (ud.channelsVisited || 0) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Channels</div></div>' +
+                            '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);">' + (ud.points || 0).toLocaleString() + '</div><div style="color:var(--text-faint);font-size:0.65rem;">XP</div></div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;margin-bottom:8px;">👤 Open Full App Profile</button>';
+                }).catch(function() { appBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Could not load app profile</div>'; });
+            }
+        }
     }).catch(function(e) {
         console.error('Artist page error:', e);
         overlay.innerHTML = '<div style="max-width:500px;margin:40px auto;text-align:center;color:var(--text-faint);">Error loading artist</div>';
