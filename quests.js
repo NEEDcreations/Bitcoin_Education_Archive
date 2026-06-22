@@ -4399,12 +4399,12 @@ function _flexPickSeq(pools, id) {
 
 var FLEX_ACTIONS = [
     { id:'steak',    emoji:'🥩', name:'Eat Steak',            desc:'Fuel up like a carnivore maxi',           pts:5, type:'hold',      holdMs:2000 },
-    { id:'sunlight', emoji:'☀️', name:'Get Sunlight',         desc:'Touch grass. Outside. On purpose.',       pts:5, type:'slider',    dir:'right', label:'Soak it in →' },
+    { id:'sunlight', emoji:'☀️', name:'Get Sunlight',         desc:'Touch grass. Outside. On purpose.',       pts:5, type:'slider',    dir:'left',  label:'← Soak it in' },
     { id:'dca',      emoji:'📈', name:'DCA Bitcoin',          desc:'Stack sats on schedule. No emotion.',     pts:5, type:'blackjack' },
     { id:'custody',  emoji:'🔑', name:'Self-Custody',         desc:'Not your keys, not your coins.',          pts:5, type:'typeword',  words:['KEYS','WALLET','HODL','COLD','VAULT','SEED'] },
     { id:'lift',     emoji:'🏋️', name:'Lift Weights',         desc:'Proof of strength. Every rep counts.',    pts:5, type:'hold',      holdMs:3000 },
     { id:'meetup',   emoji:'🤝', name:'Host a Meetup',        desc:'Orange-pill your city. IRL > URL.',       pts:5, type:'triplclick' },
-    { id:'lightning',emoji:'⚡', name:'Spend via Lightning',  desc:'Circular economy. Spend and re-stack.',   pts:5, type:'slider',    dir:'left',  label:'← Send it' },
+    { id:'lightning',emoji:'⚡', name:'Spend via Lightning',  desc:'Circular economy. Spend and re-stack.',   pts:5, type:'chess' },
     { id:'read',     emoji:'📚', name:'Read Bitcoin',         desc:'One page of Saifedean a day.',            pts:5, type:'sequence',
         pools:[['R','E','A','D'],['S','A','T','O','S','H','I'],['2','1','M'],['N','O','D','E','S'],['B','L','O','C','K']] },
     { id:'sleep',    emoji:'😴', name:'Sleep 8 Hours',        desc:'Low time-preference recovery.',           pts:5, type:'hold',      holdMs:2500 },
@@ -4702,7 +4702,7 @@ function _renderFlexInteraction(action) {
             '</div>';
     }
     if (action.type === 'slider') {
-        var _sliderDir = (_flexDailySeed(action.id + '_sdir') % 2 === 0) ? 'right' : 'left';
+        var _sliderDir = action.dir || ((_flexDailySeed(action.id + '_sdir') % 2 === 0) ? 'right' : 'left');
         var isRight = _sliderDir === 'right';
         var lbl = isRight ? 'Slide right →' : '← Slide left';
         return '<div style="position:relative;margin-bottom:4px;">' +
@@ -5024,6 +5024,15 @@ function _renderFlexInteraction(action) {
             '<div class="flex-drag-thumb" style="position:relative;left:auto;" id="drag-thumb-' + action.id + '">' + fromE + '</div>' +
             '<span style="flex:1;text-align:center;font-size:0.75rem;pointer-events:none;">drag → drop</span>' +
             '<div style="width:36px;height:36px;border-radius:50%;border:2px dashed var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;" id="drag-target-' + action.id + '">' + toE + '</div>' +
+            '</div>';
+    }
+    if (action.type === 'chess') {
+        var _cpuzzle = _chessDailyPuzzle(action.id);
+        return '<div id="chess-wrap-' + action.id + '" data-id="' + action.id + '" style="text-align:center;">' +
+            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:6px;">' + (_cpuzzle.label || 'Checkmate in 1 — White to move') + '</div>' +
+            '<div id="chess-board-' + action.id + '" style="display:inline-block;border:2px solid var(--border);border-radius:4px;overflow:hidden;"></div>' +
+            '<div id="chess-msg-' + action.id + '" style="font-size:0.75rem;font-weight:700;margin-top:6px;min-height:18px;"></div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:4px;">Drag a piece to its destination square</div>' +
             '</div>';
     }
     if (action.type === 'blackjack') {
@@ -5774,6 +5783,230 @@ window._flexPatternPick = function(btn) {
     }
 };
 
+// ---- Chess checkmate-in-1 puzzles ----
+// Each puzzle: fen (position), solution: {from, to} in algebraic (e.g. 'e1','e8')
+// White to move unless noted. Board rendered from White's perspective.
+var CHESS_PUZZLES = [
+    // Classic back-rank mates, smothered mates, queen mates
+    { id:'p01', label:'Mate in 1 — White to move',
+      pieces: { e1:'wK', h1:'wR', h8:'bK', g8:'bB', f8:'bN' },
+      solution: { from:'h1', to:'h8' }, hint:'Rook delivers checkmate' },
+    { id:'p02', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', d4:'wQ', h8:'bK', g7:'bP', h7:'bP' },
+      solution: { from:'d4', to:'h8' }, hint:'Queen slides to the corner' },
+    { id:'p03', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', f6:'wQ', g8:'bK', h8:'bR' },
+      solution: { from:'f6', to:'h8' }, hint:'Queen takes the rook — mate!' },
+    { id:'p04', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', e1:'wR', e8:'bK', d8:'bQ', f8:'bR' },
+      solution: { from:'e1', to:'e8' }, hint:'Rook takes the king square' },
+    { id:'p05', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', c7:'wQ', a8:'bK', b8:'bN', a7:'bP' },
+      solution: { from:'c7', to:'a7' }, hint:'Queen breaks through the pawn shield' },
+    { id:'p06', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', a1:'wR', a8:'bK', b8:'bB', b7:'bP' },
+      solution: { from:'a1', to:'a8' }, hint:'Rook to the back rank' },
+    { id:'p07', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', g5:'wQ', h7:'bK', g7:'bP', h8:'bP' },
+      solution: { from:'g5', to:'h6' }, hint:'Queen covers h6 — smothered king' },
+    { id:'p08', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', b6:'wN', a8:'bK', a7:'bP', b7:'bP' },
+      solution: { from:'b6', to:'c8' }, hint:'Knight hops to c8 — checkmate' },
+    { id:'p09', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', h5:'wR', e8:'bK', d8:'bR', f8:'bR' },
+      solution: { from:'h5', to:'e5' }, hint:'Rook cuts off the king' },
+    { id:'p10', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', d1:'wR', h1:'wR', g8:'bK', g7:'bP', f7:'bP', h7:'bP' },
+      solution: { from:'d1', to:'d8' }, hint:'Rook opens the back-rank highway' },
+    { id:'p11', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', f7:'wQ', h8:'bK', h7:'bP', g7:'bR' },
+      solution: { from:'f7', to:'g7' }, hint:'Queen takes the guard — mate' },
+    { id:'p12', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', e4:'wB', a8:'bK', b7:'bP', a7:'bP' },
+      solution: { from:'e4', to:'b7' }, hint:'Bishop to b7 — discovered mate threat' },
+    { id:'p13', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', g2:'wR', g8:'bK', h8:'bR', f8:'bB' },
+      solution: { from:'g2', to:'g8' }, hint:'Rook charges to g8' },
+    { id:'p14', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', c3:'wQ', a3:'wR', a8:'bK', b8:'bN', b7:'bP' },
+      solution: { from:'c3', to:'c8' }, hint:'Queen rides to c8' },
+    { id:'p15', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', b2:'wQ', g8:'bK', f8:'bR', h8:'bR', g7:'bP' },
+      solution: { from:'b2', to:'h8' }, hint:'Queen diagonal to h8' },
+];
+
+var _CHESS_FILES = ['a','b','c','d','e','f','g','h'];
+var _CHESS_RANKS = ['8','7','6','5','4','3','2','1']; // top-to-bottom display
+
+var _CHESS_GLYPHS = {
+    wK:'\u2654', wQ:'\u2655', wR:'\u2656', wB:'\u2657', wN:'\u2658', wP:'\u2659',
+    bK:'\u265a', bQ:'\u265b', bR:'\u265c', bB:'\u265d', bN:'\u265e', bP:'\u265f'
+};
+
+function _chessDailyPuzzle(actionId) {
+    var seed = _flexDailySeed(actionId + '_chess');
+    return CHESS_PUZZLES[Math.abs(seed) % CHESS_PUZZLES.length];
+}
+
+function _chessRender(id) {
+    var wrap = document.getElementById('chess-wrap-' + id);
+    if (!wrap) return;
+    var puzzle = _chessDailyPuzzle(id);
+    var selected = wrap._chessSelected || null;
+    var pieces = Object.assign({}, puzzle.pieces);
+    if (wrap._chessPieces) pieces = wrap._chessPieces;
+
+    var html = '<table style="border-collapse:collapse;margin:0 auto;user-select:none;"><tbody>';
+    _CHESS_RANKS.forEach(function(rank) {
+        html += '<tr>';
+        _CHESS_FILES.forEach(function(file) {
+            var sq = file + rank;
+            var fi = _CHESS_FILES.indexOf(file);
+            var ri = _CHESS_RANKS.indexOf(rank);
+            var light = (fi + ri) % 2 === 0;
+            var bg = selected === sq ? '#f7931a' :
+                     light ? '#f0d9b5' : '#b58863';
+            var piece = pieces[sq];
+            var glyph = piece ? _CHESS_GLYPHS[piece] : '';
+            var color = piece ? (piece[0]==='w' ? '#fff' : '#000') : 'transparent';
+            var shadow = piece && piece[0]==='w' ? 'text-shadow:0 1px 2px rgba(0,0,0,0.8);' : '';
+            html += '<td data-sq="' + sq + '" style="width:34px;height:34px;text-align:center;vertical-align:middle;background:' + bg + ';font-size:1.4rem;line-height:34px;cursor:pointer;-webkit-tap-highlight-color:transparent;"><span style="color:' + color + ';' + shadow + 'pointer-events:none;">' + glyph + '</span></td>';
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    var board = document.getElementById('chess-board-' + id);
+    if (board) board.innerHTML = html;
+
+    // Re-wire click/drag
+    _chessWireBoard(id);
+}
+
+function _chessWireBoard(id) {
+    var board = document.getElementById('chess-board-' + id);
+    var wrap = document.getElementById('chess-wrap-' + id);
+    if (!board || !wrap) return;
+    var puzzle = _chessDailyPuzzle(id);
+    if (!wrap._chessPieces) wrap._chessPieces = Object.assign({}, puzzle.pieces);
+
+    var dragFrom = null, dragEl = null, dragGhost = null;
+
+    function getTd(e) {
+        var el = e.target;
+        while (el && el.tagName !== 'TD') el = el.parentElement;
+        return el;
+    }
+    function sqOf(td) { return td ? td.getAttribute('data-sq') : null; }
+
+    function startDrag(sq, clientX, clientY) {
+        var piece = wrap._chessPieces[sq];
+        if (!piece || piece[0] !== 'w') return; // only white pieces
+        dragFrom = sq;
+        wrap._chessSelected = sq;
+        // create ghost
+        dragGhost = document.createElement('div');
+        dragGhost.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;font-size:2rem;transform:translate(-50%,-50%);';
+        dragGhost.textContent = _CHESS_GLYPHS[piece];
+        dragGhost.style.color = '#fff';
+        dragGhost.style.textShadow = '0 1px 3px rgba(0,0,0,0.9)';
+        document.body.appendChild(dragGhost);
+        moveDragGhost(clientX, clientY);
+        _chessRender(id);
+    }
+    function moveDragGhost(x, y) {
+        if (dragGhost) { dragGhost.style.left = x + 'px'; dragGhost.style.top = y + 'px'; }
+    }
+    function endDrag(toSq) {
+        if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+        if (!dragFrom || !toSq || dragFrom === toSq) {
+            wrap._chessSelected = null;
+            dragFrom = null;
+            _chessRender(id);
+            return;
+        }
+        _chessTryMove(id, dragFrom, toSq);
+        dragFrom = null;
+        wrap._chessSelected = null;
+    }
+
+    // Mouse
+    board.addEventListener('mousedown', function(e) {
+        var td = getTd(e); if (!td) return;
+        var sq = sqOf(td);
+        if (dragFrom === null) {
+            startDrag(sq, e.clientX, e.clientY);
+        }
+    });
+    window.addEventListener('mousemove', function(e) { moveDragGhost(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', function(e) {
+        if (dragFrom === null) return;
+        var el = document.elementFromPoint(e.clientX, e.clientY);
+        var td = el;
+        while (td && td.tagName !== 'TD') td = td.parentElement;
+        endDrag(sqOf(td));
+    }, {once: false});
+
+    // Touch
+    board.addEventListener('touchstart', function(e) {
+        var t = e.touches[0];
+        var td = getTd({target: document.elementFromPoint(t.clientX, t.clientY)});
+        if (!td) return;
+        var sq = sqOf(td);
+        startDrag(sq, t.clientX, t.clientY);
+        e.preventDefault();
+    }, {passive: false});
+    board.addEventListener('touchmove', function(e) {
+        var t = e.touches[0];
+        moveDragGhost(t.clientX, t.clientY);
+        e.preventDefault();
+    }, {passive: false});
+    board.addEventListener('touchend', function(e) {
+        var t = e.changedTouches[0];
+        var el = document.elementFromPoint(t.clientX, t.clientY);
+        var td = el;
+        while (td && td.tagName !== 'TD') td = td.parentElement;
+        endDrag(sqOf(td));
+        e.preventDefault();
+    }, {passive: false});
+}
+
+function _chessTryMove(id, from, to) {
+    var wrap = document.getElementById('chess-wrap-' + id);
+    if (!wrap) return;
+    var puzzle = _chessDailyPuzzle(id);
+    var msgEl = document.getElementById('chess-msg-' + id);
+    var isCorrect = (from === puzzle.solution.from && to === puzzle.solution.to);
+    if (isCorrect) {
+        // Apply move visually
+        wrap._chessPieces[to] = wrap._chessPieces[from];
+        delete wrap._chessPieces[from];
+        _chessRender(id);
+        if (msgEl) { msgEl.textContent = '\u2654 Checkmate! +5 XP'; msgEl.style.color = '#22c55e'; }
+        setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 600);
+    } else {
+        // Wrong move — shake and reset to original position
+        if (msgEl) { msgEl.textContent = 'Not quite — try again!'; msgEl.style.color = '#ef4444'; }
+        wrap._chessPieces = Object.assign({}, puzzle.pieces); // reset
+        var board = document.getElementById('chess-board-' + id);
+        if (board) { board.style.animation = 'flexShake 0.4s'; setTimeout(function() { board.style.animation = ''; }, 400); }
+        setTimeout(function() {
+            _chessRender(id);
+            if (msgEl) { msgEl.textContent = puzzle.hint ? '\ud83d\udca1 Hint: ' + puzzle.hint : ''; msgEl.style.color = 'var(--text-muted)'; }
+        }, 450);
+    }
+}
+
+function _chessStart(id) {
+    var wrap = document.getElementById('chess-wrap-' + id);
+    if (!wrap) return;
+    var puzzle = _chessDailyPuzzle(id);
+    wrap._chessPieces = Object.assign({}, puzzle.pieces);
+    wrap._chessSelected = null;
+    _chessRender(id);
+    var msgEl = document.getElementById('chess-msg-' + id);
+    if (msgEl && puzzle.hint) { msgEl.textContent = '\ud83d\udca1 ' + puzzle.hint; msgEl.style.color = 'var(--text-muted)'; }
+}
+
 function _flexWireInteractions() {
     FLEX_ACTIONS.forEach(function(action) {
         if (_flexDoneToday(action.id)) return;
@@ -5781,6 +6014,11 @@ function _flexWireInteractions() {
         // ── BLACKJACK ──
         if (action.type === 'blackjack') {
             _bjStart(action.id);
+        }
+
+        // ── CHESS ──
+        if (action.type === 'chess') {
+            _chessStart(action.id);
         }
 
         // ── PAINT BOX ──
