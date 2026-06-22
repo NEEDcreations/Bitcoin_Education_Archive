@@ -50,6 +50,9 @@ window.renderBitcoinBeats = function() {
 
     container.innerHTML = html;
 
+    // Wire autocomplete on the search input
+    if (typeof beatsWireSearchInput === 'function') beatsWireSearchInput();
+
     // Check for deep link params stashed by app.js router
     window._beatsRouted = false; // Reset routing guard for future navigations
     if (window._beatsDeepLink) {
@@ -3401,7 +3404,160 @@ window.beatsPerformSearch = function() {
     }).catch(function(e){console.error('[Beats Search]',e);listEl.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-faint);">Error searching</div>';});
 };
 
-window.beatsClearSearch=function(){var input=document.getElementById('beatsSearchInput');if(input)input.value='';beatsTab('discover');};
+window.beatsClearSearch=function(){var input=document.getElementById('beatsSearchInput');if(input)input.value='';_beatsHideSuggestions();beatsTab('discover');};
+
+// ================================================================
+// AUTOCOMPLETE / SUGGESTIONS
+// ================================================================
+var _beatsSuggestCache = null; // { artists:[], tracks:[], albums:[] }
+
+function _beatsBuildSuggestCache(cb) {
+    if (_beatsSuggestCache) { cb(_beatsSuggestCache); return; }
+    if (typeof db === 'undefined') { cb({artists:[],tracks:[],albums:[]}); return; }
+    var cache = { artists:[], tracks:[], albums:[] };
+    // Parallel fetch artists + tracks
+    Promise.all([
+        db.collection('beats_artists').orderBy('name','asc').limit(300).get(),
+        db.collection('beats_tracks').orderBy('title','asc').limit(500).get()
+    ]).then(function(results) {
+        var artistSnap = results[0], trackSnap = results[1];
+        var seenArtist = {}, seenAlbum = {};
+        artistSnap.forEach(function(doc) {
+            var n = (doc.data().name||'').trim();
+            if (n && !seenArtist[n.toLowerCase()]) {
+                seenArtist[n.toLowerCase()] = true;
+                cache.artists.push(n);
+            }
+        });
+        trackSnap.forEach(function(doc) {
+            var d = doc.data();
+            var t = (d.title||'').trim();
+            var a = (d.artist||d.authorName||'').trim();
+            var al = (d.album||'').trim();
+            if (t) cache.tracks.push(t);
+            if (a && !seenArtist[a.toLowerCase()]) { seenArtist[a.toLowerCase()]=true; cache.artists.push(a); }
+            if (al && !seenAlbum[al.toLowerCase()]) { seenAlbum[al.toLowerCase()]=true; cache.albums.push(al); }
+        });
+        cache.artists.sort(function(a,b){return a.localeCompare(b,undefined,{sensitivity:'base'});});
+        _beatsSuggestCache = cache;
+        cb(cache);
+    }).catch(function() { cb({artists:[],tracks:[],albums:[]}); });
+}
+
+function _beatsShowSuggestions(terms) {
+    _beatsHideSuggestions();
+    if (!terms || terms.length === 0) return;
+    var input = document.getElementById('beatsSearchInput');
+    if (!input) return;
+    var wrap = input.closest('div[style]');
+    if (!wrap) return;
+    var container = wrap.parentElement;
+    var box = document.createElement('div');
+    box.id = 'beatsSuggestBox';
+    box.style.cssText = 'position:absolute;left:0;right:0;top:' + (wrap.offsetTop + wrap.offsetHeight + 4) + 'px;background:var(--card-bg);border:1px solid var(--accent);border-radius:12px;z-index:10050;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.5);';
+    terms.slice(0,8).forEach(function(item) {
+        var row = document.createElement('div');
+        row.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:0.83rem;color:var(--text);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;';
+        row.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">' + (item.type==='artist'?'🎤':item.type==='album'?'💿':'🎵') + '</span><span>' + escapeHtml(item.label) + '</span>';
+        row.addEventListener('mousedown', function(e) {
+            e.preventDefault(); // don't blur input
+            var input2 = document.getElementById('beatsSearchInput');
+            if (input2) input2.value = item.label;
+            _beatsHideSuggestions();
+            beatsPerformSearch();
+        });
+        row.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            var input2 = document.getElementById('beatsSearchInput');
+            if (input2) input2.value = item.label;
+            _beatsHideSuggestions();
+            beatsPerformSearch();
+        }, {passive:false});
+        row.addEventListener('mouseover', function() { row.style.background='rgba(247,147,26,0.12)'; });
+        row.addEventListener('mouseout',  function() { row.style.background=''; });
+        box.appendChild(row);
+    });
+    // Position relative to container
+    if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+    container.appendChild(box);
+}
+
+function _beatsHideSuggestions() {
+    var box = document.getElementById('beatsSuggestBox');
+    if (box) box.remove();
+}
+
+window.beatsWireSearchInput = function() {
+    var input = document.getElementById('beatsSearchInput');
+    if (!input || input._suggestWired) return;
+    input._suggestWired = true;
+    input.setAttribute('autocomplete','off');
+
+    input.addEventListener('input', function() {
+        var q = input.value.trim().toLowerCase();
+        if (q.length < 1) { _beatsHideSuggestions(); return; }
+        _beatsBuildSuggestCache(function(cache) {
+            var matches = [];
+            var seen = {};
+            function addMatch(label, type) {
+                var key = label.toLowerCase();
+                if (seen[key]) return;
+                seen[key] = true;
+                matches.push({label:label, type:type});
+            }
+            // Artists first (exact prefix > contains)
+            cache.artists.forEach(function(a) { if (a.toLowerCase().indexOf(q) !== -1) addMatch(a,'artist'); });
+            // Tracks
+            cache.tracks.forEach(function(t) { if (t.toLowerCase().indexOf(q) !== -1) addMatch(t,'track'); });
+            // Albums
+            cache.albums.forEach(function(a) { if (a.toLowerCase().indexOf(q) !== -1) addMatch(a,'album'); });
+            // Sort: prefix matches first, then contains
+            matches.sort(function(a,b) {
+                var aPrefix = a.label.toLowerCase().startsWith(q) ? 0 : 1;
+                var bPrefix = b.label.toLowerCase().startsWith(q) ? 0 : 1;
+                return aPrefix - bPrefix || a.label.localeCompare(b.label);
+            });
+            _beatsShowSuggestions(matches);
+        });
+    });
+
+    input.addEventListener('keydown', function(e) {
+        var box = document.getElementById('beatsSuggestBox');
+        if (e.key === 'Escape') { _beatsHideSuggestions(); return; }
+        if (!box) return;
+        var rows = box.querySelectorAll('div');
+        var active = box.querySelector('.sg-active');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!active) { if (rows[0]) { rows[0].classList.add('sg-active'); rows[0].style.background='rgba(247,147,26,0.18)'; } }
+            else {
+                var next = active.nextElementSibling;
+                active.classList.remove('sg-active'); active.style.background='';
+                if (next) { next.classList.add('sg-active'); next.style.background='rgba(247,147,26,0.18)'; }
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (active) {
+                var prev = active.previousElementSibling;
+                active.classList.remove('sg-active'); active.style.background='';
+                if (prev) { prev.classList.add('sg-active'); prev.style.background='rgba(247,147,26,0.18)'; }
+            }
+        } else if (e.key === 'Enter') {
+            if (active) {
+                e.preventDefault();
+                var txt = active.querySelector('span:last-child');
+                if (txt) { input.value = txt.textContent; }
+                _beatsHideSuggestions();
+                beatsPerformSearch();
+            }
+        }
+    });
+
+    input.addEventListener('blur', function() {
+        // Small delay so mousedown on a suggestion fires first
+        setTimeout(_beatsHideSuggestions, 180);
+    });
+};
 
 // ================================================================
 // ARTISTS FEATURE
@@ -3431,10 +3587,10 @@ window.beatsRenderArtists=function(){
                 if(aid && artistById[aid]) artistById[aid].count++;
             });
 
-            // Filter out artists with 0 tracks
+            // Filter out artists with 0 tracks, sort strictly A→Z
             var artistList=Object.values(artistById)
                 .filter(function(a){return a.count>0;})
-                .sort(function(a,b){return b.count-a.count||a.name.localeCompare(b.name);});
+                .sort(function(a,b){return a.name.localeCompare(b.name,undefined,{sensitivity:'base'});});
             var n=artistList.length;
 
             var html='<div style="margin-bottom:16px;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:4px;">🎤 Artists</div><div style="color:var(--text-faint);font-size:0.75rem;">'+n+' artist'+(n!==1?'s':'')+' on Bitcoin Beats</div></div>';
