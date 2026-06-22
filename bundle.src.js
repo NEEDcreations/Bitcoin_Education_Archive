@@ -13797,18 +13797,22 @@ function _renderTopHashesHTML(entries) {
         var rank = i + 1;
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
         var name = typeof escapeHtml === 'function' ? escapeHtml(e.username || 'Anon') : (e.username || 'Anon');
-        var isWin = e.value < 1000;
+           // Winner = any hash below the current difficulty target (SF_DIFFICULTY_TARGET, currently 30,000)
+        var diffTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 30000;
+        var isWin = e.value < diffTarget;
         var tsMs = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp.toMillis() : (e.timestamp ? Number(e.timestamp) : 0);
         var isNew = tsMs && (now - tsMs) < SEVENTY_TWO_HOURS;
-        var newBadge = isNew ? '<span style="margin-left:6px;padding:1px 5px;background:#f7931a;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;">NEW</span>' : '';
+        var badges = '';
+        if (isWin) badges += '<span style="margin-left:6px;padding:1px 6px;background:#22c55e;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;">WINNER</span>';
+        if (isNew) badges += '<span style="margin-left:4px;padding:1px 5px;background:#f7931a;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;">NEW</span>';
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;margin-bottom:3px;' +
             'background:' + (isWin ? 'rgba(34,197,94,0.12)' : (isMe ? 'rgba(247,147,26,0.1)' : 'transparent')) + ';' +
             'border:1px solid ' + (isWin ? '#22c55e' : (isMe ? 'var(--accent)' : 'var(--border)')) + ';border-radius:8px;">' +
             '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
-                '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + (isWin ? '\uD83C\uDFC6 ' : '') + name + (isMe ? ' (you)' : '') + newBadge + '</span>' +
+                '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + name + (isMe ? ' (you)' : '') + badges + '</span>' +
             '</div>' +
-            '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:' + (isWin ? '#22c55e' : (e.value < 10000 ? 'var(--accent)' : 'var(--text-muted)')) + ';">' + e.value.toLocaleString() + '</span>' +
+            '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:' + (isWin ? '#22c55e' : (e.value < diffTarget * 3 ? 'var(--accent)' : 'var(--text-muted)')) + ';">' + e.value.toLocaleString() + '</span>' +
         '</div>';
     }
 
