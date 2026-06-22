@@ -1,6 +1,6 @@
 // Bitcoin Education Archive - Service Worker v15
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v1428';
+const CACHE_NAME = 'btc-archive-v1429';
 const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
@@ -23,8 +23,10 @@ self.addEventListener('message', event => {
 });
 
 self.addEventListener('install', event => {
-  // Do NOT call skipWaiting() here — let the SW wait so the update banner
-  // can PostMessage SKIP_WAITING and trigger a clean controlled reload.
+  // skipWaiting immediately so the new SW is ready to serve when the page reloads.
+  // The update banner triggers a hard navigation (location.href = '/') rather than
+  // relying on the controllerchange/reload dance, which caused partial page loads.
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(PRE_CACHE))
   );

@@ -1304,20 +1304,10 @@ if ('serviceWorker' in navigator) {
                         document.getElementById('_swRefreshBtn').addEventListener('click', function() {
                             var btn = document.getElementById('_swRefreshBtn');
                             if (btn) { btn.textContent = 'Updating…'; btn.disabled = true; }
-                            if (reg.waiting) {
-                                // New SW is waiting — tell it to activate, then reload once it takes control
-                                var reloaded = false;
-                                navigator.serviceWorker.addEventListener('controllerchange', function onCC() {
-                                    navigator.serviceWorker.removeEventListener('controllerchange', onCC);
-                                    if (!reloaded) { reloaded = true; window.location.reload(); }
-                                });
-                                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                                // Safety fallback: reload after 3s if controllerchange never fires
-                                setTimeout(function() { if (!reloaded) { reloaded = true; window.location.reload(); } }, 3000);
-                            } else {
-                                // SW already activated (skipWaiting happened automatically) — just hard reload
-                                window.location.reload(true);
-                            }
+                            // Hard navigate to root — bypasses any partial cache state and
+                            // forces a full page load with the new service worker already active.
+                            // Do NOT use location.reload() — it can serve from the old SW cache.
+                            window.location.href = window.location.origin + '/';
                         });
                     }
                 });
