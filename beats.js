@@ -164,6 +164,7 @@ window.beatsEnsureGlobalPlayer = function() {
             '<button onclick="beatsPrevTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏮</button>' +
             '<button id="beatsPlayBtn" onclick="beatsTogglePlay()" style="background:var(--accent);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">▶</button>' +
             '<button onclick="beatsNextTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏭</button>' +
+            '<button id="beatsRepeatBtn" onclick="beatsCycleRepeat()" title="Repeat" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:0.8rem;cursor:pointer;padding:4px;position:relative;">🔁</button>' +
             '<input type="range" id="beatsVolume" min="0" max="100" value="80" oninput="beatsSetVolume(this.value)" style="width:50px;accent-color:var(--accent);cursor:pointer;" title="Volume">' +
             '<button onclick="beatsShowComments()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:0.9rem;cursor:pointer;padding:4px;" title="Comments">💬</button>' +
             '<button onclick="if(typeof go===\'function\')go(\'bitcoin-beats\')" style="background:none;border:none;color:var(--accent);font-size:0.85rem;cursor:pointer;padding:4px;" title="Open Bitcoin Beats">🎵</button>' +
@@ -540,8 +541,34 @@ window.beatsPlayTrack = function(idx) {
                 awardPoints(10, 'Listened to a full track on Bitcoin Beats 🎵');
             }
         }
-        beatsNextTrack();
+        // Respect repeat mode
+        var repeat = window._beatsRepeat || 'none';
+        if (repeat === 'one') {
+            // Replay same track from the start
+            if (window._beatsAudio) {
+                window._beatsAudio.currentTime = 0;
+                window._beatsAudio.play().catch(function() {});
+            }
+        } else if (repeat === 'all') {
+            // Advance to next, wrapping back to 0 at end of queue
+            beatsNextTrack();
+        } else {
+            // No repeat: advance normally (stops at last track if queue ends)
+            var isLast = window._beatsQueueIdx >= window._beatsQueue.length - 1;
+            if (!isLast) {
+                beatsNextTrack();
+            } else {
+                // Stop at end — update UI to show paused/stopped
+                var pb = document.getElementById('beatsPlayBtn');
+                var mb = document.getElementById('beatsMiniPlayBtn');
+                if (pb) pb.textContent = '▶';
+                if (mb) mb.textContent = '▶';
+            }
+        }
     };
+
+    // Keep the repeat button in sync after a new track starts
+    beatsUpdateRepeatBtn();
 
     // Play count is handled by the 30-second timer above (lines 271-280)
     // Do NOT increment here — this fires on every play/restart
@@ -565,6 +592,37 @@ window.beatsTogglePlay = function() {
         if (btn) btn.textContent = '▶';
         if (miniBtn) miniBtn.textContent = '▶';
         if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    }
+};
+
+// Repeat modes: 'none' | 'one' (repeat current track) | 'all' (repeat whole queue)
+window._beatsRepeat = window._beatsRepeat || 'none';
+
+window.beatsCycleRepeat = function() {
+    var modes = ['none', 'one', 'all'];
+    var idx = modes.indexOf(window._beatsRepeat);
+    window._beatsRepeat = modes[(idx + 1) % modes.length];
+    beatsUpdateRepeatBtn();
+    var labels = { none: 'Repeat off', one: 'Repeat track', all: 'Repeat queue' };
+    if (typeof showToast === 'function') showToast(labels[window._beatsRepeat] || '');
+};
+
+window.beatsUpdateRepeatBtn = function() {
+    var btn = document.getElementById('beatsRepeatBtn');
+    if (!btn) return;
+    var mode = window._beatsRepeat || 'none';
+    if (mode === 'none') {
+        btn.style.color = 'rgba(255,255,255,0.35)';
+        btn.title = 'Repeat: Off';
+        btn.innerHTML = '🔁';
+    } else if (mode === 'one') {
+        btn.style.color = 'var(--accent)';
+        btn.title = 'Repeat: Track';
+        btn.innerHTML = '🔂<sup style="font-size:0.55rem;color:var(--accent);">1</sup>';
+    } else {
+        btn.style.color = 'var(--accent)';
+        btn.title = 'Repeat: Queue';
+        btn.innerHTML = '🔁<sup style="font-size:0.55rem;color:var(--accent);">all</sup>';
     }
 };
 
