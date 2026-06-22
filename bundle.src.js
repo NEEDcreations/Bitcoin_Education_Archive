@@ -16483,16 +16483,16 @@ function _bjResolve(id, state) {
     var msgEl = document.getElementById('bj-msg-'+id);
     var btnsEl = document.getElementById('bj-btns-'+id);
     if (win) {
-        if (msgEl) { msgEl.textContent = '✅ You beat the dealer! +5 XP'; msgEl.style.color = '#22c55e'; }
+        if (msgEl) { msgEl.textContent = '✅ You beat the dealer! ' + pVal + ' vs ' + dVal + (dBust ? ' (dealer busts)' : '') + ' — +5 XP!'; msgEl.style.color = '#22c55e'; }
         if (btnsEl) btnsEl.style.display = 'none';
-        setTimeout(function(){ _flexMarkDone(id, function(){ _flexCardSuccess(id); }); }, 700);
+        setTimeout(function(){ _flexMarkDone(id, function(){ _flexCardSuccess(id); }); }, 2700);
     } else if (push) {
-        if (msgEl) { msgEl.textContent = '🤝 Push — try again!'; msgEl.style.color = '#eab308'; }
-        _bjNewRound(id);
+        if (msgEl) { msgEl.textContent = '🤝 Push — ' + pVal + ' vs ' + dVal + ' — new round...'; msgEl.style.color = '#eab308'; }
+        setTimeout(function(){ _bjNewRound(id); }, 2500);
     } else {
-        var reason = pBust ? '💥 Bust! (' + pVal + ')' : '😞 Dealer wins (' + dVal + ' vs ' + pVal + ')';
-        if (msgEl) { msgEl.textContent = reason + ' — new round...'; msgEl.style.color = '#ef4444'; }
-        setTimeout(function(){ _bjNewRound(id); }, 1200);
+        var reason = pBust ? '💥 Bust! Your ' + pVal + ' beats max — dealer had ' + dVal : '😞 Dealer wins — ' + dVal + ' vs your ' + pVal;
+        if (msgEl) { msgEl.textContent = reason + '. New round...'; msgEl.style.color = '#ef4444'; }
+        setTimeout(function(){ _bjNewRound(id); }, 3200);
     }
 }
 function _bjNewRound(id) {
@@ -17096,6 +17096,112 @@ var CHESS_PUZZLES = [
     { id:'p15', label:'Mate in 1 — White to move',
       pieces: { h1:'wK', b2:'wQ', g8:'bK', f8:'bR', h8:'bR', g7:'bP' },
       solution: { from:'b2', to:'h8' }, hint:'Queen diagonal to h8' },
+    // --- Batch 2: 35 more puzzles ---
+    { id:'p16', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', d8:'wR', e8:'bK', c8:'bB', f8:'bN', e7:'bP' },
+      solution: { from:'d8', to:'e8' }, hint:'Rook takes on e8 — back-rank mate' },
+    { id:'p17', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', c1:'wR', c8:'bK', b8:'bB', d8:'bN', b7:'bP', d7:'bP' },
+      solution: { from:'c1', to:'c8' }, hint:'Rook fires down the c-file' },
+    { id:'p18', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', h3:'wQ', h8:'bK', g8:'bR', g7:'bP', h7:'bP' },
+      solution: { from:'h3', to:'h7' }, hint:'Queen takes h7 — smothered king' },
+    { id:'p19', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', e5:'wR', e8:'bK', d8:'bQ', f8:'bB' },
+      solution: { from:'e5', to:'e8' }, hint:'Rook to e8! Takes the queen' },
+    { id:'p20', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', b5:'wQ', a8:'bK', b8:'bR', b7:'bP', a7:'bN' },
+      solution: { from:'b5', to:'b7' }, hint:'Queen takes the guarding pawn' },
+    { id:'p21', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', a7:'wR', a8:'bK', b8:'bQ', b7:'bP' },
+      solution: { from:'a7', to:'a8' }, hint:'Rook takes the king square' },
+    { id:'p22', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', f1:'wR', f8:'bK', e8:'bN', g8:'bB', e7:'bP', g7:'bP' },
+      solution: { from:'f1', to:'f8' }, hint:'Rook slices to f8' },
+    { id:'p23', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', d5:'wQ', h5:'wR', h8:'bK', g8:'bR', g7:'bP', h7:'bP' },
+      solution: { from:'h5', to:'h7' }, hint:'Rook crashes h7 — king trapped' },
+    { id:'p24', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', g6:'wN', h8:'bK', g8:'bR', h7:'bP', g7:'bP' },
+      solution: { from:'g6', to:'f8' }, hint:'Knight to f8 — smothered mate' },
+    { id:'p25', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', c6:'wB', a8:'bK', b7:'bP', a7:'bB' },
+      solution: { from:'c6', to:'b7' }, hint:'Bishop takes b7 — diagonal mate' },
+    { id:'p26', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', h6:'wQ', h8:'bK', g8:'bN', g7:'bP' },
+      solution: { from:'h6', to:'g7' }, hint:'Queen takes g7 — knight and pawn covered it' },
+    { id:'p27', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', e1:'wR', a8:'bK', e8:'bR', b8:'bN', e7:'bP' },
+      solution: { from:'e1', to:'e8' }, hint:'Rook takes e8 — removes defender' },
+    { id:'p28', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', b3:'wQ', b8:'bK', a8:'bR', c8:'bR', a7:'bP', c7:'bP' },
+      solution: { from:'b3', to:'b8' }, hint:'Queen breaks through to b8' },
+    { id:'p29', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', h4:'wQ', h8:'bK', g7:'bR', h7:'bP' },
+      solution: { from:'h4', to:'h7' }, hint:'Queen takes h7 — king has nowhere to go' },
+    { id:'p30', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', d7:'wN', f8:'bK', e8:'bB', g8:'bN', e7:'bP' },
+      solution: { from:'d7', to:'e5' }, hint:'Knight retreats to e5 covering all escape squares' },
+    { id:'p31', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', f5:'wB', h8:'bK', g8:'bR', h7:'bP', g7:'bP' },
+      solution: { from:'f5', to:'g6' }, hint:'Bishop to g6 — diagonal covers h7' },
+    { id:'p32', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', a6:'wR', h8:'wR', a8:'bK', b8:'bB', b7:'bP' },
+      solution: { from:'h8', to:'a8' }, hint:'Rook swings to a8 — checkmate' },
+    { id:'p33', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', c7:'wR', a8:'bK', b8:'bQ', a7:'bP' },
+      solution: { from:'c7', to:'c8' }, hint:'Rook cuts off the queen’s guard on c8' },
+    { id:'p34', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', g3:'wQ', g8:'bK', f8:'bR', h8:'bR', g7:'bP', f7:'bP', h7:'bN' },
+      solution: { from:'g3', to:'g7' }, hint:'Queen takes g7 — king smothered' },
+    { id:'p35', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', e4:'wQ', e1:'wR', e8:'bK', d8:'bR', f8:'bR', e7:'bP' },
+      solution: { from:'e4', to:'e7' }, hint:'Queen takes e7 — opens rank and covers escape' },
+    { id:'p36', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', h2:'wR', h8:'bK', g7:'bP', h7:'bP', f8:'bR' },
+      solution: { from:'h2', to:'h7' }, hint:'Rook takes the pawn — mate on h7' },
+    { id:'p37', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', f3:'wQ', f8:'bK', e8:'bR', g8:'bR', f7:'bP' },
+      solution: { from:'f3', to:'f7' }, hint:'Queen takes f7 — king boxed in' },
+    { id:'p38', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', d1:'wR', d8:'bK', c8:'bB', e8:'bN', d7:'bP' },
+      solution: { from:'d1', to:'d8' }, hint:'Rook fires to d8' },
+    { id:'p39', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', b1:'wR', b8:'bK', a8:'bN', c8:'bB', a7:'bP', c7:'bP' },
+      solution: { from:'b1', to:'b8' }, hint:'Rook to b8 — back-rank mate' },
+    { id:'p40', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', c4:'wQ', a8:'bK', b8:'bR', b7:'bP', a7:'bP' },
+      solution: { from:'c4', to:'c8' }, hint:'Queen swings to c8 — mate' },
+    { id:'p41', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', g1:'wR', g8:'bK', h8:'bR', f8:'bB', g7:'bP', h7:'bP' },
+      solution: { from:'g1', to:'g8' }, hint:'Rook charges to g8 — takes the rook, mate' },
+    { id:'p42', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', f6:'wB', h8:'bK', g8:'bR', g7:'bP', h7:'bP' },
+      solution: { from:'f6', to:'g7' }, hint:'Bishop takes g7 — diagonal cut' },
+    { id:'p43', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', e6:'wN', g8:'bK', h8:'bR', g7:'bP', f8:'bB' },
+      solution: { from:'e6', to:'f8' }, hint:'Knight forks to f8 — mate' },
+    { id:'p44', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', h5:'wQ', h8:'bK', g8:'bN', g7:'bP', h7:'bR' },
+      solution: { from:'h5', to:'h7' }, hint:'Queen takes h7 — knight and pawn trapped king' },
+    { id:'p45', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', c2:'wQ', c8:'bK', b8:'bB', d8:'bN', c7:'bP', b7:'bP', d7:'bP' },
+      solution: { from:'c2', to:'c7' }, hint:'Queen breaks through c7' },
+    { id:'p46', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', a2:'wQ', a8:'bK', b8:'bR', b7:'bP' },
+      solution: { from:'a2', to:'a8' }, hint:'Queen takes a8 — mate' },
+    { id:'p47', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', f4:'wR', f8:'bK', e8:'bQ', g8:'bR', e7:'bP', g7:'bP' },
+      solution: { from:'f4', to:'f8' }, hint:'Rook to f8, takes rook — king done' },
+    { id:'p48', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', d6:'wQ', h8:'bK', g8:'bB', h7:'bP', g7:'bP' },
+      solution: { from:'d6', to:'h6' }, hint:'Queen slides to h6 — diagonal cuts off g7' },
+    { id:'p49', label:'Mate in 1 — White to move',
+      pieces: { a1:'wK', g5:'wR', g8:'bK', h8:'bR', f8:'bN', h7:'bP' },
+      solution: { from:'g5', to:'g8' }, hint:'Rook takes g8 — smashing through' },
+    { id:'p50', label:'Mate in 1 — White to move',
+      pieces: { h1:'wK', c3:'wQ', h8:'bK', g8:'bR', h7:'bP', g7:'bN' },
+      solution: { from:'c3', to:'h8' }, hint:'Queen diagonal h8 — takes the rook' },
 ];
 
 var _CHESS_FILES = ['a','b','c','d','e','f','g','h'];
