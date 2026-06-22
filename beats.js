@@ -474,20 +474,22 @@ window.beatsPlayTrack = function(idx) {
     window._beatsCurrentAuthorId = track.authorId || track.authorUid || '';
 
     // Play count: increment after 30s of continuous listening.
-    // Counts every play (no per-session dedup) so trending reflects actual listen volume.
-    // A per-track cooldown of 5 minutes prevents rapid replay inflation.
+    // 45-second cooldown prevents a double-count if the user restarts the track
+    // immediately (e.g. seeking back to 0), but every genuine replay counts.
     if (window._beatsPlayCountTimer) { clearTimeout(window._beatsPlayCountTimer); window._beatsPlayCountTimer = null; }
     if (!window._beatsPlayCooldowns) window._beatsPlayCooldowns = {};
+    var _countTrackId = track.id;
     window._beatsPlayCountTimer = setTimeout(function() {
         if (!window._beatsAudio || window._beatsAudio.paused) return;
-        if (!track.id) return;
+        if (!_countTrackId) return;
         var now = Date.now();
-        var lastCount = window._beatsPlayCooldowns[track.id] || 0;
-        // 5-minute cooldown per track — prevents spam but allows genuine replays
-        if (now - lastCount < 5 * 60 * 1000) return;
-        window._beatsPlayCooldowns[track.id] = now;
+        var lastCount = window._beatsPlayCooldowns[_countTrackId] || 0;
+        // 45s cooldown — just enough to prevent double-count on an immediate restart,
+        // but lets genuine replays each register (play 5x = 5 plays)
+        if (now - lastCount < 45000) return;
+        window._beatsPlayCooldowns[_countTrackId] = now;
         if (typeof db !== 'undefined') {
-            db.collection('beats_tracks').doc(track.id).update({
+            db.collection('beats_tracks').doc(_countTrackId).update({
                 plays: firebase.firestore.FieldValue.increment(1)
             }).catch(function() {});
         }
