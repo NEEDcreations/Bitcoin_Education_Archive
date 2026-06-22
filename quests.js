@@ -6323,30 +6323,85 @@ function _chessWireBoard(id) {
         if (!piece || piece[0] !== 'w') return; // only white pieces
         dragFrom = sq;
         wrap._chessSelected = sq;
-        // create ghost
+        // Ghost: large chess piece that follows the cursor/finger
         dragGhost = document.createElement('div');
-        dragGhost.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;font-size:2rem;transform:translate(-50%,-50%);';
+        dragGhost.style.cssText = [
+            'position:fixed',
+            'z-index:99999',
+            'pointer-events:none',
+            'width:52px',
+            'height:52px',
+            'border-radius:50%',
+            'background:radial-gradient(circle at 38% 35%, #fff 0%, #e8e0cc 70%, #c8b89a 100%)',
+            'box-shadow:0 6px 20px rgba(0,0,0,0.55),0 2px 6px rgba(0,0,0,0.4)',
+            'display:flex',
+            'align-items:center',
+            'justify-content:center',
+            'font-size:2rem',
+            'transform:translate(-50%,-50%) scale(1.15)',
+            'transition:none',
+            'user-select:none',
+            '-webkit-user-select:none'
+        ].join(';');
         dragGhost.textContent = _CHESS_GLYPHS[piece];
-        dragGhost.style.color = '#fff';
-        dragGhost.style.textShadow = '0 1px 3px rgba(0,0,0,0.9)';
         document.body.appendChild(dragGhost);
         moveDragGhost(clientX, clientY);
-        _chessRender(id);
+        // Dim the origin cell without re-rendering the whole board
+        var originTd = board.querySelector('[data-sq="' + sq + '"]');
+        if (originTd) {
+            originTd.style.opacity = '0.35';
+            originTd.style.background = '#f7931a';
+        }
     }
+    var _lastHoverSq = null;
     function moveDragGhost(x, y) {
-        if (dragGhost) { dragGhost.style.left = x + 'px'; dragGhost.style.top = y + 'px'; }
+        if (!dragGhost) return;
+        dragGhost.style.left = x + 'px';
+        dragGhost.style.top  = y + 'px';
+        // Highlight the square currently under the ghost
+        var el = document.elementFromPoint(x, y);
+        var td = el; while (td && td.tagName !== 'TD') td = td.parentElement;
+        var hoverSq = td ? td.getAttribute('data-sq') : null;
+        if (hoverSq !== _lastHoverSq) {
+            // Un-highlight previous hover square
+            if (_lastHoverSq && _lastHoverSq !== dragFrom) {
+                var prevTd = board.querySelector('[data-sq="' + _lastHoverSq + '"]');
+                if (prevTd) { prevTd.style.background = ''; prevTd.style.outline = ''; }
+            }
+            // Highlight new hover square
+            if (hoverSq && hoverSq !== dragFrom) {
+                var newTd = board.querySelector('[data-sq="' + hoverSq + '"]');
+                if (newTd) {
+                    newTd.style.background = 'rgba(247,147,26,0.55)';
+                    newTd.style.outline = '2px inset rgba(247,147,26,0.9)';
+                }
+            }
+            _lastHoverSq = hoverSq;
+        }
     }
     function endDrag(toSq) {
         if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+        // Restore hover-highlighted square
+        if (_lastHoverSq) {
+            var hTd = board.querySelector('[data-sq="' + _lastHoverSq + '"]');
+            if (hTd) { hTd.style.background = ''; hTd.style.outline = ''; }
+            _lastHoverSq = null;
+        }
+        // Restore origin cell before any re-render
+        if (dragFrom) {
+            var originTd = board.querySelector('[data-sq="' + dragFrom + '"]');
+            if (originTd) { originTd.style.opacity = ''; }
+        }
         if (!dragFrom || !toSq || dragFrom === toSq) {
             wrap._chessSelected = null;
             dragFrom = null;
             _chessRender(id);
             return;
         }
-        _chessTryMove(id, dragFrom, toSq);
+        var fromSq = dragFrom;
         dragFrom = null;
         wrap._chessSelected = null;
+        _chessTryMove(id, fromSq, toSq);
     }
 
     // Mouse
