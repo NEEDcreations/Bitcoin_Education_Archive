@@ -430,7 +430,17 @@ window.beatsPlayTrack = function(idx) {
     // Lifetime play count for badges
     try { var _pc = parseInt(localStorage.getItem('btc_beats_play_count') || '0'); localStorage.setItem('btc_beats_play_count', String(_pc + 1)); } catch(e) {}
 
-    // Stop existing
+    // Pause DJ tune-in if active (mutual exclusion with global chat stream)
+    if (window._djListening && window._djAudio) {
+        window._djAudio.pause();
+        window._djAudio = null;
+        window._djListening = false;
+        var tuneBtn = document.getElementById('djTuneBtn');
+        if (tuneBtn) { tuneBtn.textContent = '🔊 Tune In'; if (typeof djTuneIn === 'function') tuneBtn.onclick = djTuneIn; }
+        if (typeof showToast === 'function') showToast('⏸ DJ stream paused — playing your track');
+    }
+
+    // Stop existing beats audio
     if (window._beatsAudio) { window._beatsAudio.pause(); window._beatsAudio = null; }
     clearInterval(window._beatsUpdateInterval);
     if (window._beatsPlayCountTimer) { clearTimeout(window._beatsPlayCountTimer); window._beatsPlayCountTimer = null; }

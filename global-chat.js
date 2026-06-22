@@ -2080,6 +2080,9 @@ var _djUnsub = null;
 var _djQueueUnsub = null;
 var _djAudio = null;
 var _djListening = false;
+// Expose on window so beats.js can pause the DJ stream when a beats track starts
+Object.defineProperty(window, '_djAudio', { get: function(){ return _djAudio; }, set: function(v){ _djAudio = v; }, configurable: true });
+Object.defineProperty(window, '_djListening', { get: function(){ return _djListening; }, set: function(v){ _djListening = v; }, configurable: true });
 var _djSongCount = 0; // tracks how many songs the current DJ has played
 var _djIsMe = false;
 var _djQueuePosition = -1; // -1 = not in queue
@@ -2487,7 +2490,12 @@ window.djTuneIn = function() {
     if (!url) { if (typeof showToast === 'function') showToast('No audio available for this track'); return; }
     if (window._beatsAudio && !window._beatsAudio.paused) {
         window._beatsAudio.pause();
-        if (typeof showToast === 'function') showToast('⏸ Your player paused — listening to DJ');
+        // Update beats player UI buttons to show paused state
+        var bBtn = document.getElementById('beatsPlayBtn');
+        var bMini = document.getElementById('beatsMiniPlayBtn');
+        if (bBtn) bBtn.textContent = '▶';
+        if (bMini) bMini.textContent = '▶';
+        if (typeof showToast === 'function') showToast('⏸ Beats paused — tuned in to DJ');
     }
     if (_djAudio) { _djAudio.pause(); _djAudio = null; }
     _djAudio = new Audio(url);
