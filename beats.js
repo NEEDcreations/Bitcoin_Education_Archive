@@ -2000,8 +2000,8 @@ if (_origBeatsPlayTrack) {
             if (panel && window._beatsQueue && window._beatsQueue[idx]) {
                 var newTrack = window._beatsQueue[idx];
                 window._beatsCommentTrackId = newTrack.id;
-                // Update the header title
-                var headerEl = panel.querySelector('div[style*="justify-content:space-between"] > div');
+                // Update the header title using stable ID
+                var headerEl = document.getElementById('beatsCommentsPanelTitle');
                 if (headerEl) {
                     headerEl.innerHTML = '💬 Comments — <span style="color:var(--accent);font-weight:600;">' + escapeHtml((newTrack.title || 'Untitled').substring(0, 30)) + '</span>';
                 }
@@ -2042,7 +2042,7 @@ window.beatsShowComments = function(trackId) {
     panel.innerHTML =
         '<style>@keyframes beatsSlideUp{from{transform:translateY(100%);opacity:0;}to{transform:translateY(0);opacity:1;}}</style>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;">' +
-            '<div style="font-weight:700;font-size:0.85rem;color:var(--heading);">💬 Comments' + (track ? ' — ' + '<span style="color:var(--accent);font-weight:600;">' + escapeHtml((track.title || 'Untitled').substring(0, 30)) + '</span>' : '') + '</div>' +
+            '<div id="beatsCommentsPanelTitle" style="font-weight:700;font-size:0.85rem;color:var(--heading);">💬 Comments' + (track ? ' — ' + '<span style="color:var(--accent);font-weight:600;">' + escapeHtml((track.title || 'Untitled').substring(0, 30)) + '</span>' : '') + '</div>' +
             '<button onclick="document.getElementById(\'beatsCommentsPanel\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;">✕</button>' +
         '</div>' +
         '<div id="beatsCommentsList" style="flex:1;overflow-y:auto;padding:12px 16px;min-height:80px;">' +
@@ -2063,9 +2063,15 @@ window.beatsShowComments = function(trackId) {
     beatsLoadComments(trackId);
 };
 
+if (!window._beatsCommentGen) window._beatsCommentGen = 0;
 window.beatsLoadComments = function(trackId) {
     var listEl = document.getElementById('beatsCommentsList');
     if (!listEl || typeof db === 'undefined') return;
+
+    // Generation counter — stale async responses from a previous track are discarded
+    var gen = ++window._beatsCommentGen;
+
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Loading comments...</div>';
 
     // Determine if current user is admin
     var _cu = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
@@ -2075,8 +2081,12 @@ window.beatsLoadComments = function(trackId) {
     db.collection('beats_tracks').doc(trackId).collection('comments')
         .orderBy('createdAt', 'desc').limit(50).get()
         .then(function(snap) {
+            // Discard if a newer load was triggered (track changed while query was in-flight)
+            if (gen !== window._beatsCommentGen) return;
+            var listEl2 = document.getElementById('beatsCommentsList');
+            if (!listEl2) return;
             if (snap.empty) {
-                listEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No comments yet. Be the first! 🎵</div>';
+                listEl2.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No comments yet. Be the first! 🎵</div>';
                 return;
             }
             var html = '';
@@ -2097,11 +2107,13 @@ window.beatsLoadComments = function(trackId) {
                     '</div>' +
                 '</div>';
             });
-            listEl.innerHTML = html;
+            listEl2.innerHTML = html;
         })
         .catch(function(e) {
+            if (gen !== window._beatsCommentGen) return;
             console.error('Load comments error:', e);
-            listEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Error loading comments</div>';
+            var listEl3 = document.getElementById('beatsCommentsList');
+            if (listEl3) listEl3.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Error loading comments</div>';
         });
 };
 
