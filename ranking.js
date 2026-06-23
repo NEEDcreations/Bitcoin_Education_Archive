@@ -6047,7 +6047,7 @@ window.initSatsClaim = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'satsClaimOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500001;display:flex;align-items:center;justify-content:center;padding:16px;';
     // Delay dismiss listener to prevent the originating button click from immediately closing it
     setTimeout(function() {
         overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
