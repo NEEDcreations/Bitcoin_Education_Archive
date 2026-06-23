@@ -1442,12 +1442,54 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Verified email required. Link and verify your email in Account settings.' };
     }
 
-    const invoice = (data.invoice || '').trim();
-
     // 3. NWC configuration check
     if (!FAUCET.NWC_URL) {
         console.error('[FAUCET] NWC_URL not configured');
         return { success: false, error: 'Faucet not configured. Contact admin.' };
+    }
+
+    // ---- Lightning Address path: resolve LNURL-pay server-side ----
+    // If caller passes lightningAddress + amount instead of a pre-made invoice,
+    // we fetch the BOLT11 for them so they don’t have to open their wallet.
+    let invoice = (data.invoice || '').trim();
+    const lnAddrRaw = (data.lightningAddress || '').trim();
+    const lnAddrAmount = Math.floor(Number(data.amount) || 0); // sats
+
+    if (lnAddrRaw && !invoice) {
+        // Validate Lightning Address format
+        if (!lnAddrRaw.includes('@') || lnAddrRaw.length < 5 || lnAddrRaw.length > 320) {
+            return { success: false, error: 'Invalid Lightning Address format.' };
+        }
+        if (lnAddrAmount < FAUCET.MIN_WITHDRAWAL_SATS || lnAddrAmount > FAUCET.MAX_PER_CLAIM_SATS) {
+            return { success: false, error: 'Amount must be between ' + FAUCET.MIN_WITHDRAWAL_SATS + ' and ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats.' };
+        }
+        // Resolve Lightning Address → LNURL-pay → BOLT11
+        try {
+            const nodeFetch = require('node-fetch');
+            const [localPart, domain] = lnAddrRaw.split('@');
+            const lnurlPayUrl = 'https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart);
+            const metaRes = await nodeFetch(lnurlPayUrl, { timeout: 8000 });
+            if (!metaRes.ok) throw new Error('LNURL-pay metadata fetch failed (' + metaRes.status + ')');
+            const meta = await metaRes.json();
+            if (!meta.callback) throw new Error('No callback in LNURL-pay metadata');
+            const msats = lnAddrAmount * 1000;
+            if (meta.minSendable && msats < meta.minSendable) {
+                throw new Error('Amount below wallet minimum (' + Math.ceil(meta.minSendable / 1000) + ' sats)');
+            }
+            if (meta.maxSendable && msats > meta.maxSendable) {
+                throw new Error('Amount above wallet maximum (' + Math.floor(meta.maxSendable / 1000) + ' sats)');
+            }
+            const cbSep = meta.callback.includes('?') ? '&' : '?';
+            const invoiceRes = await nodeFetch(meta.callback + cbSep + 'amount=' + msats, { timeout: 8000 });
+            if (!invoiceRes.ok) throw new Error('Invoice fetch failed (' + invoiceRes.status + ')');
+            const invoiceData = await invoiceRes.json();
+            if (!invoiceData.pr) throw new Error('No invoice returned by Lightning Address');
+            invoice = invoiceData.pr;
+            console.log('[FAUCET] Resolved Lightning Address ' + lnAddrRaw + ' → invoice for ' + lnAddrAmount + ' sats');
+        } catch (e) {
+            console.error('[FAUCET] Lightning Address resolution failed:', e.message);
+            return { success: false, error: 'Could not resolve Lightning Address: ' + (e.message || 'unknown error') };
+        }
     }
 
     // 4. Validate invoice format

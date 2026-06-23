@@ -6034,18 +6034,47 @@ window.initSatsClaim = function() {
         overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
     }, 200);
 
+    // Detect if user has a Lightning Address saved (for 1-click flow)
+    var _savedLnAddr = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
+    window._satsClaimMaxClaim = maxClaim; // stored for submitSatsClaim to read
+    window._satsClaimTab = _savedLnAddr ? 'ln' : 'inv'; // default to LN if address saved
+
     var html = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">';
     html += '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:2rem;">⚡</span><div style="font-size:1.1rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Sats</div></div>';
 
-    html += '<div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:12px;margin-bottom:14px;text-align:center;">';
+    html += '<div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center;">';
     html += '<div style="font-size:0.75rem;color:var(--text-muted);">You can claim up to</div>';
     html += '<div style="font-size:1.5rem;font-weight:900;color:var(--accent);">⚡ ' + maxClaim + ' sats</div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Zero fees — we cover all routing costs</div>';
     html += '</div>';
 
+    // Tab switcher
+    html += '<div style="display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;">';
+    html += '<button id="satsTabLn" onclick="window._satsSwitchTab(\'ln\')" style="flex:1;padding:9px 6px;border:none;background:' + (_savedLnAddr ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (_savedLnAddr ? '#fff' : 'var(--text-muted)') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid var(--border);transition:0.15s;">⚡ Lightning Address</button>';
+    html += '<button id="satsTabInv" onclick="window._satsSwitchTab(\'inv\')" style="flex:1;padding:9px 6px;border:none;background:' + (!_savedLnAddr ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (!_savedLnAddr ? '#fff' : 'var(--text-muted)') + ';font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:0.15s;">📋 Paste Invoice</button>';
+    html += '</div>';
+
+    // Lightning Address panel
+    html += '<div id="satsLnPanel" style="display:' + (_savedLnAddr ? 'block' : 'none') + ';">';
+    html += '<div style="margin-bottom:10px;">';
+    html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Your Lightning Address</label>';
+    html += '<input id="satsLnAddr" type="text" placeholder="you@walletofsatoshi.com" value="' + (typeof escapeHtml === 'function' ? escapeHtml(_savedLnAddr) : _savedLnAddr) + '" style="width:100%;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">';
+    html += '</div>';
+    html += '<div style="margin-bottom:12px;">';
+    html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Amount <span style="color:var(--text-faint);">(100–' + maxClaim + ' sats)</span></label>';
+    html += '<div style="display:flex;gap:6px;align-items:center;">';
+    html += '<input id="satsLnAmount" type="number" min="100" max="' + maxClaim + '" value="' + maxClaim + '" style="flex:1;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;text-align:center;font-weight:700;">';
+    html += '<button onclick="document.getElementById(\'satsLnAmount\').value=' + maxClaim + '" style="padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Max</button>';
+    html += '</div></div>';
+    html += '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:14px;">✅ Your wallet receives sats automatically — no invoice needed!</div>';
+    html += '</div>';
+
+    // Invoice paste panel
+    html += '<div id="satsInvPanel" style="display:' + (!_savedLnAddr ? 'block' : 'none') + ';">';
     html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Paste Lightning Invoice</label>';
     html += '<textarea id="satsClaimInvoice" placeholder="lnbc..." rows="3" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;resize:none;margin-bottom:4px;box-sizing:border-box;word-break:break-all;"></textarea>';
-
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Open your Lightning wallet, create an invoice for the amount you want (100-' + maxClaim + ' sats), and paste it here.<br><span style="color:#22c55e;">💚 Zero fees — we pay all Lightning network fees so you receive the full amount!</span></div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Open your Lightning wallet, generate an invoice for 100–' + maxClaim + ' sats, paste it here.</div>';
+    html += '</div>';
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
 
@@ -6093,18 +6122,54 @@ function _generateDeviceFingerprint() {
 }
 
 window._satsClaimInProgress = false;
+window._satsClaimTab = 'ln'; // 'ln' or 'inv'
+
+window._satsSwitchTab = function(tab) {
+    window._satsClaimTab = tab;
+    var lnPanel = document.getElementById('satsLnPanel');
+    var invPanel = document.getElementById('satsInvPanel');
+    var tabLn = document.getElementById('satsTabLn');
+    var tabInv = document.getElementById('satsTabInv');
+    if (!lnPanel || !invPanel) return;
+    lnPanel.style.display = tab === 'ln' ? 'block' : 'none';
+    invPanel.style.display = tab === 'inv' ? 'block' : 'none';
+    if (tabLn) { tabLn.style.background = tab === 'ln' ? 'var(--accent)' : 'var(--card-bg)'; tabLn.style.color = tab === 'ln' ? '#fff' : 'var(--text-muted)'; }
+    if (tabInv) { tabInv.style.background = tab === 'inv' ? 'var(--accent)' : 'var(--card-bg)'; tabInv.style.color = tab === 'inv' ? '#fff' : 'var(--text-muted)'; }
+};
+
 window.submitSatsClaim = async function() {
     if (window._satsClaimInProgress) return; // prevent double-click
     var btn = document.getElementById('satsClaimBtn');
-    var invoiceEl = document.getElementById('satsClaimInvoice');
     var errorEl = document.getElementById('satsClaimError');
-    if (!btn || !invoiceEl) return;
+    if (!btn) return;
 
-    var invoice = invoiceEl.value.trim();
+    var isLnMode = window._satsClaimTab !== 'inv' && !!document.getElementById('satsLnPanel') && document.getElementById('satsLnPanel').style.display !== 'none';
+    var claimPayload;
 
-    if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
-        if (errorEl) { errorEl.textContent = 'Please paste a valid Lightning invoice (starts with lnbc...)'; errorEl.style.display = 'block'; }
-        return;
+    if (isLnMode) {
+        var lnAddrEl = document.getElementById('satsLnAddr');
+        var lnAmtEl = document.getElementById('satsLnAmount');
+        var lnAddr = lnAddrEl ? lnAddrEl.value.trim() : '';
+        var lnAmt = lnAmtEl ? parseInt(lnAmtEl.value) : 0;
+        if (!lnAddr || !lnAddr.includes('@')) {
+            if (errorEl) { errorEl.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)'; errorEl.style.display = 'block'; }
+            return;
+        }
+        var _maxCl = window._satsClaimMaxClaim || 500;
+        if (!lnAmt || lnAmt < 100 || lnAmt > _maxCl) {
+            if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
+            return;
+        }
+        claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
+    } else {
+        var invoiceEl = document.getElementById('satsClaimInvoice');
+        if (!invoiceEl) return;
+        var invoice = invoiceEl.value.trim();
+        if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
+            if (errorEl) { errorEl.textContent = 'Please paste a valid Lightning invoice (starts with lnbc...)'; errorEl.style.display = 'block'; }
+            return;
+        }
+        claimPayload = { invoice: invoice };
     }
 
     // Hide previous errors
@@ -6112,14 +6177,14 @@ window.submitSatsClaim = async function() {
 
     window._satsClaimInProgress = true;
     btn.disabled = true;
-    btn.textContent = '⏳ Sending sats...';
+    btn.textContent = isLnMode ? '⏳ Sending to your address...' : '⏳ Sending sats...';
     btn.style.opacity = '0.6';
 
     try {
         var claimSats = firebase.functions().httpsCallable('claimSats');
         // Generate device fingerprint for multi-account detection
         var _fp = _generateDeviceFingerprint();
-        var result = await claimSats({ invoice: invoice, fingerprint: _fp });
+        var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp }));
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
             currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
