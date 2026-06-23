@@ -45,9 +45,19 @@ function _gcSetTyping(isTyping) {
     var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
     var ref = db.collection('global_chat_meta').doc('typing');
     if (isTyping) {
-        ref.set({ [uid]: { username: username, at: firebase.firestore.FieldValue.serverTimestamp() } }, { merge: true }).catch(function() {});
+        // Always use set+merge so the doc is created if it doesn't exist yet
+        var entry = {};
+        entry[uid] = { username: username, at: firebase.firestore.FieldValue.serverTimestamp() };
+        ref.set(entry, { merge: true }).catch(function(e) {
+            console.warn('[TYPING] set failed:', e && e.code, e && e.message);
+        });
     } else {
-        ref.update({ [uid]: firebase.firestore.FieldValue.delete() }).catch(function() {});
+        // Use set+merge with FieldValue.delete() — safer than update() on potentially non-existent doc
+        var del = {};
+        del[uid] = firebase.firestore.FieldValue.delete();
+        ref.set(del, { merge: true }).catch(function(e) {
+            console.warn('[TYPING] clear failed:', e && e.code, e && e.message);
+        });
     }
 }
 
@@ -81,7 +91,7 @@ function _gcSubscribeTyping() {
             if (uid === myUid) return; // don't show yourself
             var entry = data[uid];
             var atMs = entry.at && typeof entry.at.toMillis === 'function' ? entry.at.toMillis() : 0;
-            if (atMs && now - atMs > 7000) return; // stale — ignore
+            if (atMs && now - atMs > 10000) return; // stale >10s — ignore (generous for clock skew)
             typers.push(entry.username || 'Someone');
         });
         if (typers.length === 0) { el.textContent = ''; return; }
