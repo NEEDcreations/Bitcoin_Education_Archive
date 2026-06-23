@@ -273,6 +273,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "global_chat",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isNachoAuto",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ts",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

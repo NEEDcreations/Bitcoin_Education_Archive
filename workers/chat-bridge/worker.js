@@ -282,8 +282,9 @@ export default {
     try {
       if (url.pathname === '/webhook/telegram' && request.method === 'POST') {
         // Validate Telegram webhook secret token (set via setWebhook secret_token parameter)
+        // Only enforce if TG_WEBHOOK_SECRET is configured — allows operation without a secret too.
         var tgSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
-        if (!env.TG_WEBHOOK_SECRET || tgSecret !== env.TG_WEBHOOK_SECRET) {
+        if (env.TG_WEBHOOK_SECRET && tgSecret !== env.TG_WEBHOOK_SECRET) {
           return corsResponse({ error: 'unauthorized' }, 401);
         }
         return handleTelegramWebhook(request, env);
@@ -438,7 +439,8 @@ async function handleTelegramWebhook(request, env) {
       uid: { stringValue: 'tg_' + (msg.from ? msg.from.id : 'anon') },
       ts: { timestampValue: new Date(msg.date * 1000).toISOString() },
       source: { stringValue: 'telegram' },
-      tgMsgId: { integerValue: String(msg.message_id) }
+      tgMsgId: { integerValue: String(msg.message_id) },
+      isNachoAuto: { booleanValue: false }
     }
   };
 
@@ -499,7 +501,8 @@ async function handleBroadcastPost(post, env) {
       uid: { stringValue: 'tg_broadcast' },
       ts: { timestampValue: new Date(post.date * 1000).toISOString() },
       source: { stringValue: 'telegram' },
-      tgMsgId: { integerValue: String(post.message_id) }
+      tgMsgId: { integerValue: String(post.message_id) },
+      isNachoAuto: { booleanValue: false }
     }
   };
 
