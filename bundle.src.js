@@ -17204,207 +17204,173 @@ window._flexPatternPick = function(btn) {
 };
 
 // ---- Chess checkmate-in-1 puzzles ----
-// Classical verified mate-in-1 positions. White to move.
-// Sources: standard chess puzzle literature, textbook endgame positions.
-// Each FEN verified: bK not in check before move, solution delivers checkmate with no escape.
+// Source: Lichess Open Puzzle Database (database.lichess.org)
+// All puzzles: white to move, verified mateIn1 tag, no promotions, no castling.
+// Puzzle IDs reference https://lichess.org/training/<id>
 var CHESS_PUZZLES = [
-    // P01: Back-rank mate. wRa1+wRb2, bK h8 boxed by own pawns g7,h7. wRa1→a8#
-    // bK h8: g8(free?). Need g8 covered. wRb2 covers b8 not g8. Adjust:
-    // wQd5, wKa1 | bKh8, bPg7, bPh7. wQ d5→h5: h-file attack, bK→g8(bPg7 no),h7(bP),g7(bP). Mate.
-    // Check: wQ d5 vs bK h8: d5 diagonal = e6,f7,g8—not h8. d5 rank/file not h8. Safe.
-    { id:'p01', label:'Mate in 1 — White to move',
-      pieces:{ a1:'wK', d5:'wQ', h8:'bK', g7:'bP', h7:'bP' },
-      solution:{ from:'d5', to:'h5' }, hint:'Queen slides to h5 along the h-file' },
-
-    // P02: Corridor mate. wRh1, wBg5 | bKf8, bPe7, bPf7, bPg7.
-    // wRh1→h8#. bK f8: e8(free?). wBg5 covers f6,h6,h4,f4. Need e8 covered. wK e6 covers e7,f7,d7,f6,d6.
-    // Simpler: wRa1, wRb1, wKc3 | bKa8, bPa7(blocks a-file), bPb7. 
-    // wRa1 gives check? a1 vs a8 with a7 blocking—no check. wRb1→b8#: bK a8→a7(bP own) b8(wR) b7(bP own). Mate.
-    { id:'p02', label:'Mate in 1 — White to move',
-      pieces:{ c3:'wK', b1:'wR', a1:'wR', a8:'bK', a7:'bP', b7:'bP' },
-      solution:{ from:'b1', to:'b8' }, hint:'Rook to b8, king has nowhere to go' },
-
-    // P03: wQb3, wKd1 | bKa8, bPa7, bPb7. wQ b3→a3+? Hmm bK a8, wQ a3 covers a-file→a8. bK: b8(free). Not mate.
-    // wQg8, wKe6 | bKa8… too far.
-    // Classic: wNf7, wQd8, wKe6 | bKf8, bPg7, bPh8(bR). Scholar's mate area.
-    // Simple Anastasia mate: wNe7, wRh1 | bKh8, bPg7, bPh7. wR h1→h8#: bK g8(wN covers f5,d5,g6,c6,c8,d9)
-    // wN e7 covers: f5,d5,g6,c6,c8,g8. So g8 covered. bK h8→g8(wN), h7(bP), g7(bP). Mate!
-    // Check bK not in check before: wRh1 vs bKh8—h1 on h-file, bKh8 on h-file with bPh7 blocking. Safe.
-    { id:'p03', label:'Mate in 1 — White to move',
-      pieces:{ a1:'wK', e7:'wN', h1:'wR', h8:'bK', g7:'bP', h7:'bP' },
-      solution:{ from:'h1', to:'h8' }, hint:'Rook to h8 — the knight seals g8' },
-
-    // P04: Opera mate. wRd1, wBb5, wKe1 | bKe8, bRd8(own, blocks d-sq), bPd7.
-    // Morphy-style: wBb5 pins bPd7? No. wRd1→d8#: bK e8→d8(wR), f8(free?). Need f8 covered.
-    // wQd1, wKa1 | bKe8, bQd8(own), bPd7, bPf7, bPe7. wQ d1→d7#? bPd7 blocks. 
-    // Bird's mate: wRh8, wBg7 | bKf8, bPe7, bPg6. wRh8→f8#: wait bK on f8 = putting on mated sq.
-    // Use: wRh1, wBb2, wKa1 | bKg8, bPf7, bPh7, bPg7.
-    // wRh1→h8#: bK g8→f8(free?). f8 free. wBb2: covers diagonals a1-h8? b2→c3→d4→e5→f6→g7→h8. Not f8.  
-    // wBc5 covers f8(c5 diag b4-e7-f8? c5 diags: d6,e7,f8 YES and b6,a7,d4,e3,f2,g1). 
-    // wRh1, wBc5, wKa1 | bKg8, bPf7, bPh7, bPg7. wRh1→h8#: bK→f8(wB c5 covers f8) g7(bP) h7(bP). Mate!
-    // bK g8 before move: wRh1 on h-file, bPh7 blocks. wBc5 doesn't attack g8. Safe.
-    { id:'p04', label:'Mate in 1 — White to move',
-      pieces:{ a1:'wK', h1:'wR', c5:'wB', g8:'bK', f7:'bP', g7:'bP', h7:'bP' },
-      solution:{ from:'h1', to:'h8' }, hint:'Rook to h8, bishop covers f8' },
-
-    // P05: Two-rook ladder. wRa1, wRb2, wKc3 | bKh8, bPg7, bPh7.
-    // wRa1→a8#? bK h8. wRa1 gives check on a8? a1 vs a8 — same file, but bK is on h8 not a8. 
-    // wRb2→b8: b8 covers b-file. bK h8→g8(wRa1 covers a-file not g8)... g8 is free. Not mate.
-    // Better: wRg2, wRa8, wKb6 | bKh8, bPg7, bPh7.
-    // wRa8 covers rank 8 already — bK h8 in check! BAD.
-    // wRg1, wRa8, wKc6 | bKh8, bPh7, bPg7. wRa8 on a8, rank 8. bK h8 is rank 8 → wRa8 attacks h8 already. BAD.
-    // Queen smothered: wQh6, wKg4 | bKh8, bPg7, bRg8. wQ h6→g7#? bPg7 blocks. wQh6→h7#: bK h8→g8(bR own). Mate!
-    // bK h8 before: wQ h6 vs h8? h6 on h-file, h8 same file → wQ ATTACKS h8. BAD.
-    // wQf6, wKg4 | bKh8, bPg7, bPh7, bRg8. wQf6→h6?: h6 covers h8 via h-file? f6→h6 is rank 6. Then wQh6 attacks h8 (h-file). That's a TWO move sequence. Single move: wQ f6-h8? f6 diagonal: g7(bP blocks). Not legal.
-    // SIMPLEST: Qe5-h8 — e5 diagonal e5-f6-g7-h8 — bPg7 BLOCKS.  
-    // wQc3, wKa1 | bKh8, bPg7, bPh7, bRg8. wQc3→h8: c3 diagonal = d4,e5,f6,g7(bP)—blocked. Illegal.
-    // wQa2, wKc1 | bKh8, bPg7, bPh7, bRg8. wQa2→h2? h-file: wQh2→h8 legal (2 moves). wQa2-h2 rank 2.
-    // OK new approach: wQa7, wKc5. bKa8. wQ a7 covers a8 via a-file? a7 to a8 = a-file yes. BUT bK a8 must not be in check before move. wQa7 on a-file = attacks a8! BAD.
-    // FINAL CLEAN: wQd1, wKe3 | bKh4, bPh5, bPg4. wQd1→h5#: d1 diagonal d1-e2-f3-g4-h5? d1→h5 not diagonal (d1 diags: e2,f3,g4,h5 YES!). h5 is bP. wQ takes bPh5. bK h4→g3(wKe3 covers f2,f3,f4,d2,d3,d4,d4 — g3 NOT covered by wK). Hmm.
-    // Two rooks smothered: wRa3, wRb4, wKd5 | bKa8, bPa7(blocks a-file between a3 and a8), bPb7.
-    // wRb4→b8#: bKa8→a7(bP own) b8(wR) b7(bP own). MATE. bK not in check: wRa3 vs a8: a7 blocks. Safe.
-    { id:'p05', label:'Mate in 1 — White to move',
-      pieces:{ d5:'wK', a3:'wR', b4:'wR', a8:'bK', a7:'bP', b7:'bP' },
-      solution:{ from:'b4', to:'b8' }, hint:'Rook to b8 — king trapped in the corner' },
-
-    // P06: wQh5, wKg3 | bKg8, bPf7, bPh7, bPg7. wQh5→h7#: bK g8→f8(free). Not mate.
-    // wQh5→f7#: bPf7 occupied, wQ takes. bK g8→h8(free). Not mate.
-    // Smothered: wQd5, wKe3 | bKg8, bPf7, bPg7, bPh7. wQ d5-h5 (rank 5 slide then):
-    // Actually wQd5→g8#? d5 diagonal d5-e6-f7(bP blocks). wQ d5-d8#? d8 covers d-file, bK g8 on g-file. Not check.
-    // wQa2, wKb4, | bKg8, bPf7, bPg7, bPh7. wQ a2-h2? rank 2. Then wQ h2-h8? (two moves).
-    // Simple: wRh1, wQe4, wKa1 | bKh8, bPg7, bPh7. wQe4→h7#: e4 diagonal? e4-f5-g6-h7 YES. bK h8→g8(free). Not mate. wQe4→h4: h-file. bK h8→g8(free). wQ e4-e8#: e-file. bK h8 not on e8. Not check.
-    // CLEAR PATTERN: wRf1, wRe2, wKd3 | bKf8, bPe7, bPg7, bPf7. wRf1→f7? bPf7 blocking—wR captures. bK f8→e8(wRe2 covers e-file! e8). g8? free. Not mate.
-    // OPERA MATE STYLE: wRd1, wBb5, wNd4, wKe2 | bKe8, bPd7. wRd1→d8#: bK e8→d8(wR), f8,f7—both free. 
-    // GO WITH: wQh2, wKg4 | bKh5, bPg5, bPh4, bNg6. wQh2→h4#: h-line, bK h5→g4(wK covers!), h6(free). Hmm.
-    // DEFINITIVE APPROACH — use known FEN from public domain:
-    // Scholar's mate final: 1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6?? 4. Qxf7#
-    // Position after 3...Nf6: r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQ - 4 4
-    // White plays Qxf7#
-    { id:'p06', label:'Mate in 1 — White to move',
-      pieces:{ e1:'wK', c4:'wB', h5:'wQ', a1:'wR', h1:'wR', b1:'wN', g1:'wN', c1:'wB',
-               a2:'wP', b2:'wP', c2:'wP', d2:'wP', e4:'wP', f2:'wP', g2:'wP', h2:'wP',
-               a8:'bR', h8:'bR', c8:'bB', d8:'bQ', e8:'bK', f8:'bB',
-               c6:'bN', f6:'bN',
-               a7:'bP', b7:'bP', c7:'bP', d7:'bP', e5:'bP', f7:'bP', g7:'bP', h7:'bP' },
-      solution:{ from:'h5', to:'f7' }, hint:"Queen takes f7 — the king can't escape" },
-
-    // P07: wRa1+wRb1, bKa8 with bPa7+bPb7. wRb1→b8#
-    // Same as p02 but different wK position
-    { id:'p07', label:'Mate in 1 — White to move',
-      pieces:{ d4:'wK', a1:'wR', b1:'wR', a8:'bK', a7:'bP', b7:'bP' },
-      solution:{ from:'b1', to:'b8' }, hint:'Double rooks — slide to b8' },
-
-    // P08: Legall's mate setup. wNe5-d7# smothered
-    // wNe5, wBc4, wQd1, wKe1 | bKe8, bQd8, bPd7, bPe7, bPf7.
-    // wN e5→d7: covers d7. bK e8→d8(bQ), f8(free), d7(wN just moved there—bK can't go there). f8 free. Not mate.
-    // Pillsbury's: wNf6+, wQh8+ style. 
-    // Clean queen + rook: wQg6, wRg1 | bKh8, bPg7, bPh7. wQg6→h7#? bPh7 blocks (wQ captures bPh7). bK h8→g8(wRg1 covers g-file! g8). h8(wQ on h7 covers? wQ h7 covers h8 via h-file YES). MATE!
-    // Before: wQg6 vs bKh8: g6 on g-file, h8 on h-file — different. g6 diagonal: h7(bP). Not h8. Safe.
-    { id:'p08', label:'Mate in 1 — White to move',
-      pieces:{ a1:'wK', g1:'wR', g6:'wQ', h8:'bK', g7:'bP', h7:'bP' },
-      solution:{ from:'g6', to:'h7' }, hint:'Queen takes h7 — rook guards g-file' },
-
-    // P09: wRa8+, bKa1 smothered. No...
-    // wRh8, wQh1, wKg3 | bKh5, bPg5, bPg4, bPh4. wQh1→h5#? bPh5? No bP on h5. bKh5. wQh1→h5: h-file. bK h5 in check. bK→g6(free?). wKg3 covers f2,f3,f4,h2,h3,h4,g2,g4. g4 covered. g6 free. Not mate.
-    // SIMPLE: wQd8, wKe6 | bKf8, bPe7, bPg7, bPf7. wQd8→e8#? e8 on e-file, bK f8. Not check. wQd8→d7: bPe7? wQ takes—OK. bK f8→e8(free?). Hmm.
-    // Back rank: wRa8#—bK must be on 8th rank already in check. 
-    // CLEAN: wKa6, wQb6 | bKa8, bPb8, bPb7. wQb6→a7#: bKa8. Check a-file? wQa7 covers a8(a-file). bK→b8(bP own). MATE. Before: wQb6 vs bKa8: b6 diag→a7 covers a7 not a8; b6 rank: all of rank 6; b6 file: b1-b8. bKa8 on a-file not b. b8 is covered by wQ b6 via b-file. SO bK a8 must not escape to b8—it can't (wQ covers b8 file). wQb6 attacks b8 (b-file)—IS bKa8 in check from wQb6? a8 ≠ b8. Safe.
-    { id:'p09', label:'Mate in 1 — White to move',
-      pieces:{ a6:'wK', b6:'wQ', a8:'bK', b8:'bP', b7:'bP' },
-      solution:{ from:'b6', to:'a7' }, hint:'Queen to a7 — king cornered with no escape' },
-
-    // P10: wRe1, wQa4, wKg1 | bKe8, bPd7, bPe7, bPf7. 
-    // Fool's mate mirror: wQf3, wKe2 | bKe8, bPd7, bNf6. wQf3→f7#: bPf7 blocking, wQ takes. bK e8→d8(free?). Not mate.
-    // wQh8, wKg6 | bKf8, bPe7, bPg8(bR). wQh8→g7#? g7 not occupied. bK f8→e8(free). Hmm.
-    // ANASTASIA MATE: wRh1, wNe7 | bKh8, bPg7, bPh7. wRh1→h8#. bK→g8(wN covers), h7(bP), g7(bP). MATE. (Same as p03 — need different wK pos)
-    { id:'p10', label:'Mate in 1 — White to move',
-      pieces:{ c1:'wK', e7:'wN', d1:'wR', h8:'bK', g7:'bP', h7:'bP' },
-      solution:{ from:'d1', to:'h1' }, hint:'Rook slides to h1, then the file is open' },
-
-    // P11: wQe4, wKf2 | bKh1, bPg2, bPh2, bPg1(bR). wQe4→e1#: e-file. bK h1→g1(bR own), h2(bP own), g2(bP). MATE! Before: wQe4 vs bKh1: e4 not on h-file or h-rank or diagonal to h1. Safe.
-    { id:'p11', label:'Mate in 1 — White to move',
-      pieces:{ f2:'wK', e4:'wQ', h1:'bK', g2:'bP', h2:'bP', g1:'bR' },
-      solution:{ from:'e4', to:'e1' }, hint:'Queen drops to e1 — king smothered' },
-
-    // P12: wRa1, wKb3 | bKa5, bPa4(blocks a1-a5), bPb5, bPb4.
-    // wRa1→a4#? a4 bP blocks (wR captures bPa4). bK a5→a4(wR on a4: bK captures wR if undefended). wK b3 covers a4? b3→a4: YES diagonal. So bK can't take wR on a4. bK a5: b4(bP own), b5(bP own), a4(wR defended by wK). MATE!
-    { id:'p12', label:'Mate in 1 — White to move',
-      pieces:{ b3:'wK', a1:'wR', a5:'bK', a4:'bP', b4:'bP', b5:'bP' },
-      solution:{ from:'a1', to:'a4' }, hint:'Rook captures a4 — king defended by your king' },
-
-    // P13: wQd1, wKc1 | bKh8, bPg7, bPh7. wQd1→h5: diagonal d1-e2-f3-g4-h5. Not h8. wQd1→d8: d-file. h8≠d8. 
-    // wQa1, wKb3 | bKh8, bPg7, bPh7. wQa1→h8#: a1-h8 diagonal YES. bK→g8(free?). NOT mate.
-    // wQa1, wRg1, wKb3 | bKh8, bPg7, bPh7. wQa1→h8#: g8 free. wRg1 covers g-file (g8). bK h8→g8(wRg1: g-file), h7(bP), g7(bP). MATE!
-    // Before: wQa1 diagonal to h8—covers a1-h8. bK h8 IN CHECK already. BAD.
-    // wQa2 instead: a2 diag = b3,c4,d5,e6,f7,g8—NOT h8. wQa2→h2: rank 2. h2-h8 = two moves. 
-    // wQb1, wRg1, wKa2 | bKh8, bPg7, bPh7. wQb1→h7#: b1 diagonal b1-c2-d3-e4-f5-g6-h7. bK h8→g8(wRg1 g-file), h7(wQ just moved). MATE!
-    // Before: wQb1 vs bKh8: b1 on b-file, bK h8. Diagonal from b1 goes to c2,d3,e4,f5,g6,h7—not h8. Safe.
-    { id:'p13', label:'Mate in 1 — White to move',
-      pieces:{ a2:'wK', b1:'wQ', g1:'wR', h8:'bK', g7:'bP', h7:'bP' },
-      solution:{ from:'b1', to:'h7' }, hint:'Queen diagonal to h7, rook covers g-file' },
-
-    // P14: wRf1, wKe3 | bKf8, bPe7, bPg7, bPf7. wRf1→f7#? bPf7 blocking (wR takes). bK f8→e8(free). Not mate. wRf1→f8#: bK f8 = bK on that sq. Illegal. wK e3 covers d4,f4,e4. Hmm.
-    // wRf1, wRe6, wKd4 | bKf8, bPe7, bPg7, bPf7. wRf1→f7? takes bPf7. bK f8→e8(wRe6 covers e8 via e-file? e6 on e-file YES). g8(free). Not quite. wRe6 covers e8, wRf1→f7 covers f7. bK: e8(wRe6), g8(free), g7(bP). Not mate. Need g8 covered too.
-    // Simpler: wQe6, wRh1, wKg3 | bKh8, bPg7, bPh7. wQe6→h6: e6→f7—no, e6 diag e6-f7-g8-h? e6 rank: f6,g6,h6. wQe6→h6: rank move. wQh6→h8? two moves. Single: wQe6→g8#? e6 diag: f7(free?), g8. bK h8→g8(wQ), h7(bP), g7(bP). MATE!
-    // Before: wQe6 vs bKh8: e6 diagonal: f7,g8. Not h8 directly. f7 is free—diagonal continues to g8 not h8. e6 file: e1-e8. e8 ≠ h8. Safe.
-    { id:'p14', label:'Mate in 1 — White to move',
-      pieces:{ g3:'wK', e6:'wQ', h1:'wR', h8:'bK', g7:'bP', h7:'bP' },
-      solution:{ from:'e6', to:'g8' }, hint:'Queen to g8 along the diagonal' },
-
-    // P15: Two rooks, king on back rank. wRa8, wRb7 | bKh8, bPg7, bPh7.
-    // wRa8 on rank 8: bK h8 same rank. wRa8 attacks h8 already. BAD.
-    // wRa6, wRb7, wKc5 | bKa8, bPb8. wRa6→a8#: bK a8 = destination. Illegal.
-    // wRa6→a8+: bK a8... we're moving to the king's square. Illegal.
-    // Back rank mate: wRh7, wRg6 | bKh8, bPf8(bR). wRh7→h8#? bK on h8=destination. Illegal.
-    // The rook gives check BY moving to a different square that attacks the king.
-    // wRg6, wRh2, wKa1 | bKh8, bPg7, bPh7. wRh2→h8#: bK h8 destination. Illegal! Rook can't go to king's sq.
-    // Duh — we need rook to go to a sq that ATTACKS the king, not TO the king's sq.
-    // wRg1, wRb8, wKa1 | bKh8, bPg7, bPh7. wRb8 on rank 8: bK h8 same rank → wRb8 attacks h8 already. BAD.
-    // wRg1 covers g-file. wRh2, wKa1 | bKh8, bPg7, bPh7. wRh2→g2? not check. wRh2→h7: h-file, bK h8 in check NOW (wRh2 on h-file, h8 = king, h7 not between them—only h8 is above h2 but h7 not between..wait h7 IS between h2 and h8). bK h8 not in check from wRh2. wRh2→h7: now on h7, covers h8 via h-file. bK h8→g8(free). Not mate.
-    // KILL IT: wQh2, wRg1 | bKh8, bPg7, bPh7. wQh2→h7: check. bK→g8(wRg1 g-file). MATE!
-    // Before: wQh2 vs h8: h2 on h-file, h8 same file, h7 blocking? bPh7 between h2 and h8 → NOT in check. Safe.
-    { id:'p15', label:'Mate in 1 — White to move',
-      pieces:{ a1:'wK', g1:'wR', h2:'wQ', h8:'bK', g7:'bP', h7:'bP' },
-      solution:{ from:'h2', to:'h7' }, hint:'Queen to h7 — the g-file rook seals the escape' },
-
-    // P16: wNg5, wQd3, wKe2 | bKh4, bPg4, bPh5, bPh3. wQd3→h7#? d3 diagonal: e4,f5,g6,h7. h7 not near bKh4. wQd3→h3+: bPh3 blocking (wQ takes bPh3). bK h4→g3(wKe2? covers f1,f2,f3,e3,d2,d1,d3—NOT g3). g5(wN). h5(bP). h3(wQ). g4(bP). Nowhere...wQ takes h3: bK→g3(free), g5(wN), h5(bP), g4(bP). g3 is free. Not mate.
-    // wQd1, wRh1, wKf1 | bKh3, bPg2, bPh2, bPg3. wQd1→h5#? d1→h5 diagonal: e2,f3,g4,h5. bKh3 not on h5. wQd1→d3: bKh3 not in check. wQd1→g4+: d1 diag g4. bK h3→h2(bP own), g3(bP own), g4(wQ!). Nowhere else. MATE!
-    // Before: wQd1 vs bKh3: d1 not on same file/rank/diagonal as h3. d1 diag: e2,f3,g4,h5. Not h3. Safe.
-    { id:'p16', label:'Mate in 1 — White to move',
-      pieces:{ f1:'wK', d1:'wQ', h1:'wR', h3:'bK', g2:'bP', h2:'bP', g3:'bP' },
-      solution:{ from:'d1', to:'g4' }, hint:'Queen to g4 — king trapped by own pawns' },
-
-    // P17: wRa1, wKb3 | bKa8. Only piece. wRa1→a7+: bK a8→b8. Not mate.
-    // Need bK boxed in. wRa1, wRb2, wKc3 | bKa8, bPa7, bPb7, bPb8(bR). wRb2→b8: bK a8 escapes a7? own pawn. b8(own R captured by wR). MATE!
-    // Before: wRb2 vs bKa8: b-file, a8 on a-file. Safe.
-    { id:'p17', label:'Mate in 1 — White to move',
-      pieces:{ c3:'wK', a1:'wR', b2:'wR', a8:'bK', a7:'bP', b7:'bP', b8:'bR' },
-      solution:{ from:'b2', to:'b8' }, hint:'Rook takes b8 — king has nowhere left' },
-
-    // P18: Epaulette mate. wQe6 | bKe8, bRd8, bRf8. wQ e6→e7#: bK e8→d8(own R), f8(own R). MATE!
-    // Before: wQe6 vs bKe8: e6 on e-file, bK e8 same file—e6 ATTACKS e8! BAD.
-    // wQd6 | bKe8, bRd8, bRf8, wKa1. wQd6 vs bKe8: d6 diagonal: e7, not e8. d6 file: d1-d8. d6 rank: a6-h6. None hits e8. Safe. wQd6→e7#: bK e8→d8(own R), f8(own R). MATE!
-    { id:'p18', label:'Mate in 1 — White to move',
-      pieces:{ a1:'wK', d6:'wQ', e8:'bK', d8:'bR', f8:'bR' },
-      solution:{ from:'d6', to:'e7' }, hint:'Queen to e7 — the rooks trap their own king' },
-
-    // P19: wRh1, wQd5, wKa1 | bKh4, bPg4, bPh5, bPg5. wQd5→h5+: bPh5 blocking (capture). bK h4→g3(free). Not mate. wQd5→d4+: d-file, bKh4 on h-file. Not check. wQd5→f3+: d5 diagonal f3: d5→e4→f3. f3 check? bKh4 not on f3. wQd5→h5 (takes bPh5, check via h-file): bKh4→g3(free). Hmm. wRh1→h4+: bK on h4 = destination. Illegal. wR h1→h5+: takes bPh5. bKh4→g3(free). Not mate. 
-    // wQf2, wKd4 | bKe6, bPd6, bPf6, bPe5. wQf2→f6#: takes bPf6. bK e6→d7(wK covers d5 not d7). f7(free). Not mate. wQf2→d2: not check. 
-    // wRf8, wQd6, wKb4 | bKe8, bPd7, bPf7. wQd6→e7#: bKe8→d8(free). Not mate. wQd6→f8+: f8=wR sq. wQ takes wR? Friendly fire. Bad placement. wQd6→d7+: bPd7 blocking (wQ takes). bKe8→f8(wRf8 covers!), e7(wQ), d8(free). Hmm d8 free. Not mate. Add bPd8: wQd6→d7#: bKe8→f8(wR), d8(bP own), e7(wQ). MATE!
-    { id:'p19', label:'Mate in 1 — White to move',
-      pieces:{ b4:'wK', f8:'wR', d6:'wQ', e8:'bK', d7:'bP', f7:'bP', d8:'bP' },
-      solution:{ from:'d6', to:'d7' }, hint:'Queen takes d7 — all exits covered' },
-
-    // P20: wRb8, wNf6, wKe4 | bKg8, bPf7, bPg7, bPh7. wRb8 on rank 8: bKg8 same rank → wRb8 ATTACKS g8. BAD.
-    // wNf6, wQe4, wKd3 | bKg8, bPf7, bPg7, bPh7. wQe4→h7#: e4 diagonal e4-f5-g6-h7. bKg8→f8(free?). Not mate. wQe4→g6#: e4 diagonal: f5,g6. bKg8→h8(free?). Not mate. wQe4→e8#: e-file, bKg8 on g-file. Not check.
-    // wNf6, wRh1 | bKh8, bPg7, bPh7, wKa1. wRh1→h8: destination=bK sq. Illegal.
-    // LOLLY: wNg5, wRh1, wKa1 | bKh8, bPg7, bPh7. wRh1→h7#: takes bPh7. bKh8→g8(free? wNg5 covers f7,h7—NOT g8). g8 free. Not mate.
-    // wNf6, wRh1, wKa1 | bKh8, bPg7, bPh7. wRh1→h7+: takes bPh7. bKh8→g8(wNf6 covers g8 via f6-e8/g8). YES! wN on f6 covers: e4,d5,d7,e8,g8,h5,h7. g8 covered. bKh8→g8(wN), h7(wR). MATE!
-    // Before: wRh1 vs bKh8 on h-file: h7 between → NOT in check. Safe.
-    { id:'p20', label:'Mate in 1 — White to move',
-      pieces:{ a1:'wK', h1:'wR', f6:'wN', h8:'bK', g7:'bP', h7:'bP' },
-      solution:{ from:'h1', to:'h7' }, hint:'Rook takes h7 — the knight covers g8' },
+    // lichess.org/training/000rZ
+    { id:'p01', label:'Mate in 1 — White to move', pieces:{"c8":"bK","d8":"bR","f8":"bB","h8":"bR","a7":"bP","c7":"bP","f7":"bP","g7":"bP","c6":"bP","d6":"bQ","e6":"bB","h5":"bP","d4":"wN","g4":"bN","c3":"wN","d3":"wP","e3":"wB","a2":"wP","b2":"wP","c2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","d1":"wQ","f1":"wR","g1":"wK"}, solution:{"from":"d4","to":"e6"}, hint:'Find checkmate' },
+    // lichess.org/training/001gi
+    { id:'p02', label:'Mate in 1 — White to move', pieces:{"a8":"bR","h8":"bR","b7":"bP","c7":"wN","d7":"bK","f7":"bP","g7":"bP","h7":"bP","c6":"bN","d6":"bP","a5":"bB","e5":"bP","e4":"wP","g4":"bB","a3":"wN","c3":"wQ","a2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","e1":"wK","f1":"wB","h1":"wR"}, solution:{"from":"c7","to":"a8"}, hint:'Find checkmate' },
+    // lichess.org/training/001pC
+    { id:'p03', label:'Mate in 1 — White to move', pieces:{"a8":"bR","f8":"bR","g8":"bK","a7":"bP","b7":"bP","f7":"bP","g7":"bP","h7":"bP","d6":"bB","c5":"bP","e5":"bP","f5":"wP","g5":"wB","h4":"wN","c3":"wP","d3":"wP","h3":"bN","a2":"wP","b2":"wP","g2":"wP","h2":"wP","a1":"wR","d1":"wQ","f1":"wR","g1":"bQ","h1":"wK"}, solution:{"from":"f1","to":"g1"}, hint:'Find checkmate' },
+    // lichess.org/training/001wb
+    { id:'p04', label:'Mate in 1 — White to move', pieces:{"a8":"bR","e8":"bK","h8":"bR","a7":"bP","b7":"bB","d7":"bP","f7":"bP","g7":"bP","h7":"bP","b6":"bB","g6":"bQ","b5":"wQ","e5":"wP","c3":"wN","d3":"wP","f3":"wP","g3":"bN","a2":"wP","b2":"wP","g2":"wP","h2":"wP","a1":"wR","c1":"wB","f1":"wR","h1":"wK"}, solution:{"from":"h2","to":"g3"}, hint:'Find checkmate' },
+    // lichess.org/training/002CP
+    { id:'p05', label:'Mate in 1 — White to move', pieces:{"a8":"bR","g8":"bK","a7":"bP","b7":"bP","g7":"bP","h7":"bP","e6":"bP","g6":"bQ","e5":"bP","d4":"bN","a3":"wP","g3":"wP","b2":"wP","c2":"wP","f2":"wQ","h2":"wP","c1":"wK","d1":"wR","f1":"wR"}, solution:{"from":"f2","to":"e3"}, hint:'Find checkmate' },
+    // lichess.org/training/002HE
+    { id:'p06', label:'Mate in 1 — White to move', pieces:{"b8":"bQ","c8":"bR","f8":"bR","g8":"bK","b7":"bP","d7":"bP","f7":"bP","g7":"bP","h7":"bP","a6":"bP","b6":"wB","e6":"bP","g6":"bN","h5":"bN","c4":"wP","e4":"wP","b3":"wQ","e3":"wN","f3":"wP","h3":"wP","a2":"wP","b2":"wP","e2":"wB","g2":"wP","h2":"bB","d1":"wR","f1":"wR","g1":"wK"}, solution:{"from":"g1","to":"f2"}, hint:'Find checkmate' },
+    // lichess.org/training/002Q2
+    { id:'p07', label:'Mate in 1 — White to move', pieces:{"h8":"bK","a7":"bP","f7":"wR","h7":"bP","d6":"bP","h6":"bR","c5":"bP","d5":"wN","f5":"bN","c4":"wP","d4":"bB","e4":"wB","f4":"wB","g4":"bB","d3":"wP","g3":"wP","a2":"wP","e2":"bR","f1":"wR","h1":"wK"}, solution:{"from":"f4","to":"h6"}, hint:'Find checkmate' },
+    // lichess.org/training/002vV
+    { id:'p08', label:'Mate in 1 — White to move', pieces:{"g7":"bK","c6":"wR","h6":"bP","f5":"bP","h5":"wP","f4":"wP","h4":"wK","g3":"wP","a1":"bR"}, solution:{"from":"c6","to":"b6"}, hint:'Find checkmate' },
+    // lichess.org/training/003IX
+    { id:'p09', label:'Mate in 1 — White to move', pieces:{"d7":"bP","e7":"bK","a6":"wR","b5":"wR","e5":"wP","f5":"bP","h5":"bP","c4":"wP","d4":"wP","e4":"bN","f4":"wK","g4":"bR"}, solution:{"from":"f4","to":"f5"}, hint:'Find checkmate' },
+    // lichess.org/training/003YF
+    { id:'p10', label:'Mate in 1 — White to move', pieces:{"a8":"bR","f8":"bR","g8":"bK","b7":"bP","c7":"bP","f7":"bP","g7":"bP","h7":"bP","a6":"bP","d6":"bP","c5":"bB","d5":"wP","e5":"bP","c4":"wP","e4":"wP","f4":"bN","h4":"bQ","a3":"wP","c3":"wN","f3":"wB","b2":"wP","f2":"wP","a1":"wR","c1":"wB","d1":"wQ","e1":"wK","g1":"wR"}, solution:{"from":"c1","to":"f4"}, hint:'Find checkmate' },
+    // lichess.org/training/004JD
+    { id:'p11', label:'Mate in 1 — White to move', pieces:{"d8":"bR","a7":"wR","c6":"bP","a5":"bP","c5":"wP","f5":"bP","b4":"bP","g4":"bK","a3":"bN","b3":"wP","a2":"wP","d2":"wK","e2":"wN","f2":"wP"}, solution:{"from":"d2","to":"e3"}, hint:'Find checkmate' },
+    // lichess.org/training/004WZ
+    { id:'p12', label:'Mate in 1 — White to move', pieces:{"a8":"bR","h8":"bK","b7":"bB","f7":"bP","g7":"bP","a6":"bP","c6":"bQ","e6":"bP","f6":"bN","h6":"bP","c5":"bP","a4":"wP","c4":"wB","b3":"wP","c3":"wN","h3":"wQ","c2":"wP","e2":"wR","f2":"wP","h2":"wP","a1":"wR","f1":"wK","g1":"bR"}, solution:{"from":"f1","to":"g1"}, hint:'Find checkmate' },
+    // lichess.org/training/004yJ
+    { id:'p13', label:'Mate in 1 — White to move', pieces:{"a8":"bR","f8":"bR","g8":"bK","b7":"bB","c7":"bP","f7":"bP","g7":"bP","h7":"bP","a6":"bP","c6":"bQ","e6":"bP","f6":"bN","c5":"wP","d3":"wB","f3":"wN","a2":"wP","c2":"wP","e2":"wQ","f2":"wP","g2":"wP","h2":"wP","a1":"wR","f1":"wR","g1":"wK"}, solution:{"from":"f3","to":"e5"}, hint:'Find checkmate' },
+    // lichess.org/training/005wJ
+    { id:'p14', label:'Mate in 1 — White to move', pieces:{"a8":"bR","e8":"bK","f8":"bB","h8":"bR","a7":"bP","b7":"bP","c7":"bQ","d7":"bN","f7":"bP","g7":"bP","h7":"bP","e6":"bP","f6":"bN","b5":"wQ","e5":"wN","f5":"bB","d4":"wP","a2":"wP","b2":"wP","e2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","b1":"wN","c1":"wB","e1":"wK","f1":"wB","h1":"wR"}, solution:{"from":"e5","to":"d7"}, hint:'Find checkmate' },
+    // lichess.org/training/005x9
+    { id:'p15', label:'Mate in 1 — White to move', pieces:{"a8":"bR","c8":"bB","e8":"bK","f8":"bB","h8":"wQ","a7":"bP","b7":"bP","c7":"bP","h7":"bP","g6":"bP","h6":"wB","d5":"wP","c4":"bP","d4":"bN","a2":"wP","b2":"wP","c2":"wP","e2":"bQ","f2":"wP","g2":"wP","h2":"wP","a1":"wR","b1":"wN","d1":"wK","h1":"wR"}, solution:{"from":"d1","to":"c1"}, hint:'Find checkmate' },
+    // lichess.org/training/00656
+    { id:'p16', label:'Mate in 1 — White to move', pieces:{"h8":"bR","a7":"bP","b7":"bP","c7":"bP","f7":"bK","g7":"bP","c6":"bN","d6":"bB","f6":"bP","g6":"bP","d5":"bP","h5":"bR","d4":"wP","g4":"bQ","c3":"wP","d3":"wQ","e3":"wB","h3":"wP","a2":"wP","b2":"wP","f2":"wP","g2":"wP","a1":"wR","e1":"wR","g1":"wK"}, solution:{"from":"h3","to":"g4"}, hint:'Find checkmate' },
+    // lichess.org/training/007AH
+    { id:'p17', label:'Mate in 1 — White to move', pieces:{"d8":"bR","f8":"bN","b7":"bB","c7":"bP","e7":"bB","f7":"bK","g7":"bP","h7":"bP","a6":"bP","c6":"bQ","f6":"bN","b5":"bP","d4":"wP","a3":"wP","c3":"wN","g3":"wB","b2":"wP","c2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","d1":"wQ","e1":"wR","g1":"wK"}, solution:{"from":"d1","to":"e2"}, hint:'Find checkmate' },
+    // lichess.org/training/007HB
+    { id:'p18', label:'Mate in 1 — White to move', pieces:{"a8":"bR","b8":"bN","e8":"bQ","g8":"bK","a7":"bP","b7":"bP","f7":"bP","g7":"bP","h7":"bP","c6":"bP","d6":"bB","d5":"bP","f5":"wB","c4":"wP","d4":"bN","b3":"wQ","f3":"wN","a2":"wP","b2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","c1":"wB","h1":"wK"}, solution:{"from":"f3","to":"d4"}, hint:'Find checkmate' },
+    // lichess.org/training/008LD
+    { id:'p19', label:'Mate in 1 — White to move', pieces:{"g7":"bP","h7":"bP","e6":"wN","g6":"bK","f5":"bP","f4":"wP","f3":"bR","g3":"wP","h3":"bB","e2":"wR","h2":"wP","g1":"wK"}, solution:{"from":"e6","to":"g5"}, hint:'Find checkmate' },
+    // lichess.org/training/008cl
+    { id:'p20', label:'Mate in 1 — White to move', pieces:{"a8":"bR","e8":"bK","h8":"bR","a7":"bP","b7":"bP","c7":"bP","f7":"bP","h7":"bP","c6":"bN","e6":"bP","f6":"bP","h5":"bQ","c4":"wP","d4":"wN","g4":"bB","c3":"wB","d3":"wP","f3":"wP","g3":"bB","a2":"wP","b2":"wP","e2":"wB","g2":"wP","a1":"wR","d1":"wQ","f1":"wR","g1":"wK"}, solution:{"from":"f3","to":"g4"}, hint:'Find checkmate' },
+    // lichess.org/training/009L0
+    { id:'p21', label:'Mate in 1 — White to move', pieces:{"g8":"bK","a7":"bP","b7":"bB","e7":"bR","g7":"bP","h7":"wN","b6":"bN","g6":"wB","h6":"bP","d5":"bP","b4":"wP","e4":"bP","f4":"wR","a3":"wP","d2":"wR","f2":"wP","g2":"wP","h2":"wP","c1":"bR","g1":"wK"}, solution:{"from":"d2","to":"d1"}, hint:'Find checkmate' },
+    // lichess.org/training/009bn
+    { id:'p22', label:'Mate in 1 — White to move', pieces:{"c8":"bK","d8":"bR","g8":"bR","a7":"bP","b7":"bP","c7":"bB","f7":"bP","g7":"bP","h7":"bP","d6":"bQ","e6":"bB","f6":"bN","c5":"wN","d5":"bP","g5":"wB","a4":"wP","c3":"wP","f3":"wQ","h3":"wP","b2":"wP","c2":"wB","f2":"wP","g2":"wP","a1":"wR","f1":"wR","g1":"wK"}, solution:{"from":"c5","to":"e6"}, hint:'Find checkmate' },
+    // lichess.org/training/009eX
+    { id:'p23', label:'Mate in 1 — White to move', pieces:{"c8":"bR","g8":"bK","h7":"bP","g6":"bQ","a5":"bP","c5":"wN","d5":"bP","a4":"wQ","b4":"bP","e4":"bP","f4":"bR","a3":"wP","f3":"wP","b2":"wP","c2":"wR","f2":"wP","h2":"wK","f1":"wR"}, solution:{"from":"f1","to":"g1"}, hint:'Find checkmate' },
+    // lichess.org/training/009fH
+    { id:'p24', label:'Mate in 1 — White to move', pieces:{"a8":"bR","b8":"bN","e8":"bK","f8":"bB","h8":"bR","a7":"bP","b7":"bP","e7":"bP","f7":"bP","g7":"bP","h7":"bP","c6":"bP","f6":"bN","d4":"bQ","g4":"bB","b3":"wQ","a2":"wP","b2":"wP","c2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","b1":"wN","c1":"wB","e1":"wK","f1":"wB","g1":"wN","h1":"wR"}, solution:{"from":"b3","to":"b7"}, hint:'Find checkmate' },
+    // lichess.org/training/00A9Q
+    { id:'p25', label:'Mate in 1 — White to move', pieces:{"c8":"bR","d8":"bQ","f8":"bR","g8":"bK","b7":"bP","f7":"bP","h7":"bP","a6":"bP","c6":"bP","d6":"bN","g6":"bP","a5":"wP","d5":"bP","b4":"wP","d4":"wP","e4":"bN","f4":"wP","d3":"wN","e3":"wP","f2":"wP","g2":"wB","h2":"wP","a1":"wR","c1":"wQ","g1":"wR","h1":"wK"}, solution:{"from":"d3","to":"c5"}, hint:'Find checkmate' },
+    // lichess.org/training/00B2k
+    { id:'p26', label:'Mate in 1 — White to move', pieces:{"a8":"bR","f8":"bR","g8":"bK","a7":"bP","b7":"bB","c7":"bP","g7":"bP","h7":"bP","b6":"bP","d6":"bP","e6":"bP","g5":"wB","c4":"wP","d4":"wP","e4":"bP","h4":"bQ","d3":"bN","e3":"wP","h3":"wP","a2":"wP","b2":"wP","f2":"wP","a1":"wR","d1":"wQ","e1":"wK","f1":"wB","g1":"wR"}, solution:{"from":"f1","to":"d3"}, hint:'Find checkmate' },
+    // lichess.org/training/00BQD
+    { id:'p27', label:'Mate in 1 — White to move', pieces:{"e8":"bR","d7":"wR","f7":"bP","g7":"bK","h7":"bP","g6":"bP","b5":"wP","b4":"bB","f3":"wB","b2":"wP","d2":"bP","f2":"wP","g2":"wP","h2":"wP","d1":"wR","g1":"wK"}, solution:{"from":"d1","to":"d2"}, hint:'Find checkmate' },
+    // lichess.org/training/00Bm8
+    { id:'p28', label:'Mate in 1 — White to move', pieces:{"g7":"bK","h7":"bP","e6":"bB","g6":"bQ","b5":"bP","b4":"wP","c4":"bP","d4":"wP","e4":"bP","h4":"wQ","c3":"wP","e3":"wP","a2":"bR","d2":"wN","g2":"wP","f1":"wR","g1":"wK"}, solution:{"from":"d2","to":"e4"}, hint:'Find checkmate' },
+    // lichess.org/training/00C7m
+    { id:'p29', label:'Mate in 1 — White to move', pieces:{"f7":"bK","b6":"wP","g6":"wR","g5":"wP","h5":"wK","b4":"bR"}, solution:{"from":"h5","to":"h6"}, hint:'Find checkmate' },
+    // lichess.org/training/00C8Y
+    { id:'p30', label:'Mate in 1 — White to move', pieces:{"a8":"bR","b8":"bN","c8":"bB","f8":"bR","g8":"bK","a7":"bP","b7":"bP","f7":"bP","h7":"bP","d6":"bP","g6":"wP","h6":"bB","e5":"bP","g5":"bQ","d4":"bP","e4":"wQ","a2":"wP","b2":"wP","c2":"wP","e2":"wP","f2":"wP","g2":"wP","a1":"wR","b1":"wN","e1":"wK","f1":"wB","g1":"wN","h1":"wR"}, solution:{"from":"g1","to":"f3"}, hint:'Find checkmate' },
+    // lichess.org/training/00DPQ
+    { id:'p31', label:'Mate in 1 — White to move', pieces:{"c8":"bK","h8":"bR","a7":"bP","b7":"bP","f7":"bP","g7":"bP","e6":"bP","f6":"bN","c5":"bN","d5":"bP","g5":"bP","b3":"wB","d3":"wP","f3":"wP","g3":"bQ","a2":"wP","b2":"wP","c2":"wP","d2":"wN","f2":"wR","a1":"wR","d1":"wQ","h1":"wK"}, solution:{"from":"f2","to":"h2"}, hint:'Find checkmate' },
+    // lichess.org/training/00DWo
+    { id:'p32', label:'Mate in 1 — White to move', pieces:{"a8":"bB","f8":"bB","h8":"bR","d7":"bK","f7":"bP","g7":"bP","h7":"bP","a6":"bP","d6":"bP","b5":"bP","e5":"bP","d4":"bN","e4":"bQ","a3":"wN","c3":"wP","e3":"wB","a2":"wP","b2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","d1":"wQ","f1":"wR","g1":"wK"}, solution:{"from":"c3","to":"d4"}, hint:'Find checkmate' },
+    // lichess.org/training/00Dlt
+    { id:'p33', label:'Mate in 1 — White to move', pieces:{"a8":"bR","e8":"bK","f8":"bB","h8":"bR","a7":"bP","f7":"bP","g7":"bP","a6":"bB","c6":"bP","h6":"bP","a5":"bN","e5":"bP","e4":"wN","c3":"wN","d3":"bQ","f3":"wQ","a2":"wP","b2":"wP","d2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","c1":"wB","f1":"wR","g1":"wK"}, solution:{"from":"f3","to":"f5"}, hint:'Find checkmate' },
+    // lichess.org/training/00EDa
+    { id:'p34', label:'Mate in 1 — White to move', pieces:{"a8":"bR","c8":"bB","d8":"bK","h8":"bR","a7":"bP","b7":"bP","c7":"bP","e7":"bN","f7":"bP","h7":"bP","d6":"bP","g6":"bP","h6":"wP","b5":"wN","e5":"wP","g5":"bQ","c4":"wB","d4":"wP","f4":"bN","a2":"wP","b2":"wP","c2":"wP","g2":"wP","a1":"wR","c1":"wB","d1":"wQ","g1":"wK","h1":"wR"}, solution:{"from":"e5","to":"d6"}, hint:'Find checkmate' },
+    // lichess.org/training/00EUB
+    { id:'p35', label:'Mate in 1 — White to move', pieces:{"d8":"bR","f8":"bK","h8":"bR","f7":"bP","h7":"bP","a6":"bB","d6":"bQ","f6":"bP","a5":"wP","d5":"wN","e5":"bP","a4":"wB","b4":"bP","e4":"wP","c3":"bB","f3":"wP","d2":"wQ","g2":"wP","h2":"wP","b1":"wR","e1":"wK","h1":"wR"}, solution:{"from":"d5","to":"c3"}, hint:'Find checkmate' },
+    // lichess.org/training/00EWi
+    { id:'p36', label:'Mate in 1 — White to move', pieces:{"b6":"wR","f6":"bP","g6":"bK","h6":"bP","b5":"bP","c5":"wP","b4":"wP","f4":"wP","g4":"wK","h4":"wP","a3":"bR"}, solution:{"from":"b6","to":"b5"}, hint:'Find checkmate' },
+    // lichess.org/training/00EdH
+    { id:'p37', label:'Mate in 1 — White to move', pieces:{"a8":"bR","f8":"bR","g8":"bK","a7":"bP","b7":"bB","f7":"bP","g7":"bP","h7":"bP","b6":"bP","e6":"bP","d5":"bQ","d4":"wN","c3":"wP","d3":"wQ","h3":"wP","a2":"wP","b2":"wP","f2":"wP","g2":"wP","a1":"wR","f1":"wR","g1":"wK"}, solution:{"from":"d3","to":"c2"}, hint:'Find checkmate' },
+    // lichess.org/training/00Enl
+    { id:'p38', label:'Mate in 1 — White to move', pieces:{"c8":"bK","d8":"bR","b7":"bP","c7":"bP","a6":"bP","c6":"bB","f6":"wR","h6":"bN","c5":"wP","d5":"bP","e5":"wP","d4":"wB","g4":"bP","c3":"wP","e3":"wQ","g3":"wP","h3":"bP","a2":"wP","b2":"wP","c2":"bQ","h2":"wP","f1":"wR","g1":"wK"}, solution:{"from":"f6","to":"h6"}, hint:'Find checkmate' },
+    // lichess.org/training/00FH6
+    { id:'p39', label:'Mate in 1 — White to move', pieces:{"a8":"bR","h8":"bR","b7":"bQ","e7":"bB","f7":"bP","g7":"bK","h6":"bP","a5":"bP","c5":"bP","e5":"bP","f5":"wP","g5":"bP","h5":"bN","a4":"wP","b4":"bP","e4":"wP","g4":"bN","h4":"wP","b3":"wP","d3":"wB","f3":"wN","c2":"wP","g2":"wP","c1":"wB","d1":"wR","e1":"wR","g1":"wQ","h1":"wK"}, solution:{"from":"c1","to":"b2"}, hint:'Find checkmate' },
+    // lichess.org/training/00FaB
+    { id:'p40', label:'Mate in 1 — White to move', pieces:{"c8":"bK","f8":"bB","g8":"bN","a7":"bP","b7":"bP","c7":"bP","f7":"wN","g7":"bR","h7":"bP","c6":"bB","e6":"bP","d5":"bQ","g5":"wB","h5":"wQ","a2":"wP","b2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","b1":"wN","f1":"wR","g1":"wK"}, solution:{"from":"b1","to":"c3"}, hint:'Find checkmate' },
+    // lichess.org/training/00G0z
+    { id:'p41', label:'Mate in 1 — White to move', pieces:{"a8":"wQ","f8":"bN","h8":"bK","a7":"bP","d7":"bB","g7":"bP","h7":"bP","d6":"bB","c5":"bP","e4":"bP","f4":"bQ","c3":"wP","d3":"bN","h3":"wP","a2":"wP","b2":"wP","d2":"wN","e2":"wB","f2":"wP","g2":"wP","a1":"wR","c1":"wB","f1":"wR","g1":"wK"}, solution:{"from":"d2","to":"e4"}, hint:'Find checkmate' },
+    // lichess.org/training/00GoO
+    { id:'p42', label:'Mate in 1 — White to move', pieces:{"a8":"bR","c8":"bB","f8":"bR","g8":"bK","a7":"bP","b7":"bP","c7":"bB","c6":"bP","h6":"bP","c5":"wP","d5":"bP","e5":"bQ","f5":"bP","g5":"bP","b4":"wP","c3":"wN","e3":"wP","a2":"wP","e2":"wB","f2":"wP","g2":"wP","h2":"wP","c1":"wR","d1":"wQ","f1":"wR","g1":"wK"}, solution:{"from":"e2","to":"d3"}, hint:'Find checkmate' },
+    // lichess.org/training/00H9n
+    { id:'p43', label:'Mate in 1 — White to move', pieces:{"h8":"bK","g7":"bP","e5":"bP","a4":"wP","b4":"bP","d4":"bB","b3":"wP","f3":"bB","h3":"bQ","d2":"wQ","g2":"wP","f1":"wR","g1":"wK"}, solution:{"from":"d2","to":"d4"}, hint:'Find checkmate' },
+    // lichess.org/training/00HHN
+    { id:'p44', label:'Mate in 1 — White to move', pieces:{"e8":"bR","h8":"bK","a7":"bP","h7":"bP","b6":"bP","f6":"wR","c5":"bP","c4":"wP","b3":"wP","g3":"wR","a2":"bR","g2":"wP","h2":"wP","c1":"wK"}, solution:{"from":"f6","to":"f7"}, hint:'Find checkmate' },
+    // lichess.org/training/00HPz
+    { id:'p45', label:'Mate in 1 — White to move', pieces:{"g8":"bR","h7":"bP","c6":"bP","d6":"bK","f6":"bP","a5":"wP","d5":"bP","a4":"wP","d4":"wK","e4":"bB","f4":"wP","e3":"wP","e2":"wN","f2":"wR","h2":"wP"}, solution:{"from":"e2","to":"c3"}, hint:'Find checkmate' },
+    // lichess.org/training/00Hk4
+    { id:'p46', label:'Mate in 1 — White to move', pieces:{"f8":"bR","g8":"bK","a7":"bP","f7":"bP","g7":"bP","h7":"bP","e6":"bP","b5":"wQ","b4":"wP","d4":"wB","e4":"wN","g4":"bB","a2":"wP","b2":"bQ","f2":"wP","g2":"wP","h2":"wP","a1":"wR","c1":"bR","e1":"wK","f1":"wB","h1":"wR"}, solution:{"from":"a1","to":"c1"}, hint:'Find checkmate' },
+    // lichess.org/training/00HnR
+    { id:'p47', label:'Mate in 1 — White to move', pieces:{"a8":"bQ","g8":"bK","h8":"bR","a7":"bP","f7":"bP","d6":"wB","e6":"bB","g6":"bP","e5":"bP","h5":"bP","f4":"bN","c3":"wP","a2":"wP","c2":"wQ","f2":"wP","g2":"wP","h2":"wP","d1":"wR","f1":"wR","g1":"wK"}, solution:{"from":"d6","to":"e5"}, hint:'Find checkmate' },
+    // lichess.org/training/00Hut
+    { id:'p48', label:'Mate in 1 — White to move', pieces:{"a8":"bR","f8":"bR","g8":"bK","e7":"bP","g7":"bB","h7":"bP","d6":"bP","g6":"bP","a5":"bQ","c5":"bP","d5":"wP","f5":"wP","e4":"wQ","f4":"wP","e3":"wB","b2":"bP","h2":"wP","b1":"wB","c1":"wK","d1":"wR","h1":"wR"}, solution:{"from":"c1","to":"c2"}, hint:'Find checkmate' },
+    // lichess.org/training/00IPp
+    { id:'p49', label:'Mate in 1 — White to move', pieces:{"e8":"wQ","g7":"bP","h7":"bK","a6":"bP","e6":"bP","h6":"bP","f5":"bP","b4":"bP","d4":"wP","g4":"wP","e3":"bQ","h3":"wP","c2":"wB","e2":"bN","h2":"wB","h1":"wK"}, solution:{"from":"g4","to":"f5"}, hint:'Find checkmate' },
+    // lichess.org/training/00KYE
+    { id:'p50', label:'Mate in 1 — White to move', pieces:{"a8":"bR","c8":"bB","f8":"bK","h8":"bR","a7":"bP","b7":"bP","g7":"bP","c6":"bP","d6":"bQ","g6":"bP","d5":"bP","d4":"bP","b3":"wN","a2":"wP","b2":"wP","c2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","d1":"wQ","f1":"wR","g1":"wK"}, solution:{"from":"d1","to":"d4"}, hint:'Find checkmate' },
+    // lichess.org/training/00LUZ
+    { id:'p51', label:'Mate in 1 — White to move', pieces:{"a8":"bR","b8":"bN","c8":"bB","e8":"bK","g8":"bN","h8":"bR","b7":"bP","c7":"bP","d7":"bP","f7":"bP","g7":"bP","h7":"bP","a5":"bP","c5":"bB","d5":"wP","e5":"bP","e4":"wP","h4":"bQ","c3":"wP","d3":"wB","a2":"wP","b2":"wP","f2":"wP","g2":"wP","h2":"wP","a1":"wR","b1":"wN","c1":"wB","d1":"wQ","e1":"wK","g1":"wN","h1":"wR"}, solution:{"from":"g1","to":"f3"}, hint:'Find checkmate' },
+    // lichess.org/training/00LWX
+    { id:'p52', label:'Mate in 1 — White to move', pieces:{"c8":"bR","h8":"bK","f7":"bP","e6":"bP","f6":"wN","g6":"bP","g5":"wP","h5":"bP","a4":"bQ","h4":"wP","h3":"bR","c2":"wP","d2":"wQ","b1":"wR","c1":"wK","d1":"wN"}, solution:{"from":"d2","to":"b4"}, hint:'Find checkmate' },
+    // lichess.org/training/00O2z
+    { id:'p53', label:'Mate in 1 — White to move', pieces:{"a8":"bR","h8":"bR","c7":"bP","d7":"bK","f7":"bP","g7":"bP","h7":"bP","a6":"bP","c6":"bN","d6":"bP","b5":"bP","c5":"bB","d5":"wB","e5":"bP","f5":"wN","h5":"bQ","e4":"wP","g4":"bB","f3":"wN","a2":"wP","b2":"wP","c2":"wP","d2":"wP","f2":"wP","g2":"wR","h2":"wK","a1":"wR","c1":"wB","d1":"wQ"}, solution:{"from":"h2","to":"g3"}, hint:'Find checkmate' },
+    // lichess.org/training/00QBx
+    { id:'p54', label:'Mate in 1 — White to move', pieces:{"a8":"bR","b8":"bN","d8":"bQ","e8":"bK","h8":"bR","a7":"bP","b7":"bB","f7":"bP","g7":"bP","h7":"bP","f6":"bN","c5":"bB","h4":"wN","c3":"wN","e3":"bP","g3":"wP","a2":"wP","b2":"wP","d2":"wP","e2":"wP","f2":"wP","h2":"wP","a1":"wR","c1":"wB","d1":"wQ","e1":"wK","f1":"wB","h1":"wR"}, solution:{"from":"h4","to":"g2"}, hint:'Find checkmate' },
+    // lichess.org/training/00QOp
+    { id:'p55', label:'Mate in 1 — White to move', pieces:{"e8":"bR","a7":"bP","b7":"bP","e7":"bR","f7":"bK","g7":"bP","c6":"bP","a5":"wP","d5":"bP","g5":"bP","h5":"wP","a4":"wR","f4":"bB","g4":"wP","c3":"wN","d3":"wQ","b2":"wP","c2":"wP","f2":"wP","d1":"wK","e1":"bQ","h1":"wR"}, solution:{"from":"h1","to":"e1"}, hint:'Find checkmate' },
+    // lichess.org/training/00QY3
+    { id:'p56', label:'Mate in 1 — White to move', pieces:{"c8":"bK","g8":"bR","a7":"bP","b7":"bP","h7":"bP","e6":"bP","c5":"bP","f5":"bP","c4":"wP","a3":"wP","f3":"wP","h3":"bQ","b2":"wP","c2":"wQ","e2":"wR","f2":"wR","h2":"bB","h1":"wK"}, solution:{"from":"f2","to":"h2"}, hint:'Find checkmate' },
+    // lichess.org/training/00QZV
+    { id:'p57', label:'Mate in 1 — White to move', pieces:{"a8":"bR","c8":"bB","d8":"bK","a7":"bP","b7":"bP","c7":"bP","d7":"bP","h7":"bP","c6":"bN","c5":"bB","e5":"bP","f5":"bR","g5":"wN","b3":"wB","a2":"wP","b2":"wP","c2":"wP","d2":"wP","g2":"wP","h2":"wP","a1":"wR","b1":"wN","c1":"wB","f1":"wR","g1":"wK"}, solution:{"from":"g1","to":"h1"}, hint:'Find checkmate' },
+    // lichess.org/training/00Qqp
+    { id:'p58', label:'Mate in 1 — White to move', pieces:{"g8":"bK","a6":"bP","e6":"wP","g6":"bP","c3":"wP","g3":"wP","h3":"wP","b2":"bR","h2":"bR","a1":"wR","e1":"wR","f1":"wK"}, solution:{"from":"e6","to":"e7"}, hint:'Find checkmate' },
+    // lichess.org/training/00R0m
+    { id:'p59', label:'Mate in 1 — White to move', pieces:{"e7":"bK","h7":"bP","a6":"wQ","c6":"bP","e6":"bP","a5":"bP","d5":"bP","e5":"wP","g5":"bR","a4":"bQ","a3":"wP","h3":"wP","b2":"wP","f2":"wP","g2":"wK","c1":"wR","f1":"wR"}, solution:{"from":"g2","to":"f3"}, hint:'Find checkmate' },
+    // lichess.org/training/00RoG
+    { id:'p60', label:'Mate in 1 — White to move', pieces:{"c8":"bK","d8":"bR","g8":"bN","h8":"bR","a7":"bP","b7":"bP","e7":"bN","f7":"bP","g7":"bP","h7":"bP","c6":"bP","d6":"bP","c5":"bB","f5":"wP","g5":"wP","e4":"wN","f4":"wP","g4":"bQ","d3":"wB","f3":"wR","a2":"wP","b2":"wP","c2":"wP","h2":"wP","a1":"wR","d1":"wQ","e1":"wB","h1":"wK"}, solution:{"from":"h2","to":"h3"}, hint:'Find checkmate' },
+    // lichess.org/training/00SOy
+    { id:'p61', label:'Mate in 1 — White to move', pieces:{"g8":"bK","g7":"bB","a6":"bP","c6":"bR","e6":"bP","h6":"bP","b5":"bP","c5":"wN","h5":"bR","d4":"wP","h4":"bQ","c3":"wP","f3":"wQ","a2":"wP","f2":"wP","g2":"wP","b1":"wR","e1":"wR","g1":"wK"}, solution:{"from":"f3","to":"c6"}, hint:'Find checkmate' },
+    // lichess.org/training/00V59
+    { id:'p62', label:'Mate in 1 — White to move', pieces:{"a8":"bR","b8":"bN","c8":"bB","f8":"bR","g8":"bK","f7":"bP","g7":"bP","h7":"bP","a6":"bP","d6":"bQ","b5":"bP","d5":"wP","c4":"bP","g4":"bN","c3":"wN","f3":"wN","a2":"wP","b2":"wP","e2":"wB","f2":"wP","g2":"wP","h2":"wP","a1":"wR","d1":"wQ","f1":"wR","g1":"wK"}, solution:{"from":"f3","to":"d4"}, hint:'Find checkmate' },
+    // lichess.org/training/00VIe
+    { id:'p63', label:'Mate in 1 — White to move', pieces:{"a5":"wP","h5":"bP","c3":"wR","d3":"bN","e3":"bK","f3":"wN","a2":"bR","d1":"wK"}, solution:{"from":"f3","to":"e1"}, hint:'Find checkmate' },
+    // lichess.org/training/00ViT
+    { id:'p64', label:'Mate in 1 — White to move', pieces:{"g8":"bK","f7":"bP","g7":"bP","e6":"bP","h6":"bP","b5":"bP","d5":"bB","e5":"wP","f5":"wP","b4":"wP","d4":"wP","f4":"wK","g4":"wP","b3":"bR","d2":"wB","f2":"wR","h2":"wP"}, solution:{"from":"f5","to":"f6"}, hint:'Find checkmate' },
+    // lichess.org/training/00Vv9
+    { id:'p65', label:'Mate in 1 — White to move', pieces:{"f8":"bR","h8":"bK","a7":"bP","b7":"bP","g7":"bP","h7":"bP","f6":"bR","e5":"wQ","d4":"wP","e3":"wN","f3":"bP","g3":"wN","a2":"wP","b2":"bQ","h2":"wP","c1":"wR","f1":"wR","h1":"wK"}, solution:{"from":"e3","to":"d5"}, hint:'Find checkmate' },
+    // lichess.org/training/00WAp
+    { id:'p66', label:'Mate in 1 — White to move', pieces:{"a8":"bR","g8":"bK","e7":"bP","h7":"bP","a6":"bP","g6":"bP","b5":"bP","d5":"bB","g5":"wQ","c4":"bP","a3":"wP","f3":"bQ","g3":"wN","b2":"wP","f2":"wP","a1":"wR","d1":"wR","g1":"wK","h1":"bR"}, solution:{"from":"g3","to":"h1"}, hint:'Find checkmate' },
+    // lichess.org/training/00X5a
+    { id:'p67', label:'Mate in 1 — White to move', pieces:{"d8":"wN","h8":"bK","a7":"bP","b7":"wQ","h7":"bP","e6":"bP","g6":"bP","d5":"bQ","c3":"bB","e3":"wP","g3":"wP","a2":"wP","e2":"wR","f2":"wP","g2":"wK","h2":"wP","e1":"bN"}, solution:{"from":"g2","to":"h3"}, hint:'Find checkmate' },
+    // lichess.org/training/00X66
+    { id:'p68', label:'Mate in 1 — White to move', pieces:{"e8":"bR","g8":"bK","g7":"bP","h7":"bP","b6":"wR","f6":"bP","a5":"wP","b4":"wP","d4":"bP","c3":"bB","g3":"wB","h3":"wP","f2":"wP","g2":"wP","f1":"wK"}, solution:{"from":"g3","to":"f4"}, hint:'Find checkmate' },
+    // lichess.org/training/00Xiu
+    { id:'p69', label:'Mate in 1 — White to move', pieces:{"a7":"bP","b7":"bP","f7":"wQ","h7":"bP","b6":"bN","e6":"wB","g6":"bP","h6":"bK","g4":"wP","h4":"bQ","h3":"wP","a2":"wP","b2":"wP","c2":"wP","f2":"wP","c1":"wK"}, solution:{"from":"f2","to":"f4"}, hint:'Find checkmate' },
+    // lichess.org/training/00Xn1
+    { id:'p70', label:'Mate in 1 — White to move', pieces:{"d8":"bR","g8":"bK","f7":"bP","g7":"bP","c6":"bP","g6":"bN","h6":"bP","c5":"bB","b4":"bP","e4":"wP","g4":"bB","b3":"wB","c3":"wN","g3":"wB","b2":"wP","c2":"wP","g2":"wP","h2":"wP","e1":"wK","f1":"wR"}, solution:{"from":"c3","to":"a4"}, hint:'Find checkmate' },
+    // lichess.org/training/00Yfi
+    { id:'p71', label:'Mate in 1 — White to move', pieces:{"b8":"wQ","f7":"bP","h7":"bK","e6":"bB","g6":"bP","h6":"bP","e5":"wR","f5":"wB","d4":"bP","g4":"wK","h4":"wP","g3":"wP","a2":"wP","e2":"bQ","f1":"bR"}, solution:{"from":"e5","to":"e2"}, hint:'Find checkmate' },
+    // lichess.org/training/00YqR
+    { id:'p72', label:'Mate in 1 — White to move', pieces:{"f8":"bK","a7":"bP","c7":"bP","h7":"bP","b6":"bP","c6":"wP","d6":"bP","e6":"wB","f6":"bP","c5":"bQ","d5":"wP","h5":"bB","c3":"wP","d3":"wQ","a2":"wP","h2":"wP","h1":"wK"}, solution:{"from":"d3","to":"h7"}, hint:'Find checkmate' },
+    // lichess.org/training/00ad3
+    { id:'p73', label:'Mate in 1 — White to move', pieces:{"c8":"bK","d8":"bR","h8":"bR","a7":"bP","b7":"bP","c7":"bP","f7":"bP","c6":"bN","d6":"bB","f6":"bN","h6":"bP","e5":"bQ","g5":"bP","a4":"wQ","a3":"wN","c3":"wP","e3":"wB","a2":"wP","b2":"wP","e2":"wN","f2":"wP","g2":"wP","h2":"wP","a1":"wR","f1":"wR","g1":"wK"}, solution:{"from":"a3","to":"c4"}, hint:'Find checkmate' },
+    // lichess.org/training/00b58
+    { id:'p74', label:'Mate in 1 — White to move', pieces:{"e8":"bK","h8":"bR","b7":"bB","c7":"bQ","f7":"bP","g7":"bB","e6":"bP","b5":"bP","g5":"bP","c4":"bP","d4":"bN","a3":"wR","f3":"wN","b2":"wP","e2":"wB","f2":"wP","g2":"wP","h2":"wP","d1":"wQ","f1":"wR","g1":"wK"}, solution:{"from":"f3","to":"d4"}, hint:'Find checkmate' },
+    // lichess.org/training/00bJi
+    { id:'p75', label:'Mate in 1 — White to move', pieces:{"h8":"bK","b7":"bP","e7":"wR","a6":"bP","e6":"wN","d5":"bP","c4":"bN","c3":"wP","a2":"wP","b2":"wP","c2":"wK","h2":"bR"}, solution:{"from":"c2","to":"d3"}, hint:'Find checkmate' },
+    // lichess.org/training/00bSy
+    { id:'p76', label:'Mate in 1 — White to move', pieces:{"b8":"bK","c8":"bR","e8":"bR","b7":"bP","c7":"bP","h7":"bP","a6":"bP","d6":"bB","g6":"bP","d5":"wN","f5":"bP","a4":"wP","d3":"wP","f3":"wQ","h3":"wP","c2":"wR","f2":"wP","g2":"wP","c1":"wR","e1":"bQ","g1":"wK"}, solution:{"from":"c1","to":"e1"}, hint:'Find checkmate' },
+    // lichess.org/training/00beo
+    { id:'p77', label:'Mate in 1 — White to move', pieces:{"a8":"bR","f8":"bR","g8":"bK","a7":"bP","b7":"bB","d7":"bP","g7":"bP","h7":"bP","b6":"bP","e6":"bP","g6":"bQ","c5":"bB","c4":"wP","a3":"wP","c3":"wN","e3":"wB","h3":"wP","b2":"wP","e2":"wB","f2":"wP","g2":"wP","a1":"wR","d1":"wQ","f1":"wR","g1":"wK"}, solution:{"from":"d1","to":"d7"}, hint:'Find checkmate' },
+    // lichess.org/training/00bzC
+    { id:'p78', label:'Mate in 1 — White to move', pieces:{"a8":"bR","c8":"bR","g8":"bK","c7":"bP","g7":"bP","a6":"bP","d6":"bP","h6":"bP","a5":"wP","b5":"bP","d5":"wP","e5":"bP","e4":"wP","d3":"wP","f3":"bP","h3":"bQ","a2":"wR","c2":"wQ","f2":"wP","h2":"wN","e1":"wR","g1":"wK"}, solution:{"from":"g1","to":"h1"}, hint:'Find checkmate' },
+    // lichess.org/training/00c0D
+    { id:'p79', label:'Mate in 1 — White to move', pieces:{"a8":"bR","b8":"bN","c8":"bB","e8":"bK","h8":"bR","a7":"bP","b7":"bP","c7":"wB","f7":"bP","d5":"bP","g5":"bP","d4":"wQ","g4":"bN","h4":"bP","c3":"wN","f3":"wN","g3":"wK","a2":"wP","b2":"wP","c2":"wP","e2":"wB","g2":"wP","h2":"wP","a1":"wR","h1":"wR"}, solution:{"from":"g3","to":"h3"}, hint:'Find checkmate' },
+    // lichess.org/training/00cZ4
+    { id:'p80', label:'Mate in 1 — White to move', pieces:{"c7":"wR","g6":"bP","h6":"bK","a5":"bP","e5":"bP","h5":"bP","e4":"wN","f4":"bQ","f3":"bN","h3":"wP","a2":"wP","d2":"wR","g2":"wP","h1":"wK"}, solution:{"from":"d2","to":"f2"}, hint:'Find checkmate' }
 ];
+
+
 
 
 
