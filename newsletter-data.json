@@ -1,13 +1,6 @@
 {
-  "updated": "2026-06-23T00:01:46.543Z",
+  "updated": "2026-06-23T04:00:49.979Z",
   "news": [
-    {
-      "date": "Jun 22, 2026",
-      "title": "Strategic Bitcoin Reserve, Then CBDC In 2030",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/3VUvQdfBCbo",
-      "source": "lukemikic"
-    },
     {
       "date": "Jun 22, 2026",
       "title": "Bitcoin funding rate hits 2-week high: Is $70K next?",
@@ -17,10 +10,17 @@
     },
     {
       "date": "Jun 22, 2026",
-      "title": "The $56B Illinois Budget Had A CONCEALED Bitcoin Trap",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/XzSiEUbTFsI",
-      "source": "lukemikic"
+      "title": "Trump Signs Quantum Computing Orders — What Does This Mean For Bitcoin?",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/trump-signs-quantum-computing-orders",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jun 22, 2026",
+      "title": "Crypto Industry Unites Behind Bill to Fix Tax Rules for Miners and Stakers",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/crypto-industry-unites-behind-bill-to-fix",
+      "source": "bitcoin-magazine"
     }
   ]
 }
