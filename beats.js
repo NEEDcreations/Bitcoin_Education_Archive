@@ -110,6 +110,8 @@ window.renderBitcoinBeats = function() {
                     }
                 }
             });
+            // Still load the main track list so the page isn't frozen at "Loading tracks..."
+            beatsLoadTracks('discover');
             return;
         }
     }
