@@ -38,9 +38,9 @@ var _typingDebTimer = null;
 var _myTypingUid = null; // uid of the local user, set when they start typing
 
 function _gcSetTyping(isTyping) {
-    if (typeof db === 'undefined') return;
+    if (typeof db === 'undefined') { console.warn('[TYPING] db not ready'); return; }
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    if (!uid) return;
+    if (!uid) { console.warn('[TYPING] no uid — not signed in'); return; }
     _myTypingUid = uid;
     var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
     var ref = db.collection('global_chat_meta').doc('typing');
@@ -81,7 +81,7 @@ function _gcSubscribeTyping() {
     var ref = db.collection('global_chat_meta').doc('typing');
     _typingUnsub = ref.onSnapshot(function(snap) {
         var el = document.getElementById('gcTypingIndicator');
-        if (!el) return;
+        if (!el) { console.warn('[TYPING] gcTypingIndicator element not found in DOM'); return; }
         if (!snap.exists) { el.textContent = ''; return; }
         var data = snap.data() || {};
         var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
@@ -334,6 +334,7 @@ function renderGlobalChat() {
                 '<div style="text-align:right;font-size:0.6rem;color:var(--text-faint);margin-top:3px;"><span id="globalChatCharCount">0</span>/' + MAX_MSG_LENGTH + '</div>' +
                 '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:1em;padding:2px 4px;"></div>'
             :
+                '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:0;padding:2px 4px;"></div>' +
                 '<div style="text-align:center;padding:8px;color:var(--text-muted);font-size:0.8rem;">' +
                     (isSignedIn ? 'Set a username in <a href="#" onclick="if(typeof showSettings===\'function\')showSettings();return false;" style="color:var(--accent);">Settings</a> to chat' :
                     '<button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">Sign up to join the chat</button>') +

@@ -749,10 +749,10 @@ service cloud.firestore {
     // DJ doc structure: { active, djUid, djName, trackTitle, trackArtist, trackCoverArt,
     //   trackId, artistUid, songCount, startedAt, lastHeartbeat, lastTrackChange, trackUrl }
     // =============================================
-    // Typing indicators doc: any signed-in non-anon user can read/write their own field
+    // Typing indicators doc: any signed-in user (including anonymous) can read/write
     match /global_chat_meta/typing {
       allow read: if true;
-      allow write: if request.auth != null && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+      allow write: if request.auth != null;
     }
 
     match /global_chat_meta/{docId} {
