@@ -45,10 +45,14 @@ function _gcSetTyping(isTyping) {
     var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
     var ref = db.collection('global_chat_meta').doc('typing');
     if (isTyping) {
-        // Always use set+merge so the doc is created if it doesn't exist yet
+        // Use client timestamp (Timestamp.now()) — serverTimestamp() sentinels
+        // inside nested map objects can misbehave with set+merge in SDK v8 compat
+        var now = firebase.firestore.Timestamp.now();
         var entry = {};
-        entry[uid] = { username: username, at: firebase.firestore.FieldValue.serverTimestamp() };
-        ref.set(entry, { merge: true }).catch(function(e) {
+        entry[uid] = { username: username, at: now };
+        ref.set(entry, { merge: true }).then(function() {
+            console.log('[TYPING] wrote typing for', uid);
+        }).catch(function(e) {
             console.warn('[TYPING] set failed:', e && e.code, e && e.message);
         });
     } else {
