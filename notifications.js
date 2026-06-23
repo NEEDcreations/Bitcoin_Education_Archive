@@ -41,7 +41,7 @@ function startDMListener(uid) {
     if (window._dmUnsub) { window._dmUnsub(); window._dmUnsub = null; }
     if (!uid || typeof db === 'undefined') return;
     try {
-        window._dmUnsub = db.collection('conversations')
+        window._dmUnsub = db.collection('dm_conversations')
             .where('participants', 'array-contains', uid)
             .where('lastMessageAt', '>', new Date(Date.now() - 86400000))
             .onSnapshot(function(snap) {
@@ -72,7 +72,7 @@ function startDMListener(uid) {
 function checkUnreadDMsOnce() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
     var uid = auth.currentUser.uid;
-    db.collection('conversations')
+    db.collection('dm_conversations')
         .where('participants', 'array-contains', uid)
         .where('lastMessageAt', '>', new Date(Date.now() - 86400000))
         .get().then(function(snap) {
