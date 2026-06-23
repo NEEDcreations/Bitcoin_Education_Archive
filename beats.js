@@ -108,6 +108,10 @@ window.renderBitcoinBeats = function() {
                     } else {
                         beatsPlayTrack(0);
                     }
+                    // Open the track detail modal after a short delay so the player UI is ready
+                    setTimeout(function() {
+                        if (typeof beatsShowTrackDetail === 'function') beatsShowTrackDetail(0);
+                    }, 400);
                 }
             });
             // Still load the main track list so the page isn't frozen at "Loading tracks..."
@@ -140,7 +144,7 @@ window.beatsEnsureGlobalPlayer = function() {
     if (document.getElementById('beatsGlobalPlayer')) return;
     var gp = document.createElement('div');
     gp.id = 'beatsGlobalPlayer';
-    gp.style.cssText = 'display:none;position:fixed;bottom:56px;left:0;right:0;z-index:200;background:rgba(10,10,15,0.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(247,147,26,0.2);padding:0;';
+    gp.style.cssText = 'display:none;position:fixed;bottom:56px;left:0;right:0;z-index:200005;background:rgba(10,10,15,0.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(247,147,26,0.2);padding:0;';
     // On desktop, bottom nav is hidden so player sits at bottom:0
     if (!document.getElementById('beatsPlayerCSS')) {
         var css = document.createElement('style');
