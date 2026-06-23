@@ -1,26 +1,26 @@
 {
-  "updated": "2026-06-23T16:01:03.297Z",
+  "updated": "2026-06-23T20:00:51.186Z",
   "news": [
     {
       "date": "Jun 23, 2026",
-      "title": "Nakamoto Inc. (NAKA) Closes Last Healthcare Clinic, Completes Full Pivot to Bitcoin",
+      "title": "USA 🇺🇸 Bitcoin Taxes Were Designed in Europe",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/ul5yTOk-pxY",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Jun 23, 2026",
+      "title": "Craig Raw Built One of Bitcoin&#8217;s Best Wallets for Free. Apple Might Kill It by June 30.",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/nakamoto-completes-full-pivot-to-bitcoin",
+      "link": "https://bitcoinmagazine.com/news/craig-raw-apple-might-kill-it-by-june-30",
       "source": "bitcoin-magazine"
     },
     {
       "date": "Jun 23, 2026",
-      "title": "Bitcoin Suisse Secures MiCAR License, Launches European Expansion from Liechtenstein",
+      "title": "Bull Bitcoin Secures MiCA License in France, Preserving Full Self-Custody and Privacy Features",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoin-suisse-secures-micar-license",
+      "link": "https://bitcoinmagazine.com/business/bull-bitcoin-secures-mica-license-in-france-preserving-full-self-custody-and-privacy-features",
       "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jun 23, 2026",
-      "title": "Strategy: The Capital Stack Meets a Falling Bitcoin Price",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/post/405791/strategy-the-capital-stack-meets-a-falling-bitcoin-price?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
     }
   ]
 }
