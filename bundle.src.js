@@ -3730,6 +3730,12 @@ window._selectFaction = async function(faction) {
         var previousFaction = currentUser ? (currentUser.faction || null) : null;
         var isFirstChoice = !previousFaction;
 
+        // Factions are now locked — users can only pick once (switching enabled again later)
+        if (!isFirstChoice) {
+            if (typeof showToast === 'function') showToast('🔒 Factions are locked. You can switch once every 3 months.');
+            return;
+        }
+
         // Save to Firestore
         await db.collection('users').doc(user.uid).update({ faction: faction });
         if (currentUser) currentUser.faction = faction;
@@ -3864,15 +3870,17 @@ function showSettingsPage(tab) {
         var _userFaction = currentUser ? currentUser.faction || '' : '';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">⚔️ Faction</div>' +
-            '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Choose your allegiance! New faction features coming soon — no competitive advantage to either choice.</div>' +
+            (_userFaction
+                ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">🔒 Factions are locked. You can switch factions once every 3 months (feature coming soon).</div>'
+                : '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Choose your allegiance! ⚠️ Factions will be locked — you can change your faction once every 3 months (starting at a later date).</div>') +
             '<div style="display:flex;gap:10px;">' +
-            '<div onclick="window._selectFaction(\'cyber_hornets\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'cyber_hornets' ? '#f7931a' : 'var(--border)') + ';background:' + (_userFaction === 'cyber_hornets' ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;text-align:center;transition:all 0.2s;">' +
+            '<div onclick="window._selectFaction(\'cyber_hornets\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'cyber_hornets' ? '#f7931a' : 'var(--border)') + ';background:' + (_userFaction === 'cyber_hornets' ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:' + (_userFaction && _userFaction !== 'cyber_hornets' ? 'default' : 'pointer') + ';text-align:center;transition:all 0.2s;opacity:' + (_userFaction && _userFaction !== 'cyber_hornets' ? '0.5' : '1') + ';">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">🐝</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Cyber Hornets</div>' +
                 '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">The swarm protects the network</div>' +
                 (_userFaction === 'cyber_hornets' ? '<div style="color:#f7931a;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
             '</div>' +
-            '<div onclick="window._selectFaction(\'honey_badgers\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'honey_badgers' ? '#a855f7' : 'var(--border)') + ';background:' + (_userFaction === 'honey_badgers' ? 'rgba(168,85,247,0.1)' : 'var(--card-bg)') + ';cursor:pointer;text-align:center;transition:all 0.2s;">' +
+            '<div onclick="window._selectFaction(\'honey_badgers\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'honey_badgers' ? '#a855f7' : 'var(--border)') + ';background:' + (_userFaction === 'honey_badgers' ? 'rgba(168,85,247,0.1)' : 'var(--card-bg)') + ';cursor:' + (_userFaction && _userFaction !== 'honey_badgers' ? 'default' : 'pointer') + ';text-align:center;transition:all 0.2s;opacity:' + (_userFaction && _userFaction !== 'honey_badgers' ? '0.5' : '1') + ';">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">🦡</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Honey Badgers</div>' +
                 '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">Honey badger don\'t care</div>' +
