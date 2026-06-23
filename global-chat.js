@@ -45,15 +45,11 @@ function _gcSetTyping(isTyping) {
     var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
     var ref = db.collection('global_chat_meta').doc('typing');
     if (isTyping) {
-        // Use dot-notation field paths with update() so serverTimestamp() works correctly
-        // inside nested maps (set+merge with serverTimestamp in a nested object hits SDK v8 bugs)
-        var updateData = {};
-        updateData[uid + '.username'] = username;
-        updateData[uid + '.at'] = firebase.firestore.FieldValue.serverTimestamp();
-        // set() first to ensure doc exists, then update with dot-notation
-        ref.set({}, { merge: true }).then(function() {
-            return ref.update(updateData);
-        }).then(function() {
+        // Simplest reliable write: set the whole map field for this uid using dot-notation key
+        // This avoids serverTimestamp-in-nested-map bugs in SDK v8 compat mode
+        var entry = {};
+        entry[uid] = { username: username, at: Date.now() };
+        ref.set(entry, { merge: true }).then(function() {
             console.log('[TYPING] wrote typing for', uid);
         }).catch(function(e) {
             console.warn('[TYPING] set failed:', e && e.code, e && e.message);
@@ -98,7 +94,7 @@ function _gcSubscribeTyping() {
         Object.keys(data).forEach(function(uid) {
             if (uid === myUid && suppressSelf) return;
             var entry = data[uid];
-            var atMs = entry.at && typeof entry.at.toMillis === 'function' ? entry.at.toMillis() : 0;
+            var atMs = entry.at && typeof entry.at.toMillis === 'function' ? entry.at.toMillis() : (typeof entry.at === 'number' ? entry.at : 0);
             var age = now - atMs;
             console.log('[TYPING:OBS] uid=' + uid + ' username=' + (entry.username||'?') + ' atMs=' + atMs + ' age=' + age + 'ms');
             if (atMs && age > 10000) { console.log('[TYPING:OBS] stale, skipping'); return; }
