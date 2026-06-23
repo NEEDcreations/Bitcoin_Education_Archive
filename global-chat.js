@@ -339,9 +339,9 @@ function renderGlobalChat() {
                     '</div>' +
                 '</div>' +
                 '<div style="text-align:right;font-size:0.6rem;color:var(--text-faint);margin-top:3px;"><span id="globalChatCharCount">0</span>/' + MAX_MSG_LENGTH + '</div>' +
-                '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:1em;padding:2px 4px;"></div>'
+                '<div id="gcTypingIndicator" style="font-size:0.72rem;color:var(--text-muted);font-style:italic;font-weight:600;min-height:1em;padding:2px 4px;"></div>'
             :
-                '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:0;padding:2px 4px;"></div>' +
+                '<div id="gcTypingIndicator" style="font-size:0.72rem;color:var(--text-muted);font-style:italic;font-weight:600;min-height:0;padding:2px 4px;"></div>' +
                 '<div style="text-align:center;padding:8px;color:var(--text-muted);font-size:0.8rem;">' +
                     (isSignedIn ? 'Set a username in <a href="#" onclick="if(typeof showSettings===\'function\')showSettings();return false;" style="color:var(--accent);">Settings</a> to chat' :
                     '<button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">Sign up to join the chat</button>') +
@@ -1521,9 +1521,9 @@ function renderOverlayChat() {
                         '<button onclick="showGifPicker()" style="padding:6px;background:none;border:none;font-size:0.7rem;font-weight:700;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Send GIF">GIF</button>' +
                     '</div>' +
                 '</div>' +
-                '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:1em;padding:2px 4px;"></div>'
+                '<div id="gcTypingIndicator" style="font-size:0.72rem;color:var(--text-muted);font-style:italic;font-weight:600;min-height:1em;padding:2px 4px;"></div>'
             :
-                '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:0;padding:2px 4px;"></div>' +
+                '<div id="gcTypingIndicator" style="font-size:0.72rem;color:var(--text-muted);font-style:italic;font-weight:600;min-height:0;padding:2px 4px;"></div>' +
                 '<div onclick="' + (isSignedIn ? 'if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')' : 'if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()') + '" style="text-align:center;padding:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;">' +
                     (isSignedIn ? '⚙️ Set a username in Settings to chat' : '🔐 Sign in to chat') +
                 '</div>'
