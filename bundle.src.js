@@ -14300,14 +14300,14 @@ function _renderCharityTabInner(body) {
             var isAnon = d.anonymous || !d.uid || (d.username || '') === 'Anonymous';
             var factionLabel = d.faction === 'cyber_hornets' ? '<span style="color:#f7e400;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;">🐝</span>' :
                                d.faction === 'honey_badgers' ? '<span style="color:#1a1a1a;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;font-weight:700;">🦡</span>' : '';
-            // Faction-coloured name style
+            // Faction-coloured name style — applies even for anonymous donors (name hidden ≠ faction hidden)
             var nameStyle;
-            if (isAnon) {
-                nameStyle = 'color:var(--text-muted);';
-            } else if (d.faction === 'cyber_hornets') {
-                nameStyle = 'color:#f7e400;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+            if (d.faction === 'cyber_hornets') {
+                nameStyle = 'color:#f7e400;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;' + (isAnon ? '' : 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;');
             } else if (d.faction === 'honey_badgers') {
-                nameStyle = 'color:#e5e7eb;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+                nameStyle = 'color:#e5e7eb;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;' + (isAnon ? '' : 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;');
+            } else if (isAnon) {
+                nameStyle = 'color:var(--text-muted);';
             } else {
                 nameStyle = 'color:var(--text);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
             }
