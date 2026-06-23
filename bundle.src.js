@@ -13738,14 +13738,44 @@ function _renderFavorTab(body) {
         '<div id="favorPersonalBest" style="font-size:0.8rem;color:var(--text-muted);">Loading...</div>' +
     '</div>';
 
+    html += '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+        '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\uD83D\uDCCA Difficulty History</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">' +
+            '<thead><tr style="color:var(--text-faint);">' +
+                '<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);">Date</th>' +
+                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Target</th>' +
+                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Odds</th>' +
+                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Blocks</th>' +
+                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Change</th>' +
+            '</tr></thead>' +
+            '<tbody id="sfDifficultyHistoryBody">' +
+                '<tr style="color:var(--text-muted);">' +
+                    '<td style="padding:5px 6px;">2026-06-02</td>' +
+                    '<td style="text-align:right;padding:5px 6px;font-family:monospace;">1,000</td>' +
+                    '<td style="text-align:right;padding:5px 6px;">1:100,000</td>' +
+                    '<td id="sfBlocksRow0" style="text-align:right;padding:5px 6px;">0</td>' +
+                    '<td style="text-align:right;padding:5px 6px;color:var(--text-faint);">Genesis</td>' +
+                '</tr>' +
+                '<tr style="color:var(--heading);background:rgba(247,147,26,0.06);">' +
+                    '<td style="padding:5px 6px;font-weight:700;">2026-06-21</td>' +
+                    '<td style="text-align:right;padding:5px 6px;font-family:monospace;font-weight:700;color:#22c55e;">30,000</td>' +
+                    '<td style="text-align:right;padding:5px 6px;">1:3,333</td>' +
+                    '<td id="sfBlocksRow1" style="text-align:right;padding:5px 6px;font-weight:700;">...</td>' +
+                    '<td style="text-align:right;padding:5px 6px;color:var(--accent);font-weight:700;">+2,900%</td>' +
+                '</tr>' +
+            '</tbody>' +
+        '</table>' +
+    '</div>';
+
     html += '</div>';
     body.innerHTML = html;
 
     // -- Live faction scoreboard listener --
     _startFactionScoreboardListener();
 
-    // Load top hashes + personal best
+    // Load top hashes + personal best + difficulty history blocks
     _loadFavorLeaderboards();
+    _loadDifficultyHistoryBlocks();
 
     // Start timer if active
     if (isActive) {
@@ -13921,6 +13951,34 @@ function _renderPBHTML(val) {
         '<div style="font-size:1.8rem;font-weight:900;font-family:monospace;color:' + (isWin ? '#22c55e' : (val < 10000 ? 'var(--accent)' : 'var(--heading)')) + ';">' + (isWin ? '\uD83C\uDFC6 ' : '') + val.toLocaleString() + '</div>' +
         '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Your all-time lowest hash</div>' +
     '</div>';
+}
+
+function _loadDifficultyHistoryBlocks() {
+    if (typeof db === 'undefined') return;
+    // Query winners from satoshiFavor/current/hashes where isWinner == true
+    db.collection('satoshiFavor').doc('current').collection('hashes')
+        .where('isWinner', '==', true)
+        .get()
+        .then(function(snap) {
+            // Count wins per difficulty target
+            var counts = {}; // { target: count }
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                var t = d.difficultyTarget != null ? d.difficultyTarget : 1000;
+                counts[t] = (counts[t] || 0) + 1;
+            });
+            // Update row 0 (target 1,000) and row 1 (target 30,000)
+            var r0 = document.getElementById('sfBlocksRow0');
+            var r1 = document.getElementById('sfBlocksRow1');
+            if (r0) r0.textContent = (counts[1000] || 0).toString();
+            if (r1) r1.textContent = (counts[30000] || 0).toString();
+        })
+        .catch(function() {
+            var r0 = document.getElementById('sfBlocksRow0');
+            var r1 = document.getElementById('sfBlocksRow1');
+            if (r0) r0.textContent = '?';
+            if (r1) r1.textContent = '?';
+        });
 }
 
 function _loadFavorLeaderboards() {

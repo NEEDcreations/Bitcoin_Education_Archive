@@ -280,36 +280,6 @@
 
                     <button id="minerHashBtn" onclick="window.minerDoHash()" style="width:100%;padding:16px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:12px;color:#fff;font-size:1.1rem;font-weight:800;cursor:pointer;margin-bottom:16px;">⛏️ HASH</button>
 
-                    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;">
-                        <div style="font-weight:700;color:var(--heading);margin-bottom:8px;font-size:0.82rem;">📊 Difficulty History</div>
-                        <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
-                            <thead><tr style="color:var(--text-faint);">
-                                <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);">Date</th>
-                                <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Target</th>
-                                <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Odds</th>
-                                <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Blocks</th>
-                                <th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Change</th>
-                            </tr></thead>
-                            <tbody>
-                                <tr style="color:var(--text-muted);">
-                                    <td style="padding:5px 6px;">2026-06-02</td>
-                                    <td style="text-align:right;padding:5px 6px;font-family:monospace;">1,000</td>
-                                    <td style="text-align:right;padding:5px 6px;">1:100,000</td>
-                                    <td style="text-align:right;padding:5px 6px;">0</td>
-                                    <td style="text-align:right;padding:5px 6px;color:var(--text-faint);">Genesis</td>
-                                </tr>
-                                <tr style="color:var(--heading);background:rgba(247,147,26,0.06);">
-                                    <td style="padding:5px 6px;font-weight:700;">2026-06-21</td>
-                                    <td style="text-align:right;padding:5px 6px;font-family:monospace;font-weight:700;color:#22c55e;">30,000</td>
-                                    <td style="text-align:right;padding:5px 6px;">1:3,333</td>
-                                    <td style="text-align:right;padding:5px 6px;">0</td>
-                                    <td style="text-align:right;padding:5px 6px;color:var(--accent);font-weight:700;">+2,900%</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <div style="color:var(--text-faint);font-size:0.62rem;margin-top:4px;">No block found in 19 days at target 1,000 — difficulty raised to give miners a fighting chance.</div>
-                    </div>
-
                     <div style="border-top:1px solid var(--border);padding-top:12px;">
                         <div style="font-weight:700;color:var(--heading);margin-bottom:8px;">⛏️ Community Hashes</div>
                         <div id="hashList" style="max-height:300px;overflow-y:auto;"><div style="color:var(--text-muted);text-align:center;padding:12px;font-size:0.8rem;">Loading...</div></div>
