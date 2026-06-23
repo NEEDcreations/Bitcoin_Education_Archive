@@ -177,6 +177,9 @@
         .sidebar-header p { color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; }
         .channels { flex: 1; overflow-y: auto; padding: 12px; }
         .search-box { padding: 12px; border-bottom: 1px solid var(--border); }
+        #userDisplayContainer { position:relative; z-index:1; box-sizing:border-box; flex-shrink:0; }
+        #userDisplay { box-sizing:border-box; min-width:0; }
+        #userDisplayLive { min-width:0; overflow:hidden; }
         .search-input { width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 16px; font-family: inherit; outline: none; }
         .search-input:focus { border-color: var(--accent); }
         .random-btn { background: var(--input-bg); border: 1px solid var(--border); border-radius: 10px; font-size: 1.3rem; cursor: pointer; transition: 0.2s; touch-action: manipulation; -webkit-tap-highlight-color: rgba(247,147,26,0.2); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 6px; min-width: 56px; }
@@ -718,7 +721,7 @@
         <div class="search-box">
             <div id="activity-ticker" style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;padding:6px 12px;font-size:0.75rem;color:var(--text-muted);overflow:hidden;white-space:nowrap;display:none;align-items:center;gap:8px;position:relative;">
                 <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(0,0,0,0.9);padding:3px 10px;border-radius:4px;flex-shrink:0;z-index:2;position:relative;border:1px solid rgba(247,147,26,0.3);box-shadow:8px 0 12px rgba(0,0,0,0.9);">🔴 Live</span>
-                <div id="ticker-content" style="flex:1;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
+                <div id="ticker-content" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
             </div>
             <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all topics..." oninput="doSearch(this.value)" onfocus="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();">
 
