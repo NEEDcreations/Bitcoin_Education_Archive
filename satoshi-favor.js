@@ -23,6 +23,38 @@
     let hashTimestamps = []; // rolling window of recent hash times
     let _prevFavorActive = false; // track previous favor state for bubble announcements
 
+    // ─── SF CHAT + NEWS ANNOUNCEMENTS ───
+    function _nachoSFAnnounce(type) {
+        if (typeof db === 'undefined' || !db) return;
+        if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
+        var uid = auth.currentUser.uid;
+        var isAdmin = auth.currentUser.email &&
+            (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com');
+        var nachoUid = isAdmin ? 'nacho-bot' : uid;
+        var msg = type === 'start'
+            ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to win 21,000 sats! ⚡🦌"
+            : "⏱️ **Satoshi's Favor has ended.** The mining window is now closed — great effort everyone! Keep earning points to trigger the next one. Every topic, quiz, and contribution gets us closer. 🦌";
+        var ts = firebase.firestore.FieldValue.serverTimestamp();
+        // Post to Global Chat — isNachoAuto:false so it shows in the main feed
+        db.collection('global_chat').add({
+            uid: nachoUid,
+            name: '🦌 Nacho',
+            text: msg,
+            isNachoAuto: false,
+            ts: ts
+        }).then(function() {
+            if (typeof bridgeToTelegram === 'function') bridgeToTelegram({ user: '🦌 Nacho', text: msg });
+        }).catch(function(e) { console.warn('[SF] GC announce failed:', e); });
+        // Post to News/Announcements — isNachoAuto:true as required by rules
+        db.collection('announcements').add({
+            uid: nachoUid,
+            name: '🦌 Nacho',
+            text: msg,
+            isNachoAuto: true,
+            ts: ts
+        }).catch(function(e) { console.warn('[SF] News announce failed:', e); });
+    }
+
     // ─── INIT ───
     function initSatoshiFavor() {
         if (typeof db === 'undefined' || !db) {
@@ -56,18 +88,20 @@
                 localStorage.setItem('btc_favor_state_cache', JSON.stringify(_cacheData));
             } catch(e) {}
 
-            // Detect favor activation/expiration transitions for Nacho bubble
+            // Detect favor activation/expiration transitions for Nacho bubble + chat announcements
             var nowActive = favorState.favorActive && isFavorEffectivelyActive();
             if (nowActive && !_prevFavorActive) {
                 // Favor just activated
                 if (typeof window.forceShowBubble === 'function') {
                     window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to mine! Click below to start hashing! ⛏️🦌", 'fire');
                 }
+                _nachoSFAnnounce('start');
             } else if (!nowActive && _prevFavorActive) {
                 // Favor just expired/deactivated
                 if (typeof window.forceShowBubble === 'function') {
                     window.forceShowBubble("⛏️ Satoshi's Favor has ended! Keep earning points for the next activation! 🦌", 'default');
                 }
+                _nachoSFAnnounce('end');
             }
             _prevFavorActive = nowActive;
 
