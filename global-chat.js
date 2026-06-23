@@ -1520,8 +1520,10 @@ function renderOverlayChat() {
                         '<button onclick="chatUploadImage()" style="padding:6px;background:none;border:none;font-size:1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Upload Image">📷</button>' +
                         '<button onclick="showGifPicker()" style="padding:6px;background:none;border:none;font-size:0.7rem;font-weight:700;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Send GIF">GIF</button>' +
                     '</div>' +
-                '</div>'
+                '</div>' +
+                '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:1em;padding:2px 4px;"></div>'
             :
+                '<div id="gcTypingIndicator" style="font-size:0.7rem;color:var(--text-faint);font-style:italic;min-height:0;padding:2px 4px;"></div>' +
                 '<div onclick="' + (isSignedIn ? 'if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')' : 'if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()') + '" style="text-align:center;padding:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;">' +
                     (isSignedIn ? '⚙️ Set a username in Settings to chat' : '🔐 Sign in to chat') +
                 '</div>'
@@ -1555,6 +1557,7 @@ function renderOverlayChat() {
     }
 
     startChatListener();
+    _gcSubscribeTyping();
 }
 
 window._switchOverlayTab = function(tab) {
