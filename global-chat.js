@@ -91,10 +91,13 @@ function _gcSubscribeTyping() {
         if (!snap.exists) { el.textContent = ''; return; }
         var data = snap.data() || {};
         var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+        // Only suppress self-typing if this tab has an active typing timer (i.e. *this* tab is the one typing)
+        // If the typing cleared locally but Firestore still shows it, that means another device/tab with same UID
+        var suppressSelf = !!_typingDebTimer;
         var now = Date.now();
         var typers = [];
         Object.keys(data).forEach(function(uid) {
-            if (uid === myUid) return; // don't show yourself
+            if (uid === myUid && suppressSelf) return; // suppress only if THIS tab is actively typing
             var entry = data[uid];
             var atMs = entry.at && typeof entry.at.toMillis === 'function' ? entry.at.toMillis() : 0;
             if (atMs && now - atMs > 10000) return; // stale >10s — ignore (generous for clock skew)
