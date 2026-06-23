@@ -1463,15 +1463,54 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         if (lnAddrAmount < FAUCET.MIN_WITHDRAWAL_SATS || lnAddrAmount > FAUCET.MAX_PER_CLAIM_SATS) {
             return { success: false, error: 'Amount must be between ' + FAUCET.MIN_WITHDRAWAL_SATS + ' and ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats.' };
         }
+
+        // SECURITY: SSRF prevention — validate the domain is a public internet hostname.
+        // Blocks: localhost, 127.x, 10.x, 172.16-31.x, 169.254.x (link-local/AWS metadata),
+        // 192.168.x, ::1, and any non-HTTPS scheme. Also disallows bare IPs entirely.
+        const _lnDomainRaw = lnAddrRaw.split('@')[1] || '';
+        const _lnDomain = _lnDomainRaw.split(':')[0].toLowerCase(); // strip port
+        const _isPrivateHost = (
+            _lnDomain === 'localhost' ||
+            /^127\./.test(_lnDomain) ||
+            /^10\./.test(_lnDomain) ||
+            /^192\.168\./.test(_lnDomain) ||
+            /^172\.(1[6-9]|2[0-9]|3[01])\./.test(_lnDomain) ||
+            /^169\.254\./.test(_lnDomain) ||
+            /^::1$/.test(_lnDomain) ||
+            /^fd[0-9a-f]{2}:/i.test(_lnDomain) ||
+            /^\d+\.\d+\.\d+\.\d+$/.test(_lnDomain) // reject bare IP addresses entirely
+        );
+        if (_isPrivateHost || !_lnDomain || _lnDomain.length < 3 || !_lnDomain.includes('.')) {
+            console.error('[FAUCET] SSRF BLOCKED: domain=' + _lnDomain + ' uid=' + uid);
+            return { success: false, error: 'Invalid Lightning Address domain.' };
+        }
+
         // Resolve Lightning Address → LNURL-pay → BOLT11
         try {
             const nodeFetch = require('node-fetch');
             const [localPart, domain] = lnAddrRaw.split('@');
             const lnurlPayUrl = 'https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart);
-            const metaRes = await nodeFetch(lnurlPayUrl, { timeout: 8000 });
+            const metaRes = await nodeFetch(lnurlPayUrl, { timeout: 8000, size: 65536 }); // 64KB max response
             if (!metaRes.ok) throw new Error('LNURL-pay metadata fetch failed (' + metaRes.status + ')');
             const meta = await metaRes.json();
             if (!meta.callback) throw new Error('No callback in LNURL-pay metadata');
+
+            // SECURITY: SSRF prevention on callback URL — must be https:// on the same domain.
+            // A malicious LNURL server could return a callback pointing to internal infra.
+            let cbUrl;
+            try {
+                cbUrl = new URL(meta.callback);
+            } catch(_) {
+                throw new Error('Invalid callback URL in LNURL-pay response');
+            }
+            if (cbUrl.protocol !== 'https:') {
+                throw new Error('Callback URL must use HTTPS');
+            }
+            // Callback domain must match the Lightning Address domain (prevents open redirect to internal)
+            if (cbUrl.hostname.toLowerCase() !== domain.split(':')[0].toLowerCase()) {
+                throw new Error('Callback URL domain mismatch (expected ' + domain + ')');
+            }
+
             const msats = lnAddrAmount * 1000;
             if (meta.minSendable && msats < meta.minSendable) {
                 throw new Error('Amount below wallet minimum (' + Math.ceil(meta.minSendable / 1000) + ' sats)');
@@ -1480,12 +1519,12 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 throw new Error('Amount above wallet maximum (' + Math.floor(meta.maxSendable / 1000) + ' sats)');
             }
             const cbSep = meta.callback.includes('?') ? '&' : '?';
-            const invoiceRes = await nodeFetch(meta.callback + cbSep + 'amount=' + msats, { timeout: 8000 });
+            const invoiceRes = await nodeFetch(meta.callback + cbSep + 'amount=' + msats, { timeout: 8000, size: 65536 }); // 64KB max
             if (!invoiceRes.ok) throw new Error('Invoice fetch failed (' + invoiceRes.status + ')');
             const invoiceData = await invoiceRes.json();
             if (!invoiceData.pr) throw new Error('No invoice returned by Lightning Address');
             invoice = invoiceData.pr;
-            console.log('[FAUCET] Resolved Lightning Address ' + lnAddrRaw + ' → invoice for ' + lnAddrAmount + ' sats');
+            console.log('[FAUCET] Resolved Lightning Address ' + lnAddrRaw + ' → invoice for ' + lnAddrAmount + ' sats (callback domain: ' + cbUrl.hostname + ')');
         } catch (e) {
             console.error('[FAUCET] Lightning Address resolution failed:', e.message);
             return { success: false, error: 'Could not resolve Lightning Address: ' + (e.message || 'unknown error') };
@@ -4810,3 +4849,58 @@ async function fetchLnurlInvoice(lightningAddress, msats, comment) {
 
     return invData.pr;
 }
+
+// ===== BACKFILL DONATION FACTION =====
+// When a user picks their faction for the first time, attribute any charity
+// donations they made under 'no_faction' (or with null faction) to their new faction.
+exports.backfillDonationFaction = functions.https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Account required.');
+    }
+
+    const uid = context.auth.uid;
+    const newFaction = (data.newFaction || '').trim();
+    if (newFaction !== 'cyber_hornets' && newFaction !== 'honey_badgers') {
+        throw new functions.https.HttpsError('invalid-argument', 'Valid faction required.');
+    }
+
+    const db = admin.firestore();
+
+    // Find all this user's donations that have no faction or are 'no_faction'
+    const donationsSnap = await db.collection('charity_donations')
+        .where('uid', '==', uid)
+        .get();
+
+    const toBackfill = [];
+    let totalAmount = 0;
+    donationsSnap.forEach(doc => {
+        const d = doc.data();
+        if (!d.faction || d.faction === 'no_faction') {
+            toBackfill.push({ ref: doc.ref, amount: d.amount || 0 });
+            totalAmount += (d.amount || 0);
+        }
+    });
+
+    if (toBackfill.length === 0) {
+        return { success: true, backfilled: 0, totalAmount: 0 };
+    }
+
+    // Batch update: stamp faction on each donation doc + update stats
+    const batch = db.batch();
+    toBackfill.forEach(({ ref }) => {
+        batch.update(ref, { faction: newFaction });
+    });
+
+    // Update charity_stats: move amount from no_faction → newFaction
+    const statsRef = db.collection('charity_stats').doc('global');
+    batch.update(statsRef, {
+        [`factionTotals.${newFaction}`]: admin.firestore.FieldValue.increment(totalAmount),
+        [`factionTotals.no_faction`]: admin.firestore.FieldValue.increment(-totalAmount),
+    });
+
+    await batch.commit();
+
+    console.log(`[CHARITY-BACKFILL] uid=${uid} backfilled ${toBackfill.length} donations (${totalAmount} XP) → ${newFaction}`);
+    return { success: true, backfilled: toBackfill.length, totalAmount };
+});

@@ -2867,6 +2867,7 @@ function _renderCharityTabInner(body) {
     var totalDonated = stats.totalDonated || 0;
     var hornets = (stats.factionTotals && stats.factionTotals.cyber_hornets) || 0;
     var badgers = (stats.factionTotals && stats.factionTotals.honey_badgers) || 0;
+    var unattributed = (stats.factionTotals && stats.factionTotals.no_faction) || 0;
 
     var html = '';
 
@@ -2902,6 +2903,7 @@ function _renderCharityTabInner(body) {
             '<span>' + hornets.toLocaleString() + ' XP (' + hornetsPct + '%)</span>' +
             '<span>' + badgers.toLocaleString() + ' XP (' + badgersPct + '%)</span>' +
         '</div>' +
+        (unattributed > 0 ? '<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:0.72rem;color:var(--text-faint);display:flex;justify-content:space-between;align-items:center;"><span>⏳ Unattributed (no faction at time of donation)</span><span style="font-weight:700;">' + unattributed.toLocaleString() + ' XP</span></div>' : '') +
     '</div>';
 
     // Donate UI

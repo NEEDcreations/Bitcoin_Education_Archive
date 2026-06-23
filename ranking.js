@@ -3570,7 +3570,7 @@ window._selectFaction = async function(faction) {
         if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
         showSettingsPage('account');
 
-        // If this is fist time picking a faction (or switching from no faction),
+        // If this is first time picking a faction (or switching from no faction),
         // sync their historical unaffiliated SF points to the new faction
         if (isFirstChoice && typeof firebase !== 'undefined' && firebase.functions) {
             firebase.functions().httpsCallable('syncUserFactionPoints')({
@@ -3582,6 +3582,17 @@ window._selectFaction = async function(faction) {
                 }
             }).catch(function(err) {
                 console.warn('[FACTION] syncUserFactionPoints failed:', err);
+            });
+
+            // Also backfill any charity donations made before faction was chosen
+            firebase.functions().httpsCallable('backfillDonationFaction')({
+                newFaction: faction
+            }).then(function(res) {
+                if (res.data && res.data.totalAmount > 0) {
+                    if (typeof showToast === 'function') showToast('❤️ ' + res.data.totalAmount.toLocaleString() + ' XP of past donations credited to your faction!');
+                }
+            }).catch(function(err) {
+                console.warn('[FACTION] backfillDonationFaction failed:', err);
             });
         }
         // Note: if switching factions, future contributions go to new faction automatically.
