@@ -45,21 +45,23 @@ function _gcSetTyping(isTyping) {
     var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
     var ref = db.collection('global_chat_meta').doc('typing');
     if (isTyping) {
-        // Use client timestamp (Timestamp.now()) — serverTimestamp() sentinels
-        // inside nested map objects can misbehave with set+merge in SDK v8 compat
-        var now = firebase.firestore.Timestamp.now();
-        var entry = {};
-        entry[uid] = { username: username, at: now };
-        ref.set(entry, { merge: true }).then(function() {
+        // Use dot-notation field paths with update() so serverTimestamp() works correctly
+        // inside nested maps (set+merge with serverTimestamp in a nested object hits SDK v8 bugs)
+        var updateData = {};
+        updateData[uid + '.username'] = username;
+        updateData[uid + '.at'] = firebase.firestore.FieldValue.serverTimestamp();
+        // set() first to ensure doc exists, then update with dot-notation
+        ref.set({}, { merge: true }).then(function() {
+            return ref.update(updateData);
+        }).then(function() {
             console.log('[TYPING] wrote typing for', uid);
         }).catch(function(e) {
             console.warn('[TYPING] set failed:', e && e.code, e && e.message);
         });
     } else {
-        // Use set+merge with FieldValue.delete() — safer than update() on potentially non-existent doc
-        var del = {};
-        del[uid] = firebase.firestore.FieldValue.delete();
-        ref.set(del, { merge: true }).catch(function(e) {
+        var delData = {};
+        delData[uid] = firebase.firestore.FieldValue.delete();
+        ref.set(delData, { merge: true }).catch(function(e) {
             console.warn('[TYPING] clear failed:', e && e.code, e && e.message);
         });
     }
