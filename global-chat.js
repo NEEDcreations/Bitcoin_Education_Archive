@@ -77,16 +77,42 @@ function _gcClearTyping() {
     _gcSetTyping(false);
 }
 
+// Play a brief, soft typing notification tick (iOS-style) using Web Audio API.
+// Only fires on 0→1 transition, with a 3s cooldown to avoid spam.
+var _typingSoundLastPlayed = 0;
+function _playTypingSound() {
+    var now = Date.now();
+    if (now - _typingSoundLastPlayed < 3000) return; // cooldown
+    _typingSoundLastPlayed = now;
+    try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Two short sine bursts — mimics the subtle iOS keyboard typing tick
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1050, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.06);
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.07);
+        osc.onended = function() { ctx.close(); };
+    } catch(e) { /* Web Audio not available */ }
+}
+
 function _gcSubscribeTyping() {
     if (typeof db === 'undefined') return;
     if (_typingUnsub) { _typingUnsub(); _typingUnsub = null; }
+    var _prevTyperCount = 0;
     var ref = db.collection('global_chat_meta').doc('typing');
     _typingUnsub = ref.onSnapshot(function(snap) {
         var el = document.getElementById('gcTypingIndicator');
         if (!el) { console.warn('[TYPING:OBS] gcTypingIndicator not in DOM'); return; }
-        if (!snap.exists) { console.log('[TYPING:OBS] doc does not exist'); el.textContent = ''; return; }
+        if (!snap.exists) { _prevTyperCount = 0; el.textContent = ''; return; }
         var data = snap.data() || {};
-        console.log('[TYPING:OBS] snapshot keys:', Object.keys(data), '| raw:', JSON.stringify(data).substring(0, 200));
         var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
         var suppressSelf = !!_typingDebTimer;
         var now = Date.now();
@@ -95,12 +121,12 @@ function _gcSubscribeTyping() {
             if (uid === myUid && suppressSelf) return;
             var entry = data[uid];
             var atMs = entry.at && typeof entry.at.toMillis === 'function' ? entry.at.toMillis() : (typeof entry.at === 'number' ? entry.at : 0);
-            var age = now - atMs;
-            console.log('[TYPING:OBS] uid=' + uid + ' username=' + (entry.username||'?') + ' atMs=' + atMs + ' age=' + age + 'ms');
-            if (atMs && age > 10000) { console.log('[TYPING:OBS] stale, skipping'); return; }
+            if (atMs && (now - atMs) > 10000) return; // stale
             typers.push(entry.username || 'Someone');
         });
-        console.log('[TYPING:OBS] typers:', typers);
+        // Play sound only on 0→1 transition (someone starts typing)
+        if (typers.length > 0 && _prevTyperCount === 0) _playTypingSound();
+        _prevTyperCount = typers.length;
         if (typers.length === 0) { el.textContent = ''; return; }
         var text;
         if (typers.length === 1) {
@@ -108,7 +134,6 @@ function _gcSubscribeTyping() {
         } else if (typers.length === 2) {
             text = typers[0] + ' & ' + typers[1] + ' are typing…';
         } else {
-            // Abbreviate: show first name + count of others
             var abbrev = typers.map(function(n) { return n.length > 10 ? n.substring(0, 8) + '…' : n; });
             text = abbrev[0] + ' + ' + (typers.length - 1) + ' others are typing…';
         }
