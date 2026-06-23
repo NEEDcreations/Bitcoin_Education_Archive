@@ -87,22 +87,24 @@ function _gcSubscribeTyping() {
     var ref = db.collection('global_chat_meta').doc('typing');
     _typingUnsub = ref.onSnapshot(function(snap) {
         var el = document.getElementById('gcTypingIndicator');
-        if (!el) { console.warn('[TYPING] gcTypingIndicator element not found in DOM'); return; }
-        if (!snap.exists) { el.textContent = ''; return; }
+        if (!el) { console.warn('[TYPING:OBS] gcTypingIndicator not in DOM'); return; }
+        if (!snap.exists) { console.log('[TYPING:OBS] doc does not exist'); el.textContent = ''; return; }
         var data = snap.data() || {};
+        console.log('[TYPING:OBS] snapshot keys:', Object.keys(data), '| raw:', JSON.stringify(data).substring(0, 200));
         var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-        // Only suppress self-typing if this tab has an active typing timer (i.e. *this* tab is the one typing)
-        // If the typing cleared locally but Firestore still shows it, that means another device/tab with same UID
         var suppressSelf = !!_typingDebTimer;
         var now = Date.now();
         var typers = [];
         Object.keys(data).forEach(function(uid) {
-            if (uid === myUid && suppressSelf) return; // suppress only if THIS tab is actively typing
+            if (uid === myUid && suppressSelf) return;
             var entry = data[uid];
             var atMs = entry.at && typeof entry.at.toMillis === 'function' ? entry.at.toMillis() : 0;
-            if (atMs && now - atMs > 10000) return; // stale >10s — ignore (generous for clock skew)
+            var age = now - atMs;
+            console.log('[TYPING:OBS] uid=' + uid + ' username=' + (entry.username||'?') + ' atMs=' + atMs + ' age=' + age + 'ms');
+            if (atMs && age > 10000) { console.log('[TYPING:OBS] stale, skipping'); return; }
             typers.push(entry.username || 'Someone');
         });
+        console.log('[TYPING:OBS] typers:', typers);
         if (typers.length === 0) { el.textContent = ''; return; }
         var text;
         if (typers.length === 1) {
