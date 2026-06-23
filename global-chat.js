@@ -526,6 +526,7 @@ function renderChatMessages(msgs) {
         }
         if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
             html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
+            if (m.caption) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption), m.mentionUid) + '</div>';
         } else if (m.imageUrl || m.gifUrl) {
             var mediaSrc = m.imageUrl || m.gifUrl;
             if (m.text) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-bottom:4px;">' + formatChatText(esc(m.text), m.mentionUid) + '</div>';
@@ -2146,14 +2147,6 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 msgData.replyTo = replyCopy.id;
                 msgData.replyToName = replyCopy.name;
                 msgData.replyToText = replyCopy.text;
-            }
-
-            // If there's a caption, also send it as a separate text message so it shows in chat
-            if (caption) {
-                db.collection(CHAT_COLLECTION).add({
-                    uid: auth.currentUser.uid, name: username, text: caption,
-                    ts: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(function() {});
             }
 
             return db.collection(CHAT_COLLECTION).add(msgData).then(function() {
