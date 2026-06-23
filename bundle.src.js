@@ -13886,7 +13886,7 @@ function _renderTopHashesHTML(entries) {
                 '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
                 '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + name + (isMe ? ' (you)' : '') + badges + '</span>' +
             '</div>' +
-            '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:' + (isWin ? '#22c55e' : (e.value < diffTarget * 3 ? 'var(--accent)' : 'var(--text-muted)')) + ';">' + e.value.toLocaleString() + '</span>' +
+            '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" style="font-family:monospace;font-size:0.82rem;font-weight:800;cursor:help;color:' + (isWin ? '#22c55e' : 'var(--text-muted)') + ';">' + e.value.toLocaleString() + '</span>' +
         '</div>';
     }
 
