@@ -145,10 +145,17 @@ var _lastSendTime = 0;
 // ---- Reaction Tooltip (who reacted) ----
 var _reactTipEl = null;
 var _reactTipTimer = null;
-window._showReactTip = function(btn, uids) {
+// Show reaction tooltip from a button's data-uids attribute (safe, no inline JSON)
+window._showReactTipFromBtn = function(btn) {
+    var raw = btn.getAttribute('data-uids');
+    if (!raw) return;
+    var uids;
+    try { uids = JSON.parse(raw); } catch(e) { return; }
+    window._showReactTipForUids(btn, uids);
+};
+window._showReactTipForUids = function(btn, uids) {
     clearTimeout(_reactTipTimer);
     if (!uids || !uids.length) return;
-    // Resolve UIDs to names using the message cache
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var names = uids.slice(0, 12).map(function(uid) {
         if (uid === myUid) return 'You';
@@ -159,32 +166,40 @@ window._showReactTip = function(btn, uids) {
     if (!_reactTipEl) {
         _reactTipEl = document.createElement('div');
         _reactTipEl.id = 'reactTooltip';
-        _reactTipEl.style.cssText = 'position:fixed;z-index:600000;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text,#e5e5e5);font-size:0.72rem;padding:5px 10px;border-radius:8px;pointer-events:none;white-space:normal;max-width:220px;box-shadow:0 4px 16px rgba(0,0,0,0.5);line-height:1.4;text-align:center;transition:opacity 0.1s;';
+        _reactTipEl.style.cssText = 'position:fixed;z-index:600000;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text,#e5e5e5);font-size:0.72rem;padding:5px 10px;border-radius:8px;pointer-events:none;white-space:normal;max-width:220px;box-shadow:0 4px 16px rgba(0,0,0,0.5);line-height:1.4;text-align:center;';
         document.body.appendChild(_reactTipEl);
     }
     _reactTipEl.textContent = label;
-    _reactTipEl.style.opacity = '0';
     _reactTipEl.style.display = 'block';
+    _reactTipEl.style.opacity = '1';
     var r = btn.getBoundingClientRect();
-    var tipW = 220;
+    var tipW = Math.min(220, window.innerWidth - 16);
     var left = Math.min(r.left + r.width / 2 - tipW / 2, window.innerWidth - tipW - 8);
     left = Math.max(left, 8);
-    var top = r.top - 8;
-    top = top - 36; // above button; adjust after render
-    _reactTipEl.style.left = left + 'px';
-    _reactTipEl.style.top = top + 'px';
     _reactTipEl.style.maxWidth = tipW + 'px';
+    _reactTipEl.style.left = left + 'px';
+    _reactTipEl.style.top = '-9999px'; // off-screen while measuring
     requestAnimationFrame(function() {
         if (!_reactTipEl) return;
         var th = _reactTipEl.offsetHeight;
-        _reactTipEl.style.top = (r.top - th - 6) + 'px';
-        _reactTipEl.style.opacity = '1';
+        _reactTipEl.style.top = Math.max(4, r.top - th - 6) + 'px';
     });
 };
 window._hideReactTip = function() {
     _reactTipTimer = setTimeout(function() {
-        if (_reactTipEl) { _reactTipEl.style.opacity = '0'; setTimeout(function() { if (_reactTipEl) _reactTipEl.style.display = 'none'; }, 100); }
-    }, 80);
+        if (_reactTipEl) _reactTipEl.style.display = 'none';
+    }, 120);
+};
+// Long-press support for mobile (500ms hold on a react button shows tooltip for 2s)
+var _reactLongPressTimer = null;
+window._reactTouchStart = function(btn) {
+    _reactLongPressTimer = setTimeout(function() {
+        window._showReactTipFromBtn(btn);
+        setTimeout(window._hideReactTip, 2000);
+    }, 500);
+};
+window._reactTouchEnd = function() {
+    clearTimeout(_reactLongPressTimer);
 };
 var _chatTab = 'global'; // 'global', 'announcements', or 'dms'
 var _replyTo = null; // {_id, name, text} when replying
@@ -620,8 +635,8 @@ function renderChatMessages(msgs) {
             if (count === 0) continue;
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             var safeEmoji = esc(emoji);
-            var _uidsJson = JSON.stringify(users).replace(/'/g, "\\x27");
-            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" onmouseenter="_showReactTip(this,' + _uidsJson + ')" onmouseleave="_hideReactTip()" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
+            var _uidsJson = JSON.stringify(users);
+            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
         if (myUid) {
             html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
@@ -3206,8 +3221,8 @@ function _buildAnnReactBar(docId, reactions, myUid, esc) {
         var uids = reactions[emoji] || [];
         if (!uids.length) return;
         var reacted = myUid && uids.indexOf(myUid) !== -1;
-        var _aUidsJson = JSON.stringify(uids).replace(/'/g, "\x27");
-        html += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" onmouseenter="_showReactTip(this,'+_aUidsJson+')" onmouseleave="_hideReactTip()" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
+        var _aUidsJson = JSON.stringify(uids);
+        html += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="'+_aUidsJson.replace(/"/g,'&quot;')+'" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
     });
     html += '<button onclick="event.stopPropagation();_showAnnReactPicker(this,\''+esc(docId)+'\')" style="padding:3px 7px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.75rem;cursor:pointer;color:var(--text-faint);">➕</button>';
     html += '</div>';
