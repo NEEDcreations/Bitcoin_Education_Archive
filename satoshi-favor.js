@@ -24,6 +24,10 @@
     let _prevFavorActive = false; // track previous favor state for bubble announcements
 
     // ─── SF CHAT + NEWS ANNOUNCEMENTS ───
+    // Uses a Firestore transaction to claim the announce slot atomically.
+    // Only the first client to write startAnnouncedAt / endAnnouncedAt within
+    // the dedup window actually posts — all others silently abort.
+    var SF_ANNOUNCE_DEDUP_MS = 5 * 60 * 1000; // 5 minutes
     function _nachoSFAnnounce(type) {
         if (typeof db === 'undefined' || !db) return;
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
@@ -34,25 +38,49 @@
         var msg = type === 'start'
             ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to win 21,000 sats! ⚡🦌"
             : "⏱️ **Satoshi's Favor has ended.** The mining window is now closed — great effort everyone! Keep earning points to trigger the next one. Every topic, quiz, and contribution gets us closer. 🦌";
-        var ts = firebase.firestore.FieldValue.serverTimestamp();
-        // Post to Global Chat — isNachoAuto:false so it shows in the main feed
-        db.collection('global_chat').add({
-            uid: nachoUid,
-            name: '🦌 Nacho',
-            text: msg,
-            isNachoAuto: false,
-            ts: ts
+        var field = type === 'start' ? 'startAnnouncedAt' : 'endAnnouncedAt';
+        var dedupRef = db.collection('satoshiFavor').doc('announceDedup');
+        // Race all clients through a transaction on the announceDedup doc — only one wins
+        db.runTransaction(function(txn) {
+            return txn.get(dedupRef).then(function(doc) {
+                var data = doc.exists ? doc.data() : {};
+                var existing = data[field];
+                var existingMs = existing && existing.toMillis ? existing.toMillis() : (typeof existing === 'number' ? existing : 0);
+                if (existingMs && (Date.now() - existingMs) < SF_ANNOUNCE_DEDUP_MS) {
+                    // Already announced recently — another client got here first
+                    throw Object.assign(new Error('sf_already_announced'), { _dedupSkip: true });
+                }
+                var patch = {};
+                patch[field] = firebase.firestore.FieldValue.serverTimestamp();
+                if (doc.exists) {
+                    txn.update(dedupRef, patch);
+                } else {
+                    txn.set(dedupRef, patch);
+                }
+            });
         }).then(function() {
-            if (typeof bridgeToTelegram === 'function') bridgeToTelegram({ user: '🦌 Nacho', text: msg });
-        }).catch(function(e) { console.warn('[SF] GC announce failed:', e); });
-        // Post to News/Announcements — isNachoAuto:true as required by rules
-        db.collection('announcements').add({
-            uid: nachoUid,
-            name: '🦌 Nacho',
-            text: msg,
-            isNachoAuto: true,
-            ts: ts
-        }).catch(function(e) { console.warn('[SF] News announce failed:', e); });
+            var ts = firebase.firestore.FieldValue.serverTimestamp();
+            // Post to Global Chat — isNachoAuto:false so it shows in the main feed
+            db.collection('global_chat').add({
+                uid: nachoUid,
+                name: '🦌 Nacho',
+                text: msg,
+                isNachoAuto: false,
+                ts: ts
+            }).then(function() {
+                if (typeof bridgeToTelegram === 'function') bridgeToTelegram({ user: '🦌 Nacho', text: msg });
+            }).catch(function(e) { console.warn('[SF] GC announce failed:', e); });
+            // Post to News/Announcements — isNachoAuto:true as required by rules
+            db.collection('announcements').add({
+                uid: nachoUid,
+                name: '🦌 Nacho',
+                text: msg,
+                isNachoAuto: true,
+                ts: ts
+            }).catch(function(e) { console.warn('[SF] News announce failed:', e); });
+        }).catch(function(err) {
+            if (!err._dedupSkip) console.warn('[SF] announce txn failed:', err);
+        });
     }
 
     // ─── INIT ───

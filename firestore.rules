@@ -1143,6 +1143,13 @@ service cloud.firestore {
     }
 
     // Faction totals — public read, server writes only
+    // Announce dedup doc — clients race to claim start/end announce slots (prevents spam)
+    match /satoshiFavor/announceDedup {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.keys().hasOnly(['startAnnouncedAt', 'endAnnouncedAt']);
+    }
+
     match /satoshiFavor/factionTotals {
       allow read: if true;
       allow write: if false;
