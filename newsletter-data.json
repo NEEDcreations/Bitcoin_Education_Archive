@@ -1,26 +1,26 @@
 {
-  "updated": "2026-06-24T12:00:50.424Z",
+  "updated": "2026-06-24T16:00:50.350Z",
   "news": [
     {
       "date": "Jun 24, 2026",
-      "title": "21Shares says bitcoin&#8217;s post-halving price action &#8216;still looks familiar,&#8217; but sees recovery toward $100,000 by year-end",
+      "title": "Bitcoin Price Crashes Toward $61,000 as Bloodbath Engulfs Crypto Stocks",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/markets/bitcoin-price-slides-toward-61000",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jun 24, 2026",
+      "title": "Bitcoin ETP outflows push rolling one-year flows negative for first time since 2023: K33",
       "snippet": "The Block",
-      "link": "https://www.theblock.co/post/405960/21shares-says-bitcoins-post-halving-price-action-still-looks-familiar-but-sees-recovery-toward-100000-by-year-end?utm_source=rss&amp;utm_medium=rss",
+      "link": "https://www.theblock.co/post/405989/bitcoin-etp-outflows-push-rolling-one-year-flows-negative-first-time-since-2023-k33?utm_source=rss&amp;utm_medium=rss",
       "source": "the-block"
     },
     {
       "date": "Jun 24, 2026",
-      "title": "The 2020 Bitcoin Explosion Shows What Comes Next",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/eJLeEfMWRSk",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jun 24, 2026",
-      "title": "The $100K Bitcoin Floor May Already Be CONFIRMED",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/2OXqctWtU5A",
-      "source": "lukemikic"
+      "title": "Strive (ASST) CEO Says Company Is Buying Bitcoin ‘Hand Over Fist’ as Treasury Hits 19,864 BTC",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/strive-asst-ceo-says-buying-bitcoin",
+      "source": "bitcoin-magazine"
     }
   ]
 }
