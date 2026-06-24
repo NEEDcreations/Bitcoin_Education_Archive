@@ -64,7 +64,7 @@ function _gcSetTyping(isTyping) {
 }
 
 function _gcOnInputTyping() {
-    var input = document.getElementById('globalChatInput');
+    var input = _gcActiveInput();
     if (!input || !input.value.trim()) { _gcSetTyping(false); return; }
     _gcSetTyping(true);
     // Auto-clear typing flag 5s after last keystroke
@@ -812,7 +812,7 @@ function handleAutocomplete(input) {
 }
 
 function showACResults(trigger, query) {
-    var ac = document.getElementById('chatAutocomplete');
+    var ac = _gcActiveEl('chatAutocomplete');
     if (!ac) return;
     var results = [];
     if (trigger === '#') {
@@ -855,7 +855,7 @@ window.selectAC = function(el) {
     if (!el) return;
     var value = el.getAttribute('data-value');
     var trigger = el.getAttribute('data-trigger');
-    var input = document.getElementById('globalChatInput');
+    var input = _gcActiveInput();
     if (!input) return;
     var val = input.value;
     var cursor = input.selectionStart;
@@ -869,12 +869,12 @@ window.selectAC = function(el) {
     input.focus();
     hideAC();
     // Update char counter
-    var counter = document.getElementById('globalChatCharCount');
+    var counter = _gcActiveEl('globalChatCharCount');
     if (counter) counter.textContent = input.value.length;
 };
 
 function hideAC() {
-    var ac = document.getElementById('chatAutocomplete');
+    var ac = _gcActiveEl('chatAutocomplete');
     if (ac) ac.style.display = 'none';
     _acType = null;
     _acQuery = '';
@@ -920,21 +920,21 @@ window._scrollToChatMsg = function(msgId) {
 // ---- Reply Handling ----
 window.setChatReply = function(msgId, name, preview) {
     _replyTo = {_id: msgId, name: name, text: preview};
-    var banner = document.getElementById('chatReplyBanner');
-    var nameEl = document.getElementById('chatReplyName');
-    var previewEl = document.getElementById('chatReplyPreview');
+    var banner = _gcActiveEl('chatReplyBanner');
+    var nameEl = _gcActiveEl('chatReplyName');
+    var previewEl = _gcActiveEl('chatReplyPreview');
     if (banner && nameEl && previewEl) {
         nameEl.textContent = name;
         previewEl.textContent = preview.length > 50 ? preview.substring(0, 50) + '…' : preview;
         banner.style.display = 'block';
     }
-    var input = document.getElementById('globalChatInput');
+    var input = _gcActiveInput();
     if (input) input.focus();
 };
 
 window.cancelReply = function() {
     _replyTo = null;
-    var banner = document.getElementById('chatReplyBanner');
+    var banner = _gcActiveEl('chatReplyBanner');
     if (banner) banner.style.display = 'none';
 };
 
@@ -961,6 +961,25 @@ function handlePaste(e) {
     }
 }
 
+// Returns the currently visible/active chat input (hub or overlay — avoids duplicate-ID confusion)
+function _gcActiveInput() {
+    var all = document.querySelectorAll('#globalChatInput');
+    for (var i = 0; i < all.length; i++) {
+        var el = all[i];
+        if (el.offsetParent !== null) return el; // visible
+    }
+    return all[0] || null; // fallback
+}
+function _gcActiveEl(id) {
+    // Like getElementById but prefers the visible instance when there are duplicates
+    var all = document.querySelectorAll('#' + id);
+    if (all.length <= 1) return all[0] || null;
+    for (var i = 0; i < all.length; i++) {
+        if (all[i].offsetParent !== null) return all[i];
+    }
+    return all[0] || null;
+}
+
 // ---- Send Message ----
 window.sendGlobalChat = function() {
     // Clear typing indicator immediately on send
@@ -974,21 +993,21 @@ window.sendGlobalChat = function() {
         var imgBlob = window._chatPendingImageBlob;
         var imgType = window._chatPendingImageType;
         var isGif = window._chatPendingIsGif;
-        var captionInput = document.getElementById('globalChatInput');
+        var captionInput = _gcActiveInput();
         var caption = captionInput ? captionInput.value.trim() : '';
         window._chatPendingImage = null;
         window._chatPendingImageBlob = null;
         window._chatPendingImageType = null;
         window._chatPendingIsGif = false;
         if (captionInput) captionInput.value = '';
-        var counter = document.getElementById('globalChatCharCount');
+        var counter = _gcActiveEl('globalChatCharCount');
         if (counter) counter.textContent = '0';
         document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
         if (isGif) { sendGifMessage(imgData, caption); } else { sendImageMessage(imgData, caption, imgBlob, imgType); }
         return;
     }
 
-    var input = document.getElementById('globalChatInput');
+    var input = _gcActiveInput();
     if (!input) return;
     var text = input.value.trim();
     if (!text) return;
@@ -1056,7 +1075,7 @@ window.sendGlobalChat = function() {
 
     _lastSendTime = now;
     input.value = '';
-    var counter = document.getElementById('globalChatCharCount');
+    var counter = _gcActiveEl('globalChatCharCount');
     if (counter) counter.textContent = '0';
 
     // Notify @mentioned users
@@ -1078,7 +1097,7 @@ window.sendGlobalChat = function() {
     if (_replyTo) {
         replyData = {replyTo: _replyTo._id, replyToName: _replyTo.name, replyToText: _replyTo.text};
         _replyTo = null;
-        var banner = document.getElementById('chatReplyBanner');
+        var banner = _gcActiveEl('chatReplyBanner');
         if (banner) banner.style.display = 'none';
     }
 
@@ -1961,7 +1980,7 @@ window.sendGifMessage = function(url, caption) {
         msgData.replyToName = _replyTo.name;
         msgData.replyToText = _replyTo.text;
         _replyTo = null;
-        var banner = document.getElementById('chatReplyBanner');
+        var banner = _gcActiveEl('chatReplyBanner');
         if (banner) banner.style.display = 'none';
     }
 
@@ -2015,7 +2034,7 @@ window.showEmojiPicker = function() {
     picker.innerHTML = tabHtml + '<div id="emojiGrid" style="display:flex;flex-wrap:wrap;gap:2px;overflow-y:auto;max-height:240px;justify-content:center;"></div>';
 
     // Insert before the chat input container
-    var chatWrap = document.getElementById('globalChatInput');
+    var chatWrap = _gcActiveInput();
     if (chatWrap) {
         var container = chatWrap.closest('[style*="flex-shrink"]') || chatWrap.parentElement.parentElement.parentElement;
         container.insertBefore(picker, container.firstChild);
@@ -2048,7 +2067,7 @@ window._switchEmojiTab = function(cat) {
 };
 
 window._insertEmoji = function(emoji) {
-    var input = document.getElementById('globalChatInput');
+    var input = _gcActiveInput();
     if (!input) return;
     var start = input.selectionStart || input.value.length;
     var end = input.selectionEnd || start;
@@ -2057,7 +2076,7 @@ window._insertEmoji = function(emoji) {
     var newPos = start + emoji.length;
     input.setSelectionRange(newPos, newPos);
     // Update char counter
-    var counter = document.getElementById('globalChatCharCount');
+    var counter = _gcActiveEl('globalChatCharCount');
     if (counter) counter.textContent = input.value.length;
 };
 
@@ -2215,7 +2234,7 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
     } : null;
     if (_replyTo) {
         _replyTo = null;
-        var banner = document.getElementById('chatReplyBanner');
+        var banner = _gcActiveEl('chatReplyBanner');
         if (banner) banner.style.display = 'none';
     }
 
