@@ -90,7 +90,7 @@
   <!-- Bubble text line 1 -->
   <text x="890" y="100" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="900" font-size="22" fill="#0A0804">Let me teach you</text>
   <!-- Bubble text line 2 -->
-  <text x="890" y="130" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="900" font-size="22" fill="#0A0804">about Bitcoin! ₿🦌</text>
+  <text x="890" y="130" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="900" font-size="22" fill="#0A0804">about Bitcoin!</text>
 
   <!-- NACHO — large, centered on right -->
   <g transform="translate(660,195) scale(2.25)" filter="url(#softshadow)">
