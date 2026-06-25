@@ -1,33 +1,27 @@
 <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Background gradient -->
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0A0804"/>
       <stop offset="100%" stop-color="#150F05"/>
     </linearGradient>
-    <!-- Orange radial glow -->
-    <radialGradient id="glow1" cx="25%" cy="50%" r="55%">
-      <stop offset="0%" stop-color="#F7931A" stop-opacity="0.18"/>
+    <radialGradient id="glow1" cx="22%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F7931A" stop-opacity="0.16"/>
       <stop offset="100%" stop-color="#F7931A" stop-opacity="0"/>
     </radialGradient>
-    <!-- Nacho glow -->
-    <radialGradient id="nachoglow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#F7931A" stop-opacity="0.22"/>
+    <radialGradient id="nachoglow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#F7931A" stop-opacity="0.28"/>
       <stop offset="100%" stop-color="#F7931A" stop-opacity="0"/>
     </radialGradient>
-    <filter id="softshadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#F7931A" flood-opacity="0.25"/>
+    <filter id="softshadow">
+      <feDropShadow dx="0" dy="6" stdDeviation="18" flood-color="#F7931A" flood-opacity="0.3"/>
     </filter>
-    <clipPath id="nachoClip">
-      <circle cx="920" cy="340" r="230"/>
-    </clipPath>
   </defs>
 
   <!-- BG -->
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect width="1200" height="630" fill="url(#glow1)"/>
 
-  <!-- Subtle grid lines -->
+  <!-- Grid -->
   <g stroke="#F7931A" stroke-opacity="0.04" stroke-width="1">
     <line x1="0" y1="90" x2="1200" y2="90"/>
     <line x1="0" y1="180" x2="1200" y2="180"/>
@@ -42,51 +36,64 @@
     <line x1="1000" y1="0" x2="1000" y2="630"/>
   </g>
 
-  <!-- Top accent bar -->
-  <rect x="0" y="0" width="1200" height="4" fill="#F7931A"/>
+  <!-- Vertical divider between left text and right Nacho -->
+  <line x1="570" y1="40" x2="570" y2="590" stroke="#F7931A" stroke-opacity="0.12" stroke-width="1"/>
 
-  <!-- Left content area -->
+  <!-- Top + bottom accent bars -->
+  <rect x="0" y="0" width="1200" height="4" fill="#F7931A"/>
+  <rect x="0" y="626" width="1200" height="4" fill="#F7931A"/>
+
+  <!-- ── LEFT: TEXT CONTENT ── -->
 
   <!-- Eyebrow pill -->
-  <rect x="56" y="62" width="248" height="34" rx="17" fill="#F7931A" fill-opacity="0.12" stroke="#F7931A" stroke-opacity="0.35" stroke-width="1"/>
-  <circle cx="79" cy="79" r="5" fill="#F7931A"/>
-  <text x="93" y="84" font-family="'Arial', sans-serif" font-weight="700" font-size="13" letter-spacing="2" fill="#F7931A">FREE · NO EXPERIENCE NEEDED</text>
+  <rect x="52" y="58" width="248" height="34" rx="17" fill="#F7931A" fill-opacity="0.12" stroke="#F7931A" stroke-opacity="0.35" stroke-width="1"/>
+  <circle cx="74" cy="75" r="5" fill="#F7931A"/>
+  <text x="88" y="80" font-family="Arial" font-weight="700" font-size="12" letter-spacing="2" fill="#F7931A">FREE · NO EXPERIENCE NEEDED</text>
 
-  <!-- Main headline -->
-  <text x="56" y="175" font-family="'Arial Black', 'Arial', sans-serif" font-weight="900" font-size="82" fill="#FFF5E1" letter-spacing="-1">GET PAID</text>
-  <text x="56" y="264" font-family="'Arial Black', 'Arial', sans-serif" font-weight="900" font-size="82" fill="#F7931A" letter-spacing="-1">TO LEARN</text>
-  <text x="56" y="353" font-family="'Arial Black', 'Arial', sans-serif" font-weight="900" font-size="82" fill="#FFF5E1" letter-spacing="-1">BITCOIN</text>
+  <!-- Headline -->
+  <text x="52" y="178" font-family="'Arial Black', Arial" font-weight="900" font-size="86" fill="#FFF5E1" letter-spacing="-1">GET PAID</text>
+  <text x="52" y="270" font-family="'Arial Black', Arial" font-weight="900" font-size="86" fill="#F7931A" letter-spacing="-1">TO LEARN</text>
+  <text x="52" y="362" font-family="'Arial Black', Arial" font-weight="900" font-size="86" fill="#FFF5E1" letter-spacing="-1">BITCOIN</text>
 
   <!-- Sub copy -->
-  <text x="58" y="398" font-family="'Arial', sans-serif" font-weight="400" font-size="20" fill="#FFF5E1" fill-opacity="0.5">Watch videos, take quizzes, battle friends.</text>
-  <text x="58" y="424" font-family="'Arial', sans-serif" font-weight="600" font-size="20" fill="#FFF5E1" fill-opacity="0.75">Earn 500 sats per user, every single day.</text>
+  <text x="54" y="406" font-family="Arial" font-size="19" fill="#FFF5E1" fill-opacity="0.5">Watch · Quiz · Battle · Mine for sats</text>
+  <text x="54" y="432" font-family="Arial" font-weight="700" font-size="19" fill="#FFF5E1" fill-opacity="0.8">Earn 500 sats per user, every single day.</text>
 
-  <!-- Stat pills row -->
-  <!-- Pill 1 -->
-  <rect x="56" y="454" width="148" height="72" rx="12" fill="#F7931A" fill-opacity="0.1" stroke="#F7931A" stroke-opacity="0.25" stroke-width="1"/>
-  <text x="130" y="490" text-anchor="middle" font-family="'Arial Black', 'Arial', sans-serif" font-weight="900" font-size="30" fill="#F7931A">500</text>
-  <text x="130" y="511" text-anchor="middle" font-family="'Arial', sans-serif" font-size="11" font-weight="600" letter-spacing="1" fill="#FFF5E1" fill-opacity="0.4">SATS/USER/DAY</text>
+  <!-- Stat pills -->
+  <rect x="52" y="458" width="140" height="68" rx="12" fill="#F7931A" fill-opacity="0.1" stroke="#F7931A" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="122" y="493" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="900" font-size="28" fill="#F7931A">500</text>
+  <text x="122" y="513" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" letter-spacing="1.5" fill="#FFF5E1" fill-opacity="0.4">SATS/DAY</text>
 
-  <!-- Pill 2 -->
-  <rect x="212" y="454" width="148" height="72" rx="12" fill="#F7931A" fill-opacity="0.1" stroke="#F7931A" stroke-opacity="0.25" stroke-width="1"/>
-  <text x="286" y="490" text-anchor="middle" font-family="'Arial Black', 'Arial', sans-serif" font-weight="900" font-size="30" fill="#F7931A">21K</text>
-  <text x="286" y="511" text-anchor="middle" font-family="'Arial', sans-serif" font-size="11" font-weight="600" letter-spacing="1" fill="#FFF5E1" fill-opacity="0.4">SAT JACKPOT</text>
+  <rect x="200" y="458" width="140" height="68" rx="12" fill="#F7931A" fill-opacity="0.1" stroke="#F7931A" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="270" y="493" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="900" font-size="28" fill="#F7931A">21K</text>
+  <text x="270" y="513" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" letter-spacing="1.5" fill="#FFF5E1" fill-opacity="0.4">JACKPOT</text>
 
-  <!-- Pill 3 -->
-  <rect x="368" y="454" width="148" height="72" rx="12" fill="#F7931A" fill-opacity="0.1" stroke="#F7931A" stroke-opacity="0.25" stroke-width="1"/>
-  <text x="442" y="490" text-anchor="middle" font-family="'Arial Black', 'Arial', sans-serif" font-weight="900" font-size="30" fill="#F7931A">$0</text>
-  <text x="442" y="511" text-anchor="middle" font-family="'Arial', sans-serif" font-size="11" font-weight="600" letter-spacing="1" fill="#FFF5E1" fill-opacity="0.4">COST TO JOIN</text>
+  <rect x="348" y="458" width="140" height="68" rx="12" fill="#F7931A" fill-opacity="0.1" stroke="#F7931A" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="418" y="493" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="900" font-size="28" fill="#F7931A">$0</text>
+  <text x="418" y="513" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" letter-spacing="1.5" fill="#FFF5E1" fill-opacity="0.4">TO JOIN</text>
 
-  <!-- URL + lightning -->
-  <text x="58" y="572" font-family="'Arial', sans-serif" font-weight="700" font-size="17" letter-spacing="1" fill="#F7931A">⚡ bitcoineducation.quest</text>
-  <text x="58" y="596" font-family="'Arial', sans-serif" font-size="14" fill="#FFF5E1" fill-opacity="0.3">Withdraw real Bitcoin over Lightning. Free forever.</text>
+  <!-- URL -->
+  <text x="54" y="568" font-family="Arial" font-weight="700" font-size="16" letter-spacing="1" fill="#F7931A">⚡ bitcoineducation.quest</text>
+  <text x="54" y="592" font-family="Arial" font-size="13" fill="#FFF5E1" fill-opacity="0.3">Withdraw real Bitcoin over Lightning. Free forever.</text>
 
-  <!-- NACHO — right side glow circle -->
-  <circle cx="920" cy="345" r="235" fill="url(#nachoglow)"/>
-  <circle cx="920" cy="345" r="200" fill="#F7931A" fill-opacity="0.05" stroke="#F7931A" stroke-opacity="0.12" stroke-width="1"/>
+  <!-- ── RIGHT: NACHO ── -->
 
-  <!-- NACHO SVG (scaled up, centered at 920,345) -->
-  <g transform="translate(660,90) scale(1.35)" filter="url(#softshadow)">
+  <!-- Nacho glow circle -->
+  <circle cx="885" cy="330" r="270" fill="url(#nachoglow)"/>
+
+  <!-- SPEECH BUBBLE -->
+  <!-- Bubble body -->
+  <rect x="640" y="52" width="500" height="108" rx="20" fill="#FFF5E1"/>
+  <!-- Bubble tail pointing down-left toward Nacho's mouth area -->
+  <polygon points="750,158 720,200 790,158" fill="#FFF5E1"/>
+
+  <!-- Bubble text line 1 -->
+  <text x="890" y="100" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="900" font-size="22" fill="#0A0804">Let me teach you</text>
+  <!-- Bubble text line 2 -->
+  <text x="890" y="130" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="900" font-size="22" fill="#0A0804">about Bitcoin! ₿🦌</text>
+
+  <!-- NACHO — large, centered on right -->
+  <g transform="translate(660,195) scale(2.25)" filter="url(#softshadow)">
     <!-- Antlers -->
     <g fill="none" stroke="#8B4513" stroke-width="5" stroke-linecap="round">
       <path d="M70 65 L55 30 L45 40"/>
@@ -103,7 +110,7 @@
     <ellipse cx="138" cy="72" rx="12" ry="7" fill="#F0B88A" transform="rotate(30,138,72)"/>
     <!-- Head -->
     <ellipse cx="100" cy="110" rx="50" ry="48" fill="#D2854D"/>
-    <!-- Face lighter area -->
+    <!-- Face -->
     <ellipse cx="100" cy="118" rx="35" ry="34" fill="#E8C9A0"/>
     <!-- Eyes -->
     <ellipse cx="82" cy="102" rx="12" ry="13" fill="white"/>
@@ -118,42 +125,15 @@
     <ellipse cx="97" cy="122" rx="3" ry="2" fill="#555" opacity="0.6"/>
     <!-- Smile -->
     <path d="M90 133 Q100 142 110 133" fill="none" stroke="#5D3A1A" stroke-width="2.5" stroke-linecap="round"/>
-    <!-- Cheek blush -->
+    <!-- Blush -->
     <circle cx="72" cy="118" r="8" fill="#F7931A" opacity="0.3"/>
     <circle cx="128" cy="118" r="8" fill="#F7931A" opacity="0.3"/>
     <!-- Body -->
     <ellipse cx="100" cy="170" rx="38" ry="28" fill="#D2854D"/>
-    <!-- Orange scarf -->
+    <!-- Scarf -->
     <path d="M65 148 Q100 158 135 148 Q132 165 120 168 Q100 172 80 168 Q68 165 65 148Z" fill="#F7931A"/>
     <path d="M100 168 L96 185 L104 185 Z" fill="#F7931A"/>
-    <!-- Bitcoin B on scarf -->
-    <text x="100" y="163" text-anchor="middle" font-size="18" font-weight="bold" fill="white" font-family="Arial, sans-serif">₿</text>
+    <!-- ₿ on scarf -->
+    <text x="100" y="163" text-anchor="middle" font-size="18" font-weight="bold" fill="white" font-family="Arial">₿</text>
   </g>
-
-  <!-- Floating badges around Nacho -->
-  <!-- Quiz badge -->
-  <rect x="1055" y="140" width="110" height="44" rx="22" fill="#0A0804" stroke="#F7931A" stroke-opacity="0.4" stroke-width="1"/>
-  <text x="1110" y="160" text-anchor="middle" font-family="'Arial', sans-serif" font-size="15">🧠</text>
-  <text x="1110" y="178" text-anchor="middle" font-family="'Arial', sans-serif" font-size="11" font-weight="700" letter-spacing="1" fill="#FFF5E1" fill-opacity="0.6">QUIZ</text>
-
-  <!-- Battle badge -->
-  <rect x="670" y="130" width="120" height="44" rx="22" fill="#0A0804" stroke="#F7931A" stroke-opacity="0.4" stroke-width="1"/>
-  <text x="730" y="150" text-anchor="middle" font-family="'Arial', sans-serif" font-size="15">⚔️</text>
-  <text x="730" y="168" text-anchor="middle" font-family="'Arial', sans-serif" font-size="11" font-weight="700" letter-spacing="1" fill="#FFF5E1" fill-opacity="0.6">BATTLE PVP</text>
-
-  <!-- Watch badge -->
-  <rect x="664" y="450" width="118" height="44" rx="22" fill="#0A0804" stroke="#F7931A" stroke-opacity="0.4" stroke-width="1"/>
-  <text x="723" y="470" text-anchor="middle" font-family="'Arial', sans-serif" font-size="15">📺</text>
-  <text x="723" y="488" text-anchor="middle" font-family="'Arial', sans-serif" font-size="11" font-weight="700" letter-spacing="1" fill="#FFF5E1" fill-opacity="0.6">WATCH</text>
-
-  <!-- Mine badge -->
-  <rect x="1050" y="460" width="118" height="44" rx="22" fill="#0A0804" stroke="#F7931A" stroke-opacity="0.4" stroke-width="1"/>
-  <text x="1109" y="480" text-anchor="middle" font-family="'Arial', sans-serif" font-size="15">⛏️</text>
-  <text x="1109" y="498" text-anchor="middle" font-family="'Arial', sans-serif" font-size="11" font-weight="700" letter-spacing="1" fill="#FFF5E1" fill-opacity="0.6">MINE</text>
-
-  <!-- Lightning bolt accent near Nacho -->
-  <text x="1080" y="330" font-family="'Arial', sans-serif" font-size="44" fill="#F7931A" fill-opacity="0.7">⚡</text>
-
-  <!-- Bottom accent bar -->
-  <rect x="0" y="626" width="1200" height="4" fill="#F7931A"/>
 </svg>
