@@ -29,7 +29,7 @@
       "text": "<b>COINJOIN</b>\nCoinjoining is a process that mixes your coins so that their path to your wallet is jumbled and impossible to follow. This comes with risk, because after you CoinJoin, it is known by a third party that those coins were coinjoined. Some exchanges choose not to accept coinjoined coins on their platform, so you could be left with fewer options when you choose to sell your coins. You should weigh these risks when considering coinjoining."
     },
     {
-      "text": "https://relai.ch/ is a KYC free way to buy Bitcoin",
+      "text": "https://relai.ch/ — Relai is a Swiss Bitcoin-only app. Note: Relai now requires KYC verification. Check their current requirements before using.",
       "link": "https://relai.ch/",
       "imgs": [
         "images/experienced/privacy-nonkyc_310_privacy-nonkyc_Relai_Key-WB.png"

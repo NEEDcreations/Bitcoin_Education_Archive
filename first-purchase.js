@@ -69,7 +69,7 @@ var APPS_BY_REGION = {
 
     ],
     eu: [
-        { name: 'Relai', icon: '🇨🇭', url: 'https://relai.app', desc: 'Swiss Bitcoin-only app. No KYC under limits. Auto-DCA. Best for Europe.', rec: true },
+        { name: 'Relai', icon: '🇨🇭', url: 'https://relai.app', desc: 'Swiss Bitcoin-only app. KYC required. Auto-DCA. Best for Europe.', rec: true },
         { name: 'Pocket Bitcoin', icon: '🟠', url: 'https://pocketbitcoin.com', desc: 'Buy Bitcoin directly to your own wallet. Swiss, no account needed.' },
         { name: 'Bitcoin Well', icon: '🟧', url: 'https://bitcoinwell.com', desc: 'Non-custodial Bitcoin exchange. Lightning enabled. No holding your coins.', referral: 'https://app.bitcoinwell.com/ref/needcreations', referralBonus: 'Referral bonus' },
         { name: 'Bitvavo', icon: '🇳🇱', url: 'https://bitvavo.com', desc: 'Popular in Europe. Low fees. Easy bank transfers.' },
