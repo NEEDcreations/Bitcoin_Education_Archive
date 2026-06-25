@@ -2881,7 +2881,6 @@ window.showQuestHub = function() {
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabCitadel" onclick="window._questHubTab=\'citadel\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏰 Citadel</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
-        '<button id="qhTabDaily" onclick="window._questHubTab=\'daily\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎯 Daily</button>' +
         '<button id="qhTabCommunity" onclick="window._questHubTab=\'community\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Community</button>' +
         '<button id="qhTabNook" onclick="window._questHubTab=\'nook\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🦌 Nook</button>' +
                 '</div>';
@@ -2918,7 +2917,7 @@ window.showQuestHub = function() {
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
     // Update active tab styles
-    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity', 'Daily', 'Community', 'Nook'].forEach(function(t) {
+    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity', 'Community', 'Nook'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
         if (!btn) return;
         var isActive = tab === t.toLowerCase();
@@ -2926,12 +2925,11 @@ function _renderQuestHubTab() {
         var charityActive = t === 'Charity' && isActive;
         var flexActive = t === 'Flex' && isActive;
         var citadelActive = t === 'Citadel' && isActive;
-        var dailyActive = t === 'Daily' && isActive;
         var communityActive = t === 'Community' && isActive;
         var nookActive = t === 'Nook' && isActive;
-        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : dailyActive ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : communityActive ? 'linear-gradient(135deg,#06b6d4,#0284c7)' : nookActive ? 'linear-gradient(135deg,#f7931a,#eab308)' : (isActive ? 'var(--accent)' : 'none');
+        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : communityActive ? 'linear-gradient(135deg,#06b6d4,#0284c7)' : nookActive ? 'linear-gradient(135deg,#f7931a,#eab308)' : (isActive ? 'var(--accent)' : 'none');
         btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
-        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : dailyActive ? '#3b82f6' : communityActive ? '#06b6d4' : nookActive ? '#f7931a' : (isActive ? 'var(--accent)' : 'var(--border)');
+        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : communityActive ? '#06b6d4' : nookActive ? '#f7931a' : (isActive ? 'var(--accent)' : 'var(--border)');
     });
 
     var body = document.getElementById('questHubBody');
@@ -2939,12 +2937,6 @@ function _renderQuestHubTab() {
 
     // Cleanup raid listeners when switching away
     if (tab !== 'raid') window._cleanupRaidBoss();
-
-    // Stop daily challenge poller when switching away from daily tab
-    if (tab !== 'daily' && window._dailyChallengePoller) {
-        clearInterval(window._dailyChallengePoller);
-        window._dailyChallengePoller = null;
-    }
 
     if (tab === 'quiz') _renderQuizTab(body);
     else if (tab === 'trivia') _renderTriviaTab(body);
@@ -2954,7 +2946,6 @@ function _renderQuestHubTab() {
     else if (tab === 'charity') _renderCharityTab(body);
     else if (tab === 'flex') _renderFlexTab(body);
     else if (tab === 'citadel') _renderCitadelTab(body);
-    else if (tab === 'daily') _renderDailyTab(body);
     else if (tab === 'community') _renderCommunityTab(body);
     else if (tab === 'nook') _renderNookTab(body);
 }
@@ -3049,6 +3040,11 @@ function _nookBuyItem(itemId, qty, btnEl) {
             }
             if (typeof updateRankUI === 'function') updateRankUI();
             if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' 🎟️');
+            // Cosmetic post-purchase effects
+            var _cosmeticIds = ['profile_frame','chat_flair','pinned_badge','nacho_skin_nook'];
+            if (_cosmeticIds.indexOf(itemId) !== -1 && typeof window._cosmeticPostPurchase === 'function') {
+                window._cosmeticPostPurchase(itemId);
+            }
             // Re-render nook to reflect new balance/inventory
             setTimeout(function() { _renderNookSubTabs(); }, 300);
         }
@@ -3140,7 +3136,7 @@ function _renderNookShop() {
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak',5,buyBtn('streak_freeze',5,1,'Buy'));
     html += itemRow('🧊','3× Streak Freezes','Bundle — save 3 tickets',12,buyBtn('streak_freeze_3',12,1,'Bundle'));
-    html += itemRow('⚡','Hash Booster','Grant +10 bonus hashes in Satoshi\'s Favor',10,buyBtn('hash_booster',10,1,'Buy'));
+    html += itemRow('⚡','Hash Booster','+10 bonus hashes in your next SF window. Activate from Inventory when a window opens.',10,buyBtn('hash_booster',10,1,'Buy'));
     html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',3,buyBtn('hint_token',3,1,'Buy'));
     html += itemRow('🧠','5× Hint Tokens','Bundle deal',12,buyBtn('hint_token_5',12,1,'Bundle'));
     html += itemRow('🎯','Double XP (60 min)','2× XP multiplier for 1 hour',15,buyBtn('double_xp',15,1,'Buy'));
@@ -3169,9 +3165,29 @@ function _renderNookShop() {
     cosmetics.forEach(function(c) {
         var owned = ownedCosmetics.indexOf(c.id) !== -1;
         var btnHtml = owned
-            ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>'
+            ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned \u2713</div>'
             : buyBtn(c.id, c.cost, 1, 'Buy');
-        html += itemRow(c.icon, c.name, c.desc, c.cost, btnHtml);
+        // Add preview/action elements for certain cosmetics
+        var extraHtml = '';
+        if (c.id === 'nacho_skin_nook') {
+            extraHtml = '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 8px;background:rgba(247,147,26,0.08);border-radius:8px;">' +
+                '<img src="nacho-deer.svg" style="width:36px;height:36px;border-radius:50%;border:2px solid #f7931a;filter:drop-shadow(0 0 6px rgba(247,147,26,0.6));" onerror="this.style.display=\'none\'">' +
+                '<span style="font-size:0.72rem;color:var(--text-muted);">Your avatar gets a golden Nacho glow in chat and on your profile!</span>' +
+            '</div>';
+        }
+        if (c.id === 'chat_flair' && owned) {
+            var currentFlair = (typeof currentUser !== 'undefined' && currentUser && currentUser.chatFlairEmoji) ? currentUser.chatFlairEmoji : '\uD83D\uDD25';
+            extraHtml = '<button onclick="window._showChatFlairPicker()" style="margin-top:5px;padding:4px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Change Flair ' + currentFlair + '</button>';
+        }
+        if (c.id === 'pinned_badge' && owned) {
+            extraHtml = '<button onclick="window._showPinnedBadgeSelector()" style="margin-top:5px;padding:4px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Choose Badge \uD83D\uDCCC</button>';
+        }
+        // Build itemRow and inject extra HTML before closing tag
+        var rowHtml = itemRow(c.icon, c.name, c.desc, c.cost, btnHtml);
+        if (extraHtml) {
+            rowHtml = rowHtml.slice(0, rowHtml.lastIndexOf('</div>')) + extraHtml + '</div>';
+        }
+        html += rowHtml;
     });
     html += '</div>';
 
@@ -3250,7 +3266,7 @@ function _renderNookInventory() {
     // Hash Boosters
     html += invRow('⚡', 'Hash Boosters', hashBoosters,
         '<button onclick="_nookActivateHashBooster(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Activate</button>',
-        '+10 bonus hashes in Satoshi\'s Favor next round');
+        'Tap Activate during an open SF window. Each booster = +10 bonus hashes that round.');
 
     // Hint Tokens
     html += invRow('🧠', 'Hint Tokens', hintTokens,
@@ -3289,10 +3305,16 @@ function _renderNookInventory() {
         html += '<div style="display:flex;flex-direction:column;gap:6px;">';
         ownedCosmetics.forEach(function(cid) {
             var meta = cosmeticLabels[cid] || { icon:'✨', name: cid };
+            var actionBtn = '';
+            if (cid === 'chat_flair') {
+                actionBtn = '<button onclick="window._showChatFlairPicker()" style="margin-left:6px;padding:4px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.7rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Change Flair</button>';
+            } else if (cid === 'pinned_badge') {
+                actionBtn = '<button onclick="window._showPinnedBadgeSelector()" style="margin-left:6px;padding:4px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.7rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Choose Badge</button>';
+            }
             html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.06),rgba(234,179,8,0.03));border:1px solid rgba(247,147,26,0.2);border-radius:12px;">' +
                 '<div style="font-size:1.4rem;">' + meta.icon + '</div>' +
                 '<div style="flex:1;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">' + meta.name + '</div></div>' +
-                '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.72rem;color:#22c55e;font-weight:700;">Owned ✓</div>' +
+                '<div style="display:flex;align-items:center;"><div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.72rem;color:#22c55e;font-weight:700;">Owned ✓</div>' + actionBtn + '</div>' +
             '</div>';
         });
         html += '</div>';
@@ -3350,6 +3372,7 @@ window._nookActivateDoubleXP = function(btnEl) {
             }
             var msg = d.extended ? '🎯 Double XP extended! Active for another hour.' : '🎯 Double XP activated! 2× XP for the next 60 minutes!';
             if (typeof showToast === 'function') showToast(msg);
+            if (typeof window._startDoubleXPWidget === 'function') window._startDoubleXPWidget();
             _renderNookSubTabs();
         }
     }).catch(function(err) {
@@ -5087,6 +5110,25 @@ var FLEX_ACTIONS = [
     { id:'nacho_chat',    emoji:'🦌', name:'Chat with Nacho',          desc:'Ask Nacho something Bitcoin.',                   pts:15, type:'triplclick' },
     { id:'view_leaderboard', emoji:'🏆', name:'Check the Leaderboard', desc:'See where you rank today.',                      pts:15, type:'triplclick' },
     { id:'share_app',     emoji:'📤', name:'Share the Archive',        desc:'Tell someone about Bitcoin Education Archive.',  pts:15, type:'triplclick' },
+// ── App-feature daily actions ──
+    { id:'tctv_watch',     emoji:'📺', name:'Tune In to TCTV',         desc:'Open Timechain TV and let it play.',             pts:10, type:'triplclick' },
+    { id:'check_price',    emoji:'💰', name:'Check Bitcoin Price',      desc:'See what Satoshi\'s creation is worth today.',   pts:5,  type:'hold',     holdMs:1500 },
+    { id:'read_whitepaper',emoji:'📄', name:'Study the Whitepaper',     desc:'Open the whitepaper channel and absorb it.',     pts:10, type:'hold',     holdMs:2000 },
+    { id:'explore_channel',emoji:'🦭', name:'Explore a New Channel',    desc:'Click into a topic you\'ve never visited.',      pts:10, type:'triplclick' },
+    { id:'open_beats',     emoji:'🎵', name:'Listen to Bitcoin Beats',  desc:'Tune into the community music page.',            pts:5,  type:'hold',     holdMs:1500 },
+    { id:'join_pvp',       emoji:'⚔️', name:'Enter the Arena',          desc:'Start a PVP trivia battle.',                     pts:10, type:'triplclick' },
+    { id:'forum_read',     emoji:'👁️', name:'Read the Forum',           desc:'Catch up on what the plebs are saying.',         pts:5,  type:'hold',     holdMs:1500 },
+    { id:'nacho_question', emoji:'🦌', name:'Ask Nacho a Question',     desc:'Get a Bitcoin lesson from the deer himself.',    pts:10, type:'typeword',  words:['NACHO','DEER','BITCOIN','LEARN','ORANGE','SATS'] },
+    { id:'bookmark_video', emoji:'🔖', name:'Bookmark Something',       desc:'Save a resource for later.',                     pts:5,  type:'triplclick' },
+    { id:'spin_wheel',     emoji:'🎡', name:'Spin the Daily Wheel',     desc:'Spin for tickets, points, or a streak freeze.',  pts:5,  type:'triplclick' },
+    { id:'check_streak',   emoji:'🔥', name:'Check Your Streak',        desc:'Visit your streak counter and keep it alive.',   pts:5,  type:'hold',     holdMs:1000 },
+    { id:'trail_step',     emoji:'🥾', name:'Take a Trail Step',        desc:'Progress through a Nacho\'s Trail.',             pts:10, type:'triplclick' },
+    { id:'market_browse',  emoji:'🛒', name:'Browse the Marketplace',   desc:'See what other plebs are building and selling.',  pts:5,  type:'hold',     holdMs:1500 },
+    { id:'nook_visit',     emoji:'🦌', name:'Visit Nacho\'s Nook',      desc:'Check your shop, inventory, or buy something.',  pts:5,  type:'triplclick' },
+    { id:'global_lurk',    emoji:'💬', name:'Lurk in Global Chat',      desc:'Open the chat and see what\'s happening.',       pts:5,  type:'hold',     holdMs:1500 },
+    { id:'quiz_warmup',    emoji:'🧠', name:'Answer a Quiz Question',   desc:'Flex your Bitcoin knowledge.',                   pts:10, type:'triplclick' },
+    { id:'predict_price',  emoji:'🔮', name:'Make a Prediction',        desc:'Bull or bear? State your case.',                 pts:10, type:'triplclick' },
+    { id:'sf_check',       emoji:'⛏️', name:'Check Mining Status',      desc:'See if Satoshi\'s Favor window is open.',       pts:5,  type:'hold',     holdMs:1000 },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 50, 500];
@@ -5133,6 +5175,13 @@ function _flexMarkDone(actionId, onDone) {
     _flexCheckBadges(actionId, s[actionId].total);
     // Check all-daily-flex-complete badge
     _flexCheckAllDoneBadge(s);
+    // Toast notification
+    if (action && typeof showToast === 'function') showToast('\u2705 +' + action.pts + ' pts \u2014 ' + action.emoji + ' ' + action.name + '!');
+    // Increment lifetime daily challenges total (used by daily_* badges)
+    var _t = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') + 1;
+    localStorage.setItem('btc_daily_challenges_total', _t.toString());
+    // Check daily_* milestone badges
+    if (typeof checkBadges === 'function') checkBadges();
     if (onDone) onDone(s[actionId].total);
 }
 
@@ -7237,396 +7286,6 @@ function _flexWireInteractions() {
 
 
 // ══════════════════════════════════════════════════════════════════════
-// 🎯 DAILY CHALLENGES TAB
-// Shows 3 challenges randomly selected by date-seed for everyone to share
-// ══════════════════════════════════════════════════════════════════════
-
-function _dailyTodayKey() {
-    return new Date().toISOString().slice(0, 10);
-}
-
-// Auto-detection check functions for daily challenges.
-// Each returns true when the user has genuinely performed that action today.
-var DAILY_CHALLENGE_CHECKS = {
-    'chat_msg':         function() { return parseInt(localStorage.getItem('btc_chat_msgs_daily_' + _dailyTodayKey()) || '0') > 0; },
-    'watch_tctv':       function() { return localStorage.getItem('btc_tctv_visited_' + _dailyTodayKey()) === '1'; },
-    'spin_today':       function() { return localStorage.getItem('btc_last_spin_date') === _dailyTodayKey(); },
-    'make_pred':        function() { return localStorage.getItem('btc_pred_made_' + _dailyTodayKey()) === '1'; },
-    'visit_beats':      function() { return localStorage.getItem('btc_beats_visited_' + _dailyTodayKey()) === '1'; },
-    'forum_visit':      function() {
-        return parseInt(localStorage.getItem('btc_forum_post_count_' + _dailyTodayKey()) || '0') > 0 ||
-               parseInt(localStorage.getItem('btc_forum_reply_count_' + _dailyTodayKey()) || '0') > 0;
-    },
-    'pvp_battle':       function() { return localStorage.getItem('btc_pvp_visited_' + _dailyTodayKey()) === '1'; },
-    'sf_mine':          function() { return parseInt(localStorage.getItem('btc_sf_hashes_daily_' + _dailyTodayKey()) || '0') > 0; },
-    'browse_market':    function() { return localStorage.getItem('btc_market_visited_' + _dailyTodayKey()) === '1'; },
-    'nacho_chat':       function() { return localStorage.getItem('btc_nacho_visited_' + _dailyTodayKey()) === '1'; },
-    'view_leaderboard': function() { return localStorage.getItem('btc_lb_visited_' + _dailyTodayKey()) === '1'; },
-    'share_app':        function() { return localStorage.getItem('btc_shared_' + _dailyTodayKey()) === '1'; },
-};
-
-function _dailySeed(salt) {
-    var d = _dailyTodayKey() + (salt || '');
-    var h = 0;
-    for (var i = 0; i < d.length; i++) { h = (Math.imul(31, h) + d.charCodeAt(i)) | 0; }
-    return Math.abs(h);
-}
-
-// Pick 3 daily challenges from FLEX_ACTIONS seeded by date.
-// Only selects challenges that have a verifiable auto-detect check function.
-function _getDailyChallenges() {
-    // Only include verifiable challenges
-    var arr = FLEX_ACTIONS.filter(function(a) { return !!DAILY_CHALLENGE_CHECKS[a.id]; });
-    // Seeded shuffle
-    var seed = _dailySeed('daily3');
-    for (var i = arr.length - 1; i > 0; i--) {
-        seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
-        var j = Math.abs(seed) % (i + 1);
-        var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
-    }
-    return arr.slice(0, 3);
-}
-
-function _dailyChallengeCompleted(actionId) {
-    var key = 'btc_daily_ch_' + _dailyTodayKey();
-    try {
-        var done = JSON.parse(localStorage.getItem(key) || '[]');
-        return done.indexOf(actionId) !== -1;
-    } catch(e) { return false; }
-}
-
-function _markDailyChallengeDone(actionId) {
-    var key = 'btc_daily_ch_' + _dailyTodayKey();
-    try {
-        var done = JSON.parse(localStorage.getItem(key) || '[]');
-        if (done.indexOf(actionId) === -1) {
-            done.push(actionId);
-            localStorage.setItem(key, JSON.stringify(done));
-        }
-        return done.length;
-    } catch(e) { return 0; }
-}
-
-function _getDailyCompletedCount() {
-    var key = 'btc_daily_ch_' + _dailyTodayKey();
-    try {
-        return JSON.parse(localStorage.getItem(key) || '[]').length;
-    } catch(e) { return 0; }
-}
-
-function _dailyBonusAwarded() {
-    return localStorage.getItem('btc_daily3_bonus_' + _dailyTodayKey()) === '1';
-}
-
-// ---- Quest Hub Live Stats Card (Feature 3B) ----
-var _liveStatsCacheTime = 0;
-var _liveStatsCache = null;
-var LIVE_STATS_CACHE_TTL = 60000; // 60 sec
-
-function _renderLiveStatsCard(body, forceRefresh) {
-    var now = Date.now();
-    var useCache = !forceRefresh && _liveStatsCache && (now - _liveStatsCacheTime < LIVE_STATS_CACHE_TTL);
-
-    function _buildHtml(data) {
-        var fmtNum = function(n) { return n != null ? n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '—'; };
-        var active = data.active;
-        var sfInfo = data.sfInfo;
-        var quizzes = data.quizzes;
-        var reads = data.reads;
-        var newUsers = data.newUsers;
-
-        var html = '<div id="qhLiveCard" style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.25);border-radius:14px;padding:14px 16px;margin-bottom:14px;">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
-                '<div style="display:flex;align-items:center;gap:6px;">' +
-                    '<span style="width:8px;height:8px;background:#22c55e;border-radius:50%;display:inline-block;animation:qhLivePulse 1.5s ease-in-out infinite;"></span>' +
-                    '<span style="color:#06b6d4;font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;">📡 Live Right Now</span>' +
-                '</div>' +
-                '<button onclick="_renderLiveStatsCard(document.getElementById(&quot;questHubBody&quot;),true)" style="background:none;border:1px solid rgba(6,182,212,0.3);border-radius:8px;color:#06b6d4;font-size:0.7rem;font-weight:700;cursor:pointer;padding:4px 10px;font-family:inherit;">🔄 Refresh</button>' +
-            '</div>' +
-            '<div style="border-top:1px solid rgba(6,182,212,0.15);padding-top:10px;display:flex;flex-direction:column;gap:6px;">';
-
-        if (active != null) html += '<div style="color:var(--text);font-size:0.82rem;">👥 <strong>Active plebs:</strong> ' + fmtNum(active) + '</div>';
-        if (sfInfo) html += '<div style="color:var(--text);font-size:0.82rem;">⚡ <strong>Last SF window:</strong> ' + sfInfo + '</div>';
-        if (quizzes != null) html += '<div style="color:var(--text);font-size:0.82rem;">📝 <strong>Quizzes today:</strong> ' + fmtNum(quizzes) + '</div>';
-        if (reads != null) html += '<div style="color:var(--text);font-size:0.82rem;">📚 <strong>Reads today:</strong> ' + fmtNum(reads) + '</div>';
-        if (newUsers != null) html += '<div style="color:var(--text);font-size:0.82rem;">🆕 <strong>New users today:</strong> ' + fmtNum(newUsers) + '</div>';
-        if (!active && !sfInfo && !quizzes && !reads && !newUsers) html += '<div style="color:var(--text-muted);font-size:0.82rem;">Stats loading...</div>';
-
-        html += '</div></div>';
-        if (!document.getElementById('qhLivePulseStyle')) {
-            var s = document.createElement('style'); s.id = 'qhLivePulseStyle';
-            s.textContent = '@keyframes qhLivePulse{0%,100%{opacity:1}50%{opacity:0.4}}';
-            document.head.appendChild(s);
-        }
-        return html;
-    }
-
-    if (useCache) {
-        var existing = document.getElementById('qhLiveCard');
-        if (existing) return; // already rendered and fresh
-        var ph = document.getElementById('qhLivePlaceholder');
-        if (ph) ph.outerHTML = _buildHtml(_liveStatsCache);
-        return;
-    }
-
-    // Insert placeholder immediately
-    var placeholder = document.getElementById('qhLivePlaceholder') || document.getElementById('qhLiveCard');
-    if (!placeholder) {
-        // Prepend to body
-        var div = document.createElement('div');
-        div.id = 'qhLivePlaceholder';
-        div.innerHTML = '<div style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.2);border-radius:14px;padding:14px 16px;margin-bottom:14px;color:var(--text-muted);font-size:0.82rem;text-align:center;">📡 Loading live stats...</div>';
-        if (body && body.firstChild) body.insertBefore(div, body.firstChild);
-        else if (body) body.appendChild(div);
-    }
-
-    if (typeof firebase === 'undefined' || !firebase.firestore) return;
-
-    var _db;
-    try { _db = firebase.firestore(); } catch(e) { return; }
-
-    var data = { active: null, sfInfo: null, quizzes: null, reads: null, newUsers: null };
-    var pending = 3;
-    function done() {
-        pending--;
-        if (pending > 0) return;
-        _liveStatsCache = data;
-        _liveStatsCacheTime = Date.now();
-        var target = document.getElementById('qhLivePlaceholder') || document.getElementById('qhLiveCard');
-        if (target) {
-            var newDiv = document.createElement('div');
-            newDiv.innerHTML = _buildHtml(data);
-            target.replaceWith(newDiv.firstChild);
-        }
-    }
-
-    // Stats global
-    _db.collection('stats').doc('global').get().then(function(doc) {
-        if (doc.exists) {
-            var d = doc.data();
-            if (d.userCount) data.newUsers = d.userCount;
-            if (d.activeUsers) data.active = d.activeUsers;
-            if (d.channelVisits) data.reads = d.channelVisits;
-            if (d.questsCompleted) data.quizzes = d.questsCompleted;
-        }
-        done();
-    }).catch(function() { done(); });
-
-    // Presence count
-    _db.collection('presence').where('online', '==', true).get().then(function(snap) {
-        if (snap.size > 0) data.active = snap.size;
-        done();
-    }).catch(function() { done(); });
-
-    // Last SF window
-    _db.collection('satoshi_favor').orderBy('startTime', 'desc').limit(1).get().then(function(snap) {
-        if (!snap.empty) {
-            var sf = snap.docs[0].data();
-            var miners = sf.minerCount || sf.totalMiners || sf.participantCount || null;
-            var hashes = sf.totalHashes || null;
-            var parts = [];
-            if (miners) parts.push(miners + ' miners');
-            if (miners) parts.push('1 winner');
-            if (hashes) parts.push(hashes.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' hashes');
-            if (parts.length > 0) data.sfInfo = parts.join(' \u00b7 ');
-        }
-        done();
-    }).catch(function() { done(); });
-}
-
-function _renderDailyTab(body) {
-    var challenges = _getDailyChallenges();
-    var completed = _getDailyCompletedCount();
-    var allDone = completed >= 3;
-    var bonusDone = _dailyBonusAwarded();
-
-    var html = '<style>' +
-        '.dc-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:0.2s;position:relative;}' +
-        '.dc-card.done{border-color:#22c55e;background:rgba(34,197,94,0.07);}' +
-        '.dc-card.done::after{content:"✅";position:absolute;top:10px;right:12px;font-size:1.3rem;}' +
-        '.dc-name{font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;}' +
-        '.dc-desc{font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;}' +
-        '.dc-pending{font-size:0.75rem;color:var(--text-faint);font-style:italic;}' +
-    '</style>';
-
-    // Header
-    html += '<div style="text-align:center;margin-bottom:16px;">' +
-        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (allDone ? '🏆' : '🎯') + '</div>' +
-        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Challenges</div>' +
-        '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">3 challenges, freshly picked each day. Complete all 3 for a bonus!</div>' +
-        '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
-        '<div style="background:linear-gradient(90deg,#3b82f6,#22c55e);height:100%;width:' + Math.round(completed / 3 * 100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + completed + '/3 completed today' +
-        (allDone ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Set!</span>' : '') + '</div>' +
-    '</div>';
-
-    // Bonus banner
-    if (allDone && !bonusDone) {
-        html += '<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:12px;padding:12px 16px;margin-bottom:12px;text-align:center;">' +
-            '<div style="color:#22c55e;font-weight:800;font-size:0.9rem;margin-bottom:4px;">🎉 Bonus Unlocked!</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">You completed all 3 daily challenges!</div>' +
-            '<button onclick="_claimDailyBonus(this)" style="padding:8px 20px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">Claim +50 pts Bonus 🎁</button>' +
-        '</div>';
-    } else if (allDone && bonusDone) {
-        html += '<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:12px;padding:12px 16px;margin-bottom:12px;text-align:center;">' +
-            '<div style="color:#22c55e;font-weight:800;font-size:0.9rem;">🎁 Bonus Claimed! +50 pts done</div>' +
-        '</div>';
-    }
-
-    // Challenge cards — no Complete button; auto-detected via polling
-    challenges.forEach(function(action) {
-        var done = _dailyChallengeCompleted(action.id);
-        html += '<div class="dc-card' + (done ? ' done' : '') + '" id="dc-card-' + action.id + '">' +
-            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
-            '<span style="font-size:1.5rem;">' + action.emoji + '</span>' +
-            '<div style="flex:1;">' +
-            '<div class="dc-name">' + action.name + '</div>' +
-            '<div class="dc-desc">' + action.desc + '</div>' +
-            '</div>' +
-            '<div style="font-size:0.75rem;font-weight:700;color:#3b82f6;flex-shrink:0;">+15 pts</div>' +
-            '</div>' +
-            (done ? '<div style="font-size:0.8rem;color:#22c55e;font-weight:700;">✅ Done! +15 pts</div>' : '<div class="dc-pending">⏳ Pending — go do it!</div>') +
-            '</div>';
-    });
-
-    // Daily total progress badge hints
-    var totalDailies = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0');
-    var DAILY_MILESTONES = [1, 5, 10, 25, 50, 100];
-    var nextMilestone = DAILY_MILESTONES.find(function(m) { return totalDailies < m; });
-    if (totalDailies > 0 || completed > 0) {
-        html += '<div style="margin-top:12px;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.72rem;color:var(--text-muted);">' +
-            '🎯 Total daily challenges completed (lifetime): <strong style="color:var(--accent);">' + totalDailies + '</strong>' +
-            (nextMilestone ? ' — next badge at ' + nextMilestone : ' — 🏅 Max badge achieved!') + '</div>';
-    }
-
-    html += '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);text-align:center;">Challenges auto-detect when you complete them · Reset at midnight UTC</div>';
-
-    body.innerHTML = html;
-
-    // Start auto-detection polling (2s interval)
-    _startDailyChallengePoller(challenges, body);
-}
-
-// Award a daily challenge (called by the auto-detection poller)
-function _awardDailyChallenge(action) {
-    var newCount = _markDailyChallengeDone(action.id);
-
-    // Track total lifetime challenges
-    var total = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') + 1;
-    localStorage.setItem('btc_daily_challenges_total', String(total));
-
-    // Award points via existing flex mechanism - 15pts, server-side deduped via flex_action + flexActionId
-    if (typeof awardPoints === 'function') {
-        awardPoints(15, '🎯 Daily Challenge: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: 'daily_' + action.id });
-    }
-
-    // Check daily badges
-    _checkDailyChallengeBadges(total);
-
-    // Track for combo system
-    if (typeof window._trackCombo === 'function') window._trackCombo('daily');
-
-    if (typeof showToast === 'function') showToast('🎯 +15 pts! Daily challenge complete: ' + action.name + ' (' + newCount + '/3)');
-}
-
-// Polling loop — checks every 2s if any challenge was auto-completed
-function _startDailyChallengePoller(challenges, body) {
-    if (window._dailyChallengePoller) clearInterval(window._dailyChallengePoller);
-    window._dailyChallengePoller = setInterval(function() {
-        var changed = false;
-        challenges.forEach(function(action) {
-            if (_dailyChallengeCompleted(action.id)) return; // already done
-            var checkFn = DAILY_CHALLENGE_CHECKS[action.id];
-            if (checkFn && checkFn()) {
-                _awardDailyChallenge(action);
-                changed = true;
-            }
-        });
-        if (changed) {
-            // Re-render: clear poller first to avoid double-start
-            clearInterval(window._dailyChallengePoller);
-            window._dailyChallengePoller = null;
-            var b = body || document.getElementById('questHubBody');
-            if (b) _renderDailyTab(b);
-        }
-    }, 2000);
-}
-
-window._completeDailyChallenge = function(actionId, btn) {
-    if (_dailyChallengeCompleted(actionId)) return;
-    var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
-    if (!action) return;
-
-    // Mark done in localStorage
-    var newCount = _markDailyChallengeDone(actionId);
-
-    // Track total lifetime challenges
-    var total = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') + 1;
-    localStorage.setItem('btc_daily_challenges_total', String(total));
-
-    // Award points via existing flex mechanism - 15pts, server-side deduped via flex_action + flexActionId
-    if (typeof awardPoints === 'function') {
-        awardPoints(15, '\ud83c\udfaf Daily Challenge: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: 'daily_' + actionId });
-    }
-
-    // Check daily badges
-    _checkDailyChallengeBadges(total);
-
-    // Track for combo system
-    if (typeof window._trackCombo === 'function') window._trackCombo('daily');
-
-    // Refresh tab
-    var body = document.getElementById('questHubBody');
-    if (body) {
-        _renderDailyTab(body);
-    }
-    if (typeof showToast === 'function') showToast('\ud83c\udfaf +15 pts! Daily challenge complete! (' + newCount + '/3)');
-
-    // Check for bonus
-    if (newCount >= 3 && !_dailyBonusAwarded()) {
-        setTimeout(function() {
-            if (body) _renderDailyTab(body);
-        }, 500);
-    }
-};
-
-window._claimDailyBonus = function(btn) {
-    if (_dailyBonusAwarded()) return;
-    localStorage.setItem('btc_daily3_bonus_' + _dailyTodayKey(), '1');
-    if (btn) { btn.disabled = true; btn.textContent = 'Claimed! ✅'; }
-    if (typeof awardPoints === 'function') {
-        awardPoints(50, '\ud83c\udfaf Daily 3 Complete Bonus!', null, null, null, null, { actionKey: 'flex_action', flexActionId: 'daily_3_complete_' + _dailyTodayKey() });
-    }
-    if (typeof showToast === 'function') showToast('\ud83c\udf89 +50 pts BONUS! You completed all 3 daily challenges!', 5000);
-    var body = document.getElementById('questHubBody');
-    if (body) setTimeout(function() { _renderDailyTab(body); }, 1000);
-};
-
-function _checkDailyChallengeBadges(total) {
-    var DAILY_BADGES = [
-        { id: 'daily_1',   total: 1,   emoji: '\ud83c\udfaf', name: 'First Mission',       pts: 25 },
-        { id: 'daily_5',   total: 5,   emoji: '\ud83d\udd25', name: 'Challenge Accepted',  pts: 50 },
-        { id: 'daily_10',  total: 10,  emoji: '\ud83d\udcaa', name: 'Daily Grinder',        pts: 100 },
-        { id: 'daily_25',  total: 25,  emoji: '\ud83c\udfc5', name: 'Consistent Warrior',  pts: 250 },
-        { id: 'daily_50',  total: 50,  emoji: '\ud83d\udd11', name: 'Discipline Protocol', pts: 500 },
-        { id: 'daily_100', total: 100, emoji: '\ud83d\udc51', name: 'Centurion',            pts: 1000 },
-    ];
-    DAILY_BADGES.forEach(function(badge) {
-        if (total >= badge.total) {
-            var earnedKey = 'btc_badge_earned_' + badge.id;
-            if (!localStorage.getItem(earnedKey)) {
-                localStorage.setItem(earnedKey, '1');
-                if (typeof awardPoints === 'function') {
-                    awardPoints(badge.pts, '\ud83c\udfc5 Badge: ' + badge.name, null, null, null, badge.id);
-                }
-                if (typeof showBadgeToast === 'function') showBadgeToast({ id: badge.id, emoji: badge.emoji, name: badge.name, pts: badge.pts });
-                else if (typeof showToast === 'function') showToast(badge.emoji + ' Badge Unlocked: ' + badge.name + '! +' + badge.pts + ' pts');
-            }
-        }
-    });
-}
-
-// ══════════════════════════════════════════════════════════════════════
 // 🌍 COMMUNITY TAB — Weekly Community Challenge
 // ══════════════════════════════════════════════════════════════════════
 
@@ -7730,3 +7389,199 @@ function _renderCommunityChallenge(body, docId, data) {
 
     body.innerHTML = html;
 }
+
+// ─── Double XP Floating Widget ───────────────────────────────────────────────
+
+window._startDoubleXPWidget = function() {
+    var existing = document.getElementById('doubleXPWidget');
+    if (existing) existing.remove();
+    if (window._doubleXPWidgetTimer) clearInterval(window._doubleXPWidgetTimer);
+
+    function getExpiry() {
+        return typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
+    }
+
+    function render() {
+        var expiry = getExpiry();
+        var remaining = expiry - Date.now();
+        if (remaining <= 0) {
+            var w = document.getElementById('doubleXPWidget');
+            if (w) w.remove();
+            if (window._doubleXPWidgetTimer) clearInterval(window._doubleXPWidgetTimer);
+            return;
+        }
+        var mins = Math.ceil(remaining / 60000);
+        var w = document.getElementById('doubleXPWidget');
+        if (!w) {
+            w = document.createElement('div');
+            w.id = 'doubleXPWidget';
+            w.style.cssText = 'position:fixed;top:58px;right:12px;z-index:8000;background:linear-gradient(135deg,#eab308,#f7931a);color:#fff;font-size:0.72rem;font-weight:800;padding:5px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 8px rgba(247,147,26,0.4);white-space:nowrap;font-family:inherit;';
+            w.onclick = function() {
+                if (typeof showQuestHub === 'function') showQuestHub();
+                setTimeout(function() {
+                    if (typeof _renderNookTab === 'function') {
+                        window._nookSubTab = 'inventory';
+                        var body = document.getElementById('questHubBody');
+                        if (body) _renderNookTab(body);
+                    }
+                }, 200);
+            };
+            document.body.appendChild(w);
+        }
+        w.textContent = '\uD83C\uDFAF 2\xD7 XP \u2014 ' + mins + ' min';
+    }
+
+    render();
+    window._doubleXPWidgetTimer = setInterval(render, 30000);
+};
+
+window._checkDoubleXPWidget = function() {
+    var expiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
+    if (expiry > Date.now()) window._startDoubleXPWidget();
+};
+
+// ─── Pinned Badge Selector ────────────────────────────────────────────────────
+
+window._showPinnedBadgeSelector = function() {
+    var earned = [];
+    try { earned = JSON.parse(localStorage.getItem('btc_badges') || '[]'); } catch(e) {}
+    if (!earned.length) {
+        if (typeof showToast === 'function') showToast('Earn some badges first!');
+        return;
+    }
+
+    // Build badge list from BADGE_DEFS
+    var badgeMeta = [];
+    if (typeof BADGE_DEFS !== 'undefined') {
+        BADGE_DEFS.forEach(function(b) {
+            if (earned.indexOf(b.id) !== -1) badgeMeta.push({ id: b.id, emoji: b.emoji, name: b.name });
+        });
+    }
+    // Fallback if no BADGE_DEFS
+    if (!badgeMeta.length) {
+        earned.forEach(function(id) { badgeMeta.push({ id: id, emoji: '\uD83C\uDFC5', name: id }); });
+    }
+
+    var overlay = document.createElement('div');
+    overlay.id = 'pinnedBadgeSelectorOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var currentPinned = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pinnedBadgeId || '') : '';
+
+    var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;max-height:300px;overflow-y:auto;padding:4px;">';
+    badgeMeta.forEach(function(b) {
+        var isSelected = b.id === currentPinned;
+        gridHtml += '<button onclick="window._selectPinnedBadge(\'' + b.id.replace(/['"]/g,'') + '\')" ' +
+            'style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;min-width:72px;background:' +
+            (isSelected ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';border:1px solid ' +
+            (isSelected ? '#f7931a' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;transition:0.2s;">' +
+            '<span style="font-size:1.5rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(b.emoji) : b.emoji) + '</span>' +
+            '<span style="font-size:0.6rem;color:var(--text-muted);text-align:center;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+            (typeof escapeHtml === 'function' ? escapeHtml(b.name) : b.name) + '</span>' +
+            (isSelected ? '<span style="font-size:0.55rem;color:#f7931a;font-weight:700;">Pinned ✓</span>' : '') +
+            '</button>';
+    });
+    gridHtml += '</div>';
+
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:2px solid rgba(247,147,26,0.3);border-radius:20px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+        '<div style="font-size:1rem;font-weight:800;color:var(--heading);">\uD83D\uDCCC Choose a Badge to Pin</div>' +
+        '<button onclick="document.getElementById(\'pinnedBadgeSelectorOverlay\').remove()" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);width:32px;height:32px;cursor:pointer;font-size:1rem;font-family:inherit;">\u2715</button></div>' +
+        '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;">This badge will be displayed on your profile card.</div>' +
+        gridHtml +
+        (currentPinned ? '<button onclick="window._selectPinnedBadge(\'\')" style="margin-top:12px;width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Remove pinned badge</button>' : '') +
+    '</div>';
+    document.body.appendChild(overlay);
+};
+
+window._selectPinnedBadge = function(badgeId) {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    currentUser.pinnedBadgeId = badgeId || null;
+    // Write to Firestore
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ pinnedBadgeId: badgeId || null }).catch(function(e) {
+            console.warn('[pinnedBadge] Firestore write failed:', e);
+        });
+    }
+    var overlay = document.getElementById('pinnedBadgeSelectorOverlay');
+    if (overlay) overlay.remove();
+    if (typeof showToast === 'function') {
+        showToast(badgeId ? '\uD83D\uDCCC Badge pinned to your profile!' : '\uD83D\uDCCC Pinned badge removed.');
+    }
+    // Re-render the rank bar so the pinned badge appears
+    if (typeof updateRankUI === 'function') updateRankUI();
+};
+
+// ─── Chat Flair Picker ────────────────────────────────────────────────────────
+
+window._showChatFlairPicker = function() {
+    var FLAIR_OPTIONS = ['\uD83D\uDD25', '\u26A1', '\uD83E\uDD8C', '\uD83E\uDDE1', '\uD83D\uDC8E', '\uD83D\uDC51', '\uD83C\uDFAF', '\u26CF\uFE0F', '\uD83D\uDFE0'];
+    var currentFlair = typeof currentUser !== 'undefined' && currentUser ? (currentUser.chatFlairEmoji || '\uD83D\uDD25') : '\uD83D\uDD25';
+
+    var overlay = document.createElement('div');
+    overlay.id = 'chatFlairPickerOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0;">';
+    FLAIR_OPTIONS.forEach(function(emoji) {
+        var isSelected = emoji === currentFlair;
+        gridHtml += '<button onclick="window._selectChatFlair(\'' + emoji + '\')" ' +
+            'style="width:48px;height:48px;font-size:1.5rem;border-radius:12px;border:2px solid ' +
+            (isSelected ? '#f7931a' : 'var(--border)') + ';background:' +
+            (isSelected ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';cursor:pointer;transition:0.15s;font-family:inherit;">' +
+            emoji + '</button>';
+    });
+    gridHtml += '</div>';
+
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:2px solid rgba(247,147,26,0.3);border-radius:20px;padding:24px;max-width:360px;width:100%;text-align:center;">' +
+        '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">\uD83D\uDD25 Choose Your Chat Flair</div>' +
+        '<div style="font-size:0.78rem;color:var(--text-muted);">This emoji appears next to your name in Global Chat.</div>' +
+        gridHtml +
+        '<button onclick="document.getElementById(\'chatFlairPickerOverlay\').remove()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+    '</div>';
+    document.body.appendChild(overlay);
+};
+
+window._selectChatFlair = function(emoji) {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    currentUser.chatFlairEmoji = emoji;
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ chatFlairEmoji: emoji }).catch(function(e) {
+            console.warn('[chatFlair] Firestore write failed:', e);
+        });
+    }
+    var overlay = document.getElementById('chatFlairPickerOverlay');
+    if (overlay) overlay.remove();
+    if (typeof showToast === 'function') showToast('\uD83D\uDD25 Chat flair set to ' + emoji + '!');
+};
+
+// ─── Post-Purchase Cosmetic Tooltips ─────────────────────────────────────────
+// Called at the end of _nookBuyItem success handler
+
+window._cosmeticPostPurchase = function(itemId) {
+    var tips = {
+        'profile_frame': 'Your profile now has an orange glow! Visible on your leaderboard card.',
+        'chat_flair': 'Your messages in Global Chat now show a flair badge next to your name!',
+        'pinned_badge': 'Go to Inventory \u2192 tap \u201cChoose Badge\u201d to select which badge to pin!',
+        'nacho_skin_nook': 'You\'re now a golden Nacho! Visible in chat and on your profile card \uD83E\uDD8C'
+    };
+    var tip = tips[itemId];
+    if (tip) {
+        setTimeout(function() {
+            if (typeof showToast === 'function') showToast('\uD83C\uDF89 ' + tip, 5000);
+        }, 1000);
+    }
+    // Special post-purchase flows
+    if (itemId === 'pinned_badge') {
+        setTimeout(function() {
+            if (typeof window._showPinnedBadgeSelector === 'function') window._showPinnedBadgeSelector();
+        }, 1500);
+    }
+    if (itemId === 'chat_flair') {
+        setTimeout(function() {
+            if (typeof window._showChatFlairPicker === 'function') window._showChatFlairPicker();
+        }, 1500);
+    }
+};

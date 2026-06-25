@@ -346,6 +346,9 @@ async function onUserLoadedTickets() {
 
     // Check referral qualifications in background (don't await, non-blocking)
     checkReferralQualifications().catch(function() {});
+
+    // Start Double XP floating widget if active
+    if (typeof window._checkDoubleXPWidget === 'function') window._checkDoubleXPWidget();
 }
 
 // ---- Award tickets for content uploads ----

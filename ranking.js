@@ -2050,6 +2050,38 @@ window.notifySelfPoints = function(pts, reason) {
 };
 
 // Auto-refresh leaderboard if it's currently open
+// Switch leaderboard period WITHOUT closing — used by the tab buttons
+function _lbSwitchPeriod(period) {
+    window._lbPeriod = period;
+    window._lbCache = null;
+    window._lbWeekCache = null;
+    window._lbMonthCache = null;
+    window._lbCacheTime = null;
+    // Force re-render: temporarily remove 'open' class flag check by calling internal render
+    var lb = document.getElementById('leaderboard');
+    if (!lb) return;
+    lb.classList.add('open');
+    lb.classList.remove('minimized');
+    toggleLeaderboard._renderOnly = true;
+    // Re-invoke render path directly — set lb to loading state, then reload
+    lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading...</div>';
+    // Call the actual data+render logic by temporarily forcing open state
+    var fab = document.getElementById('lbFloatBtn');
+    if (fab) fab.style.display = 'none';
+    // Directly invoke the async render (same as toggleLeaderboard but skip the close check)
+    (async function() {
+        try {
+            // Reuse toggleLeaderboard's render but the lb is already open so it won't close
+            // Trick: remove open class briefly so toggleLeaderboard won't see it as open
+            lb.classList.remove('open');
+            await toggleLeaderboard();
+        } catch(e) {
+            lb.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">Failed to load</div>';
+        }
+    })();
+}
+window._lbSwitchPeriod = _lbSwitchPeriod;
+
 function refreshLeaderboardIfOpen() {
     var lb = document.getElementById('leaderboard');
     if (lb && lb.classList.contains('open') && !lb.classList.contains('minimized')) {
@@ -2410,12 +2442,43 @@ function updateRankUI() {
     const streakHtml = (streak > 0 || bestStreakVal > 0) ? '<span class="rank-streak' + (isMilestone ? ' streak-milestone' : '') + '" style="color:#f97316;font-size:0.7rem;font-weight:700;' + (isMilestone ? 'animation:streakGlow 2s ease-in-out infinite;' : '') + '">🔥 ' + streak + (bestStreakVal > 0 ? '(' + bestStreakVal + ')' : '') + ' day streak' + (isMilestone ? ' ✨' : '') + '</span>' : '';
     const ticketHtml = (currentUser.orangeTickets || 0) > 0 ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;margin-left:6px;"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>' + currentUser.orangeTickets + '</span>' : '';
 
+    // Cosmetics: profile frame glow
+    var _ownedCosmetics = currentUser.ownedCosmetics || [];
+    var _hasFrame = _ownedCosmetics.indexOf('profile_frame') !== -1;
+    if (_hasFrame) {
+        bar.style.boxShadow = '0 0 0 2px #f7931a, 0 0 14px rgba(247,147,26,0.4)';
+        bar.style.border = '2px solid #f7931a';
+    } else {
+        bar.style.boxShadow = '';
+        bar.style.border = '';
+    }
+
+    // Cosmetics: Nacho skin — show deer avatar next to username
+    var _hasNachoSkin = _ownedCosmetics.indexOf('nacho_skin_nook') !== -1;
+    var _nachoAvatarHtml = _hasNachoSkin
+        ? '<img src="nacho-deer.svg" style="width:18px;height:18px;border-radius:50%;border:1px solid #f7931a;vertical-align:-4px;margin-right:2px;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));" onerror="this.textContent=\'🦌\';this.style.fontSize=\'0.9rem\'" />'
+        : '';
+
+    // Cosmetics: pinned badge
+    var _pinnedBadgeHtml = '';
+    if (currentUser.pinnedBadgeId) {
+        var _pBadge = null;
+        if (typeof BADGE_DEFS !== 'undefined') {
+            for (var _bi = 0; _bi < BADGE_DEFS.length; _bi++) {
+                if (BADGE_DEFS[_bi].id === currentUser.pinnedBadgeId) { _pBadge = BADGE_DEFS[_bi]; break; }
+            }
+        }
+        if (_pBadge) {
+            _pinnedBadgeHtml = '<span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;" title="' + escapeHtml(_pBadge.name) + '">' + escapeHtml(_pBadge.emoji) + ' ' + escapeHtml(_pBadge.name) + '</span>';
+        }
+    }
+
     bar.innerHTML =
         '<div class="rank-info" onclick="toggleLeaderboard()">' +
             '<span class="rank-level">' + lv.emoji + ' ' + lv.name + '</span>' +
-            '<span class="rank-user">' + escapeHtml(currentUser.username || 'Anon') + '</span>' +
+            '<span class="rank-user">' + _nachoAvatarHtml + escapeHtml(currentUser.username || 'Anon') + '</span>' +
             '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' XP</span>' +
-            streakHtml + ticketHtml +
+            streakHtml + ticketHtml + _pinnedBadgeHtml +
         '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
 
@@ -3200,7 +3263,7 @@ async function toggleLeaderboard() {
         html += '<div style="display:flex;gap:4px;padding:0 12px 10px;">';
         [['alltime','All Time'],['weekly','This Week'],['monthly','This Month']].forEach(function(p) {
             var active = _lbPeriod === p[0];
-            html += '<button onclick="window._lbPeriod=\'' + p[0] + '\';toggleLeaderboard()" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+            html += '<button onclick="_lbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
         });
         html += '</div>';
         // Prize banners for weekly/monthly
@@ -5040,6 +5103,36 @@ function showSettingsPage(tab) {
         }
 
         html += '</div>';
+
+        // Cosmetics panel in Settings Data tab
+        var _settCosmetics = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.ownedCosmetics || []) : [];
+        if (_settCosmetics.length > 0) {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">';
+            html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">✨ Your Cosmetics</div>';
+            if (_settCosmetics.indexOf('pinned_badge') !== -1) {
+                var _pinnedId = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.pinnedBadgeId || '') : '';
+                var _pinnedLabel = 'None selected';
+                if (_pinnedId && typeof BADGE_DEFS !== 'undefined') {
+                    for (var _sbi = 0; _sbi < BADGE_DEFS.length; _sbi++) {
+                        if (BADGE_DEFS[_sbi].id === _pinnedId) { _pinnedLabel = BADGE_DEFS[_sbi].emoji + ' ' + escapeHtml(BADGE_DEFS[_sbi].name); break; }
+                    }
+                }
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">📌 Pinned Badge: <strong style="color:var(--text);">' + _pinnedLabel + '</strong></span>' +
+                    '<button onclick="if(typeof window._showPinnedBadgeSelector===\'function\')window._showPinnedBadgeSelector()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Change →</button></div>';
+            }
+            if (_settCosmetics.indexOf('chat_flair') !== -1) {
+                var _flairEmoji = (typeof currentUser !== 'undefined' && currentUser && currentUser.chatFlairEmoji) ? currentUser.chatFlairEmoji : '🔥';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">🔥 Chat Flair: <strong style="color:var(--text);">' + _flairEmoji + '</strong></span>' +
+                    '<button onclick="if(typeof window._showChatFlairPicker===\'function\')window._showChatFlairPicker()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Change →</button></div>';
+            }
+            if (_settCosmetics.indexOf('profile_frame') !== -1) {
+                html += '<div style="padding:10px 0;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:0.85rem;">🧓 Profile Frame: <strong style="color:#f7931a;">Active — orange glow on your rank card</strong></div>';
+            }
+            if (_settCosmetics.indexOf('nacho_skin_nook') !== -1) {
+                html += '<div style="padding:10px 0;color:var(--text-muted);font-size:0.85rem;">🦌 Nacho Skin: <strong style="color:#f7931a;">Active — golden avatar in chat &amp; profile</strong></div>';
+            }
+            html += '</div>';
+        }
 
         // Nacho Analytics (collapsible)
         if (typeof getNachoAnalytics === 'function') {

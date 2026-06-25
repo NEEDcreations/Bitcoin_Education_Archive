@@ -593,7 +593,10 @@ function renderChatMessages(msgs) {
         html += '<div data-msg-id="' + m._id + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
-        html += '<span style="font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
+        // Cosmetics: chat flair prefix & nacho skin avatar
+        var _chatFlairPrefix = (!isNacho && m.hasChatFlair) ? '<span style="font-size:0.85rem;margin-right:2px;">' + esc(m.chatFlairEmoji || '🔥') + '</span>' : '';
+        var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.style.display=\'none\'" />' : '';
+        html += '<span style="font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
         if (myUid) {
             html += '<span onclick="setChatReply(\'' + m._id + '\',\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',\'' + esc((m.text||'').substring(0,50)).replace(/[\\'"]/g,'') + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
@@ -1107,6 +1110,15 @@ window.sendGlobalChat = function() {
     var msgData = {uid: uid, name: username, text: text, isNachoAuto: false, ts: firebase.firestore.FieldValue.serverTimestamp()};
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) msgData.faction = currentUser.faction;
     if (replyData.replyTo) { msgData.replyTo = replyData.replyTo; msgData.replyToName = replyData.replyToName; msgData.replyToText = replyData.replyToText; }
+    // Cosmetics: chat flair & nacho skin
+    var _oc = (typeof currentUser !== 'undefined' && currentUser && currentUser.ownedCosmetics) ? currentUser.ownedCosmetics : [];
+    if (_oc.indexOf('chat_flair') !== -1) {
+        msgData.hasChatFlair = true;
+        msgData.chatFlairEmoji = (currentUser.chatFlairEmoji && currentUser.chatFlairEmoji.trim()) ? currentUser.chatFlairEmoji : '🔥';
+    }
+    if (_oc.indexOf('nacho_skin_nook') !== -1) {
+        msgData.hasNachoSkin = true;
+    }
     db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
         // Track for daily challenge
         try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_chat_sent_' + _t, 'true'); } catch(e) {}

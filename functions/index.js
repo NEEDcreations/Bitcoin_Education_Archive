@@ -5008,8 +5008,25 @@ async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
     return { winners: winners.length, processed, label };
 }
 
+// Rewards start from July 2026 onwards — skip June entirely.
+// Weekly: skip any week that ends before 2026-07-01.
+// Monthly: skip any month reset where the completed month is before 2026-07 (i.e. June 2026 and earlier).
+const REWARDS_START_DATE = new Date('2026-07-01T00:00:00Z');
+
 exports.resetWeeklyXP = functions.pubsub.schedule('0 0 * * 1').timeZone('UTC').onRun(async (ctx) => {
     const now = new Date();
+    // Skip weeks that end before rewards start date
+    if (now < REWARDS_START_DATE) {
+        console.log('[WEEKLY RESET] Skipping — rewards start July 2026. Resetting XP without awarding tickets.');
+        // Still reset XP so the board is clean, just no ticket awards
+        const year = now.getFullYear();
+        const startOfYear = new Date(year, 0, 1);
+        const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+        const prevWeek = weekNum - 1;
+        const weekKey = `${year}-W${String(prevWeek || 52).padStart(2, '0')}`;
+        await _resetPeriodXP('weeklyXP', weekKey, 0, `Week ${weekKey} (no rewards yet)`);
+        return null;
+    }
     const year = now.getFullYear();
     const startOfYear = new Date(year, 0, 1);
     const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
@@ -5024,6 +5041,12 @@ exports.resetMonthlyXP = functions.pubsub.schedule('0 0 1 * *').timeZone('UTC').
     const now = new Date();
     const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const monthKey = `${prevMonth.getFullYear()}-M${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+    // Skip June 2026 and any earlier month
+    if (prevMonth < REWARDS_START_DATE) {
+        console.log('[MONTHLY RESET] Skipping ticket awards for', monthKey, '— rewards start July 2026. Resetting XP only.');
+        await _resetPeriodXP('monthlyXP', monthKey, 0, `Month ${monthKey} (no rewards yet)`);
+        return null;
+    }
     const result = await _resetPeriodXP('monthlyXP', monthKey, 100, `Month ${monthKey}`);
     console.log('[MONTHLY RESET COMPLETE]', result);
     return null;
