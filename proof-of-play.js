@@ -8,6 +8,18 @@
 
 var _popActive = false;
 
+// Safe thumbnail error handler — avoids escaped-quote HTML injection issues
+window._popThumbErr = function(img) {
+    try {
+        var fb = img.getAttribute('data-fb') || '🎮';
+        img.style.display = 'none';
+        var div = document.createElement('div');
+        div.className = 'pop-game-thumb-fallback';
+        div.textContent = fb;
+        if (img.parentNode) img.parentNode.insertBefore(div, img);
+    } catch(e) {}
+};
+
 // ---- Game catalogue ----
 var POP_GAMES = [
     {
@@ -286,8 +298,8 @@ function _renderArcadeTab(wrap) {
 
     POP_GAMES.forEach(function(game) {
         var thumbEl = game.thumb
-            ? '<img class="pop-game-thumb" src="' + game.thumb + '" alt="' + game.title + '" onerror="this.parentNode.innerHTML=\'<div class=\\"pop-game-thumb-fallback\\">' + game.thumbFallback + '</div>\'">'
-            : '<div class="pop-game-thumb-fallback">' + game.thumbFallback + '</div>';
+            ? '<img class="pop-game-thumb" src="' + game.thumb + '" alt="" data-fb="' + (game.thumbFallback||'🎮') + '" onerror="_popThumbErr(this)">'
+            : '<div class="pop-game-thumb-fallback">' + (game.thumbFallback||'🎮') + '</div>';
 
         html += '<div class="pop-game-card' + (game.hot ? ' hot' : '') + '" onclick="window._popLaunchGame(\'' + game.url + '\',\'' + game.title.replace(/'/g, "\\'") + '\')">' +
             thumbEl +

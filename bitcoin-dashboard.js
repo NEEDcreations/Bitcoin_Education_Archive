@@ -532,6 +532,14 @@ function renderDashboard(data) {
     html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
     html += '</div>';
 
+    // ——— Timechain Calendar toggle ———
+    html += '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">';
+    html += '<button onclick="_dashToggleCalendar()" id="tcalToggleBtn" style="width:100%;padding:12px 16px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.06));border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;">'
+        + '<span>\uD83D\uDCC5 Timechain Calendar</span><span id="tcalArrow">\u25BC</span></button>';
+    html += '<div id="tcalEmbed" style="display:none;margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">';
+    html += '<iframe src="https://timechaincalendar.com/en" style="width:100%;height:520px;border:none;background:#000;" loading="lazy" title="Timechain Calendar" allow="clipboard-write"></iframe>';
+    html += '</div></div>';
+
     // Start halving countdown ticker + attach tooltip listeners after DOM renders
     setTimeout(function() {
         if (window._halvingTargetMs && document.getElementById('halvSecs') && typeof window._startHalvingTicker === 'function') window._startHalvingTicker();
@@ -540,6 +548,15 @@ function renderDashboard(data) {
 
     return html;
 }
+
+window._dashToggleCalendar = function() {
+    var embed = document.getElementById('tcalEmbed');
+    var arrow = document.getElementById('tcalArrow');
+    if (!embed) return;
+    var open = embed.style.display !== 'none';
+    embed.style.display = open ? 'none' : 'block';
+    if (arrow) arrow.textContent = open ? '\u25BC' : '\u25B2';
+};
 
 function metricCard(emoji, label, value, sub, tip) {
     var tipAttr = tip ? ' data-dash-tip="' + tip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;"' : ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;"';

@@ -5110,26 +5110,8 @@ var FLEX_ACTIONS = [
     { id:'nacho_chat',    emoji:'🦌', name:'Chat with Nacho',          desc:'Ask Nacho something Bitcoin.',                   pts:15, type:'triplclick' },
     { id:'view_leaderboard', emoji:'🏆', name:'Check the Leaderboard', desc:'See where you rank today.',                      pts:15, type:'triplclick' },
     { id:'share_app',     emoji:'📤', name:'Share the Archive',        desc:'Tell someone about Bitcoin Education Archive.',  pts:15, type:'triplclick' },
-// ── App-feature daily actions ──
-    { id:'tctv_watch',     emoji:'📺', name:'Tune In to TCTV',         desc:'Open Timechain TV and let it play.',             pts:10, type:'triplclick' },
-    { id:'check_price',    emoji:'💰', name:'Check Bitcoin Price',      desc:'See what Satoshi\'s creation is worth today.',   pts:5,  type:'hold',     holdMs:1500 },
-    { id:'read_whitepaper',emoji:'📄', name:'Study the Whitepaper',     desc:'Open the whitepaper channel and absorb it.',     pts:10, type:'hold',     holdMs:2000 },
-    { id:'explore_channel',emoji:'🦭', name:'Explore a New Channel',    desc:'Click into a topic you\'ve never visited.',      pts:10, type:'triplclick' },
-    { id:'open_beats',     emoji:'🎵', name:'Listen to Bitcoin Beats',  desc:'Tune into the community music page.',            pts:5,  type:'hold',     holdMs:1500 },
-    { id:'join_pvp',       emoji:'⚔️', name:'Enter the Arena',          desc:'Start a PVP trivia battle.',                     pts:10, type:'triplclick' },
-    { id:'forum_read',     emoji:'👁️', name:'Read the Forum',           desc:'Catch up on what the plebs are saying.',         pts:5,  type:'hold',     holdMs:1500 },
-    { id:'nacho_question', emoji:'🦌', name:'Ask Nacho a Question',     desc:'Get a Bitcoin lesson from the deer himself.',    pts:10, type:'typeword',  words:['NACHO','DEER','BITCOIN','LEARN','ORANGE','SATS'] },
-    { id:'bookmark_video', emoji:'🔖', name:'Bookmark Something',       desc:'Save a resource for later.',                     pts:5,  type:'triplclick' },
-    { id:'spin_wheel',     emoji:'🎡', name:'Spin the Daily Wheel',     desc:'Spin for tickets, points, or a streak freeze.',  pts:5,  type:'triplclick' },
-    { id:'check_streak',   emoji:'🔥', name:'Check Your Streak',        desc:'Visit your streak counter and keep it alive.',   pts:5,  type:'hold',     holdMs:1000 },
-    { id:'trail_step',     emoji:'🥾', name:'Take a Trail Step',        desc:'Progress through a Nacho\'s Trail.',             pts:10, type:'triplclick' },
-    { id:'market_browse',  emoji:'🛒', name:'Browse the Marketplace',   desc:'See what other plebs are building and selling.',  pts:5,  type:'hold',     holdMs:1500 },
-    { id:'nook_visit',     emoji:'🦌', name:'Visit Nacho\'s Nook',      desc:'Check your shop, inventory, or buy something.',  pts:5,  type:'triplclick' },
-    { id:'global_lurk',    emoji:'💬', name:'Lurk in Global Chat',      desc:'Open the chat and see what\'s happening.',       pts:5,  type:'hold',     holdMs:1500 },
-    { id:'quiz_warmup',    emoji:'🧠', name:'Answer a Quiz Question',   desc:'Flex your Bitcoin knowledge.',                   pts:10, type:'triplclick' },
-    { id:'predict_price',  emoji:'🔮', name:'Make a Prediction',        desc:'Bull or bear? State your case.',                 pts:10, type:'triplclick' },
-    { id:'sf_check',       emoji:'⛏️', name:'Check Mining Status',      desc:'See if Satoshi\'s Favor window is open.',       pts:5,  type:'hold',     holdMs:1000 },
 ];
+
 
 var FLEX_BADGE_MILESTONES = [1, 5, 50, 500];
 
@@ -5175,13 +5157,6 @@ function _flexMarkDone(actionId, onDone) {
     _flexCheckBadges(actionId, s[actionId].total);
     // Check all-daily-flex-complete badge
     _flexCheckAllDoneBadge(s);
-    // Toast notification
-    if (action && typeof showToast === 'function') showToast('\u2705 +' + action.pts + ' pts \u2014 ' + action.emoji + ' ' + action.name + '!');
-    // Increment lifetime daily challenges total (used by daily_* badges)
-    var _t = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') + 1;
-    localStorage.setItem('btc_daily_challenges_total', _t.toString());
-    // Check daily_* milestone badges
-    if (typeof checkBadges === 'function') checkBadges();
     if (onDone) onDone(s[actionId].total);
 }
 
