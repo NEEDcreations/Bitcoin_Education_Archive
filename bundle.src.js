@@ -2099,12 +2099,20 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         notifySelfPoints(pts, reason);
     }
     try {
+        // 🎯 Double XP: check if active before sending points (client-side boost signal)
+        var doubleXPExpiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
+        var doubleXPActive = doubleXPExpiry > Date.now();
+        if (doubleXPActive && pts > 0) {
+            pts = Math.min(2200, pts * 2); // double, respect anti-abuse cap
+        }
+
         var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
         var payload = { pts: pts, action: reason || '', reason: reason || '' };
         if (channelId) payload.channelId = channelId;
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
+        if (doubleXPActive) payload.doubleXP = true; // inform CF for logging
         if (extra && typeof extra === 'object') Object.assign(payload, extra);
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
@@ -13526,12 +13534,17 @@ function showQuest(quest, retry) {
     html += '<div class="quest-questions">';
 
     quest.questions.forEach((q, i) => {
-        html += '<div class="quest-q">';
-        html += '<div class="quest-q-num">Question ' + (i + 1) + ' of 5</div>';
+        var hintTokens = typeof currentUser !== 'undefined' && currentUser ? (currentUser.hintTokens || 0) : 0;
+        html += '<div class="quest-q" id="questQ_'+i+'">';
+        html += '<div class="quest-q-num">Question ' + (i + 1) + ' of 5';
+        if (hintTokens > 0) {
+            html += ' <button id="hintBtn_'+i+'" onclick="_useQuestHint('+i+')" style="float:right;padding:3px 10px;background:rgba(234,179,8,0.15);border:1px solid #eab308;border-radius:6px;color:#eab308;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">💡 Hint (' + hintTokens + ')</button>';
+        }
+        html += '</div>';
         html += '<div class="quest-q-text">' + q.q + '</div>';
-        html += '<div class="quest-options">';
+        html += '<div class="quest-options" id="questOpts_'+i+'">';
         q.options.forEach((opt, j) => {
-            html += '<button class="quest-opt" onclick="selectAnswer(this,' + i + ',' + j + ')">' + opt + '</button>';
+            html += '<button class="quest-opt" id="questOpt_'+i+'_'+j+'" onclick="selectAnswer(this,' + i + ',' + j + ')">' + opt + '</button>';
         });
         html += '</div></div>';
     });
@@ -13557,6 +13570,69 @@ function selectAnswer(btn, qIdx, aIdx) {
         document.getElementById('questSubmitBtn').disabled = false;
     }
 }
+
+window._useQuestHint = function(qIdx) {
+    if (!currentQuest || !currentQuest.questions) return;
+    var q = currentQuest.questions[qIdx];
+    if (!q) return;
+
+    // Find the correct answer index
+    var correctIdx = q.answer;
+
+    // Gather wrong answer indices that aren't yet eliminated
+    var optsEl = document.getElementById('questOpts_' + qIdx);
+    if (!optsEl) return;
+    var allBtns = optsEl.querySelectorAll('.quest-opt');
+    var wrongBtns = [];
+    allBtns.forEach(function(btn, j) {
+        if (j !== correctIdx && !btn.disabled && btn.style.opacity !== '0.2') {
+            wrongBtns.push({ btn: btn, idx: j });
+        }
+    });
+
+    if (wrongBtns.length === 0) {
+        if (typeof showToast === 'function') showToast('💡 Hint already used for this question!');
+        return;
+    }
+
+    // Hide hint button immediately (optimistic)
+    var hintBtn = document.getElementById('hintBtn_' + qIdx);
+    if (hintBtn) {
+        hintBtn.disabled = true;
+        hintBtn.textContent = '⏳';
+    }
+
+    // Call CF to decrement server-side token
+    var fn = typeof firebase !== 'undefined' ? firebase.functions().httpsCallable('useHintToken') : null;
+    if (fn) {
+        fn({}).then(function(r) {
+            var d = r.data;
+            if (d && d.success) {
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    currentUser.hintTokens = d.hintTokens;
+                }
+                // Eliminate one random wrong answer
+                var target = wrongBtns[Math.floor(Math.random() * wrongBtns.length)];
+                target.btn.style.opacity = '0.2';
+                target.btn.style.textDecoration = 'line-through';
+                target.btn.style.pointerEvents = 'none';
+                if (hintBtn) hintBtn.remove();
+                if (typeof showToast === 'function') showToast('💡 Hint used! One wrong answer eliminated. (' + d.hintTokens + ' remaining)');
+            }
+        }).catch(function(err) {
+            var msg = (err && err.message) ? err.message : 'Hint failed';
+            if (typeof showToast === 'function') showToast('❌ ' + msg);
+            if (hintBtn) { hintBtn.disabled = false; hintBtn.textContent = '💡 Hint (' + ((currentUser && currentUser.hintTokens) || 0) + ')'; }
+        });
+    } else {
+        // No CF available — local only fallback
+        var target = wrongBtns[Math.floor(Math.random() * wrongBtns.length)];
+        target.btn.style.opacity = '0.2';
+        target.btn.style.textDecoration = 'line-through';
+        target.btn.style.pointerEvents = 'none';
+        if (hintBtn) hintBtn.remove();
+    }
+};
 
 async function submitQuest() {
     // Prevent double-submit
@@ -14566,7 +14642,7 @@ window.showQuestHub = function() {
         '#questHubOverlay p,[id="questHubBody"] div{font-size:inherit}' +
         '#questHubBody{font-size:1rem}' +
         '#questHubTabs button{font-size:0.88rem!important;padding:12px 0!important}' +
-        '#questHubTabs{grid-template-columns:repeat(4,1fr)!important}' +
+        '#questHubTabs{grid-template-columns:repeat(5,1fr)!important}' +
     '}';
     modal.appendChild(qhStyle);
 
@@ -14589,6 +14665,7 @@ window.showQuestHub = function() {
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
         '<button id="qhTabDaily" onclick="window._questHubTab=\'daily\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎯 Daily</button>' +
         '<button id="qhTabCommunity" onclick="window._questHubTab=\'community\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Community</button>' +
+        '<button id="qhTabNook" onclick="window._questHubTab=\'nook\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🦌 Nook</button>' +
                 '</div>';
 
     var body = document.createElement('div');
@@ -14623,7 +14700,7 @@ window.showQuestHub = function() {
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
     // Update active tab styles
-    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity', 'Daily', 'Community'].forEach(function(t) {
+    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity', 'Daily', 'Community', 'Nook'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
         if (!btn) return;
         var isActive = tab === t.toLowerCase();
@@ -14633,9 +14710,10 @@ function _renderQuestHubTab() {
         var citadelActive = t === 'Citadel' && isActive;
         var dailyActive = t === 'Daily' && isActive;
         var communityActive = t === 'Community' && isActive;
-        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : dailyActive ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : communityActive ? 'linear-gradient(135deg,#06b6d4,#0284c7)' : (isActive ? 'var(--accent)' : 'none');
+        var nookActive = t === 'Nook' && isActive;
+        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : dailyActive ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : communityActive ? 'linear-gradient(135deg,#06b6d4,#0284c7)' : nookActive ? 'linear-gradient(135deg,#f7931a,#eab308)' : (isActive ? 'var(--accent)' : 'none');
         btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
-        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : dailyActive ? '#3b82f6' : communityActive ? '#06b6d4' : (isActive ? 'var(--accent)' : 'var(--border)');
+        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : dailyActive ? '#3b82f6' : communityActive ? '#06b6d4' : nookActive ? '#f7931a' : (isActive ? 'var(--accent)' : 'var(--border)');
     });
 
     var body = document.getElementById('questHubBody');
@@ -14654,6 +14732,450 @@ function _renderQuestHubTab() {
     else if (tab === 'citadel') _renderCitadelTab(body);
     else if (tab === 'daily') _renderDailyTab(body);
     else if (tab === 'community') _renderCommunityTab(body);
+    else if (tab === 'nook') _renderNookTab(body);
+}
+
+// ══════════════════════════════════════════════════════
+// 🦌 NACHO'S NOOK TAB — Shop, Inventory, History
+// ══════════════════════════════════════════════════════
+
+window._nookSubTab = window._nookSubTab || 'shop';
+
+function _renderNookTab(body) {
+    if (!body) return;
+    var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+
+    if (!isSignedIn) {
+        body.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
+            '<div style="font-size:3rem;margin-bottom:12px;">🦌</div>' +
+            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Nacho\'s Nook</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">Sign in to browse the shop and spend your Orange Tickets!</div>' +
+            '<div style="padding:12px 20px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;display:inline-block;font-size:0.85rem;color:#f7931a;">🎟️ Orange Tickets are earned by logging in, spinning the wheel, and completing quests.</div>' +
+            '</div>';
+        return;
+    }
+
+    body.innerHTML = '<div id="nookRoot"></div>';
+    _renderNookSubTabs();
+}
+
+function _renderNookSubTabs() {
+    var root = document.getElementById('nookRoot');
+    if (!root) return;
+    var tab = window._nookSubTab || 'shop';
+    var tickets = typeof currentUser !== 'undefined' && currentUser ? (currentUser.orangeTickets || 0) : 0;
+
+    var subTabBar = '<div style="display:flex;gap:6px;margin-bottom:16px;">' +
+        ['shop','inventory','history'].map(function(st) {
+            var labels = { shop:'🛒 Shop', inventory:'📦 Inventory', history:'📜 History' };
+            var active = st === tab;
+            return '<button onclick="window._nookSubTab=\''+st+'\';_renderNookSubTabs()" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid '+(active ? '#f7931a' : 'var(--border)')+';background:'+(active ? 'linear-gradient(135deg,#f7931a,#eab308)' : 'none')+';color:'+(active ? '#fff' : 'var(--text-muted)')+';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">'+labels[st]+'</button>';
+        }).join('') +
+    '</div>';
+
+    var balanceBar = '<div style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(234,179,8,0.06));border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:10px 14px;margin-bottom:14px;">' +
+        '<div style="font-size:0.85rem;color:var(--text-muted);">Your balance</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:#f7931a;">' + tickets + ' 🎟️</div>' +
+    '</div>';
+
+    root.innerHTML = '<div style="padding-top:4px;">' +
+        '<div style="text-align:center;margin-bottom:12px;">' +
+        '<span style="font-size:1.5rem;">🦌</span> ' +
+        '<span style="font-size:1rem;font-weight:800;color:var(--heading);">Nacho\'s Nook</span>' +
+        '</div>' +
+        subTabBar + balanceBar +
+        '<div id="nookTabContent"></div>' +
+    '</div>';
+
+    if (tab === 'shop') _renderNookShop();
+    else if (tab === 'inventory') _renderNookInventory();
+    else if (tab === 'history') _renderNookHistory();
+}
+
+function _nookBuyItem(itemId, qty, btnEl) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    var origText = btnEl.textContent;
+    btnEl.textContent = '⏳';
+    btnEl.style.opacity = '0.6';
+
+    var spendFn = typeof firebase !== 'undefined' ? firebase.functions().httpsCallable('spendTickets') : null;
+    if (!spendFn) {
+        if (typeof showToast === 'function') showToast('❌ Shop unavailable — no connection');
+        btnEl.disabled = false; btnEl.textContent = origText; btnEl.style.opacity = '';
+        return;
+    }
+
+    spendFn({ itemId: itemId, quantity: qty || 1 }).then(function(result) {
+        var d = result.data;
+        if (d && d.success) {
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.orangeTickets = d.newTickets;
+            }
+            if (typeof updateRankUI === 'function') updateRankUI();
+            if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' 🎟️');
+            // Re-render nook to reflect new balance/inventory
+            setTimeout(function() { _renderNookSubTabs(); }, 300);
+        }
+    }).catch(function(err) {
+        var msg = (err && err.message) ? err.message : 'Purchase failed';
+        if (typeof showToast === 'function') showToast('❌ ' + msg);
+        btnEl.disabled = false;
+        btnEl.textContent = origText;
+        btnEl.style.opacity = '';
+    });
+}
+
+function _nookConvertXP(tickets, btnEl) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    var origText = btnEl.textContent;
+    btnEl.textContent = '⏳';
+    btnEl.style.opacity = '0.6';
+
+    var convertFn = typeof firebase !== 'undefined' ? firebase.functions().httpsCallable('convertPointsToTickets') : null;
+    if (!convertFn) {
+        if (typeof showToast === 'function') showToast('❌ Service unavailable');
+        btnEl.disabled = false; btnEl.textContent = origText; btnEl.style.opacity = '';
+        return;
+    }
+
+    convertFn({ tickets: tickets }).then(function(result) {
+        var d = result.data;
+        if (d && d.success) {
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.orangeTickets = d.newTickets;
+                currentUser.points = d.newPoints;
+            }
+            if (typeof updateRankUI === 'function') updateRankUI();
+            if (typeof showToast === 'function') showToast('💱 Converted! +' + tickets + ' 🎟️. Balance: ' + d.newTickets + ' tickets. ' + (d.remaining > 0 ? d.remaining + ' exchanges left today.' : 'Daily limit reached.'));
+            setTimeout(function() { _renderNookSubTabs(); }, 300);
+        }
+    }).catch(function(err) {
+        var msg = (err && err.message) ? err.message : 'Conversion failed';
+        if (typeof showToast === 'function') showToast('❌ ' + msg);
+        btnEl.disabled = false;
+        btnEl.textContent = origText;
+        btnEl.style.opacity = '';
+    });
+}
+
+function _renderNookShop() {
+    var el = document.getElementById('nookTabContent');
+    if (!el) return;
+    var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
+    var tickets = u.orangeTickets || 0;
+    var pts = u.points || 0;
+    var ownedCosmetics = u.ownedCosmetics || [];
+
+    function buyBtn(itemId, cost, qty, label, extraStyle) {
+        var canAfford = tickets >= cost * (qty || 1);
+        var style = 'padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:'+(canAfford?'pointer':'not-allowed')+';font-family:inherit;background:'+(canAfford?'linear-gradient(135deg,#f7931a,#e8720c)':'rgba(255,255,255,0.05)')+';color:'+(canAfford?'#fff':'var(--text-faint)')+';opacity:'+(canAfford?'1':'0.5')+';transition:0.2s;'+(extraStyle||'');
+        return '<button onclick="_nookBuyItem(\''+itemId+'\','+(qty||1)+',this)" '+(canAfford?'':'disabled')+'style="'+style+'">'+label+'</button>';
+    }
+
+    function itemRow(icon, name, desc, cost, btnHtml) {
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
+            '<div style="font-size:1.4rem;flex-shrink:0;">'+icon+'</div>' +
+            '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">'+name+'</div>' +
+            '<div style="font-size:0.72rem;color:var(--text-muted);">'+desc+'</div></div>' +
+            '<div style="flex-shrink:0;text-align:right;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;">'+cost+' 🎟️</div>' + btnHtml + '</div>' +
+        '</div>';
+    }
+
+    // XP→Tickets exchange panel
+    var xpPanel = '<div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(22,163,74,0.04));border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:14px 16px;margin-bottom:16px;">' +
+        '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💱 XP → Tickets Exchange</div>' +
+        '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">500 XP = 1 🎟️ · Max 10/day · Your XP: <strong style="color:var(--text);">'+pts.toLocaleString()+'</strong></div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+        [1,5,10].map(function(n) {
+            var cost = n * 500;
+            var canConvert = pts >= cost;
+            return '<button onclick="_nookConvertXP('+n+',this)" '+(canConvert?'':'disabled')+' style="padding:7px 14px;border-radius:8px;border:1px solid '+(canConvert?'#22c55e':'var(--border)')+';background:'+(canConvert?'rgba(34,197,94,0.12)':'rgba(255,255,255,0.02)')+';color:'+(canConvert?'#22c55e':'var(--text-faint)')+';font-size:0.78rem;font-weight:700;cursor:'+(canConvert?'pointer':'not-allowed')+';font-family:inherit;opacity:'+(canConvert?'1':'0.5')+';">' +
+                'Buy '+n+' ('+cost.toLocaleString()+' XP)' +
+            '</button>';
+        }).join('') +
+        '</div>' +
+    '</div>';
+
+    var html = xpPanel;
+
+    // ─── Consumables ───
+    html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Consumables ───</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak',5,buyBtn('streak_freeze',5,1,'Buy'));
+    html += itemRow('🧊','3× Streak Freezes','Bundle — save 3 tickets',12,buyBtn('streak_freeze_3',12,1,'Bundle'));
+    html += itemRow('⚡','Hash Booster','Grant +10 bonus hashes in Satoshi\'s Favor',10,buyBtn('hash_booster',10,1,'Buy'));
+    html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',3,buyBtn('hint_token',3,1,'Buy'));
+    html += itemRow('🧠','5× Hint Tokens','Bundle deal',12,buyBtn('hint_token_5',12,1,'Bundle'));
+    html += itemRow('🎯','Double XP (60 min)','2× XP multiplier for 1 hour',15,buyBtn('double_xp',15,1,'Buy'));
+    html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel',5,buyBtn('bonus_spin',5,1,'Buy'));
+    html += '</div>';
+
+    // ─── Cosmetics ───
+    html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Cosmetics (Permanent) ───</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    var cosmetics = [
+        { id:'profile_frame', icon:'🪪', name:'Profile Frame', desc:'Exclusive border on your profile card', cost:50 },
+        { id:'chat_flair', icon:'💬', name:'Chat Flair', desc:'Special badge next to your name in chat', cost:40 },
+        { id:'pinned_badge', icon:'📌', name:'Pinned Badge', desc:'Showcase a permanent achievement badge', cost:20 },
+        { id:'nacho_skin_nook', icon:'🦌', name:'Exclusive Nacho Skin', desc:'Rare Nacho avatar — Nook exclusive!', cost:60 },
+    ];
+    cosmetics.forEach(function(c) {
+        var owned = ownedCosmetics.indexOf(c.id) !== -1;
+        var btnHtml = owned
+            ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>'
+            : buyBtn(c.id, c.cost, 1, 'Buy');
+        html += itemRow(c.icon, c.name, c.desc, c.cost, btnHtml);
+    });
+    html += '</div>';
+
+    // ─── Raffle ───
+    html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Weekly Raffle ───</div>';
+    var raffleEntries = u.raffleEntries || 0;
+    html += '<div style="background:linear-gradient(135deg,rgba(234,179,8,0.1),rgba(247,147,26,0.05));border:1px solid rgba(234,179,8,0.3);border-radius:12px;padding:12px 14px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+        '<div>' +
+        '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);">🎟️ Sats Raffle Entry</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this week: <strong style="color:#eab308;">' + raffleEntries + '</strong> · Winner every Monday!</div>' +
+        '</div>' +
+        '<div style="text-align:right;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;margin-bottom:4px;">10 🎟️</div>' +
+        buyBtn('raffle_entry', 10, 1, 'Enter') +
+        '</div>' +
+        '</div>' +
+    '</div>';
+
+    el.innerHTML = html;
+}
+
+function _renderNookInventory() {
+    var el = document.getElementById('nookTabContent');
+    if (!el) return;
+    var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
+
+    var freezes = u.streakFreezes || 0;
+    var hintTokens = u.hintTokens || 0;
+    var hashBoosters = u.hashBoosters || 0;
+    var doubleXPCharges = u.doubleXPCharges || 0;
+    var bonusSpins = u.bonusSpins || 0;
+    var raffleEntries = u.raffleEntries || 0;
+    var ownedCosmetics = u.ownedCosmetics || [];
+
+    // Double XP active countdown
+    var doubleXPExpiry = u.doubleXPExpiry;
+    var doubleXPActive = doubleXPExpiry && (doubleXPExpiry > Date.now());
+    var doubleXPMin = doubleXPActive ? Math.ceil((doubleXPExpiry - Date.now()) / 60000) : 0;
+
+     function invRow(icon, name, qty, actionHtml, noteHtml) {
+        var hasItems = qty > 0;
+        var borderC = hasItems ? 'var(--border)' : 'rgba(255,255,255,0.06)';
+        var opC = hasItems ? '1' : '0.5';
+        var txtC = hasItems ? 'var(--heading)' : 'var(--text-faint)';
+        var icnC = hasItems ? '#f7931a' : 'var(--text-faint)';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid ' + borderC + ';border-radius:12px;opacity:' + opC + '">' +
+            '<div style="font-size:1.4rem;flex-shrink:0;">' + icon + '</div>' +
+            '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">' + name + '</div>' +
+            (noteHtml ? '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">' + noteHtml + '</div>' : '') +
+            '</div>' +
+            '<div style="flex-shrink:0;text-align:right;"><div style="font-size:0.85rem;font-weight:800;color:' + txtC + ';">' +
+            '<span style="color:' + icnC + ';font-size:1rem;">×</span> ' + qty + '</div>' +
+            (hasItems ? actionHtml : '') +
+            '</div>' +
+        '</div>';
+    }
+
+    var html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+
+    // Streak Freezes
+    html += invRow('🧊', 'Streak Freezes', freezes,
+        '',
+        'Auto-applied when you miss a day — nothing to do!');
+
+    // Hash Boosters
+    html += invRow('⚡', 'Hash Boosters', hashBoosters,
+        '<button onclick="_nookActivateHashBooster(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Activate</button>',
+        '+10 bonus hashes in Satoshi\'s Favor next round');
+
+    // Hint Tokens
+    html += invRow('🧠', 'Hint Tokens', hintTokens,
+        '',
+        'Used automatically from quiz screen — shows 💡 button');
+
+    // Double XP
+    html += invRow('🎯', 'Double XP Charges', doubleXPCharges,
+        doubleXPActive
+            ? '<div style="margin-top:4px;padding:4px 10px;background:rgba(34,197,94,0.15);border:1px solid #22c55e;border-radius:8px;font-size:0.72rem;color:#22c55e;font-weight:700;">✅ Active — '+doubleXPMin+' min left</div>'
+            : '<button onclick="_nookActivateDoubleXP(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Activate</button>',
+        doubleXPActive ? '🎯 Double XP is ACTIVE (' + doubleXPMin + ' min remaining)' : '2× XP multiplier for 1 hour');
+
+    // Bonus Spins
+    html += invRow('🎰', 'Bonus Spins', bonusSpins,
+        '<button onclick="_nookUseBonusSpin(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#a855f7,#7c3aed);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Use</button>',
+        'Spin the wheel without using your daily spin');
+
+    // Raffle entries
+    html += invRow('🎲', 'Raffle Entries (this week)', raffleEntries,
+        '',
+        'Winner announced every Monday!');
+
+    html += '</div>';
+
+    // Cosmetics
+    if (ownedCosmetics.length > 0) {
+        var cosmeticLabels = {
+            profile_frame: { icon:'🪪', name:'Profile Frame' },
+            chat_flair:    { icon:'💬', name:'Chat Flair' },
+            pinned_badge:  { icon:'📌', name:'Pinned Badge' },
+            nacho_skin_nook: { icon:'🦌', name:'Exclusive Nacho Skin' },
+        };
+        html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">Cosmetics Owned</div>';
+        html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+        ownedCosmetics.forEach(function(cid) {
+            var meta = cosmeticLabels[cid] || { icon:'✨', name: cid };
+            html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.06),rgba(234,179,8,0.03));border:1px solid rgba(247,147,26,0.2);border-radius:12px;">' +
+                '<div style="font-size:1.4rem;">' + meta.icon + '</div>' +
+                '<div style="flex:1;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">' + meta.name + '</div></div>' +
+                '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.72rem;color:#22c55e;font-weight:700;">Owned ✓</div>' +
+            '</div>';
+        });
+        html += '</div>';
+    }
+
+    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && bonusSpins === 0 && raffleEntries === 0 && ownedCosmetics.length === 0) {
+        html = '<div style="text-align:center;padding:32px 20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">Your inventory is empty.</div>' +
+            '<div style="font-size:0.78rem;color:var(--text-faint);">Visit the Shop to buy items with your Orange Tickets 🎟️</div>' +
+        '</div>';
+    }
+
+    el.innerHTML = html;
+}
+
+window._nookActivateHashBooster = function(btnEl) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    var origText = btnEl.textContent;
+    btnEl.textContent = '⏳';
+    var fn = typeof firebase !== 'undefined' ? firebase.functions().httpsCallable('activateHashBooster') : null;
+    if (!fn) { btnEl.disabled = false; btnEl.textContent = origText; return; }
+    fn({}).then(function(r) {
+        var d = r.data;
+        if (d && d.success) {
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.hashBoosters = d.hashBoosters;
+                currentUser.hashBoosterHashes = d.hashBoosterHashes;
+            }
+            if (typeof showToast === 'function') showToast('⚡ Hash Booster activated! +10 bonus hashes in the next Satoshi\'s Favor round.');
+            _renderNookSubTabs();
+        }
+    }).catch(function(err) {
+        var msg = (err && err.message) ? err.message : 'Activation failed';
+        if (typeof showToast === 'function') showToast('❌ ' + msg);
+        btnEl.disabled = false;
+        btnEl.textContent = origText;
+    });
+};
+
+window._nookActivateDoubleXP = function(btnEl) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    var origText = btnEl.textContent;
+    btnEl.textContent = '⏳';
+    var fn = typeof firebase !== 'undefined' ? firebase.functions().httpsCallable('activateDoubleXP') : null;
+    if (!fn) { btnEl.disabled = false; btnEl.textContent = origText; return; }
+    fn({}).then(function(r) {
+        var d = r.data;
+        if (d && d.success) {
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.doubleXPCharges = d.charges;
+                currentUser.doubleXPExpiry = d.doubleXPExpiry;
+            }
+            var msg = d.extended ? '🎯 Double XP extended! Active for another hour.' : '🎯 Double XP activated! 2× XP for the next 60 minutes!';
+            if (typeof showToast === 'function') showToast(msg);
+            _renderNookSubTabs();
+        }
+    }).catch(function(err) {
+        var msg = (err && err.message) ? err.message : 'Activation failed';
+        if (typeof showToast === 'function') showToast('❌ ' + msg);
+        btnEl.disabled = false;
+        btnEl.textContent = origText;
+    });
+};
+
+window._nookUseBonusSpin = function(btnEl) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    var origText = btnEl.textContent;
+    btnEl.textContent = '⏳';
+    var fn = typeof firebase !== 'undefined' ? firebase.functions().httpsCallable('useBonusSpin') : null;
+    if (!fn) { btnEl.disabled = false; btnEl.textContent = origText; return; }
+    fn({}).then(function(r) {
+        var d = r.data;
+        if (d && d.success) {
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.bonusSpins = d.bonusSpins;
+            if (typeof showToast === 'function') showToast('🎰 Bonus spin unlocked! Opening the wheel...');
+            _renderNookSubTabs();
+            // Trigger spin wheel without daily check
+            setTimeout(function() {
+                if (typeof showSpinWheel === 'function') {
+                    window._bonusSpinActive = true;
+                    showSpinWheel();
+                }
+            }, 400);
+        }
+    }).catch(function(err) {
+        var msg = (err && err.message) ? err.message : 'Failed to use bonus spin';
+        if (typeof showToast === 'function') showToast('❌ ' + msg);
+        btnEl.disabled = false;
+        btnEl.textContent = origText;
+    });
+};
+
+function _renderNookHistory() {
+    var el = document.getElementById('nookTabContent');
+    if (!el) return;
+    if (typeof firebase === 'undefined' || !firebase.firestore || !auth || !auth.currentUser) {
+        el.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:20px 0;text-align:center;">Unavailable</div>';
+        return;
+    }
+
+    el.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:0.82rem;">Loading history...</div>';
+
+    var uid = auth.currentUser.uid;
+    firebase.firestore().collection('users').doc(uid).collection('shop_purchases')
+        .orderBy('ts', 'desc').limit(20).get().then(function(snap) {
+            if (snap.empty) {
+                el.innerHTML = '<div style="text-align:center;padding:32px 0;">' +
+                    '<div style="font-size:2rem;margin-bottom:10px;">📜</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.85rem;">No purchases yet.</div>' +
+                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Your purchase history will appear here.</div>' +
+                '</div>';
+                return;
+            }
+
+            var rows = '';
+            snap.forEach(function(doc) {
+                var p = doc.data();
+                var ts = p.ts ? (p.ts.toDate ? p.ts.toDate() : new Date(p.ts)) : new Date();
+                var dateStr = ts.toLocaleDateString() + ' ' + ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                var costStr = p.costType === 'points'
+                    ? (p.cost || 0).toLocaleString() + ' XP'
+                    : (p.cost || 0) + ' 🎟️';
+                var balStr = typeof p.ticketsAfter !== 'undefined' ? ' · Balance after: ' + p.ticketsAfter + ' 🎟️' : '';
+                rows += '<div style="padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:10px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+                    '<div style="font-size:0.82rem;font-weight:700;color:var(--heading);">' + (p.itemName || p.itemId || '—') + '</div>' +
+                    '<div style="font-size:0.78rem;color:#f7931a;font-weight:700;">' + costStr + '</div>' +
+                    '</div>' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:3px;">' + dateStr + balStr + '</div>' +
+                '</div>';
+            });
+
+            el.innerHTML = '<div style="display:flex;flex-direction:column;gap:6px;">' + rows + '</div>';
+        }).catch(function(err) {
+            el.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:20px;text-align:center;">⚠️ Failed to load history.</div>';
+        });
 }
 
 // ── CITADEL TAB ──
@@ -28300,12 +28822,16 @@ window._startHalvingTicker = function() {
     }
 
     window.showSpinWheel = function() {
-        // Check if already spun today
-        var lastSpin = localStorage.getItem('btc_last_spin_date');
-        var today = new Date().toDateString();
-        if (lastSpin === today) {
-            showToast('🎡 You already spun today! Come back tomorrow!');
-            return;
+        // Check if already spun today (bypass for bonus spins from Nook)
+        var isBonusSpin = !!window._bonusSpinActive;
+        window._bonusSpinActive = false; // consume the flag
+        if (!isBonusSpin) {
+            var lastSpin = localStorage.getItem('btc_last_spin_date');
+            var today = new Date().toDateString();
+            if (lastSpin === today) {
+                showToast('🎡 You already spun today! Come back tomorrow!');
+                return;
+            }
         }
         
         var existing = document.getElementById('spinModal');

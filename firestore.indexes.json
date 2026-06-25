@@ -317,6 +317,16 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "shop_purchases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ts",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

@@ -5161,3 +5161,329 @@ exports.incrementWeeklyChallenge = functions.https.onCall(async (data, context) 
 
     return { success: true, allDone };
 });
+
+// ══════════════════════════════════════════════════════════════════════
+// 🦌 NACHO'S NOOK — Shop Cloud Functions
+// ══════════════════════════════════════════════════════════════════════
+
+// Item catalog — server is the authority on all prices/types
+const NOOK_SHOP_ITEMS = {
+    'streak_freeze':    { cost: 5,  type: 'consumable', name: 'Streak Freeze',           gives: { streakFreezes: 1 } },
+    'hash_booster':     { cost: 10, type: 'consumable', name: 'Hash Booster',            gives: { hashBoosters: 1 } },
+    'hint_token':       { cost: 3,  type: 'consumable', name: 'Hint Token',              gives: { hintTokens: 1 } },
+    'double_xp':        { cost: 15, type: 'consumable', name: 'Double XP (60 min)',      gives: { doubleXP: 1 } },
+    'bonus_spin':       { cost: 5,  type: 'consumable', name: 'Bonus Spin',              gives: { bonusSpins: 1 } },
+    'profile_frame':    { cost: 50, type: 'cosmetic',   name: 'Profile Frame',           gives: { cosmetics: 'profile_frame' } },
+    'chat_flair':       { cost: 40, type: 'cosmetic',   name: 'Chat Flair',              gives: { cosmetics: 'chat_flair' } },
+    'pinned_badge':     { cost: 20, type: 'cosmetic',   name: 'Pinned Badge',            gives: { cosmetics: 'pinned_badge' } },
+    'nacho_skin_nook':  { cost: 60, type: 'cosmetic',   name: 'Exclusive Nacho Skin',    gives: { cosmetics: 'nacho_skin_nook' } },
+    'raffle_entry':     { cost: 10, type: 'raffle',     name: 'Sats Raffle Entry',       gives: { raffleEntries: 1 } },
+    'streak_freeze_3':  { cost: 12, type: 'consumable', name: '3× Streak Freezes',      gives: { streakFreezes: 3 } },
+    'hint_token_5':     { cost: 12, type: 'consumable', name: '5× Hint Tokens',         gives: { hintTokens: 5 } },
+};
+
+exports.spendTickets = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use the shop');
+    }
+
+    const uid = context.auth.uid;
+    const itemId = (data.itemId || '').replace(/[^a-z0-9_]/g, '').substring(0, 40);
+    const quantity = Math.max(1, Math.min(10, parseInt(data.quantity) || 1));
+
+    const item = NOOK_SHOP_ITEMS[itemId];
+    if (!item) throw new functions.https.HttpsError('invalid-argument', 'Unknown item: ' + itemId);
+
+    // For bundles (streak_freeze_3, hint_token_5), quantity is always 1 (bundle is the unit)
+    const isBundle = ['streak_freeze_3', 'hint_token_5'].includes(itemId);
+    const qty = (item.type === 'consumable' && !isBundle) ? quantity : 1;
+    const totalCost = item.cost * qty;
+
+    const userRef = db.collection('users').doc(uid);
+
+    return db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+
+        const userData = userDoc.data();
+        const currentTickets = userData.orangeTickets || 0;
+
+        if (currentTickets < totalCost) {
+            throw new functions.https.HttpsError('failed-precondition',
+                `Not enough tickets. Have ${currentTickets}, need ${totalCost}.`);
+        }
+
+        // Cosmetics: check not already owned
+        if (item.type === 'cosmetic') {
+            const owned = userData.ownedCosmetics || [];
+            if (owned.includes(item.gives.cosmetics)) {
+                throw new functions.https.HttpsError('already-exists', 'You already own this item.');
+            }
+        }
+
+        // Build update
+        const update = {
+            orangeTickets: admin.firestore.FieldValue.increment(-totalCost),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        // Apply gives
+        const g = item.gives;
+        if (g.streakFreezes)  update.streakFreezes  = admin.firestore.FieldValue.increment(g.streakFreezes);
+        if (g.hashBoosters)   update.hashBoosters   = admin.firestore.FieldValue.increment(g.hashBoosters * qty);
+        if (g.hintTokens)     update.hintTokens     = admin.firestore.FieldValue.increment(g.hintTokens);
+        if (g.doubleXP)       update.doubleXPCharges = admin.firestore.FieldValue.increment(g.doubleXP * qty);
+        if (g.bonusSpins)     update.bonusSpins     = admin.firestore.FieldValue.increment(g.bonusSpins * qty);
+        if (g.raffleEntries)  update.raffleEntries  = admin.firestore.FieldValue.increment(g.raffleEntries * qty);
+        if (g.cosmetics)      update.ownedCosmetics = admin.firestore.FieldValue.arrayUnion(g.cosmetics);
+
+        tx.update(userRef, update);
+
+        // Purchase record (server-only subcollection)
+        const purchaseRef = userRef.collection('shop_purchases').doc();
+        tx.set(purchaseRef, {
+            itemId,
+            itemName: item.name,
+            quantity: qty,
+            cost: totalCost,
+            ticketsBefore: currentTickets,
+            ticketsAfter: currentTickets - totalCost,
+            type: item.type,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // In-app notification in user's notifications subcollection
+        const notifRef = userRef.collection('notifications').doc();
+        tx.set(notifRef, {
+            type: 'shop_purchase',
+            title: '🛒 Purchase Complete',
+            body: `You spent ${totalCost} 🎟️ on ${item.name}. Balance: ${currentTickets - totalCost} tickets.`,
+            read: false,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return {
+            success: true,
+            newTickets: currentTickets - totalCost,
+            itemId,
+            quantity: qty,
+            itemName: item.name,
+        };
+    });
+});
+
+exports.convertPointsToTickets = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot convert XP');
+    }
+
+    const uid = context.auth.uid;
+    const tickets = Math.max(1, Math.min(10, parseInt(data.tickets) || 1));
+
+    const POINTS_PER_TICKET = 500;
+    const MAX_PER_DAY = 10;
+    const today = new Date().toISOString().split('T')[0];
+
+    const userRef = db.collection('users').doc(uid);
+    const dailyRef = userRef.collection('daily_action_counts').doc(`${today}_pts_to_tickets`);
+
+    return db.runTransaction(async (tx) => {
+        const [userDoc, dailyDoc] = await Promise.all([tx.get(userRef), tx.get(dailyRef)]);
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+
+        const userData = userDoc.data();
+        const todayCount = dailyDoc.exists ? (dailyDoc.data().count || 0) : 0;
+
+        if (todayCount + tickets > MAX_PER_DAY) {
+            throw new functions.https.HttpsError('resource-exhausted',
+                `Daily limit: ${MAX_PER_DAY} tickets/day. Already converted ${todayCount} today.`);
+        }
+
+        const pointsCost = tickets * POINTS_PER_TICKET;
+        const currentPoints = userData.points || 0;
+
+        if (currentPoints < pointsCost) {
+            throw new functions.https.HttpsError('failed-precondition',
+                `Need ${pointsCost.toLocaleString()} XP, have ${currentPoints.toLocaleString()}.`);
+        }
+
+        tx.update(userRef, {
+            points: admin.firestore.FieldValue.increment(-pointsCost),
+            orangeTickets: admin.firestore.FieldValue.increment(tickets),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Dedup counter
+        tx.set(dailyRef, { count: admin.firestore.FieldValue.increment(tickets), date: today }, { merge: true });
+
+        // Purchase record
+        const purchaseRef = userRef.collection('shop_purchases').doc();
+        tx.set(purchaseRef, {
+            itemId: 'pts_to_tickets',
+            itemName: `${tickets} Orange Ticket${tickets > 1 ? 's' : ''} (XP Exchange)`,
+            quantity: tickets,
+            cost: pointsCost,
+            costType: 'points',
+            type: 'exchange',
+            todayCountAfter: todayCount + tickets,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Notification
+        const notifRef = userRef.collection('notifications').doc();
+        tx.set(notifRef, {
+            type: 'shop_exchange',
+            title: '💱 XP Exchanged',
+            body: `Converted ${pointsCost.toLocaleString()} XP → ${tickets} 🎟️ ticket${tickets > 1 ? 's' : ''}. (${MAX_PER_DAY - todayCount - tickets} exchanges left today)`,
+            read: false,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return {
+            success: true,
+            newPoints: currentPoints - pointsCost,
+            newTickets: (userData.orangeTickets || 0) + tickets,
+            todayUsed: todayCount + tickets,
+            remaining: MAX_PER_DAY - todayCount - tickets,
+        };
+    });
+});
+
+exports.activateHashBooster = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
+    }
+
+    const uid = context.auth.uid;
+    const userRef = db.collection('users').doc(uid);
+
+    return db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+
+        const userData = userDoc.data();
+        const hashBoosters = userData.hashBoosters || 0;
+
+        if (hashBoosters < 1) {
+            throw new functions.https.HttpsError('failed-precondition', 'No hash boosters available.');
+        }
+
+        // Grant +10 bonus hashes (added to hashBoosterHashes budget)
+        tx.update(userRef, {
+            hashBoosters: admin.firestore.FieldValue.increment(-1),
+            hashBoosterHashes: admin.firestore.FieldValue.increment(10),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return {
+            success: true,
+            hashBoosterHashes: (userData.hashBoosterHashes || 0) + 10,
+            hashBoosters: hashBoosters - 1,
+        };
+    });
+});
+
+exports.useHintToken = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use hint tokens');
+    }
+
+    const uid = context.auth.uid;
+    const userRef = db.collection('users').doc(uid);
+
+    return db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+
+        const userData = userDoc.data();
+        const hintTokens = userData.hintTokens || 0;
+
+        if (hintTokens < 1) {
+            throw new functions.https.HttpsError('failed-precondition', 'No hint tokens available.');
+        }
+
+        tx.update(userRef, {
+            hintTokens: admin.firestore.FieldValue.increment(-1),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return { success: true, hintTokens: hintTokens - 1 };
+    });
+});
+
+exports.activateDoubleXP = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot activate Double XP');
+    }
+
+    const uid = context.auth.uid;
+    const userRef = db.collection('users').doc(uid);
+
+    return db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+
+        const userData = userDoc.data();
+        const charges = userData.doubleXPCharges || 0;
+
+        if (charges < 1) {
+            throw new functions.https.HttpsError('failed-precondition', 'No Double XP charges available.');
+        }
+
+        // Already active? extend or reject
+        const now = admin.firestore.Timestamp.now();
+        const existingExpiry = userData.doubleXPExpiry;
+        const alreadyActive = existingExpiry && existingExpiry.toMillis() > now.toMillis();
+
+        // Set expiry to now+60min (or extend if already active)
+        const base = alreadyActive ? existingExpiry.toMillis() : now.toMillis();
+        const newExpiry = admin.firestore.Timestamp.fromMillis(base + 3600000);
+
+        tx.update(userRef, {
+            doubleXPCharges: admin.firestore.FieldValue.increment(-1),
+            doubleXPExpiry: newExpiry,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return {
+            success: true,
+            doubleXPExpiry: newExpiry.toMillis(),
+            charges: charges - 1,
+            extended: alreadyActive,
+        };
+    });
+});
+
+exports.useBonusSpin = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use bonus spins');
+    }
+
+    const uid = context.auth.uid;
+    const userRef = db.collection('users').doc(uid);
+
+    return db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+
+        const userData = userDoc.data();
+        const bonusSpins = userData.bonusSpins || 0;
+
+        if (bonusSpins < 1) {
+            throw new functions.https.HttpsError('failed-precondition', 'No bonus spins available.');
+        }
+
+        tx.update(userRef, {
+            bonusSpins: admin.firestore.FieldValue.increment(-1),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return { success: true, bonusSpins: bonusSpins - 1 };
+    });
+});

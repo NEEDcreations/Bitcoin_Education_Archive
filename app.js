@@ -577,12 +577,16 @@
     }
 
     window.showSpinWheel = function() {
-        // Check if already spun today
-        var lastSpin = localStorage.getItem('btc_last_spin_date');
-        var today = new Date().toDateString();
-        if (lastSpin === today) {
-            showToast('🎡 You already spun today! Come back tomorrow!');
-            return;
+        // Check if already spun today (bypass for bonus spins from Nook)
+        var isBonusSpin = !!window._bonusSpinActive;
+        window._bonusSpinActive = false; // consume the flag
+        if (!isBonusSpin) {
+            var lastSpin = localStorage.getItem('btc_last_spin_date');
+            var today = new Date().toDateString();
+            if (lastSpin === today) {
+                showToast('🎡 You already spun today! Come back tomorrow!');
+                return;
+            }
         }
         
         var existing = document.getElementById('spinModal');

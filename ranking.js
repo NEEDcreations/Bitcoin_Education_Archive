@@ -1933,12 +1933,20 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         notifySelfPoints(pts, reason);
     }
     try {
+        // 🎯 Double XP: check if active before sending points (client-side boost signal)
+        var doubleXPExpiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
+        var doubleXPActive = doubleXPExpiry > Date.now();
+        if (doubleXPActive && pts > 0) {
+            pts = Math.min(2200, pts * 2); // double, respect anti-abuse cap
+        }
+
         var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
         var payload = { pts: pts, action: reason || '', reason: reason || '' };
         if (channelId) payload.channelId = channelId;
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
+        if (doubleXPActive) payload.doubleXP = true; // inform CF for logging
         if (extra && typeof extra === 'object') Object.assign(payload, extra);
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {

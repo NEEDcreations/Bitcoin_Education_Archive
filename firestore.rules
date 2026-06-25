@@ -100,6 +100,21 @@ service cloud.firestore {
         allow delete: if request.auth != null
                       && request.auth.uid == userId;
       }
+
+      // Nook shop purchase history — owner read only, Cloud Function writes
+      match /shop_purchases/{purchaseId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false; // Cloud Function (Admin SDK) only
+      }
+
+      // Per-user in-app notifications (shop, exchange, etc.) — owner read/update, CF creates
+      match /notifications/{notifId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        // Owner can mark as read (update only); Cloud Function creates via Admin SDK
+        allow update: if request.auth != null && request.auth.uid == userId
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        allow create, delete: if false; // Cloud Function (Admin SDK) only
+      }
     }
 
     // =============================================
