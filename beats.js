@@ -2224,6 +2224,7 @@ window.beatsPostComment = function(trackId) {
         input.value = '';
         input.disabled = false;
         beatsLoadComments(trackId);
+        try { var _bcc = parseInt(localStorage.getItem('btc_beats_comments') || '0') + 1; localStorage.setItem('btc_beats_comments', _bcc.toString()); } catch(e) {}
         // Award points for commenting
         if (typeof awardPoints === 'function') {
             if (!window._beatsCommentPointsCount) window._beatsCommentPointsCount = 0;

@@ -779,7 +779,9 @@ window.forumSubmitReply = async function(postId) {
             replyCount: firebase.firestore.FieldValue.increment(1)
         });
 
-        if (typeof awardPoints === 'function') awardPoints(5, '\uD83D\uDCAC Forum reply');
+        if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
+        try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
         // Notify post author (for top-level replies) or parent reply author (for nested)
         var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
         if (replyingTo && replyingTo.replyId) {

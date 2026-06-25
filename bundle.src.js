@@ -6849,6 +6849,89 @@ const BADGE_DEFS = [
     { id: 'the_hodler', name: "Satoshi's Ghost", emoji: '👻', desc: 'Earned 300 distinct badges — so rare, nobody knows if it has ever been done', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 300, pts: 30000, hidden: false },
     { id: 'satoshis_covenant', name: "Satoshi's Covenant", emoji: '📜', desc: 'Earned 350 distinct badges — bound to the protocol, forever', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 350, pts: 42000, hidden: false },
     { id: 'satoshis_cipher', name: "Satoshi's Cipher", emoji: '🔐', desc: 'Earned 400 distinct badges — you have cracked something most never will', check: () => (JSON.parse(localStorage.getItem('btc_badges') || '[]')).length >= 400, pts: 100000, hidden: false },
+
+    // ---- Fun: date/time-based ----
+    { id: 'fun_weekend',          name: 'Weekend Warrior',    emoji: '🏖️',  desc: 'Visited on a Saturday or Sunday',                                    check: () => [0,6].includes(new Date().getDay()),                                                              pts: 10 },
+    { id: 'fun_friday',           name: 'TGIF Pleb',          emoji: '🍕',  desc: 'Visited on a Friday',                                                 check: () => new Date().getDay() === 5,                                                                        pts: 10 },
+    { id: 'fun_midnight',         name: 'Midnight Maxi',      emoji: '🌕',  desc: 'Visited right at midnight (12:00 AM)',                                 check: () => new Date().getHours() === 0 && new Date().getMinutes() < 30,                                      pts: 15 },
+    { id: 'fun_bitcoin_birthday', name: 'Bitcoin Birthday',   emoji: '🎂',  desc: 'Visited on Jan 3 — Genesis Block Day',                                check: () => new Date().getMonth() === 0 && new Date().getDate() === 3,                                        pts: 100 },
+    { id: 'fun_whitepaper_day',   name: 'Whitepaper Day',     emoji: '📜',  desc: 'Visited on Oct 31 — Bitcoin Whitepaper Anniversary',                  check: () => new Date().getMonth() === 9 && new Date().getDate() === 31,                                       pts: 75 },
+    { id: 'fun_new_year',         name: 'New Year Stacker',   emoji: '🎆',  desc: 'Visited on January 1st',                                              check: () => new Date().getMonth() === 0 && new Date().getDate() === 1,                                        pts: 50 },
+    { id: 'fun_halving_day',      name: 'Halving Day',        emoji: '✂️',  desc: 'Visited on April 20 — the spirit of the halving',                     check: () => new Date().getMonth() === 3 && new Date().getDate() === 20,                                       pts: 100 },
+    { id: 'fun_pi_day',           name: 'Pi Day Pleb',        emoji: '🥧',  desc: 'Visited on March 14 (3.14) — Bitcoiners appreciate irrational numbers too', check: () => new Date().getMonth() === 2 && new Date().getDate() === 14,                                    pts: 21 },
+
+    // ---- Forum: first post, tiers, replies, articles ----
+    { id: 'forum_first',     name: 'First Post',      emoji: '📝', desc: 'Made your first forum post',           check: () => parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 1,   pts: 15 },
+    { id: 'forum_10',        name: 'Active Voice',    emoji: '🗣️', desc: 'Made 10 forum posts',                  check: () => parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 10,  pts: 40 },
+    { id: 'forum_50',        name: 'Prolific Poster', emoji: '✍️', desc: 'Made 50 forum posts',                  check: () => parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 50,  pts: 150 },
+    { id: 'forum_100',       name: 'Forum Legend',    emoji: '🏛️', desc: 'Made 100 forum posts',                 check: () => parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 100, pts: 400 },
+    { id: 'article_5',       name: 'Journalist',      emoji: '📰', desc: 'Published 5 articles',                 check: () => parseInt(localStorage.getItem('btc_articles_published') || '0') >= 5,  pts: 150 },
+    { id: 'article_10',      name: 'Staff Writer',    emoji: '🗞️', desc: 'Published 10 articles',                check: () => parseInt(localStorage.getItem('btc_articles_published') || '0') >= 10, pts: 400 },
+    { id: 'forum_reply_1',   name: 'Responder',       emoji: '💬', desc: 'Left your first forum reply',          check: () => parseInt(localStorage.getItem('btc_forum_reply_count') || '0') >= 1,  pts: 10 },
+    { id: 'forum_reply_10',  name: 'Commentator',     emoji: '🗣️', desc: 'Left 10 forum replies',                check: () => parseInt(localStorage.getItem('btc_forum_reply_count') || '0') >= 10, pts: 40 },
+
+    // ---- Spin Wheel: full tier set ----
+    { id: 'spin_1',          name: 'First Spin',       emoji: '🎰', desc: 'Spun the wheel for the first time',    check: () => parseInt(localStorage.getItem('btc_spin_count') || '0') >= 1,   pts: 10 },
+    { id: 'spin_7',          name: 'Spin Week',        emoji: '🌀', desc: 'Spun 7 days total',                    check: () => parseInt(localStorage.getItem('btc_spin_count') || '0') >= 7,   pts: 20 },
+    { id: 'spin_streak_14',  name: 'Fortnight Spinner',emoji: '🔄', desc: 'Spun 14 days in a row',               check: () => parseInt(localStorage.getItem('btc_spin_streak') || '0') >= 14, pts: 75 },
+    { id: 'spin_streak_30',  name: 'Wheel Addict',     emoji: '🎡', desc: 'Spun 30 days in a row',               check: () => parseInt(localStorage.getItem('btc_spin_streak') || '0') >= 30, pts: 200 },
+    { id: 'spin_100',        name: 'Century Spinner',  emoji: '🏅', desc: 'Spun the wheel 100 days total',        check: () => parseInt(localStorage.getItem('btc_spin_count') || '0') >= 100, pts: 250 },
+    { id: 'spin_closet_1',   name: 'Dressed to Impress',emoji: '👔', desc: 'Won your first closet item from the spin', check: () => { try { return (JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]')).length >= 1; } catch(e) { return false; } }, pts: 50 },
+    { id: 'spin_closet_5',   name: 'Full Wardrobe',    emoji: '🌈', desc: 'Won 5 closet items from spins',        check: () => { try { return (JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]')).length >= 5; } catch(e) { return false; } }, pts: 150 },
+
+    // ---- Trails: additional tier ----
+    { id: 'trail_started',   name: 'On the Trail',    emoji: '🌱', desc: 'Attempted your first Nacho\'s Trail quiz', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').length >= 1 || !!localStorage.getItem('btc_trail_started'); } catch(e) { return false; } }, pts: 25 },
+    { id: 'trail_meadow_fast',name: 'Speed Hiker',    emoji: '⚡', desc: 'Completed The Meadow trail',             check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('meadow'); } catch(e) { return false; } }, pts: 50 },
+    { id: 'trail_double',    name: 'Double Summit',   emoji: '🏔️', desc: 'Completed two Nacho\'s Trails',         check: () => { try { var p=JSON.parse(localStorage.getItem('btc_trail_passed')||'[]'); return p.length>=2; } catch(e){return false;} }, pts: 100 },
+    { id: 'trail_perfectionist', name: 'No Shortcuts',emoji: '🧠', desc: 'Completed The Summit trail',             check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('summit'); } catch(e) { return false; } }, pts: 75 },
+    { id: 'trail_speed_3',   name: 'Speedrunner',     emoji: '🏁', desc: 'Completed all three trails',             check: () => { try { var p=JSON.parse(localStorage.getItem('btc_trail_passed')||'[]'); return p.includes('meadow')&&p.includes('mountain')&&p.includes('summit'); } catch(e){return false;} }, pts: 150 },
+    { id: 'trail_revisit',   name: 'Back for More',   emoji: '🔁', desc: 'Retook a trail you already passed',      check: () => parseInt(localStorage.getItem('btc_trail_retakes') || '0') >= 1, pts: 30 },
+
+    // ---- PVP: played count + win streak ----
+    { id: 'pvp_played_1',     name: 'Challenger',     emoji: '🥋', desc: 'Played your first PVP battle',           check: () => (parseInt(localStorage.getItem('btc_pvp_wins') || '0') + parseInt(localStorage.getItem('btc_pvp_losses') || '0')) >= 1,  pts: 10 },
+    { id: 'pvp_played_10',    name: 'Battle Tested',   emoji: '🪖', desc: 'Played 10 PVP battles',                  check: () => (parseInt(localStorage.getItem('btc_pvp_wins') || '0') + parseInt(localStorage.getItem('btc_pvp_losses') || '0')) >= 10, pts: 25 },
+    { id: 'pvp_played_50',    name: 'Battle Hardened', emoji: '⚔️', desc: 'Played 50 PVP battles',                  check: () => (parseInt(localStorage.getItem('btc_pvp_wins') || '0') + parseInt(localStorage.getItem('btc_pvp_losses') || '0')) >= 50, pts: 75 },
+    { id: 'pvp_win_streak_3', name: 'Hot Streak',      emoji: '🔥', desc: 'Won 3 PVP battles in a row',              check: () => parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 3, pts: 75 },
+    { id: 'pvp_win_streak_5', name: 'Unstoppable',     emoji: '💥', desc: 'Won 5 PVP battles in a row',              check: () => parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 5, pts: 150 },
+
+    // ---- Music: play tiers + comments ----
+    { id: 'beats_100_plays',  name: 'Music Lover',    emoji: '🎵', desc: 'Played 100 tracks on Bitcoin Beats',      check: () => parseInt(localStorage.getItem('btc_beats_play_count') || '0') >= 100, pts: 50 },
+    { id: 'beats_200_plays',  name: 'Music Junkie',   emoji: '🎶', desc: 'Played 200 tracks on Bitcoin Beats',      check: () => parseInt(localStorage.getItem('btc_beats_play_count') || '0') >= 200, pts: 75 },
+    { id: 'beats_500_plays',  name: 'Audiophile',     emoji: '🎧', desc: 'Played 500 tracks on Bitcoin Beats',      check: () => parseInt(localStorage.getItem('btc_beats_play_count') || '0') >= 500, pts: 200 },
+    { id: 'beats_comment_1',  name: 'Reviewer',       emoji: '⭐', desc: 'Left a comment on a Bitcoin Beats track', check: () => parseInt(localStorage.getItem('btc_beats_comments') || '0') >= 1,   pts: 15 },
+
+    // ---- Social: DM tiers + reaction tiers ----
+    { id: 'dm_25',           name: 'Power Networker', emoji: '📡', desc: 'Sent 25 direct messages',                 check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 25,  pts: 50 },
+    { id: 'dm_100',          name: 'Inbox King',      emoji: '👑', desc: 'Sent 100 direct messages',                check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 100, pts: 200 },
+    { id: 'react_10',        name: 'Reaction Habit',  emoji: '👍', desc: 'Reacted to 10 messages in Global Chat',  check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 10,  pts: 15 },
+    { id: 'react_100',       name: 'Reactor',         emoji: '⚡', desc: 'Reacted to 100 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 100, pts: 75 },
+    { id: 'react_500',       name: 'Reaction God',    emoji: '🔮', desc: 'Reacted to 500 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 500, pts: 300 },
+
+    // ---- Streaks: 3-day and 21-day ----
+    { id: 'streak_3',  name: "Three's Company", emoji: '📆', desc: '3-day visit streak',                     check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 3,  pts: 15 },
+    { id: 'streak_21', name: '21 Days',          emoji: '₿',  desc: '21-day visit streak — the Bitcoin number', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 21, pts: 100 },
+
+    // ---- Discovery: 5-topic tier ----
+    { id: 'explorer_5', name: 'Curious Mind', emoji: '🔍', desc: 'Visited 5 topics', check: v => v.length >= 5, pts: 10 },
+
+    // ---- Global Chat: full message-count tiers ----
+    { id: 'chat_25',    name: 'Getting Chatty',   emoji: '🗨️', desc: 'Sent 25 messages in Global Chat',    check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 25,   pts: 20 },
+    { id: 'chat_200',   name: 'Chat Veteran',     emoji: '🎖️', desc: 'Sent 200 messages in Global Chat',   check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 200,  pts: 100 },
+    { id: 'chat_1000',  name: 'Chat Immortal',    emoji: '♾️', desc: 'Sent 1,000 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 1000, pts: 750 },
+
+    // ---- DJ Mode: legend tiers ----
+    { id: 'dj_50',           name: 'DJ Legend',     emoji: '🎤', desc: 'DJed 50 sets in Global Chat',            check: () => parseInt(localStorage.getItem('btc_dj_sets') || '0') >= 50,   pts: 750 },
+    { id: 'dj_listener_100', name: 'Super Fan',     emoji: '🌟', desc: 'Tuned in to 100 DJ sets',               check: () => parseInt(localStorage.getItem('btc_dj_listens') || '0') >= 100, pts: 400 },
+
+    // ---- Predictions: accuracy badge ----
+    { id: 'predict_correct_50',    name: 'Half-Oracle',          emoji: '🌙', desc: '50 correct price predictions',                    check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 50,  pts: 400 },
+    { id: 'predict_accuracy_70',   name: 'Precision Forecaster', emoji: '🎯', desc: 'Hit 70%+ accuracy across 20+ predictions',         check: () => { if (typeof currentUser === 'undefined' || !currentUser || !currentUser.predictions) return false; var p=currentUser.predictions; var t=p.total||0; var c=p.correct||0; return t>=20 && (c/t)>=0.7; }, pts: 200 },
+
+    // ---- Nacho: dressed up ----
+    { id: 'nacho_dressed', name: 'Fashion Forward', emoji: '👗', desc: "Equipped a closet item on Nacho", check: () => { try { return Object.keys(JSON.parse(localStorage.getItem('btc_nacho_equipped_multi') || '{}')).length >= 1; } catch(e) { return false; } }, pts: 15 },
+
+    // ---- Marketplace: power seller ----
+    { id: 'market_listed_10', name: 'Power Seller', emoji: '🏆', desc: 'Listed 10 items in the Marketplace', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketListings || 0) >= 10, pts: 150 },
 ];
 
 let earnedBadges = new Set();
@@ -18779,7 +18862,9 @@ window.forumSubmitReply = async function(postId) {
             replyCount: firebase.firestore.FieldValue.increment(1)
         });
 
-        if (typeof awardPoints === 'function') awardPoints(5, '\uD83D\uDCAC Forum reply');
+        if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
+        try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
         // Notify post author (for top-level replies) or parent reply author (for nested)
         var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
         if (replyingTo && replyingTo.replyId) {
