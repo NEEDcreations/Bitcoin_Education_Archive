@@ -685,6 +685,8 @@ window.forumSubmitPost = async function() {
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
         if (typeof awardTickets === 'function') awardTickets(5, '📝 Forum post');
+        // Combo tracking
+        if (typeof window._trackCombo === 'function') window._trackCombo('forum');
         // Notify @mentioned users
         forumNotifyMentions(body, 'forum_post', postRef.id, title);
         // Track for badge
@@ -780,6 +782,8 @@ window.forumSubmitReply = async function(postId) {
         });
 
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        // Combo tracking
+        if (typeof window._trackCombo === 'function') window._trackCombo('forum');
 try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
         try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
         // Notify post author (for top-level replies) or parent reply author (for nested)

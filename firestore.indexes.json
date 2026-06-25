@@ -287,6 +287,36 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weeklyXP",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthlyXP",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "weekly_challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "startDate",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

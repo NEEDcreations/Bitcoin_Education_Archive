@@ -1127,6 +1127,9 @@ window.sendGlobalChat = function() {
     var totalMsgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0') + 1;
     localStorage.setItem('btc_chat_msgs', totalMsgs);
 
+    // Combo tracking
+    if (typeof window._trackCombo === 'function') window._trackCombo('chat');
+
     // Award points for first chat message of the day + streak tracking
     var today = new Date().toISOString().split('T')[0];
     var chatDay = 'btc_chat_day_' + new Date().toDateString();

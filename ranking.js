@@ -3108,28 +3108,76 @@ async function toggleLeaderboard() {
     }
 
     try {
-        // Cache leaderboard data for 5 minutes to reduce Firestore reads
+        // Cache leaderboard data for 2 minutes to reduce Firestore reads
         var now = Date.now();
-        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 120000);
+        var _lbPeriod = window._lbPeriod || 'alltime';
         let allUsers = [];
-        if (useCache) {
-            allUsers = window._lbCache;
+
+        if (_lbPeriod === 'weekly') {
+            var useWeekCache = window._lbWeekCache && window._lbWeekCacheTime && (now - window._lbWeekCacheTime < 120000);
+            if (useWeekCache) {
+                allUsers = window._lbWeekCache;
+            } else {
+                const snap = await db.collection('users').orderBy('weeklyXP', 'desc').limit(150).get();
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
+                    if ((d.weeklyXP || 0) > 0 && (!d.ghostMode || isMe)) {
+                        allUsers.push({ id: doc.id, ...d, _sortXP: d.weeklyXP || 0 });
+                    }
+                });
+                window._lbWeekCache = allUsers;
+                window._lbWeekCacheTime = now;
+            }
+        } else if (_lbPeriod === 'monthly') {
+            var useMonthCache = window._lbMonthCache && window._lbMonthCacheTime && (now - window._lbMonthCacheTime < 120000);
+            if (useMonthCache) {
+                allUsers = window._lbMonthCache;
+            } else {
+                const snap = await db.collection('users').orderBy('monthlyXP', 'desc').limit(150).get();
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
+                    if ((d.monthlyXP || 0) > 0 && (!d.ghostMode || isMe)) {
+                        allUsers.push({ id: doc.id, ...d, _sortXP: d.monthlyXP || 0 });
+                    }
+                });
+                window._lbMonthCache = allUsers;
+                window._lbMonthCacheTime = now;
+            }
         } else {
-            const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
-            snap.forEach(doc => {
-                const d = doc.data();
-                // Ghost Mode: only show if user is visible OR is the current user themselves
-                const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                if (d.points > 0 && (!d.ghostMode || isMe)) {
-                    allUsers.push({ id: doc.id, ...d });
-                }
-            });
-            window._lbCache = allUsers;
-            window._lbCacheTime = now;
+            var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 120000);
+            if (useCache) {
+                allUsers = window._lbCache;
+            } else {
+                const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
+                    if (d.points > 0 && (!d.ghostMode || isMe)) {
+                        allUsers.push({ id: doc.id, ...d });
+                    }
+                });
+                window._lbCache = allUsers;
+                window._lbCacheTime = now;
+            }
         }
+
+        // Period (all-time, weekly, monthly)
+        var _lbPeriod = window._lbPeriod || 'alltime';
 
         let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
         html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
+        // Period toggle
+        html += '<div style="display:flex;gap:4px;padding:0 12px 10px;">';
+        [['alltime','All Time'],['weekly','This Week'],['monthly','This Month']].forEach(function(p) {
+            var active = _lbPeriod === p[0];
+            html += '<button onclick="window._lbPeriod=\'' + p[0] + '\';toggleLeaderboard()" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+        });
+        html += '</div>';
+        // Prize banners for weekly/monthly
+        if (_lbPeriod === 'weekly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this week win 50 🏟️ Orange Tickets!</div>';
+        if (_lbPeriod === 'monthly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this month win 100 🏟️ Orange Tickets!</div>';
         html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
         html += '<div id="lbSearchResult"></div>';
         html += '<div class="lb-list">';
@@ -3162,7 +3210,7 @@ async function toggleLeaderboard() {
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
                 '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
-                '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' XP</span>' +
+                '<span class="lb-score">' + (_lbPeriod === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : _lbPeriod === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP') + '</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
         });
@@ -4858,6 +4906,15 @@ function showSettingsPage(tab) {
         if (bestStreak < streak) bestStreak = streak; // safety
         html += statRow('Current Streak', streak + (bestStreak > 0 ? ' (' + bestStreak + ')' : '') + ' days', '🔥');
         html += statRow('🧊 Streak Freezes', freezeCount + ' available', '🧊');
+        // Buy Streak Freezes section
+        var _tcktCount = currentUser ? (currentUser.orangeTickets || 0) : 0;
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;">';
+        html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧊 Buy Streak Freezes</div>';
+        html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Protect your streak — freezes auto-activate when you miss a day. You have <strong>' + _tcktCount + ' 🏟️ Orange Tickets</strong>.</div>';
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+        html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">5 🏟️ tickets</span></button>';
+        html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">12 🏟️ tickets</span></button>';
+        html += '</div></div>';
         html += statRow('Total Site Visits', totalVisits, '👁️');
         html += statRow('Channels Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
         html += statRow('Saved Favorites', localFavs, '⭐');
@@ -6378,3 +6435,41 @@ function getLevelFlavor(name) {
     };
     return flavors[name] || 'You\'re leveling up!';
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// 🧊 BUY STREAK FREEZE VIA ORANGE TICKETS
+// ══════════════════════════════════════════════════════════════════════
+window._buyStreakFreeze = async function(amount) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('Sign in to buy streak freezes!');
+        return;
+    }
+    var COSTS = { 1: 5, 3: 12 };
+    var cost = COSTS[amount] || 5;
+    var currentTickets = currentUser ? (currentUser.orangeTickets || 0) : 0;
+    if (currentTickets < cost) {
+        if (typeof showToast === 'function') showToast('\u274c Not enough tickets! Need ' + cost + ', have ' + currentTickets);
+        return;
+    }
+    try {
+        if (typeof showToast === 'function') showToast('\u23f3 Processing...');
+        var fn = firebase.functions().httpsCallable('spendTicketsForFreeze');
+        var result = await fn({ amount: amount });
+        if (result.data && result.data.success) {
+            var d = result.data;
+            if (currentUser) {
+                currentUser.orangeTickets = d.newTickets;
+                currentUser.streakFreezes = d.newFreezes;
+            }
+            if (typeof showToast === 'function') showToast('\u2705 Bought ' + amount + ' freeze' + (amount > 1 ? 's' : '') + '! You now have ' + d.newFreezes + ' \ud83e\udd76 freezes & ' + d.newTickets + ' \ud83c\udfdf\ufe0f tickets', 5000);
+            // Refresh settings page to show updated counts
+            setTimeout(function() {
+                if (typeof showSettingsPage === 'function') showSettingsPage('data');
+            }, 1000);
+        }
+    } catch (err) {
+        var msg = err.message || 'Purchase failed';
+        if (err.code === 'resource-exhausted') msg = err.message;
+        if (typeof showToast === 'function') showToast('\u274c ' + msg);
+    }
+};

@@ -3274,28 +3274,76 @@ async function toggleLeaderboard() {
     }
 
     try {
-        // Cache leaderboard data for 5 minutes to reduce Firestore reads
+        // Cache leaderboard data for 2 minutes to reduce Firestore reads
         var now = Date.now();
-        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 120000);
+        var _lbPeriod = window._lbPeriod || 'alltime';
         let allUsers = [];
-        if (useCache) {
-            allUsers = window._lbCache;
+
+        if (_lbPeriod === 'weekly') {
+            var useWeekCache = window._lbWeekCache && window._lbWeekCacheTime && (now - window._lbWeekCacheTime < 120000);
+            if (useWeekCache) {
+                allUsers = window._lbWeekCache;
+            } else {
+                const snap = await db.collection('users').orderBy('weeklyXP', 'desc').limit(150).get();
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
+                    if ((d.weeklyXP || 0) > 0 && (!d.ghostMode || isMe)) {
+                        allUsers.push({ id: doc.id, ...d, _sortXP: d.weeklyXP || 0 });
+                    }
+                });
+                window._lbWeekCache = allUsers;
+                window._lbWeekCacheTime = now;
+            }
+        } else if (_lbPeriod === 'monthly') {
+            var useMonthCache = window._lbMonthCache && window._lbMonthCacheTime && (now - window._lbMonthCacheTime < 120000);
+            if (useMonthCache) {
+                allUsers = window._lbMonthCache;
+            } else {
+                const snap = await db.collection('users').orderBy('monthlyXP', 'desc').limit(150).get();
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
+                    if ((d.monthlyXP || 0) > 0 && (!d.ghostMode || isMe)) {
+                        allUsers.push({ id: doc.id, ...d, _sortXP: d.monthlyXP || 0 });
+                    }
+                });
+                window._lbMonthCache = allUsers;
+                window._lbMonthCacheTime = now;
+            }
         } else {
-            const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
-            snap.forEach(doc => {
-                const d = doc.data();
-                // Ghost Mode: only show if user is visible OR is the current user themselves
-                const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                if (d.points > 0 && (!d.ghostMode || isMe)) {
-                    allUsers.push({ id: doc.id, ...d });
-                }
-            });
-            window._lbCache = allUsers;
-            window._lbCacheTime = now;
+            var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 120000);
+            if (useCache) {
+                allUsers = window._lbCache;
+            } else {
+                const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
+                    if (d.points > 0 && (!d.ghostMode || isMe)) {
+                        allUsers.push({ id: doc.id, ...d });
+                    }
+                });
+                window._lbCache = allUsers;
+                window._lbCacheTime = now;
+            }
         }
+
+        // Period (all-time, weekly, monthly)
+        var _lbPeriod = window._lbPeriod || 'alltime';
 
         let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
         html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
+        // Period toggle
+        html += '<div style="display:flex;gap:4px;padding:0 12px 10px;">';
+        [['alltime','All Time'],['weekly','This Week'],['monthly','This Month']].forEach(function(p) {
+            var active = _lbPeriod === p[0];
+            html += '<button onclick="window._lbPeriod=\'' + p[0] + '\';toggleLeaderboard()" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+        });
+        html += '</div>';
+        // Prize banners for weekly/monthly
+        if (_lbPeriod === 'weekly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this week win 50 🏟️ Orange Tickets!</div>';
+        if (_lbPeriod === 'monthly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this month win 100 🏟️ Orange Tickets!</div>';
         html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
         html += '<div id="lbSearchResult"></div>';
         html += '<div class="lb-list">';
@@ -3328,7 +3376,7 @@ async function toggleLeaderboard() {
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
                 '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
-                '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' XP</span>' +
+                '<span class="lb-score">' + (_lbPeriod === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : _lbPeriod === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP') + '</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
         });
@@ -5024,6 +5072,15 @@ function showSettingsPage(tab) {
         if (bestStreak < streak) bestStreak = streak; // safety
         html += statRow('Current Streak', streak + (bestStreak > 0 ? ' (' + bestStreak + ')' : '') + ' days', '🔥');
         html += statRow('🧊 Streak Freezes', freezeCount + ' available', '🧊');
+        // Buy Streak Freezes section
+        var _tcktCount = currentUser ? (currentUser.orangeTickets || 0) : 0;
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;">';
+        html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧊 Buy Streak Freezes</div>';
+        html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Protect your streak — freezes auto-activate when you miss a day. You have <strong>' + _tcktCount + ' 🏟️ Orange Tickets</strong>.</div>';
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+        html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">5 🏟️ tickets</span></button>';
+        html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">12 🏟️ tickets</span></button>';
+        html += '</div></div>';
         html += statRow('Total Site Visits', totalVisits, '👁️');
         html += statRow('Channels Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
         html += statRow('Saved Favorites', localFavs, '⭐');
@@ -6544,6 +6601,44 @@ function getLevelFlavor(name) {
     };
     return flavors[name] || 'You\'re leveling up!';
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// 🧊 BUY STREAK FREEZE VIA ORANGE TICKETS
+// ══════════════════════════════════════════════════════════════════════
+window._buyStreakFreeze = async function(amount) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('Sign in to buy streak freezes!');
+        return;
+    }
+    var COSTS = { 1: 5, 3: 12 };
+    var cost = COSTS[amount] || 5;
+    var currentTickets = currentUser ? (currentUser.orangeTickets || 0) : 0;
+    if (currentTickets < cost) {
+        if (typeof showToast === 'function') showToast('\u274c Not enough tickets! Need ' + cost + ', have ' + currentTickets);
+        return;
+    }
+    try {
+        if (typeof showToast === 'function') showToast('\u23f3 Processing...');
+        var fn = firebase.functions().httpsCallable('spendTicketsForFreeze');
+        var result = await fn({ amount: amount });
+        if (result.data && result.data.success) {
+            var d = result.data;
+            if (currentUser) {
+                currentUser.orangeTickets = d.newTickets;
+                currentUser.streakFreezes = d.newFreezes;
+            }
+            if (typeof showToast === 'function') showToast('\u2705 Bought ' + amount + ' freeze' + (amount > 1 ? 's' : '') + '! You now have ' + d.newFreezes + ' \ud83e\udd76 freezes & ' + d.newTickets + ' \ud83c\udfdf\ufe0f tickets', 5000);
+            // Refresh settings page to show updated counts
+            setTimeout(function() {
+                if (typeof showSettingsPage === 'function') showSettingsPage('data');
+            }, 1000);
+        }
+    } catch (err) {
+        var msg = err.message || 'Purchase failed';
+        if (err.code === 'resource-exhausted') msg = err.message;
+        if (typeof showToast === 'function') showToast('\u274c ' + msg);
+    }
+};
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -6932,6 +7027,33 @@ const BADGE_DEFS = [
 
     // ---- Marketplace: power seller ----
     { id: 'market_listed_10', name: 'Power Seller', emoji: '🏆', desc: 'Listed 10 items in the Marketplace', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketListings || 0) >= 10, pts: 150 },
+
+    // ---- Daily Challenge Badges ----
+    { id: 'daily_1',   name: 'First Mission',       emoji: '🎯', desc: 'Complete 1 daily challenge',           check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 1,   pts: 25 },
+    { id: 'daily_5',   name: 'Challenge Accepted',  emoji: '🔥', desc: 'Complete 5 daily challenges total',   check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 5,   pts: 50 },
+    { id: 'daily_10',  name: 'Daily Grinder',        emoji: '💪', desc: 'Complete 10 daily challenges total',  check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 10,  pts: 100 },
+    { id: 'daily_25',  name: 'Consistent Warrior',  emoji: '🏅', desc: 'Complete 25 daily challenges total',  check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 25,  pts: 250 },
+    { id: 'daily_50',  name: 'Discipline Protocol', emoji: '🔑', desc: 'Complete 50 daily challenges total',  check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 50,  pts: 500 },
+    { id: 'daily_100', name: 'Centurion',            emoji: '👑', desc: 'Complete 100 daily challenges total', check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 100, pts: 1000 },
+
+    // ---- Combo Badges ----
+    { id: 'combo_trio',   name: 'Trio Combo',   emoji: '🔥', desc: 'Hit a 3-feature combo in one session',    check: () => localStorage.getItem('btc_badge_earned_combo_trio') === '1',   pts: 50 },
+    { id: 'combo_mega',   name: 'Mega Combo',   emoji: '💥', desc: 'Hit a 5-feature combo in one session',    check: () => localStorage.getItem('btc_badge_earned_combo_mega') === '1',   pts: 100 },
+    { id: 'combo_legend', name: 'Legend Mode',  emoji: '🏆', desc: 'Hit all 8 features in one session',        check: () => localStorage.getItem('btc_badge_earned_combo_legend') === '1', pts: 250 },
+
+    // ---- Weekly Community Challenge ----
+    { id: 'weekly_hero',  name: 'Community Hero', emoji: '⚡', desc: 'Participated in a weekly community challenge', check: () => localStorage.getItem('btc_badge_earned_weekly_hero') === '1', pts: 100 },
+
+    // ---- Badge Set Completion Bonuses (hidden until earned) ----
+    { id: 'set_miner_complete',    name: 'Master Miner',         emoji: '🏆', desc: 'Completed The Miner Set',      pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_miner_complete') === '1' },
+    { id: 'set_scholar_complete',  name: 'Satoshi Scholar',      emoji: '🎓', desc: 'Completed The Scholar Set',    pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_scholar_complete') === '1' },
+    { id: 'set_social_complete',   name: 'Community Pillar',     emoji: '🌐', desc: 'Completed The Social Set',     pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_social_complete') === '1' },
+    { id: 'set_streak_complete',   name: 'Diamond Hands',        emoji: '💎', desc: 'Completed The Streak Set',     pts: 1000, hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_streak_complete') === '1' },
+    { id: 'set_pvp_complete',      name: 'Arena Champion',       emoji: '👑', desc: 'Completed The Fighter Set',    pts: 750,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_pvp_complete') === '1' },
+    { id: 'set_builder_complete',  name: 'Archive Builder',      emoji: '🔧', desc: 'Completed The Builder Set',    pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_builder_complete') === '1' },
+    { id: 'set_explorer_complete', name: 'World Traveler',       emoji: '🗺️', desc: 'Completed The Explorer Set', pts: 500, hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_explorer_complete') === '1' },
+    { id: 'set_fun_complete',      name: 'Bitcoin Calendar Hero',emoji: '🎊', desc: 'Completed The Calendar Set',   pts: 300,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_fun_complete') === '1' },
+    { id: 'set_daily_complete',    name: 'Challenge Master',     emoji: '🏅', desc: 'Completed The Daily Set',      pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_daily_complete') === '1' },
 ];
 
 let earnedBadges = new Set();
@@ -7066,6 +7188,8 @@ const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties
 function showBadgeToast(badge) {
     // Notify
     if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
+    // Check if any badge set is now complete
+    setTimeout(function() { if (typeof window._checkBadgeSets === 'function') window._checkBadgeSets(); }, 500);
 
     const isMajor = MAJOR_BADGES.includes(badge.id);
 
@@ -7455,8 +7579,111 @@ function getBadgeHTML() {
         html += _sections[k];
     });
 
+    // 🏅 BADGE COLLECTIONS / SETS SECTION
+    html += _renderBadgeSets(earnedBadges);
+
     return html;
 }
+
+// ============================================================
+// 🏅 BADGE SETS (Collections)
+// ============================================================
+var BADGE_SETS = [
+    { id:'set_miner',    name:'The Miner Set',      emoji:'⛏️', color:'#f7931a', badgeIds:['sf_first','sf_5','sf_25','sf_50','sf_100','sf_streak_3','sf_streak_7','sf_winner'], bonusId:'set_miner_complete',    bonusPts:500,  bonusEmoji:'🏆', bonusName:'Master Miner',         bonusDesc:'Completed The Miner Set' },
+    { id:'set_scholar',  name:'The Scholar Set',    emoji:'📚', color:'#3b82f6', badgeIds:['trivia_10','trivia_50','trivia_100','quiz_1','quiz_5','quiz_10','cert_scholar','daily_100'], bonusId:'set_scholar_complete', bonusPts:500,  bonusEmoji:'🎓', bonusName:'Satoshi Scholar',      bonusDesc:'Completed The Scholar Set' },
+    { id:'set_social',   name:'The Social Set',     emoji:'💬', color:'#8b5cf6', badgeIds:['chat_first','chat_10','chat_50','chat_100','chat_200','dm_first','dm_10','react_5','react_50'], bonusId:'set_social_complete', bonusPts:500,  bonusEmoji:'🌐', bonusName:'Community Pillar',    bonusDesc:'Completed The Social Set' },
+    { id:'set_streak',   name:'The Streak Set',     emoji:'🔥', color:'#ef4444', badgeIds:['streak_3','streak_7','streak_14','streak_30','streak_60','streak_100','streak_200','streak_365'], bonusId:'set_streak_complete', bonusPts:1000, bonusEmoji:'💎', bonusName:'Diamond Hands',        bonusDesc:'Completed The Streak Set' },
+    { id:'set_pvp',      name:'The Fighter Set',    emoji:'⚔️', color:'#ec4899', badgeIds:['pvp_first','pvp_5','pvp_25','pvp_50','pvp_100','pvp_1','pvp_25'], bonusId:'set_pvp_complete', bonusPts:750, bonusEmoji:'👑', bonusName:'Arena Champion',        bonusDesc:'Completed The Fighter Set' },
+    { id:'set_builder',  name:'The Builder Set',    emoji:'🏗️', color:'#22c55e', badgeIds:['producer_1','producer_10','forum_first','forum_10','article_1','beats_comment_1','market_listed_1','market_listed_5'], bonusId:'set_builder_complete', bonusPts:500, bonusEmoji:'🔧', bonusName:'Archive Builder',     bonusDesc:'Completed The Builder Set' },
+    { id:'set_explorer', name:'The Explorer Set',   emoji:'🧭', color:'#06b6d4', badgeIds:['first_channel','explorer_5','explorer_10','explorer_25','explorer_50','explorer_100','explorer_all','bookworm'], bonusId:'set_explorer_complete', bonusPts:500, bonusEmoji:'🗺️', bonusName:'World Traveler',       bonusDesc:'Completed The Explorer Set' },
+    { id:'set_fun',      name:'The Calendar Set',   emoji:'📅', color:'#f59e0b', badgeIds:['fun_weekend','fun_friday','fun_midnight','fun_bitcoin_birthday','fun_whitepaper_day','fun_new_year','fun_halving_day','fun_pi_day'], bonusId:'set_fun_complete', bonusPts:300, bonusEmoji:'🎊', bonusName:'Bitcoin Calendar Hero', bonusDesc:'Completed The Calendar Set' },
+    { id:'set_daily',    name:'The Daily Set',      emoji:'🎯', color:'#3b82f6', badgeIds:['daily_1','daily_5','daily_10','daily_25','daily_50','daily_100'], bonusId:'set_daily_complete', bonusPts:500, bonusEmoji:'🏅', bonusName:'Challenge Master', bonusDesc:'Completed The Daily Set' },
+];
+
+function _renderBadgeSets(earnedBadges) {
+    if (!BADGE_SETS || BADGE_SETS.length === 0) return '';
+    var html = '<div style="margin-top:24px;">';
+    html += '<div style="font-size:0.8rem;font-weight:900;color:var(--heading);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;padding:0 2px;">🏅 Badge Collections</div>';
+
+    BADGE_SETS.forEach(function(set) {
+        var earned = set.badgeIds.filter(function(id) { return earnedBadges.has(id); });
+        var total = set.badgeIds.length;
+        var pct = Math.round((earned.length / total) * 100);
+        var complete = earned.length >= total;
+        var bonusEarned = earnedBadges.has(set.bonusId);
+
+        html += '<div style="background:var(--card-bg);border:1px solid ' + (complete ? set.color + '55' : 'var(--border)') + ';border-radius:14px;padding:14px;margin-bottom:10px;' + (complete ? 'box-shadow:0 0 12px ' + set.color + '22;' : '') + '">';
+        // Header row
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">';
+        html += '<span style="font-size:1.5rem;">' + set.emoji + '</span>';
+        html += '<div style="flex:1;"><div style="font-size:0.88rem;font-weight:800;color:var(--heading);">' + set.name + '</div>';
+        html += '<div style="font-size:0.68rem;color:var(--text-muted);">' + earned.length + '/' + total + ' badges earned</div></div>';
+        if (complete && bonusEarned) {
+            html += '<div style="font-size:1.1rem;filter:drop-shadow(0 0 6px gold);">' + set.bonusEmoji + '</div>';
+        }
+        html += '</div>';
+        // Mini badge grid
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+        set.badgeIds.forEach(function(bid) {
+            var bEarned = earnedBadges.has(bid);
+            var bDef = BADGE_DEFS.find(function(b) { return b.id === bid; });
+            var emoji = bDef ? bDef.emoji : '🔘';
+            html += '<span style="font-size:1.1rem;' + (bEarned ? '' : 'filter:grayscale(1) opacity(0.35);') + '" title="' + (bDef ? bDef.name : bid) + '">' + emoji + '</span>';
+        });
+        html += '</div>';
+        // Progress bar
+        html += '<div style="background:var(--bg-side);border-radius:6px;height:6px;overflow:hidden;margin-bottom:6px;">';
+        html += '<div style="background:' + set.color + ';height:100%;width:' + pct + '%;border-radius:6px;transition:width 0.4s;"></div></div>';
+        // Bonus banner
+        if (complete && bonusEarned) {
+            html += '<div style="font-size:0.72rem;color:#22c55e;font-weight:700;">' + set.bonusEmoji + ' ' + set.bonusName + ' — Bonus badge earned! +' + set.bonusPts + ' XP</div>';
+        } else if (complete && !bonusEarned) {
+            html += '<div style="font-size:0.72rem;color:' + set.color + ';font-weight:700;cursor:pointer;" onclick="_claimSetBonus(\'' + set.id + '\')">🎊 Set Complete! Click to claim ' + set.bonusEmoji + ' ' + set.bonusName + ' (+' + set.bonusPts + ' XP)</div>';
+        } else {
+            html += '<div style="font-size:0.68rem;color:var(--text-faint);">Complete to unlock: ' + set.bonusEmoji + ' ' + set.bonusName + '</div>';
+        }
+        html += '</div>';
+    });
+    html += '</div>';
+    return html;
+}
+
+window._claimSetBonus = function(setId) {
+    var set = BADGE_SETS.find(function(s) { return s.id === setId; });
+    if (!set) return;
+    var badgeKey = 'btc_badge_earned_' + set.bonusId;
+    if (localStorage.getItem(badgeKey)) {
+        if (typeof showToast === 'function') showToast('🏅 ' + set.bonusName + ' already earned!');
+        return;
+    }
+    // Verify all badges in set are earned
+    var eb = window._earnedBadgesSet || new Set();
+    try { eb = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
+    var allEarned = set.badgeIds.every(function(bid) { return eb.has(bid); });
+    if (!allEarned) {
+        if (typeof showToast === 'function') showToast('❌ Not all badges in use ' + set.name + ' are earned yet');
+        return;
+    }
+    localStorage.setItem(badgeKey, '1');
+    if (typeof awardPoints === 'function') {
+        awardPoints(set.bonusPts, '🏅 Badge: ' + set.bonusName, null, null, null, set.bonusId);
+    }
+    if (typeof showBadgeToast === 'function') showBadgeToast({ id: set.bonusId, emoji: set.bonusEmoji, name: set.bonusName, pts: set.bonusPts });
+    else if (typeof showToast === 'function') showToast('🎉 SET COMPLETE! ' + set.bonusEmoji + ' ' + set.bonusName + ' earned! +' + set.bonusPts + ' XP');
+};
+
+// Check badge set completion after any badge is earned
+window._checkBadgeSets = function() {
+    if (!BADGE_SETS || !window.earnedBadges) return;
+    BADGE_SETS.forEach(function(set) {
+        var bonusKey = 'btc_badge_earned_' + set.bonusId;
+        if (localStorage.getItem(bonusKey)) return; // already earned
+        var allEarned = set.badgeIds.every(function(bid) { return window.earnedBadges.has(bid); });
+        if (allEarned) {
+            window._claimSetBonus(set.id);
+        }
+    });
+};
 
 // ---- Single floating tooltip for badge taps ----
 window._showBadgeTip = function(e, el) {
@@ -8058,6 +8285,123 @@ if (typeof window !== 'undefined') {
         initBoostUI();
     }
 })();
+
+// ══════════════════════════════════════════════════════════════════════
+// 🔥 COMBO BONUS SYSTEM
+// Tracks feature zones visited in a session; awards bonus pts at 3/5/8
+// ══════════════════════════════════════════════════════════════════════
+(function() {
+    'use strict';
+
+    var COMBO_TIERS = [
+        { count: 3, pts: 50,  key: 'combo_trio',   label: '\ud83d\udd25 Trio Combo! 3 features today',    badge: 'combo_trio' },
+        { count: 5, pts: 100, key: 'combo_mega',   label: '\ud83d\udca5 MEGA COMBO! 5 features unlocked', badge: 'combo_mega' },
+        { count: 8, pts: 250, key: 'combo_legend', label: '\ud83c\udfc6 LEGENDARY COMBO! All 8 features!', badge: 'combo_legend' },
+    ];
+
+    function getZones() {
+        try { return JSON.parse(sessionStorage.getItem('btc_combo_zones') || '[]'); } catch(e) { return []; }
+    }
+
+    function saveZones(zones) {
+        try { sessionStorage.setItem('btc_combo_zones', JSON.stringify(zones)); } catch(e) {}
+    }
+
+    function tierFired(key) {
+        try { return sessionStorage.getItem('btc_combo_fired_' + key) === '1'; } catch(e) { return false; }
+    }
+
+    function markTierFired(key) {
+        try { sessionStorage.setItem('btc_combo_fired_' + key, '1'); } catch(e) {}
+    }
+
+    window._trackCombo = function(zone) {
+        if (!zone) return;
+        var zones = getZones();
+        if (zones.indexOf(zone) === -1) {
+            zones.push(zone);
+            saveZones(zones);
+        }
+        var count = zones.length;
+
+        COMBO_TIERS.forEach(function(tier) {
+            if (count >= tier.count && !tierFired(tier.key)) {
+                markTierFired(tier.key);
+                if (typeof awardPoints === 'function') {
+                    awardPoints(tier.pts, tier.label, null, null, null, null, { actionKey: 'combo_bonus', comboTier: tier.key });
+                }
+                if (typeof showToast === 'function') {
+                    showToast(tier.label + ' +' + tier.pts + ' pts!', 5000);
+                }
+                // Badge
+                var badgeKey = 'btc_badge_earned_' + tier.badge;
+                if (!localStorage.getItem(badgeKey)) {
+                    localStorage.setItem(badgeKey, '1');
+                    var COMBO_BADGE_DEFS = {
+                        combo_trio:   { emoji: '\ud83d\udd25', name: 'Trio Combo',   pts: 50 },
+                        combo_mega:   { emoji: '\ud83d\udca5', name: 'Mega Combo',   pts: 100 },
+                        combo_legend: { emoji: '\ud83c\udfc6', name: 'Legend Mode',  pts: 250 },
+                    };
+                    var bdef = COMBO_BADGE_DEFS[tier.badge];
+                    if (bdef) {
+                        if (typeof awardPoints === 'function') awardPoints(bdef.pts, '\ud83c\udfc5 Badge: ' + bdef.name, null, null, null, tier.badge);
+                        if (typeof showBadgeToast === 'function') showBadgeToast({ id: tier.badge, emoji: bdef.emoji, name: bdef.name, pts: bdef.pts });
+                    }
+                }
+            }
+        });
+    };
+})();
+
+// PVP combo tracking patch (applied after pvp.js loads enterPVPMode)
+document.addEventListener('DOMContentLoaded', function() {
+    var _pvpOrigEnter = null;
+    function _patchPVPCombo() {
+        if (typeof window.enterPVPMode === 'function' && !window._pvpComboPatch) {
+            window._pvpComboPatch = true;
+            _pvpOrigEnter = window.enterPVPMode;
+            window.enterPVPMode = function() {
+                if (typeof window._trackCombo === 'function') window._trackCombo('pvp');
+                return _pvpOrigEnter.apply(this, arguments);
+            };
+        } else if (!window._pvpComboPatch) {
+            setTimeout(_patchPVPCombo, 500);
+        }
+    }
+    _patchPVPCombo();
+
+    // Spin combo patch
+    var _spinOrigFn = null;
+    function _patchSpinCombo() {
+        if (typeof window.showSpinWheel === 'function' && !window._spinComboPatch) {
+            window._spinComboPatch = true;
+            _spinOrigFn = window.showSpinWheel;
+            window.showSpinWheel = function() {
+                if (typeof window._trackCombo === 'function') window._trackCombo('spin');
+                return _spinOrigFn.apply(this, arguments);
+            };
+        } else if (!window._spinComboPatch) {
+            setTimeout(_patchSpinCombo, 500);
+        }
+    }
+    _patchSpinCombo();
+
+    // TCTV combo patch
+    var _tctvOrigFn = null;
+    function _patchTCTVCombo() {
+        if (typeof window.showTCTV === 'function' && !window._tctvComboPatch) {
+            window._tctvComboPatch = true;
+            _tctvOrigFn = window.showTCTV;
+            window.showTCTV = function() {
+                if (typeof window._trackCombo === 'function') window._trackCombo('tctv');
+                return _tctvOrigFn.apply(this, arguments);
+            };
+        } else if (!window._tctvComboPatch) {
+            setTimeout(_patchTCTVCombo, 500);
+        }
+    }
+    _patchTCTVCombo();
+});
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -13320,6 +13664,12 @@ async function submitQuest() {
         // Mark quiz done for the day and check if all 3 daily activities complete
         _markDailyActivity('quiz');
         _checkDailyAllThree();
+        // Weekly community challenge: increment quiz_completions
+        if (typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            try {
+                firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'quiz_completions' }).catch(function() {});
+            } catch(e) {}
+        }
 
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
@@ -14237,6 +14587,8 @@ window.showQuestHub = function() {
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabCitadel" onclick="window._questHubTab=\'citadel\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏰 Citadel</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
+        '<button id="qhTabDaily" onclick="window._questHubTab=\'daily\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎯 Daily</button>' +
+        '<button id="qhTabCommunity" onclick="window._questHubTab=\'community\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Community</button>' +
                 '</div>';
 
     var body = document.createElement('div');
@@ -14271,7 +14623,7 @@ window.showQuestHub = function() {
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
     // Update active tab styles
-    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity'].forEach(function(t) {
+    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity', 'Daily', 'Community'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
         if (!btn) return;
         var isActive = tab === t.toLowerCase();
@@ -14279,9 +14631,11 @@ function _renderQuestHubTab() {
         var charityActive = t === 'Charity' && isActive;
         var flexActive = t === 'Flex' && isActive;
         var citadelActive = t === 'Citadel' && isActive;
-        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : (isActive ? 'var(--accent)' : 'none');
+        var dailyActive = t === 'Daily' && isActive;
+        var communityActive = t === 'Community' && isActive;
+        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : dailyActive ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : communityActive ? 'linear-gradient(135deg,#06b6d4,#0284c7)' : (isActive ? 'var(--accent)' : 'none');
         btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
-        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : (isActive ? 'var(--accent)' : 'var(--border)');
+        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : dailyActive ? '#3b82f6' : communityActive ? '#06b6d4' : (isActive ? 'var(--accent)' : 'var(--border)');
     });
 
     var body = document.getElementById('questHubBody');
@@ -14298,6 +14652,8 @@ function _renderQuestHubTab() {
     else if (tab === 'charity') _renderCharityTab(body);
     else if (tab === 'flex') _renderFlexTab(body);
     else if (tab === 'citadel') _renderCitadelTab(body);
+    else if (tab === 'daily') _renderDailyTab(body);
+    else if (tab === 'community') _renderCommunityTab(body);
 }
 
 // ── CITADEL TAB ──
@@ -14876,6 +15232,12 @@ window.triviaAnswer = function(chosenIdx) {
     if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt');
     // Raid Boss: trivia + XP
     if (isCorrect && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
+    // Weekly community challenge: increment trivia_answers if correct
+    if (isCorrect && typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        try {
+            firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'trivia_answers' }).catch(function() {});
+        } catch(e) {}
+    }
     if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(xp);
 
     // Mark trivia done for daily all-three check
@@ -15933,6 +16295,19 @@ var FLEX_ACTIONS = [
     { id:'starebtc',    emoji:'📈', name:'Stare at the Price',       desc:'Hold the candle. Zoom out. Never sell.',     pts:5, type:'candle' },
     { id:'itoldyou',    emoji:'🙏', name:'I Told You So',            desc:'Say it. They never listened.',               pts:5, type:'typesentence', sentence:'I told you so' },
     { id:'pumpndump',   emoji:'📉', name:'Observe a Pump & Dump',    desc:'Watch the rug pull happen in real time.',    pts:5, type:'redcandle' },
+    // ── NEW daily challenges ──
+    { id:'chat_msg',       emoji:'💬', name:'Send a Chat Message',      desc:'Open Global Chat and say something.',           pts:15, type:'triplclick' },
+    { id:'watch_tctv',    emoji:'📺', name:'Watch TCTV',               desc:'Open Timechain TV and tune in.',                pts:15, type:'triplclick' },
+    { id:'spin_today',    emoji:'🎡', name:'Spin the Wheel',           desc:'Daily spin for a chance at tickets.',            pts:15, type:'triplclick' },
+    { id:'make_pred',     emoji:'🔮', name:'Make a Prediction',        desc:'Predict the BTC price direction.',               pts:15, type:'triplclick' },
+    { id:'visit_beats',   emoji:'🎵', name:'Visit Bitcoin Beats',      desc:'Explore the community music section.',           pts:15, type:'triplclick' },
+    { id:'forum_visit',   emoji:'📝', name:'Post in the Forum',        desc:'Share something in PlebTalk.',                   pts:15, type:'triplclick' },
+    { id:'pvp_battle',    emoji:'⚔️',  name:'PVP Battle',              desc:'Challenge someone in Bitcoin trivia PVP.',       pts:15, type:'triplclick' },
+    { id:'sf_mine',       emoji:'⛏️',  name:"Mine Satoshi's Favor",    desc:'Submit a hash during an active SF window.',      pts:15, type:'triplclick' },
+    { id:'browse_market', emoji:'🛒', name:'Browse Marketplace',       desc:"Check out what's listed today.",                pts:15, type:'triplclick' },
+    { id:'nacho_chat',    emoji:'🦌', name:'Chat with Nacho',          desc:'Ask Nacho something Bitcoin.',                   pts:15, type:'triplclick' },
+    { id:'view_leaderboard', emoji:'🏆', name:'Check the Leaderboard', desc:'See where you rank today.',                      pts:15, type:'triplclick' },
+    { id:'share_app',     emoji:'📤', name:'Share the Archive',        desc:'Tell someone about Bitcoin Education Archive.',  pts:15, type:'triplclick' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 50, 500];
@@ -18081,6 +18456,319 @@ function _flexWireInteractions() {
 }
 
 
+
+// ══════════════════════════════════════════════════════════════════════
+// 🎯 DAILY CHALLENGES TAB
+// Shows 3 challenges randomly selected by date-seed for everyone to share
+// ══════════════════════════════════════════════════════════════════════
+
+function _dailyTodayKey() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function _dailySeed(salt) {
+    var d = _dailyTodayKey() + (salt || '');
+    var h = 0;
+    for (var i = 0; i < d.length; i++) { h = (Math.imul(31, h) + d.charCodeAt(i)) | 0; }
+    return Math.abs(h);
+}
+
+// Pick 3 daily challenges from FLEX_ACTIONS seeded by date
+function _getDailyChallenges() {
+    var arr = FLEX_ACTIONS.slice();
+    // Seeded shuffle
+    var seed = _dailySeed('daily3');
+    for (var i = arr.length - 1; i > 0; i--) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+        var j = Math.abs(seed) % (i + 1);
+        var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr.slice(0, 3);
+}
+
+function _dailyChallengeCompleted(actionId) {
+    var key = 'btc_daily_ch_' + _dailyTodayKey();
+    try {
+        var done = JSON.parse(localStorage.getItem(key) || '[]');
+        return done.indexOf(actionId) !== -1;
+    } catch(e) { return false; }
+}
+
+function _markDailyChallengeDone(actionId) {
+    var key = 'btc_daily_ch_' + _dailyTodayKey();
+    try {
+        var done = JSON.parse(localStorage.getItem(key) || '[]');
+        if (done.indexOf(actionId) === -1) {
+            done.push(actionId);
+            localStorage.setItem(key, JSON.stringify(done));
+        }
+        return done.length;
+    } catch(e) { return 0; }
+}
+
+function _getDailyCompletedCount() {
+    var key = 'btc_daily_ch_' + _dailyTodayKey();
+    try {
+        return JSON.parse(localStorage.getItem(key) || '[]').length;
+    } catch(e) { return 0; }
+}
+
+function _dailyBonusAwarded() {
+    return localStorage.getItem('btc_daily3_bonus_' + _dailyTodayKey()) === '1';
+}
+
+function _renderDailyTab(body) {
+    var challenges = _getDailyChallenges();
+    var completed = _getDailyCompletedCount();
+    var allDone = completed >= 3;
+    var bonusDone = _dailyBonusAwarded();
+
+    var html = '<style>' +
+        '.dc-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:0.2s;position:relative;}' +
+        '.dc-card.done{border-color:#22c55e;background:rgba(34,197,94,0.07);}' +
+        '.dc-card.done::after{content:"✅";position:absolute;top:10px;right:12px;font-size:1.3rem;}' +
+        '.dc-name{font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;}' +
+        '.dc-desc{font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;}' +
+        '.dc-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid #3b82f6;background:rgba(59,130,246,0.1);color:#3b82f6;transition:0.2s;}' +
+        '.dc-btn:active{transform:scale(0.96);}' +
+    '</style>';
+
+    // Header
+    html += '<div style="text-align:center;margin-bottom:16px;">' +
+        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (allDone ? '🏆' : '🎯') + '</div>' +
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Challenges</div>' +
+        '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">3 challenges, freshly picked each day. Complete all 3 for a bonus!</div>' +
+        '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
+        '<div style="background:linear-gradient(90deg,#3b82f6,#22c55e);height:100%;width:' + Math.round(completed / 3 * 100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + completed + '/3 completed today' +
+        (allDone ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Set!</span>' : '') + '</div>' +
+    '</div>';
+
+    // Bonus banner
+    if (allDone && !bonusDone) {
+        html += '<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:12px;padding:12px 16px;margin-bottom:12px;text-align:center;">' +
+            '<div style="color:#22c55e;font-weight:800;font-size:0.9rem;margin-bottom:4px;">🎉 Bonus Unlocked!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">You completed all 3 daily challenges!</div>' +
+            '<button onclick="_claimDailyBonus(this)" style="padding:8px 20px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">Claim +50 pts Bonus 🎁</button>' +
+        '</div>';
+    } else if (allDone && bonusDone) {
+        html += '<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:12px;padding:12px 16px;margin-bottom:12px;text-align:center;">' +
+            '<div style="color:#22c55e;font-weight:800;font-size:0.9rem;">🎁 Bonus Claimed! +50 pts done</div>' +
+        '</div>';
+    }
+
+    // Challenge cards
+    challenges.forEach(function(action) {
+        var done = _dailyChallengeCompleted(action.id);
+        html += '<div class="dc-card' + (done ? ' done' : '') + '">' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+            '<span style="font-size:1.5rem;">' + action.emoji + '</span>' +
+            '<div style="flex:1;">' +
+            '<div class="dc-name">' + action.name + '</div>' +
+            '<div class="dc-desc">' + action.desc + '</div>' +
+            '</div>' +
+            '<div style="font-size:0.75rem;font-weight:700;color:#3b82f6;flex-shrink:0;">+15 pts</div>' +
+            '</div>';
+        if (!done) {
+            html += '<button class="dc-btn" onclick="_completeDailyChallenge(\'' + action.id + '\',this)">' +
+                action.emoji + ' Complete ✓</button>';
+        }
+        html += '</div>';
+    });
+
+    // Daily total progress badge hints
+    var totalDailies = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0');
+    var DAILY_MILESTONES = [1, 5, 10, 25, 50, 100];
+    var nextMilestone = DAILY_MILESTONES.find(function(m) { return totalDailies < m; });
+    if (totalDailies > 0 || completed > 0) {
+        html += '<div style="margin-top:12px;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.72rem;color:var(--text-muted);">' +
+            '🎯 Total daily challenges completed (lifetime): <strong style="color:var(--accent);">' + totalDailies + '</strong>' +
+            (nextMilestone ? ' — next badge at ' + nextMilestone : ' — 🏅 Max badge achieved!') + '</div>';
+    }
+
+    html += '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);text-align:center;">Challenges reset at midnight UTC</div>';
+
+    body.innerHTML = html;
+}
+
+window._completeDailyChallenge = function(actionId, btn) {
+    if (_dailyChallengeCompleted(actionId)) return;
+    var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
+    if (!action) return;
+
+    // Mark done in localStorage
+    var newCount = _markDailyChallengeDone(actionId);
+
+    // Track total lifetime challenges
+    var total = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') + 1;
+    localStorage.setItem('btc_daily_challenges_total', String(total));
+
+    // Award points via existing flex mechanism - 15pts, server-side deduped via flex_action + flexActionId
+    if (typeof awardPoints === 'function') {
+        awardPoints(15, '\ud83c\udfaf Daily Challenge: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: 'daily_' + actionId });
+    }
+
+    // Check daily badges
+    _checkDailyChallengeBadges(total);
+
+    // Track for combo system
+    if (typeof window._trackCombo === 'function') window._trackCombo('daily');
+
+    // Refresh tab
+    var body = document.getElementById('questHubBody');
+    if (body) {
+        _renderDailyTab(body);
+    }
+    if (typeof showToast === 'function') showToast('\ud83c\udfaf +15 pts! Daily challenge complete! (' + newCount + '/3)');
+
+    // Check for bonus
+    if (newCount >= 3 && !_dailyBonusAwarded()) {
+        setTimeout(function() {
+            if (body) _renderDailyTab(body);
+        }, 500);
+    }
+};
+
+window._claimDailyBonus = function(btn) {
+    if (_dailyBonusAwarded()) return;
+    localStorage.setItem('btc_daily3_bonus_' + _dailyTodayKey(), '1');
+    if (btn) { btn.disabled = true; btn.textContent = 'Claimed! ✅'; }
+    if (typeof awardPoints === 'function') {
+        awardPoints(50, '\ud83c\udfaf Daily 3 Complete Bonus!', null, null, null, null, { actionKey: 'flex_action', flexActionId: 'daily_3_complete_' + _dailyTodayKey() });
+    }
+    if (typeof showToast === 'function') showToast('\ud83c\udf89 +50 pts BONUS! You completed all 3 daily challenges!', 5000);
+    var body = document.getElementById('questHubBody');
+    if (body) setTimeout(function() { _renderDailyTab(body); }, 1000);
+};
+
+function _checkDailyChallengeBadges(total) {
+    var DAILY_BADGES = [
+        { id: 'daily_1',   total: 1,   emoji: '\ud83c\udfaf', name: 'First Mission',       pts: 25 },
+        { id: 'daily_5',   total: 5,   emoji: '\ud83d\udd25', name: 'Challenge Accepted',  pts: 50 },
+        { id: 'daily_10',  total: 10,  emoji: '\ud83d\udcaa', name: 'Daily Grinder',        pts: 100 },
+        { id: 'daily_25',  total: 25,  emoji: '\ud83c\udfc5', name: 'Consistent Warrior',  pts: 250 },
+        { id: 'daily_50',  total: 50,  emoji: '\ud83d\udd11', name: 'Discipline Protocol', pts: 500 },
+        { id: 'daily_100', total: 100, emoji: '\ud83d\udc51', name: 'Centurion',            pts: 1000 },
+    ];
+    DAILY_BADGES.forEach(function(badge) {
+        if (total >= badge.total) {
+            var earnedKey = 'btc_badge_earned_' + badge.id;
+            if (!localStorage.getItem(earnedKey)) {
+                localStorage.setItem(earnedKey, '1');
+                if (typeof awardPoints === 'function') {
+                    awardPoints(badge.pts, '\ud83c\udfc5 Badge: ' + badge.name, null, null, null, badge.id);
+                }
+                if (typeof showBadgeToast === 'function') showBadgeToast({ id: badge.id, emoji: badge.emoji, name: badge.name, pts: badge.pts });
+                else if (typeof showToast === 'function') showToast(badge.emoji + ' Badge Unlocked: ' + badge.name + '! +' + badge.pts + ' pts');
+            }
+        }
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 🌍 COMMUNITY TAB — Weekly Community Challenge
+// ══════════════════════════════════════════════════════════════════════
+
+var _communityUnsub = null;
+
+function _renderCommunityTab(body) {
+    // Cleanup previous listener
+    if (_communityUnsub) { _communityUnsub(); _communityUnsub = null; }
+
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">⏳ Loading community challenge...</div>';
+
+    if (typeof db === 'undefined') {
+        body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);">⚠️ Database not available</div>';
+        return;
+    }
+
+    // Get current week key
+    var now = new Date();
+    var startOfYear = new Date(now.getFullYear(), 0, 1);
+    var weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+    var weekKey = now.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
+
+    _communityUnsub = db.collection('weekly_challenges').orderBy('startDate', 'desc').limit(1).onSnapshot(function(snapshot) {
+        if (snapshot.empty) {
+            _renderCommunityEmpty(body);
+            return;
+        }
+        var doc = snapshot.docs[0];
+        var data = doc.data();
+        _renderCommunityChallenge(body, doc.id, data);
+    }, function(err) {
+        console.warn('[COMMUNITY] Error:', err);
+        _renderCommunityEmpty(body);
+    });
+}
+
+function _renderCommunityEmpty(body) {
+    body.innerHTML = '<div style="text-align:center;padding:32px 16px;">' +
+        '<div style="font-size:3rem;margin-bottom:12px;">\ud83c\udf0d</div>' +
+        '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Community Challenges</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;">Weekly challenges coming soon!<br>Check back Monday for the next one.</div>' +
+    '</div>';
+}
+
+function _renderCommunityChallenge(body, docId, data) {
+    var goals = data.goals || [];
+    var progress = data.progress || {};
+    var completed = data.completed || false;
+    var sfBoost = data.sfBoostActive || false;
+
+    var html = '<style>' +
+        '.cc-goal{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;}' +
+    '</style>';
+
+    // Header
+    html += '<div style="text-align:center;margin-bottom:16px;">' +
+        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (completed ? '\ud83c\udfc6' : '\ud83c\udf0d') + '</div>' +
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">' + (data.title || 'Weekly Challenge') + '</div>' +
+        '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">' + (data.description || '') + '</div>';
+    if (data.endDate) {
+        html += '<div style="font-size:0.68rem;color:var(--text-faint);margin-top:4px;">Ends: ' + data.endDate + '</div>';
+    }
+    html += '</div>';
+
+    // SF Boost Banner
+    if (sfBoost) {
+        html += '<div style="background:rgba(247,147,26,0.1);border:1px solid #f7931a;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center;">' +
+            '<div style="color:#f7931a;font-weight:900;font-size:0.95rem;">\u26a1 Community Boost Active!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">Hash rate is 20/min for all participants this week!</div>' +
+        '</div>';
+    }
+
+    // Goals with progress bars
+    goals.forEach(function(goal) {
+        var prog = progress[goal.type] || 0;
+        var pct = Math.min(100, Math.round((prog / goal.target) * 100));
+        var goalDone = prog >= goal.target;
+        html += '<div class="cc-goal">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+            '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);">' + goal.label + '</div>' +
+            '<div style="font-size:0.75rem;color:' + (goalDone ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' +
+            (goalDone ? '✅ Done!' : prog.toLocaleString() + ' / ' + goal.target.toLocaleString()) + '</div>' +
+            '</div>' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:6px;height:8px;overflow:hidden;">' +
+            '<div style="background:' + (goalDone ? '#22c55e' : 'linear-gradient(90deg,#06b6d4,#3b82f6)') + ';height:100%;width:' + pct + '%;border-radius:6px;transition:width 0.4s;"></div></div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + pct + '% complete</div>' +
+        '</div>';
+    });
+
+    // Completion status
+    if (completed) {
+        html += '<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:12px;padding:14px;text-align:center;margin-top:8px;">' +
+            '<div style="color:#22c55e;font-weight:800;font-size:1rem;">\ud83c\udf89 Challenge Complete!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">All participants earned the \u26a1 Community Hero badge + SF boost for the rest of the week!</div>' +
+        '</div>';
+    } else {
+        html += '<div style="margin-top:12px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.75rem;color:var(--text-muted);text-align:center;">' +
+            '\ud83c\udfc6 Complete all goals as a community to unlock \u26a1 20 hashes/min SF boost for the rest of the week!' +
+        '</div>';
+    }
+
+    body.innerHTML = html;
+}
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -18768,6 +19456,8 @@ window.forumSubmitPost = async function() {
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
         if (typeof awardTickets === 'function') awardTickets(5, '📝 Forum post');
+        // Combo tracking
+        if (typeof window._trackCombo === 'function') window._trackCombo('forum');
         // Notify @mentioned users
         forumNotifyMentions(body, 'forum_post', postRef.id, title);
         // Track for badge
@@ -18863,6 +19553,8 @@ window.forumSubmitReply = async function(postId) {
         });
 
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        // Combo tracking
+        if (typeof window._trackCombo === 'function') window._trackCombo('forum');
 try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
         try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
         // Notify post author (for top-level replies) or parent reply author (for nested)
@@ -23637,6 +24329,8 @@ window._savePrediction = function(direction) {
     if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
     // Award points for making a prediction
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
+    // Combo tracking
+    if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
     // Sync to Firestore
     _syncPredictionToFirestore(prediction);
 };

@@ -1890,6 +1890,12 @@ async function submitQuest() {
         // Mark quiz done for the day and check if all 3 daily activities complete
         _markDailyActivity('quiz');
         _checkDailyAllThree();
+        // Weekly community challenge: increment quiz_completions
+        if (typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            try {
+                firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'quiz_completions' }).catch(function() {});
+            } catch(e) {}
+        }
 
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
@@ -2807,6 +2813,8 @@ window.showQuestHub = function() {
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabCitadel" onclick="window._questHubTab=\'citadel\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏰 Citadel</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
+        '<button id="qhTabDaily" onclick="window._questHubTab=\'daily\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎯 Daily</button>' +
+        '<button id="qhTabCommunity" onclick="window._questHubTab=\'community\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Community</button>' +
                 '</div>';
 
     var body = document.createElement('div');
@@ -2841,7 +2849,7 @@ window.showQuestHub = function() {
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
     // Update active tab styles
-    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity'].forEach(function(t) {
+    ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity', 'Daily', 'Community'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
         if (!btn) return;
         var isActive = tab === t.toLowerCase();
@@ -2849,9 +2857,11 @@ function _renderQuestHubTab() {
         var charityActive = t === 'Charity' && isActive;
         var flexActive = t === 'Flex' && isActive;
         var citadelActive = t === 'Citadel' && isActive;
-        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : (isActive ? 'var(--accent)' : 'none');
+        var dailyActive = t === 'Daily' && isActive;
+        var communityActive = t === 'Community' && isActive;
+        btn.style.background = raidActive ? 'linear-gradient(135deg,#8b5cf6,#7c3aed)' : charityActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : flexActive ? 'linear-gradient(135deg,#f7931a,#22c55e)' : citadelActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : dailyActive ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : communityActive ? 'linear-gradient(135deg,#06b6d4,#0284c7)' : (isActive ? 'var(--accent)' : 'none');
         btn.style.color = isActive ? '#fff' : 'var(--text-muted)';
-        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : (isActive ? 'var(--accent)' : 'var(--border)');
+        btn.style.borderColor = raidActive ? '#8b5cf6' : charityActive ? '#ef4444' : flexActive ? '#f7931a' : citadelActive ? '#f59e0b' : dailyActive ? '#3b82f6' : communityActive ? '#06b6d4' : (isActive ? 'var(--accent)' : 'var(--border)');
     });
 
     var body = document.getElementById('questHubBody');
@@ -2868,6 +2878,8 @@ function _renderQuestHubTab() {
     else if (tab === 'charity') _renderCharityTab(body);
     else if (tab === 'flex') _renderFlexTab(body);
     else if (tab === 'citadel') _renderCitadelTab(body);
+    else if (tab === 'daily') _renderDailyTab(body);
+    else if (tab === 'community') _renderCommunityTab(body);
 }
 
 // ── CITADEL TAB ──
@@ -3446,6 +3458,12 @@ window.triviaAnswer = function(chosenIdx) {
     if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt');
     // Raid Boss: trivia + XP
     if (isCorrect && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
+    // Weekly community challenge: increment trivia_answers if correct
+    if (isCorrect && typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        try {
+            firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'trivia_answers' }).catch(function() {});
+        } catch(e) {}
+    }
     if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(xp);
 
     // Mark trivia done for daily all-three check
@@ -4503,6 +4521,19 @@ var FLEX_ACTIONS = [
     { id:'starebtc',    emoji:'📈', name:'Stare at the Price',       desc:'Hold the candle. Zoom out. Never sell.',     pts:5, type:'candle' },
     { id:'itoldyou',    emoji:'🙏', name:'I Told You So',            desc:'Say it. They never listened.',               pts:5, type:'typesentence', sentence:'I told you so' },
     { id:'pumpndump',   emoji:'📉', name:'Observe a Pump & Dump',    desc:'Watch the rug pull happen in real time.',    pts:5, type:'redcandle' },
+    // ── NEW daily challenges ──
+    { id:'chat_msg',       emoji:'💬', name:'Send a Chat Message',      desc:'Open Global Chat and say something.',           pts:15, type:'triplclick' },
+    { id:'watch_tctv',    emoji:'📺', name:'Watch TCTV',               desc:'Open Timechain TV and tune in.',                pts:15, type:'triplclick' },
+    { id:'spin_today',    emoji:'🎡', name:'Spin the Wheel',           desc:'Daily spin for a chance at tickets.',            pts:15, type:'triplclick' },
+    { id:'make_pred',     emoji:'🔮', name:'Make a Prediction',        desc:'Predict the BTC price direction.',               pts:15, type:'triplclick' },
+    { id:'visit_beats',   emoji:'🎵', name:'Visit Bitcoin Beats',      desc:'Explore the community music section.',           pts:15, type:'triplclick' },
+    { id:'forum_visit',   emoji:'📝', name:'Post in the Forum',        desc:'Share something in PlebTalk.',                   pts:15, type:'triplclick' },
+    { id:'pvp_battle',    emoji:'⚔️',  name:'PVP Battle',              desc:'Challenge someone in Bitcoin trivia PVP.',       pts:15, type:'triplclick' },
+    { id:'sf_mine',       emoji:'⛏️',  name:"Mine Satoshi's Favor",    desc:'Submit a hash during an active SF window.',      pts:15, type:'triplclick' },
+    { id:'browse_market', emoji:'🛒', name:'Browse Marketplace',       desc:"Check out what's listed today.",                pts:15, type:'triplclick' },
+    { id:'nacho_chat',    emoji:'🦌', name:'Chat with Nacho',          desc:'Ask Nacho something Bitcoin.',                   pts:15, type:'triplclick' },
+    { id:'view_leaderboard', emoji:'🏆', name:'Check the Leaderboard', desc:'See where you rank today.',                      pts:15, type:'triplclick' },
+    { id:'share_app',     emoji:'📤', name:'Share the Archive',        desc:'Tell someone about Bitcoin Education Archive.',  pts:15, type:'triplclick' },
 ];
 
 var FLEX_BADGE_MILESTONES = [1, 5, 50, 500];
@@ -6651,3 +6682,316 @@ function _flexWireInteractions() {
 }
 
 
+
+// ══════════════════════════════════════════════════════════════════════
+// 🎯 DAILY CHALLENGES TAB
+// Shows 3 challenges randomly selected by date-seed for everyone to share
+// ══════════════════════════════════════════════════════════════════════
+
+function _dailyTodayKey() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function _dailySeed(salt) {
+    var d = _dailyTodayKey() + (salt || '');
+    var h = 0;
+    for (var i = 0; i < d.length; i++) { h = (Math.imul(31, h) + d.charCodeAt(i)) | 0; }
+    return Math.abs(h);
+}
+
+// Pick 3 daily challenges from FLEX_ACTIONS seeded by date
+function _getDailyChallenges() {
+    var arr = FLEX_ACTIONS.slice();
+    // Seeded shuffle
+    var seed = _dailySeed('daily3');
+    for (var i = arr.length - 1; i > 0; i--) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+        var j = Math.abs(seed) % (i + 1);
+        var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr.slice(0, 3);
+}
+
+function _dailyChallengeCompleted(actionId) {
+    var key = 'btc_daily_ch_' + _dailyTodayKey();
+    try {
+        var done = JSON.parse(localStorage.getItem(key) || '[]');
+        return done.indexOf(actionId) !== -1;
+    } catch(e) { return false; }
+}
+
+function _markDailyChallengeDone(actionId) {
+    var key = 'btc_daily_ch_' + _dailyTodayKey();
+    try {
+        var done = JSON.parse(localStorage.getItem(key) || '[]');
+        if (done.indexOf(actionId) === -1) {
+            done.push(actionId);
+            localStorage.setItem(key, JSON.stringify(done));
+        }
+        return done.length;
+    } catch(e) { return 0; }
+}
+
+function _getDailyCompletedCount() {
+    var key = 'btc_daily_ch_' + _dailyTodayKey();
+    try {
+        return JSON.parse(localStorage.getItem(key) || '[]').length;
+    } catch(e) { return 0; }
+}
+
+function _dailyBonusAwarded() {
+    return localStorage.getItem('btc_daily3_bonus_' + _dailyTodayKey()) === '1';
+}
+
+function _renderDailyTab(body) {
+    var challenges = _getDailyChallenges();
+    var completed = _getDailyCompletedCount();
+    var allDone = completed >= 3;
+    var bonusDone = _dailyBonusAwarded();
+
+    var html = '<style>' +
+        '.dc-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:0.2s;position:relative;}' +
+        '.dc-card.done{border-color:#22c55e;background:rgba(34,197,94,0.07);}' +
+        '.dc-card.done::after{content:"✅";position:absolute;top:10px;right:12px;font-size:1.3rem;}' +
+        '.dc-name{font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;}' +
+        '.dc-desc{font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;}' +
+        '.dc-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid #3b82f6;background:rgba(59,130,246,0.1);color:#3b82f6;transition:0.2s;}' +
+        '.dc-btn:active{transform:scale(0.96);}' +
+    '</style>';
+
+    // Header
+    html += '<div style="text-align:center;margin-bottom:16px;">' +
+        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (allDone ? '🏆' : '🎯') + '</div>' +
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Challenges</div>' +
+        '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">3 challenges, freshly picked each day. Complete all 3 for a bonus!</div>' +
+        '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
+        '<div style="background:linear-gradient(90deg,#3b82f6,#22c55e);height:100%;width:' + Math.round(completed / 3 * 100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + completed + '/3 completed today' +
+        (allDone ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Set!</span>' : '') + '</div>' +
+    '</div>';
+
+    // Bonus banner
+    if (allDone && !bonusDone) {
+        html += '<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:12px;padding:12px 16px;margin-bottom:12px;text-align:center;">' +
+            '<div style="color:#22c55e;font-weight:800;font-size:0.9rem;margin-bottom:4px;">🎉 Bonus Unlocked!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">You completed all 3 daily challenges!</div>' +
+            '<button onclick="_claimDailyBonus(this)" style="padding:8px 20px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">Claim +50 pts Bonus 🎁</button>' +
+        '</div>';
+    } else if (allDone && bonusDone) {
+        html += '<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:12px;padding:12px 16px;margin-bottom:12px;text-align:center;">' +
+            '<div style="color:#22c55e;font-weight:800;font-size:0.9rem;">🎁 Bonus Claimed! +50 pts done</div>' +
+        '</div>';
+    }
+
+    // Challenge cards
+    challenges.forEach(function(action) {
+        var done = _dailyChallengeCompleted(action.id);
+        html += '<div class="dc-card' + (done ? ' done' : '') + '">' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+            '<span style="font-size:1.5rem;">' + action.emoji + '</span>' +
+            '<div style="flex:1;">' +
+            '<div class="dc-name">' + action.name + '</div>' +
+            '<div class="dc-desc">' + action.desc + '</div>' +
+            '</div>' +
+            '<div style="font-size:0.75rem;font-weight:700;color:#3b82f6;flex-shrink:0;">+15 pts</div>' +
+            '</div>';
+        if (!done) {
+            html += '<button class="dc-btn" onclick="_completeDailyChallenge(\'' + action.id + '\',this)">' +
+                action.emoji + ' Complete ✓</button>';
+        }
+        html += '</div>';
+    });
+
+    // Daily total progress badge hints
+    var totalDailies = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0');
+    var DAILY_MILESTONES = [1, 5, 10, 25, 50, 100];
+    var nextMilestone = DAILY_MILESTONES.find(function(m) { return totalDailies < m; });
+    if (totalDailies > 0 || completed > 0) {
+        html += '<div style="margin-top:12px;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.72rem;color:var(--text-muted);">' +
+            '🎯 Total daily challenges completed (lifetime): <strong style="color:var(--accent);">' + totalDailies + '</strong>' +
+            (nextMilestone ? ' — next badge at ' + nextMilestone : ' — 🏅 Max badge achieved!') + '</div>';
+    }
+
+    html += '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);text-align:center;">Challenges reset at midnight UTC</div>';
+
+    body.innerHTML = html;
+}
+
+window._completeDailyChallenge = function(actionId, btn) {
+    if (_dailyChallengeCompleted(actionId)) return;
+    var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
+    if (!action) return;
+
+    // Mark done in localStorage
+    var newCount = _markDailyChallengeDone(actionId);
+
+    // Track total lifetime challenges
+    var total = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') + 1;
+    localStorage.setItem('btc_daily_challenges_total', String(total));
+
+    // Award points via existing flex mechanism - 15pts, server-side deduped via flex_action + flexActionId
+    if (typeof awardPoints === 'function') {
+        awardPoints(15, '\ud83c\udfaf Daily Challenge: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: 'daily_' + actionId });
+    }
+
+    // Check daily badges
+    _checkDailyChallengeBadges(total);
+
+    // Track for combo system
+    if (typeof window._trackCombo === 'function') window._trackCombo('daily');
+
+    // Refresh tab
+    var body = document.getElementById('questHubBody');
+    if (body) {
+        _renderDailyTab(body);
+    }
+    if (typeof showToast === 'function') showToast('\ud83c\udfaf +15 pts! Daily challenge complete! (' + newCount + '/3)');
+
+    // Check for bonus
+    if (newCount >= 3 && !_dailyBonusAwarded()) {
+        setTimeout(function() {
+            if (body) _renderDailyTab(body);
+        }, 500);
+    }
+};
+
+window._claimDailyBonus = function(btn) {
+    if (_dailyBonusAwarded()) return;
+    localStorage.setItem('btc_daily3_bonus_' + _dailyTodayKey(), '1');
+    if (btn) { btn.disabled = true; btn.textContent = 'Claimed! ✅'; }
+    if (typeof awardPoints === 'function') {
+        awardPoints(50, '\ud83c\udfaf Daily 3 Complete Bonus!', null, null, null, null, { actionKey: 'flex_action', flexActionId: 'daily_3_complete_' + _dailyTodayKey() });
+    }
+    if (typeof showToast === 'function') showToast('\ud83c\udf89 +50 pts BONUS! You completed all 3 daily challenges!', 5000);
+    var body = document.getElementById('questHubBody');
+    if (body) setTimeout(function() { _renderDailyTab(body); }, 1000);
+};
+
+function _checkDailyChallengeBadges(total) {
+    var DAILY_BADGES = [
+        { id: 'daily_1',   total: 1,   emoji: '\ud83c\udfaf', name: 'First Mission',       pts: 25 },
+        { id: 'daily_5',   total: 5,   emoji: '\ud83d\udd25', name: 'Challenge Accepted',  pts: 50 },
+        { id: 'daily_10',  total: 10,  emoji: '\ud83d\udcaa', name: 'Daily Grinder',        pts: 100 },
+        { id: 'daily_25',  total: 25,  emoji: '\ud83c\udfc5', name: 'Consistent Warrior',  pts: 250 },
+        { id: 'daily_50',  total: 50,  emoji: '\ud83d\udd11', name: 'Discipline Protocol', pts: 500 },
+        { id: 'daily_100', total: 100, emoji: '\ud83d\udc51', name: 'Centurion',            pts: 1000 },
+    ];
+    DAILY_BADGES.forEach(function(badge) {
+        if (total >= badge.total) {
+            var earnedKey = 'btc_badge_earned_' + badge.id;
+            if (!localStorage.getItem(earnedKey)) {
+                localStorage.setItem(earnedKey, '1');
+                if (typeof awardPoints === 'function') {
+                    awardPoints(badge.pts, '\ud83c\udfc5 Badge: ' + badge.name, null, null, null, badge.id);
+                }
+                if (typeof showBadgeToast === 'function') showBadgeToast({ id: badge.id, emoji: badge.emoji, name: badge.name, pts: badge.pts });
+                else if (typeof showToast === 'function') showToast(badge.emoji + ' Badge Unlocked: ' + badge.name + '! +' + badge.pts + ' pts');
+            }
+        }
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 🌍 COMMUNITY TAB — Weekly Community Challenge
+// ══════════════════════════════════════════════════════════════════════
+
+var _communityUnsub = null;
+
+function _renderCommunityTab(body) {
+    // Cleanup previous listener
+    if (_communityUnsub) { _communityUnsub(); _communityUnsub = null; }
+
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">⏳ Loading community challenge...</div>';
+
+    if (typeof db === 'undefined') {
+        body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);">⚠️ Database not available</div>';
+        return;
+    }
+
+    // Get current week key
+    var now = new Date();
+    var startOfYear = new Date(now.getFullYear(), 0, 1);
+    var weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+    var weekKey = now.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
+
+    _communityUnsub = db.collection('weekly_challenges').orderBy('startDate', 'desc').limit(1).onSnapshot(function(snapshot) {
+        if (snapshot.empty) {
+            _renderCommunityEmpty(body);
+            return;
+        }
+        var doc = snapshot.docs[0];
+        var data = doc.data();
+        _renderCommunityChallenge(body, doc.id, data);
+    }, function(err) {
+        console.warn('[COMMUNITY] Error:', err);
+        _renderCommunityEmpty(body);
+    });
+}
+
+function _renderCommunityEmpty(body) {
+    body.innerHTML = '<div style="text-align:center;padding:32px 16px;">' +
+        '<div style="font-size:3rem;margin-bottom:12px;">\ud83c\udf0d</div>' +
+        '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Community Challenges</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;">Weekly challenges coming soon!<br>Check back Monday for the next one.</div>' +
+    '</div>';
+}
+
+function _renderCommunityChallenge(body, docId, data) {
+    var goals = data.goals || [];
+    var progress = data.progress || {};
+    var completed = data.completed || false;
+    var sfBoost = data.sfBoostActive || false;
+
+    var html = '<style>' +
+        '.cc-goal{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;}' +
+    '</style>';
+
+    // Header
+    html += '<div style="text-align:center;margin-bottom:16px;">' +
+        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (completed ? '\ud83c\udfc6' : '\ud83c\udf0d') + '</div>' +
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">' + (data.title || 'Weekly Challenge') + '</div>' +
+        '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">' + (data.description || '') + '</div>';
+    if (data.endDate) {
+        html += '<div style="font-size:0.68rem;color:var(--text-faint);margin-top:4px;">Ends: ' + data.endDate + '</div>';
+    }
+    html += '</div>';
+
+    // SF Boost Banner
+    if (sfBoost) {
+        html += '<div style="background:rgba(247,147,26,0.1);border:1px solid #f7931a;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center;">' +
+            '<div style="color:#f7931a;font-weight:900;font-size:0.95rem;">\u26a1 Community Boost Active!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">Hash rate is 20/min for all participants this week!</div>' +
+        '</div>';
+    }
+
+    // Goals with progress bars
+    goals.forEach(function(goal) {
+        var prog = progress[goal.type] || 0;
+        var pct = Math.min(100, Math.round((prog / goal.target) * 100));
+        var goalDone = prog >= goal.target;
+        html += '<div class="cc-goal">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+            '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);">' + goal.label + '</div>' +
+            '<div style="font-size:0.75rem;color:' + (goalDone ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' +
+            (goalDone ? '✅ Done!' : prog.toLocaleString() + ' / ' + goal.target.toLocaleString()) + '</div>' +
+            '</div>' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:6px;height:8px;overflow:hidden;">' +
+            '<div style="background:' + (goalDone ? '#22c55e' : 'linear-gradient(90deg,#06b6d4,#3b82f6)') + ';height:100%;width:' + pct + '%;border-radius:6px;transition:width 0.4s;"></div></div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + pct + '% complete</div>' +
+        '</div>';
+    });
+
+    // Completion status
+    if (completed) {
+        html += '<div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:12px;padding:14px;text-align:center;margin-top:8px;">' +
+            '<div style="color:#22c55e;font-weight:800;font-size:1rem;">\ud83c\udf89 Challenge Complete!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">All participants earned the \u26a1 Community Hero badge + SF boost for the rest of the week!</div>' +
+        '</div>';
+    } else {
+        html += '<div style="margin-top:12px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.75rem;color:var(--text-muted);text-align:center;">' +
+            '\ud83c\udfc6 Complete all goals as a community to unlock \u26a1 20 hashes/min SF boost for the rest of the week!' +
+        '</div>';
+    }
+
+    body.innerHTML = html;
+}

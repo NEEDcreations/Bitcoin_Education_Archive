@@ -97,7 +97,38 @@
             renderHomeBanner();
         }
         listenToFavorState();
+        // Check weekly community challenge for SF boost
+        _checkWeeklySFBoost();
         console.log('[FAVOR] Initialized');
+    }
+
+    function _checkWeeklySFBoost() {
+        if (typeof db === 'undefined') return;
+        // Check if there's an active weekly challenge with sfBoostActive
+        db.collection('weekly_challenges').orderBy('startDate', 'desc').limit(1).get().then(function(snap) {
+            if (snap.empty) return;
+            var data = snap.docs[0].data();
+            if (!data.sfBoostActive) return;
+            // Check if current date is within the challenge window
+            var today = new Date().toISOString().split('T')[0];
+            if (data.startDate && data.endDate && today >= data.startDate && today <= data.endDate) {
+                // Boost active — the module HASHES_PER_MINUTE is a const so we override the rate check via window flag
+                window._sfBoostActive = true;
+                console.log('[FAVOR] Community boost active: 20 hashes/min');
+                // Show boost banner in SF UI if open
+                var sfBanner = document.getElementById('sfBoostBanner');
+                if (!sfBanner) {
+                    var sfUI = document.getElementById('satoshiFavorUI');
+                    if (sfUI) {
+                        var banner = document.createElement('div');
+                        banner.id = 'sfBoostBanner';
+                        banner.style.cssText = 'background:rgba(247,147,26,0.12);border:1px solid #f7931a;border-radius:10px;padding:10px 14px;margin-bottom:10px;text-align:center;font-size:0.8rem;font-weight:700;color:#f7931a;';
+                        banner.textContent = '\u26a1 Community Boost Active! 20 hashes/min!';
+                        sfUI.insertBefore(banner, sfUI.firstChild);
+                    }
+                }
+            }
+        }).catch(function() {});
     }
 
     // ─── LISTENER ───
@@ -402,13 +433,14 @@
             return;
         }
 
-        // Enforce 10 hashes per 60 seconds (rolling window)
+        // Enforce hashes per 60 seconds (rolling window) — boost doubles rate to 20/min
+        var effectiveRate = (window._sfBoostActive ? 20 : HASHES_PER_MINUTE);
         const now60 = Date.now();
         hashTimestamps = hashTimestamps.filter(t => now60 - t < HASH_WINDOW_MS);
-        if (hashTimestamps.length >= HASHES_PER_MINUTE) {
+        if (hashTimestamps.length >= effectiveRate) {
             const oldestInWindow = hashTimestamps[0];
             const waitMs = HASH_WINDOW_MS - (now60 - oldestInWindow);
-            showToast(`Rate limit: ${Math.ceil(waitMs / 1000)}s until next hash (10/min)`);
+            showToast(`Rate limit: ${Math.ceil(waitMs / 1000)}s until next hash (${effectiveRate}/min)`);
             return;
         }
 
@@ -436,6 +468,8 @@
             var _sfBest = parseInt(localStorage.getItem('btc_sf_best_hash') || '999999999');
             if (value < _sfBest) localStorage.setItem('btc_sf_best_hash', value.toString());
             if (isWinner) localStorage.setItem('btc_sf_solved_block', 'true');
+            // Combo tracking
+            if (typeof window._trackCombo === 'function') window._trackCombo('sf');
 
             visual.style.transform = 'scale(1)';
             output.textContent = value.toLocaleString();

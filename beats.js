@@ -436,6 +436,8 @@ window.beatsPlayTrack = function(idx) {
     try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_beats_played_' + _t, 'true'); } catch(e) {}
     // Lifetime play count for badges
     try { var _pc = parseInt(localStorage.getItem('btc_beats_play_count') || '0'); localStorage.setItem('btc_beats_play_count', String(_pc + 1)); } catch(e) {}
+    // Combo tracking
+    if (typeof window._trackCombo === 'function') window._trackCombo('beats');
 
     // Pause DJ tune-in if active (mutual exclusion with global chat stream)
     if (window._djListening && window._djAudio) {

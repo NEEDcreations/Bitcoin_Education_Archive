@@ -2017,6 +2017,16 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         hall_of_fame: 5000, the_archive: 10000, genesis_block: 15000,
         satoshis_ghost: 21000, block_250: 25000, the_hodler: 30000,
         satoshis_covenant: 42000, satoshis_cipher: 100000,
+        // Daily challenge badges
+        daily_1: 25, daily_5: 50, daily_10: 100, daily_25: 250, daily_50: 500, daily_100: 1000,
+        // Combo badges
+        combo_trio: 50, combo_mega: 100, combo_legend: 250,
+        // Weekly community challenge
+        weekly_hero: 100,
+        // Badge set completion bonuses
+        set_miner_complete: 500, set_scholar_complete: 500, set_social_complete: 500,
+        set_streak_complete: 1000, set_pvp_complete: 750, set_builder_complete: 500,
+        set_explorer_complete: 500, set_fun_complete: 300,
     };
     // FLEX per-action badge catalog - 23 actions × 8 milestones
     // Pattern: flex_<actionId>_<milestone>  → always 5 pts each
@@ -2085,7 +2095,9 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'trivia_correct': 50,          // Daily trivia correct answer
         'trivia_attempt': 10,          // Daily trivia attempt (wrong answer)
         'poll_vote': 50,               // Daily poll quest vote
-        'flex_action': 5,              // Daily FLEX healthy action (one per action-id per day)
+        'flex_action': 15,             // Daily FLEX healthy action (one per action-id per day) — now 15 pts
+        'combo_bonus': 250,            // Combo tier bonus (client specifies pts, capped at 250)
+        'weekly_challenge_contrib': 0, // Weekly challenge contribution (no direct pts, just tracking)
     };
 
     // Look up max allowed points for this action using keyword matching
@@ -2138,7 +2150,8 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'trivia_attempt': ['trivia quest attempt', 'trivia_attempt', '🧠 trivia quest attempt'],
         'poll_vote': ['poll quest vote', 'poll_vote', '📊 poll quest vote'],
 
-        'flex_action': ['💪 flex:'],
+        'flex_action': ['💪 flex:', '🎯 Daily Challenge:'],
+        'combo_bonus': ['combo', '🔥 Trio Combo', '💥 MEGA COMBO', '🏆 LEGENDARY COMBO', '🎯 Daily 3 Complete'],
     };
 
     let pts = 0;
@@ -2288,6 +2301,17 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 }
                 t.set(flexRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'flex_action', flexId });
             }
+            // 1e. Daily dedup for combo bonus - one award per combo tier per UTC day
+            if (matchedAction === 'combo_bonus') {
+                const comboTier = (data.comboTier || '').replace(/[^a-z0-9_]/g, '').substring(0, 20);
+                if (!comboTier) throw new Error('COMBO_MISSING_TIER');
+                const comboRef = userRef.collection('daily_action_counts').doc(today + '_combo_' + comboTier);
+                const comboDoc = await t.get(comboRef);
+                if (comboDoc.exists) {
+                    throw new Error('ALREADY_CLAIMED_TODAY:combo_' + comboTier);
+                }
+                t.set(comboRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'combo_bonus', comboTier });
+            }
 
             // 1b. Check per-day action count (anti-spam)
             let dailyActionUsed = 0;
@@ -2387,6 +2411,11 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             const totalPointsOut = awarded + overflowRedeemed;
             if (totalPointsOut > 0) {
                 userUpdate.points = admin.firestore.FieldValue.increment(totalPointsOut);
+                // Weekly/monthly XP for leaderboard periods (only awarded points, not overflow redemption)
+                if (awarded > 0) {
+                    userUpdate.weeklyXP = admin.firestore.FieldValue.increment(awarded);
+                    userUpdate.monthlyXP = admin.firestore.FieldValue.increment(awarded);
+                }
                 if (tickets && awarded > 0) userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
                 if (streakFreezes && awarded > 0) userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
                 // Marks daily tickets as used (only if actually awarded)
@@ -4903,4 +4932,232 @@ exports.backfillDonationFaction = functions.https.onCall(async (data, context) =
 
     console.log(`[CHARITY-BACKFILL] uid=${uid} backfilled ${toBackfill.length} donations (${totalAmount} XP) → ${newFaction}`);
     return { success: true, backfilled: toBackfill.length, totalAmount };
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// ⏰ FEATURE 3: Weekly/Monthly XP Reset + Ticket Prizes
+// ══════════════════════════════════════════════════════════════════════
+
+async function _awardTicketsToUser(uid, ticketCount, reason) {
+    const userRef = db.collection('users').doc(uid);
+    await userRef.update({
+        orangeTickets: admin.firestore.FieldValue.increment(ticketCount),
+    });
+}
+
+async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
+    const BATCH_SIZE = 499;
+    // Get top 10 winners before reset
+    const topSnap = await db.collection('users').orderBy(periodField, 'desc').limit(10).get();
+    const winners = [];
+    topSnap.forEach(doc => {
+        const d = doc.data();
+        if ((d[periodField] || 0) > 0) {
+            winners.push({ uid: doc.id, username: d.username || 'Anon', xp: d[periodField] || 0 });
+        }
+    });
+
+    // Award tickets to winners
+    const awardPromises = winners.map((w, i) =>
+        _awardTicketsToUser(w.uid, ticketsPerWinner, `${label} Top ${i + 1}!`)
+    );
+    await Promise.all(awardPromises);
+
+    // Store winners for history
+    if (winners.length > 0) {
+        await db.collection('leaderboard_winners').doc(winnerKey).set({
+            period: winnerKey,
+            label,
+            winners,
+            ticketsPerWinner,
+            settledAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+
+    // Reset ALL users' period XP in batches
+    let lastDoc = null;
+    let processed = 0;
+    while (true) {
+        let query = db.collection('users').orderBy(admin.firestore.FieldPath.documentId()).limit(BATCH_SIZE);
+        if (lastDoc) query = query.startAfter(lastDoc);
+        const snap = await query.get();
+        if (snap.empty) break;
+        lastDoc = snap.docs[snap.docs.length - 1];
+        const batch = db.batch();
+        snap.forEach(doc => {
+            if ((doc.data()[periodField] || 0) > 0) {
+                batch.update(doc.ref, { [periodField]: 0 });
+            }
+        });
+        await batch.commit();
+        processed += snap.size;
+        if (snap.size < BATCH_SIZE) break;
+    }
+
+    console.log(`[LEADERBOARD RESET] ${label}: ${winners.length} winners, ${processed} users reset`);
+    return { winners: winners.length, processed, label };
+}
+
+exports.resetWeeklyXP = functions.pubsub.schedule('0 0 * * 1').timeZone('UTC').onRun(async (ctx) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+    const prevWeek = weekNum - 1;
+    const weekKey = `${year}-W${String(prevWeek || 52).padStart(2, '0')}`;
+    const result = await _resetPeriodXP('weeklyXP', weekKey, 50, `Week ${weekKey}`);
+    console.log('[WEEKLY RESET COMPLETE]', result);
+    return null;
+});
+
+exports.resetMonthlyXP = functions.pubsub.schedule('0 0 1 * *').timeZone('UTC').onRun(async (ctx) => {
+    const now = new Date();
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const monthKey = `${prevMonth.getFullYear()}-M${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+    const result = await _resetPeriodXP('monthlyXP', monthKey, 100, `Month ${monthKey}`);
+    console.log('[MONTHLY RESET COMPLETE]', result);
+    return null;
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// 🧊 FEATURE 5: Spend Orange Tickets for Streak Freezes
+// ══════════════════════════════════════════════════════════════════════
+
+exports.spendTicketsForFreeze = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot purchase freezes');
+    }
+
+    const uid = context.auth.uid;
+    const amount = parseInt(data.amount) || 1;
+    if (![1, 3].indexOf(amount) === -1 && amount !== 1 && amount !== 3) {
+        throw new functions.https.HttpsError('invalid-argument', 'Amount must be 1 or 3');
+    }
+
+    const FREEZE_COSTS = { 1: 5, 3: 12 }; // tickets per freeze bundle
+    const ticketCost = FREEZE_COSTS[amount] || 5;
+
+    const userRef = db.collection('users').doc(uid);
+    const result = await db.runTransaction(async (t) => {
+        const doc = await t.get(userRef);
+        if (!doc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        const userData = doc.data();
+        const currentTickets = userData.orangeTickets || 0;
+        const currentFreezes = userData.streakFreezes || 0;
+
+        if (currentTickets < ticketCost) {
+            throw new functions.https.HttpsError('resource-exhausted',
+                `Not enough tickets. You have ${currentTickets} but need ${ticketCost}.`);
+        }
+
+        const update = {
+            orangeTickets: admin.firestore.FieldValue.increment(-ticketCost),
+            streakFreezes: admin.firestore.FieldValue.increment(amount),
+        };
+        t.update(userRef, update);
+        return {
+            newTickets: currentTickets - ticketCost,
+            newFreezes: currentFreezes + amount,
+        };
+    });
+
+    return { success: true, ...result };
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// 🌍 FEATURE 6: Weekly Community Challenge - progress tracking
+// ══════════════════════════════════════════════════════════════════════
+
+// Helper to get current week key (YYYY-WNN)
+function _getCurrentWeekKey() {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+    return `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+// Seed the first community challenge
+exports.seedWeeklyChallenge = functions.https.onCall(async (data, context) => {
+    if (!context.auth || !['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'].includes(context.auth.token.email)) {
+        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const weekKey = data.weekKey || _getCurrentWeekKey();
+    await db.collection('weekly_challenges').doc(weekKey).set({
+        weekKey,
+        title: data.title || 'The Bitcoin Basics Blitz',
+        description: data.description || 'Complete quizzes and answer trivia questions as a community this week.',
+        goals: data.goals || [
+            { type: 'quiz_completions', target: 50, label: '50 Quizzes Completed' },
+            { type: 'trivia_answers', target: 200, label: '200 Trivia Answers' },
+        ],
+        progress: { quiz_completions: 0, trivia_answers: 0 },
+        completed: false,
+        sfBoostActive: false,
+        startDate: data.startDate || '2026-06-30',
+        endDate: data.endDate || '2026-07-06',
+    }, { merge: true });
+    return { success: true, weekKey };
+});
+
+// Increment community challenge progress (called from client - quiz completion, trivia correct)
+exports.incrementWeeklyChallenge = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    const uid = context.auth.uid;
+
+    const goalType = (data.goalType || '').replace(/[^a-z_]/g, '').substring(0, 30);
+    if (!goalType) throw new functions.https.HttpsError('invalid-argument', 'goalType required');
+
+    const weekKey = _getCurrentWeekKey();
+    const challengeRef = db.collection('weekly_challenges').doc(weekKey);
+
+    const snap = await challengeRef.get();
+    if (!snap.exists) return { success: false, reason: 'No active challenge' };
+
+    const data2 = snap.data();
+    if (data2.completed) return { success: false, reason: 'Already completed' };
+
+    // Check if this goal type is valid
+    const validGoal = (data2.goals || []).find(g => g.type === goalType);
+    if (!validGoal) return { success: false, reason: 'Invalid goal type' };
+
+    // Increment progress
+    await challengeRef.update({
+        [`progress.${goalType}`]: admin.firestore.FieldValue.increment(1),
+        [`participants.${uid}`]: true,
+    });
+
+    // Check if all goals completed (re-read)
+    const updated = (await challengeRef.get()).data();
+    const allDone = (updated.goals || []).every(g => (updated.progress[g.type] || 0) >= g.target);
+
+    if (allDone && !updated.completed) {
+        // Activate SF boost + mark complete
+        await challengeRef.update({
+            completed: true,
+            sfBoostActive: true,
+            completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`[WEEKLY CHALLENGE] ${weekKey} COMPLETED! SF boost activated.`);
+        // Award weekly_hero badge to all participants
+        const participants = Object.keys(updated.participants || {});
+        for (const puid of participants.slice(0, 500)) { // limit to 500 participants
+            try {
+                const pRef = db.collection('users').doc(puid);
+                const badgeRef = pRef.collection('badge_awards').doc('weekly_hero');
+                const badgeDoc = await badgeRef.get();
+                if (!badgeDoc.exists) {
+                    await badgeRef.set({ awardedAt: admin.firestore.FieldValue.serverTimestamp() });
+                    await pRef.update({
+                        points: admin.firestore.FieldValue.increment(100),
+                        weeklyXP: admin.firestore.FieldValue.increment(100),
+                        monthlyXP: admin.firestore.FieldValue.increment(100),
+                        visibleBadges: admin.firestore.FieldValue.arrayUnion('weekly_hero'),
+                    });
+                }
+            } catch (e) { console.error('[WEEKLY CHALLENGE] participant award error', puid, e); }
+        }
+    }
+
+    return { success: true, allDone };
 });

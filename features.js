@@ -590,6 +590,8 @@ window._savePrediction = function(direction) {
     if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
     // Award points for making a prediction
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
+    // Combo tracking
+    if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
     // Sync to Firestore
     _syncPredictionToFirestore(prediction);
 };

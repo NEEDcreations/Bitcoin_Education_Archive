@@ -1206,6 +1206,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Weekly challenges — public read, CF-only write (except increment via CF)
+    match /weekly_challenges/{weekKey} {
+      allow read: if true;
+      allow write: if false; // All writes via Cloud Functions
+    }
+
+    // Leaderboard winners history — public read, CF-only write
+    match /leaderboard_winners/{period} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

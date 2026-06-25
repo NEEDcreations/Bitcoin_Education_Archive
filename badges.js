@@ -386,6 +386,33 @@ const BADGE_DEFS = [
 
     // ---- Marketplace: power seller ----
     { id: 'market_listed_10', name: 'Power Seller', emoji: '🏆', desc: 'Listed 10 items in the Marketplace', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.marketListings || 0) >= 10, pts: 150 },
+
+    // ---- Daily Challenge Badges ----
+    { id: 'daily_1',   name: 'First Mission',       emoji: '🎯', desc: 'Complete 1 daily challenge',           check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 1,   pts: 25 },
+    { id: 'daily_5',   name: 'Challenge Accepted',  emoji: '🔥', desc: 'Complete 5 daily challenges total',   check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 5,   pts: 50 },
+    { id: 'daily_10',  name: 'Daily Grinder',        emoji: '💪', desc: 'Complete 10 daily challenges total',  check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 10,  pts: 100 },
+    { id: 'daily_25',  name: 'Consistent Warrior',  emoji: '🏅', desc: 'Complete 25 daily challenges total',  check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 25,  pts: 250 },
+    { id: 'daily_50',  name: 'Discipline Protocol', emoji: '🔑', desc: 'Complete 50 daily challenges total',  check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 50,  pts: 500 },
+    { id: 'daily_100', name: 'Centurion',            emoji: '👑', desc: 'Complete 100 daily challenges total', check: () => parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') >= 100, pts: 1000 },
+
+    // ---- Combo Badges ----
+    { id: 'combo_trio',   name: 'Trio Combo',   emoji: '🔥', desc: 'Hit a 3-feature combo in one session',    check: () => localStorage.getItem('btc_badge_earned_combo_trio') === '1',   pts: 50 },
+    { id: 'combo_mega',   name: 'Mega Combo',   emoji: '💥', desc: 'Hit a 5-feature combo in one session',    check: () => localStorage.getItem('btc_badge_earned_combo_mega') === '1',   pts: 100 },
+    { id: 'combo_legend', name: 'Legend Mode',  emoji: '🏆', desc: 'Hit all 8 features in one session',        check: () => localStorage.getItem('btc_badge_earned_combo_legend') === '1', pts: 250 },
+
+    // ---- Weekly Community Challenge ----
+    { id: 'weekly_hero',  name: 'Community Hero', emoji: '⚡', desc: 'Participated in a weekly community challenge', check: () => localStorage.getItem('btc_badge_earned_weekly_hero') === '1', pts: 100 },
+
+    // ---- Badge Set Completion Bonuses (hidden until earned) ----
+    { id: 'set_miner_complete',    name: 'Master Miner',         emoji: '🏆', desc: 'Completed The Miner Set',      pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_miner_complete') === '1' },
+    { id: 'set_scholar_complete',  name: 'Satoshi Scholar',      emoji: '🎓', desc: 'Completed The Scholar Set',    pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_scholar_complete') === '1' },
+    { id: 'set_social_complete',   name: 'Community Pillar',     emoji: '🌐', desc: 'Completed The Social Set',     pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_social_complete') === '1' },
+    { id: 'set_streak_complete',   name: 'Diamond Hands',        emoji: '💎', desc: 'Completed The Streak Set',     pts: 1000, hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_streak_complete') === '1' },
+    { id: 'set_pvp_complete',      name: 'Arena Champion',       emoji: '👑', desc: 'Completed The Fighter Set',    pts: 750,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_pvp_complete') === '1' },
+    { id: 'set_builder_complete',  name: 'Archive Builder',      emoji: '🔧', desc: 'Completed The Builder Set',    pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_builder_complete') === '1' },
+    { id: 'set_explorer_complete', name: 'World Traveler',       emoji: '🗺️', desc: 'Completed The Explorer Set', pts: 500, hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_explorer_complete') === '1' },
+    { id: 'set_fun_complete',      name: 'Bitcoin Calendar Hero',emoji: '🎊', desc: 'Completed The Calendar Set',   pts: 300,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_fun_complete') === '1' },
+    { id: 'set_daily_complete',    name: 'Challenge Master',     emoji: '🏅', desc: 'Completed The Daily Set',      pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_daily_complete') === '1' },
 ];
 
 let earnedBadges = new Set();
@@ -520,6 +547,8 @@ const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties
 function showBadgeToast(badge) {
     // Notify
     if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
+    // Check if any badge set is now complete
+    setTimeout(function() { if (typeof window._checkBadgeSets === 'function') window._checkBadgeSets(); }, 500);
 
     const isMajor = MAJOR_BADGES.includes(badge.id);
 
@@ -909,8 +938,111 @@ function getBadgeHTML() {
         html += _sections[k];
     });
 
+    // 🏅 BADGE COLLECTIONS / SETS SECTION
+    html += _renderBadgeSets(earnedBadges);
+
     return html;
 }
+
+// ============================================================
+// 🏅 BADGE SETS (Collections)
+// ============================================================
+var BADGE_SETS = [
+    { id:'set_miner',    name:'The Miner Set',      emoji:'⛏️', color:'#f7931a', badgeIds:['sf_first','sf_5','sf_25','sf_50','sf_100','sf_streak_3','sf_streak_7','sf_winner'], bonusId:'set_miner_complete',    bonusPts:500,  bonusEmoji:'🏆', bonusName:'Master Miner',         bonusDesc:'Completed The Miner Set' },
+    { id:'set_scholar',  name:'The Scholar Set',    emoji:'📚', color:'#3b82f6', badgeIds:['trivia_10','trivia_50','trivia_100','quiz_1','quiz_5','quiz_10','cert_scholar','daily_100'], bonusId:'set_scholar_complete', bonusPts:500,  bonusEmoji:'🎓', bonusName:'Satoshi Scholar',      bonusDesc:'Completed The Scholar Set' },
+    { id:'set_social',   name:'The Social Set',     emoji:'💬', color:'#8b5cf6', badgeIds:['chat_first','chat_10','chat_50','chat_100','chat_200','dm_first','dm_10','react_5','react_50'], bonusId:'set_social_complete', bonusPts:500,  bonusEmoji:'🌐', bonusName:'Community Pillar',    bonusDesc:'Completed The Social Set' },
+    { id:'set_streak',   name:'The Streak Set',     emoji:'🔥', color:'#ef4444', badgeIds:['streak_3','streak_7','streak_14','streak_30','streak_60','streak_100','streak_200','streak_365'], bonusId:'set_streak_complete', bonusPts:1000, bonusEmoji:'💎', bonusName:'Diamond Hands',        bonusDesc:'Completed The Streak Set' },
+    { id:'set_pvp',      name:'The Fighter Set',    emoji:'⚔️', color:'#ec4899', badgeIds:['pvp_first','pvp_5','pvp_25','pvp_50','pvp_100','pvp_1','pvp_25'], bonusId:'set_pvp_complete', bonusPts:750, bonusEmoji:'👑', bonusName:'Arena Champion',        bonusDesc:'Completed The Fighter Set' },
+    { id:'set_builder',  name:'The Builder Set',    emoji:'🏗️', color:'#22c55e', badgeIds:['producer_1','producer_10','forum_first','forum_10','article_1','beats_comment_1','market_listed_1','market_listed_5'], bonusId:'set_builder_complete', bonusPts:500, bonusEmoji:'🔧', bonusName:'Archive Builder',     bonusDesc:'Completed The Builder Set' },
+    { id:'set_explorer', name:'The Explorer Set',   emoji:'🧭', color:'#06b6d4', badgeIds:['first_channel','explorer_5','explorer_10','explorer_25','explorer_50','explorer_100','explorer_all','bookworm'], bonusId:'set_explorer_complete', bonusPts:500, bonusEmoji:'🗺️', bonusName:'World Traveler',       bonusDesc:'Completed The Explorer Set' },
+    { id:'set_fun',      name:'The Calendar Set',   emoji:'📅', color:'#f59e0b', badgeIds:['fun_weekend','fun_friday','fun_midnight','fun_bitcoin_birthday','fun_whitepaper_day','fun_new_year','fun_halving_day','fun_pi_day'], bonusId:'set_fun_complete', bonusPts:300, bonusEmoji:'🎊', bonusName:'Bitcoin Calendar Hero', bonusDesc:'Completed The Calendar Set' },
+    { id:'set_daily',    name:'The Daily Set',      emoji:'🎯', color:'#3b82f6', badgeIds:['daily_1','daily_5','daily_10','daily_25','daily_50','daily_100'], bonusId:'set_daily_complete', bonusPts:500, bonusEmoji:'🏅', bonusName:'Challenge Master', bonusDesc:'Completed The Daily Set' },
+];
+
+function _renderBadgeSets(earnedBadges) {
+    if (!BADGE_SETS || BADGE_SETS.length === 0) return '';
+    var html = '<div style="margin-top:24px;">';
+    html += '<div style="font-size:0.8rem;font-weight:900;color:var(--heading);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;padding:0 2px;">🏅 Badge Collections</div>';
+
+    BADGE_SETS.forEach(function(set) {
+        var earned = set.badgeIds.filter(function(id) { return earnedBadges.has(id); });
+        var total = set.badgeIds.length;
+        var pct = Math.round((earned.length / total) * 100);
+        var complete = earned.length >= total;
+        var bonusEarned = earnedBadges.has(set.bonusId);
+
+        html += '<div style="background:var(--card-bg);border:1px solid ' + (complete ? set.color + '55' : 'var(--border)') + ';border-radius:14px;padding:14px;margin-bottom:10px;' + (complete ? 'box-shadow:0 0 12px ' + set.color + '22;' : '') + '">';
+        // Header row
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">';
+        html += '<span style="font-size:1.5rem;">' + set.emoji + '</span>';
+        html += '<div style="flex:1;"><div style="font-size:0.88rem;font-weight:800;color:var(--heading);">' + set.name + '</div>';
+        html += '<div style="font-size:0.68rem;color:var(--text-muted);">' + earned.length + '/' + total + ' badges earned</div></div>';
+        if (complete && bonusEarned) {
+            html += '<div style="font-size:1.1rem;filter:drop-shadow(0 0 6px gold);">' + set.bonusEmoji + '</div>';
+        }
+        html += '</div>';
+        // Mini badge grid
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+        set.badgeIds.forEach(function(bid) {
+            var bEarned = earnedBadges.has(bid);
+            var bDef = BADGE_DEFS.find(function(b) { return b.id === bid; });
+            var emoji = bDef ? bDef.emoji : '🔘';
+            html += '<span style="font-size:1.1rem;' + (bEarned ? '' : 'filter:grayscale(1) opacity(0.35);') + '" title="' + (bDef ? bDef.name : bid) + '">' + emoji + '</span>';
+        });
+        html += '</div>';
+        // Progress bar
+        html += '<div style="background:var(--bg-side);border-radius:6px;height:6px;overflow:hidden;margin-bottom:6px;">';
+        html += '<div style="background:' + set.color + ';height:100%;width:' + pct + '%;border-radius:6px;transition:width 0.4s;"></div></div>';
+        // Bonus banner
+        if (complete && bonusEarned) {
+            html += '<div style="font-size:0.72rem;color:#22c55e;font-weight:700;">' + set.bonusEmoji + ' ' + set.bonusName + ' — Bonus badge earned! +' + set.bonusPts + ' XP</div>';
+        } else if (complete && !bonusEarned) {
+            html += '<div style="font-size:0.72rem;color:' + set.color + ';font-weight:700;cursor:pointer;" onclick="_claimSetBonus(\'' + set.id + '\')">🎊 Set Complete! Click to claim ' + set.bonusEmoji + ' ' + set.bonusName + ' (+' + set.bonusPts + ' XP)</div>';
+        } else {
+            html += '<div style="font-size:0.68rem;color:var(--text-faint);">Complete to unlock: ' + set.bonusEmoji + ' ' + set.bonusName + '</div>';
+        }
+        html += '</div>';
+    });
+    html += '</div>';
+    return html;
+}
+
+window._claimSetBonus = function(setId) {
+    var set = BADGE_SETS.find(function(s) { return s.id === setId; });
+    if (!set) return;
+    var badgeKey = 'btc_badge_earned_' + set.bonusId;
+    if (localStorage.getItem(badgeKey)) {
+        if (typeof showToast === 'function') showToast('🏅 ' + set.bonusName + ' already earned!');
+        return;
+    }
+    // Verify all badges in set are earned
+    var eb = window._earnedBadgesSet || new Set();
+    try { eb = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
+    var allEarned = set.badgeIds.every(function(bid) { return eb.has(bid); });
+    if (!allEarned) {
+        if (typeof showToast === 'function') showToast('❌ Not all badges in use ' + set.name + ' are earned yet');
+        return;
+    }
+    localStorage.setItem(badgeKey, '1');
+    if (typeof awardPoints === 'function') {
+        awardPoints(set.bonusPts, '🏅 Badge: ' + set.bonusName, null, null, null, set.bonusId);
+    }
+    if (typeof showBadgeToast === 'function') showBadgeToast({ id: set.bonusId, emoji: set.bonusEmoji, name: set.bonusName, pts: set.bonusPts });
+    else if (typeof showToast === 'function') showToast('🎉 SET COMPLETE! ' + set.bonusEmoji + ' ' + set.bonusName + ' earned! +' + set.bonusPts + ' XP');
+};
+
+// Check badge set completion after any badge is earned
+window._checkBadgeSets = function() {
+    if (!BADGE_SETS || !window.earnedBadges) return;
+    BADGE_SETS.forEach(function(set) {
+        var bonusKey = 'btc_badge_earned_' + set.bonusId;
+        if (localStorage.getItem(bonusKey)) return; // already earned
+        var allEarned = set.badgeIds.every(function(bid) { return window.earnedBadges.has(bid); });
+        if (allEarned) {
+            window._claimSetBonus(set.id);
+        }
+    });
+};
 
 // ---- Single floating tooltip for badge taps ----
 window._showBadgeTip = function(e, el) {
