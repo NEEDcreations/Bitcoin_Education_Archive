@@ -170,7 +170,15 @@ function initRanking() {
             loadUser(user.uid);
             updateAuthButton();
             if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
-            showToast('✅ Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
+            showToast('\u2705 Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
+            // first_save badge: was anonymous, now signed in with real account
+            if (anonUid && anonUid !== user.uid) {
+                setTimeout(function() {
+                    if (typeof awardPoints === 'function') awardPoints(50, '\u2705 Saved your progress!', null, null, null, 'first_save');
+                    // Also show the pleb moment
+                    if (typeof window._showPlebMoment === 'function') setTimeout(window._showPlebMoment, 2000);
+                }, 1500);
+            }
             return user;
         }).catch(function(e) {
             redirectResultResolved = true;
@@ -1825,6 +1833,16 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
 
     if (currentUser._isLocal) {
         // ── Anonymous / local-only user ──
+        // Ghost Mode badge: auto-award on first earned point
+        if (pts > 0 && auth && auth.currentUser && auth.currentUser.isAnonymous) {
+            var _ghostBadges = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+            if (_ghostBadges.indexOf('ghost_mode') === -1) {
+                _ghostBadges.push('ghost_mode');
+                try { localStorage.setItem('btc_badges', JSON.stringify(_ghostBadges)); } catch(e) {}
+            }
+            // Track pts for ghost banner re-show
+            if (typeof window._ghostTrackPts === 'function') window._ghostTrackPts(pts);
+        }
         // Track points in localStorage. Daily cap 500. Server-side validation happens
         // later if they ever sign in (via anon_merge), so this is purely UX reward.
         var DAILY_CAP = 500;
@@ -3077,6 +3095,8 @@ async function toggleLeaderboard() {
         if (fab) fab.style.display = 'flex';
         return;
     }
+    // Daily challenge tracking: leaderboard viewed today
+    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_lb_visited_'+dk,'1'); })();
 
     lb.classList.remove('minimized');
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';

@@ -592,6 +592,8 @@ window._savePrediction = function(direction) {
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
     // Combo tracking
     if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
+    // Daily challenge tracking: prediction made today
+    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pred_made_'+dk,'1'); })();
     // Sync to Firestore
     _syncPredictionToFirestore(prediction);
 };

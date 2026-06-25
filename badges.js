@@ -5,6 +5,11 @@
 // =============================================
 
 const BADGE_DEFS = [
+    // ---- Ghost Mode & Onboarding Badges ----
+    { id: 'ghost_mode', name: 'Ghost Mode', emoji: '👻', desc: 'Exploring the Archive anonymously — your progress is at risk!', check: () => (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.isAnonymous), pts: 0, hidden: false },
+    { id: 'first_save', name: 'No Longer a Ghost', emoji: '✅', desc: 'Saved your progress by signing in. Smart move.', check: () => false, pts: 50, hidden: false },
+    { id: 'nacho_quester', name: 'Nacho\'s Apprentice', emoji: '🦌', desc: 'Completed the Nacho onboarding quest', check: () => localStorage.getItem('btc_onboarding_quest_done') === '1', pts: 50, hidden: false },
+    // ---- Proof of Walk Badges ----
     { id: "pow_first_step", name: "First Step", emoji: "👟", desc: "Synced your first walk via Proof of Walk", check: () => false, pts: 50, hidden: false },
     { id: "pow_marathoner", name: "Marathoner", emoji: "🏃‍♂️", desc: "Hit the 42km daily cap in Proof of Walk", check: () => false, pts: 200, hidden: false },
     // Streak badges

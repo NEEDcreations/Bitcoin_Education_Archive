@@ -3599,14 +3599,24 @@ exports.onPvpMatchFinished = functions.firestore
         return null;
     });
 
-// New user doc created → bump userCount
+// New user doc created → bump userCount + assign plebNumber
 exports.onUserDocCreated = functions.firestore
     .document('users/{uid}')
-    .onCreate(async (_snap, _context) => {
+    .onCreate(async (snap, context) => {
+        const uid = context.params.uid;
         try {
-            await db.collection('stats').doc('global').set({
-                userCount: admin.firestore.FieldValue.increment(1)
-            }, { merge: true });
+            const statsRef = db.collection('stats').doc('global');
+            // Use a transaction to atomically increment and read the new count
+            const plebNumber = await db.runTransaction(async (t) => {
+                const statsDoc = await t.get(statsRef);
+                const currentCount = (statsDoc.exists && statsDoc.data().userCount) ? statsDoc.data().userCount : 0;
+                const newCount = currentCount + 1;
+                t.set(statsRef, { userCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
+                return newCount;
+            });
+            // Write plebNumber back to the user doc if not already set
+            const userDocRef = db.collection('users').doc(uid);
+            await userDocRef.set({ plebNumber: plebNumber }, { merge: true });
         } catch (e) { console.error('[onUserDocCreated] failed:', e); }
         return null;
     });
@@ -5180,6 +5190,7 @@ const NOOK_SHOP_ITEMS = {
     'raffle_entry':     { cost: 10, type: 'raffle',     name: 'Sats Raffle Entry',       gives: { raffleEntries: 1 } },
     'streak_freeze_3':  { cost: 12, type: 'consumable', name: '3× Streak Freezes',      gives: { streakFreezes: 3 } },
     'hint_token_5':     { cost: 12, type: 'consumable', name: '5× Hint Tokens',         gives: { hintTokens: 5 } },
+    'second_rig':       { cost: 25, type: 'cosmetic',   name: 'Second Mining Rig',       gives: { cosmetics: 'second_rig' } },
 };
 
 exports.spendTickets = functions.https.onCall(async (data, context) => {
@@ -5263,12 +5274,24 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
             ts: admin.firestore.FieldValue.serverTimestamp(),
         });
 
+        // Compute new inventory counts to return to client
+        const newInventory = {
+            streakFreezes:  (userData.streakFreezes  || 0) + (g.streakFreezes  ? g.streakFreezes        : 0),
+            hashBoosters:   (userData.hashBoosters   || 0) + (g.hashBoosters   ? g.hashBoosters * qty   : 0),
+            hintTokens:     (userData.hintTokens     || 0) + (g.hintTokens     ? g.hintTokens           : 0),
+            doubleXPCharges:(userData.doubleXPCharges|| 0) + (g.doubleXP       ? g.doubleXP * qty       : 0),
+            bonusSpins:     (userData.bonusSpins     || 0) + (g.bonusSpins     ? g.bonusSpins * qty     : 0),
+            raffleEntries:  (userData.raffleEntries  || 0) + (g.raffleEntries  ? g.raffleEntries * qty  : 0),
+            ownedCosmetics: g.cosmetics ? [...(userData.ownedCosmetics || []), g.cosmetics] : (userData.ownedCosmetics || []),
+        };
+
         return {
             success: true,
             newTickets: currentTickets - totalCost,
             itemId,
             quantity: qty,
             itemName: item.name,
+            inventory: newInventory,
         };
     });
 });

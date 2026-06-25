@@ -418,6 +418,26 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     cycleId: stateData.currentCycleId || null,
   });
 
+  // Feature 2A: Write session hash count for live leaderboard
+  try {
+    const sessionHashRef = stateRef.collection('session_hashes').doc(uid);
+    await sessionHashRef.set({
+      uid,
+      username,
+      count: admin.firestore.FieldValue.increment(1),
+      lastHash: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch (e) {
+    console.warn('[FAVOR] session_hashes write failed:', e.message);
+  }
+
+  // Feature 4A: Increment community totalHashes counter on window doc
+  try {
+    await stateRef.update({ totalHashes: admin.firestore.FieldValue.increment(1) });
+  } catch (e) {
+    console.warn('[FAVOR] totalHashes increment failed:', e.message);
+  }
+
   // Update personal best — per-user doc (avoids single-doc bloat)
   const pbRef = db.collection('satoshiFavor').doc('personalBests').collection('users').doc(uid);
   try {
@@ -464,6 +484,34 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     }
   } catch (e) {
     console.error('[FAVOR] Top hashes update failed:', e.message, e.stack);
+  }
+
+  // Feature 7B/C: Win announcement — post to Global Chat and GGs/Announcements
+  if (isWinner) {
+    const safeUsername = (username || 'Anonymous').replace(/[<>"'&]/g, '').substring(0, 50);
+    const winMsg = `🏆 SATOSHI'S FAVOR AWARDED! ⚡\n\n@${safeUsername} just mined a winning hash and claimed 21,000 sats! 🎉\n\nHash: ${value.toLocaleString()} (target: < ${DIFFICULTY_TARGET.toLocaleString()})\n\n👑 Congratulations! Will you be next? ⛏️`;
+    const nachoUid = 'nacho-bot';
+    const winTs = admin.firestore.FieldValue.serverTimestamp();
+
+    // Post to Global Chat (visible in main chat feed)
+    await db.collection('global_chat').add({
+      uid: nachoUid,
+      name: '🦌 Nacho',
+      text: winMsg,
+      isNachoAuto: false,
+      ts: winTs,
+    }).catch(e => console.warn('[FAVOR] Win global_chat post failed:', e.message));
+
+    // Post to GGs/Announcements collection (the 🎉 GGs tab)
+    await db.collection('announcements').add({
+      uid: nachoUid,
+      name: '🦌 Nacho',
+      text: winMsg,
+      isNachoAuto: true,
+      ts: winTs,
+    }).catch(e => console.warn('[FAVOR] Win announcements post failed:', e.message));
+
+    console.log(`[FAVOR] WIN posted to chat for ${safeUsername}, hash=${value}`);
   }
 
   return {

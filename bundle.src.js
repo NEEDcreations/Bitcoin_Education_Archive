@@ -336,7 +336,15 @@ function initRanking() {
             loadUser(user.uid);
             updateAuthButton();
             if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
-            showToast('✅ Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
+            showToast('\u2705 Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
+            // first_save badge: was anonymous, now signed in with real account
+            if (anonUid && anonUid !== user.uid) {
+                setTimeout(function() {
+                    if (typeof awardPoints === 'function') awardPoints(50, '\u2705 Saved your progress!', null, null, null, 'first_save');
+                    // Also show the pleb moment
+                    if (typeof window._showPlebMoment === 'function') setTimeout(window._showPlebMoment, 2000);
+                }, 1500);
+            }
             return user;
         }).catch(function(e) {
             redirectResultResolved = true;
@@ -1991,6 +1999,16 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
 
     if (currentUser._isLocal) {
         // ── Anonymous / local-only user ──
+        // Ghost Mode badge: auto-award on first earned point
+        if (pts > 0 && auth && auth.currentUser && auth.currentUser.isAnonymous) {
+            var _ghostBadges = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+            if (_ghostBadges.indexOf('ghost_mode') === -1) {
+                _ghostBadges.push('ghost_mode');
+                try { localStorage.setItem('btc_badges', JSON.stringify(_ghostBadges)); } catch(e) {}
+            }
+            // Track pts for ghost banner re-show
+            if (typeof window._ghostTrackPts === 'function') window._ghostTrackPts(pts);
+        }
         // Track points in localStorage. Daily cap 500. Server-side validation happens
         // later if they ever sign in (via anon_merge), so this is purely UX reward.
         var DAILY_CAP = 500;
@@ -3243,6 +3261,8 @@ async function toggleLeaderboard() {
         if (fab) fab.style.display = 'flex';
         return;
     }
+    // Daily challenge tracking: leaderboard viewed today
+    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_lb_visited_'+dk,'1'); })();
 
     lb.classList.remove('minimized');
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
@@ -6654,6 +6674,11 @@ window._buyStreakFreeze = async function(amount) {
 // =============================================
 
 const BADGE_DEFS = [
+    // ---- Ghost Mode & Onboarding Badges ----
+    { id: 'ghost_mode', name: 'Ghost Mode', emoji: '👻', desc: 'Exploring the Archive anonymously — your progress is at risk!', check: () => (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.isAnonymous), pts: 0, hidden: false },
+    { id: 'first_save', name: 'No Longer a Ghost', emoji: '✅', desc: 'Saved your progress by signing in. Smart move.', check: () => false, pts: 50, hidden: false },
+    { id: 'nacho_quester', name: 'Nacho\'s Apprentice', emoji: '🦌', desc: 'Completed the Nacho onboarding quest', check: () => localStorage.getItem('btc_onboarding_quest_done') === '1', pts: 50, hidden: false },
+    // ---- Proof of Walk Badges ----
     { id: "pow_first_step", name: "First Step", emoji: "👟", desc: "Synced your first walk via Proof of Walk", check: () => false, pts: 50, hidden: false },
     { id: "pow_marathoner", name: "Marathoner", emoji: "🏃‍♂️", desc: "Hit the 42km daily cap in Proof of Walk", check: () => false, pts: 200, hidden: false },
     // Streak badges
@@ -14722,6 +14747,12 @@ function _renderQuestHubTab() {
     // Cleanup raid listeners when switching away
     if (tab !== 'raid') window._cleanupRaidBoss();
 
+    // Stop daily challenge poller when switching away from daily tab
+    if (tab !== 'daily' && window._dailyChallengePoller) {
+        clearInterval(window._dailyChallengePoller);
+        window._dailyChallengePoller = null;
+    }
+
     if (tab === 'quiz') _renderQuizTab(body);
     else if (tab === 'trivia') _renderTriviaTab(body);
     else if (tab === 'poll') _renderPollTab(body);
@@ -14811,6 +14842,17 @@ function _nookBuyItem(itemId, qty, btnEl) {
         if (d && d.success) {
             if (typeof currentUser !== 'undefined' && currentUser) {
                 currentUser.orangeTickets = d.newTickets;
+                // Sync all inventory fields returned by server so UI reflects true counts
+                if (d.inventory) {
+                    var inv = d.inventory;
+                    if (inv.streakFreezes   !== undefined) currentUser.streakFreezes   = inv.streakFreezes;
+                    if (inv.hashBoosters    !== undefined) currentUser.hashBoosters    = inv.hashBoosters;
+                    if (inv.hintTokens      !== undefined) currentUser.hintTokens      = inv.hintTokens;
+                    if (inv.doubleXPCharges !== undefined) currentUser.doubleXPCharges = inv.doubleXPCharges;
+                    if (inv.bonusSpins      !== undefined) currentUser.bonusSpins      = inv.bonusSpins;
+                    if (inv.raffleEntries   !== undefined) currentUser.raffleEntries   = inv.raffleEntries;
+                    if (inv.ownedCosmetics  !== undefined) currentUser.ownedCosmetics  = inv.ownedCosmetics;
+                }
             }
             if (typeof updateRankUI === 'function') updateRankUI();
             if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' 🎟️');
@@ -14912,6 +14954,16 @@ function _renderNookShop() {
     html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel',5,buyBtn('bonus_spin',5,1,'Buy'));
     html += '</div>';
 
+    // ─── Mining Upgrades ───
+    html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── ⛏️ Mining Upgrades ───</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    var rigOwned = ownedCosmetics.indexOf('second_rig') !== -1;
+    var rigBtnHtml = rigOwned
+        ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>'
+        : buyBtn('second_rig', 25, 1, 'Buy');
+    html += itemRow('⚡', 'Second Mining Rig', 'Doubles your hashing power with a second independent mining rig.', 25, rigBtnHtml);
+    html += '</div>';
+
     // ─── Cosmetics ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Cosmetics (Permanent) ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
@@ -14931,19 +14983,30 @@ function _renderNookShop() {
     html += '</div>';
 
     // ─── Raffle ───
-    html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Weekly Raffle ───</div>';
+    html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Monthly Raffle ───</div>';
     var raffleEntries = u.raffleEntries || 0;
     html += '<div style="background:linear-gradient(135deg,rgba(234,179,8,0.1),rgba(247,147,26,0.05));border:1px solid rgba(234,179,8,0.3);border-radius:12px;padding:12px 14px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-        '<div>' +
+        '<div style="flex:1;">' +
         '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);">🎟️ Sats Raffle Entry</div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this week: <strong style="color:#eab308;">' + raffleEntries + '</strong> · Winner every Monday!</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this month: <strong style="color:#eab308;">' + raffleEntries + '</strong> · Winner announced on the 1st of each month!</div>' +
+        '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">🎟️ Community entries this month: ...</div>' +
         '</div>' +
-        '<div style="text-align:right;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;margin-bottom:4px;">10 🎟️</div>' +
+        '<div style="text-align:right;flex-shrink:0;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;margin-bottom:4px;">10 🎟️</div>' +
         buyBtn('raffle_entry', 10, 1, 'Enter') +
         '</div>' +
         '</div>' +
     '</div>';
+    // Fetch community raffle total asynchronously
+    (function() {
+        if (typeof db === 'undefined') return;
+        db.collection('stats').doc('raffle').get().then(function(snap) {
+            var el2 = document.getElementById('_raffleCommTotal');
+            if (!el2) return;
+            var tot = (snap.exists && snap.data().totalEntries) ? snap.data().totalEntries : 0;
+            el2.textContent = '🎟️ Community entries this month: ' + tot;
+        }).catch(function() {});
+    })();
 
     el.innerHTML = html;
 }
@@ -15014,9 +15077,9 @@ function _renderNookInventory() {
         'Spin the wheel without using your daily spin');
 
     // Raffle entries
-    html += invRow('🎲', 'Raffle Entries (this week)', raffleEntries,
+    html += invRow('🎲', 'Raffle Entries (this month)', raffleEntries,
         '',
-        'Winner announced every Monday!');
+        'Winner announced on the 1st of each month!');
 
     html += '</div>';
 
@@ -15027,6 +15090,7 @@ function _renderNookInventory() {
             chat_flair:    { icon:'💬', name:'Chat Flair' },
             pinned_badge:  { icon:'📌', name:'Pinned Badge' },
             nacho_skin_nook: { icon:'🦌', name:'Exclusive Nacho Skin' },
+            second_rig:     { icon:'⚡', name:'Second Mining Rig' },
         };
         html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">Cosmetics Owned</div>';
         html += '<div style="display:flex;flex-direction:column;gap:6px;">';
@@ -18988,6 +19052,26 @@ function _dailyTodayKey() {
     return new Date().toISOString().slice(0, 10);
 }
 
+// Auto-detection check functions for daily challenges.
+// Each returns true when the user has genuinely performed that action today.
+var DAILY_CHALLENGE_CHECKS = {
+    'chat_msg':         function() { return parseInt(localStorage.getItem('btc_chat_msgs_daily_' + _dailyTodayKey()) || '0') > 0; },
+    'watch_tctv':       function() { return localStorage.getItem('btc_tctv_visited_' + _dailyTodayKey()) === '1'; },
+    'spin_today':       function() { return localStorage.getItem('btc_last_spin_date') === _dailyTodayKey(); },
+    'make_pred':        function() { return localStorage.getItem('btc_pred_made_' + _dailyTodayKey()) === '1'; },
+    'visit_beats':      function() { return localStorage.getItem('btc_beats_visited_' + _dailyTodayKey()) === '1'; },
+    'forum_visit':      function() {
+        return parseInt(localStorage.getItem('btc_forum_post_count_' + _dailyTodayKey()) || '0') > 0 ||
+               parseInt(localStorage.getItem('btc_forum_reply_count_' + _dailyTodayKey()) || '0') > 0;
+    },
+    'pvp_battle':       function() { return localStorage.getItem('btc_pvp_visited_' + _dailyTodayKey()) === '1'; },
+    'sf_mine':          function() { return parseInt(localStorage.getItem('btc_sf_hashes_daily_' + _dailyTodayKey()) || '0') > 0; },
+    'browse_market':    function() { return localStorage.getItem('btc_market_visited_' + _dailyTodayKey()) === '1'; },
+    'nacho_chat':       function() { return localStorage.getItem('btc_nacho_visited_' + _dailyTodayKey()) === '1'; },
+    'view_leaderboard': function() { return localStorage.getItem('btc_lb_visited_' + _dailyTodayKey()) === '1'; },
+    'share_app':        function() { return localStorage.getItem('btc_shared_' + _dailyTodayKey()) === '1'; },
+};
+
 function _dailySeed(salt) {
     var d = _dailyTodayKey() + (salt || '');
     var h = 0;
@@ -18995,9 +19079,11 @@ function _dailySeed(salt) {
     return Math.abs(h);
 }
 
-// Pick 3 daily challenges from FLEX_ACTIONS seeded by date
+// Pick 3 daily challenges from FLEX_ACTIONS seeded by date.
+// Only selects challenges that have a verifiable auto-detect check function.
 function _getDailyChallenges() {
-    var arr = FLEX_ACTIONS.slice();
+    // Only include verifiable challenges
+    var arr = FLEX_ACTIONS.filter(function(a) { return !!DAILY_CHALLENGE_CHECKS[a.id]; });
     // Seeded shuffle
     var seed = _dailySeed('daily3');
     for (var i = arr.length - 1; i > 0; i--) {
@@ -19039,6 +19125,122 @@ function _dailyBonusAwarded() {
     return localStorage.getItem('btc_daily3_bonus_' + _dailyTodayKey()) === '1';
 }
 
+// ---- Quest Hub Live Stats Card (Feature 3B) ----
+var _liveStatsCacheTime = 0;
+var _liveStatsCache = null;
+var LIVE_STATS_CACHE_TTL = 60000; // 60 sec
+
+function _renderLiveStatsCard(body, forceRefresh) {
+    var now = Date.now();
+    var useCache = !forceRefresh && _liveStatsCache && (now - _liveStatsCacheTime < LIVE_STATS_CACHE_TTL);
+
+    function _buildHtml(data) {
+        var fmtNum = function(n) { return n != null ? n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '—'; };
+        var active = data.active;
+        var sfInfo = data.sfInfo;
+        var quizzes = data.quizzes;
+        var reads = data.reads;
+        var newUsers = data.newUsers;
+
+        var html = '<div id="qhLiveCard" style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.25);border-radius:14px;padding:14px 16px;margin-bottom:14px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+                '<div style="display:flex;align-items:center;gap:6px;">' +
+                    '<span style="width:8px;height:8px;background:#22c55e;border-radius:50%;display:inline-block;animation:qhLivePulse 1.5s ease-in-out infinite;"></span>' +
+                    '<span style="color:#06b6d4;font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;">📡 Live Right Now</span>' +
+                '</div>' +
+                '<button onclick="_renderLiveStatsCard(document.getElementById(&quot;questHubBody&quot;),true)" style="background:none;border:1px solid rgba(6,182,212,0.3);border-radius:8px;color:#06b6d4;font-size:0.7rem;font-weight:700;cursor:pointer;padding:4px 10px;font-family:inherit;">🔄 Refresh</button>' +
+            '</div>' +
+            '<div style="border-top:1px solid rgba(6,182,212,0.15);padding-top:10px;display:flex;flex-direction:column;gap:6px;">';
+
+        if (active != null) html += '<div style="color:var(--text);font-size:0.82rem;">👥 <strong>Active plebs:</strong> ' + fmtNum(active) + '</div>';
+        if (sfInfo) html += '<div style="color:var(--text);font-size:0.82rem;">⚡ <strong>Last SF window:</strong> ' + sfInfo + '</div>';
+        if (quizzes != null) html += '<div style="color:var(--text);font-size:0.82rem;">📝 <strong>Quizzes today:</strong> ' + fmtNum(quizzes) + '</div>';
+        if (reads != null) html += '<div style="color:var(--text);font-size:0.82rem;">📚 <strong>Reads today:</strong> ' + fmtNum(reads) + '</div>';
+        if (newUsers != null) html += '<div style="color:var(--text);font-size:0.82rem;">🆕 <strong>New users today:</strong> ' + fmtNum(newUsers) + '</div>';
+        if (!active && !sfInfo && !quizzes && !reads && !newUsers) html += '<div style="color:var(--text-muted);font-size:0.82rem;">Stats loading...</div>';
+
+        html += '</div></div>';
+        if (!document.getElementById('qhLivePulseStyle')) {
+            var s = document.createElement('style'); s.id = 'qhLivePulseStyle';
+            s.textContent = '@keyframes qhLivePulse{0%,100%{opacity:1}50%{opacity:0.4}}';
+            document.head.appendChild(s);
+        }
+        return html;
+    }
+
+    if (useCache) {
+        var existing = document.getElementById('qhLiveCard');
+        if (existing) return; // already rendered and fresh
+        var ph = document.getElementById('qhLivePlaceholder');
+        if (ph) ph.outerHTML = _buildHtml(_liveStatsCache);
+        return;
+    }
+
+    // Insert placeholder immediately
+    var placeholder = document.getElementById('qhLivePlaceholder') || document.getElementById('qhLiveCard');
+    if (!placeholder) {
+        // Prepend to body
+        var div = document.createElement('div');
+        div.id = 'qhLivePlaceholder';
+        div.innerHTML = '<div style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.2);border-radius:14px;padding:14px 16px;margin-bottom:14px;color:var(--text-muted);font-size:0.82rem;text-align:center;">📡 Loading live stats...</div>';
+        if (body && body.firstChild) body.insertBefore(div, body.firstChild);
+        else if (body) body.appendChild(div);
+    }
+
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+
+    var _db;
+    try { _db = firebase.firestore(); } catch(e) { return; }
+
+    var data = { active: null, sfInfo: null, quizzes: null, reads: null, newUsers: null };
+    var pending = 3;
+    function done() {
+        pending--;
+        if (pending > 0) return;
+        _liveStatsCache = data;
+        _liveStatsCacheTime = Date.now();
+        var target = document.getElementById('qhLivePlaceholder') || document.getElementById('qhLiveCard');
+        if (target) {
+            var newDiv = document.createElement('div');
+            newDiv.innerHTML = _buildHtml(data);
+            target.replaceWith(newDiv.firstChild);
+        }
+    }
+
+    // Stats global
+    _db.collection('stats').doc('global').get().then(function(doc) {
+        if (doc.exists) {
+            var d = doc.data();
+            if (d.userCount) data.newUsers = d.userCount;
+            if (d.activeUsers) data.active = d.activeUsers;
+            if (d.channelVisits) data.reads = d.channelVisits;
+            if (d.questsCompleted) data.quizzes = d.questsCompleted;
+        }
+        done();
+    }).catch(function() { done(); });
+
+    // Presence count
+    _db.collection('presence').where('online', '==', true).get().then(function(snap) {
+        if (snap.size > 0) data.active = snap.size;
+        done();
+    }).catch(function() { done(); });
+
+    // Last SF window
+    _db.collection('satoshi_favor').orderBy('startTime', 'desc').limit(1).get().then(function(snap) {
+        if (!snap.empty) {
+            var sf = snap.docs[0].data();
+            var miners = sf.minerCount || sf.totalMiners || sf.participantCount || null;
+            var hashes = sf.totalHashes || null;
+            var parts = [];
+            if (miners) parts.push(miners + ' miners');
+            if (miners) parts.push('1 winner');
+            if (hashes) parts.push(hashes.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' hashes');
+            if (parts.length > 0) data.sfInfo = parts.join(' \u00b7 ');
+        }
+        done();
+    }).catch(function() { done(); });
+}
+
 function _renderDailyTab(body) {
     var challenges = _getDailyChallenges();
     var completed = _getDailyCompletedCount();
@@ -19050,9 +19252,8 @@ function _renderDailyTab(body) {
         '.dc-card.done{border-color:#22c55e;background:rgba(34,197,94,0.07);}' +
         '.dc-card.done::after{content:"✅";position:absolute;top:10px;right:12px;font-size:1.3rem;}' +
         '.dc-name{font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;}' +
-        '.dc-desc{font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;}' +
-        '.dc-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid #3b82f6;background:rgba(59,130,246,0.1);color:#3b82f6;transition:0.2s;}' +
-        '.dc-btn:active{transform:scale(0.96);}' +
+        '.dc-desc{font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;}' +
+        '.dc-pending{font-size:0.75rem;color:var(--text-faint);font-style:italic;}' +
     '</style>';
 
     // Header
@@ -19079,10 +19280,10 @@ function _renderDailyTab(body) {
         '</div>';
     }
 
-    // Challenge cards
+    // Challenge cards — no Complete button; auto-detected via polling
     challenges.forEach(function(action) {
         var done = _dailyChallengeCompleted(action.id);
-        html += '<div class="dc-card' + (done ? ' done' : '') + '">' +
+        html += '<div class="dc-card' + (done ? ' done' : '') + '" id="dc-card-' + action.id + '">' +
             '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
             '<span style="font-size:1.5rem;">' + action.emoji + '</span>' +
             '<div style="flex:1;">' +
@@ -19090,12 +19291,9 @@ function _renderDailyTab(body) {
             '<div class="dc-desc">' + action.desc + '</div>' +
             '</div>' +
             '<div style="font-size:0.75rem;font-weight:700;color:#3b82f6;flex-shrink:0;">+15 pts</div>' +
+            '</div>' +
+            (done ? '<div style="font-size:0.8rem;color:#22c55e;font-weight:700;">✅ Done! +15 pts</div>' : '<div class="dc-pending">⏳ Pending — go do it!</div>') +
             '</div>';
-        if (!done) {
-            html += '<button class="dc-btn" onclick="_completeDailyChallenge(\'' + action.id + '\',this)">' +
-                action.emoji + ' Complete ✓</button>';
-        }
-        html += '</div>';
     });
 
     // Daily total progress badge hints
@@ -19108,9 +19306,57 @@ function _renderDailyTab(body) {
             (nextMilestone ? ' — next badge at ' + nextMilestone : ' — 🏅 Max badge achieved!') + '</div>';
     }
 
-    html += '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);text-align:center;">Challenges reset at midnight UTC</div>';
+    html += '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);text-align:center;">Challenges auto-detect when you complete them · Reset at midnight UTC</div>';
 
     body.innerHTML = html;
+
+    // Start auto-detection polling (2s interval)
+    _startDailyChallengePoller(challenges, body);
+}
+
+// Award a daily challenge (called by the auto-detection poller)
+function _awardDailyChallenge(action) {
+    var newCount = _markDailyChallengeDone(action.id);
+
+    // Track total lifetime challenges
+    var total = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0') + 1;
+    localStorage.setItem('btc_daily_challenges_total', String(total));
+
+    // Award points via existing flex mechanism - 15pts, server-side deduped via flex_action + flexActionId
+    if (typeof awardPoints === 'function') {
+        awardPoints(15, '🎯 Daily Challenge: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: 'daily_' + action.id });
+    }
+
+    // Check daily badges
+    _checkDailyChallengeBadges(total);
+
+    // Track for combo system
+    if (typeof window._trackCombo === 'function') window._trackCombo('daily');
+
+    if (typeof showToast === 'function') showToast('🎯 +15 pts! Daily challenge complete: ' + action.name + ' (' + newCount + '/3)');
+}
+
+// Polling loop — checks every 2s if any challenge was auto-completed
+function _startDailyChallengePoller(challenges, body) {
+    if (window._dailyChallengePoller) clearInterval(window._dailyChallengePoller);
+    window._dailyChallengePoller = setInterval(function() {
+        var changed = false;
+        challenges.forEach(function(action) {
+            if (_dailyChallengeCompleted(action.id)) return; // already done
+            var checkFn = DAILY_CHALLENGE_CHECKS[action.id];
+            if (checkFn && checkFn()) {
+                _awardDailyChallenge(action);
+                changed = true;
+            }
+        });
+        if (changed) {
+            // Re-render: clear poller first to avoid double-start
+            clearInterval(window._dailyChallengePoller);
+            window._dailyChallengePoller = null;
+            var b = body || document.getElementById('questHubBody');
+            if (b) _renderDailyTab(b);
+        }
+    }, 2000);
 }
 
 window._completeDailyChallenge = function(actionId, btn) {
@@ -24853,6 +25099,8 @@ window._savePrediction = function(direction) {
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
     // Combo tracking
     if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
+    // Daily challenge tracking: prediction made today
+    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pred_made_'+dk,'1'); })();
     // Sync to Firestore
     _syncPredictionToFirestore(prediction);
 };
@@ -29275,6 +29523,8 @@ window._startHalvingTicker = function() {
         window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
         window._nachoModeStartTime = Date.now();
         window._nachoModeTopics = []; // Track user questions for conversation quiz
+        // Daily challenge tracking: Nacho visited today
+        (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_nacho_visited_'+dk,'1'); })();
         window._nachoConvoQuizOffered = false;
 
         // Hook into awardPoints to track earnings during Nacho Mode
@@ -31779,9 +32029,19 @@ window.nachoQuizAnswer = function(btn, correct) {
                     document.getElementById('main').scrollTop = 0; 
                     // Start TV watch tracker (H-NEW-12 / Phil request)
                     if (typeof _tctvStartTracker === 'function') _tctvStartTracker();
+                    // Daily challenge tracking: TCTV visited today
+                    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_tctv_visited_'+dk,'1'); })();
                 }
-                else if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
-                else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
+                else if (id === 'marketplace' && typeof renderMarketplace === 'function') {
+                    renderMarketplace();
+                    // Daily challenge tracking: marketplace visited today
+                    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_market_visited_'+dk,'1'); })();
+                }
+                else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') {
+                    renderBitcoinBeats();
+                    // Daily challenge tracking: beats visited today
+                    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_beats_visited_'+dk,'1'); })();
+                }
                 else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
                 else if (id === 'dms' && typeof showInbox === 'function') showInbox();
                 else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
@@ -32526,6 +32786,8 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Robust PVP launcher — handles race where pvp.js hasn't loaded yet
     window._launchPVP = function() {
+        // Daily challenge tracking: pvp visited today
+        (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pvp_visited_'+dk,'1'); })();
         if (typeof enterPVPMode === 'function') {
             enterPVPMode();
         } else {

@@ -1030,6 +1030,8 @@
         window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
         window._nachoModeStartTime = Date.now();
         window._nachoModeTopics = []; // Track user questions for conversation quiz
+        // Daily challenge tracking: Nacho visited today
+        (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_nacho_visited_'+dk,'1'); })();
         window._nachoConvoQuizOffered = false;
 
         // Hook into awardPoints to track earnings during Nacho Mode
@@ -3534,9 +3536,19 @@ window.nachoQuizAnswer = function(btn, correct) {
                     document.getElementById('main').scrollTop = 0; 
                     // Start TV watch tracker (H-NEW-12 / Phil request)
                     if (typeof _tctvStartTracker === 'function') _tctvStartTracker();
+                    // Daily challenge tracking: TCTV visited today
+                    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_tctv_visited_'+dk,'1'); })();
                 }
-                else if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
-                else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
+                else if (id === 'marketplace' && typeof renderMarketplace === 'function') {
+                    renderMarketplace();
+                    // Daily challenge tracking: marketplace visited today
+                    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_market_visited_'+dk,'1'); })();
+                }
+                else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') {
+                    renderBitcoinBeats();
+                    // Daily challenge tracking: beats visited today
+                    (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_beats_visited_'+dk,'1'); })();
+                }
                 else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
                 else if (id === 'dms' && typeof showInbox === 'function') showInbox();
                 else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
@@ -4281,6 +4293,8 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Robust PVP launcher — handles race where pvp.js hasn't loaded yet
     window._launchPVP = function() {
+        // Daily challenge tracking: pvp visited today
+        (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pvp_visited_'+dk,'1'); })();
         if (typeof enterPVPMode === 'function') {
             enterPVPMode();
         } else {

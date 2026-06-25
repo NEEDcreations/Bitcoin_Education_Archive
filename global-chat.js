@@ -1126,6 +1126,8 @@ window.sendGlobalChat = function() {
     // Track total messages sent
     var totalMsgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0') + 1;
     localStorage.setItem('btc_chat_msgs', totalMsgs);
+    // Track daily chat for daily challenge auto-detection
+    (function(){ var d=new Date(); var k=d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_chat_msgs_daily_'+dk, (parseInt(localStorage.getItem('btc_chat_msgs_daily_'+dk)||'0')+1).toString()); })();
 
     // Combo tracking
     if (typeof window._trackCombo === 'function') window._trackCombo('chat');

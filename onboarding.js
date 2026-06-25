@@ -4,6 +4,56 @@
 var PROFILE_KEY = 'btc_onboarding_profile';
 var DONE_KEY = 'btc_onboarding_done';
 
+// ---- NACHO QUEST CONSTANTS ----
+var QUEST_KEY = 'btc_onboarding_step';
+var QUEST_ACTIVE_KEY = 'btc_onboarding_active';
+var QUEST_DONE_KEY = 'btc_onboarding_quest_done';
+var PLEB_SHOWN_KEY = 'btc_pleb_moment_shown';
+
+var ONBOARDING_STEPS = [
+    {
+        id: 'pick_topic',
+        nacho: "Hey! I'm Nacho 🦌 — your Bitcoin guide. First things first: what are you curious about?",
+        instruction: "Tap any channel or topic in the sidebar to explore it.",
+        action: 'tap_channel',
+        pts: 25,
+        toast: "WAGMI! You found your first topic 🦌"
+    },
+    {
+        id: 'send_chat',
+        nacho: "The Archive has a whole community inside. Go say hello — they don't bite. Usually.",
+        instruction: "Open Global Chat and say hi to the plebs.",
+        action: 'open_chat',
+        pts: 25,
+        toast: "First message sent! The plebs have been notified 📢"
+    },
+    {
+        id: 'spin_wheel',
+        nacho: "Every day you get a free spin. Tickets, sats, streaks — you never know. Go spin it.",
+        instruction: "Find the daily spin and give it a whirl.",
+        action: 'spin_done',
+        pts: 25,
+        toast: "🎡 Spin complete! Come back daily for more."
+    },
+    {
+        id: 'find_nacho',
+        nacho: "I'm always around. Tap my face in the corner and ask me anything Bitcoin. Go ahead — I'm waiting.",
+        instruction: "Open Nacho Mode and send me a message.",
+        action: 'nacho_asked',
+        pts: 25,
+        toast: "Smart question. I like you already 🦌"
+    },
+    {
+        id: 'first_quiz',
+        nacho: "Last one. Take a quiz — even if you only get one right. That's how it starts.",
+        instruction: "Open Quest Hub and complete any quiz.",
+        action: 'quiz_done',
+        pts: 50,
+        bonus_tickets: 2,
+        toast: "🎉 You did it! Welcome to the Archive."
+    }
+];
+
 var STARTER_CHANNELS = {
     beginner: [
         { id: 'one-stop-shop', reason: 'The best place to start' },
@@ -70,9 +120,604 @@ window.getUserSimplificationLevel = function() {
     return p.level || 'beginner';
 };
 
-// ---- Two-Step Onboarding Wizard ----
-// Step 1: Welcome + pick level
-// Step 2: Interest picker (optional) — highlights channels for you
+// ======================================================
+// ---- FEATURE 1: Nacho-Led Onboarding Quest ----
+// ======================================================
+
+window.isNachoQuestDone = function() {
+    return localStorage.getItem(QUEST_DONE_KEY) === '1';
+};
+window.isNachoQuestActive = function() {
+    return localStorage.getItem(QUEST_ACTIVE_KEY) === '1' && !window.isNachoQuestDone();
+};
+window.getNachoQuestStep = function() {
+    return parseInt(localStorage.getItem(QUEST_KEY) || '0');
+};
+
+// ---- Step Completion Detection Setup ----
+window._nachoQuestDetectionActive = false;
+window._nachoQuestPollInterval = null;
+
+function _prevSpinDay() {
+    return localStorage.getItem('btc_spin_last_day') || '';
+}
+
+window.startNachoQuestDetection = function() {
+    if (window._nachoQuestDetectionActive || window.isNachoQuestDone()) return;
+    window._nachoQuestDetectionActive = true;
+
+    var _spinDayAtStart = _prevSpinDay();
+    var _nachoAsksAtStart = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+    var _questCountAtStart = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0');
+    var _chatMsgsAtStart = parseInt(localStorage.getItem('btc_chat_msgs') || '0');
+    var _visitedAtStart = (function() { try { return JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) { return 0; } })();
+
+    window._nachoQuestPollInterval = setInterval(function() {
+        if (!window.isNachoQuestActive() || window.isNachoQuestDone()) {
+            clearInterval(window._nachoQuestPollInterval);
+            window._nachoQuestDetectionActive = false;
+            return;
+        }
+        var step = window.getNachoQuestStep();
+        var flagKey = 'btc_nacho_quest_step' + step + '_done';
+        if (localStorage.getItem(flagKey) === '1') return; // already detected
+
+        var resolved = false;
+        if (step === 0) {
+            // tap_channel: any new channel visited
+            try {
+                var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+                if (visited > _visitedAtStart) resolved = true;
+            } catch(e) {}
+        } else if (step === 1) {
+            // open_chat: btc_chat_msgs incremented
+            var chatNow = parseInt(localStorage.getItem('btc_chat_msgs') || '0');
+            if (chatNow > _chatMsgsAtStart) resolved = true;
+            // Also check if overlay was opened (set by chat open event)
+            if (localStorage.getItem('btc_nacho_quest_chat_opened') === '1') resolved = true;
+        } else if (step === 2) {
+            // spin_done: spin last day changed
+            var spinDay = localStorage.getItem('btc_spin_last_day') || '';
+            if (spinDay && spinDay !== _spinDayAtStart) resolved = true;
+            // fallback: btc_last_spin_date
+            var lsd = localStorage.getItem('btc_last_spin_date') || '';
+            var today = new Date().toDateString();
+            if (lsd === today) resolved = true;
+        } else if (step === 3) {
+            // nacho_asked: btc_nacho_interactions went up
+            var nachoNow = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+            if (nachoNow > _nachoAsksAtStart) resolved = true;
+            if (localStorage.getItem('btc_nacho_quest_nacho_sent') === '1') resolved = true;
+        } else if (step === 4) {
+            // quiz_done: btc_daily_challenges_total incremented, or completedQuests grew
+            var questNow = parseInt(localStorage.getItem('btc_daily_challenges_total') || '0');
+            if (questNow > _questCountAtStart) resolved = true;
+            if (localStorage.getItem('btc_nacho_quest_quiz_done') === '1') resolved = true;
+            if (localStorage.getItem('onboarding_quiz_done') === '1') resolved = true;
+            // Also check questsCompleted from Firestore (if loaded in currentUser)
+            if (typeof currentUser !== 'undefined' && currentUser && (currentUser.questsCompleted || 0) > 0) resolved = true;
+        }
+
+        if (resolved) {
+            localStorage.setItem(flagKey, '1');
+            window._completeNachoQuestStep(step);
+        }
+    }, 600);
+};
+
+window._completeNachoQuestStep = function(step) {
+    var stepDef = ONBOARDING_STEPS[step];
+    if (!stepDef) return;
+
+    // Award pts
+    var pts = stepDef.pts || 0;
+    if (pts > 0 && typeof awardPoints === 'function') {
+        awardPoints(pts, '🦌 Nacho Quest: ' + stepDef.id);
+    }
+
+    // Award bonus tickets
+    if (stepDef.bonus_tickets && typeof awardOrangeTickets === 'function') {
+        awardOrangeTickets(stepDef.bonus_tickets, '🦌 Nacho Quest Bonus');
+    }
+
+    // Toast
+    if (stepDef.toast && typeof showToast === 'function') {
+        showToast(stepDef.toast, 4000);
+    }
+
+    // Advance step
+    var nextStep = step + 1;
+    if (nextStep >= ONBOARDING_STEPS.length) {
+        // All done!
+        window._showNachoQuestComplete();
+    } else {
+        localStorage.setItem(QUEST_KEY, String(nextStep));
+        // Update starting baselines for next step
+        window._nachoQuestDetectionActive = false;
+        clearInterval(window._nachoQuestPollInterval);
+        setTimeout(function() {
+            window._nachoQuestDetectionActive = false;
+            window.startNachoQuestDetection();
+            // Show overlay with next step
+            window._showNachoQuestOverlay(nextStep);
+        }, 800);
+    }
+};
+
+window._showNachoQuestComplete = function() {
+    localStorage.setItem(QUEST_DONE_KEY, '1');
+    localStorage.removeItem(QUEST_ACTIVE_KEY);
+    clearInterval(window._nachoQuestPollInterval);
+    window._nachoQuestDetectionActive = false;
+
+    // Remove floating pill
+    var pill = document.getElementById('nachoQuestPill');
+    if (pill) pill.remove();
+
+    // Show completion screen
+    var overlay = document.getElementById('nachoQuestOverlay');
+    if (!overlay) return;
+
+    var modal = overlay.querySelector('.nq-modal');
+    if (!modal) return;
+
+    // Confetti burst
+    if (typeof launchConfetti === 'function') {
+        try { launchConfetti(); } catch(e) {}
+    } else {
+        // Simple CSS confetti
+        _simpleConfetti(modal);
+    }
+
+    modal.innerHTML = '<div style="text-align:center;padding:30px 20px;">' +
+        '<div style="font-size:5rem;margin-bottom:12px;animation:nqBounce 0.6s ease-out;">🦌</div>' +
+        '<h2 style="color:#fff;font-size:1.6rem;font-weight:900;margin:0 0 8px;">You did it!</h2>' +
+        '<p style="color:#94a3b8;margin:0 0 16px;">You\'ve earned <strong style="color:#f97316;">150 pts</strong> and <strong style="color:#f97316;">2 tickets</strong>.</p>' +
+        '<p style="color:#f97316;font-weight:800;font-size:1.1rem;margin:0 0 20px;">🎉 You\'re officially a pleb!</p>' +
+        '<div style="color:#475569;font-size:0.85rem;">Hang on, checking your profile...</div>' +
+    '</div>';
+
+    // After 2 seconds, check for username
+    setTimeout(function() {
+        var hasUsername = !!(typeof currentUser !== 'undefined' && currentUser && currentUser.username) ||
+            !!(localStorage.getItem('btc_username'));
+
+        if (!hasUsername) {
+            // Transition to username moment
+            overlay.remove();
+            window._showPlebMoment();
+        } else {
+            // Close and done
+            overlay.style.transition = 'opacity 0.5s';
+            overlay.style.opacity = '0';
+            setTimeout(function() { overlay.remove(); }, 500);
+            // Show login prompt if anonymous
+            if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.isAnonymous) {
+                setTimeout(function() { window._showGhostBanner(); }, 1000);
+            }
+        }
+    }, 2500);
+};
+
+function _simpleConfetti(container) {
+    var colors = ['#f97316','#fbbf24','#22c55e','#3b82f6','#a855f7'];
+    for (var i = 0; i < 30; i++) {
+        (function(idx) {
+            var dot = document.createElement('div');
+            dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:100000;' +
+                'left:' + (20 + Math.random() * 60) + '%;top:' + (10 + Math.random() * 30) + '%;' +
+                'background:' + colors[idx % colors.length] + ';' +
+                'animation:nqConfetti 1.5s ease-out ' + (Math.random() * 0.5) + 's forwards;';
+            document.body.appendChild(dot);
+            setTimeout(function() { dot.remove(); }, 2000);
+        })(i);
+    }
+}
+
+window._showNachoQuestOverlay = function(stepIndex) {
+    if (window.isNachoQuestDone()) return;
+    var step = ONBOARDING_STEPS[stepIndex || 0];
+    if (!step) return;
+
+    var existing = document.getElementById('nachoQuestOverlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'nachoQuestOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(2,6,23,0.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;animation:nqFadeIn 0.3s ease-out;';
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    var total = ONBOARDING_STEPS.length;
+    var dots = '';
+    for (var d = 0; d < total; d++) {
+        var isDone = d < stepIndex;
+        var isCurrent = d === stepIndex;
+        dots += '<div style="width:' + (isCurrent ? '20' : '8') + 'px;height:8px;border-radius:4px;' +
+            'background:' + (isDone ? '#22c55e' : isCurrent ? '#f97316' : '#1e293b') + ';' +
+            'transition:all 0.4s;' + (isCurrent ? 'animation:nqPulse 1.5s ease-in-out infinite;' : '') + '"></div>';
+    }
+
+    var nachoImg = '<img src="nacho-fly.svg" alt="Nacho" style="width:60px;height:60px;" onerror="this.outerHTML=\'<div style=\\\'font-size:3rem;\\\'>🦌</div>\'">';
+
+    overlay.innerHTML = '<style>' +
+        '@keyframes nqFadeIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}' +
+        '@keyframes nqBounce{0%{transform:scale(0.5)}70%{transform:scale(1.1)}100%{transform:scale(1)}}' +
+        '@keyframes nqPulse{0%,100%{opacity:1}50%{opacity:0.6}}' +
+        '@keyframes nqConfetti{to{transform:translateY(200px) rotate(720deg);opacity:0}}' +
+    '</style>' +
+    '<div class="nq-modal" style="background:#0f172a;border:1.5px solid #f97316;border-radius:20px;padding:28px 24px;max-width:400px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(249,115,22,0.2);">' +
+        // Close
+        '<button onclick="document.getElementById(\'nachoQuestOverlay\').remove()" style="position:absolute;top:12px;right:12px;background:none;border:1px solid #1e293b;color:#475569;width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">✕</button>' +
+        // Progress dots
+        '<div style="display:flex;gap:6px;justify-content:center;margin-bottom:20px;">' + dots + '</div>' +
+        '<div style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Step ' + (stepIndex + 1) + ' of ' + total + '</div>' +
+        // Nacho avatar
+        '<div style="width:60px;height:60px;margin:0 auto 12px;border-radius:50%;background:rgba(249,115,22,0.1);border:2px solid rgba(249,115,22,0.3);display:flex;align-items:center;justify-content:center;animation:nqBounce 0.5s ease-out;">' + nachoImg + '</div>' +
+        // Speech bubble
+        '<div style="background:#fff;border:2px solid #f97316;border-radius:16px;padding:14px 16px;margin-bottom:16px;position:relative;">' +
+            '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:10px solid #f97316;"></div>' +
+            '<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:9px solid #fff;"></div>' +
+            '<p style="color:#0f172a;font-size:0.9rem;line-height:1.5;margin:0;font-weight:600;">' + step.nacho + '</p>' +
+        '</div>' +
+        // Instruction
+        '<div style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2);border-radius:12px;padding:12px;margin-bottom:16px;">' +
+            '<p style="color:#f97316;font-size:0.82rem;font-weight:700;margin:0;">👉 ' + step.instruction + '</p>' +
+        '</div>' +
+        // Reward
+        '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">' +
+            '<span style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);padding:6px 14px;border-radius:20px;color:#f97316;font-size:0.82rem;font-weight:700;">+' + step.pts + ' pts reward</span>' +
+            (step.bonus_tickets ? '<span style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);padding:6px 14px;border-radius:20px;color:#fbbf24;font-size:0.82rem;font-weight:700;">+' + step.bonus_tickets + ' tickets</span>' : '') +
+        '</div>' +
+        // Skip button
+        '<button onclick="window._skipNachoQuest()" style="background:none;border:none;color:#475569;font-size:0.77rem;cursor:pointer;font-family:inherit;text-decoration:underline;">Skip quest for now →</button>' +
+    '</div>';
+
+    document.body.appendChild(overlay);
+    // Push history state for back-safety
+    if (window.history && window.history.pushState) {
+        history.pushState({ nachoQuest: true, step: stepIndex }, '', window.location.href);
+    }
+};
+
+window._skipNachoQuest = function() {
+    localStorage.setItem(QUEST_DONE_KEY, '1');
+    localStorage.removeItem(QUEST_ACTIVE_KEY);
+    clearInterval(window._nachoQuestPollInterval);
+    window._nachoQuestDetectionActive = false;
+    var overlay = document.getElementById('nachoQuestOverlay');
+    if (overlay) overlay.remove();
+    var pill = document.getElementById('nachoQuestPill');
+    if (pill) pill.remove();
+};
+
+// ---- Floating Quest Pill ----
+window._showNachoQuestPill = function() {
+    if (window.isNachoQuestDone()) return;
+    if (!window.isNachoQuestActive()) return;
+    if (document.getElementById('nachoQuestPill')) return;
+
+    var pill = document.createElement('div');
+    pill.id = 'nachoQuestPill';
+    pill.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:8999;' +
+        'background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:24px;' +
+        'padding:10px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;' +
+        'box-shadow:0 4px 20px rgba(249,115,22,0.4);animation:nqPulse 2s ease-in-out infinite;' +
+        'display:flex;align-items:center;gap:8px;white-space:nowrap;touch-action:manipulation;';
+    pill.innerHTML = '<span>🦌 Continue Quest</span><span style="opacity:0.8;font-size:0.75rem;">→ Step ' + (window.getNachoQuestStep() + 1) + '/5</span>';
+    pill.onclick = function() {
+        window._showNachoQuestOverlay(window.getNachoQuestStep());
+    };
+    document.body.appendChild(pill);
+
+    // Inject animation style if not present
+    if (!document.getElementById('nqPillStyle')) {
+        var s = document.createElement('style');
+        s.id = 'nqPillStyle';
+        s.textContent = '@keyframes nqPulse{0%,100%{box-shadow:0 4px 20px rgba(249,115,22,0.4)}50%{box-shadow:0 4px 30px rgba(249,115,22,0.7)}}' +
+            '@keyframes nqFadeIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}' +
+            '@keyframes nqBounce{0%{transform:scale(0.5)}70%{transform:scale(1.1)}100%{transform:scale(1)}}' +
+            '@keyframes nqConfetti{to{transform:translateY(200px) rotate(720deg);opacity:0}}';
+        document.head.appendChild(s);
+    }
+};
+
+// ---- Start the Nacho Quest (called for truly new users) ----
+window.startNachoQuest = function() {
+    if (window.isNachoQuestDone()) return;
+    localStorage.setItem(QUEST_ACTIVE_KEY, '1');
+    if (!localStorage.getItem(QUEST_KEY)) localStorage.setItem(QUEST_KEY, '0');
+    var step = window.getNachoQuestStep();
+    window._showNachoQuestOverlay(step);
+    window._showNachoQuestPill();
+    window.startNachoQuestDetection();
+};
+
+// Popstate: restore overlay if quest still active
+window.addEventListener('popstate', function(e) {
+    if (window.isNachoQuestActive() && !window.isNachoQuestDone()) {
+        setTimeout(function() {
+            if (!document.getElementById('nachoQuestOverlay')) {
+                window._showNachoQuestOverlay(window.getNachoQuestStep());
+            }
+        }, 100);
+    }
+});
+
+// Hook into toggleChatOverlay/openChat to detect step 1
+var _nqOrigToggleChat = null;
+function _hookChatOverlay() {
+    if (typeof window.toggleChatOverlay === 'function' && !window._nqChatHooked) {
+        window._nqChatHooked = true;
+        _nqOrigToggleChat = window.toggleChatOverlay;
+        window.toggleChatOverlay = function() {
+            var res = _nqOrigToggleChat.apply(this, arguments);
+            if (window.isNachoQuestActive() && window.getNachoQuestStep() === 1) {
+                localStorage.setItem('btc_nacho_quest_chat_opened', '1');
+            }
+            return res;
+        };
+    }
+}
+setTimeout(_hookChatOverlay, 3000);
+
+// Hook into enterNachoMode + nachoModeSend for step 3
+function _hookNachoMode() {
+    if (typeof window.nachoModeSend === 'function' && !window._nqNachoHooked) {
+        window._nqNachoHooked = true;
+        var _orig = window.nachoModeSend;
+        window.nachoModeSend = function() {
+            var res = _orig.apply(this, arguments);
+            if (window.isNachoQuestActive() && window.getNachoQuestStep() === 3) {
+                localStorage.setItem('btc_nacho_quest_nacho_sent', '1');
+            }
+            return res;
+        };
+    }
+}
+setTimeout(_hookNachoMode, 3000);
+
+// Hook quiz completion for step 4
+window.addEventListener('onboarding_quiz_done', function() {
+    if (window.isNachoQuestActive() && window.getNachoQuestStep() === 4) {
+        localStorage.setItem('btc_nacho_quest_quiz_done', '1');
+    }
+});
+
+
+// ======================================================
+// ---- FEATURE 2: "Earn Your Username" Moment ----
+// ======================================================
+
+window._showPlebMoment = function() {
+    if (localStorage.getItem(PLEB_SHOWN_KEY) === '1') return;
+    localStorage.setItem(PLEB_SHOWN_KEY, '1');
+
+    // Fetch pleb number
+    var plebNum = null;
+    var totalPlebs = null;
+
+    function _renderPlebMoment(num, total) {
+        var existing = document.getElementById('plebMomentOverlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'plebMomentOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9001;background:rgba(2,6,23,0.92);display:flex;align-items:flex-end;justify-content:center;padding:0;';
+
+        var card = document.createElement('div');
+        card.style.cssText = 'background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);border:1.5px solid #f97316;border-bottom:none;border-radius:24px 24px 0 0;padding:32px 24px 40px;max-width:440px;width:100%;text-align:center;box-shadow:0 -20px 60px rgba(249,115,22,0.2);transform:translateY(100%);transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1);';
+
+        var numHtml = num ? '<div style="font-size:3.5rem;font-weight:900;color:#f97316;margin-bottom:4px;font-feature-settings:\'tnum\';">#' + _fmtNum(num) + '</div>' : '';
+        var totalHtml = (num && total) ? '<p style="color:#64748b;font-size:0.9rem;margin:0 0 24px;">one of <strong style="color:#94a3b8;">' + _fmtNum(total) + '</strong> Bitcoiners who found this place</p>' : '<p style="color:#64748b;font-size:0.9rem;margin:0 0 24px;">Welcome to the community 🧡</p>';
+        var usernameDisplay = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : (localStorage.getItem('btc_username') || null);
+
+        card.innerHTML = '<div style="font-size:2.5rem;margin-bottom:12px;">⚡</div>' +
+            '<h2 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 8px;">Welcome to the Archive</h2>' +
+            (usernameDisplay ? '<div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:12px;padding:8px 20px;display:inline-block;margin-bottom:12px;"><span style="color:#f97316;font-weight:800;font-size:1.1rem;">@' + _escHtml(usernameDisplay) + '</span></div>' : '') +
+            numHtml +
+            '<div style="color:#64748b;font-size:0.8rem;margin-bottom:4px;">You\'re pleb</div>' +
+            totalHtml +
+            // Mini stats card
+            '<div style="background:#0a0f1e;border:1px solid #1e293b;border-radius:14px;padding:16px;margin-bottom:24px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center;">' +
+                '<div><div style="font-size:1.3rem;">⭐</div><div style="color:#f97316;font-weight:800;font-size:0.85rem;">0 pts</div><div style="color:#475569;font-size:0.7rem;">points</div></div>' +
+                '<div><div style="font-size:1.3rem;">🏅</div><div style="color:#f97316;font-weight:800;font-size:0.85rem;">0</div><div style="color:#475569;font-size:0.7rem;">badges</div></div>' +
+                '<div><div style="font-size:1.3rem;">🔥</div><div style="color:#f97316;font-weight:800;font-size:0.85rem;">0 days</div><div style="color:#475569;font-size:0.7rem;">streak</div></div>' +
+                '<div><div style="font-size:1.3rem;">📚</div><div style="color:#f97316;font-weight:800;font-size:0.85rem;">0</div><div style="color:#475569;font-size:0.7rem;">channels read</div></div>' +
+            '</div>' +
+            '<p style="color:#475569;font-size:0.78rem;margin-bottom:20px;font-style:italic;">Your journey starts now</p>' +
+            '<button onclick="document.getElementById(\'plebMomentOverlay\').remove()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(249,115,22,0.3);">Start Exploring →</button>';
+
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+
+        // Slide up
+        setTimeout(function() { card.style.transform = 'translateY(0)'; }, 50);
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+    }
+
+    // Try to get pleb number
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
+        try {
+            var _db = firebase.firestore();
+            // First try user doc for plebNumber
+            var _user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+            var getStatsPromise = _db.collection('stats').doc('global').get().then(function(doc) {
+                if (doc.exists) {
+                    totalPlebs = doc.data().userCount || doc.data().totalUsers || null;
+                }
+            }).catch(function() {});
+
+            var getUserPromise = (_user && !_user.isAnonymous) ?
+                _db.collection('users').doc(_user.uid).get().then(function(doc) {
+                    if (doc.exists && doc.data().plebNumber) plebNum = doc.data().plebNumber;
+                }).catch(function() {}) :
+                Promise.resolve();
+
+            Promise.all([getStatsPromise, getUserPromise]).then(function() {
+                _renderPlebMoment(plebNum, totalPlebs);
+            }).catch(function() {
+                _renderPlebMoment(null, null);
+            });
+        } catch(e) {
+            _renderPlebMoment(null, null);
+        }
+    } else {
+        _renderPlebMoment(null, null);
+    }
+};
+
+function _fmtNum(n) {
+    return n ? n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '?';
+}
+function _escHtml(s) {
+    if (typeof escapeHtml === 'function') return escapeHtml(s);
+    return (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ======================================================
+// ---- FEATURE 3A: Social Proof Landing Banner ----
+// ======================================================
+
+window._showSocialProofBar = function() {
+    if (sessionStorage.getItem('btc_social_proof_shown') === '1') return;
+    if (document.getElementById('socialProofBar')) return;
+
+    sessionStorage.setItem('btc_social_proof_shown', '1');
+
+    var stats = { active: null, sfInfo: null, reads: null };
+    var _fetched = 0;
+    var _total = 3;
+
+    function _tryRender() {
+        _fetched++;
+        if (_fetched < _total) return;
+
+        var parts = [];
+        if (stats.active !== null && stats.active > 0) parts.push('🔥 ' + stats.active + ' plebs active now');
+        if (stats.sfInfo) parts.push('⚡ Last SF: ' + stats.sfInfo);
+        if (stats.reads !== null && stats.reads > 0) parts.push('📚 ' + _fmtNum(stats.reads) + ' reads today');
+
+        if (parts.length === 0) return; // nothing to show
+
+        var bar = document.createElement('div');
+        bar.id = 'socialProofBar';
+        bar.style.cssText = 'position:fixed;bottom:-60px;left:0;right:0;z-index:7000;background:linear-gradient(90deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95));border-top:1px solid rgba(249,115,22,0.3);padding:10px 16px;text-align:center;font-size:0.82rem;color:#94a3b8;transition:bottom 0.5s cubic-bezier(0.34,1.56,0.64,1);font-weight:600;letter-spacing:0.3px;';
+        bar.innerHTML = parts.join('<span style="color:#334155;margin:0 8px;">·</span>');
+        document.body.appendChild(bar);
+
+        // Slide up after short delay
+        setTimeout(function() { bar.style.bottom = '60px'; /* above nav */ }, 300);
+
+        // Auto-hide after 6 seconds
+        setTimeout(function() {
+            bar.style.bottom = '-60px';
+            setTimeout(function() { bar.remove(); }, 600);
+        }, 6300);
+    }
+
+    // Fetch active users
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
+        try {
+            var _db = firebase.firestore();
+            _db.collection('stats').doc('global').get().then(function(doc) {
+                if (doc.exists) {
+                    var d = doc.data();
+                    stats.active = d.activeUsers || d.presenceCount || null;
+                    stats.reads = d.channelVisits || d.readsToday || null;
+                }
+                _tryRender();
+            }).catch(function() { _tryRender(); });
+        } catch(e) { _tryRender(); }
+
+        // Fetch presence count
+        try {
+            _db.collection('presence').where('online', '==', true).get().then(function(snap) {
+                if (snap.size > 0) stats.active = snap.size;
+                _tryRender();
+            }).catch(function() { _tryRender(); });
+        } catch(e) { _tryRender(); }
+
+        // Fetch last SF window
+        try {
+            _db.collection('satoshi_favor').orderBy('startTime', 'desc').limit(1).get().then(function(snap) {
+                if (!snap.empty) {
+                    var sf = snap.docs[0].data();
+                    var miners = sf.minerCount || sf.totalMiners || sf.participantCount || null;
+                    var winner = sf.winner || sf.winnerUsername || null;
+                    var hashes = sf.totalHashes || null;
+                    var parts2 = [];
+                    if (miners) parts2.push(miners + ' miners');
+                    if (winner) parts2.push('1 winner');
+                    if (hashes) parts2.push(_fmtNum(hashes) + ' hashes');
+                    if (parts2.length > 0) stats.sfInfo = parts2.join(' · ');
+                }
+                _tryRender();
+            }).catch(function() { _tryRender(); });
+        } catch(e) { _tryRender(); }
+    } else {
+        // Firebase not ready, skip
+        return;
+    }
+};
+
+// ======================================================
+// ---- FEATURE 4: Ghost Mode Banner ----
+// ======================================================
+
+window._showGhostBanner = function() {
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
+    if (!auth.currentUser.isAnonymous) return;
+    if (sessionStorage.getItem('btc_ghost_dismissed') === '1') return;
+    if (document.getElementById('ghostModeBanner')) return;
+
+    var banner = document.createElement('div');
+    banner.id = 'ghostModeBanner';
+    banner.style.cssText = 'position:fixed;bottom:64px;left:0;right:0;z-index:8000;background:linear-gradient(90deg,rgba(15,23,42,0.97),rgba(30,41,59,0.97));border-top:1.5px solid rgba(99,102,241,0.4);padding:12px 16px;display:flex;align-items:center;gap:10px;animation:nqFadeIn 0.3s ease-out;';
+    banner.innerHTML = '<span style="font-size:1.2rem;flex-shrink:0;">👻</span>' +
+        '<span style="flex:1;color:#94a3b8;font-size:0.82rem;font-weight:600;">Your progress disappears when you leave. Save it?</span>' +
+        '<button onclick="window._ghostSaveWithGoogle()" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;">Save with Google →</button>' +
+        '<button onclick="window._dismissGhostBanner()" style="background:none;border:none;color:#475569;font-size:1.1rem;cursor:pointer;padding:4px 6px;flex-shrink:0;touch-action:manipulation;">✕</button>';
+    document.body.appendChild(banner);
+};
+
+window._dismissGhostBanner = function() {
+    sessionStorage.setItem('btc_ghost_dismissed', '1');
+    sessionStorage.setItem('btc_ghost_pts_since_dismiss', '0');
+    var banner = document.getElementById('ghostModeBanner');
+    if (banner) banner.remove();
+};
+
+window._ghostSaveWithGoogle = function() {
+    window._dismissGhostBanner();
+    if (typeof signInWithGoogle === 'function') {
+        signInWithGoogle();
+    } else if (typeof showUsernamePrompt === 'function') {
+        showUsernamePrompt();
+    }
+};
+
+// Track pts since ghost dismiss (re-show after 10 more pts earned anonymously)
+window._ghostTrackPts = function(pts) {
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || !auth.currentUser.isAnonymous) return;
+    if (sessionStorage.getItem('btc_ghost_dismissed') !== '1') return;
+    var current = parseInt(sessionStorage.getItem('btc_ghost_pts_since_dismiss') || '0');
+    current += pts;
+    sessionStorage.setItem('btc_ghost_pts_since_dismiss', String(current));
+    if (current >= 10 && !document.getElementById('ghostModeBanner')) {
+        sessionStorage.removeItem('btc_ghost_dismissed');
+        setTimeout(window._showGhostBanner, 500);
+    }
+};
+
+
+// ======================================================
+// ---- Two-Step Onboarding Wizard (original) ----
+// ======================================================
+
 window.showOnboardingWizard = function() {
     if (window._directLinkMode) return false;
     if (window.isOnboardingComplete()) return false;
@@ -135,6 +780,14 @@ window.showOnboardingWizard = function() {
             if (typeof window.showGuide === 'function') {
                 setTimeout(function() { window.showGuide(); }, 500);
             }
+            // Start Nacho Quest for new users if not yet started
+            setTimeout(function() {
+                if (!window.isNachoQuestDone() && !window.isNachoQuestActive()) {
+                    window.startNachoQuest();
+                }
+            }, 1500);
+            // Show social proof bar on first visit
+            setTimeout(window._showSocialProofBar, 4000);
         }, 400);
     }
 
@@ -497,21 +1150,21 @@ window.applySimplifiedHome = function() {
     section.id = 'curatedStartSection';
     section.style.cssText = 'width:100%;max-width:480px;margin:0 auto 28px;text-align:left;padding-top:8px;';
 
-    var visited = [];
-    try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+    var visited2 = [];
+    try { visited2 = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
 
     // Mission card for beginners
     var shtml = '';
-    if (level === 'beginner' && visited.length < 3) {
+    if (level === 'beginner' && visited2.length < 3) {
         shtml += '<div style="background:linear-gradient(135deg,rgba(249,115,22,0.08),rgba(249,115,22,0.02));border:2px solid rgba(249,115,22,0.3);border-radius:16px;padding:16px 18px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:6px;">📖 → ⭐ → 🏆</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:0.95rem;">Read channels. Earn XP. Level up.</div>' +
             '<div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">Tap any channel below to start your journey!</div>' +
             '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;justify-content:center;">' +
                 '<div style="flex:1;max-width:200px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">' +
-                    '<div style="height:100%;background:var(--accent);width:' + Math.round((visited.length / 6) * 100) + '%;border-radius:3px;transition:0.3s;"></div>' +
+                    '<div style="height:100%;background:var(--accent);width:' + Math.round((visited2.length / 6) * 100) + '%;border-radius:3px;transition:0.3s;"></div>' +
                 '</div>' +
-                '<span style="font-size:0.7rem;color:var(--text-faint);">' + visited.length + '/6 started</span>' +
+                '<span style="font-size:0.7rem;color:var(--text-faint);">' + visited2.length + '/6 started</span>' +
             '</div>' +
         '</div>';
     }
@@ -527,7 +1180,7 @@ window.applySimplifiedHome = function() {
         var emojiMatch = meta.title ? meta.title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]+)/u) : null;
         var emoji = emojiMatch ? emojiMatch[1] : '📄';
         var name = ch.id.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-        var isRead = visited.indexOf(ch.id) !== -1;
+        var isRead = visited2.indexOf(ch.id) !== -1;
         var highlight = idx === 0 && !isRead && level === 'beginner';
 
         shtml += '<button onclick="go(\'' + ch.id + '\')" style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:' +
@@ -545,13 +1198,11 @@ window.applySimplifiedHome = function() {
     // Quick action cards — level-specific
     shtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;">';
     if (level === 'beginner') {
-        // Beginners: First Purchase + Trails — always shown
         shtml += '<div onclick="go(\'first-purchase\')" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
             '<div style="font-size:1.3rem;">🛒</div><div style="font-weight:700;font-size:0.78rem;color:#22c55e;margin-top:4px;">Buy Your First Bitcoin</div></div>';
         shtml += '<div onclick="go(\'trails\')" style="padding:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
             '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Nacho\'s Trails</div></div>';
     } else if (level === 'intermediate') {
-        // Intermediate: Trails + First Purchase + Dashboard + Nacho
         shtml += '<div onclick="go(\'trails\')" style="padding:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
             '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Nacho\'s Trails</div></div>';
         shtml += '<div onclick="go(\'first-purchase\')" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
@@ -561,8 +1212,6 @@ window.applySimplifiedHome = function() {
         shtml += '<div onclick="if(typeof enterNachoMode===\'function\')enterNachoMode()" style="padding:14px;background:rgba(249,115,22,0.04);border:1px dashed rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
             '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Ask Nacho</div></div>';
     } else {
-        // Advanced: Dashboard + Global Chat + Scholar Cert + IRL Meetups
-        // Wrap auth-required actions to prompt sign-in
         var _obNeedAuth = "if(typeof auth!=='undefined'&&auth&&auth.currentUser&&!auth.currentUser.isAnonymous){";
         var _obElseSignIn = "}else{if(typeof showToast==='function')showToast('🔐 Sign in to access this feature');if(typeof showUsernamePrompt==='function')setTimeout(showUsernamePrompt,300);}";
         shtml += '<div onclick="if(typeof toggleDashboard===\'function\')toggleDashboard()" style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
@@ -576,8 +1225,8 @@ window.applySimplifiedHome = function() {
     }
     shtml += '</div>';
 
-    // Ask Nacho card (for beginners after 2 channels, skip for others who have it in grid)
-    if (level === 'beginner' && visited.length >= 2) {
+    // Ask Nacho card (for beginners after 2 channels)
+    if (level === 'beginner' && visited2.length >= 2) {
         shtml += '<div onclick="if(typeof enterNachoMode===\'function\')enterNachoMode()" style="padding:16px;background:linear-gradient(135deg,rgba(249,115,22,0.04),rgba(249,115,22,0.01));border:1px dashed rgba(249,115,22,0.2);border-radius:14px;margin-top:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:0.2s;">' +
             '<span style="font-size:1.5rem;">🦌</span>' +
             '<div><div style="font-weight:700;font-size:0.85rem;color:var(--heading);">Ask Nacho anything</div>' +
@@ -618,8 +1267,6 @@ window.applySimplifiedHome = function() {
             if (arrow) arrow.textContent = '▶';
         });
     }
-
-    // Sponsor is now a collapsible button — no need to hide
 };
 
 // ---- Progressive reveal ----
@@ -627,7 +1274,6 @@ window.checkProgressiveReveal = function() {
     var v = [];
     try { v = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
 
-    // After 3 channels: show Nacho, Explore Apps, Chat
     if (v.length >= 3) {
         ['#nacho-container', '#bnavApps', '#bnavNotif'].forEach(function(sel) {
             document.querySelectorAll(sel).forEach(function(el) {
@@ -639,7 +1285,6 @@ window.checkProgressiveReveal = function() {
         });
     }
 
-    // After 5: leaderboard, spin
     if (v.length >= 5) {
         ['#lbFloatBtn', '[onclick*="showSpinWheel"]'].forEach(function(sel) {
             document.querySelectorAll(sel).forEach(function(el) {
@@ -648,7 +1293,6 @@ window.checkProgressiveReveal = function() {
         });
     }
 
-    // After 10: show everything
     if (v.length >= 10) {
         document.querySelectorAll('[data-simplified-hidden]').forEach(function(el) {
             el.style.display = '';
@@ -708,7 +1352,23 @@ window.showProgressBreadcrumb = function() {
 
 // ---- Init ----
 function init() {
-    window.showOnboardingWizard() || window.applySimplifiedHome();
+    var ranOnboarding = window.showOnboardingWizard();
+    if (!ranOnboarding) {
+        window.applySimplifiedHome();
+        // Resume Nacho Quest if active
+        if (window.isNachoQuestActive() && !window.isNachoQuestDone()) {
+            window._showNachoQuestPill();
+            window.startNachoQuestDetection();
+        }
+        // Show ghost banner if anonymous
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.isAnonymous) {
+            // Wait a bit for auth to fully settle
+            setTimeout(window._showGhostBanner, 5000);
+        }
+        // Show social proof bar on first session load
+        setTimeout(window._showSocialProofBar, 3500);
+    }
+
     setTimeout(function() {
         if (typeof window.showProgressBreadcrumb === 'function') window.showProgressBreadcrumb();
     }, 1000);
@@ -723,6 +1383,14 @@ function init() {
                 var bc = document.getElementById('progressBreadcrumb');
                 if (bc) bc.remove();
                 if (typeof window.showProgressBreadcrumb === 'function') window.showProgressBreadcrumb();
+                // Auto-advance quest step 0 on channel visit
+                if (window.isNachoQuestActive() && window.getNachoQuestStep() === 0) {
+                    var visited = [];
+                    try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+                    if (visited.length > 0) {
+                        localStorage.setItem('btc_nacho_quest_step0_done', '1');
+                    }
+                }
             }, 1200);
             return result;
         };
@@ -735,5 +1403,5 @@ if (document.readyState === 'loading') {
     setTimeout(init, 500);
 }
 
-console.log('[ONBOARDING] System loaded');
+console.log('[ONBOARDING] v2 loaded — Nacho Quest, Pleb Moment, Social Proof, Ghost Mode');
 }();
