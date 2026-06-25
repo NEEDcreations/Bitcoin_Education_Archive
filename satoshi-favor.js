@@ -21,13 +21,13 @@
     let minerCountdownInterval = null;
     let hashListener = null;
     let hashTimestamps = []; // rolling window of recent hash times
-    let _prevFavorActive = false; // track previous favor state for bubble announcements
+    let _prevFavorActive = null; // null = first snapshot, not yet initialized
 
     // ─── SF CHAT + NEWS ANNOUNCEMENTS ───
     // Uses a Firestore transaction to claim the announce slot atomically.
     // Only the first client to write startAnnouncedAt / endAnnouncedAt within
     // the dedup window actually posts — all others silently abort.
-    var SF_ANNOUNCE_DEDUP_MS = 5 * 60 * 1000; // 5 minutes
+    var SF_ANNOUNCE_DEDUP_MS = 4 * 60 * 60 * 1000; // 4 hours — one announce per SF activation window
     function _nachoSFAnnounce(type) {
         if (typeof db === 'undefined' || !db) return;
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
@@ -118,14 +118,22 @@
 
             // Detect favor activation/expiration transitions for Nacho bubble + chat announcements
             var nowActive = favorState.favorActive && isFavorEffectivelyActive();
+            if (_prevFavorActive === null) {
+                // First snapshot — just record state, never announce on initial page load.
+                // The Firestore dedup doc is the authority; client-side state change is required
+                // to trigger an announce so page refreshes during an active window don't re-fire.
+                _prevFavorActive = nowActive;
+                updateAllUIs();
+                return;
+            }
             if (nowActive && !_prevFavorActive) {
-                // Favor just activated
+                // Favor just activated (real state change observed by this client)
                 if (typeof window.forceShowBubble === 'function') {
                     window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to mine! Click below to start hashing! ⛏️🦌", 'fire');
                 }
                 _nachoSFAnnounce('start');
             } else if (!nowActive && _prevFavorActive) {
-                // Favor just expired/deactivated
+                // Favor just expired/deactivated (real state change observed by this client)
                 if (typeof window.forceShowBubble === 'function') {
                     window.forceShowBubble("⛏️ Satoshi's Favor has ended! Keep earning points for the next activation! 🦌", 'default');
                 }
