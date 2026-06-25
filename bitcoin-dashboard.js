@@ -385,6 +385,14 @@ function renderDashboard(data) {
     html += '<button onclick="closeDashboard()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button>';
     html += '</div>';
 
+    // ——— Timechain Calendar toggle (near top, below header) ———
+    html += '<div style="margin-bottom:16px;">';
+    html += '<button onclick="_dashToggleCalendar()" id="tcalToggleBtn" style="width:100%;padding:11px 16px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.06));border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;">'
+        + '<span>\uD83D\uDCC5 Timechain Calendar</span><span id="tcalArrow">\u25BC</span></button>';
+    html += '<div id="tcalEmbed" style="display:none;margin-top:8px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">';
+    html += '<iframe src="https://timechaincalendar.com/en" style="width:100%;height:520px;border:none;background:#000;" loading="lazy" title="Timechain Calendar" allow="clipboard-write"></iframe>';
+    html += '</div></div>';
+
     // Price hero (live-updated via WebSocket)
     var livePrice = _lastWsPrice || d.price;
     var liveChange = _lastWsChange !== null ? _lastWsChange : (d.change24h || 0);
@@ -532,13 +540,7 @@ function renderDashboard(data) {
     html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
     html += '</div>';
 
-    // ——— Timechain Calendar toggle ———
-    html += '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">';
-    html += '<button onclick="_dashToggleCalendar()" id="tcalToggleBtn" style="width:100%;padding:12px 16px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.06));border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;">'
-        + '<span>\uD83D\uDCC5 Timechain Calendar</span><span id="tcalArrow">\u25BC</span></button>';
-    html += '<div id="tcalEmbed" style="display:none;margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">';
-    html += '<iframe src="https://timechaincalendar.com/en" style="width:100%;height:520px;border:none;background:#000;" loading="lazy" title="Timechain Calendar" allow="clipboard-write"></iframe>';
-    html += '</div></div>';
+
 
     // Start halving countdown ticker + attach tooltip listeners after DOM renders
     setTimeout(function() {
