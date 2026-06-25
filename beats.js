@@ -1318,7 +1318,7 @@ window.beatsTrackMenu = function(trackId, idx) {
 
     var isOwner = auth && auth.currentUser && track.authorId === auth.currentUser.uid;
     var userEmail = auth && auth.currentUser ? auth.currentUser.email || auth.currentUser.providerData[0].email : '';
-    var isAdmin = userEmail && (userEmail.toLowerCase() === 'needcreations@gmail.com' || userEmail.toLowerCase() === 'info.603btc@gmail.com');
+    var isAdmin = userEmail && (userEmail.toLowerCase() === 'needcreations@gmail.com' || userEmail.toLowerCase() === 'info.603btc@gmail.com' || userEmail.toLowerCase() === 'najemchris8@gmail.com');
     console.log('[Beats Menu] isOwner:', isOwner, 'isAdmin:', isAdmin, 'userEmail:', userEmail);
     var overlay = document.createElement('div');
     overlay.id = 'beatsMenuOverlay';
@@ -2141,7 +2141,7 @@ window.beatsLoadComments = function(trackId) {
 
     // Determine if current user is admin
     var _cu = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
-    var _isAdmin = _cu && ['needcreations@gmail.com', 'info.603btc@gmail.com'].indexOf(_cu.email || '') !== -1;
+    var _isAdmin = _cu && ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'].indexOf(_cu.email || '') !== -1;
     var _myUid = _cu ? _cu.uid : null;
 
     db.collection('beats_tracks').doc(trackId).collection('comments')
@@ -2258,7 +2258,7 @@ window.beatsDeleteComment = function(trackId, commentId) {
     if (!confirm('Delete this comment?')) return;
 
     var _cu = auth.currentUser;
-    var _isAdmin = ['needcreations@gmail.com', 'info.603btc@gmail.com'].indexOf(_cu.email || '') !== -1;
+    var _isAdmin = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'].indexOf(_cu.email || '') !== -1;
 
     // Check permission: own comment or admin
     db.collection('beats_tracks').doc(trackId).collection('comments').doc(commentId).get()

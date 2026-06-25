@@ -434,7 +434,7 @@
     // Helper: check if user is forum admin (matches the existing function in forum.js)
     function isForumAdmin() {
         if (!auth || !auth.currentUser) return false;
-        return (auth.currentUser.email || '') === 'needcreations@gmail.com';
+        var _e = (auth.currentUser.email || ''); return _e === 'needcreations@gmail.com' || _e === 'najemchris8@gmail.com';
     }
 })();
 

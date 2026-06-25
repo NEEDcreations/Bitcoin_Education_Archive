@@ -547,7 +547,7 @@ function renderChatMessages(msgs) {
     var hasMore = !window._chatReachedBeginning && (msgs.length >= CHAT_INITIAL_SHOW || msgs.length > showCount);
 
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    var _adminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com'];
+    var _adminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
     var isAdmin = myUid && typeof auth !== 'undefined' && auth.currentUser && _adminEmails.indexOf(auth.currentUser.email) !== -1;
     var wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
 
@@ -1026,7 +1026,7 @@ window.sendGlobalChat = function() {
     }
 
     // Admin bypass — admins skip all content restrictions
-    var _chatAdminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com'];
+    var _chatAdminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
     var _isChatAdmin = typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email && _chatAdminEmails.indexOf(auth.currentUser.email) !== -1;
 
     if (!_isChatAdmin) {
@@ -1210,7 +1210,7 @@ window.sendGlobalChat = function() {
                 var _nachoUid = 'nacho-bot';
                 var _nachoName = '🦌 Nacho';
                 var _isAdmin = auth && auth.currentUser && auth.currentUser.email &&
-                    (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com');
+                    (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com' || auth.currentUser.email === 'najemchris8@gmail.com');
                 if (!_isAdmin) {
                     // Non-admin: write as the user's uid with nacho flag (Firestore rules allow uid == auth.uid)
                     _nachoUid = auth && auth.currentUser ? auth.currentUser.uid : 'nacho-bot';

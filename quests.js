@@ -2532,7 +2532,7 @@ function _startFactionScoreboardListener() {
         // Show backfill button for admin
         var elAdmin = document.getElementById('sfAdminBackfill');
         if (elAdmin) {
-            var isAdmin = (typeof currentUser !== 'undefined' && currentUser && currentUser.email === 'needcreations@gmail.com');
+            var isAdmin = (typeof currentUser !== 'undefined' && currentUser && (currentUser.email === 'needcreations@gmail.com' || currentUser.email === 'najemchris8@gmail.com'));
             elAdmin.style.display = isAdmin ? 'block' : 'none';
         }
 

@@ -662,7 +662,7 @@ exports.backfillFactionTotals = functions.https.onCall(async (data, context) => 
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
 
   // Admin-only: check email
-  const ADMIN_EMAILS = ['needcreations@gmail.com', 'info.603btc@gmail.com'];
+  const ADMIN_EMAILS = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
   const userRecord = await admin.auth().getUser(context.auth.uid);
   if (!ADMIN_EMAILS.includes(userRecord.email)) {
     throw new functions.https.HttpsError('permission-denied', 'Admin only.');

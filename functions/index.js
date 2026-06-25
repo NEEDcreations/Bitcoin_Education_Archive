@@ -2461,7 +2461,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
 // ===== FAUCET ADMIN - getFaucetStats =====
 exports.getFaucetStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com'].indexOf(context.auth.token.email) === -1) {
+    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(context.auth.token.email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const today = new Date().toISOString().split('T')[0];
@@ -2485,7 +2485,7 @@ exports.getFaucetStats = functions.https.onCall(async (data, context) => {
 
 // ===== FAUCET ADMIN - toggleFaucet =====
 exports.toggleFaucet = functions.https.onCall(async (data, context) => {
-    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com'].indexOf(context.auth.token.email) === -1) {
+    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(context.auth.token.email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const paused = !!data.paused;
@@ -2495,7 +2495,7 @@ exports.toggleFaucet = functions.https.onCall(async (data, context) => {
 
 // ===== ONE-TIME: Backfill bestStreak for all users =====
 exports.backfillBestStreak = functions.https.onCall(async (data, context) => {
-    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com'].indexOf(context.auth.token.email) === -1) {
+    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(context.auth.token.email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const usersSnap = await db.collection('users').get();
@@ -2584,7 +2584,7 @@ exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: '
 // ---- One-time backfill global community stats ----
 exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
     // Admin only
-    if (!context.auth || (context.auth.token.email !== 'needcreations@gmail.com' && context.auth.token.email !== 'info.603btc@gmail.com')) {
+    if (!context.auth || (['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(context.auth.token.email) === -1)) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
 
@@ -3630,7 +3630,7 @@ exports.onUserQuestCompleted = functions.firestore
 exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     const email = (context.auth.token.email || '').toLowerCase();
-    if (email !== 'needcreations@gmail.com' && email !== 'info.603btc@gmail.com') {
+    if (['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
 

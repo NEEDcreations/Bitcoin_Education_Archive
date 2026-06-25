@@ -33,7 +33,7 @@
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
         var uid = auth.currentUser.uid;
         var isAdmin = auth.currentUser.email &&
-            (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com');
+            (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com' || auth.currentUser.email === 'najemchris8@gmail.com');
         var nachoUid = isAdmin ? 'nacho-bot' : uid;
         var msg = type === 'start'
             ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to win 21,000 sats! ⚡🦌"

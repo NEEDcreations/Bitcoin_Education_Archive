@@ -2742,7 +2742,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (hero) hero.style.display = 'none';
 
         // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
-        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.email || "") === "needcreations@gmail.com");
+        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var _adminEmails2745 = ['needcreations@gmail.com','najemchris8@gmail.com']; var isAdmin = (_a && _adminEmails2745.indexOf(_a.email || '') !== -1);
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var exploredCount = 0;
         try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
@@ -3182,7 +3182,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Admin Bypass Logic — safely handle auth not being ready yet
         var _auth = (typeof auth !== 'undefined') ? auth : null;
         var _cu = _auth && _auth.currentUser;
-        const isAdmin = (_cu && (_cu.email || "") === "needcreations@gmail.com");
+        var _adminEmails3185 = ['needcreations@gmail.com','najemchris8@gmail.com']; const isAdmin = (_cu && _adminEmails3185.indexOf(_cu.email || '') !== -1);
 
         // Experienced onboarding users bypass all gating
         var _obProfile = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
@@ -3499,7 +3499,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         
         // Admin Bypass Logic
-        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.email || "") === "needcreations@gmail.com");
+        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var _adminEmails3502 = ['needcreations@gmail.com','najemchris8@gmail.com']; var isAdmin = (_a && _adminEmails3502.indexOf(_a.email || '') !== -1);
 
         var isFull = true;
         var isExplorer = true;
@@ -4310,7 +4310,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _vis = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var _aAuth = (typeof auth !== 'undefined') ? auth : null;
         var _aCu = _aAuth && _aAuth.currentUser;
-        var _isAdmin = (_aCu && ['needcreations@gmail.com', 'info.603btc@gmail.com'].indexOf(_aCu.email || '') !== -1);
+        var _isAdmin = (_aCu && ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'].indexOf(_aCu.email || '') !== -1);
         var _obP = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
         var _isAdv = _obP && (_obP.level === 'advanced' || _obP.level === 'full');
         var _isFull = _isAdv || _isAdmin || (_aCu && !_aCu.isAnonymous) || (_vis >= 10 || _exploredN >= 10);
