@@ -465,8 +465,13 @@ window.showUserProfile = function(uid) {
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
         var dmEligibility = canMessage ? _canAccountDM() : { ok: false };
 
+        // Profile frame cosmetic — orange glow border if owned
+        var _profileOwnedCosmetics = u.ownedCosmetics || [];
+        var _hasProfileFrame = _profileOwnedCosmetics.indexOf('profile_frame') !== -1;
+        var _frameStyle = _hasProfileFrame ? 'box-shadow:0 0 0 2px #f7931a,0 0 20px rgba(247,147,26,0.35);border-color:#f7931a;' : '';
+
         var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
-            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;" onclick="event.stopPropagation()">' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;' + _frameStyle + '" onclick="event.stopPropagation()">' +
             // Close button
             '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             // Avatar & name
@@ -516,7 +521,7 @@ window.showUserProfile = function(uid) {
                 profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
             '</div>' : '') +
             // Prediction Stats (only show if they've made predictions)
-            (u.predictions && u.predictions.total ? (function() {
+            (u.predictions && u.predictions.total > 0 ? (function() {
                 var ps = u.predictions;
                 var pPct = ps.total > 0 ? Math.round((ps.correct / ps.total) * 100) : 0;
                 return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +

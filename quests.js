@@ -5097,19 +5097,7 @@ var FLEX_ACTIONS = [
     { id:'starebtc',    emoji:'📈', name:'Stare at the Price',       desc:'Hold the candle. Zoom out. Never sell.',     pts:5, type:'candle' },
     { id:'itoldyou',    emoji:'🙏', name:'I Told You So',            desc:'Say it. They never listened.',               pts:5, type:'typesentence', sentence:'I told you so' },
     { id:'pumpndump',   emoji:'📉', name:'Observe a Pump & Dump',    desc:'Watch the rug pull happen in real time.',    pts:5, type:'redcandle' },
-    // ── NEW daily challenges ──
-    { id:'chat_msg',       emoji:'💬', name:'Send a Chat Message',      desc:'Open Global Chat and say something.',           pts:15, type:'triplclick' },
-    { id:'watch_tctv',    emoji:'📺', name:'Watch TCTV',               desc:'Open Timechain TV and tune in.',                pts:15, type:'triplclick' },
-    { id:'spin_today',    emoji:'🎡', name:'Spin the Wheel',           desc:'Daily spin for a chance at tickets.',            pts:15, type:'triplclick' },
-    { id:'make_pred',     emoji:'🔮', name:'Make a Prediction',        desc:'Predict the BTC price direction.',               pts:15, type:'triplclick' },
-    { id:'visit_beats',   emoji:'🎵', name:'Visit Bitcoin Beats',      desc:'Explore the community music section.',           pts:15, type:'triplclick' },
-    { id:'forum_visit',   emoji:'📝', name:'Post in the Forum',        desc:'Share something in PlebTalk.',                   pts:15, type:'triplclick' },
-    { id:'pvp_battle',    emoji:'⚔️',  name:'PVP Battle',              desc:'Challenge someone in Bitcoin trivia PVP.',       pts:15, type:'triplclick' },
-    { id:'sf_mine',       emoji:'⛏️',  name:"Mine Satoshi's Favor",    desc:'Submit a hash during an active SF window.',      pts:15, type:'triplclick' },
-    { id:'browse_market', emoji:'🛒', name:'Browse Marketplace',       desc:"Check out what's listed today.",                pts:15, type:'triplclick' },
-    { id:'nacho_chat',    emoji:'🦌', name:'Chat with Nacho',          desc:'Ask Nacho something Bitcoin.',                   pts:15, type:'triplclick' },
-    { id:'view_leaderboard', emoji:'🏆', name:'Check the Leaderboard', desc:'See where you rank today.',                      pts:15, type:'triplclick' },
-    { id:'share_app',     emoji:'📤', name:'Share the Archive',        desc:'Tell someone about Bitcoin Education Archive.',  pts:15, type:'triplclick' },
+
 ];
 
 

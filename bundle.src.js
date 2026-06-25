@@ -17000,19 +17000,7 @@ var FLEX_ACTIONS = [
     { id:'starebtc',    emoji:'📈', name:'Stare at the Price',       desc:'Hold the candle. Zoom out. Never sell.',     pts:5, type:'candle' },
     { id:'itoldyou',    emoji:'🙏', name:'I Told You So',            desc:'Say it. They never listened.',               pts:5, type:'typesentence', sentence:'I told you so' },
     { id:'pumpndump',   emoji:'📉', name:'Observe a Pump & Dump',    desc:'Watch the rug pull happen in real time.',    pts:5, type:'redcandle' },
-    // ── NEW daily challenges ──
-    { id:'chat_msg',       emoji:'💬', name:'Send a Chat Message',      desc:'Open Global Chat and say something.',           pts:15, type:'triplclick' },
-    { id:'watch_tctv',    emoji:'📺', name:'Watch TCTV',               desc:'Open Timechain TV and tune in.',                pts:15, type:'triplclick' },
-    { id:'spin_today',    emoji:'🎡', name:'Spin the Wheel',           desc:'Daily spin for a chance at tickets.',            pts:15, type:'triplclick' },
-    { id:'make_pred',     emoji:'🔮', name:'Make a Prediction',        desc:'Predict the BTC price direction.',               pts:15, type:'triplclick' },
-    { id:'visit_beats',   emoji:'🎵', name:'Visit Bitcoin Beats',      desc:'Explore the community music section.',           pts:15, type:'triplclick' },
-    { id:'forum_visit',   emoji:'📝', name:'Post in the Forum',        desc:'Share something in PlebTalk.',                   pts:15, type:'triplclick' },
-    { id:'pvp_battle',    emoji:'⚔️',  name:'PVP Battle',              desc:'Challenge someone in Bitcoin trivia PVP.',       pts:15, type:'triplclick' },
-    { id:'sf_mine',       emoji:'⛏️',  name:"Mine Satoshi's Favor",    desc:'Submit a hash during an active SF window.',      pts:15, type:'triplclick' },
-    { id:'browse_market', emoji:'🛒', name:'Browse Marketplace',       desc:"Check out what's listed today.",                pts:15, type:'triplclick' },
-    { id:'nacho_chat',    emoji:'🦌', name:'Chat with Nacho',          desc:'Ask Nacho something Bitcoin.',                   pts:15, type:'triplclick' },
-    { id:'view_leaderboard', emoji:'🏆', name:'Check the Leaderboard', desc:'See where you rank today.',                      pts:15, type:'triplclick' },
-    { id:'share_app',     emoji:'📤', name:'Share the Archive',        desc:'Tell someone about Bitcoin Education Archive.',  pts:15, type:'triplclick' },
+
 ];
 
 
@@ -23472,8 +23460,13 @@ window.showUserProfile = function(uid) {
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
         var dmEligibility = canMessage ? _canAccountDM() : { ok: false };
 
+        // Profile frame cosmetic — orange glow border if owned
+        var _profileOwnedCosmetics = u.ownedCosmetics || [];
+        var _hasProfileFrame = _profileOwnedCosmetics.indexOf('profile_frame') !== -1;
+        var _frameStyle = _hasProfileFrame ? 'box-shadow:0 0 0 2px #f7931a,0 0 20px rgba(247,147,26,0.35);border-color:#f7931a;' : '';
+
         var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
-            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;" onclick="event.stopPropagation()">' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;' + _frameStyle + '" onclick="event.stopPropagation()">' +
             // Close button
             '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             // Avatar & name
@@ -23523,7 +23516,7 @@ window.showUserProfile = function(uid) {
                 profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
             '</div>' : '') +
             // Prediction Stats (only show if they've made predictions)
-            (u.predictions && u.predictions.total ? (function() {
+            (u.predictions && u.predictions.total > 0 ? (function() {
                 var ps = u.predictions;
                 var pPct = ps.total > 0 ? Math.round((ps.correct / ps.total) * 100) : 0;
                 return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
