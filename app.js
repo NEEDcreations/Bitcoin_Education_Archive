@@ -1,5 +1,14 @@
 (function() {
     window._sessionStart = window._sessionStart || Date.now();
+
+    // ---- Daily key: reset at 5 AM UTC (= 1 AM ET / midnight ET-ish) ----
+    // Using a UTC offset so the "day" doesn't flip mid-evening for US users.
+    // All daily-gating (trivia, poll, quiz, streaks) should use getDailyKey().
+    window.getDailyKey = function() {
+        var RESET_HOUR_UTC = 5; // 5 AM UTC = 1 AM ET (EDT) / midnight ET (EST)
+        var shifted = new Date(Date.now() - RESET_HOUR_UTC * 3600000);
+        return shifted.toISOString().split('T')[0];
+    };
     // Secret badge: Insomniac — track late night visits (2am–4am), once per session
     (function() {
         var _h = new Date().getHours();

@@ -1201,6 +1201,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Last window archive — public read, server writes only
+    match /satoshiFavor/lastWindow {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Personal bests — public read, server writes
     // Personal bests — legacy parent doc (read-only, server writes)
     match /satoshiFavor/personalBests {

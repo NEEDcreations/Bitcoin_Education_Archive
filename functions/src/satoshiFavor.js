@@ -66,6 +66,22 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
   const effectiveEnd = favorEndBase + bonusMs;
 
   if (now > effectiveEnd) {
+    // Archive last window stats before resetting
+    try {
+      const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
+      transaction.set(lastWindowRef, {
+        cycleId: stateData.currentCycleId || null,
+        startedAt: stateData.favorStart || null,
+        endedAt: admin.firestore.Timestamp.now(),
+        durationMinutes: Math.round((effectiveEnd - (stateData.favorStart ? stateData.favorStart.toMillis() : effectiveEnd)) / 60000),
+        totalHashes: stateData.totalHashes || 0,
+        lowestHash: stateData.lowestHashThisWindow || null,
+        archivedAt: admin.firestore.Timestamp.now(),
+      }, { merge: false });
+    } catch (e) {
+      console.warn('[FAVOR] lastWindow archive failed:', e.message);
+    }
+
     // Favor has expired — reset
     const resetData = {
       points: 0,
@@ -73,6 +89,8 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
       favorStart: null,
       favorEndBase: null,
       bonusMinutes: 0,
+      totalHashes: 0,
+      lowestHashThisWindow: null,
       lastReset: admin.firestore.Timestamp.now(),
       currentCycleId: stateData.currentCycleId || null,
     };
@@ -296,6 +314,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
           favorStart: now,
           favorEndBase: endBase,
           bonusMinutes: overflowBonus,
+          totalHashes: 0,
           lastReset: stateData.lastReset || null,
           currentCycleId: newCycleId,
         };
@@ -431,11 +450,15 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     console.warn('[FAVOR] session_hashes write failed:', e.message);
   }
 
-  // Feature 4A: Increment community totalHashes counter on window doc
+  // Feature 4A: Increment community totalHashes counter + track lowest hash this window
   try {
-    await stateRef.update({ totalHashes: admin.firestore.FieldValue.increment(1) });
+    const currentDoc = await stateRef.get();
+    const currentLowest = currentDoc.exists ? (currentDoc.data().lowestHashThisWindow || Infinity) : Infinity;
+    const updatePayload = { totalHashes: admin.firestore.FieldValue.increment(1) };
+    if (value < currentLowest) updatePayload.lowestHashThisWindow = value;
+    await stateRef.update(updatePayload);
   } catch (e) {
-    console.warn('[FAVOR] totalHashes increment failed:', e.message);
+    console.warn('[FAVOR] totalHashes/lowestHash update failed:', e.message);
   }
 
   // Update personal best — per-user doc (avoids single-doc bloat)

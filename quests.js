@@ -1337,7 +1337,7 @@ function initQuests() {
 
 // ── Daily Activity Tracking (Quiz + Trivia + Poll → SF point) ──
 function _getDailyActivities() {
-    var todayKey = new Date().toISOString().split('T')[0];
+    var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var state = safeJSON('btc_daily_activities', {});
     if (state.date !== todayKey) state = { date: todayKey, quiz: false, trivia: false, poll: false, sfAwarded: false };
     return state;
@@ -1444,7 +1444,7 @@ function onChannelVisitForQuest(channelId) {
 
 function generateAndShowQuest(manual, targetChannelId, isRetake) {
     // Limit quests to 1 per day - but allow retakes for non-perfect scores
-    var today = new Date().toISOString().split('T')[0];
+    var today = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var questLog = safeJSON('btc_quest_daily', {});
     if (questLog.date !== today) {
         questLog = { date: today, count: 0 };
@@ -1946,7 +1946,7 @@ async function submitQuest() {
         // Raid Boss: quiz completion
         if (typeof window._raidOnQuizComplete === 'function') window._raidOnQuizComplete();
         if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(pts);
-        var todayQ = new Date().toISOString().split('T')[0];
+        var todayQ = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
         var qLog = safeJSON('btc_quest_daily', {});
         if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
         qLog.count++;
@@ -2465,6 +2465,12 @@ function _renderFavorTab(body) {
         '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' = win 21,000 sats!'
     '</div>';
 
+    // Last SF Window Stats card
+    html += '<div id="lastSFWindowCard" style="margin-top:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+        '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:10px;">\u23F1\uFE0F Last SF Window</div>' +
+        '<div id="lastSFWindowInner" style="font-size:0.8rem;color:var(--text-muted);">Loading...</div>' +
+    '</div>';
+
     // Top 10 lowest hashes + personal best sections
     html += '<div style="margin-top:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
         '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:10px;">\uD83C\uDFC6 All-Time Lowest Hashes</div>' +
@@ -2511,9 +2517,10 @@ function _renderFavorTab(body) {
     // -- Live faction scoreboard listener --
     _startFactionScoreboardListener();
 
-    // Load top hashes + personal best + difficulty history blocks
+    // Load top hashes + personal best + difficulty history blocks + last window
     _loadFavorLeaderboards();
     _loadDifficultyHistoryBlocks();
+    _loadLastSFWindow();
 
     // Start timer if active
     if (isActive) {
@@ -2717,6 +2724,43 @@ function _loadDifficultyHistoryBlocks() {
             if (r0) r0.textContent = '?';
             if (r1) r1.textContent = '?';
         });
+}
+
+function _loadLastSFWindow() {
+    var el = document.getElementById('lastSFWindowInner');
+    if (!el || typeof db === 'undefined') return;
+    db.collection('satoshiFavor').doc('lastWindow').get().then(function(doc) {
+        if (!el) return;
+        if (!doc.exists) {
+            el.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">No completed windows yet.</span>';
+            return;
+        }
+        var d = doc.data();
+        var endedAt = d.endedAt ? (d.endedAt.toDate ? d.endedAt.toDate() : new Date(d.endedAt.seconds*1000)) : null;
+        var startedAt = d.startedAt ? (d.startedAt.toDate ? d.startedAt.toDate() : new Date(d.startedAt.seconds*1000)) : null;
+        var dateStr = endedAt ? endedAt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : 'Unknown';
+        var timeStr = endedAt ? endedAt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '';
+        var totalH = d.totalHashes || 0;
+        var lowestH = d.lowestHash != null ? d.lowestHash.toLocaleString() : '—';
+        var durMin = d.durationMinutes || 0;
+        el.innerHTML =
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+                '<div style="background:var(--bg-side);border-radius:8px;padding:8px;text-align:center;">' +
+                    '<div style="font-size:1.2rem;font-weight:900;color:var(--accent);">' + totalH.toLocaleString() + '</div>' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);">Total Hashes</div>' +
+                '</div>' +
+                '<div style="background:var(--bg-side);border-radius:8px;padding:8px;text-align:center;">' +
+                    '<div style="font-size:1.2rem;font-weight:900;color:#22c55e;">' + lowestH + '</div>' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);">Lowest Hash</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);">' +
+                '\u23F1\uFE0F ' + durMin + ' min window · ended ' + dateStr + ' ' + timeStr +
+            '</div>';
+    }).catch(function() {
+        var el2 = document.getElementById('lastSFWindowInner');
+        if (el2) el2.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">Stats unavailable.</span>';
+    });
 }
 
 function _loadFavorLeaderboards() {
@@ -3871,7 +3915,7 @@ window._qhQuizFilter = function(val) {
 };
 
 function _renderQuizTab(body) {
-    var todayKey = new Date().toISOString().split('T')[0];
+    var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var qLog = safeJSON('btc_quest_daily', {});
     var completedToday = (qLog.date === todayKey) ? qLog.count : 0;
     var completed = completedQuests ? completedQuests.size : 0;
@@ -3911,11 +3955,12 @@ function _renderQuizTab(body) {
 
 function _getTriviaToday() {
     if (typeof TRIVIA_BANK === 'undefined' || !TRIVIA_BANK || !TRIVIA_BANK.length) return null;
-    // Deterministic daily rotation: day-of-year * year seed
-    var now = new Date();
-    var start = new Date(now.getFullYear(), 0, 0);
-    var dayOfYear = Math.floor((now - start) / 86400000);
-    var seed = (dayOfYear * 7 + now.getFullYear()) % TRIVIA_BANK.length;
+    // Deterministic daily rotation keyed by getDailyKey (resets at 5 AM UTC)
+    var dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+    var dkMs = new Date(dk + 'T00:00:00Z').getTime();
+    var epoch = new Date('2026-01-01T00:00:00Z').getTime();
+    var dayIndex = Math.floor((dkMs - epoch) / 86400000);
+    var seed = ((dayIndex * 7 + 2026) % TRIVIA_BANK.length + TRIVIA_BANK.length) % TRIVIA_BANK.length;
     return { index: seed, trivia: TRIVIA_BANK[seed] };
 }
 
@@ -3935,7 +3980,7 @@ function _renderTriviaTab(body) {
     }
 
     var state = _getTriviaState();
-    var todayKey = new Date().toISOString().split('T')[0];
+    var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var answered = state.date === todayKey;
     var t = today.trivia;
 
@@ -4031,7 +4076,7 @@ window.triviaAnswer = function(chosenIdx) {
     var today = _getTriviaToday();
     if (!today || !today.trivia) return;
     var t = today.trivia;
-    var todayKey = new Date().toISOString().split('T')[0];
+    var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var state = _getTriviaState();
     if (state.date === todayKey) return; // Already answered
 
@@ -4115,10 +4160,12 @@ window.triviaAnswer = function(chosenIdx) {
 
 function _getPollToday() {
     if (typeof POLL_BANK === 'undefined' || !POLL_BANK || !POLL_BANK.length) return null;
-    var now = new Date();
-    var start = new Date(now.getFullYear(), 0, 0);
-    var dayOfYear = Math.floor((now - start) / 86400000);
-    var seed = (dayOfYear * 13 + now.getFullYear()) % POLL_BANK.length;
+    // Deterministic daily rotation keyed by getDailyKey (resets at 5 AM UTC)
+    var dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+    var dkMs = new Date(dk + 'T00:00:00Z').getTime();
+    var epoch = new Date('2026-01-01T00:00:00Z').getTime();
+    var dayOfYear = Math.floor((dkMs - epoch) / 86400000);
+    var seed = ((dayOfYear * 13 + 2026) % POLL_BANK.length + POLL_BANK.length) % POLL_BANK.length;
     return { index: seed, poll: POLL_BANK[seed] };
 }
 
@@ -4138,7 +4185,7 @@ function _renderPollTab(body) {
     }
 
     var state = _getPollState();
-    var todayKey = new Date().toISOString().split('T')[0];
+    var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     // chosen must be a non-negative number (index 0..3) to count as a real vote
     var hasVoted = state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0;
     var p = today.poll;
@@ -4244,7 +4291,7 @@ function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
             if (votes[chosen] < _maxVotes) {
                 var _minKey = 'btc_poll_minority_votes';
                 var _minDay = 'btc_poll_minority_day';
-                var _todayStr = new Date().toISOString().split('T')[0];
+                var _todayStr = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
                 if (localStorage.getItem(_minDay) !== _todayStr) {
                     localStorage.setItem(_minDay, _todayStr);
                     localStorage.setItem(_minKey, String(parseInt(localStorage.getItem(_minKey) || '0') + 1));
@@ -4288,7 +4335,7 @@ window.pollVote = function(chosenIdx) {
     var today = _getPollToday();
     if (!today || !today.poll) return;
     var p = today.poll;
-    var todayKey = new Date().toISOString().split('T')[0];
+    var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var state = _getPollState();
     if (state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0) return; // Already voted (local)
 
@@ -5194,7 +5241,7 @@ var FLEX_ALL_BADGE_DEFS = [
 // Runs once on sign-in for real users — merges server state into localStorage
 window._flexRestoreFromServer = function(uid) {
     if (!uid || typeof db === 'undefined') return;
-    var today = new Date().toISOString().split('T')[0];
+    var today = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     // Fetch both: today's completion docs + lifetime totals from user doc
     Promise.all([
         db.collection('users').doc(uid).collection('daily_action_counts')
