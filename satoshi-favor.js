@@ -363,7 +363,23 @@
             showToast('Satoshi\'s Favor is not currently active. Keep earning points!');
             return;
         }
-        showMinerModal();
+        // Refresh secondRigCharges from Firestore before rendering modal
+        // so a rig purchased in the Nook always shows up without a page reload
+        var uid = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
+        if (uid && typeof db !== 'undefined') {
+            db.collection('users').doc(uid).get().then(function(doc) {
+                if (doc.exists) {
+                    var fresh = doc.data();
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.secondRigCharges = fresh.secondRigCharges || 0;
+                        currentUser.hashBoosterHashes = fresh.hashBoosterHashes || 0;
+                    }
+                }
+                showMinerModal();
+            }).catch(function() { showMinerModal(); });
+        } else {
+            showMinerModal();
+        }
     };
 
     window.closeSatoshiFavorMiner = function() {
@@ -555,9 +571,12 @@
         if (sessionLeaderboardUnsub) sessionLeaderboardUnsub();
 
         var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+        var thisCycleId = favorState.currentCycleId;
 
+        // Filter by cycleId so leaderboard only shows hashes from THIS window
         sessionLeaderboardUnsub = db.collection('satoshiFavor').doc('current')
             .collection('session_hashes')
+            .where('cycleId', '==', thisCycleId)
             .orderBy('count', 'desc')
             .limit(10)
             .onSnapshot(function(snap) {

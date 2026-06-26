@@ -261,6 +261,20 @@
       ]
     },
     {
+      "collectionGroup": "session_hashes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cycleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "count",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "global_chat",
       "queryScope": "COLLECTION",
       "fields": [

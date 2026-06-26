@@ -437,15 +437,28 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     cycleId: stateData.currentCycleId || null,
   });
 
-  // Feature 2A: Write session hash count for live leaderboard
+  // Feature 2A: Write session hash count for live leaderboard (per-cycle, resets on new window)
   try {
     const sessionHashRef = stateRef.collection('session_hashes').doc(uid);
-    await sessionHashRef.set({
-      uid,
-      username,
-      count: admin.firestore.FieldValue.increment(1),
-      lastHash: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    const currentCycleId = stateData.currentCycleId || null;
+    const sessionDoc = await sessionHashRef.get();
+    if (sessionDoc.exists && sessionDoc.data().cycleId === currentCycleId) {
+      // Same window — increment existing count
+      await sessionHashRef.update({
+        count: admin.firestore.FieldValue.increment(1),
+        lastHash: admin.firestore.FieldValue.serverTimestamp(),
+        username, // keep username fresh
+      });
+    } else {
+      // New window (or first hash ever) — reset count to 1
+      await sessionHashRef.set({
+        uid,
+        username,
+        cycleId: currentCycleId,
+        count: 1,
+        lastHash: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
   } catch (e) {
     console.warn('[FAVOR] session_hashes write failed:', e.message);
   }
