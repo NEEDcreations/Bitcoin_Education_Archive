@@ -65,7 +65,9 @@ service cloud.firestore {
                         'bonusSpins', 'raffleEntries', 'secondRigCharges',
                         'ownedCosmetics', 'spinClosetItems',
                         // Badges (awardPoints CF)
-                        'badges', 'hiddenBadges', 'visibleBadges',
+                        'badges', 'visibleBadges',
+                        // NOTE: 'hiddenBadges' intentionally omitted — client writes it
+                        // to toggle badge visibility preference (cosmetic, not gated).
                         // Social / gamification counters (CF)
                         'forumPosts', 'forumReplies', 'lastSpinDate',
                         'marketListings', 'marketMessages',
