@@ -1170,6 +1170,13 @@ service cloud.firestore {
       match /cooldowns/{uid} {
         allow read, write: if false; // Admin SDK bypasses rules
       }
+
+      // Session hashes — live leaderboard for current mining window
+      // Public read so anyone can watch the leaderboard; server writes only
+      match /session_hashes/{uid} {
+        allow read: if true;
+        allow write: if false;
+      }
     }
 
     // Faction totals — public read, server writes only

@@ -3342,8 +3342,8 @@ function _renderNookInventory() {
 
     // Second Rig charges
     html += invRow('⚡', 'Second Mining Rig', secondRigCharges,
-        '',
-        'Each charge unlocks Hash #2 for one SF mining window.');
+        secondRigCharges > 0 ? '<button onclick="window._qhReopenOnMinerClose=false;if(window.closeQuestHubForFavor)window.closeQuestHubForFavor();setTimeout(function(){if(window.openSatoshiFavorMiner)window.openSatoshiFavorMiner();},100);" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">⛏️ Deploy Rig</button>' : '',
+        secondRigCharges > 0 ? 'Tap Deploy Rig to open the miner — Hash #2 button will appear!' : 'Each charge unlocks Hash #2 for one SF mining window.');
 
     html += '</div>';
 

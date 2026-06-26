@@ -11,6 +11,30 @@ const db = admin.firestore();
 // HTML escape for server-side email/notification content
 function _escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// ── Admin auth helper ────────────────────────────────────────────
+// Reads ADMIN_TOKEN from env; constant-time compare; accepts header OR query param.
+// Returns true and sets CORS header if valid; sends 403 and returns false if not.
+function requireAdmin(req, res) {
+    const expected = process.env.ADMIN_TOKEN;
+    if (!expected) {
+        console.error('[requireAdmin] ADMIN_TOKEN env var not set');
+        res.status(500).json({ error: 'server misconfiguration' });
+        return false;
+    }
+    const provided = req.headers['x-admin-token'] || req.query.t || '';
+    // Constant-time comparison to prevent timing attacks
+    const expectedBuf = Buffer.from(expected);
+    const providedBuf = Buffer.alloc(expectedBuf.length);
+    Buffer.from(provided).copy(providedBuf);
+    const match = provided.length === expected.length &&
+        require('crypto').timingSafeEqual(expectedBuf, providedBuf);
+    if (!match) {
+        res.status(403).json({ error: 'forbidden' });
+        return false;
+    }
+    return true;
+}
+
 const { NWCClient } = require('@getalby/sdk');
 const bolt11 = require('bolt11');
 
@@ -3705,14 +3729,10 @@ exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
 // ───────────────────────────────────────────────────────────────
 // Daily Active Users - HTTP endpoint (GET). Returns count of users with
 // lastActive / lastLogin / lastVisit within the last 24h.
-// Usage: curl "https://us-central1-bitcoin-education-archive.cloudfunctions.net/dailyActiveUsers?t=dau-2026"
+// Usage: curl "https://us-central1-bitcoin-education-archive.cloudfunctions.net/dailyActiveUsers" -H "x-admin-token: $ADMIN_TOKEN"
 // ───────────────────────────────────────────────────────────────
 exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
-    // Lightweight token gate (readonly, but avoids drive-by polling).
-    const token = req.query.t || req.headers['x-dau-token'];
-    if (token !== 'dau-2026') {
-        res.status(403).json({ error: 'forbidden' }); return;
-    }
+    if (!requireAdmin(req, res)) return;
     try {
         const now = new Date();
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -3889,8 +3909,7 @@ exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
 // cross-referenced signals (same IP, same lightning address, giveaway entries,
 // points sources, account age, auth method, bestStreak sanity, etc).
 exports.investigateUsers = functions.https.onRequest(async (req, res) => {
-    const token = req.query.t || req.headers['x-dau-token'];
-    if (token !== 'dau-2026') { res.status(403).json({ error: 'forbidden' }); return; }
+    if (!requireAdmin(req, res)) return;
     const uidsParam = req.query.uids || '';
     const uids = uidsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
     if (!uids.length) { res.status(400).json({ error: 'Pass ?uids=UID1,UID2,...' }); return; }
@@ -4052,8 +4071,7 @@ const BLACKLISTED_LN = [
 ];
 
 exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
-    const token = req.query.t || req.headers['x-dau-token'];
-    if (token !== 'dau-2026') { res.status(403).json({ error: 'forbidden' }); return; }
+    if (!requireAdmin(req, res)) return;
 
     try {
         const out = { watchlist: [], suspiciousRecent: [], satsByWatchlist: [], blacklistedLnHits: [], alerts: [] };
@@ -4160,8 +4178,7 @@ exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
 // AUDIT WITHDRAWALS - Admin endpoint for monitoring blocked accounts & investigating withdrawal clusters
 // =============================================
 exports.auditWithdrawals = functions.https.onRequest(async (req, res) => {
-    const token = req.query.t || req.headers['x-dau-token'];
-    if (token !== 'dau-2026') { res.status(403).json({ error: 'forbidden' }); return; }
+    if (!requireAdmin(req, res)) return;
 
     try {
         const out = { blockedAccounts: [], recentWithdrawals: [], ipClusters: [], fingerprintClusters: [] };
@@ -4491,7 +4508,7 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
     return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
 });
 exports.adminLookupUser = functions.https.onRequest(async (req, res) => {
-    if (req.query.t !== 'dau-2026') return res.status(403).send('no');
+    if (!requireAdmin(req, res)) return;
     try {
         let q = req.query.q;
         let snap1 = await db.collection('users').where('email', '==', q).get();
@@ -4503,7 +4520,7 @@ exports.adminLookupUser = functions.https.onRequest(async (req, res) => {
     } catch(e) { res.status(500).json({error: e.toString()}); }
 });
 exports.adminQueryUsers = functions.https.onRequest(async (req, res) => {
-    if (req.query.t !== 'dau-2026') return res.status(403).send('no');
+    if (!requireAdmin(req, res)) return;
     try {
         let snap = await db.collection('users').get();
         let matches = [];
@@ -4520,7 +4537,7 @@ exports.adminQueryUsers = functions.https.onRequest(async (req, res) => {
     } catch(e) { res.status(500).json({error:e.toString()});}
 });
 exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
-    if (req.query.t !== 'dau-2026') return res.status(403).send('no');
+    if (!requireAdmin(req, res)) return;
     try {
         const uid = req.query.uid;
         if (!uid) return res.status(400).json({error: 'uid required'});
