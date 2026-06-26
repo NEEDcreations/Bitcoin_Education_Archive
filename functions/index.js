@@ -5032,7 +5032,7 @@ exports.resetWeeklyXP = functions.pubsub.schedule('0 0 * * 1').timeZone('UTC').o
     const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
     const prevWeek = weekNum - 1;
     const weekKey = `${year}-W${String(prevWeek || 52).padStart(2, '0')}`;
-    const result = await _resetPeriodXP('weeklyXP', weekKey, 50, `Week ${weekKey}`);
+    const result = await _resetPeriodXP('weeklyXP', weekKey, 25, `Week ${weekKey}`);
     console.log('[WEEKLY RESET COMPLETE]', result);
     return null;
 });
