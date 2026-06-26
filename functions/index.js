@@ -1737,6 +1737,16 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             const ledgerDoc = await t.get(ledgerRef);
             const ledger = ledgerDoc.exists ? ledgerDoc.data() : {};
 
+            // [VULN-7 FIX] Check ledger ban BEFORE user-doc ban.
+            // faucet_ledger is allow write: if false — clients can never clear this.
+            // This defeats the delete+recreate bypass: even if the user deletes their
+            // Firestore profile and recreates it (no satsDisabled field), the ledger
+            // ban persists and blocks the claim. Both checks are enforced — either
+            // banning mechanism alone is sufficient to block.
+            if (ledger.banned === true) {
+                throw new Error('Sats withdrawals are disabled on this account. Contact support if you believe this is an error.');
+            }
+
             // Check lifetime cap - use MAX of user doc and ledger to handle both
             // pre-existing users (only have user.satsWithdrawn) and post-deletion
             // attackers (user doc reset, ledger intact).
@@ -4277,6 +4287,26 @@ exports.auditWithdrawals = functions.https.onRequest(async (req, res) => {
             out.blockedAccounts.push(record);
         }
 
+        // 1b. [VULN-7 FIX] Find accounts banned in faucet_ledger but NOT in user doc
+        //     (delete+recreate evaders who still have a ledger ban)
+        const ledgerBannedSnap = await db.collection('faucet_ledger').where('banned', '==', true).get();
+        for (const ldoc of ledgerBannedSnap.docs) {
+            const uid = ldoc.id;
+            // Skip if already in blockedAccounts from user-doc query
+            if (out.blockedAccounts.some(a => a.uidFull === uid)) continue;
+            const ld = ldoc.data();
+            out.blockedAccounts.push({
+                uid: uid.substring(0, 8),
+                uidFull: uid,
+                username: null, // user doc was deleted
+                email: null,
+                points: null,
+                satsDisabled: 'ledger-only (user doc recreated)',
+                ban_reason: ld.ban_reason || 'ledger ban',
+                withdrawals: []
+            });
+        }
+
         // 2. Query recent withdrawals from faucet_invoices (global log)
         const daysBack = parseInt(req.query.days || '7');
         const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
@@ -4601,12 +4631,42 @@ exports.adminQueryUsers = functions.https.onRequest(async (req, res) => {
         res.json(matches);
     } catch(e) { res.status(500).json({error:e.toString()});}
 });
+// [VULN-7 FIX] adminBanUser — sets ban flags in BOTH user doc and faucet_ledger atomically.
+// The ledger ban survives user-doc deletion (faucet_ledger is write:false for clients).
+exports.adminBanUser = functions.https.onRequest(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+        const uid = req.query.uid;
+        const reason = (req.query.reason || 'admin ban').substring(0, 200);
+        if (!uid) return res.status(400).json({error: 'uid required'});
+        const batch = db.batch();
+        batch.update(db.collection('users').doc(uid), {
+            withdrawals_disabled: true,
+            satsDisabled: true,
+            flagged: true,
+            ban_reason: reason,
+        });
+        // Mirror into server-only ledger so delete+recreate can't shake the ban
+        batch.set(db.collection('faucet_ledger').doc(uid), {
+            banned: true,
+            ban_reason: reason,
+            bannedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        await batch.commit();
+        console.log('[adminBanUser] Banned uid:', uid, 'reason:', reason);
+        res.json({success: true, uid});
+    } catch(e) { res.status(500).json({error:e.toString()});}
+});
+
 exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const uid = req.query.uid;
         if (!uid) return res.status(400).json({error: 'uid required'});
-        await db.collection('users').doc(uid).update({
+        // [VULN-7 FIX] Unban atomically in both user doc AND faucet_ledger.
+        // Both must be cleared so a re-banned user can't exploit a stale ledger state.
+        const batch = db.batch();
+        batch.update(db.collection('users').doc(uid), {
             withdrawals_disabled: false,
             satsDisabled: false,
             flagged: false,
@@ -4614,6 +4674,13 @@ exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
             ban_reason: admin.firestore.FieldValue.delete(),
             _pendingClaim: admin.firestore.FieldValue.delete(),
         });
+        // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
+        batch.set(db.collection('faucet_ledger').doc(uid), {
+            banned: false,
+            ban_reason: admin.firestore.FieldValue.delete(),
+            bannedAt: admin.firestore.FieldValue.delete(),
+        }, { merge: true });
+        await batch.commit();
         res.json({success: true, uid});
     } catch(e) { res.status(500).json({error:e.toString()});}
 });
