@@ -401,7 +401,11 @@ window.forumViewPost = async function(postId, fromPopState) {
         }
 
         if (p.link) {
-            html += '<a href="' + fEsc(p.link) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(p.link).substring(0, 60) + (p.link.length > 60 ? '...' : '') + '</a><br>';
+            // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
+            var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
+            if (safeLink) {
+                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink).substring(0, 60) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
+            }
         }
 
         // Vote + meta + admin delete
@@ -648,6 +652,9 @@ window.forumSubmitPost = async function() {
     }
 
     if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+    // [VULN-5 FIX] block javascript:/data:/vbscript: at write-time before storing in Firestore
+    if (link && typeof sanitizeUrl === 'function') link = sanitizeUrl(link);
+    if (link && !/^https?:\/\//i.test(link)) link = ''; // second pass: reject anything sanitizeUrl didn't empty but still isn't http(s)
 
     // Rate limit: max 5 posts per day
     var postCount = parseInt(localStorage.getItem('btc_forum_post_count') || '0');
@@ -951,10 +958,18 @@ window.forumSwitchTab = function(tab) {
 function mdToHtml(md) {
     if (!md) return '';
     var h = fEsc(md);
-    // Images: ![alt](url)
-    h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">');
-    // Links: [text](url)
-    h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">$1</a>');
+    // Images: ![alt](url) — [VULN-5 FIX] sanitize src to block javascript:/data: schemes
+    h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
+        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
+        if (!safe) return '';
+        return '<img src="' + fEsc(safe) + '" alt="' + alt + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">';
+    });
+    // Links: [text](url) — [VULN-5 FIX] sanitize href to block javascript: scheme
+    h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, text, url) {
+        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
+        if (!safe) return fEsc(text);
+        return '<a href="' + fEsc(safe) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + text + '</a>';
+    });
     // Bare URLs (not already in an href or src)
     h = h.replace(/(?<!href="|src=")(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">$1</a>');
     h = h.replace(/^### (.+)$/gm, '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:20px 0 8px;">$1</h3>');
