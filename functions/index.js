@@ -2943,15 +2943,21 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
         const question = match.questions[questionIndex];
         if (!question) throw new functions.https.HttpsError('internal', 'Question not found');
 
-        // Read answer key from server-only collection (or fallback to match doc for legacy matches)
-        let correctAnswer;
+        // Read answer key from server-only collection
+        // The key is written by pvpStoreAnswerKey (for client-created matches) or
+        // pvpCreateMatch (for CF-created matches). No fallback to the match doc —
+        // that field is intentionally stripped (vuln-3 fix).
         const keyDoc = await tx.get(db.collection('pvp_answer_keys').doc(matchId));
-        if (keyDoc.exists && keyDoc.data().keys && keyDoc.data().keys[questionIndex] !== undefined) {
-            correctAnswer = keyDoc.data().keys[questionIndex].correct;
-        } else {
-            // Legacy fallback - old matches still have correct in the match doc
-            correctAnswer = question.correct;
+        if (!keyDoc.exists) {
+            // Key not yet stored (race: player 2 created match and immediately answered
+            // before pvpStoreAnswerKey CF completed). Reject — client should retry.
+            throw new functions.https.HttpsError('failed-precondition', 'Answer key not ready — please try again');
         }
+        const keyEntry = keyDoc.data().keys && keyDoc.data().keys.find(k => k.questionIndex === questionIndex);
+        if (!keyEntry || typeof keyEntry.correct !== 'number') {
+            throw new functions.https.HttpsError('internal', 'Answer key missing for this question');
+        }
+        const correctAnswer = keyEntry.correct;
 
         const isCorrect = answerIndex === correctAnswer;
         const answerObj = {
@@ -3153,7 +3159,9 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
 // Validates that the caller is a player in the match before accepting keys.
 exports.pvpStoreAnswerKey = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    const { matchId, keys } = data || {};
+    const { matchId, keys, keyIndex } = data || {};
+    // keys: array of correct-answer integers
+    // keyIndex: when set, this is a reroll — update one specific slot rather than the full array
     if (!matchId || !Array.isArray(keys) || keys.length < 1 || keys.length > 10) {
         throw new functions.https.HttpsError('invalid-argument', 'Invalid matchId or keys');
     }
@@ -3171,10 +3179,28 @@ exports.pvpStoreAnswerKey = functions.https.onCall(async (data, context) => {
     if (match.player1.uid !== uid && match.player2.uid !== uid) {
         throw new functions.https.HttpsError('permission-denied', 'Not a player in this match');
     }
-    // Only store if not already set (idempotent guard)
-    const existing = await db.collection('pvp_answer_keys').doc(matchId).get();
+    const keyRef = db.collection('pvp_answer_keys').doc(matchId);
+    const existing = await keyRef.get();
+
+    if (typeof keyIndex === 'number' && keyIndex >= 0 && keyIndex <= 4) {
+        // Reroll update: patch one specific slot in an existing key document
+        if (!existing.exists) throw new functions.https.HttpsError('not-found', 'Answer key not found for reroll');
+        const existingKeys = existing.data().keys || [];
+        const updated = existingKeys.slice();
+        // Find or create the entry for this index
+        const slotIdx = updated.findIndex(k => k.questionIndex === keyIndex);
+        if (slotIdx >= 0) {
+            updated[slotIdx] = { questionIndex: keyIndex, correct: keys[0] };
+        } else {
+            updated.push({ questionIndex: keyIndex, correct: keys[0] });
+        }
+        await keyRef.update({ keys: updated });
+        return { success: true, reroll: true };
+    }
+
+    // Initial store: only if not already set
     if (existing.exists) return { success: true, alreadySet: true };
-    await db.collection('pvp_answer_keys').doc(matchId).set({
+    await keyRef.set({
         keys: keys.map((correct, i) => ({ questionIndex: i, correct })),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         setBy: uid
