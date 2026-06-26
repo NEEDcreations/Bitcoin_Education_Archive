@@ -3036,7 +3036,7 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
         }
 
         tx.update(matchRef, update);
-        return { success: true, correct: isCorrect };
+        return { success: true, correct: isCorrect, isCorrect, correctIndex: correctAnswer };
     });
 
     return result;
@@ -3149,6 +3149,39 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
 // PVP stats are handled atomically inside pvpSubmitAnswer when match finishes.
 // Forum/market stats are display-only (not gated or redeemable).
 
+// ── PVP Store Answer Key (called by player-2 matchmaker after client-side match creation) ──
+// Validates that the caller is a player in the match before accepting keys.
+exports.pvpStoreAnswerKey = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    const { matchId, keys } = data || {};
+    if (!matchId || !Array.isArray(keys) || keys.length < 1 || keys.length > 10) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid matchId or keys');
+    }
+    // Validate keys are all valid integers (0-3)
+    for (const k of keys) {
+        if (typeof k !== 'number' || k < 0 || k > 3 || !Number.isInteger(k)) {
+            throw new functions.https.HttpsError('invalid-argument', 'Invalid key value');
+        }
+    }
+    const uid = context.auth.uid;
+    const matchSnap = await db.collection('pvp_matches').doc(matchId).get();
+    if (!matchSnap.exists) throw new functions.https.HttpsError('not-found', 'Match not found');
+    const match = matchSnap.data();
+    // Only a player in the match can store the answer key
+    if (match.player1.uid !== uid && match.player2.uid !== uid) {
+        throw new functions.https.HttpsError('permission-denied', 'Not a player in this match');
+    }
+    // Only store if not already set (idempotent guard)
+    const existing = await db.collection('pvp_answer_keys').doc(matchId).get();
+    if (existing.exists) return { success: true, alreadySet: true };
+    await db.collection('pvp_answer_keys').doc(matchId).set({
+        keys: keys.map((correct, i) => ({ questionIndex: i, correct })),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        setBy: uid
+    });
+    return { success: true };
+});
+
 // ── PVP Match Creation (server-side, hides answer keys) ──
 exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
@@ -3164,11 +3197,12 @@ exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
     // Store answer keys separately (not readable by clients)
     const answerKeys = questions.map((q, i) => ({ questionIndex: i, correct: q.correct }));
 
-    // Include correct answer index so clients can verify answers locally
+    // Strip correct answer — clients must NOT receive the answer key in the match doc.
+    // Server validates answers via pvpSubmitAnswer / pvpAnswer CF only.
     const clientQuestions = questions.map(q => ({
         q: q.q,
-        options: q.options,
-        correct: q.correct
+        options: q.options
+        // correct intentionally omitted — stored only in pvp_answer_keys
     }));
 
     // Use a transaction to atomically claim the lobby doc and create the match.
