@@ -1105,8 +1105,23 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update: if request.auth != null
         && request.resource.data.keys().hasAll(['votes', 'lastUpdated'])
-        && request.resource.data.votes is list
-        && request.resource.data.votes.size() == 4;
+        && request.resource.data.votes is list;
+    }
+
+    // Poll cumulative stats (all-time per question) — read public, increment only
+    match /poll_cumulative/{pollId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question']);
+    }
+
+    // Trivia cumulative stats (all-time per question) — read public, increment only
+    match /trivia_cumulative/{triviaId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex']);
     }
 
     // ===== RAID BOSS =====

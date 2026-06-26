@@ -15891,11 +15891,12 @@ function _renderTriviaTab(body) {
         for (var li = 0; li < t.options.length; li++) {
             html = html.replace('id="triviaPct_' + li + '" style="', 'id="triviaPct_' + li + '" style="');
         }
-        db.collection('trivia_stats').doc(todayKey).get().then(function(doc) {
+        // Read from cumulative doc (all-time totals for this question)
+        db.collection('trivia_cumulative').doc('t_' + today.index).get().then(function(doc) {
             var stats = doc.exists ? doc.data() : {};
             var total = stats.total || 0;
             if (total < 1) {
-                // Stats not ingested yet (race after first answer) — show pending
+                // No data yet — show minimal placeholder
                 for (var j = 0; j < t.options.length; j++) {
                     var pctEl = document.getElementById('triviaPct_' + j);
                     if (pctEl) pctEl.textContent = '...';
@@ -15912,7 +15913,7 @@ function _renderTriviaTab(body) {
             }
             // Update total count
             var totEl = document.getElementById('triviaTotalVotes');
-            if (totEl) totEl.textContent = total + ' answer' + (total !== 1 ? 's' : '');
+            if (totEl) totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' all time';
         }).catch(function() {});
     }
 
@@ -15985,15 +15986,21 @@ window.triviaAnswer = function(chosenIdx) {
         });
     }
 
-    // Track answer distribution for community stats
+    // Track answer distribution — cumulative doc (permanent, keyed by trivia index)
     if (typeof db !== 'undefined') {
-        var statsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
+        var _triviaIdx = today.index;
+        var statsUpdate = { total: firebase.firestore.FieldValue.increment(1), triviaIndex: _triviaIdx };
         statsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-        db.collection('trivia_stats').doc(todayKey).set(statsUpdate, { merge: true }).then(function() {
+        // Write to cumulative doc (all-time totals for this question)
+        db.collection('trivia_cumulative').doc('t_' + _triviaIdx).set(statsUpdate, { merge: true }).then(function() {
             // Write confirmed — now safe to fetch fresh stats
             var body2 = document.getElementById('questHubBody');
             if (body2) _renderTriviaTab(body2);
         }).catch(function() {});
+        // Also write per-day doc for dedup ref (non-blocking)
+        var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
+        dayStatsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
+        db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true }).catch(function() {});
     }
 
     // Re-render immediately to show correct/wrong answer state
@@ -16105,19 +16112,30 @@ function _showPollVoteButtons(body, html, p) {
 }
 
 function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
-    var pollId = (poll.id ? poll.id + '_' + todayKey : 'poll_day_' + todayKey);
-    // Fetch results from Firestore
-    if (typeof db !== 'undefined') {
-        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
-            var votes = doc.exists ? (doc.data().votes || [0, 0, 0, 0]) : [0, 0, 0, 0];
-            var total = votes.reduce(function(a, b) { return a + b; }, 0) || 1;
-            _drawPollResults(body, htmlPrefix, poll, votes, total, state.chosen);
+    // Read from cumulative doc (all-time totals for this question)
+    if (typeof db !== 'undefined' && poll.id) {
+        db.collection('poll_cumulative').doc(poll.id).get().then(function(doc) {
+            if (doc.exists) {
+                var d = doc.data();
+                var votes = poll.options.map(function(_, i) { return d['option_' + i] || 0; });
+                var total = d.total || votes.reduce(function(a, b) { return a + b; }, 0) || 1;
+                _drawPollResults(body, htmlPrefix, poll, votes, total, state.chosen);
+            } else {
+                // Cumulative doc not yet seeded — fall back to today's doc
+                var pollId = poll.id + '_' + todayKey;
+                db.collection('poll_votes').doc(pollId).get().then(function(doc2) {
+                    var votes2 = doc2.exists ? (doc2.data().votes || []) : [];
+                    var total2 = votes2.reduce(function(a, b) { return a + b; }, 0) || 1;
+                    _drawPollResults(body, htmlPrefix, poll, votes2, total2, state.chosen);
+                }).catch(function() {
+                    _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
+                });
+            }
         }).catch(function() {
-            // Offline fallback
-            _drawPollResults(body, htmlPrefix, poll, [0, 0, 0, 0], 1, state.chosen);
+            _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
         });
     } else {
-        _drawPollResults(body, htmlPrefix, poll, [0, 0, 0, 0], 1, state.chosen);
+        _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
     }
 }
 
@@ -16159,7 +16177,7 @@ function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
         '</div>';
     }
     html += '</div>';
-    html += '<div style="text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;">' + total + ' total vote' + (total !== 1 ? 's' : '') + ' · Come back tomorrow for a new poll!</div>';
+    html += '<div style="text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;">' + total.toLocaleString() + ' total vote' + (total !== 1 ? 's' : '') + ' all time · Come back tomorrow for a new poll!</div>';
     body.innerHTML = html;
 }
 
@@ -16227,6 +16245,11 @@ window.pollVote = function(chosenIdx) {
                     pollsVoted: firebase.firestore.FieldValue.increment(1)
                 }).catch(function() {});
             }
+
+            // Write cumulative poll stats (all-time totals for this question)
+            var _cumUpdate = { total: firebase.firestore.FieldValue.increment(1), pollId: p.id, question: p.q };
+            _cumUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
+            db.collection('poll_cumulative').doc(p.id).set(_cumUpdate, { merge: true }).catch(function() {});
 
             var body = document.getElementById('questHubBody');
             if (body) _renderPollTab(body);
@@ -19201,9 +19224,44 @@ function _renderCommunityTab(body) {
     });
 }
 
+function _buildSocialProofHTML() {
+    var html = '<div id="_communityStats" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:16px;">' +
+        '<div style="font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">\ud83d\udcca Live Community Stats</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">' +
+            '<div style="text-align:center;padding:8px;background:var(--bg-side);border-radius:8px;"><div style="font-size:1.1rem;font-weight:900;color:var(--accent);" id="_csStat1">\u2014</div><div style="font-size:0.65rem;color:var(--text-faint);">Quests Completed</div></div>' +
+            '<div style="text-align:center;padding:8px;background:var(--bg-side);border-radius:8px;"><div style="font-size:1.1rem;font-weight:900;color:#22c55e;" id="_csStat2">\u2014</div><div style="font-size:0.65rem;color:var(--text-faint);">Members</div></div>' +
+            '<div style="text-align:center;padding:8px;background:var(--bg-side);border-radius:8px;"><div style="font-size:1.1rem;font-weight:900;color:#3b82f6;" id="_csStat3">\u2014</div><div style="font-size:0.65rem;color:var(--text-faint);">Poll Votes</div></div>' +
+            '<div style="text-align:center;padding:8px;background:var(--bg-side);border-radius:8px;"><div style="font-size:1.1rem;font-weight:900;color:#8b5cf6;" id="_csStat4">\u2014</div><div style="font-size:0.65rem;color:var(--text-faint);">Trivia Answers</div></div>' +
+        '</div>' +
+    '</div>';
+    if (typeof db !== 'undefined') {
+        db.collection('stats').doc('global').get().then(function(snap) {
+            var d = snap.exists ? snap.data() : {};
+            var el1 = document.getElementById('_csStat1');
+            var el2 = document.getElementById('_csStat2');
+            if (el1) el1.textContent = Number(d.questsCompleted || 0).toLocaleString();
+            if (el2) el2.textContent = Number(d.userCount || 0).toLocaleString();
+        }).catch(function() {});
+        db.collection('poll_cumulative').get().then(function(snap) {
+            var total = 0;
+            snap.forEach(function(doc) { total += (doc.data().total || 0); });
+            var el3 = document.getElementById('_csStat3');
+            if (el3) el3.textContent = total.toLocaleString();
+        }).catch(function() {});
+        db.collection('trivia_cumulative').get().then(function(snap) {
+            var total = 0;
+            snap.forEach(function(doc) { total += (doc.data().total || 0); });
+            var el4 = document.getElementById('_csStat4');
+            if (el4) el4.textContent = total.toLocaleString();
+        }).catch(function() {});
+    }
+    return html;
+}
+
 function _renderCommunityEmpty(body) {
-    body.innerHTML = '<div style="text-align:center;padding:32px 16px;">' +
-        '<div style="font-size:3rem;margin-bottom:12px;">\ud83c\udf0d</div>' +
+    body.innerHTML = _buildSocialProofHTML() +
+        '<div style="text-align:center;padding:24px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;">' +
+        '<div style="font-size:2.5rem;margin-bottom:12px;">\ud83c\udf0d</div>' +
         '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Community Challenges</div>' +
         '<div style="color:var(--text-muted);font-size:0.85rem;">Weekly challenges coming soon!<br>Check back Monday for the next one.</div>' +
     '</div>';
@@ -19218,6 +19276,9 @@ function _renderCommunityChallenge(body, docId, data) {
     var html = '<style>' +
         '.cc-goal{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;}' +
     '</style>';
+
+    // Social proof stats above challenge
+    html += _buildSocialProofHTML();
 
     // Header
     html += '<div style="text-align:center;margin-bottom:16px;">' +
