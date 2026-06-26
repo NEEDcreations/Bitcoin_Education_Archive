@@ -4335,10 +4335,10 @@ function showSettingsPage(tab) {
         var userPts = currentUser ? currentUser.points || 0 : 0;
         var pointsClaimed = currentUser ? currentUser.pointsClaimed || 0 : 0;
         var pointsDonated = currentUser ? currentUser.pointsDonated || 0 : 0;
-        var availablePts = userPts - pointsClaimed - pointsDonated;
-        var availableForClaim = userPts - pointsClaimed; // claim doesn't subtract donated
+        // [VULN-4 FIX] donated points can't also fund sats claims — subtract both offsets
+        var availableForClaim = userPts - pointsClaimed - pointsDonated;
         var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
-        var satsBalance = Math.floor(Math.max(0, availableForClaim) / 10); // 10 unclaimed points = 1 sat (claim uses availableForClaim, not availablePts)
+        var satsBalance = Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
         var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
         var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
         var claimable = Math.min(satsBalance, 500, lifetimeLeft);
@@ -4395,7 +4395,7 @@ function showSettingsPage(tab) {
         html += '<div style="background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,179,8,0.1));border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Your Balance</div>';
         html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' claimable sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availableForClaim.toLocaleString() + ' unclaimed XP of ' + userPts.toLocaleString() + ' total</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availableForClaim.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated)</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
 
@@ -6209,7 +6209,8 @@ window.initSatsClaim = function() {
         showToast('Sign in to claim sats');
         return;
     }
-    var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0);
+    // [VULN-4 FIX] donated points can't also fund sats claims
+    var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0) - (currentUser.pointsDonated || 0);
     var satsBalance = Math.floor(Math.max(0, availPts) / 10);
     var satsWithdrawn = currentUser.satsWithdrawn || 0;
     var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;

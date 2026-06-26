@@ -1705,10 +1705,15 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 throw new Error('Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.');
             }
 
-            // Check points balance (points are NEVER deducted - we track pointsClaimed separately)
+            // Check points balance.
+            // Points are never deducted on earn; we track offset counters instead:
+            //   pointsClaimed  — sats already withdrawn against these points
+            //   pointsDonated  — points "spent" via donatePoints (same pool, can't overlap)
+            // [VULN-4 FIX] Subtract pointsDonated so donated points can't also fund sats claims.
             const userPoints = user.points || 0;
             const pointsClaimed = user.pointsClaimed || 0;
-            const availablePoints = userPoints - pointsClaimed;
+            const pointsDonated = user.pointsDonated || 0;
+            const availablePoints = userPoints - pointsClaimed - pointsDonated;
             const satsBalance = Math.floor(availablePoints / FAUCET.POINTS_PER_SAT);
             if (satsBalance < amount) {
                 throw new Error('Insufficient unclaimed points. You have ' + satsBalance + ' sats worth of unclaimed points (' + availablePoints + ' pts).');
