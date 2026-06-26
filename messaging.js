@@ -440,7 +440,13 @@ window.showUserProfile = function(uid) {
         var u = doc.data();
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
-        var joinDate = u.createdAt ? (u.createdAt.toDate ? u.createdAt.toDate().toLocaleDateString() : 'Unknown') : 'Unknown';
+        var joinDate = 'Unknown';
+        try {
+            if (u.createdAt) {
+                var jd = u.createdAt.toDate ? u.createdAt.toDate() : (u.createdAt.seconds ? new Date(u.createdAt.seconds * 1000) : new Date(u.createdAt));
+                if (!isNaN(jd.getTime())) joinDate = jd.toLocaleDateString('en-US', {month:'short', year:'numeric'});
+            }
+        } catch(e) {}
         
         // 🏅 DISPLAY BADGE: Check for user-selected badge, fallback to rank emoji
         var displayBadge = (typeof escapeHtml === 'function' ? escapeHtml(u.displayBadge || u.equippedBadge || '') : (u.displayBadge || u.equippedBadge || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
@@ -511,7 +517,7 @@ window.showUserProfile = function(uid) {
             '</div>' +
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('🗣️', u.forumPosts || 0, 'Posts') +
-                profileStat('🔥', (u.streak || 0) + '(' + (u.bestStreak || u.streak || 0) + ')', 'Streak') +
+                profileStat('🔥', u.streak || 0, 'Streak' + ((u.bestStreak && u.bestStreak > (u.streak||0)) ? ' (best: ' + u.bestStreak + ')' : '')) +
                 profileStat('📅', joinDate, 'Joined') +
             '</div>' +
             // PVP Stats (only show if they've played)

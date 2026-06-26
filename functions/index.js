@@ -5275,6 +5275,17 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
 
         tx.update(userRef, update);
 
+        // Community raffle counter (month-scoped)
+        if (g.raffleEntries) {
+            const monthKey = new Date().toISOString().slice(0,7); // YYYY-MM
+            const raffleStatRef = admin.firestore().collection('stats').doc('raffle_' + monthKey);
+            tx.set(raffleStatRef, {
+                totalEntries: admin.firestore.FieldValue.increment(g.raffleEntries * qty),
+                month: monthKey,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+
         // Purchase record (server-only subcollection)
         const purchaseRef = userRef.collection('shop_purchases').doc();
         tx.set(purchaseRef, {
