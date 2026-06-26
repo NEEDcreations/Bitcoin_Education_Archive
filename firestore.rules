@@ -21,26 +21,65 @@ service cloud.firestore {
                     || true  // Any authenticated user (incl. anonymous) can view other profiles;
                              // write rules below still block anonymous from modifying profiles.
                   );
+      // Create: allowlist the fields a client is permitted to set on initial doc creation.
+      // Server-managed economy fields (points, streak, sats, tickets, etc.) default to 0 / empty
+      // and must never be supplied by the client.
       allow create: if request.auth != null
-                    && request.auth.uid == userId;
+                    && request.auth.uid == userId
+                    && request.resource.data.keys().hasOnly([
+                        // Identity / profile
+                        'username', 'username_lower', 'email', 'profilePic',
+                        'displayName', 'faction', 'country', 'lightning', 'lightningAddress',
+                        'nostr', 'lastLogin', 'lastVisit', 'lastActive', 'isOnline',
+                        // Safe zero-value seeds written by ranking.js on signup
+                        // (we accept them only at their zero/empty initial values)
+                        'points', 'channelsVisited', 'totalVisits', 'streak', 'created',
+                        // Preferences
+                        'nachoNickname', 'ghostMode', 'newsletterOptIn', 'newsletterOptInDate',
+                        'celebratedState'
+                    ])
+                    // points / streak / channelsVisited must be 0 on create (never pre-seeded)
+                    && (!('points'          in request.resource.data) || request.resource.data.points          == 0)
+                    && (!('streak'          in request.resource.data) || request.resource.data.streak          <= 1)
+                    && (!('channelsVisited' in request.resource.data) || request.resource.data.channelsVisited  == 0)
+                    && (!('totalVisits'     in request.resource.data) || request.resource.data.totalVisits      <= 1);
+
       allow update: if request.auth != null
                     && request.auth.uid == userId
-                    // Block client writes to server-managed fields (Cloud Function only via Admin SDK)
+                    // [VULN-2 FIX 2026-06-26] Expanded denylist — all economy, rank, admin,
+                    // anti-fraud, and leaderboard fields must be server-only.
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                        'pointsClaimed', 'satsWithdrawn', 'lastSatsClaim', '_pendingClaim',
-                        'points', 'lastAwards', 'created', 'createdAt',
-                        'visitedChannelsList', 'channelsVisited', 'readChannels',
-                        'orangeTickets', 'streak', 'bestStreak', 'streakFreezes',
-                        'totalVisits', 'badges', 'hiddenBadges', 'tickets',
-                        'referralTicketsEarned', 'lastSpinDate', 'spinClosetItems',
-                        'forumPosts', 'forumReplies',
-                        'marketListings', 'marketMessages', 'referralCode',
-                        'pendingOverflow', 'lastOverflowDate',
+                        // Core economy
+                        'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+                        'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
+                        'orangeTickets', 'tickets',
+                        // Streak / activity (CF-managed)
+                        'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
+                        'readChannels', 'visitedChannelsList',
+                        // Claim / withdrawal state
+                        'pointsClaimed', 'lastSatsClaim', 'lastAwards', '_pendingClaim',
+                        'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
+                        // Shop inventory (spendTickets CF manages these)
+                        'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
+                        'hintTokens', 'doubleXPCharges', 'doubleXPExpiry',
+                        'bonusSpins', 'raffleEntries', 'secondRigCharges',
+                        'ownedCosmetics', 'spinClosetItems',
+                        // Badges (awardPoints CF)
+                        'badges', 'hiddenBadges', 'visibleBadges',
+                        // Social / gamification counters (CF)
+                        'forumPosts', 'forumReplies', 'lastSpinDate',
+                        'marketListings', 'marketMessages',
+                        'referralTicketsEarned', 'referralCode',
                         'pointsDonated', 'donationBadges',
-                        // [AUDIT FIX] daily_all_three fields — must be written by CF only
+                        // Daily quest gating (CF)
                         'dailyAllThreeDate', 'dailyQuizDone', 'dailyTriviaDone', 'dailyPollDone',
-                        // [AUDIT FIX] visibleBadges must be written by awardPoints CF only
-                        'visibleBadges'
+                        // Admin / anti-fraud fields — NEVER writable by clients
+                        'isAdmin', 'role', 'admin',
+                        'banned', 'ban_reason', 'flagged', 'flag_reason',
+                        'withdrawals_disabled', 'satsDisabled',
+                        'known_ips', 'fingerprint', 'fraudScore',
+                        // Immutable identity
+                        'created', 'createdAt', 'uid'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
@@ -57,8 +96,10 @@ service cloud.firestore {
                         || (request.resource.data.equippedBadge is string
                             && request.resource.data.equippedBadge.size() <= 50
                             && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')));
-      allow delete: if request.auth != null
-                    && request.auth.uid == userId;
+      // Delete disabled: a client deleting then re-creating their doc would bypass all
+      // field restrictions (the create allowlist only enforces zero-values but a second
+      // create after delete could re-seed with anything). Server (Admin SDK) can still delete.
+      allow delete: if false;
 
       // Sats withdrawal history (read own, Cloud Function writes)
       // Integrations (Strava, Lightning, etc.)
