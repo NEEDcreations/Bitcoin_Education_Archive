@@ -1,25 +1,25 @@
 {
-  "updated": "2026-06-26T12:00:51.712Z",
+  "updated": "2026-06-26T16:00:50.827Z",
   "news": [
+    {
+      "date": "Jun 26, 2026",
+      "title": "&#8216;I See Volatility as Opportunity&#8217;: Bitcoin Tests Critical Support as Key Level Hangs in the Balance",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/i-see-volatility-as-opportunity-bitcoin",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jun 26, 2026",
+      "title": "Bitcoin&#8217;s fragile floor cracks as Fed hawks circle and ETF investors keep pulling out: analysts",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/post/406340/bitcoins-fragile-floor-cracks-as-fed-hawks-circle-and-etf-investors-keep-pulling-out-analysts?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
     {
       "date": "Jun 26, 2026",
       "title": "Bitcoin ETF Flows Explained: What ETF Inflows and Outflows Mean for Investors",
       "snippet": "The Block",
       "link": "https://www.theblock.co/learn/406279/bitcoin-etf-flows-explained?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
-    },
-    {
-      "date": "Jun 26, 2026",
-      "title": "Corporate Bitcoin Treasuries Explained: Why Public Companies Hold Bitcoin",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/learn/406283/why-public-companies-hold-bitcoin?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
-    },
-    {
-      "date": "Jun 26, 2026",
-      "title": "Bitcoin briefly dips below $59,000 as macro pressures drag crypto, Asian equities lower",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/post/406284/bitcoin-slides-below-59000?utm_source=rss&amp;utm_medium=rss",
       "source": "the-block"
     }
   ]
