@@ -4999,7 +4999,47 @@ const TOP_NOTCH_ENTRIES = [
       channel: 'quest-hub', channelName: 'Quest Hub' },
 
     { keys: ['quest hub','quests','daily quests','quiz quest','trivia quest','poll quest','quest tab'],
-      answer: "Quest Hub is your daily mission HQ, {name}! 🎯🦌 It has Quiz, Trivia, Poll, and Raid tabs. Complete all 3 daily quests for a Satoshi's Favor point toward the mining game! Knowledge is power — and sats. 📚⚡",
+      answer: "Quest Hub is your daily mission HQ, {name}! 🎯🦌 It has Quiz, Trivia, Poll, FLEX, Raid, Satoshi's Favor, Charity, and Community tabs — plus Nacho's Nook shop! Complete quests to earn XP, tickets, and sats. Knowledge is power — and sats. 📚⚡",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ["nacho's nook", 'nook', 'shop', 'spend tickets', 'buy streak freeze', 'buy hint token', 'buy double xp', 'buy bonus spin', 'ticket shop', 'orange ticket shop', 'cosmetics shop', 'profile frame', 'chat flair', 'nacho skin', 'pinned badge', 'second rig', 'raffle entry', 'convert xp', 'exchange xp'],
+      answer: "Nacho's Nook is the shop inside Quest Hub, {name}! 🦌🛒 Spend your Orange Tickets on useful stuff: Streak Freezes (protect your login streak), Hint Tokens (eliminate a wrong answer mid-quiz), Double XP (2× XP for 60 min), Bonus Spins (extra wheel spin), or Raffle Entries. There are also cosmetics like Profile Frame (orange glow on your profile), Chat Flair (emoji next to your name in chat), Pinned Badge, Exclusive Nacho Skin, and a Second Mining Rig. You can also convert XP points into tickets! Open Quest Hub → Nook tab. 🎟️",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['weekly leaderboard', 'weekly xp', 'weekly rank', 'this week rank', 'wXP', 'week competition'],
+      answer: "There's a Weekly Leaderboard, {name}! 📅🦌 Every week your XP earned resets and you compete fresh with everyone else. Top of the weekly board = bragging rights + you keep your all-time rank too. Open the Leaderboard and tap the 📅 Weekly tab! 🏆",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['monthly leaderboard', 'monthly xp', 'monthly rank', 'this month rank', 'mXP', 'month competition'],
+      answer: "Monthly Leaderboard tracks XP earned each calendar month, {name}! 📆🦌 Shows your progress against the whole community on a monthly reset. Open the Leaderboard and tap the 📆 Monthly tab. Low time preference — play the long game! 💪",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['community challenge', 'weekly challenge', 'community tab', 'community goal', 'collective goal', 'sf boost', 'satoshi favor boost', 'community hero badge'],
+      answer: "The Community Challenge is a weekly team goal inside Quest Hub → Community tab, {name}! 🌍🦌 Each week there's a collective target — like completing 200 quizzes as a community. When you all hit the goal together, everyone gets a ⚡ Satoshi's Favor speed boost for the rest of the week AND the ⚡ Community Hero badge. Real Bitcoiners cooperate! 🤝",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['double xp', 'double xp charge', 'activate double xp', '2x xp', 'xp multiplier', 'xp boost'],
+      answer: "Double XP activates a 2× XP multiplier for 60 minutes, {name}! 🎯🦌 Every point you earn during that window is doubled. Buy a Double XP Charge from Nacho's Nook (15 tickets), then activate it from your Inventory tab. The countdown widget appears in the corner. Stack them to extend the timer! ⏱️",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['hint token', 'hint', 'quiz hint', 'eliminate answer', 'wrong answer hint'],
+      answer: "Hint Tokens let you eliminate one wrong answer during a quiz, {name}! 💡🦌 Buy them from Nacho's Nook (3 tickets each or 5 for 12 tickets). When you're in a quiz question, tap the 💡 Hint button to instantly zap a wrong choice. Use them on the hard ones! 🧠",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['streak freeze', 'freeze ticket', 'protect streak', 'miss streak', 'streak insurance'],
+      answer: "Streak Freezes protect your daily login streak if you miss a day, {name}! 🧊🦌 Buy them in Nacho's Nook (5 tickets for 1, or 12 for 3). They auto-activate when you miss a login day — no manual action needed. Great for travel or busy weekends. Your streak stays alive! 🔥",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['bonus spin', 'extra spin', 'additional spin', 'spin again'],
+      answer: "Bonus Spins let you spin the Daily Wheel an extra time beyond your daily free spin, {name}! 🎰🦌 Buy them from Nacho's Nook (5 tickets). Activate from Inventory → tap Use. The wheel opens immediately. Spin for more tickets, XP, or rare drops! 🎡",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['hash booster', 'second rig', 'satoshi favor boost', 'extra hashes', 'mining boost', 'more hashes'],
+      answer: "Hash Boosters give you +10 bonus hashes in the next Satoshi's Favor mining round, {name}! ⛏️🦌 A Second Mining Rig (cosmetic, 25 tickets) gives you an extra rig icon on the miner overlay. Buy Hash Boosters from Nacho's Nook (10 tickets each), activate from Inventory when a mining window opens. More hashes = better odds at the 21,000 sat prize! 💰",
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+
+    { keys: ['raffle', 'sats raffle', 'raffle entry', 'raffle ticket', 'win sats raffle'],
+      answer: "Raffle Entries buy you a ticket into the Sats Raffle, {name}! 🎫🦌 Purchase from Nacho's Nook (10 tickets per entry). The more entries you hold, the better your chances. Raffle draws are announced in Global Chat. May the odds be ever in your hooves! 🦌🍀",
       channel: 'quest-hub', channelName: 'Quest Hub' },
 
     { keys: ['xp system','experience points','how xp works','earn xp','xp explained','what is xp'],

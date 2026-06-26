@@ -90,7 +90,7 @@
     </ul>
     <p>If you register with an email address, a verification magic link will be sent to your inbox. Nostr sign-in requires a NIP-07 compatible browser extension (Alby, nos2x). Lightning sign-in uses LNURL-auth — scan a QR code with a compatible Lightning wallet. Accounts that violate these terms may be suspended or deleted.</p>
 
-    <h2>4. Orange Tickets & Referral Program</h2>
+    <h2>4. Orange Tickets, Referral Program & Nacho's Nook</h2>
     <ul>
         <li>Orange Tickets are earned through daily logins (+1 ticket), spinning the daily wheel, and verified referrals</li>
         <li>Each Orange Ticket also awards 5 bonus points toward your rank</li>
@@ -100,13 +100,25 @@
         <li>Tickets have no monetary value and cannot be sold, traded, or transferred</li>
         <li>We reserve the right to modify the ticket and referral system at any time</li>
     </ul>
+    <h2>4a. Nacho's Nook Shop</h2>
+    <ul>
+        <li>Nacho's Nook is an in-app shop inside Quest Hub where signed-in, non-anonymous users may spend Orange Tickets on virtual items</li>
+        <li>Consumable items include: Streak Freezes (protect daily login streak), Hint Tokens (eliminate a wrong answer in quizzes), Double XP Charges (2× XP multiplier for 60 minutes), Bonus Spins (extra daily wheel spin), and Raffle Entries</li>
+        <li>Cosmetic items include: Profile Frame (orange glow on rank card and profile), Chat Flair (emoji badge in Global Chat), Pinned Badge, Exclusive Nacho Skin, and Second Mining Rig</li>
+        <li>All purchases are processed server-side via atomic Firebase transactions — ticket deductions and item grants happen in a single database operation</li>
+        <li>XP points may be converted to Orange Tickets at a rate defined in-app (subject to a daily conversion limit)</li>
+        <li>All shop items are virtual and have no monetary value. They cannot be refunded, transferred, or exchanged for real currency or Bitcoin</li>
+        <li>Cosmetic items are one-time purchases per account; attempting to purchase an already-owned cosmetic is rejected server-side</li>
+        <li>We reserve the right to change item availability, costs, or effects at any time</li>
+    </ul>
 
     <h2>5. Points, Badges & Ranking</h2>
     <ul>
         <li>Points are earned through site visits, reading channels, completing quests, earning badges, earning tickets, trivia, community participation, Global Chat engagement, DJ broadcasts, and tune-ins</li>
-        <li>There are visible goal badges (including chat and DJ categories) and hidden secret badges with point values ranging from 10 to 1,000</li>
+        <li>There are visible goal badges (including chat, DJ, discovery, trails, PVP, music, social, streaks, Nacho, marketplace, and prediction categories) and hidden secret badges with point values ranging from 10 to 1,000</li>
         <li>Ranks range from Normie (0 pts) to Satoshi (21,000 pts)</li>
-        <li>Leaderboard rankings are public and display your chosen username and online status</li>
+        <li>Leaderboard rankings are public and display your chosen username and online status. Three leaderboard periods are available: All-Time, Weekly (resets every Monday), and Monthly (resets on the 1st of each month)</li>
+        <li>Weekly and Monthly leaderboards track XP earned during that period only; all-time XP is never reduced</li>
         <li>Points are awarded through server-side Cloud Functions with a <strong>500 point daily cap</strong> enforced via atomic database transactions — client-side manipulation is not possible</li>
         <li>Attempting to manipulate points through automated tools, scripts, browser console commands, or exploits is prohibited and will be detected</li>
         <li>We reserve the right to reset points or remove accounts engaged in abuse</li>
@@ -310,6 +322,15 @@
         <li>Faction affiliation (Cyber Hornets or Honey Badgers) is recorded against all donations for community leaderboard purposes, even when a user donates anonymously. Only the username is hidden for anonymous donations</li>
         <li>The community votes on which charities receive pledged funds. Operators reserve final discretion over charity selection and disbursement timing</li>
         <li>We make no guarantee regarding the timing, amount, or recipients of charity disbursements</li>
+    </ul>
+
+    <h2>12a. Weekly Community Challenge</h2>
+    <ul>
+        <li>The Community Challenge is a weekly team-wide goal accessible via Quest Hub → Community tab</li>
+        <li>All users contribute to shared progress counters (e.g., total quizzes completed by the community this week)</li>
+        <li>When all goals are met, participants earn the ⚡ Community Hero badge and a Satoshi's Favor speed boost for the remainder of the week</li>
+        <li>Community challenges reset weekly and are seeded by administrators</li>
+        <li>Progress is tracked server-side and is non-manipulable from the client</li>
     </ul>
 
     <h2>13. PVP Mode (Competitive Quizzes)</h2>

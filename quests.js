@@ -1958,6 +1958,9 @@ async function submitQuest() {
         // Mark quiz done for the day and check if all 3 daily activities complete
         _markDailyActivity('quiz');
         _checkDailyAllThree();
+        // Signal onboarding quest step 4 (quiz completion)
+        try { localStorage.setItem('onboarding_quiz_done', '1'); } catch(e) {}
+        try { window.dispatchEvent(new CustomEvent('onboarding_quiz_done')); } catch(e) {}
         // Weekly community challenge: increment quiz_completions
         if (typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             try {
