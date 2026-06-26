@@ -41,10 +41,20 @@
     }
 
     // Effective hash rate per minute (may be boosted by streak or weekly boost)
+    // Community heat bonus: +1 hash/min per 1000 community hashes, capped at +10
+    function _sfCommunityHeatBonus() {
+        return Math.min(10, Math.floor((_sfTotalHashes || 0) / 1000));
+    }
+
     function _sfEffectiveRate() {
-        if (window._sfBoostActive) return 20; // community boost
-        if (_sfGetStreak() >= 3) return 15;   // streak boost
-        return HASHES_PER_MINUTE;
+        var base = HASHES_PER_MINUTE;
+        // Streak boost: +5 flat
+        if (_sfGetStreak() >= 3) base = 15;
+        // Community-wide 2x boost: doubles the base (applied before heat stacking)
+        if (window._sfBoostActive) base = base * 2;
+        // Community heat bonus: +1 per 1000 hashes, caps at +10 (stacks additively)
+        base += _sfCommunityHeatBonus();
+        return base;
     }
 
     // Feature 4: Community heat meter state
@@ -427,20 +437,46 @@
     }
 
     // ─── Feature 4: Community heat meter HTML ───
+    // Heat tiers: every 1,000 hashes = +1 hash/min for ALL users (caps at 10,000 = +10)
     function _buildHeatMeterHTML() {
         var total = _sfTotalHashes || 0;
-        var MAX_HEAT = 500;
+        var MAX_HEAT = 10000;
         var pct = Math.min(100, (total / MAX_HEAT) * 100);
-        var color = total < 100 ? '#3b82f6' : total < 300 ? '#f7931a' : '#ef4444';
-        var emoji = total < 100 ? '🌡️' : total < 300 ? '🔥' : '🚨';
-        var bar = '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:6px;">' +
-            '<div style="height:100%;width:' + pct.toFixed(1) + '%;background:' + color + ';border-radius:4px;transition:width 0.5s;"></div>' +
+        var bonus = Math.min(10, Math.floor(total / 1000));
+
+        // Color gradient: blue → orange → red → deep crimson as heat climbs
+        var color;
+        if      (total <  1000) color = '#3b82f6';          // cool blue
+        else if (total <  2000) color = '#f59e0b';          // amber
+        else if (total <  3000) color = '#f97316';          // orange
+        else if (total <  4000) color = '#ef4444';          // red
+        else if (total <  6000) color = '#dc2626';          // deep red
+        else if (total <  8000) color = '#b91c1c';          // darker red
+        else                    color = '#7f1d1d';          // near-black crimson
+
+        var emoji = total < 1000 ? '🌡️' : total < 3000 ? '🔥' : total < 6000 ? '🔥🔥' : '🚨🔥';
+
+        var bonusLabel = bonus > 0
+            ? '<span style="font-size:0.72rem;color:' + color + ';font-weight:800;">+' + bonus + ' bonus hashes/min</span>'
+            : '<span style="font-size:0.72rem;color:var(--text-faint);">1,000 community hashes = +1/min for everyone</span>';
+
+        var nextTier = bonus < 10 ? ((bonus + 1) * 1000) : null;
+        var nextLabel = nextTier
+            ? '<span style="font-size:0.68rem;color:var(--text-faint);">Next: +' + (bonus + 1) + '/min @ ' + nextTier.toLocaleString() + ' hashes</span>'
+            : '<span style="font-size:0.68rem;color:#22c55e;font-weight:700;">🏆 MAX HEAT — +10/min!</span>';
+
+        var bar = '<div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;margin-top:6px;position:relative;">' +
+            '<div style="height:100%;width:' + pct.toFixed(1) + '%;background:' + color + ';border-radius:5px;transition:width 0.6s;box-shadow:0 0 ' + (bonus * 2) + 'px ' + color + ';"></div>' +
             '</div>';
-        return '<div id="sfHeatMeter" style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;">' +
+
+        return '<div id="sfHeatMeter" style="padding:10px 12px;background:var(--card-bg);border:1px solid ' + (bonus > 0 ? color : 'var(--border)') + ';border-radius:10px;margin-bottom:10px;transition:border-color 0.5s;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;">' +
             '<span style="font-size:0.8rem;font-weight:700;color:var(--heading);">' + emoji + ' Community Heat</span>' +
-            '<span style="font-size:0.78rem;color:' + color + ';font-weight:800;">' + total.toLocaleString() + ' hashes</span>' +
+            '<span style="font-size:0.78rem;color:' + color + ';font-weight:800;">' + total.toLocaleString() + ' / 10,000</span>' +
             '</div>' + bar +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;">' +
+            bonusLabel + nextLabel +
+            '</div>' +
             '</div>';
     }
 
@@ -465,9 +501,7 @@
         overlay.onclick = (e) => { if (e.target === overlay) window.closeSatoshiFavorMiner(); };
 
         // Determine effective hash rate
-        var streak = _sfGetStreak();
-        var streakBoostActive = window._sfStreakBoostThisWindow;
-        var effectiveRateDisplay = streakBoostActive ? 15 : (window._sfBoostActive ? 20 : HASHES_PER_MINUTE);
+        var effectiveRateDisplay = _sfEffectiveRate();
 
         // Second rig buttons HTML
         var hashBtnsHTML = hasSecondRig
@@ -501,8 +535,8 @@
             _buildStreakIndicatorHTML() +
             // Feature 4: Heat meter
             _buildHeatMeterHTML() +
-            '<div style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
-            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you win <strong style="color:var(--accent);">21,000 sats!</strong> That\'s a 1 in 3,333 chance per hash (~0.03%). You get ' + effectiveRateDisplay + ' hashes per minute.' +
+            '<div id="sfRateInfoBox" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
+            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you win <strong style="color:var(--accent);">21,000 sats!</strong> That\'s a 1 in 3,333 chance per hash (~0.03%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
@@ -656,6 +690,9 @@
         if (!el) return;
         _sfTotalHashes++;
         el.outerHTML = _buildHeatMeterHTML();
+        // Also refresh the rate display in the info box (heat bonus may have ticked up)
+        var rateEl = document.getElementById('sfRateInfoNum');
+        if (rateEl) rateEl.textContent = _sfEffectiveRate();
     }
 
     // ─── Feature 7A: Winner overlay ───
@@ -820,10 +857,8 @@
                 _checkNearMissUnlucky(value);
             }
 
-            // Feature 4: Update heat meter display
-            _sfTotalHashes++;
-            var heatEl = document.getElementById('sfHeatMeter');
-            if (heatEl) heatEl.outerHTML = _buildHeatMeterHTML();
+            // Feature 4: Update heat meter display (also refreshes rate info)
+            _updateHeatMeterDisplay();
 
             loadRecentHashes();
 
@@ -845,11 +880,10 @@
 
         if (window._sfCooldownTimer) clearInterval(window._sfCooldownTimer);
 
-        var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
-        var effectiveRate = _sfEffectiveRate();
-
         const update = () => {
             const now2 = Date.now();
+            // Read fresh each tick — heat bonus may have changed
+            var effectiveRate = _sfEffectiveRate();
 
             // Rig 1
             if (el) {
