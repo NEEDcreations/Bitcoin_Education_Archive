@@ -5213,7 +5213,7 @@ const NOOK_SHOP_ITEMS = {
     'raffle_entry':     { cost: 10, type: 'raffle',     name: 'Sats Raffle Entry',       gives: { raffleEntries: 1 } },
     'streak_freeze_3':  { cost: 12, type: 'consumable', name: '3× Streak Freezes',      gives: { streakFreezes: 3 } },
     'hint_token_5':     { cost: 12, type: 'consumable', name: '5× Hint Tokens',         gives: { hintTokens: 5 } },
-    'second_rig':       { cost: 25, type: 'cosmetic',   name: 'Second Mining Rig',       gives: { cosmetics: 'second_rig' } },
+    'second_rig':       { cost: 25, type: 'consumable', name: 'Second Mining Rig',       gives: { secondRigCharges: 1 } },
 };
 
 exports.spendTickets = functions.https.onCall(async (data, context) => {
@@ -5248,8 +5248,8 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
                 `Not enough tickets. Have ${currentTickets}, need ${totalCost}.`);
         }
 
-        // Cosmetics: check not already owned
-        if (item.type === 'cosmetic') {
+        // Cosmetics: check not already owned (second_rig is renewable, skip check for it)
+        if (item.type === 'cosmetic' && item.gives.cosmetics) {
             const owned = userData.ownedCosmetics || [];
             if (owned.includes(item.gives.cosmetics)) {
                 throw new functions.https.HttpsError('already-exists', 'You already own this item.');
@@ -5268,9 +5268,10 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
         if (g.hashBoosters)   update.hashBoosters   = admin.firestore.FieldValue.increment(g.hashBoosters * qty);
         if (g.hintTokens)     update.hintTokens     = admin.firestore.FieldValue.increment(g.hintTokens);
         if (g.doubleXP)       update.doubleXPCharges = admin.firestore.FieldValue.increment(g.doubleXP * qty);
-        if (g.bonusSpins)     update.bonusSpins     = admin.firestore.FieldValue.increment(g.bonusSpins * qty);
-        if (g.raffleEntries)  update.raffleEntries  = admin.firestore.FieldValue.increment(g.raffleEntries * qty);
-        if (g.cosmetics)      update.ownedCosmetics = admin.firestore.FieldValue.arrayUnion(g.cosmetics);
+        if (g.bonusSpins)        update.bonusSpins        = admin.firestore.FieldValue.increment(g.bonusSpins * qty);
+        if (g.raffleEntries)     update.raffleEntries     = admin.firestore.FieldValue.increment(g.raffleEntries * qty);
+        if (g.secondRigCharges)  update.secondRigCharges  = admin.firestore.FieldValue.increment(g.secondRigCharges * qty);
+        if (g.cosmetics)         update.ownedCosmetics    = admin.firestore.FieldValue.arrayUnion(g.cosmetics);
 
         tx.update(userRef, update);
 
@@ -5303,9 +5304,10 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
             hashBoosters:   (userData.hashBoosters   || 0) + (g.hashBoosters   ? g.hashBoosters * qty   : 0),
             hintTokens:     (userData.hintTokens     || 0) + (g.hintTokens     ? g.hintTokens           : 0),
             doubleXPCharges:(userData.doubleXPCharges|| 0) + (g.doubleXP       ? g.doubleXP * qty       : 0),
-            bonusSpins:     (userData.bonusSpins     || 0) + (g.bonusSpins     ? g.bonusSpins * qty     : 0),
-            raffleEntries:  (userData.raffleEntries  || 0) + (g.raffleEntries  ? g.raffleEntries * qty  : 0),
-            ownedCosmetics: g.cosmetics ? [...(userData.ownedCosmetics || []), g.cosmetics] : (userData.ownedCosmetics || []),
+            bonusSpins:       (userData.bonusSpins       || 0) + (g.bonusSpins       ? g.bonusSpins * qty       : 0),
+            raffleEntries:    (userData.raffleEntries    || 0) + (g.raffleEntries    ? g.raffleEntries * qty    : 0),
+            secondRigCharges: (userData.secondRigCharges || 0) + (g.secondRigCharges ? g.secondRigCharges * qty : 0),
+            ownedCosmetics:   g.cosmetics ? [...(userData.ownedCosmetics || []), g.cosmetics] : (userData.ownedCosmetics || []),
         };
 
         return {

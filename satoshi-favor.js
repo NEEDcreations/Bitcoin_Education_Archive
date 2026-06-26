@@ -374,6 +374,7 @@
         if (minerCountdownInterval) clearInterval(minerCountdownInterval);
         if (window._sfCooldownTimer) clearInterval(window._sfCooldownTimer);
         if (window.closeSatoshiFavorMiner._toastTimer) clearTimeout(window.closeSatoshiFavorMiner._toastTimer);
+        window._sfSecondRigChargeConsumed = false; // reset per-session flag
         // Reopen Quest Hub if we came from there
         if (window._qhReopenOnMinerClose) {
             window._qhReopenOnMinerClose = false;
@@ -439,7 +440,7 @@
 
     function showMinerModal() {
         var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
-        var hasSecondRig = u.ownedCosmetics && u.ownedCosmetics.indexOf('second_rig') !== -1;
+        var hasSecondRig = (u.secondRigCharges || 0) > 0;
         var boosterHashes = u.hashBoosterHashes || 0;
 
         const overlay = document.createElement('div');
@@ -700,7 +701,7 @@
 
         var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
         var boosterHashes = u.hashBoosterHashes || 0;
-        var hasSecondRig = u.ownedCosmetics && u.ownedCosmetics.indexOf('second_rig') !== -1;
+        var hasSecondRig = (u.secondRigCharges || 0) > 0;
 
         // Use appropriate timestamps array for the rig
         var timestamps = rig === 2 ? hashTimestamps2 : hashTimestamps;
@@ -753,6 +754,20 @@
 
             // Record timestamp for this rig
             if (rig === 2) hashTimestamps2.push(Date.now()); else hashTimestamps.push(Date.now());
+
+            // Consume one Second Rig charge on first use per session
+            if (rig === 2 && !window._sfSecondRigChargeConsumed) {
+                window._sfSecondRigChargeConsumed = true;
+                if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    db.collection('users').doc(auth.currentUser.uid).update({
+                        secondRigCharges: firebase.firestore.FieldValue.increment(-1)
+                    }).then(function() {
+                        if (typeof currentUser !== 'undefined' && currentUser && currentUser.secondRigCharges > 0) {
+                            currentUser.secondRigCharges = currentUser.secondRigCharges - 1;
+                        }
+                    }).catch(function() {});
+                }
+            }
 
             // Feature 1: track myHashCount for streak
             sfState.myHashCount++;

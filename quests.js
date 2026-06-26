@@ -3037,14 +3037,15 @@ function _nookBuyItem(itemId, qty, btnEl) {
                     if (inv.hintTokens      !== undefined) currentUser.hintTokens      = inv.hintTokens;
                     if (inv.doubleXPCharges !== undefined) currentUser.doubleXPCharges = inv.doubleXPCharges;
                     if (inv.bonusSpins      !== undefined) currentUser.bonusSpins      = inv.bonusSpins;
-                    if (inv.raffleEntries   !== undefined) currentUser.raffleEntries   = inv.raffleEntries;
-                    if (inv.ownedCosmetics  !== undefined) currentUser.ownedCosmetics  = inv.ownedCosmetics;
+                    if (inv.raffleEntries      !== undefined) currentUser.raffleEntries      = inv.raffleEntries;
+                    if (inv.secondRigCharges   !== undefined) currentUser.secondRigCharges   = inv.secondRigCharges;
+                    if (inv.ownedCosmetics     !== undefined) currentUser.ownedCosmetics     = inv.ownedCosmetics;
                 }
             }
             if (typeof updateRankUI === 'function') updateRankUI();
             if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' 🎟️');
             // Cosmetic post-purchase effects
-            var _cosmeticIds = ['profile_frame','chat_flair','pinned_badge','nacho_skin_nook'];
+            var _cosmeticIds = ['profile_frame','chat_flair','pinned_badge','nacho_skin_nook','second_rig'];
             if (_cosmeticIds.indexOf(itemId) !== -1 && typeof window._cosmeticPostPurchase === 'function') {
                 window._cosmeticPostPurchase(itemId);
             }
@@ -3149,11 +3150,11 @@ function _renderNookShop() {
     // ─── Mining Upgrades ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── ⛏️ Mining Upgrades ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
-    var rigOwned = ownedCosmetics.indexOf('second_rig') !== -1;
-    var rigBtnHtml = rigOwned
-        ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>'
-        : buyBtn('second_rig', 25, 1, 'Buy');
-    html += itemRow('⚡', 'Second Mining Rig', 'Doubles your hashing power with a second independent mining rig.', 25, rigBtnHtml);
+    var rigCharges = u.secondRigCharges || 0;
+    var rigBtnHtml = (rigCharges > 0
+        ? '<span style="font-size:0.72rem;color:#22c55e;font-weight:700;margin-right:6px;">' + rigCharges + ' charge' + (rigCharges !== 1 ? 's' : '') + ' left</span>'
+        : '') + buyBtn('second_rig', 25, 1, 'Buy');
+    html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window — buy more charges to keep it active.', 25, rigBtnHtml);
     html += '</div>';
 
     // ─── Cosmetics ───
@@ -3234,6 +3235,7 @@ function _renderNookInventory() {
     var doubleXPCharges = u.doubleXPCharges || 0;
     var bonusSpins = u.bonusSpins || 0;
     var raffleEntries = u.raffleEntries || 0;
+    var secondRigCharges = u.secondRigCharges || 0;
     var ownedCosmetics = u.ownedCosmetics || [];
 
     // Double XP active countdown
@@ -3293,6 +3295,11 @@ function _renderNookInventory() {
         '',
         'Winner announced on the 1st of each month!');
 
+    // Second Rig charges
+    html += invRow('⚡', 'Second Mining Rig', secondRigCharges,
+        '',
+        'Each charge unlocks Hash #2 for one SF mining window.');
+
     html += '</div>';
 
     // Cosmetics
@@ -3323,7 +3330,7 @@ function _renderNookInventory() {
         html += '</div>';
     }
 
-    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && bonusSpins === 0 && raffleEntries === 0 && ownedCosmetics.length === 0) {
+    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
         html = '<div style="text-align:center;padding:32px 20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">Your inventory is empty.</div>' +
@@ -7531,7 +7538,8 @@ window._cosmeticPostPurchase = function(itemId) {
         'profile_frame': 'Your profile now has an orange glow! Visible on your leaderboard card.',
         'chat_flair': 'Your messages in Global Chat now show a flair badge next to your name!',
         'pinned_badge': 'Go to Inventory \u2192 tap \u201cChoose Badge\u201d to select which badge to pin!',
-        'nacho_skin_nook': 'You\'re now a golden Nacho! Visible in chat and on your profile card \uD83E\uDD8C'
+        'nacho_skin_nook': 'You\'re now a golden Nacho! Visible in chat and on your profile card \uD83E\uDD8C',
+        'second_rig': '\u26a1 Rig charge added! Open the Satoshi\u2019s Favor miner and tap Hash #2. Charge is consumed on first use per window.'
     };
     var tip = tips[itemId];
     if (tip) {
