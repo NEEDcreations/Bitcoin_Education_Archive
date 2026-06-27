@@ -14993,8 +14993,9 @@ function _nookBuyItem(itemId, qty, btnEl) {
             if (typeof updateRankUI === 'function') updateRankUI();
             if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' 🎟️');
             // Cosmetic post-purchase effects
-            var _cosmeticIds = ['profile_frame','chat_flair','pinned_badge','nacho_skin_nook','second_rig'];
-            if (_cosmeticIds.indexOf(itemId) !== -1 && typeof window._cosmeticPostPurchase === 'function') {
+            // second_rig is consumable (not cosmetic) but still gets a purchase tip toast
+            var _postPurchaseTipIds = ['profile_frame','chat_flair','pinned_badge','nacho_skin_nook','second_rig'];
+            if (_postPurchaseTipIds.indexOf(itemId) !== -1 && typeof window._cosmeticPostPurchase === 'function') {
                 window._cosmeticPostPurchase(itemId);
             }
             // Re-render nook to reflect new balance/inventory
@@ -15258,7 +15259,7 @@ function _renderNookInventory() {
             chat_flair:    { icon:'💬', name:'Chat Flair' },
             pinned_badge:  { icon:'📌', name:'Pinned Badge' },
             nacho_skin_nook: { icon:'🦌', name:'Exclusive Nacho Skin' },
-            second_rig:     { icon:'⚡', name:'Second Mining Rig' },
+            second_rig:     { icon:'⚡', name:'Second Mining Rig (legacy)' },
         };
         html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">Cosmetics Owned</div>';
         html += '<div style="display:flex;flex-direction:column;gap:6px;">';
