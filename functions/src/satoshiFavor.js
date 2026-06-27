@@ -587,6 +587,21 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
     const effectiveEnd = favorEndBase + bonusMs;
 
     if (now > effectiveEnd) {
+      // Archive last window stats before resetting
+      try {
+        const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
+        await lastWindowRef.set({
+          cycleId: stateData.currentCycleId || null,
+          startedAt: stateData.favorStart || null,
+          endedAt: admin.firestore.Timestamp.now(),
+          durationMinutes: Math.round((effectiveEnd - (stateData.favorStart ? stateData.favorStart.toMillis() : effectiveEnd)) / 60000),
+          totalHashes: stateData.totalHashes || 0,
+          lowestHash: stateData.lowestHashThisWindow || null,
+          archivedAt: admin.firestore.Timestamp.now(),
+        }, { merge: false });
+      } catch (e) {
+        console.warn('[FAVOR] checkFavorState lastWindow archive failed:', e.message);
+      }
       // Reset
       const resetData = {
         points: 0,
@@ -594,6 +609,8 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
         favorStart: null,
         favorEndBase: null,
         bonusMinutes: 0,
+        totalHashes: 0,
+        lowestHashThisWindow: null,
         lastReset: admin.firestore.Timestamp.now(),
         currentCycleId: stateData.currentCycleId || null,
       };

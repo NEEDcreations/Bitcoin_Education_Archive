@@ -2743,6 +2743,12 @@ function _loadLastSFWindow() {
         var totalH = d.totalHashes || 0;
         var lowestH = d.lowestHash != null ? d.lowestHash.toLocaleString() : '—';
         var durMin = d.durationMinutes || 0;
+        var hadWinner = d.lowestHash != null && d.lowestHash < 30000;
+        var winnerName = d.winner ? d.winner.username : (hadWinner ? 'Unknown' : null);
+        var lowestColor = hadWinner ? '#f7931a' : '#22c55e';
+        var winnerBanner = hadWinner
+            ? '<div style="margin-top:8px;padding:8px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,179,8,0.08));border:1px solid rgba(247,147,26,0.4);border-radius:8px;display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem">🏆</span><span style="font-size:0.75rem;font-weight:700;color:#f7931a;">Winner: @' + escapeHtml(winnerName) + ' — ' + (d.lowestHash || 0).toLocaleString() + '</span></div>'
+            : '<div style="margin-top:8px;padding:6px 10px;background:var(--bg-side);border-radius:8px;font-size:0.72rem;color:var(--text-faint);text-align:center;">No winner this window (target: &lt;30,000)</div>';
         el.innerHTML =
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
                 '<div style="background:var(--bg-side);border-radius:8px;padding:8px;text-align:center;">' +
@@ -2750,10 +2756,11 @@ function _loadLastSFWindow() {
                     '<div style="font-size:0.65rem;color:var(--text-faint);">Total Hashes</div>' +
                 '</div>' +
                 '<div style="background:var(--bg-side);border-radius:8px;padding:8px;text-align:center;">' +
-                    '<div style="font-size:1.2rem;font-weight:900;color:#22c55e;">' + lowestH + '</div>' +
+                    '<div style="font-size:1.2rem;font-weight:900;color:' + lowestColor + ';">' + lowestH + '</div>' +
                     '<div style="font-size:0.65rem;color:var(--text-faint);">Lowest Hash</div>' +
                 '</div>' +
             '</div>' +
+            winnerBanner +
             '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);">' +
                 '\u23F1\uFE0F ' + durMin + ' min window · ended ' + dateStr + ' ' + timeStr +
             '</div>';
