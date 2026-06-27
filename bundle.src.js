@@ -13842,6 +13842,16 @@ async function submitQuest() {
         }
     }
 
+    // Always log quiz attempt (regardless of score), so "completions today" reflects actual attempts
+    var todayQ = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+    var qLog = safeJSON('btc_quest_daily', {});
+    if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
+    qLog.count++;
+    qLog.lastScore = score;
+    qLog.lastTopic = currentQuest.topicKey || null;
+    qLog.lastTitle = currentQuest.title || null;
+    localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
+
     if (pts > 0) {
         // Points already awarded server-side by gradeQuest
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
@@ -13850,14 +13860,6 @@ async function submitQuest() {
         // Raid Boss: quiz completion
         if (typeof window._raidOnQuizComplete === 'function') window._raidOnQuizComplete();
         if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(pts);
-        var todayQ = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
-        var qLog = safeJSON('btc_quest_daily', {});
-        if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
-        qLog.count++;
-        qLog.lastScore = score;
-        qLog.lastTopic = currentQuest.topicKey || null;
-        qLog.lastTitle = currentQuest.title || null;
-        localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
 
         // Mark quiz done for the day and check if all 3 daily activities complete
         _markDailyActivity('quiz');
@@ -15981,8 +15983,8 @@ function _renderTriviaTab(body) {
         for (var li = 0; li < t.options.length; li++) {
             html = html.replace('id="triviaPct_' + li + '" style="', 'id="triviaPct_' + li + '" style="');
         }
-        // Read from cumulative doc (all-time totals for this question)
-        db.collection('trivia_cumulative').doc('t_' + today.index).get().then(function(doc) {
+        // Read from today's stats doc (daily totals only, resets each day)
+        db.collection('trivia_stats').doc(todayKey).get().then(function(doc) {
             var stats = doc.exists ? doc.data() : {};
             var total = stats.total || 0;
             if (total < 1) {
@@ -16001,9 +16003,9 @@ function _renderTriviaTab(body) {
                 if (barEl) barEl.style.width = pct + '%';
                 if (pctEl) pctEl.textContent = pct + '% (' + count + ')';
             }
-            // Update total count
+            // Update total count — show today's total, not all-time
             var totEl = document.getElementById('triviaTotalVotes');
-            if (totEl) totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' all time';
+            if (totEl) totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' today';
         }).catch(function() {});
     }
 
@@ -16204,24 +16206,17 @@ function _showPollVoteButtons(body, html, p) {
 }
 
 function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
-    // Read from cumulative doc (all-time totals for this question)
+    // Read from today's day-scoped doc (resets each day — shows today's votes only)
     if (typeof db !== 'undefined' && poll.id) {
-        db.collection('poll_cumulative').doc(poll.id).get().then(function(doc) {
+        var pollId = poll.id + '_' + todayKey;
+        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
             if (doc.exists) {
                 var d = doc.data();
-                var votes = poll.options.map(function(_, i) { return d['option_' + i] || 0; });
-                var total = d.total || votes.reduce(function(a, b) { return a + b; }, 0) || 1;
+                var votes = d.votes || poll.options.map(function() { return 0; });
+                var total = votes.reduce(function(a, b) { return a + b; }, 0) || 1;
                 _drawPollResults(body, htmlPrefix, poll, votes, total, state.chosen);
             } else {
-                // Cumulative doc not yet seeded — fall back to today's doc
-                var pollId = poll.id + '_' + todayKey;
-                db.collection('poll_votes').doc(pollId).get().then(function(doc2) {
-                    var votes2 = doc2.exists ? (doc2.data().votes || []) : [];
-                    var total2 = votes2.reduce(function(a, b) { return a + b; }, 0) || 1;
-                    _drawPollResults(body, htmlPrefix, poll, votes2, total2, state.chosen);
-                }).catch(function() {
-                    _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
-                });
+                _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
             }
         }).catch(function() {
             _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
@@ -16269,7 +16264,7 @@ function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
         '</div>';
     }
     html += '</div>';
-    html += '<div style="text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;">' + total.toLocaleString() + ' total vote' + (total !== 1 ? 's' : '') + ' all time · Come back tomorrow for a new poll!</div>';
+    html += '<div style="text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;">' + total.toLocaleString() + ' total vote' + (total !== 1 ? 's' : '') + ' today · Come back tomorrow for a new poll!</div>';
     body.innerHTML = html;
 }
 
