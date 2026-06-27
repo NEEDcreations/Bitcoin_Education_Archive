@@ -15177,6 +15177,39 @@ function _renderNookShop() {
 function _renderNookInventory() {
     var el = document.getElementById('nookTabContent');
     if (!el) return;
+
+    // Always fetch fresh inventory from Firestore so server-side grants/migrations show immediately
+    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous)
+        ? auth.currentUser.uid : null;
+    if (uid && typeof db !== 'undefined' && !window._nookInvRefreshing) {
+        window._nookInvRefreshing = true;
+        el.innerHTML = '<div style="text-align:center;padding:32px 20px;color:var(--text-muted);font-size:0.8rem;">⏳ Fetching inventory...</div>';
+        db.collection('users').doc(uid).get().then(function(doc) {
+            window._nookInvRefreshing = false;
+            if (doc.exists && typeof currentUser !== 'undefined' && currentUser) {
+                var fresh = doc.data();
+                // Sync all inventory fields from server into currentUser
+                var invFields = ['streakFreezes','hintTokens','hashBoosters','doubleXPCharges','bonusSpins',
+                    'raffleEntries','secondRigCharges','ownedCosmetics','orangeTickets','doubleXPExpiry'];
+                invFields.forEach(function(f) {
+                    if (fresh[f] !== undefined) currentUser[f] = fresh[f];
+                    else if (currentUser[f] === undefined) currentUser[f] = null;
+                });
+            }
+            var el2 = document.getElementById('nookTabContent');
+            if (el2) _renderNookInventoryContent(el2);
+        }).catch(function() {
+            window._nookInvRefreshing = false;
+            var el2 = document.getElementById('nookTabContent');
+            if (el2) _renderNookInventoryContent(el2);
+        });
+        return;
+    }
+    window._nookInvRefreshing = false;
+    _renderNookInventoryContent(el);
+}
+
+function _renderNookInventoryContent(el) {
     var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
 
     var freezes = u.streakFreezes || 0;
