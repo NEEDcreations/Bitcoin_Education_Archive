@@ -793,22 +793,24 @@
         // Feature 1+6: Effective rate (streak boost or community boost)
         var effectiveRate = _sfEffectiveRate();
 
-        // Feature 6: Also include booster hashes — each booster hash is an extra allowed call
-        // Booster hashes tracked server-side (hashBoosterHashes), we just allow the extra calls
-        // The CF does not enforce a separate booster check — it shares the rate window.
-        // We track boosterHashes usage locally; actual consumption tracked on Firestore by separate mechanism.
+        // Feature 6: Booster hashes bypass the cooldown entirely.
+        // When boosterHashes > 0, skip the rate-limit check — server will also skip it and decrement.
+        // Once exhausted, cooldown resumes as normal.
         var now60 = Date.now();
         var allTs = (rig === 2) ? hashTimestamps2 : hashTimestamps;
         allTs = allTs.filter(function(t) { return now60 - t < HASH_WINDOW_MS; });
         if (rig === 2) hashTimestamps2 = allTs; else hashTimestamps = allTs;
 
-        var allowedThisWindow = effectiveRate + (boosterHashes > 0 ? boosterHashes : 0);
-        if (allTs.length >= allowedThisWindow) {
-            var oldest = allTs[0];
-            var waitMs = HASH_WINDOW_MS - (now60 - oldest);
-            showToast((rig === 2 ? 'Rig 2 rate limit: ' : 'Rate limit: ') + Math.ceil(waitMs / 1000) + 's ('+effectiveRate+'/min)');
-            return;
+        if (boosterHashes <= 0) {
+            // Normal rate limit check
+            if (allTs.length >= effectiveRate) {
+                var oldest = allTs[0];
+                var waitMs = HASH_WINDOW_MS - (now60 - oldest);
+                showToast((rig === 2 ? 'Rig 2 rate limit: ' : 'Rate limit: ') + Math.ceil(waitMs / 1000) + 's ('+effectiveRate+'/min)');
+                return;
+            }
         }
+        // If booster active, skip rate-limit check — server handles decrement
 
         if (btn) { btn.disabled = true; btn.textContent = (rig === 2 ? '⛏️ RIG 2...' : '⛏️ HASHING...'); btn.style.opacity = '0.7'; }
 
@@ -826,6 +828,11 @@
 
             // Record timestamp for this rig
             if (rig === 2) hashTimestamps2.push(Date.now()); else hashTimestamps.push(Date.now());
+
+            // If booster was active, decrement client-side counter so UI stays in sync
+            if (typeof currentUser !== 'undefined' && currentUser && (currentUser.hashBoosterHashes || 0) > 0) {
+                currentUser.hashBoosterHashes = Math.max(0, (currentUser.hashBoosterHashes || 0) - 1);
+            }
 
             // Consume one Second Rig charge on first use per SF window (not just per miner session)
             var _cycleId = (favorState && favorState.currentCycleId) || 'unknown';

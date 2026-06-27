@@ -404,6 +404,19 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   const communityHeatBonus = Math.min(10, Math.floor((stateData.totalHashes || 0) / 1000));
   const effectiveRateLimit = HASHES_PER_MINUTE + communityHeatBonus;
 
+  // Check if user has booster hashes (bypass cooldown)
+  const userRef2 = db.collection('users').doc(uid);
+  const userDocForBooster = await userRef2.get();
+  const boosterHashesAvail = (userDocForBooster.exists && userDocForBooster.data().hashBoosterHashes) || 0;
+  const usingBooster = boosterHashesAvail > 0;
+
+  // If booster active, consume one booster hash (no rate limit check)
+  if (usingBooster) {
+    await userRef2.update({
+      hashBoosterHashes: admin.firestore.FieldValue.increment(-1),
+    });
+  }
+
   const { value, isWinner } = await db.runTransaction(async (transaction) => {
     const cooldownDoc = await transaction.get(cooldownRef);
     let timestamps = [];
@@ -414,22 +427,26 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
         const ms = t.toMillis ? t.toMillis() : t;
         return now - ms < HASH_WINDOW_MS;
       });
-      if (timestamps.length >= effectiveRateLimit) {
-        const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
-        const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
-        throw new functions.https.HttpsError(
-          'resource-exhausted',
-          `Rate limit: ${waitSec}s until next hash (${effectiveRateLimit}/min).`
-        );
-      }
+    }
+
+    // Only enforce rate limit when booster is NOT active
+    if (!usingBooster && timestamps.length >= effectiveRateLimit) {
+      const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
+      const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
+      throw new functions.https.HttpsError(
+        'resource-exhausted',
+        `Rate limit: ${waitSec}s until next hash (${effectiveRateLimit}/min).`
+      );
     }
 
     // Generate random value 0 to 100,000,000
     const val = crypto.randomInt(0, 100000001);
     const winner = val < DIFFICULTY_TARGET;
 
-    // Append timestamp and write cooldown atomically
+    // Always append timestamp (so cooldown tracks correctly after booster runs out)
     timestamps.push(admin.firestore.Timestamp.now());
+    // Cap stored timestamps to avoid unbounded growth
+    if (timestamps.length > effectiveRateLimit + 10) timestamps = timestamps.slice(-effectiveRateLimit - 10);
     transaction.set(cooldownRef, { timestamps });
 
     return { value: val, isWinner: winner };

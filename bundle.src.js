@@ -15096,7 +15096,7 @@ function _renderNookShop() {
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak',5,buyBtn('streak_freeze',5,1,'Buy'));
     html += itemRow('🧊','3× Streak Freezes','Bundle — save 3 tickets',12,buyBtn('streak_freeze_3',12,1,'Bundle'));
-    html += itemRow('⚡','Hash Booster','+10 bonus hashes in your next SF window. Activate from Inventory when a window opens.',10,buyBtn('hash_booster',10,1,'Buy'));
+    html += itemRow('⚡','Hash Booster','+100 instant hashes — no cooldown. Activate from Inventory during an open SF window.',10,buyBtn('hash_booster',10,1,'Buy'));
     html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',3,buyBtn('hint_token',3,1,'Buy'));
     html += itemRow('🧠','5× Hint Tokens','Bundle deal',12,buyBtn('hint_token_5',12,1,'Bundle'));
     html += itemRow('🎯','Double XP (60 min)','2× XP multiplier for 1 hour',15,buyBtn('double_xp',15,1,'Buy'));
@@ -15264,7 +15264,7 @@ function _renderNookInventoryContent(el) {
     // Hash Boosters
     html += invRow('⚡', 'Hash Boosters', hashBoosters,
         '<button onclick="_nookActivateHashBooster(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Activate</button>',
-        'Tap Activate during an open SF window. Each booster = +10 bonus hashes that round.');
+        'Tap Activate during an open SF window. Grants 100 hashes with NO cooldown — hammer away! Normal rate limit resumes after.');
 
     // Hint Tokens
     html += invRow('🧠', 'Hint Tokens', hintTokens,
@@ -15348,7 +15348,7 @@ window._nookActivateHashBooster = function(btnEl) {
                 currentUser.hashBoosters = d.hashBoosters;
                 currentUser.hashBoosterHashes = d.hashBoosterHashes;
             }
-            if (typeof showToast === 'function') showToast('⚡ Hash Booster activated! +10 bonus hashes in the next Satoshi\'s Favor round.');
+            if (typeof showToast === 'function') showToast('⚡ Hash Booster activated! 100 instant hashes ready — no cooldown until they\'re gone!');
             _renderNookSubTabs();
         }
     }).catch(function(err) {

@@ -5579,16 +5579,18 @@ exports.activateHashBooster = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError('failed-precondition', 'No hash boosters available.');
         }
 
-        // Grant +10 bonus hashes (added to hashBoosterHashes budget)
+        // Grant +100 bonus hashes (added to hashBoosterHashes budget)
+        // These bypass the cooldown entirely — user can hash 100x with no rate limit.
+        // Once exhausted, normal cooldown resumes.
         tx.update(userRef, {
             hashBoosters: admin.firestore.FieldValue.increment(-1),
-            hashBoosterHashes: admin.firestore.FieldValue.increment(10),
+            hashBoosterHashes: admin.firestore.FieldValue.increment(100),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
         return {
             success: true,
-            hashBoosterHashes: (userData.hashBoosterHashes || 0) + 10,
+            hashBoosterHashes: (userData.hashBoosterHashes || 0) + 100,
             hashBoosters: hashBoosters - 1,
         };
     });
