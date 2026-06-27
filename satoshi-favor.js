@@ -61,7 +61,7 @@
     var _sfTotalHashes = 0;
 
     // ─── SF CHAT + NEWS ANNOUNCEMENTS ───
-    var SF_ANNOUNCE_DEDUP_MS = 4 * 60 * 60 * 1000; // 4 hours — one announce per SF activation window
+    var SF_ANNOUNCE_DEDUP_MS = 4 * 60 * 60 * 1000; // 4 hours — fallback dedup
     function _nachoSFAnnounce(type) {
         if (typeof db === 'undefined' || !db) return;
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
@@ -72,18 +72,31 @@
         var msg = type === 'start'
             ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to win 21,000 sats! ⚡🦌"
             : "⏱️ **Satoshi's Favor has ended.** The mining window is now closed — great effort everyone! Keep earning points to trigger the next one. Every topic, quiz, and contribution gets us closer. 🦌";
-        var field = type === 'start' ? 'startAnnouncedAt' : 'endAnnouncedAt';
+
+        // Dedup key: cycle-scoped so a stale tab reconnecting after >4h can't re-fire
+        // 'end' is keyed to the cycleId that just ended — a new cycle gets a fresh key.
+        // 'start' is also cycle-scoped so double-fires are blocked for the same window.
+        var cycleId = (favorState && favorState.currentCycleId) || 'unknown';
+        var field = type === 'start' ? ('startAnnounced_' + cycleId) : ('endAnnounced_' + cycleId);
+
         var dedupRef = db.collection('satoshiFavor').doc('announceDedup');
         db.runTransaction(function(txn) {
             return txn.get(dedupRef).then(function(doc) {
                 var data = doc.exists ? doc.data() : {};
-                var existing = data[field];
-                var existingMs = existing && existing.toMillis ? existing.toMillis() : (typeof existing === 'number' ? existing : 0);
-                if (existingMs && (Date.now() - existingMs) < SF_ANNOUNCE_DEDUP_MS) {
+                // Cycle-scoped: if this cycleId was already announced for this type, skip
+                if (data[field]) {
+                    throw Object.assign(new Error('sf_already_announced'), { _dedupSkip: true });
+                }
+                // Fallback: also block if announced within 4h (handles unknown/missing cycleId edge case)
+                var legacyField = type === 'start' ? 'startAnnouncedAt' : 'endAnnouncedAt';
+                var legacy = data[legacyField];
+                var legacyMs = legacy && legacy.toMillis ? legacy.toMillis() : (typeof legacy === 'number' ? legacy : 0);
+                if (legacyMs && (Date.now() - legacyMs) < SF_ANNOUNCE_DEDUP_MS) {
                     throw Object.assign(new Error('sf_already_announced'), { _dedupSkip: true });
                 }
                 var patch = {};
                 patch[field] = firebase.firestore.FieldValue.serverTimestamp();
+                patch[legacyField] = firebase.firestore.FieldValue.serverTimestamp();
                 if (doc.exists) {
                     txn.update(dedupRef, patch);
                 } else {
