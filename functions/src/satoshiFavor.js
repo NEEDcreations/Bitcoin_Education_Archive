@@ -528,14 +528,14 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     const lbData = lbDoc.exists ? lbDoc.data() : {};
     let entries = lbData.entries || [];
     
-    // Allow multiple entries per user — top 25 hashes all-time regardless of who mined them
-    const qualifies = entries.length < 25 || value < entries[entries.length - 1].value;
+    // Allow multiple entries per user — top 50 hashes all-time regardless of who mined them
+    const qualifies = entries.length < 50 || value < entries[entries.length - 1].value;
 
     if (qualifies) {
       const nowTs = admin.firestore.Timestamp.now();
       entries.push({ username, value, timestamp: nowTs, difficultyTarget: DIFFICULTY_TARGET });
       entries.sort((a, b) => a.value - b.value);
-      entries = entries.slice(0, 25);
+      entries = entries.slice(0, 50);
       // Normalise entries: backfill difficultyTarget for legacy entries that lack it
       entries = entries.map(e => {
         const ts = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now();
@@ -740,12 +740,12 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
   // Process each hash
   let added = 0;
   let skipped = 0;
-  // Allow multiple entries per user — top 25 hashes all-time
+  // Allow multiple entries per user — top 50 hashes all-time
   for (const hash of hashes) {
     const { username, value } = hash;
 
-    // Check if qualifies for top 25
-    if (entries.length >= 25 && value >= entries[entries.length - 1].value) {
+    // Check if qualifies for top 50
+    if (entries.length >= 50 && value >= entries[entries.length - 1].value) {
       skipped++;
       continue;
     }
@@ -763,7 +763,7 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
 
   // Sort and trim
   entries.sort((a, b) => a.value - b.value);
-  entries = entries.slice(0, 25);
+  entries = entries.slice(0, 50);
   await lbRef.set({ entries });
 
   console.log(`[FAVOR-SYNC] Added ${added}, skipped ${skipped}. Total entries now: ${entries.length}`);
