@@ -3730,6 +3730,10 @@ var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || 'http
 var NACHO_AI_DAILY_LIMIT = 30; // per user per day (AI is primary brain now)
 var NACHO_SYSTEM_PROMPT = "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight. ALSO: Always acknowledge what the user said before answering. If they share excitement, mirror it. If they express concern, validate it. Keep responses warm, natural, and conversational. Use emojis sparingly to match tone. End with an invitation to learn more or a follow-up question when appropriate.";
 
+// Conversational mode prompt — used when topic is not Bitcoin-related
+// Nacho stays in character as a friendly deer but can engage with general topics
+var NACHO_CONVO_PROMPT = "You are Nacho, a cartoon Bitcoin Maximalist deer mascot who loves chatting. You are fun, warm, and genuinely helpful. When someone asks a non-Bitcoin question, answer it naturally and helpfully — don't refuse or redirect immediately. You're allowed to be curious, witty, and conversational. Keep responses SHORT (2-4 sentences max). Use emojis sparingly. Speak in Nacho's voice: confident, a little cheeky, always friendly. If there's a natural, non-forced way to connect the topic back to Bitcoin or freedom, do it — but only if it fits naturally. NEVER promote altcoins, financial advice, harmful content, or politics. Don't start responses with 'Of course!' or 'Great question!' — just answer directly like a friend would.";
+
 function getAICount() {
     var data = JSON.parse(localStorage.getItem('btc_nacho_ai_uses') || '{}');
     var today = new Date().toISOString().split('T')[0];
@@ -3835,6 +3839,63 @@ async function nachoAIAnswer(question, callback) {
                     conversationalAnswer += " What do you think about that?";
                 }
                 callback(conversationalAnswer);
+            } else {
+                callback(null);
+            }
+        })
+        .catch(function() { if (timeoutId) clearTimeout(timeoutId); callback(null); });
+}
+
+// ---- Conversational AI — for non-Bitcoin general chat ----
+// Uses NACHO_CONVO_PROMPT so Nacho can engage naturally with off-topic questions
+async function nachoConvoAIAnswer(question, callback) {
+    if (!NACHO_SEARCH_PROXY) { callback(null); return; }
+    if (getAICount() >= NACHO_AI_DAILY_LIMIT) { callback(null); return; }
+    incrementAICount();
+
+    var controller = null;
+    var timeoutId = null;
+    try { controller = new AbortController(); } catch(e) {}
+    var userLang = localStorage.getItem('btc_lang') || '';
+    var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : (localStorage.getItem('btc_username') || '');
+
+    // Include recent conversation history for continuity
+    var history = [];
+    for (var hi = Math.max(0, _nachoConvoHistory.length - 4); hi < _nachoConvoHistory.length; hi++) {
+        history.push({ q: _nachoConvoHistory[hi].q, a: _nachoConvoHistory[hi].a.substring(0, 150) });
+    }
+
+    var fetchOpts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            question: question,
+            lang: userLang,
+            userName: userName,
+            eli5: false,
+            history: history,
+            kbContext: '',
+            maxi: false,
+            forceMaxi: NACHO_CONVO_PROMPT
+        })
+    };
+
+    // Attach Firebase Auth token if available
+    if (typeof auth !== 'undefined' && auth.currentUser) {
+        try {
+            var token = await auth.currentUser.getIdToken();
+            fetchOpts.headers['Authorization'] = 'Bearer ' + token;
+        } catch(e) {}
+    }
+
+    if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 8000); }
+
+    fetch(NACHO_SEARCH_PROXY + '/ai', fetchOpts)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (data && data.answer && !data.error) {
+                callback(data.answer);
             } else {
                 callback(null);
             }
@@ -4628,6 +4689,44 @@ function _eli5Simplify(text) {
     return plain.replace(/\n/g, '<br>');
 }
 
+// Deep search + web search + off-topic fallback chain (shared by STEP 5 paths)
+function _nachoStep5Fallback(q, callback, pq, disclaimer) {
+    var deepResult = deepContentSearch(q);
+    if (deepResult) {
+        callback({ type: 'deepsearch', answer: '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">📚 Found in site content:</div>' + escapeHtml(deepResult.snippet) + (disclaimer || ''), channel: deepResult.channel, channelName: deepResult.channelName });
+        return;
+    }
+    if (NACHO_SEARCH_PROXY) {
+        nachoWebSearch(q, function(results) {
+            if (results && results.length > 0) {
+                var html = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
+                for (var ri = 0; ri < Math.min(3, results.length); ri++) {
+                    html += '<div style="margin-bottom:6px;padding:6px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
+                        '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);">' + escapeHtml(results[ri].title) + '</div>' +
+                        '<div style="font-size:0.75rem;color:var(--text-muted);">' + escapeHtml(results[ri].snippet) + '</div>' +
+                        (results[ri].url ? '<a href="' + escapeHtml(sanitizeUrl(results[ri].url)) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                    '</div>';
+                }
+                callback({ type: 'websearch', answer: html + (disclaimer || '') });
+            } else {
+                var ot = typeof checkOffTopic === 'function' ? checkOffTopic(q) : null;
+                if (ot) { callback({ type: 'offtopic', answer: typeof pq === 'function' ? pq(ot) : ot }); return; }
+                var stmtResp = typeof checkStatement === 'function' ? checkStatement(q) : null;
+                if (stmtResp) { callback({ type: 'statement', answer: typeof pq === 'function' ? pq(stmtResp) : stmtResp }); return; }
+                nachoTrackMiss(q);
+                var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+                callback({ type: 'fallback', answer: typeof pq === 'function' ? pq(fb) : fb });
+            }
+        });
+        return;
+    }
+    var ot2 = typeof checkOffTopic === 'function' ? checkOffTopic(q) : null;
+    if (ot2) { callback({ type: 'offtopic', answer: typeof pq === 'function' ? pq(ot2) : ot2 }); return; }
+    nachoTrackMiss(q);
+    var fb2 = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+    callback({ type: 'fallback', answer: typeof pq === 'function' ? pq(fb2) : fb2 });
+}
+
 window.nachoUnifiedAnswer = function(question, callback) {
     var q = question.trim().toLowerCase();
     q = (typeof fixTypos === 'function') ? fixTypos(q) : q;
@@ -4796,115 +4895,34 @@ window.nachoUnifiedAnswer = function(question, callback) {
                 var isDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
 
                 if (!isDeflection) {
+                    // Maxi AI answered fine — use it
                     nachoRemember(q, aiAnswer);
                     callback({ type: 'ai', answer: aiAnswer + disclaimer });
                     return;
                 }
-                // If AI is deflecting but user made a statement, try to be more conversational
-                if (isDeflection && !statementPatterns.some(function(p) { return p.test(q); })) {
-                    // Try again with more conversational prompt
-                    var fetchOpts = {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            question: q,
-                            lang: userLang,
-                            userName: userName,
-                            eli5: eli5,
-                            history: history,
-                            kbContext: kbContext,
-                            maxi: true,
-                            forceMaxi: NACHO_SYSTEM_PROMPT
-                        })
-                    };
-                    if (controller) { fetchOpts.signal = controller.signal; }
-                    fetch(NACHO_SEARCH_PROXY + '/ai', fetchOpts)
-                        .then(function(r) { return r.json(); })
-                        .then(function(data) {
-                            if (data && data.answer && !data.error) {
-                                callback(data.answer);
-                            } else {
-                                callback(aiAnswer);
-                            }
-                        })
-                        .catch(function() { callback(aiAnswer); });
-                    return;
-                }
-                // If AI is deflecting but user made a statement, try to be more conversational
-                if (isDeflection && !statementPatterns.some(function(p) { return p.test(q); })) {
-                    // Try again with more conversational prompt
-                    var fetchOpts = {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            question: q,
-                            lang: userLang,
-                            userName: userName,
-                            eli5: eli5,
-                            history: history,
-                            kbContext: kbContext,
-                            maxi: true,
-                            forceMaxi: NACHO_SYSTEM_PROMPT
-                        })
-                    };
-                    if (controller) { fetchOpts.signal = controller.signal; }
-                    fetch(NACHO_SEARCH_PROXY + '/ai', fetchOpts)
-                        .then(function(r) { return r.json(); })
-                        .then(function(data) {
-                            if (data && data.answer && !data.error) {
-                                callback(data.answer);
-                            } else {
-                                callback(aiAnswer);
-                            }
-                        })
-                        .catch(function() { callback(aiAnswer); });
-                    return;
-                }
             }
 
-            // AI failed or deflected — try deep content search
-            var deepResult = deepContentSearch(q);
-            if (deepResult) {
-                callback({ type: 'deepsearch', answer: '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">📚 Found in site content:</div>' + escapeHtml(deepResult.snippet) + disclaimer, channel: deepResult.channel, channelName: deepResult.channelName });
-                return;
-            }
-
-            // Try web search
-            if (NACHO_SEARCH_PROXY) {
-                nachoWebSearch(q, function(results) {
-                    if (results && results.length > 0) {
-                        var html = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
-                        for (var ri = 0; ri < Math.min(3, results.length); ri++) {
-                            html += '<div style="margin-bottom:6px;padding:6px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
-                                '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);">' + escapeHtml(results[ri].title) + '</div>' +
-                                '<div style="font-size:0.75rem;color:var(--text-muted);">' + escapeHtml(results[ri].snippet) + '</div>' +
-                                (results[ri].url ? '<a href="' + escapeHtml(sanitizeUrl(results[ri].url)) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
-                            '</div>';
+            // Maxi AI failed or deflected — fall back to conversational mode
+            // This handles questions like "How are you?", "What's the weather?", general chat
+            if (getAICount() < NACHO_AI_DAILY_LIMIT) {
+                nachoConvoAIAnswer(q, function(convoAnswer) {
+                    if (convoAnswer) {
+                        var convoLower = convoAnswer.toLowerCase();
+                        var convoDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|i don.t think i should/i.test(convoLower);
+                        if (!convoDeflection) {
+                            nachoRemember(q, convoAnswer);
+                            callback({ type: 'ai', answer: convoAnswer });
+                            return;
                         }
-                        callback({ type: 'websearch', answer: html + disclaimer });
-                    } else {
-                        // Off-topic as last resort
-                        var ot = checkOffTopic(q);
-                        if (ot) { callback({ type: 'offtopic', answer: pq(ot) }); return; }
-                        // Check if it's a statement
-                        var stmtResp = checkStatement(q);
-                        if (stmtResp) { callback({ type: 'statement', answer: pq(stmtResp) }); return; }
-                        // Final fallback
-                        nachoTrackMiss(q);
-                        var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
-                        callback({ type: 'fallback', answer: pq(fb) });
                     }
+                    // Convo AI also failed — deep search, then off-topic fallback
+                    _nachoStep5Fallback(q, callback, pq, disclaimer);
                 });
                 return;
             }
 
-            // Off-topic as last resort
-            var ot = checkOffTopic(q);
-            if (ot) { callback({ type: 'offtopic', answer: pq(ot) }); return; }
-
-            nachoTrackMiss(q);
-            var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
-            callback({ type: 'fallback', answer: pq(fb) });
+            // All AI paths exhausted — deep search then off-topic
+            _nachoStep5Fallback(q, callback, pq, disclaimer);
         });
         return;
     }
@@ -4962,6 +4980,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
 window.findAnswer = findAnswer;
 window.checkOffTopic = checkOffTopic;
 window.nachoAIAnswer = nachoAIAnswer;
+window.nachoConvoAIAnswer = nachoConvoAIAnswer;
 window.isInappropriate = isInappropriate;
 window.isCrisis = isCrisis;
 window.isFinancialAdvice = isFinancialAdvice;
