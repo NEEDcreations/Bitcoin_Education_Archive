@@ -390,10 +390,19 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     console.warn(`Could not fetch username for ${uid}:`, e.message);
   }
 
+  // Feature 5: Dual rig support — each rig has its own cooldown bucket so they don't share the limit
+  const rigNum = (data && data.rig === 2) ? 2 : 1;
+  const rigSuffix = rigNum === 2 ? '_rig2' : '_rig1';
+
   // Atomic rate-limit check + hash generation inside a transaction
   // Prevents TOCTOU: concurrent requests all reading the same cooldown state
   const hashesRef = stateRef.collection('hashes');
-  const cooldownRef = stateRef.collection('cooldowns').doc(uid);
+  const cooldownRef = stateRef.collection('cooldowns').doc(uid + rigSuffix);
+
+  // Compute server-side effective rate (base + community heat bonus)
+  // Mirrors _sfEffectiveRate() on the client. Community heat: +1/min per 1000 total hashes, capped at +10.
+  const communityHeatBonus = Math.min(10, Math.floor((stateData.totalHashes || 0) / 1000));
+  const effectiveRateLimit = HASHES_PER_MINUTE + communityHeatBonus;
 
   const { value, isWinner } = await db.runTransaction(async (transaction) => {
     const cooldownDoc = await transaction.get(cooldownRef);
@@ -405,12 +414,12 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
         const ms = t.toMillis ? t.toMillis() : t;
         return now - ms < HASH_WINDOW_MS;
       });
-      if (timestamps.length >= HASHES_PER_MINUTE) {
+      if (timestamps.length >= effectiveRateLimit) {
         const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
         const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
         throw new functions.https.HttpsError(
           'resource-exhausted',
-          `Rate limit: ${waitSec}s until next hash (10/min).`
+          `Rate limit: ${waitSec}s until next hash (${effectiveRateLimit}/min).`
         );
       }
     }

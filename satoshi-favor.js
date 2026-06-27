@@ -803,7 +803,7 @@
 
         try {
             const fn = firebase.functions().httpsCallable('hashForFavor');
-            const result = await fn({});
+            const result = await fn({ rig: rig });
             clearInterval(shake);
 
             const { value, isWinner, hashId } = result.data;
