@@ -1103,6 +1103,10 @@
     // ─── EXPORTS ───
     window._renderFavorChatBanner = renderChatBanner;
     window._renderSatoshiFavorHome = renderHomeBanner;
+    // Expose SF active check for other modules (e.g. badge announcements)
+    window._isSatoshiFavorActive = function() {
+        return !!(favorState && favorState.favorActive && isFavorEffectivelyActive());
+    };
 
     // ─── START ───
     if (document.readyState === 'loading') {
