@@ -15066,10 +15066,10 @@ function _renderNookShop() {
     }
 
     function itemRow(icon, name, desc, cost, btnHtml) {
-        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
-            '<div style="font-size:1.4rem;flex-shrink:0;">'+icon+'</div>' +
+        return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
+            '<div style="font-size:1.4rem;flex-shrink:0;padding-top:2px;">'+icon+'</div>' +
             '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">'+name+'</div>' +
-            '<div style="font-size:0.72rem;color:var(--text-muted);">'+desc+'</div></div>' +
+            '<div style="font-size:0.72rem;color:var(--text-muted);">'+desc+'</div><!--EXTRA_HTML--></div>' +
             '<div style="flex-shrink:0;text-align:right;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;">'+cost+' 🎟️</div>' + btnHtml + '</div>' +
         '</div>';
     }
@@ -15142,10 +15142,12 @@ function _renderNookShop() {
         if (c.id === 'pinned_badge' && owned) {
             extraHtml = '<button onclick="window._showPinnedBadgeSelector()" style="margin-top:5px;padding:4px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Choose Badge \uD83D\uDCCC</button>';
         }
-        // Build itemRow and inject extra HTML before closing tag
+        // Build itemRow and inject extra HTML inside the left text column
         var rowHtml = itemRow(c.icon, c.name, c.desc, c.cost, btnHtml);
         if (extraHtml) {
-            rowHtml = rowHtml.slice(0, rowHtml.lastIndexOf('</div>')) + extraHtml + '</div>';
+            rowHtml = rowHtml.replace('<!--EXTRA_HTML-->', extraHtml);
+        } else {
+            rowHtml = rowHtml.replace('<!--EXTRA_HTML-->', '');
         }
         html += rowHtml;
     });

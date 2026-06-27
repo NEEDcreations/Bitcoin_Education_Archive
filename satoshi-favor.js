@@ -413,7 +413,8 @@
         if (minerCountdownInterval) clearInterval(minerCountdownInterval);
         if (window._sfCooldownTimer) clearInterval(window._sfCooldownTimer);
         if (window.closeSatoshiFavorMiner._toastTimer) clearTimeout(window.closeSatoshiFavorMiner._toastTimer);
-        window._sfSecondRigChargeConsumed = false; // reset per-session flag
+        // Do NOT reset _sfSecondRigConsumedCycle here — charge is consumed for the whole SF window,
+        // not just one miner session. Closing and reopening should not restore the rig.
         // Reopen Quest Hub if we came from there
         if (window._qhReopenOnMinerClose) {
             window._qhReopenOnMinerClose = false;
@@ -505,7 +506,9 @@
 
     function showMinerModal() {
         var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
-        var hasSecondRig = (u.secondRigCharges || 0) > 0;
+        // If this SF window's charge was already consumed (even if miner was closed+reopened), treat as no rig
+        var _cycleNow = (favorState && favorState.currentCycleId) || 'unknown';
+        var hasSecondRig = (u.secondRigCharges || 0) > 0 && window._sfSecondRigConsumedCycle !== _cycleNow;
         var boosterHashes = u.hashBoosterHashes || 0;
 
         const overlay = document.createElement('div');
@@ -824,9 +827,10 @@
             // Record timestamp for this rig
             if (rig === 2) hashTimestamps2.push(Date.now()); else hashTimestamps.push(Date.now());
 
-            // Consume one Second Rig charge on first use per session
-            if (rig === 2 && !window._sfSecondRigChargeConsumed) {
-                window._sfSecondRigChargeConsumed = true;
+            // Consume one Second Rig charge on first use per SF window (not just per miner session)
+            var _cycleId = (favorState && favorState.currentCycleId) || 'unknown';
+            if (rig === 2 && window._sfSecondRigConsumedCycle !== _cycleId) {
+                window._sfSecondRigConsumedCycle = _cycleId;
                 if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
                     db.collection('users').doc(auth.currentUser.uid).update({
                         secondRigCharges: firebase.firestore.FieldValue.increment(-1)
