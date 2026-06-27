@@ -2665,7 +2665,8 @@ function _renderTopHashesHTML(entries) {
         var tsMs = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp.toMillis() : (e.timestamp ? Number(e.timestamp) : 0);
         var isNew = tsMs && (now - tsMs) < SEVENTY_TWO_HOURS;
         var badges = '';
-        if (isWin) badges += '<span style="margin-left:6px;padding:1px 6px;background:#22c55e;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;">WINNER</span>';
+        var winDate = tsMs ? new Date(tsMs).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) : '';
+        if (isWin) badges += '<span title="Won ' + winDate + '" style="margin-left:6px;padding:1px 6px;background:#22c55e;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;cursor:help;">WINNER</span>';
         if (isNew) badges += '<span style="margin-left:4px;padding:1px 5px;background:#f7931a;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;">NEW</span>';
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;margin-bottom:3px;' +
             'background:' + (isWin ? 'rgba(34,197,94,0.12)' : (isMe ? 'rgba(247,147,26,0.1)' : 'transparent')) + ';' +
