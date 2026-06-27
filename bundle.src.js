@@ -15158,7 +15158,8 @@ function _renderNookShop() {
         '<div style="display:flex;align-items:center;justify-content:space-between;">' +
         '<div style="flex:1;">' +
         '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);">🎟️ Sats Raffle Entry</div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this month: <strong style="color:#eab308;">' + raffleEntries + '</strong> · Winner announced on the 1st of each month!</div>' +
+        '<div style="font-size:0.72rem;color:#f7931a;font-weight:800;margin-top:2px;">⚡ Prize: 21,000 sats</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this month: <strong style="color:#eab308;">' + raffleEntries + '</strong> · Enter through July — first drawing August 1st!</div>' +
         '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">🎟️ Community entries this month: ...</div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;margin-bottom:4px;">10 🎟️</div>' +
