@@ -665,6 +665,27 @@
         '🎯 That was CLOSE. Within 15% of changing everything...',
         '🔥 You\'re running hot! That hash was right at the edge!',
         '⚡ SO CLOSE! You were within 15% of the target! Keep hashing!',
+        '😤 Agonizingly close. Satoshi felt that one.',
+        '🎰 That\'s not a miss — that\'s a warmup. Hit it again!',
+        '⚔️ You\'re within striking distance. ONE MORE!',
+        '💨 That hash brushed the target on its way past. SO CLOSE.',
+        '🧲 You\'re in the zone! The winning hash is nearby!',
+        '🏹 Arrow grazed the bullseye. Notch another one!',
+        '🪙 Satoshi is watching. That was dangerously close to 21M sats.',
+        '🔑 You just about unlocked the block. Try again — now!',
+        '⛏️ The mining gods are teasing you. Don\'t let them win!',
+        '🥵 That hash had YOUR NAME on it. Almost!',
+        '💥 TANTALIZINGLY close. The target can smell your breath.',
+        '🎯 Snipers would call that a graze. Keep firing!',
+        '🚀 T-minus inches from a win. Full throttle!',
+        '🧊 Ice cold focus — you\'re dialed in. ONE MORE HASH.',
+        '🧬 Your hash DNA is mutating toward victory. Almost there!',
+        '⚡ Lightning missed the rod by millimeters. Strike again!',
+        '🏆 Within 15% of glory. Most miners never get this close.',
+        '🌊 Riding the wave right to shore. Don\'t wipe out now!',
+        '🎸 That hash RIPPED. And fell one thread short of the win.',
+        '🦌 Nacho believes in you. That was VERY close!',
+        '🔥 The network can feel the heat coming off your rig. KEEP GOING!',
     ];
     var _unluckyMessages = [
         '💀 Satoshi saw that hash and cringed.',
@@ -672,7 +693,36 @@
         '🎲 That was statistically one of the worst hashes possible. Respect.',
         '📉 That hash is giving bear market energy.',
         '☠️ If hashes were grades, that one just failed summer school.',
+        '🪣 You didn\'t just miss — you missed in the wrong galaxy.',
+        '🗑️ That hash walked past the target doing a 180 the entire time.',
+        '💸 That hash is the on-chain fee equivalent of absolutely terrible.',
+        '🐢 Somewhere a GPU is embarrassed on your behalf.',
+        '😬 That hash peaked at the absolute worst end of the spectrum. Bold.',
+        '🦆 That hash quacked. It did not mine.',
+        '🤡 The clown nose just honked on that one. Try again champ.',
+        '📡 Signal lost. Hash sent to the wrong blockchain entirely.',
+        '🌵 Dry. Barren. That hash was a desert.',
+        '🔇 Satoshi has left the chat after seeing that hash.',
+        '😩 That\'s in the bottom 20%. You\'re basically anti-mining.',
+        '🧻 That hash was softer than fiat. And we all know how that ends.',
+        '🏴‍☠️ Even Craig Wright\'s fake Bitcoin wouldn\'t claim that hash.',
+        '💔 That hash told the target it needs some space.',
+        '🎻 The world\'s smallest violin is playing for that hash.',
+        '🐌 Slower than a Blockstream satellite uplink on a cloudy day.',
+        '🧲 That hash repelled the target like gold repels the Federal Reserve.',
+        '🍀 You have ALL the luck — unfortunately it\'s the bad kind.',
+        '🪦 R.I.P. that hash. Gone but not close enough.',
+        '🦖 That hash is so far from target it\'s practically pre-Satoshi.',
     ];
+    var _nmLastIdx = -1;
+    var _ulLastIdx = -1;
+
+    function _pickRandom(pool, lastIdx) {
+        if (pool.length <= 1) return { msg: pool[0] || '', idx: 0 };
+        var idx;
+        do { idx = Math.floor(Math.random() * pool.length); } while (idx === lastIdx);
+        return { msg: pool[idx], idx: idx };
+    }
 
     function _showNearMissToast(msg) {
         var el = document.getElementById('sfNearMissToast');
@@ -683,20 +733,22 @@
         window._sfNMTimer = setTimeout(function() {
             var e2 = document.getElementById('sfNearMissToast');
             if (e2) e2.style.display = 'none';
-        }, 2500);
+        }, 3500);
     }
 
     function _checkNearMissUnlucky(value) {
         if (value <= DIFFICULTY_TARGET) return; // Won — don't show
         var nearMissThreshold = Math.floor(DIFFICULTY_TARGET * 1.15);
-        var unluckyThreshold = Math.floor(HASH_MAX * 0.80);
+        var unluckyThreshold = Math.floor(HASH_MAX * 0.85);
 
         if (value <= nearMissThreshold) {
-            var msg = _nearMissMessages[Math.floor(Math.random() * _nearMissMessages.length)];
-            _showNearMissToast(msg);
+            var pick = _pickRandom(_nearMissMessages, _nmLastIdx);
+            _nmLastIdx = pick.idx;
+            _showNearMissToast(pick.msg);
         } else if (value > unluckyThreshold) {
-            var msg2 = _unluckyMessages[Math.floor(Math.random() * _unluckyMessages.length)];
-            _showNearMissToast(msg2);
+            var pick2 = _pickRandom(_unluckyMessages, _ulLastIdx);
+            _ulLastIdx = pick2.idx;
+            _showNearMissToast(pick2.msg);
         }
     }
 
