@@ -2725,7 +2725,7 @@ function updateUserDisplay(lv) {
             if (sidebarHeader && !document.getElementById('userDisplayContainer')) {
                 var container = document.createElement('div');
                 container.id = 'userDisplayContainer';
-                container.style.padding = '0 20px 16px';
+                container.style.padding = '16px 20px 24px';
                 container.style.borderBottom = '1px solid var(--border)';
                 sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
                 container.appendChild(el);
@@ -2794,7 +2794,7 @@ function updateUserDisplay(lv) {
             if (sidebarHeader && !document.getElementById('userDisplayContainer')) {
                 var container = document.createElement('div');
                 container.id = 'userDisplayContainer';
-                container.style.padding = '0 20px 16px';
+                container.style.padding = '16px 20px 24px';
                 container.style.borderBottom = '1px solid var(--border)';
                 sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
                 container.appendChild(el);
