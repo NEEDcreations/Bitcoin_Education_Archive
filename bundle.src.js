@@ -7772,8 +7772,16 @@ var BADGE_SETS = [
 
 function _renderBadgeSets(earnedBadges) {
     if (!BADGE_SETS || BADGE_SETS.length === 0) return '';
+    var totalSets = BADGE_SETS.length;
+    var completedSets = BADGE_SETS.filter(function(s) { return s.badgeIds.every(function(id) { return earnedBadges.has(id); }); }).length;
+    var colId = 'badgeSetsPanel_' + Math.random().toString(36).substr(2,5);
     var html = '<div style="margin-top:24px;">';
-    html += '<div style="font-size:0.8rem;font-weight:900;color:var(--heading);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;padding:0 2px;">🏅 Badge Collections</div>';
+    // Collapsible header button
+    html += '<button onclick="var p=document.getElementById(\'' + colId + '\');var open=p.style.display!==\'none\';p.style.display=open?\'none\':\'block\';this.querySelector(\'.bc-arrow\').textContent=open?\'▼\':\'▲\'" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:0 2px 10px;cursor:pointer;font-family:inherit;">';
+    html += '<div style="font-size:0.8rem;font-weight:900;color:var(--heading);letter-spacing:1px;text-transform:uppercase;">🏅 Badge Collections</div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.68rem;color:var(--text-muted);">' + completedSets + '/' + totalSets + ' sets</span><span class="bc-arrow" style="font-size:0.7rem;color:var(--text-faint);">▼</span></div>';
+    html += '</button>';
+    html += '<div id="' + colId + '" style="display:none;">';
 
     BADGE_SETS.forEach(function(set) {
         var earned = set.badgeIds.filter(function(id) { return earnedBadges.has(id); });
@@ -7814,7 +7822,8 @@ function _renderBadgeSets(earnedBadges) {
         }
         html += '</div>';
     });
-    html += '</div>';
+    html += '</div>'; // close collapsible panel
+    html += '</div>'; // close outer wrapper
     return html;
 }
 
