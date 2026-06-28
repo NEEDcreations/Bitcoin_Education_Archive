@@ -3846,7 +3846,7 @@ function showSettingsPage(tab) {
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
     ['account', 'scholar', 'sats', 'prefs', 'security', 'data'].forEach(t => {
         const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
+        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats/Nacho/Tix' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -4357,7 +4357,7 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">🎯 Daily Trifecta:</strong> Complete quiz + trivia + poll = +1 ticket/day.<br>' +
                 '<strong style="color:var(--text);">🦌 Nacho Chat:</strong> Send Nacho a message = +1 ticket/day.<br>' +
                 '<strong style="color:var(--text);">💬 Global Chat:</strong> First message of the day = +2 tickets.<br>' +
-                '<strong style="color:var(--text);">📺 Timechain TV:</strong> Watch 15 min = +1 ticket (stacks!).<br>' +
+                '<strong style="color:var(--text);">📺 Timechain TV:</strong> Watch 10 min = +1 ticket (stacks!).<br>' +
                 '<strong style="color:var(--text);">⚔️ PvP Win:</strong> Win a knowledge duel = +1 ticket.<br>' +
                 '<strong style="color:var(--text);">🔱 Raid Boss:</strong> Deal damage = +1 ticket/hit (max 50/day).<br>' +
                 '<strong style="color:var(--text);">🗣️ PlebTalk:</strong> Post in the forum = +1 ticket/day.<br>' +

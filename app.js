@@ -5010,8 +5010,8 @@ window._tctvStartTracker = function() {
             }
         } catch(e) {}
 
-        // Every 15 minutes (cumulative) award 10 points + 1 ticket
-        if (total % 15 === 0) {
+        // Every 10 minutes (cumulative) award 10 points + 1 ticket
+        if (total % 10 === 0) {
             if (typeof awardPoints === 'function') {
                 awardPoints(10, 'tctv_watch_10m'); // Use server-side action name
             }
@@ -5022,12 +5022,12 @@ window._tctvStartTracker = function() {
                 checkBadges();
             }
             if (typeof showToast === 'function') {
-                showToast('📺 +10 XP & 🎟️ +1 Ticket — Keep watching Timechain TV!');
+                showToast('📺 +10 XP & 🎟️ +1 Ticket — Thanks for watching Timechain TV!');
             }
         } else if (total === 1) {
             // First minute toast
             if (typeof showToast === 'function') {
-                showToast('📺 Watching Timechain TV — Ticket + XP every 15 min!');
+                showToast('📺 Watching Timechain TV — Ticket + XP every 10 min!');
             }
         }
     }, 60000); // 1 minute interval
