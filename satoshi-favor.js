@@ -10,7 +10,7 @@
     // ── Difficulty History ────────────────────────────────────────
     // Date        | Target  | Blocks Found | Change
     // 2026-06-02  |   1,000 |      0       | Genesis (launch)
-    // 2026-06-21  |  30,000 |      0       | +2,900% — no winner in 19 days, ~1:3,333 odds now
+    // 2026-06-21  |  30,000 |      0       | -96.67% difficulty drop — no winner in 19 days, ~1:3,333 odds now
     const DIFFICULTY_TARGET = 30000;
     window.SF_DIFFICULTY_TARGET = DIFFICULTY_TARGET; // expose for other modules
     const HASH_MAX = 100000000;

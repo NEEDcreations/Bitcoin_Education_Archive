@@ -2516,7 +2516,7 @@ function _renderFavorTab(body) {
                     '<td style="text-align:right;padding:5px 6px;font-family:monospace;font-weight:700;color:#22c55e;">30,000</td>' +
                     '<td style="text-align:right;padding:5px 6px;">1:3,333</td>' +
                     '<td id="sfBlocksRow1" style="text-align:right;padding:5px 6px;font-weight:700;">...</td>' +
-                    '<td style="text-align:right;padding:5px 6px;color:var(--accent);font-weight:700;">+2,900%</td>' +
+                    '<td style="text-align:right;padding:5px 6px;color:#ef4444;font-weight:700;">-96.67%</td>' +
                 '</tr>' +
 '' +
             '</tbody>' +
