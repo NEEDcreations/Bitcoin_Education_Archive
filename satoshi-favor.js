@@ -70,7 +70,7 @@
             (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com' || auth.currentUser.email === 'najemchris8@gmail.com');
         var nachoUid = isAdmin ? 'nacho-bot' : uid;
         var msg = type === 'start'
-            ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to win 21,000 sats! ⚡🦌"
+            ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to win 21,000 sats! ⚡🦌\nhttps://bitcoineducation.quest/#sf"
             : "⏱️ **Satoshi's Favor has ended.** The mining window is now closed — great effort everyone! Keep earning points to trigger the next one. Completing daily activities, earning badges and ranking up all get us closer to mining again. 🦌";
 
         // Dedup key: cycle-scoped so a stale tab reconnecting after >4h can't re-fire
