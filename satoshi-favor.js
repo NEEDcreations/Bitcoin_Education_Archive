@@ -37,7 +37,15 @@
         return parseInt(localStorage.getItem('btc_sf_window_streak') || '0') || 0;
     }
     function _sfSetStreak(n) {
-        localStorage.setItem('btc_sf_window_streak', String(Math.max(0, n)));
+        var val = Math.max(0, n);
+        localStorage.setItem('btc_sf_window_streak', String(val));
+        // Persist to Firestore so streak survives new device / session
+        try {
+            if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous && firebase.firestore) {
+                firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid)
+                    .update({ sfWindowStreak: val }).catch(function() {});
+            }
+        } catch(e) {}
     }
 
     // Effective hash rate per minute (may be boosted by streak or weekly boost)

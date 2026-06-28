@@ -1541,6 +1541,10 @@ async function loadUser(uid, prefetchedDoc) {
             if (currentUser.username) {
                 try { localStorage.setItem('btc_onboarding_done', 'true'); } catch(e) {}
             }
+            // Restore SF window streak from Firestore so speed boost survives new-device login
+            if (typeof currentUser.sfWindowStreak === 'number') {
+                try { localStorage.setItem('btc_sf_window_streak', String(currentUser.sfWindowStreak)); } catch(e) {}
+            }
             // Restore Nacho Quest state from Firestore so mid-quest progress survives new-device login
             if (currentUser.nachoQuestDone) {
                 try {
