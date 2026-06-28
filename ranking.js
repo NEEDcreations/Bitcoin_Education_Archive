@@ -2436,7 +2436,7 @@ function updateRankUI() {
             var _lvUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
             if (_lvUsername) {
                 window.nachoGlobalAnnounce(
-                    '📊 @' + _lvUsername + ' just leveled up to ' + (lv.emoji || '') + ' ' + lv.name + '! ➡️ [Leaderboard](#leaderboard)',
+                    '📊 @' + _lvUsername + ' just leveled up to ' + (lv.emoji || '') + ' ' + lv.name + '! ➡️ [Leaderboard](https://bitcoineducation.quest/#leaderboard)',
                     auth.currentUser.uid
                 );
             }

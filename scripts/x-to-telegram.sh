@@ -5,7 +5,9 @@
 
 # Load environment variables
 if [ -f "/root/simple-archive/.env" ]; then
-  export $(grep -v '^#' /root/simple-archive/.env | xargs)
+  set -o allexport
+  source /root/simple-archive/.env
+  set +o allexport
 fi
 
 FEED_URL="https://rss.app/feeds/8jCjlT8E16kCeBrO.xml"

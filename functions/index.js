@@ -5835,9 +5835,26 @@ async function buildHotTopics() {
 }
 
 // ── Step 1: Gather raw trending signals ──────────────────────────────────────
+// Phil's curated Bitcoin X list — 44 accounts
+const CURATED_X_ACCOUNTS = [
+    // OG thinkers / authors / podcasters
+    'BigSeanHarris','francispouliot_','parkeralewis','TomerStrolight','MartyBent',
+    'giacomozucco','ck_SNARKs','stephanlivera','Princey21M','real_vijay',
+    'Erikcason','knutsvanholm','CedYoungelman','Bquittem','NeilJacobs',
+    'jimmysong','gladstein','saifedean','JeffBooth','nvk',
+    // Educators / media / builders
+    'PlebUnderground','BitcoinPierre','w_s_bitcoin','HodlTarantula','parman_the',
+    'LukeMikic21','denverbitcoin','Coinicarus','timevalueofbtc','CryptoCloaks',
+    'IIICapital','_Checkmatey_','CitizenBitcoin','FractalEncrypt','Croesus_BTC',
+    'hodlonaut','LynAldenContact','JoeConsorti','notgrubles',
+    // Additional from screenshots
+    'JoeCarlasare','thetrocro','TheGuySwann','jackmallers','BTCsessions',
+];
+
 async function gatherTrendingSignals() {
     const signals = [];
     const fetches = [
+        fetchCuratedXPosts(),
         fetchRedditHot(),
         fetchBitcoinTalkHot(),
         fetchWebTrending(),
@@ -5855,6 +5872,45 @@ async function gatherTrendingSignals() {
 }
 
 // ── Reddit r/Bitcoin hot posts ────────────────────────────────────────────────
+// ── Curated X accounts (Phil's Bitcoin list) ── search recent posts ──────────────
+async function fetchCuratedXPosts() {
+    const now = new Date();
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const dateStr = months[now.getUTCMonth()] + ' ' + now.getUTCFullYear();
+
+    // Batch accounts into groups of 5 for OR queries
+    const batches = [];
+    for (let i = 0; i < CURATED_X_ACCOUNTS.length; i += 5) {
+        batches.push(CURATED_X_ACCOUNTS.slice(i, i + 5));
+    }
+
+    const results = [];
+    for (const batch of batches) {
+        const usernameClause = batch.map(u => '@' + u).join(' OR ');
+        const queries = [
+            '(' + usernameClause + ') site:x.com ' + dateStr,
+            '(' + usernameClause + ') bitcoin site:x.com ' + dateStr,
+        ];
+        for (const q of queries) {
+            try {
+                const items = await searchWeb(q, 3, 'pw');
+                results.push(...items.map(r => ({ ...r, source: 'x' })));
+            } catch (e) {
+                console.warn('[HotTopics] Curated X search failed:', e.message);
+            }
+        }
+    }
+
+    // Deduplicate by URL
+    const seen = new Set();
+    return results.filter(r => {
+        if (seen.has(r.url)) return false;
+        seen.add(r.url);
+        return true;
+    });
+}
+
+
 async function fetchRedditHot() {
     const url = 'https://www.reddit.com/r/Bitcoin/hot.json?limit=25&raw_json=1';
     const resp = await fetch(url, {
@@ -5915,37 +5971,45 @@ async function fetchBitcoinTalkHot() {
 
 // ── Web search for viral Bitcoin content ──────────────────────────────────────
 async function fetchWebTrending() {
+    // Build date-aware queries so results are inherently recent even without Brave freshness filter
+    const now = new Date();
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const month = months[now.getUTCMonth()];
+    const year = now.getUTCFullYear();
+    const dateStr = month + ' ' + year; // e.g. 'June 2026'
     const queries = [
-        // X/Twitter viral posts
-        'bitcoin viral tweet controversy site:x.com',
-        'bitcoin twitter debate trending this week site:twitter.com',
-        // Specific hot topics
-        'bitcoin BIP proposal debate 2025 site:x.com OR site:twitter.com',
-        'bitcoin lightning network debate OR controversy 2025',
-        'bitcoin ordinals inscriptions debate 2025',
-        // Reddit (Brave search picks up reddit.com results)
-        'bitcoin debate controversial reddit.com/r/Bitcoin 2025',
-        // General web Bitcoin controversy
-        'bitcoin community debate controversy viral 2025',
+        // X/Twitter viral posts this week
+        { q: 'bitcoin viral news controversy ' + dateStr, freshness: 'pw' },
+        { q: 'bitcoin debate site:x.com OR site:twitter.com ' + dateStr, freshness: 'pw' },
+        { q: 'bitcoin BIP proposal site:x.com ' + dateStr, freshness: 'pw' },
+        // Reddit this week
+        { q: 'bitcoin debate reddit.com/r/Bitcoin ' + dateStr, freshness: 'pw' },
+        { q: 'bitcoin controversial trending reddit ' + dateStr, freshness: 'pw' },
+        // General Bitcoin news/debate this week
+        { q: 'bitcoin community debate controversy ' + dateStr, freshness: 'pw' },
+        { q: 'bitcoin news controversy trending ' + dateStr, freshness: 'pw' },
+        { q: 'bitcoin discussion bitcointalk.org ' + dateStr, freshness: 'pw' },
     ];
 
     const results = [];
-    for (const q of queries) {
+    for (const entry of queries) {
         try {
-            const items = await searchWeb(q, 4);
+            const items = await searchWeb(entry.q, 4, entry.freshness);
             results.push(...items);
         } catch (e) {
-            console.warn('[HotTopics] Web search failed for:', q, e.message);
+            console.warn('[HotTopics] Web search failed for:', entry.q, e.message);
         }
     }
     return results;
 }
 
-// Web search using your existing Brave Search worker — no extra key needed
-async function searchWeb(query, limit) {
+// Web search using your existing Brave Search worker
+// freshness: 'pw' = past week, 'pd' = past day, 'pm' = past month
+async function searchWeb(query, limit, freshness) {
     limit = limit || 5;
+    freshness = freshness || 'pw'; // default: past week only
     const workerUrl = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/search?q=' +
-        encodeURIComponent(query);
+        encodeURIComponent(query) + '&count=' + limit + '&freshness=' + freshness;
     const resp = await fetch(workerUrl, { headers: { 'Accept': 'application/json' } });
     if (!resp.ok) throw new Error('Brave worker HTTP ' + resp.status);
     const json = await resp.json();
@@ -5972,11 +6036,13 @@ async function clusterAndSummarize(signals) {
     }
 
     // Build a compact signal digest for the AI prompt (keep token cost low)
-    const digest = signals.slice(0, 40).map((s, i) =>
-        (i + 1) + '. [' + s.source + '] ' + s.title + (s.body ? ' — ' + s.body.substring(0, 120) : '')
+    const digest = signals.slice(0, 60).map((s, i) =>
+        (i + 1) + '. [' + (s.source === 'x' ? 'x-curated' : s.source) + '] ' + s.title + (s.body ? ' — ' + s.body.substring(0, 120) : '')
     ).join('\n');
 
     const prompt = `You are an expert Bitcoin analyst reviewing this week's most discussed and debated Bitcoin topics across Reddit, BitcoinTalk, X (Twitter), and the web.
+
+IMPORTANT: Posts marked [x] are from a curated list of high-signal Bitcoin thought leaders including @MartyBent, @nvk, @jimmysong, @gladstein, @saifedean, @parkeralewis, @JeffBooth, @giacomozucco, @stephanlivera, @knutsvanholm and others. Weight these HEAVILY when identifying trending topics — if multiple of these accounts are discussing the same topic, it is almost certainly a hot topic this week.
 
 Here are the raw post titles and snippets gathered this week (numbered for reference):
 

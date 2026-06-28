@@ -3225,9 +3225,10 @@ window._annNavToHash = function(hash) {
         // but channel routes (forum, marketplace, beats…) need go() so forumContainer is hidden first
         var overlayRoutes = { 'quests':1, 'favor':1, 'sf':1, 'satoshi-favor':1, 'pvp':1, 'nacho':1,
                              'dashboard':1, 'bitcoin-dashboard':1, 'metrics':1, 'network':1,
-                             'pow-support':1 };
+                             'pow-support':1, 'leaderboard':1 };
         if (overlayRoutes[hash]) {
             // These open on top of whatever view is current — fine for both surfaces
+            if (hash === 'leaderboard' && typeof toggleLeaderboard === 'function') { toggleLeaderboard(); return; }
             if (hash === 'quests' && typeof showQuestHub === 'function') { showQuestHub(); return; }
             if ((hash === 'favor' || hash === 'sf' || hash === 'satoshi-favor') && typeof showQuestHub === 'function') {
                 showQuestHub(); window._questHubTab = 'favor';
@@ -3277,7 +3278,13 @@ function _renderAnnouncementItem(doc, context) {
     // Process text: escape first, then linkify in order
     var text = esc(m.text || '');
 
-    // 1. [text](#hash) markdown links — use _annNavToHash which closes chat then routes
+    // 1a. [text](https://...) markdown links — full URLs open in new tab
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, function(_, label, url) {
+        var safeUrl = url.replace(/"/g, '&quot;');
+        return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
+    });
+
+    // 1b. [text](#hash) markdown links — use _annNavToHash which closes chat then routes
     text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, function(_, label, hash) {
         return '<a href="#' + hash + '" onclick="event.preventDefault();event.stopPropagation();if(typeof _annNavToHash===\'function\')_annNavToHash(\''+hash+'\')" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
     });
