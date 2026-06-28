@@ -13299,6 +13299,13 @@ function _checkDailyAllThree() {
         }
     }, 1000);
 
+    // Award 1 orange ticket for completing the Daily Trifecta
+    setTimeout(function() {
+        if (typeof awardTickets === 'function') {
+            awardTickets(1, '🎯 Daily Trifecta');
+        }
+    }, 500);
+
     // Track cumulative daily triple completions
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
         db.collection('users').doc(auth.currentUser.uid).update({
