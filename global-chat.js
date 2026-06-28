@@ -3293,9 +3293,10 @@ function _renderAnnouncementItem(doc, context) {
     var mentionUid = m.mentionUid || '';
     text = text.replace(/@([A-Za-z0-9_]+)/g, function(_, username) {
         if (mentionUid) {
-            return '<a onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\')" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
+            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
         }
-        return '<span style="color:#6366f1;font-weight:700;">@'+username+'</span>';
+        // No uid stored — try live lookup by username on click
+        return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(username)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
     });
 
     var isOverlay = context === 'overlay';

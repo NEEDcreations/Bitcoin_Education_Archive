@@ -6084,7 +6084,8 @@ Your task: identify the 2-3 hottest, most technically specific, most contested B
 2. Write 2-3 sentences for the FOR side: who supports it (only from sources), what specific benefits they cite, and what outcome they want.
 3. Write 2-3 sentences for the AGAINST side: who opposes it (different people from FOR side), what specific risks or objections they raise.
 4. Assign a heatScore 1-100 based on controversy and community volume.
-5. Pick up to 5 of the most relevant source posts from the numbered list above.
+
+Do NOT include sources or URLs — those will be fetched separately. Focus on accuracy of the topic analysis.
 
 Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
 {
@@ -6097,7 +6098,7 @@ Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
         { "stance": "for", "label": "The case FOR", "summary": "2-3 sentences with specific arguments and who makes them" },
         { "stance": "against", "label": "The case AGAINST", "summary": "2-3 sentences with specific objections and who raises them" }
       ],
-      "postIndices": [1, 4, 7, 12, 15]
+      "postIndices": []
     }
   ]
 }`;
@@ -6122,35 +6123,56 @@ Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
 
     if (!aiTopics || !aiTopics.topics) return fallbackCluster(signals);
 
-    // Map postIndices back to real post objects, then sanitize hallucinated attributions
-    return aiTopics.topics.slice(0, 3).map(t => {
-        const posts = (t.postIndices || []).slice(0, 8)
-            .map(idx => dedupedSignals[idx - 1])
-            .filter(Boolean)
-            .filter(s => s.source !== 'bitcointalk')
-            .slice(0, 5)
-            .map(s => ({ source: s.source, title: s.title, url: s.url }));
+    // Two-pass source attribution:
+    // Pass 1 — AI identifies topics (no sources yet)
+    // Pass 2 — targeted Brave search per topic to find real, on-topic sources
+    // Sources only included if the search actually returns relevant results.
+    // No sources > hallucinated sources.
 
-        // Build set of @usernames actually present in the matched source post titles/URLs
+    const topicResults = await Promise.all(aiTopics.topics.slice(0, 3).map(async t => {
+        // Targeted search: use the topic title + key terms as the query
+        const searchQuery = t.title + ' bitcoin ' + new Date().getUTCFullYear();
+        let posts = [];
+        try {
+            const searchResults = await searchWeb(searchQuery, 6, 'pm');
+            // Filter: only include results whose title/snippet meaningfully relate to the topic
+            // Simple relevance check: at least one key word from topic title appears in result
+            const topicWords = t.title.toLowerCase()
+                .replace(/[^a-z0-9 ]/g, '')
+                .split(' ')
+                .filter(w => w.length > 3); // skip short/stop words
+            const relevant = searchResults.filter(r => {
+                const text = (r.title + ' ' + r.body).toLowerCase();
+                return topicWords.some(w => text.includes(w));
+            });
+            posts = relevant
+                .filter(s => s.source !== 'bitcointalk')
+                .slice(0, 4)
+                .map(s => ({ source: s.source, title: s.title, url: s.url }));
+        } catch (e) {
+            console.warn('[HotTopics] Source search failed for "' + t.title + '":', e.message);
+            // posts stays empty — no sources beats wrong sources
+        }
+
+        // Collect @usernames from the targeted sources for attribution sanitization
         const sourcedNames = new Set();
         posts.forEach(p => {
             const m = (p.title + ' ' + p.url).match(/@([A-Za-z0-9_]+)/g) || [];
             m.forEach(n => sourcedNames.add(n.toLowerCase()));
         });
-        // Also include names from the raw signals for this topic
+        // Also pull names from any original signals that matched this topic by postIndices
         (t.postIndices || []).slice(0, 8).forEach(idx => {
             const s = dedupedSignals[idx - 1];
             if (!s) return;
-            const m = (s.title + ' ' + (s.body||'')).match(/@([A-Za-z0-9_]+)/g) || [];
+            const m = (s.title + ' ' + (s.body || '')).match(/@([A-Za-z0-9_]+)/g) || [];
             m.forEach(n => sourcedNames.add(n.toLowerCase()));
         });
 
-        // Sanitize sides: strip @mentions that aren\'t in sourced names
+        // Sanitize sides: strip @mentions that aren\'t backed by a source
         const sanitizeSide = (text) => {
             if (!text) return text;
-            return text.replace(/@([A-Za-z0-9_]+)/g, (match, name) => {
+            return text.replace(/@([A-Za-z0-9_]+)/g, (match) => {
                 if (sourcedNames.has(match.toLowerCase())) return match;
-                // Replace unsourced @name with "some community members"
                 return 'some community members';
             });
         };
@@ -6165,9 +6187,11 @@ Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
             summary: t.summary || '',
             heatScore: Math.min(100, Math.max(0, t.heatScore || 50)),
             sides,
-            posts,
+            posts, // empty array = no sources shown; that's fine and honest
         };
-    });
+    }));
+
+    return topicResults;
 }
 
 // Call Cloudflare Workers AI (Llama 4 Scout) via REST — uses existing CF_ACCOUNT_ID + CF_API_TOKEN
