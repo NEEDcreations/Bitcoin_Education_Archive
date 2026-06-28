@@ -6056,7 +6056,7 @@ async function clusterAndSummarize(signals) {
         return true;
     });
     const digest = dedupedSignals.slice(0, 60).map((s, i) =>
-        (i + 1) + '. [' + (s.source === 'x' ? 'x-curated' : s.source) + '] ' + s.title + (s.body ? ' — ' + s.body.substring(0, 120) : '')
+        (i + 1) + '. [' + (s.source === 'x' ? 'x-curated' : s.source) + '] ' + s.title + (s.body ? ' — ' + s.body.substring(0, 250) : '')
     ).join('\n');
 
     const prompt = `You are an expert Bitcoin analyst reviewing this week's most discussed and debated Bitcoin topics across Reddit, BitcoinTalk, X (Twitter), and the web.
@@ -6078,21 +6078,28 @@ STRICT RULES:
 - If you cannot find clear evidence of who is FOR vs AGAINST from the sources, describe the positions in general terms — do not name names.
 - Do not hallucinate quotes, positions, or names not present in the source data. This is the most important rule.
 
-Your task: identify the 2-3 hottest, most technically specific, most contested Bitcoin topics from above. Prioritize real technical or ideological debates over generic discussion. Then for each topic:
+Your task: identify the 2-3 hottest, most technically specific, most contested Bitcoin topics from the sources above.
 
-1. Write a neutral 3-sentence overview accurately describing what the proposal/debate is actually about. Use the KNOWN FACTS above if relevant.
+CRITICAL QUALITY RULES:
+- Only output a topic if you have REAL signal from the sources above — specific claims, a named proposal, a named person, a concrete event, or a specific number/stat.
+- If the sources only hint at a broad theme (e.g. "ETF" or "mining") with no specific debate, DO NOT output that as a topic — omit it entirely. 2 good topics beats 3 generic ones.
+- NEVER write a topic summary like "The community is actively discussing X" or "Multiple perspectives are circulating" — those are filler and will be rejected. Every sentence must contain a specific fact, name, proposal, claim, or stat.
+- If you genuinely cannot find 2 specific debated topics from the sources, output just 1. If none, output 0 topics with an empty array.
+
+For each qualifying topic:
+1. Write a neutral 3-sentence overview: name the specific proposal, actor, event, or claim. Use the KNOWN FACTS above if relevant. Be concrete — include names, numbers, dates.
 2. Write 2-3 sentences for the FOR side: who supports it (only from sources), what specific benefits they cite, and what outcome they want.
-3. Write 2-3 sentences for the AGAINST side: who opposes it (different people from FOR side), what specific risks or objections they raise.
+3. Write 2-3 sentences for the AGAINST side: who opposes it (different people), what specific risks or objections they raise.
 4. Assign a heatScore 1-100 based on controversy and community volume.
 
-Do NOT include sources or URLs — those will be fetched separately. Focus on accuracy of the topic analysis.
+Do NOT include sources or URLs — those will be fetched separately. Focus on accuracy and specificity.
 
 Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
 {
   "topics": [
     {
       "title": "Punchy specific topic name (5 words max, include BIP number or protocol name if relevant)",
-      "summary": "3-sentence neutral overview naming specific proposals, actors, or claims",
+      "summary": "3-sentence neutral overview with specific names, proposals, or stats",
       "heatScore": 75,
       "sides": [
         { "stance": "for", "label": "The case FOR", "summary": "2-3 sentences with specific arguments and who makes them" },
@@ -6209,10 +6216,10 @@ async function callCloudflareLlama(prompt) {
         },
         body: JSON.stringify({
             messages: [
-                { role: 'system', content: 'You are a Bitcoin analyst. Return only valid JSON, no markdown fences, no explanation outside the JSON.' },
+                { role: 'system', content: 'You are a Bitcoin analyst. Return only valid JSON, no markdown fences, no explanation outside the JSON. Be specific and concrete — never output filler summaries like "the community is discussing X". Every sentence must contain a real fact, name, proposal, claim, or statistic from the provided sources.' },
                 { role: 'user', content: prompt },
             ],
-            max_tokens: 2000,
+            max_tokens: 3000,
         }),
     });
     if (!resp.ok) {
@@ -6220,17 +6227,28 @@ async function callCloudflareLlama(prompt) {
         throw new Error('CF Workers AI HTTP ' + resp.status + ': ' + errText.substring(0, 200));
     }
     const json = await resp.json();
-    // Extract text — CF Workers AI wraps in result.choices (openai-compat shape)
-    const text =
-        (json.result && json.result.choices && json.result.choices[0] && json.result.choices[0].message && json.result.choices[0].message.content) ||
-        (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) ||
-        (typeof json.result === 'string' ? json.result : null);
-    if (!text) throw new Error('CF Workers AI: no text in response — ' + JSON.stringify(json).substring(0, 200));
-    // Strip markdown fences if present
-    const cleaned = String(text).replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-    // Llama sometimes returns JS object syntax (unquoted keys) — fix it
-    const fixedJson = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-    return JSON.parse(fixedJson);
+    // Extract text — handle multiple CF Workers AI response shapes:
+    // Llama 4 Scout: json.result.response (object already parsed)
+    // Llama 3.x openai-compat: json.result.choices[0].message.content (string)
+    // Fallback: json.choices, json.result as string
+    let parsed = null;
+    if (json.result && json.result.response && typeof json.result.response === 'object') {
+        // Llama 4 Scout returns parsed JSON object directly in result.response
+        parsed = json.result.response;
+    } else {
+        const text =
+            (json.result && json.result.choices && json.result.choices[0] && json.result.choices[0].message && json.result.choices[0].message.content) ||
+            (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) ||
+            (typeof json.result === 'string' ? json.result : null) ||
+            (typeof json.result?.response === 'string' ? json.result.response : null);
+        if (!text) throw new Error('CF Workers AI: no text in response — ' + JSON.stringify(json).substring(0, 300));
+        // Strip markdown fences if present
+        const cleaned = String(text).replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+        // Fix unquoted keys just in case
+        const fixedJson = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+        parsed = JSON.parse(fixedJson);
+    }
+    return parsed;
 }
 
 async function callClaude(prompt, apiKey) {

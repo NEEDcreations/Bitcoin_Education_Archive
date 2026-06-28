@@ -7333,24 +7333,10 @@ function checkBadges() {
                 // Raid Boss contribution
                 if (typeof window._raidOnBadgeEarned === 'function') window._raidOnBadgeEarned();
 
-                // Announce badge earned in Global Chat.
-                // Skip during active SF — contributeSatoshiFavor already sends a richer message
-                // ("earned a badge! Satoshi extended his blessing! +3 bonus minutes").
-                // Outside active SF we still want the standard badge announcement.
-                var _sfCurrentlyActive = typeof window.favorState !== 'undefined' && window.favorState && window.favorState.favorActive;
-                if (!_sfCurrentlyActive && typeof window.nachoGlobalAnnounce === 'function'
-                    && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-                    var _badgeUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username)
-                        ? currentUser.username : null;
-                    if (_badgeUsername) {
-                        window.nachoGlobalAnnounce(
-                            '🏅 @' + _badgeUsername + ' just earned the ' + badge.emoji + ' ' + badge.name + ' badge! ⚡ ➡️ [Quest Hub](#quests)',
-                            auth.currentUser.uid
-                        );
-                    }
-                }
-
                 // Satoshi's Favor contribution (1 point per badge) — fire-and-forget
+                // Note: contributeSatoshiFavor sends its own richer GGs announcement
+                // ("earned a badge: X! +1 toward Satoshi's Favor! N more to go").
+                // The old generic badge announcement was removed to prevent duplicate GGs posts.
                 if (typeof window.contributeSatoshiFavor === 'function') {
                     window.contributeSatoshiFavor('badge_earned', badge.emoji + ' ' + badge.name).catch(function() {});
                 }
