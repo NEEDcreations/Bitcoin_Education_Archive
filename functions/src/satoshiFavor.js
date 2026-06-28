@@ -407,7 +407,8 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   // Check if user has booster hashes (bypass cooldown)
   const userRef2 = db.collection('users').doc(uid);
   const userDocForBooster = await userRef2.get();
-  const boosterHashesAvail = (userDocForBooster.exists && userDocForBooster.data().hashBoosterHashes) || 0;
+  const userDataForBooster = userDocForBooster.exists ? userDocForBooster.data() : {};
+  const boosterHashesAvail = userDataForBooster.hashBoosterHashes || 0;
   const usingBooster = boosterHashesAvail > 0;
 
   // If booster active, consume one booster hash (no rate limit check)
@@ -415,6 +416,23 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     await userRef2.update({
       hashBoosterHashes: admin.firestore.FieldValue.increment(-1),
     });
+  }
+
+  // Rig 2: validate charge exists and consume one per cycle (server-enforced)
+  const currentCycleId = stateData.currentCycleId || 'unknown';
+  if (rigNum === 2) {
+    const rigCharges = userDataForBooster.secondRigCharges || 0;
+    const lastRigCycleId = userDataForBooster.lastSecondRigCycleId || null;
+    if (rigCharges <= 0) {
+      throw new functions.https.HttpsError('permission-denied', 'No Second Rig charges remaining.');
+    }
+    // Consume one charge the first time rig 2 is used in this cycle
+    if (lastRigCycleId !== currentCycleId) {
+      await userRef2.update({
+        secondRigCharges: admin.firestore.FieldValue.increment(-1),
+        lastSecondRigCycleId: currentCycleId,
+      });
+    }
   }
 
   const { value, isWinner } = await db.runTransaction(async (transaction) => {

@@ -894,18 +894,14 @@
                 currentUser.hashBoosterHashes = Math.max(0, (currentUser.hashBoosterHashes || 0) - 1);
             }
 
-            // Consume one Second Rig charge on first use per SF window (not just per miner session)
+            // Rig 2 charge is now consumed server-side in hashForFavor CF.
+            // Update client-side counter when server confirms first use this cycle.
             var _cycleId = (favorState && favorState.currentCycleId) || 'unknown';
             if (rig === 2 && window._sfSecondRigConsumedCycle !== _cycleId) {
                 window._sfSecondRigConsumedCycle = _cycleId;
-                if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-                    db.collection('users').doc(auth.currentUser.uid).update({
-                        secondRigCharges: firebase.firestore.FieldValue.increment(-1)
-                    }).then(function() {
-                        if (typeof currentUser !== 'undefined' && currentUser && currentUser.secondRigCharges > 0) {
-                            currentUser.secondRigCharges = currentUser.secondRigCharges - 1;
-                        }
-                    }).catch(function() {});
+                // Reflect decrement in local currentUser so UI updates immediately
+                if (typeof currentUser !== 'undefined' && currentUser && (currentUser.secondRigCharges || 0) > 0) {
+                    currentUser.secondRigCharges = currentUser.secondRigCharges - 1;
                 }
             }
 
