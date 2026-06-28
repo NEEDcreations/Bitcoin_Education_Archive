@@ -190,6 +190,22 @@ const BADGE_DEFS = [
     { id: 'sf_contributor', name: 'Community Miner', emoji: '🤝', desc: 'Contributed to activating Satoshi\'s Favor 3 times', check: () => parseInt(localStorage.getItem('btc_sf_activations') || '0') >= 3, pts: 50 },
     { id: 'sf_contributor_10', name: 'Favor Champion', emoji: '🏅', desc: 'Contributed to activating Satoshi\'s Favor 10 times', check: () => parseInt(localStorage.getItem('btc_sf_activations') || '0') >= 10, pts: 200 },
 
+    // ---- Lucky Miner Badges (hash < 1,000,000) ----
+    { id: 'sf_lucky_1',    name: 'Lucky Roll',      emoji: '🎰', desc: 'Mined a lucky hash (under 1,000,000) 1 time',      check: () => parseInt(localStorage.getItem('btc_sf_lucky_count') || '0') >= 1,    pts: 25 },
+    { id: 'sf_lucky_5',    name: 'Hot Streak',      emoji: '🔥', desc: 'Mined a lucky hash (under 1,000,000) 5 times',     check: () => parseInt(localStorage.getItem('btc_sf_lucky_count') || '0') >= 5,    pts: 75 },
+    { id: 'sf_lucky_10',   name: 'Clover Nonce',    emoji: '🍀', desc: 'Mined a lucky hash (under 1,000,000) 10 times',    check: () => parseInt(localStorage.getItem('btc_sf_lucky_count') || '0') >= 10,   pts: 150 },
+    { id: 'sf_lucky_50',   name: 'Fortune Miner',   emoji: '🪄', desc: 'Mined a lucky hash (under 1,000,000) 50 times',    check: () => parseInt(localStorage.getItem('btc_sf_lucky_count') || '0') >= 50,   pts: 400 },
+    { id: 'sf_lucky_100',  name: 'Blessed Nonce',   emoji: '✨',       desc: 'Mined a lucky hash (under 1,000,000) 100 times',   check: () => parseInt(localStorage.getItem('btc_sf_lucky_count') || '0') >= 100,  pts: 750 },
+    { id: 'sf_lucky_1000', name: 'Satoshi\'s Chosen', emoji: '💎', desc: 'Mined a lucky hash (under 1,000,000) 1,000 times', check: () => parseInt(localStorage.getItem('btc_sf_lucky_count') || '0') >= 1000, pts: 2100 },
+
+    // ---- Unlucky Miner Badges (hash > 99,000,000) ----
+    { id: 'sf_unlucky_1',    name: 'Off the Mark',      emoji: '💨', desc: 'Mined an unlucky hash (over 99,000,000) 1 time',      check: () => parseInt(localStorage.getItem('btc_sf_unlucky_count') || '0') >= 1,    pts: 15 },
+    { id: 'sf_unlucky_5',    name: 'Cold Streak',        emoji: '🧊', desc: 'Mined an unlucky hash (over 99,000,000) 5 times',     check: () => parseInt(localStorage.getItem('btc_sf_unlucky_count') || '0') >= 5,    pts: 40 },
+    { id: 'sf_unlucky_10',   name: 'Wrong Side of Zero', emoji: '🚫', desc: 'Mined an unlucky hash (over 99,000,000) 10 times',    check: () => parseInt(localStorage.getItem('btc_sf_unlucky_count') || '0') >= 10,   pts: 75 },
+    { id: 'sf_unlucky_50',   name: 'Perpetual Loser',    emoji: '💔', desc: 'Mined an unlucky hash (over 99,000,000) 50 times',    check: () => parseInt(localStorage.getItem('btc_sf_unlucky_count') || '0') >= 50,   pts: 200 },
+    { id: 'sf_unlucky_100',  name: 'Cursed Miner',       emoji: '⚰️',  desc: 'Mined an unlucky hash (over 99,000,000) 100 times',   check: () => parseInt(localStorage.getItem('btc_sf_unlucky_count') || '0') >= 100,  pts: 400 },
+    { id: 'sf_unlucky_1000', name: 'Proof of Pain',      emoji: '🕱️',  desc: 'Mined an unlucky hash (over 99,000,000) 1,000 times', check: () => parseInt(localStorage.getItem('btc_sf_unlucky_count') || '0') >= 1000, pts: 1000 },
+
     // ---- Raid Boss Badges ----
     { id: 'raid_first', name: 'Raid Recruit', emoji: '🛡️', desc: 'Dealt damage to your first Raid Boss', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) >= 1, pts: 10 },
     { id: 'raid_5', name: 'Raid Warrior', emoji: '🗡️', desc: 'Dealt 5 total raid damage', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) >= 5, pts: 50 },
@@ -958,7 +974,7 @@ function getBadgeHTML() {
 // 🏅 BADGE SETS (Collections)
 // ============================================================
 var BADGE_SETS = [
-    { id:'set_miner',    name:'The Miner Set',      emoji:'⛏️', color:'#f7931a', badgeIds:['sf_first','sf_5','sf_25','sf_50','sf_100','sf_streak_3','sf_streak_7','sf_winner'], bonusId:'set_miner_complete',    bonusPts:500,  bonusEmoji:'🏆', bonusName:'Master Miner',         bonusDesc:'Completed The Miner Set' },
+    { id:'set_miner',    name:'The Miner Set',      emoji:'⛏️', color:'#f7931a', badgeIds:['sf_first_hash','sf_10_hashes','sf_100_hashes','sf_1000_hashes','sf_low_hash','sf_block_solver','sf_lucky_1','sf_lucky_5','sf_lucky_10','sf_lucky_50','sf_lucky_100','sf_lucky_1000','sf_unlucky_1','sf_unlucky_5','sf_unlucky_10','sf_unlucky_50','sf_unlucky_100','sf_unlucky_1000'], bonusId:'set_miner_complete',    bonusPts:500,  bonusEmoji:'🏆', bonusName:'Master Miner',         bonusDesc:'Completed The Miner Set' },
     { id:'set_scholar',  name:'The Scholar Set',    emoji:'📚', color:'#3b82f6', badgeIds:['trivia_10','trivia_50','trivia_100','quiz_1','quiz_5','quiz_10','cert_scholar','daily_100'], bonusId:'set_scholar_complete', bonusPts:500,  bonusEmoji:'🎓', bonusName:'Satoshi Scholar',      bonusDesc:'Completed The Scholar Set' },
     { id:'set_social',   name:'The Social Set',     emoji:'💬', color:'#8b5cf6', badgeIds:['chat_first','chat_10','chat_50','chat_100','chat_200','dm_first','dm_10','react_5','react_50'], bonusId:'set_social_complete', bonusPts:500,  bonusEmoji:'🌐', bonusName:'Community Pillar',    bonusDesc:'Completed The Social Set' },
     { id:'set_streak',   name:'The Streak Set',     emoji:'🔥', color:'#ef4444', badgeIds:['streak_3','streak_7','streak_14','streak_30','streak_60','streak_100','streak_200','streak_365'], bonusId:'set_streak_complete', bonusPts:1000, bonusEmoji:'💎', bonusName:'Diamond Hands',        bonusDesc:'Completed The Streak Set' },

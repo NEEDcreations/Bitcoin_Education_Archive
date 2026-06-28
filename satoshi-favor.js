@@ -937,6 +937,17 @@
                 _checkNearMissUnlucky(value);
             }
 
+            // ---- Lucky / Unlucky badge tracking ----
+            if (value < 1000000) {
+                var luckyCount = parseInt(localStorage.getItem('btc_sf_lucky_count') || '0') + 1;
+                localStorage.setItem('btc_sf_lucky_count', luckyCount);
+                if (typeof checkBadges === 'function') checkBadges();
+            } else if (value > 99000000) {
+                var unluckyCount = parseInt(localStorage.getItem('btc_sf_unlucky_count') || '0') + 1;
+                localStorage.setItem('btc_sf_unlucky_count', unluckyCount);
+                if (typeof checkBadges === 'function') checkBadges();
+            }
+
             // Feature 4: Update heat meter display (also refreshes rate info)
             _updateHeatMeterDisplay();
 
