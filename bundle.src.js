@@ -1541,9 +1541,26 @@ async function loadUser(uid, prefetchedDoc) {
             if (currentUser.username) {
                 try { localStorage.setItem('btc_onboarding_done', 'true'); } catch(e) {}
             }
-            // Restore nachoQuestDone from Firestore so Nacho intro quest isn't re-triggered
+            // Restore Nacho Quest state from Firestore so mid-quest progress survives new-device login
             if (currentUser.nachoQuestDone) {
-                try { localStorage.setItem('btc_onboarding_quest_done', '1'); } catch(e) {}
+                try {
+                    localStorage.setItem('btc_onboarding_quest_done', '1');
+                    localStorage.removeItem('btc_onboarding_active');
+                } catch(e) {}
+            } else if (currentUser.nachoQuestActive && typeof currentUser.nachoQuestStep === 'number') {
+                // Quest is in progress — restore step so they resume where they left off
+                try {
+                    localStorage.setItem('btc_onboarding_active', '1');
+                    localStorage.setItem('btc_onboarding_step', String(currentUser.nachoQuestStep));
+                } catch(e) {}
+                // Resume quest UI now that state is restored (init() already ran before auth settled)
+                setTimeout(function() {
+                    if (typeof window.isNachoQuestActive === 'function' && window.isNachoQuestActive() &&
+                        typeof window.isNachoQuestDone === 'function' && !window.isNachoQuestDone()) {
+                        if (typeof window._showNachoQuestPill === 'function') window._showNachoQuestPill();
+                        if (typeof window.startNachoQuestDetection === 'function') window.startNachoQuestDetection();
+                    }
+                }, 1000);
             }
 
             if (currentUser.spinClosetItems) {

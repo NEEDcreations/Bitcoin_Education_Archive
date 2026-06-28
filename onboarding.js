@@ -232,6 +232,8 @@ window._completeNachoQuestStep = function(step) {
         window._showNachoQuestComplete();
     } else {
         localStorage.setItem(QUEST_KEY, String(nextStep));
+        // Persist step progress to Firestore
+        _nachoQuestSyncToFirestore(nextStep, false);
         // Update starting baselines for next step
         window._nachoQuestDetectionActive = false;
         clearInterval(window._nachoQuestPollInterval);
@@ -250,11 +252,7 @@ window._showNachoQuestComplete = function() {
     clearInterval(window._nachoQuestPollInterval);
     window._nachoQuestDetectionActive = false;
     // Persist to Firestore so it survives new-device login
-    try {
-        if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous && firebase.firestore) {
-            firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).update({ nachoQuestDone: true }).catch(function() {});
-        }
-    } catch(e) {}
+    _nachoQuestSyncToFirestore(ONBOARDING_STEPS.length, true);
 
     // Remove floating pill
     var pill = document.getElementById('nachoQuestPill');
@@ -435,10 +433,22 @@ window.startNachoQuest = function() {
     localStorage.setItem(QUEST_ACTIVE_KEY, '1');
     if (!localStorage.getItem(QUEST_KEY)) localStorage.setItem(QUEST_KEY, '0');
     var step = window.getNachoQuestStep();
+    // Persist active + step to Firestore so new-device login resumes correctly
+    _nachoQuestSyncToFirestore(step, false);
     window._showNachoQuestOverlay(step);
     window._showNachoQuestPill();
     window.startNachoQuestDetection();
 };
+
+function _nachoQuestSyncToFirestore(step, done) {
+    try {
+        if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous && firebase.firestore) {
+            var update = { nachoQuestActive: !done, nachoQuestStep: step };
+            if (done) { update.nachoQuestDone = true; update.nachoQuestActive = false; }
+            firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).update(update).catch(function() {});
+        }
+    } catch(e) {}
+}
 
 // Popstate: restore overlay if quest still active
 window.addEventListener('popstate', function(e) {
