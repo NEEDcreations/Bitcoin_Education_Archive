@@ -361,7 +361,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const stravaStat = urlParams.get('strava');
     
     if (stravaStat === 'success') {
-        setTimeout(() => alert('Strava connected successfully! Click "Sync Recent Activities" to load your walks.'), 1000);
+        setTimeout(() => {
+            if (typeof showToast === 'function') showToast('🟠 Strava connected! Click "Sync Activities" to load your walks.');
+            // Award +5 tickets for first-time Strava connection
+            var _stravaConnectKey = 'btc_strava_ticket_awarded';
+            if (!localStorage.getItem(_stravaConnectKey)) {
+                localStorage.setItem(_stravaConnectKey, '1');
+                if (typeof awardTickets === 'function') awardTickets(5, 'Strava Connect');
+            }
+        }, 1000);
         window.location.hash = '#explore'; // Clear param
     } else if (stravaStat && stravaStat.startsWith('error')) {
         setTimeout(() => alert('Error connecting to Strava. Please try again.'), 1000);

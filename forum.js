@@ -691,7 +691,8 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_date', today);
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
-        if (typeof awardTickets === 'function') awardTickets(5, '📝 Forum post');
+        if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');  // matches forum_post_ticket
+        if (typeof showToast === 'function') setTimeout(function() { showToast('🎟️ +1 Orange Ticket for posting in PlebTalk!'); }, 800);
         // Combo tracking
         if (typeof window._trackCombo === 'function') window._trackCombo('forum');
         // Notify @mentioned users

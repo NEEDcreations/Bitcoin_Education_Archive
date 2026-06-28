@@ -4518,11 +4518,24 @@ function showSettingsPage(tab) {
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                 '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How to Earn Tickets</div>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
-                '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
-                '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (2,140+ pts). Verified automatically.<br>' +
-                '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
-                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
+                '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket/day just for visiting.<br>' +
+                '<strong style="color:var(--text);">🎡 Daily Spin:</strong> Spin the wheel for 1–5+ tickets!<br>' +
+                '<strong style="color:var(--text);">🎯 Daily Trifecta:</strong> Complete quiz + trivia + poll = +1 ticket/day.<br>' +
+                '<strong style="color:var(--text);">🦌 Nacho Chat:</strong> Send Nacho a message = +1 ticket/day.<br>' +
+                '<strong style="color:var(--text);">💬 Global Chat:</strong> First message of the day = +2 tickets.<br>' +
+                '<strong style="color:var(--text);">📺 Timechain TV:</strong> Watch 15 min = +1 ticket (stacks!).<br>' +
+                '<strong style="color:var(--text);">⚔️ PvP Win:</strong> Win a knowledge duel = +1 ticket.<br>' +
+                '<strong style="color:var(--text);">🔱 Raid Boss:</strong> Deal damage = +1 ticket/hit (max 50/day).<br>' +
+                '<strong style="color:var(--text);">🗣️ PlebTalk:</strong> Post in the forum = +1 ticket/day.<br>' +
+                '<strong style="color:var(--text);">🛒 Lightning Mart:</strong> Post a listing = +1 ticket/day.<br>' +
+                '<strong style="color:var(--text);">🤝 IRL Sync:</strong> Host a meetup event = +1 ticket.<br>' +
+                '<strong style="color:var(--text);">🚶 Proof of Walk:</strong> Connect Strava = +5 tickets (one-time).<br>' +
+                '<strong style="color:var(--text);">🎵 Beat Upload:</strong> Upload a track = +10 tickets.<br>' +
+                '<strong style="color:var(--text);">🎧 DJ Set:</strong> Start a DJ set = +5 tickets/set.<br>' +
+                '<strong style="color:var(--text);">📚 Scholar:</strong> Complete a flashcard deck = +5 tickets.<br>' +
+                '<strong style="color:var(--text);">❤️ Donate XP:</strong> Donate 1,000+ XP = +1 ticket/day.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who reaches Maxi rank.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket also earns +5 XP.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
         }
@@ -20353,7 +20366,8 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_date', today);
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
-        if (typeof awardTickets === 'function') awardTickets(5, '📝 Forum post');
+        if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');  // matches forum_post_ticket
+        if (typeof showToast === 'function') setTimeout(function() { showToast('🎟️ +1 Orange Ticket for posting in PlebTalk!'); }, 800);
         // Combo tracking
         if (typeof window._trackCombo === 'function') window._trackCombo('forum');
         // Notify @mentioned users
@@ -22782,6 +22796,8 @@ window.submitListing = function() {
         if (overlay) overlay.remove();
         if (typeof showToast === 'function') showToast('🛒 Listing posted!');
         if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
+        if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
+        if (typeof showToast === 'function') setTimeout(function(){ showToast('🎟️ +1 Orange Ticket for posting a listing!'); }, 800);
         // Track for badge
         if (auth && auth.currentUser) {
             db.collection('users').doc(auth.currentUser.uid).update({
@@ -33621,21 +33637,24 @@ window._tctvStartTracker = function() {
             }
         } catch(e) {}
 
-        // Every 10 minutes (cumulative) award 10 points
-        if (total % 10 === 0) {
+        // Every 15 minutes (cumulative) award 10 points + 1 ticket
+        if (total % 15 === 0) {
             if (typeof awardPoints === 'function') {
                 awardPoints(10, 'tctv_watch_10m'); // Use server-side action name
+            }
+            if (typeof awardTickets === 'function') {
+                awardTickets(1, 'TCTV watch');
             }
             if (typeof checkBadges === 'function') {
                 checkBadges();
             }
             if (typeof showToast === 'function') {
-                showToast('👁️ +10 Points — Thanks for watching Timechain TV!');
+                showToast('📺 +10 XP & 🎟️ +1 Ticket — Keep watching Timechain TV!');
             }
         } else if (total === 1) {
             // First minute toast
             if (typeof showToast === 'function') {
-                showToast('📺 Watching Timechain TV — Points awarded every 10 min!');
+                showToast('📺 Watching Timechain TV — Ticket + XP every 15 min!');
             }
         }
     }, 60000); // 1 minute interval

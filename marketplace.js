@@ -764,6 +764,8 @@ window.submitListing = function() {
         if (overlay) overlay.remove();
         if (typeof showToast === 'function') showToast('🛒 Listing posted!');
         if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
+        if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
+        if (typeof showToast === 'function') setTimeout(function(){ showToast('🎟️ +1 Orange Ticket for posting a listing!'); }, 800);
         // Track for badge
         if (auth && auth.currentUser) {
             db.collection('users').doc(auth.currentUser.uid).update({

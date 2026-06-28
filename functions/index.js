@@ -2145,6 +2145,11 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'flashcard_ticket': 0,        // +5 tickets for flashcard deck complete
         'pvp_win_ticket': 0,          // +1 ticket for PvP win
         'raid_damage_ticket': 0,      // +N tickets for raid damage dealt
+        'forum_post_ticket': 0,       // +1 ticket for forum post
+        'marketplace_listing_ticket': 0, // +1 ticket for marketplace listing
+        'irl_listing_ticket': 0,      // +1 ticket for IRL listing
+        'strava_connect_ticket': 0,   // +5 tickets for Strava first connect (one-time)
+        'tctv_watch_ticket': 0,       // +1 ticket per 15 min of TCTV
     };
 
     // Look up max allowed points for this action using keyword matching
@@ -2207,6 +2212,11 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'flashcard_ticket': ['flashcard deck complete'],
         'pvp_win_ticket': ['pvp win'],
         'raid_damage_ticket': ['raid damage'],
+        'forum_post_ticket': ['forum post'],
+        'marketplace_listing_ticket': ['marketplace listing'],
+        'irl_listing_ticket': ['irl listing'],
+        'strava_connect_ticket': ['strava connect'],
+        'tctv_watch_ticket': ['tctv watch'],
     };
 
     let pts = 0;
@@ -2349,6 +2359,8 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             const DAILY_TICKET_ACTIONS = [
                 'daily_trifecta_ticket', 'nacho_chat_ticket', 'daily_chat_ticket',
                 'pvp_win_ticket', 'flashcard_ticket',
+                'forum_post_ticket', 'marketplace_listing_ticket', 'irl_listing_ticket',
+                'tctv_watch_ticket',
             ];
             if (DAILY_TICKET_ACTIONS.includes(matchedAction)) {
                 const dtRef = userRef.collection('daily_action_counts').doc(today + '_' + matchedAction);
@@ -2357,6 +2369,15 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                     throw new Error('ALREADY_CLAIMED_TODAY:' + matchedAction);
                 }
                 t.set(dtRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            }
+            // strava_connect: one-time ever (use a permanent doc, not daily)
+            if (matchedAction === 'strava_connect_ticket') {
+                const stravaRef = userRef.collection('lifetime_awards').doc('strava_connect');
+                const stravaDoc = await t.get(stravaRef);
+                if (stravaDoc.exists) {
+                    throw new Error('ALREADY_AWARDED:strava_connect');
+                }
+                t.set(stravaRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp() });
             }
             // dj_set and beats_upload_ticket: cap at reasonable daily max (10/day)
             if (matchedAction === 'dj_set_ticket' || matchedAction === 'beats_upload_ticket' || matchedAction === 'raid_damage_ticket') {
