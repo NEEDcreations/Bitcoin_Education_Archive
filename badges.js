@@ -1015,13 +1015,17 @@ function _renderBadgeSets(earnedBadges) {
             html += '<div style="font-size:1.1rem;filter:drop-shadow(0 0 6px gold);">' + set.bonusEmoji + '</div>';
         }
         html += '</div>';
-        // Mini badge grid
-        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+        // Badge grid with names
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
         set.badgeIds.forEach(function(bid) {
             var bEarned = earnedBadges.has(bid);
             var bDef = BADGE_DEFS.find(function(b) { return b.id === bid; });
             var emoji = bDef ? bDef.emoji : '🔘';
-            html += '<span style="font-size:1.1rem;' + (bEarned ? '' : 'filter:grayscale(1) opacity(0.35);') + '" title="' + (bDef ? bDef.name : bid) + '">' + emoji + '</span>';
+            var name = bDef ? bDef.name : bid;
+            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:52px;' + (bEarned ? '' : 'opacity:0.4;') + '">';
+            html += '<span style="font-size:1.3rem;' + (bEarned ? 'filter:drop-shadow(0 0 4px ' + set.color + '88);' : 'filter:grayscale(1);') + '">' + emoji + '</span>';
+            html += '<span style="font-size:0.55rem;color:' + (bEarned ? 'var(--text)' : 'var(--text-faint)') + ';text-align:center;line-height:1.2;word-break:break-word;">' + name + '</span>';
+            html += '</div>';
         });
         html += '</div>';
         // Progress bar
