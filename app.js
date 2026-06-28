@@ -2466,6 +2466,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Start talking animation
         nachoModeStartTalking();
 
+        // Award 1 orange ticket per day for sending a message to Nacho
+        var _nachoMsgDay = 'btc_nacho_msg_ticket_' + new Date().toDateString();
+        if (!localStorage.getItem(_nachoMsgDay)) {
+            localStorage.setItem(_nachoMsgDay, '1');
+            if (typeof awardTickets === 'function') awardTickets(1, '🦌 Daily Nacho Chat');
+        }
+
         // Track interaction + topic for conversation quiz
         if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
         window._nachoModeEarnings.interactions++;
