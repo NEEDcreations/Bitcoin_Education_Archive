@@ -5772,3 +5772,373 @@ exports.useBonusSpin = functions.https.onCall(async (data, context) => {
         return { success: true, bonusSpins: bonusSpins - 1 };
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOT TOPICS — Weekly Bitcoin trending topics aggregator
+// Runs every Friday at 22:00 America/New_York (= Saturday 02:00–03:00 UTC)
+// Sources: web_search (Google via SerpAPI/Serper) + Reddit JSON + BitcoinTalk HTML
+// Stores result in Firestore: hotTopics/latest
+// ─────────────────────────────────────────────────────────────────────────────
+
+const { onSchedule: onScheduleV2 } = require('firebase-functions/v2/scheduler');
+
+// Trigger: Friday 10 PM Eastern (America/New_York handles DST automatically)
+exports.refreshHotTopics = onScheduleV2({
+    schedule: '0 22 * * 5',
+    timeZone: 'America/New_York',
+    timeoutSeconds: 540,
+    memory: '512MiB',
+}, async (event) => {
+    console.log('[HotTopics] Starting weekly refresh...');
+    try {
+        const topics = await buildHotTopics();
+        await db.collection('hotTopics').doc('latest').set({
+            topics,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            version: 1,
+        });
+        console.log('[HotTopics] Saved', topics.length, 'topics to Firestore');
+    } catch (err) {
+        console.error('[HotTopics] Fatal error:', err);
+    }
+});
+
+// Also expose as HTTP endpoint so you can trigger it manually
+// GET https://us-central1-bitcoin-education-archive.cloudfunctions.net/refreshHotTopicsHttp
+// Header: x-admin-token: $ADMIN_TOKEN
+exports.refreshHotTopicsHttp = functions.https.onRequest(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+        const topics = await buildHotTopics();
+        await db.collection('hotTopics').doc('latest').set({
+            topics,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            version: 1,
+        });
+        res.json({ ok: true, topicsCount: topics.length, topics });
+    } catch (err) {
+        console.error('[HotTopics] HTTP trigger error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── Core builder ─────────────────────────────────────────────────────────────
+async function buildHotTopics() {
+    // Step 1: Discover trending Bitcoin topics from multiple sources
+    const rawSignals = await gatherTrendingSignals();
+
+    // Step 2: Cluster signals into 2-3 unified topic threads
+    const topics = await clusterAndSummarize(rawSignals);
+
+    return topics;
+}
+
+// ── Step 1: Gather raw trending signals ──────────────────────────────────────
+async function gatherTrendingSignals() {
+    const signals = [];
+    const fetches = [
+        fetchRedditHot(),
+        fetchBitcoinTalkHot(),
+        fetchWebTrending(),
+    ];
+    const results = await Promise.allSettled(fetches);
+    results.forEach((r, i) => {
+        if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+            signals.push(...r.value);
+        } else {
+            console.warn('[HotTopics] Source', i, 'failed:', r.reason);
+        }
+    });
+    console.log('[HotTopics] Gathered', signals.length, 'raw signals');
+    return signals;
+}
+
+// ── Reddit r/Bitcoin hot posts ────────────────────────────────────────────────
+async function fetchRedditHot() {
+    const url = 'https://www.reddit.com/r/Bitcoin/hot.json?limit=25&raw_json=1';
+    const resp = await fetch(url, {
+        headers: {
+            'User-Agent': 'BitcoinEducationArchive/1.0 (https://bitcoineducation.quest)',
+            'Accept': 'application/json',
+        },
+    });
+    if (!resp.ok) throw new Error('Reddit HTTP ' + resp.status);
+    const json = await resp.json();
+    if (!json.data || !json.data.children) throw new Error('Reddit: unexpected shape');
+
+    return json.data.children
+        .filter(p => p.data && !p.data.stickied && p.data.score > 100)
+        .slice(0, 15)
+        .map(p => ({
+            source: 'reddit',
+            title: p.data.title,
+            url: 'https://reddit.com' + p.data.permalink,
+            score: p.data.score,
+            comments: p.data.num_comments,
+            body: (p.data.selftext || '').substring(0, 300),
+        }));
+}
+
+// ── BitcoinTalk board scraper (HTML) ──────────────────────────────────────────
+async function fetchBitcoinTalkHot() {
+    // Board 1 = Bitcoin Discussion. Scrape thread list HTML.
+    const url = 'https://bitcointalk.org/index.php?board=1.0';
+    const resp = await fetch(url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; BitcoinEducationArchive/1.0)',
+            'Accept': 'text/html',
+        },
+    });
+    if (!resp.ok) throw new Error('BitcoinTalk HTTP ' + resp.status);
+    const html = await resp.text();
+
+    // Extract thread titles + links from SMF board markup
+    const threads = [];
+    const re = /<span id="msg_\d+"><a href="(https:\/\/bitcointalk\.org\/index\.php\?topic=[^"]+)"[^>]*>([^<]+)<\/a><\/span>/g;
+    let m;
+    while ((m = re.exec(html)) !== null && threads.length < 20) {
+        const title = m[2].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+        if (title.length > 10) {
+            threads.push({
+                source: 'bitcointalk',
+                title,
+                url: m[1],
+                score: 50,
+                comments: 0,
+                body: '',
+            });
+        }
+    }
+    return threads;
+}
+
+// ── Web search for viral Bitcoin content ──────────────────────────────────────
+async function fetchWebTrending() {
+    const queries = [
+        'bitcoin trending debate this week site:x.com OR site:twitter.com',
+        'bitcoin BIP proposal controversy 2025',
+        '"bitcoin" "debate" OR "controversial" OR "viral" site:reddit.com/r/Bitcoin',
+    ];
+
+    const results = [];
+    for (const q of queries) {
+        try {
+            const items = await searchWeb(q, 5);
+            results.push(...items);
+        } catch (e) {
+            console.warn('[HotTopics] Web search failed for:', q, e.message);
+        }
+    }
+    return results;
+}
+
+// Web search using SerpAPI (free tier: 100 searches/mo)
+// Falls back to DuckDuckGo HTML scrape if no key set
+async function searchWeb(query, limit) {
+    limit = limit || 5;
+    const serpKey = process.env.SERP_API_KEY;
+
+    if (serpKey) {
+        const url = 'https://serpapi.com/search.json?q=' + encodeURIComponent(query) +
+            '&num=' + limit + '&api_key=' + serpKey + '&gl=us&hl=en';
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('SerpAPI HTTP ' + resp.status);
+        const json = await resp.json();
+        return (json.organic_results || []).slice(0, limit).map(r => ({
+            source: 'web',
+            title: r.title || '',
+            url: r.link || '',
+            score: 30,
+            comments: 0,
+            body: r.snippet || '',
+        }));
+    }
+
+    // No SerpAPI key — use DuckDuckGo HTML endpoint (no key needed)
+    const ddgUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query);
+    const resp = await fetch(ddgUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; BitcoinEducationArchive/1.0)',
+            'Accept': 'text/html',
+        },
+    });
+    if (!resp.ok) throw new Error('DDG HTTP ' + resp.status);
+    const html = await resp.text();
+
+    const results = [];
+    const titleRe = /class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
+    const snippetRe = /class="result__snippet"[^>]*>([^<]{10,300})</g;
+    const titles = [];
+    const snippets = [];
+    let tm, sm;
+    while ((tm = titleRe.exec(html)) !== null && titles.length < limit) {
+        titles.push({ url: decodeURIComponent(tm[1].replace('/l/?uddg=', '')), title: tm[2].trim() });
+    }
+    while ((sm = snippetRe.exec(html)) !== null && snippets.length < limit) {
+        snippets.push(sm[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim());
+    }
+    for (let i = 0; i < Math.min(titles.length, limit); i++) {
+        results.push({
+            source: 'web',
+            title: titles[i].title,
+            url: titles[i].url,
+            score: 25,
+            comments: 0,
+            body: snippets[i] || '',
+        });
+    }
+    return results;
+}
+
+// ── Step 2: Cluster + AI summarize ────────────────────────────────────────────
+async function clusterAndSummarize(signals) {
+    if (!signals.length) {
+        return [{
+            title: 'Bitcoin Community Updates',
+            summary: 'No trending topics detected this week. Check back next Friday for the latest Bitcoin debates.',
+            heatScore: 10,
+            sides: [],
+            posts: [],
+        }];
+    }
+
+    // Build a compact signal digest for the AI prompt (keep token cost low)
+    const digest = signals.slice(0, 40).map((s, i) =>
+        (i + 1) + '. [' + s.source + '] ' + s.title + (s.body ? ' — ' + s.body.substring(0, 120) : '')
+    ).join('\n');
+
+    const prompt = `You are an expert Bitcoin analyst reviewing this week's most discussed Bitcoin posts across Reddit, BitcoinTalk, and the web.
+
+Here are the raw post titles and snippets gathered this week:
+
+${digest}
+
+Your task: identify the 2-3 hottest, most contested Bitcoin topics from the above, then for each topic:
+1. Write a neutral 2-sentence overview of what's being debated
+2. Summarize the "FOR" side (supporters/proponents) in 1-2 sentences
+3. Summarize the "AGAINST" side (critics/skeptics) in 1-2 sentences  
+4. Assign a heatScore 1-100 based on volume and controversy
+5. Pick the 3 most relevant source posts from the input list (by number)
+
+Return ONLY valid JSON in exactly this structure, no markdown, no extra text:
+{
+  "topics": [
+    {
+      "title": "Short punchy topic name (5 words max)",
+      "summary": "Neutral 2-sentence overview of the debate",
+      "heatScore": 75,
+      "sides": [
+        { "stance": "for", "label": "The case FOR", "summary": "..." },
+        { "stance": "against", "label": "The case AGAINST", "summary": "..." }
+      ],
+      "postIndices": [1, 4, 7]
+    }
+  ]
+}`;
+
+    // Call OpenAI/Claude via fetch — use Firebase Functions config or env var
+    const aiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+    let aiTopics = null;
+
+    if (aiKey && aiKey.startsWith('sk-ant')) {
+        aiTopics = await callClaude(prompt, aiKey);
+    } else if (aiKey) {
+        aiTopics = await callOpenAI(prompt, aiKey);
+    } else {
+        // No AI key — fallback: cluster by keyword frequency
+        aiTopics = fallbackCluster(signals);
+    }
+
+    if (!aiTopics || !aiTopics.topics) return fallbackCluster(signals);
+
+    // Map postIndices back to real post objects
+    return aiTopics.topics.slice(0, 3).map(t => ({
+        title: t.title || 'Hot Bitcoin Topic',
+        summary: t.summary || '',
+        heatScore: Math.min(100, Math.max(0, t.heatScore || 50)),
+        sides: (t.sides || []).slice(0, 2),
+        posts: (t.postIndices || []).slice(0, 4)
+            .map(idx => signals[idx - 1])
+            .filter(Boolean)
+            .map(s => ({ source: s.source, title: s.title, url: s.url })),
+    }));
+}
+
+async function callClaude(prompt, apiKey) {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 1200,
+            messages: [{ role: 'user', content: prompt }],
+        }),
+    });
+    if (!resp.ok) throw new Error('Claude HTTP ' + resp.status);
+    const json = await resp.json();
+    const text = json.content && json.content[0] && json.content[0].text;
+    return JSON.parse(text);
+}
+
+async function callOpenAI(prompt, apiKey) {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + apiKey,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            max_tokens: 1200,
+            temperature: 0.3,
+            messages: [{ role: 'user', content: prompt }],
+        }),
+    });
+    if (!resp.ok) throw new Error('OpenAI HTTP ' + resp.status);
+    const json = await resp.json();
+    const text = json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
+    return JSON.parse(text);
+}
+
+// Fallback: no AI key — group by keyword, pick top 3 clusters
+function fallbackCluster(signals) {
+    const keywords = ['BIP', 'lightning', 'fee', 'halving', 'ETF', 'mining', 'taproot', 'fork', 'ordinals', 'layer 2'];
+    const clusters = {};
+    signals.forEach(s => {
+        const titleLower = s.title.toLowerCase();
+        let matched = false;
+        for (const kw of keywords) {
+            if (titleLower.includes(kw.toLowerCase())) {
+                clusters[kw] = clusters[kw] || [];
+                clusters[kw].push(s);
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            clusters['General'] = clusters['General'] || [];
+            clusters['General'].push(s);
+        }
+    });
+
+    return Object.entries(clusters)
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, 3)
+        .map(([kw, posts]) => ({
+            title: kw + ' Discussion',
+            summary: 'The Bitcoin community is actively discussing ' + kw + ' this week. Multiple perspectives are circulating across Reddit, BitcoinTalk, and social media.',
+            heatScore: Math.min(90, posts.length * 10),
+            sides: [
+                { stance: 'for', label: 'Supporters say', summary: 'Community members see positive developments and opportunities in recent ' + kw + ' discussions.' },
+                { stance: 'against', label: 'Critics say', summary: 'Others raise concerns and call for more caution or analysis before drawing conclusions.' },
+            ],
+            posts: posts.slice(0, 4).map(p => ({ source: p.source, title: p.title, url: p.url })),
+        }));
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// END HOT TOPICS
+// ─────────────────────────────────────────────────────────────────────────────

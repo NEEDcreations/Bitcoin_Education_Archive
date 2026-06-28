@@ -1304,6 +1304,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Hot Topics — public read, Cloud Function write only
+    match /hotTopics/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
