@@ -1042,12 +1042,14 @@
                 <div id="quoteOfDay" style="margin-top:16px;"></div>
                 <div id="explorationMap" style="margin-top:16px;"></div>
                 <div style="margin-top:20px;max-width:500px;margin-left:auto;margin-right:auto;">
-                    <!-- 2x2 Grid -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <!-- 3x2 Grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <button onclick="var s=document.getElementById('sponsorPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📣 Sponsor <span>▼</span></button>
                         <button onclick="var s=document.getElementById('creditsPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">👥 Contributors <span>▼</span></button>
                         <button onclick="if(typeof showDonateModal==='function')showDonateModal()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">❤️ Donate ▼</button>
                         <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'flex':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📊 App Stats <span>▼</span></button>
+                        <button onclick="toggleSidebarMenu('homeSupportMenu');document.getElementById('homeFollowMenu').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">⚙️ Support &amp; Feedback <span id="homeSupportArrow">▼</span></button>
+                        <button onclick="toggleSidebarMenu('homeFollowMenu');document.getElementById('homeSupportMenu').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">🔔 Follow Us! <span id="homeFollowArrow">▼</span></button>
                     </div>
                     <!-- Expanded panels below grid -->
                     <div id="sponsorPanel" style="display:none;margin-top:10px;padding:20px;background:linear-gradient(135deg,rgba(247,147,26,0.05),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.3);border-radius:12px;text-align:center;">
@@ -1113,11 +1115,7 @@
                         <div class="home-stat"><span class="home-stat-num">420</span><span class="home-stat-label">Music Tracks</span></div>
                         <div class="home-stat"><span class="home-stat-num">345</span><span class="home-stat-label">Badges</span></div>
                     </div>
-                    <!-- Contact/Support + Follow Us below grid -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
-                        <button onclick="toggleSidebarMenu('homeSupportMenu');document.getElementById('homeFollowMenu').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📧 Support &amp; Feedback <span id="homeSupportArrow">▼</span></button>
-                        <button onclick="toggleSidebarMenu('homeFollowMenu');document.getElementById('homeSupportMenu').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">🔔 Follow Us! <span id="homeFollowArrow">▼</span></button>
-                    </div>
+
                     <div id="homeSupportMenu" style="display:none;margin-top:8px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;">
                         <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
                             <span style="color:var(--text-muted);font-size:0.85rem;flex:1;">info.603btc@gmail.com</span>
