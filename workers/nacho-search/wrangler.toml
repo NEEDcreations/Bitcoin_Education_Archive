@@ -2,3 +2,6 @@ name = "jolly-surf-219enacho-search"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 account_id = "bc12a6ce8540408b7552f1d658c45bf7"
+
+[ai]
+binding = "AI"

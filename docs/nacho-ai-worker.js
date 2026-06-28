@@ -48,7 +48,10 @@ async function handleSearch(request, env, corsHeaders, url) {
   }
 
   try {
-    const braveUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3&safesearch=strict`;
+    const freshness = url.searchParams.get('freshness') || '';
+    const count = Math.min(parseInt(url.searchParams.get('count') || '3', 10), 10);
+    let braveUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}&safesearch=strict`;
+    if (freshness) braveUrl += `&freshness=${encodeURIComponent(freshness)}`;
     const response = await fetch(braveUrl, {
       headers: {
         'Accept': 'application/json',
@@ -58,7 +61,7 @@ async function handleSearch(request, env, corsHeaders, url) {
     });
 
     const data = await response.json();
-    const results = (data.web?.results || []).slice(0, 3).map(r => ({
+    const results = (data.web?.results || []).slice(0, count).map(r => ({
       title: r.title || '',
       snippet: r.description || '',
       url: r.url || '',
@@ -256,7 +259,7 @@ Remember: You are a deer. A very smart, Bitcoin-loving deer. Stay in character a
 
     messages.push({ role: 'user', content: question });
 
-    const aiResponse = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+    const aiResponse = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
       messages,
       max_tokens: 300,
       temperature: 0.7,

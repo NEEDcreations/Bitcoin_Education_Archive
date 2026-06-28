@@ -6176,7 +6176,7 @@ async function callCloudflareLlama(prompt) {
     const apiToken = process.env.CF_AI_TOKEN; // Workers AI token (separate from CDN token)
     if (!accountId || !apiToken) throw new Error('Missing CF_ACCOUNT_ID or CF_API_TOKEN');
     const url = 'https://api.cloudflare.com/client/v4/accounts/' + accountId +
-        '/ai/run/@cf/meta/llama-3.1-8b-instruct';
+        '/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast';
     const resp = await fetch(url, {
         method: 'POST',
         headers: {
