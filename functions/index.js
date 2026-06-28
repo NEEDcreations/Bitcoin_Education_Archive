@@ -5169,6 +5169,116 @@ exports.backfillDonationFaction = functions.https.onCall(async (data, context) =
 });
 
 // ══════════════════════════════════════════════════════════════════════
+// 📅 BACKFILL: Join Dates
+// One-shot HTTP trigger — fills `created` field for users missing it.
+// Uses Firebase Auth creationTime as ground truth; point-rank estimate as fallback.
+// ══════════════════════════════════════════════════════════════════════
+exports.backfillJoinDates = functions.https.onRequest(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const dryRun = req.query.dry === '1';
+
+    const LAUNCH_DATE = new Date('2026-03-01T00:00:00Z');
+    const NOW = new Date();
+
+    try {
+        // Fetch all Firestore user docs
+        const snap = await db.collection('users').get();
+        const allUsers = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+        console.log('[backfillJoinDates] Total user docs:', allUsers.length);
+
+        // Fetch all Firebase Auth users for creationTime
+        const authMap = {};
+        let pageToken;
+        do {
+            const listResult = await admin.auth().listUsers(1000, pageToken);
+            listResult.users.forEach(u => {
+                if (u.metadata && u.metadata.creationTime) {
+                    authMap[u.uid] = new Date(u.metadata.creationTime);
+                }
+            });
+            pageToken = listResult.pageToken;
+        } while (pageToken);
+        console.log('[backfillJoinDates] Auth users fetched:', Object.keys(authMap).length);
+
+        // Build point-rank list for estimation fallback
+        const pointRanked = allUsers
+            .filter(u => (u.data.points || 0) > 0)
+            .sort((a, b) => (b.data.points || 0) - (a.data.points || 0));
+        const totalRanked = pointRanked.length || 1;
+
+        let toUpdate = [];
+        let skipped = 0;
+
+        for (const { id, data } of allUsers) {
+            // Already has a valid created field? Skip.
+            const existing = data.created || data.createdAt;
+            if (existing) {
+                try {
+                    const d = existing.toDate ? existing.toDate() : (existing.seconds ? new Date(existing.seconds * 1000) : new Date(existing));
+                    if (!isNaN(d.getTime())) { skipped++; continue; }
+                } catch(e) {}
+            }
+
+            let createdDate = null;
+            let method = 'estimate';
+
+            // 1. Firebase Auth creationTime (ground truth)
+            if (authMap[id]) {
+                createdDate = authMap[id];
+                method = 'auth';
+            }
+
+            // 2. Point-rank interpolation
+            if (!createdDate) {
+                const rank = pointRanked.findIndex(u => u.id === id);
+                const fraction = rank >= 0 ? (rank / totalRanked) : 1;
+                const msRange = NOW.getTime() - LAUNCH_DATE.getTime();
+                createdDate = new Date(LAUNCH_DATE.getTime() + fraction * msRange);
+                method = 'estimate';
+            }
+
+            toUpdate.push({ id, createdDate, method, username: data.username || '(anon)' });
+        }
+
+        console.log('[backfillJoinDates] To update:', toUpdate.length, 'Skipped (already set):', skipped);
+
+        if (!dryRun && toUpdate.length > 0) {
+            const CHUNK = 400;
+            for (let i = 0; i < toUpdate.length; i += CHUNK) {
+                const chunk = toUpdate.slice(i, i + CHUNK);
+                const batch = db.batch();
+                chunk.forEach(({ id, createdDate }) => {
+                    batch.update(db.collection('users').doc(id), {
+                        created: admin.firestore.Timestamp.fromDate(createdDate),
+                    });
+                });
+                await batch.commit();
+            }
+        }
+
+        const authCount = toUpdate.filter(u => u.method === 'auth').length;
+        const estCount = toUpdate.filter(u => u.method === 'estimate').length;
+
+        res.json({
+            ok: true,
+            dryRun,
+            totalDocs: allUsers.length,
+            alreadySet: skipped,
+            updated: toUpdate.length,
+            byMethod: { auth: authCount, estimate: estCount },
+            sample: toUpdate.slice(0, 10).map(u => ({
+                username: u.username,
+                method: u.method,
+                date: u.createdDate.toISOString().substring(0, 10),
+            })),
+        });
+    } catch (err) {
+        console.error('[backfillJoinDates] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ══════════════════════════════════════════════════════════════════════
 // ⏰ FEATURE 3: Weekly/Monthly XP Reset + Ticket Prizes
 // ══════════════════════════════════════════════════════════════════════
 

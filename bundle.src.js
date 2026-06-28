@@ -23718,11 +23718,14 @@ window.showUserProfile = function(uid) {
         var u = doc.data();
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
-        var joinDate = 'OG 🫡'; // fallback for early accounts without createdAt
+        var joinDate = 'OG 🫡'; // fallback for pre-createdAt legacy accounts
         try {
-            if (u.createdAt) {
-                var jd = u.createdAt.toDate ? u.createdAt.toDate() : (u.createdAt.seconds ? new Date(u.createdAt.seconds * 1000) : new Date(u.createdAt));
-                if (!isNaN(jd.getTime())) joinDate = jd.toLocaleDateString('en-US', {month:'short', year:'numeric'});
+            // Field is 'created' in Firestore (ranking.js writes it as 'created')
+            // Also check 'createdAt' for any accounts written via other paths
+            var _rawCreated = u.created || u.createdAt || null;
+            if (_rawCreated) {
+                var jd = _rawCreated.toDate ? _rawCreated.toDate() : (_rawCreated.seconds ? new Date(_rawCreated.seconds * 1000) : new Date(_rawCreated));
+                if (!isNaN(jd.getTime())) joinDate = jd.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
             }
         } catch(e) {}
         
