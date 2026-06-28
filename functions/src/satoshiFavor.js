@@ -103,13 +103,14 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
 
 // Valid level names per source tier (server-side whitelist)
 const LEVEL_TIERS = {
-  'level_up': ['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
+  'level_up': ['Normie','Curious','Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
   'level_up_5': ['Maxi','Maxi II','Maxi III'],
   'level_up_10': ['Papa John','Full Node','Whale','Sovereign','Cypherpunk','Satoshi'],
 };
 
 // Minimum XP thresholds per level (must match client LEVELS array)
 const LEVEL_MIN_POINTS = {
+  'Normie': 0, 'Curious': 10,
   'Pleb': 144, 'Pleb II': 170, 'Pleb III': 256,
   'Stacker': 500, 'Stacker II': 1913, 'Stacker III': 2016,
   'Maxi': 2140, 'Maxi II': 6102, 'Maxi III': 8888,
