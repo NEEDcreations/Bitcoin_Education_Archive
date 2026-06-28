@@ -6036,7 +6036,26 @@ async function clusterAndSummarize(signals) {
     }
 
     // Build a compact signal digest for the AI prompt (keep token cost low)
-    const digest = signals.slice(0, 60).map((s, i) =>
+    // Filter stale signals: only keep posts from current year or unverifiable sources (x/reddit)
+    const currentYear = new Date().getUTCFullYear().toString();
+    const freshSignals = signals.filter(s => {
+        if (!s.url) return true; // keep if no URL
+        // Always keep x-curated and reddit — they already have freshness=pw
+        if (s.source === 'x' || s.source === 'reddit') return true;
+        // For web/bitcointalk: only keep if URL contains current year or no year pattern
+        const yearMatch = s.url.match(/20\d{2}/);
+        if (!yearMatch) return true; // no year in URL, keep
+        return yearMatch[0] === currentYear; // only keep if this year
+    });
+    // Deduplicate by title prefix (catches near-duplicate sources)
+    const seenTitles = new Set();
+    const dedupedSignals = freshSignals.filter(s => {
+        const key = s.title.substring(0, 50).toLowerCase().replace(/[^a-z0-9]/g,'');
+        if (seenTitles.has(key)) return false;
+        seenTitles.add(key);
+        return true;
+    });
+    const digest = dedupedSignals.slice(0, 60).map((s, i) =>
         (i + 1) + '. [' + (s.source === 'x' ? 'x-curated' : s.source) + '] ' + s.title + (s.body ? ' — ' + s.body.substring(0, 120) : '')
     ).join('\n');
 
@@ -6048,11 +6067,22 @@ Here are the raw post titles and snippets gathered this week (numbered for refer
 
 ${digest}
 
+KNOWN FACTS (use these — do not contradict or speculate):
+- BIP-110 = a proposed temporary 1-year soft fork to restrict arbitrary data (Ordinals/inscriptions) in Bitcoin transactions. Author targets spam/non-monetary use. Miner signaling sits at ~0.3% as of June 2026. Chain split risk looms in August 2026.
+- BIP-360 = Pay-to-Quantum-Resistant-Hash proposal to make Bitcoin outputs resistant to quantum computers. Proposed by Jameson Lopp.
+- If a topic involves a BIP, state the BIP number and what it actually does — never invent a description.
+
+STRICT RULES:
+- NEVER invent a person's position. Only attribute a stance (FOR or AGAINST) to someone if a source above explicitly shows them arguing that position. If the sources are unclear, use "proponents argue..." or "critics argue..." without naming anyone.
+- The FOR side and AGAINST side must cite DIFFERENT people. Never put the same person on both sides.
+- If you cannot find clear evidence of who is FOR vs AGAINST from the sources, describe the positions in general terms — do not name names.
+- Do not hallucinate quotes, positions, or names not present in the source data. This is the most important rule.
+
 Your task: identify the 2-3 hottest, most technically specific, most contested Bitcoin topics from above. Prioritize real technical or ideological debates over generic discussion. Then for each topic:
 
-1. Write a neutral 3-sentence overview naming specific proposals, people, or arguments involved — not generic. Name the actual BIP number, protocol, or claim at stake.
-2. Write 2-3 sentences for the FOR side: who supports it, what specific benefits they cite (technical, economic, philosophical), and what outcome they want.
-3. Write 2-3 sentences for the AGAINST side: who opposes it, what specific risks or objections they raise, and what alternative they prefer.
+1. Write a neutral 3-sentence overview accurately describing what the proposal/debate is actually about. Use the KNOWN FACTS above if relevant.
+2. Write 2-3 sentences for the FOR side: who supports it (only from sources), what specific benefits they cite, and what outcome they want.
+3. Write 2-3 sentences for the AGAINST side: who opposes it (different people from FOR side), what specific risks or objections they raise.
 4. Assign a heatScore 1-100 based on controversy and community volume.
 5. Pick up to 5 of the most relevant source posts from the numbered list above.
 
@@ -6092,17 +6122,52 @@ Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
 
     if (!aiTopics || !aiTopics.topics) return fallbackCluster(signals);
 
-    // Map postIndices back to real post objects
-    return aiTopics.topics.slice(0, 3).map(t => ({
-        title: t.title || 'Hot Bitcoin Topic',
-        summary: t.summary || '',
-        heatScore: Math.min(100, Math.max(0, t.heatScore || 50)),
-        sides: (t.sides || []).slice(0, 2),
-        posts: (t.postIndices || []).slice(0, 5)
-            .map(idx => signals[idx - 1])
+    // Map postIndices back to real post objects, then sanitize hallucinated attributions
+    return aiTopics.topics.slice(0, 3).map(t => {
+        const posts = (t.postIndices || []).slice(0, 8)
+            .map(idx => dedupedSignals[idx - 1])
             .filter(Boolean)
-            .map(s => ({ source: s.source, title: s.title, url: s.url })),
-    }));
+            .filter(s => s.source !== 'bitcointalk')
+            .slice(0, 5)
+            .map(s => ({ source: s.source, title: s.title, url: s.url }));
+
+        // Build set of @usernames actually present in the matched source post titles/URLs
+        const sourcedNames = new Set();
+        posts.forEach(p => {
+            const m = (p.title + ' ' + p.url).match(/@([A-Za-z0-9_]+)/g) || [];
+            m.forEach(n => sourcedNames.add(n.toLowerCase()));
+        });
+        // Also include names from the raw signals for this topic
+        (t.postIndices || []).slice(0, 8).forEach(idx => {
+            const s = dedupedSignals[idx - 1];
+            if (!s) return;
+            const m = (s.title + ' ' + (s.body||'')).match(/@([A-Za-z0-9_]+)/g) || [];
+            m.forEach(n => sourcedNames.add(n.toLowerCase()));
+        });
+
+        // Sanitize sides: strip @mentions that aren\'t in sourced names
+        const sanitizeSide = (text) => {
+            if (!text) return text;
+            return text.replace(/@([A-Za-z0-9_]+)/g, (match, name) => {
+                if (sourcedNames.has(match.toLowerCase())) return match;
+                // Replace unsourced @name with "some community members"
+                return 'some community members';
+            });
+        };
+
+        const sides = (t.sides || []).slice(0, 2).map(side => ({
+            ...side,
+            summary: sanitizeSide(side.summary),
+        }));
+
+        return {
+            title: t.title || 'Hot Bitcoin Topic',
+            summary: t.summary || '',
+            heatScore: Math.min(100, Math.max(0, t.heatScore || 50)),
+            sides,
+            posts,
+        };
+    });
 }
 
 // Call Cloudflare Workers AI (Llama 3.1 8B) via REST — uses existing CF_ACCOUNT_ID + CF_API_TOKEN
