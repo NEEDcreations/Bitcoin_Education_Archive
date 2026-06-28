@@ -351,7 +351,7 @@
         <tr><td>Nostr (NIP-07)</td><td>Nostr sign-in via browser extension</td><td>Public key, signed auth event</td></tr>
         <tr><td>LNURL-auth</td><td>Lightning wallet sign-in</td><td>Linking key, signed challenge</td></tr>
         <tr><td>QR Server API</td><td>Generate QR codes for Lightning auth</td><td>LNURL string (no user identity)</td></tr>
-        <tr><td>Cloudflare Workers</td><td>Nacho AI proxy (question answering)</td><td>Question text (no user identity)</td></tr>
+        <tr><td>Cloudflare Workers AI</td><td>Nacho AI — question answering powered by Meta Llama 4 Scout (a large language model hosted by Cloudflare)</td><td>Question text only (no username, no user ID, no account data)</td></tr>
         <tr><td>mempool.space API</td><td>Live BTC price, block height, fees</td><td>None (read-only public API)</td></tr>
         <tr><td>GitHub Pages</td><td>Website hosting</td><td>Standard web server logs</td></tr>
         <tr><td>CoinGecko API</td><td>Market data, price charts, dominance</td><td>None (read-only public API)</td></tr>
@@ -383,9 +383,10 @@
     <p>We do not use tracking cookies. Firebase Authentication may set necessary session cookies for sign-in functionality. Your browser's localStorage is used extensively to store preferences, Nacho interaction data, block lists, and cached progress. The PWA service worker caches site assets for offline access.</p>
 
     <h2>8. Nacho (AI Mascot) Privacy</h2>
+    <p>Nacho's AI answers are powered by <strong>Meta Llama 4 Scout</strong>, a large language model (LLM) hosted by Cloudflare Workers AI. Cloudflare processes questions on our behalf under their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a>. The Llama model is provided by Meta; see <a href="https://github.com/meta-llama/llama-models/blob/main/models/llama4/LICENSE" target="_blank" rel="noopener">Meta's Llama 4 license</a>. We do not use your questions to train AI models.</p>
     <ul>
-        <li>Questions you ask Nacho are first processed <strong>in your browser</strong> using keyword matching</li>
-        <li>If no local answer is found, questions may be sent to our <strong>Cloudflare Worker proxy</strong> for AI-assisted answers — only the question text is sent, with no user identity attached</li>
+        <li>Questions you ask Nacho are first processed <strong>in your browser</strong> using keyword matching against 500+ curated Bitcoin Q&amp;A entries</li>
+        <li>If no local answer is found, the question text is sent to our <strong>Cloudflare Workers AI proxy</strong> for AI-assisted answers using Meta Llama 4 Scout — only the question text is sent, with no username, user ID, or account data attached</li>
         <li>Nacho Mode chat history is stored <strong>only in your browser's localStorage</strong></li>
         <li>Question history (last 100 questions) is stored locally for analytics and improvement</li>
         <li>Nacho uses your username to personalize greetings — no other personal data is accessed</li>

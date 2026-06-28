@@ -5777,7 +5777,7 @@ exports.useBonusSpin = functions.https.onCall(async (data, context) => {
 // HOT TOPICS — Weekly Bitcoin trending topics aggregator
 // Runs every Friday at 22:00 America/New_York (= Saturday 02:00–03:00 UTC)
 // Sources: Brave Search (via nacho worker) + Reddit JSON + BitcoinTalk HTML
-// AI: Cloudflare Workers AI Llama 3.1 8B (free, uses existing CF credentials)
+// AI: Cloudflare Workers AI Llama 4 Scout (free, uses existing CF credentials)
 // Stores result in Firestore: hotTopics/latest
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -6170,13 +6170,13 @@ Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
     });
 }
 
-// Call Cloudflare Workers AI (Llama 3.1 8B) via REST — uses existing CF_ACCOUNT_ID + CF_API_TOKEN
+// Call Cloudflare Workers AI (Llama 4 Scout) via REST — uses existing CF_ACCOUNT_ID + CF_API_TOKEN
 async function callCloudflareLlama(prompt) {
     const accountId = process.env.CF_ACCOUNT_ID;
     const apiToken = process.env.CF_AI_TOKEN; // Workers AI token (separate from CDN token)
     if (!accountId || !apiToken) throw new Error('Missing CF_ACCOUNT_ID or CF_API_TOKEN');
     const url = 'https://api.cloudflare.com/client/v4/accounts/' + accountId +
-        '/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+        '/ai/run/@cf/meta/llama-4-scout-17b-16e-instruct';
     const resp = await fetch(url, {
         method: 'POST',
         headers: {
