@@ -14312,7 +14312,7 @@ function _renderFavorTab(body) {
         html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:16px;animation:favorPulse 2s ease-in-out infinite;">' +
             '<div style="font-size:1.2rem;font-weight:800;color:var(--accent);margin-bottom:8px;">🎉 SATOSHI\'S FAVOR IS ACTIVE!</div>' +
             '<div style="font-size:2rem;font-weight:900;color:#fff;font-family:monospace;" id="favorTabTimer">' + remainingMin + 'm ' + remainingSec + 's</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Mine below 1,000 to win 21,000 sats!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Mine below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' to win 21,000 sats!</div>' +
             '</div>' +
             '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
 
