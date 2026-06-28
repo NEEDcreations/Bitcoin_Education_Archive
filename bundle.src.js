@@ -17044,6 +17044,10 @@ window._raidContribute = function(metric, amount, detail) {
         fn({ metric: metric, amount: amount || 1, detail: detail || '' }).then(function(r) {
             if (r && r.data) {
                 console.log('[RAID] Result:', r.data.success, r.data.current + '/' + r.data.target, r.data.message || '');
+                // Award 1 orange ticket per damage point dealt
+                if (r.data.success && r.data.damage > 0 && typeof awardTickets === 'function') {
+                    awardTickets(r.data.damage, '⚔️ Raid Damage');
+                }
                 // Track boss defeat for badges
                 if (r.data.defeated) {
                     var _rd = parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') + 1;
