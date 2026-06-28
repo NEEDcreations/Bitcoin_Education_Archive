@@ -89,7 +89,7 @@
             '</div>';
         });
 
-        var footer = updatedStr ? '<div class="ht-footer">Last updated: ' + updatedStr + ' · Refreshes every Friday</div>' : '';
+        var footer = updatedStr ? '<div class="ht-footer">Last updated: ' + updatedStr + ' · Refreshes every Sunday 10pm ET</div>' : '';
         container.innerHTML = html + footer;
     }
 

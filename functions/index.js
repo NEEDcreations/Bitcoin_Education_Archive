@@ -5776,7 +5776,8 @@ exports.useBonusSpin = functions.https.onCall(async (data, context) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // HOT TOPICS — Weekly Bitcoin trending topics aggregator
 // Runs every Friday at 22:00 America/New_York (= Saturday 02:00–03:00 UTC)
-// Sources: web_search (Google via SerpAPI/Serper) + Reddit JSON + BitcoinTalk HTML
+// Sources: Brave Search (via nacho worker) + Reddit JSON + BitcoinTalk HTML
+// AI: Cloudflare Workers AI Llama 3.1 8B (free, uses existing CF credentials)
 // Stores result in Firestore: hotTopics/latest
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -5915,15 +5916,23 @@ async function fetchBitcoinTalkHot() {
 // ── Web search for viral Bitcoin content ──────────────────────────────────────
 async function fetchWebTrending() {
     const queries = [
-        'bitcoin trending debate this week site:x.com OR site:twitter.com',
-        'bitcoin BIP proposal controversy 2025',
-        '"bitcoin" "debate" OR "controversial" OR "viral" site:reddit.com/r/Bitcoin',
+        // X/Twitter viral posts
+        'bitcoin viral tweet controversy site:x.com',
+        'bitcoin twitter debate trending this week site:twitter.com',
+        // Specific hot topics
+        'bitcoin BIP proposal debate 2025 site:x.com OR site:twitter.com',
+        'bitcoin lightning network debate OR controversy 2025',
+        'bitcoin ordinals inscriptions debate 2025',
+        // Reddit (Brave search picks up reddit.com results)
+        'bitcoin debate controversial reddit.com/r/Bitcoin 2025',
+        // General web Bitcoin controversy
+        'bitcoin community debate controversy viral 2025',
     ];
 
     const results = [];
     for (const q of queries) {
         try {
-            const items = await searchWeb(q, 5);
+            const items = await searchWeb(q, 4);
             results.push(...items);
         } catch (e) {
             console.warn('[HotTopics] Web search failed for:', q, e.message);
@@ -5932,62 +5941,22 @@ async function fetchWebTrending() {
     return results;
 }
 
-// Web search using SerpAPI (free tier: 100 searches/mo)
-// Falls back to DuckDuckGo HTML scrape if no key set
+// Web search using your existing Brave Search worker — no extra key needed
 async function searchWeb(query, limit) {
     limit = limit || 5;
-    const serpKey = process.env.SERP_API_KEY;
-
-    if (serpKey) {
-        const url = 'https://serpapi.com/search.json?q=' + encodeURIComponent(query) +
-            '&num=' + limit + '&api_key=' + serpKey + '&gl=us&hl=en';
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error('SerpAPI HTTP ' + resp.status);
-        const json = await resp.json();
-        return (json.organic_results || []).slice(0, limit).map(r => ({
-            source: 'web',
-            title: r.title || '',
-            url: r.link || '',
-            score: 30,
-            comments: 0,
-            body: r.snippet || '',
-        }));
-    }
-
-    // No SerpAPI key — use DuckDuckGo HTML endpoint (no key needed)
-    const ddgUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query);
-    const resp = await fetch(ddgUrl, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; BitcoinEducationArchive/1.0)',
-            'Accept': 'text/html',
-        },
-    });
-    if (!resp.ok) throw new Error('DDG HTTP ' + resp.status);
-    const html = await resp.text();
-
-    const results = [];
-    const titleRe = /class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
-    const snippetRe = /class="result__snippet"[^>]*>([^<]{10,300})</g;
-    const titles = [];
-    const snippets = [];
-    let tm, sm;
-    while ((tm = titleRe.exec(html)) !== null && titles.length < limit) {
-        titles.push({ url: decodeURIComponent(tm[1].replace('/l/?uddg=', '')), title: tm[2].trim() });
-    }
-    while ((sm = snippetRe.exec(html)) !== null && snippets.length < limit) {
-        snippets.push(sm[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim());
-    }
-    for (let i = 0; i < Math.min(titles.length, limit); i++) {
-        results.push({
-            source: 'web',
-            title: titles[i].title,
-            url: titles[i].url,
-            score: 25,
-            comments: 0,
-            body: snippets[i] || '',
-        });
-    }
-    return results;
+    const workerUrl = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/search?q=' +
+        encodeURIComponent(query);
+    const resp = await fetch(workerUrl, { headers: { 'Accept': 'application/json' } });
+    if (!resp.ok) throw new Error('Brave worker HTTP ' + resp.status);
+    const json = await resp.json();
+    return (json.results || []).slice(0, limit).map(r => ({
+        source: 'web',
+        title: r.title || '',
+        url: r.url || '',
+        score: 30,
+        comments: 0,
+        body: r.snippet || '',
+    }));
 }
 
 // ── Step 2: Cluster + AI summarize ────────────────────────────────────────────
@@ -6007,46 +5976,52 @@ async function clusterAndSummarize(signals) {
         (i + 1) + '. [' + s.source + '] ' + s.title + (s.body ? ' — ' + s.body.substring(0, 120) : '')
     ).join('\n');
 
-    const prompt = `You are an expert Bitcoin analyst reviewing this week's most discussed Bitcoin posts across Reddit, BitcoinTalk, and the web.
+    const prompt = `You are an expert Bitcoin analyst reviewing this week's most discussed and debated Bitcoin topics across Reddit, BitcoinTalk, X (Twitter), and the web.
 
-Here are the raw post titles and snippets gathered this week:
+Here are the raw post titles and snippets gathered this week (numbered for reference):
 
 ${digest}
 
-Your task: identify the 2-3 hottest, most contested Bitcoin topics from the above, then for each topic:
-1. Write a neutral 2-sentence overview of what's being debated
-2. Summarize the "FOR" side (supporters/proponents) in 1-2 sentences
-3. Summarize the "AGAINST" side (critics/skeptics) in 1-2 sentences  
-4. Assign a heatScore 1-100 based on volume and controversy
-5. Pick the 3 most relevant source posts from the input list (by number)
+Your task: identify the 2-3 hottest, most technically specific, most contested Bitcoin topics from above. Prioritize real technical or ideological debates over generic discussion. Then for each topic:
 
-Return ONLY valid JSON in exactly this structure, no markdown, no extra text:
+1. Write a neutral 3-sentence overview naming specific proposals, people, or arguments involved — not generic. Name the actual BIP number, protocol, or claim at stake.
+2. Write 2-3 sentences for the FOR side: who supports it, what specific benefits they cite (technical, economic, philosophical), and what outcome they want.
+3. Write 2-3 sentences for the AGAINST side: who opposes it, what specific risks or objections they raise, and what alternative they prefer.
+4. Assign a heatScore 1-100 based on controversy and community volume.
+5. Pick up to 5 of the most relevant source posts from the numbered list above.
+
+Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
 {
   "topics": [
     {
-      "title": "Short punchy topic name (5 words max)",
-      "summary": "Neutral 2-sentence overview of the debate",
+      "title": "Punchy specific topic name (5 words max, include BIP number or protocol name if relevant)",
+      "summary": "3-sentence neutral overview naming specific proposals, actors, or claims",
       "heatScore": 75,
       "sides": [
-        { "stance": "for", "label": "The case FOR", "summary": "..." },
-        { "stance": "against", "label": "The case AGAINST", "summary": "..." }
+        { "stance": "for", "label": "The case FOR", "summary": "2-3 sentences with specific arguments and who makes them" },
+        { "stance": "against", "label": "The case AGAINST", "summary": "2-3 sentences with specific objections and who raises them" }
       ],
-      "postIndices": [1, 4, 7]
+      "postIndices": [1, 4, 7, 12, 15]
     }
   ]
 }`;
 
-    // Call OpenAI/Claude via fetch — use Firebase Functions config or env var
+    // AI priority: optional OpenAI/Anthropic keys → Cloudflare Workers AI (Llama 3.1) → keyword fallback
     const aiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
     let aiTopics = null;
 
-    if (aiKey && aiKey.startsWith('sk-ant')) {
-        aiTopics = await callClaude(prompt, aiKey);
-    } else if (aiKey) {
-        aiTopics = await callOpenAI(prompt, aiKey);
-    } else {
-        // No AI key — fallback: cluster by keyword frequency
-        aiTopics = fallbackCluster(signals);
+    try {
+        if (aiKey && aiKey.startsWith('sk-ant')) {
+            aiTopics = await callClaude(prompt, aiKey);
+        } else if (aiKey) {
+            aiTopics = await callOpenAI(prompt, aiKey);
+        } else {
+            // Use Cloudflare Workers AI (Llama 3.1 8B) — free, already set up
+            aiTopics = await callCloudflareLlama(prompt);
+        }
+    } catch (aiErr) {
+        console.warn('[HotTopics] AI call failed, using keyword fallback:', aiErr.message);
+        aiTopics = null;
     }
 
     if (!aiTopics || !aiTopics.topics) return fallbackCluster(signals);
@@ -6057,11 +6032,50 @@ Return ONLY valid JSON in exactly this structure, no markdown, no extra text:
         summary: t.summary || '',
         heatScore: Math.min(100, Math.max(0, t.heatScore || 50)),
         sides: (t.sides || []).slice(0, 2),
-        posts: (t.postIndices || []).slice(0, 4)
+        posts: (t.postIndices || []).slice(0, 5)
             .map(idx => signals[idx - 1])
             .filter(Boolean)
             .map(s => ({ source: s.source, title: s.title, url: s.url })),
     }));
+}
+
+// Call Cloudflare Workers AI (Llama 3.1 8B) via REST — uses existing CF_ACCOUNT_ID + CF_API_TOKEN
+async function callCloudflareLlama(prompt) {
+    const accountId = process.env.CF_ACCOUNT_ID;
+    const apiToken = process.env.CF_AI_TOKEN; // Workers AI token (separate from CDN token)
+    if (!accountId || !apiToken) throw new Error('Missing CF_ACCOUNT_ID or CF_API_TOKEN');
+    const url = 'https://api.cloudflare.com/client/v4/accounts/' + accountId +
+        '/ai/run/@cf/meta/llama-3.1-8b-instruct';
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + apiToken,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            messages: [
+                { role: 'system', content: 'You are a Bitcoin analyst. Return only valid JSON, no markdown fences, no explanation outside the JSON.' },
+                { role: 'user', content: prompt },
+            ],
+            max_tokens: 2000,
+        }),
+    });
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error('CF Workers AI HTTP ' + resp.status + ': ' + errText.substring(0, 200));
+    }
+    const json = await resp.json();
+    // Extract text — CF Workers AI wraps in result.choices (openai-compat shape)
+    const text =
+        (json.result && json.result.choices && json.result.choices[0] && json.result.choices[0].message && json.result.choices[0].message.content) ||
+        (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) ||
+        (typeof json.result === 'string' ? json.result : null);
+    if (!text) throw new Error('CF Workers AI: no text in response — ' + JSON.stringify(json).substring(0, 200));
+    // Strip markdown fences if present
+    const cleaned = String(text).replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    // Llama sometimes returns JS object syntax (unquoted keys) — fix it
+    const fixedJson = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+    return JSON.parse(fixedJson);
 }
 
 async function callClaude(prompt, apiKey) {
