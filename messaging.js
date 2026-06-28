@@ -440,7 +440,7 @@ window.showUserProfile = function(uid) {
         var u = doc.data();
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
-        var joinDate = 'Unknown';
+        var joinDate = 'OG 🫡'; // fallback for early accounts without createdAt
         try {
             if (u.createdAt) {
                 var jd = u.createdAt.toDate ? u.createdAt.toDate() : (u.createdAt.seconds ? new Date(u.createdAt.seconds * 1000) : new Date(u.createdAt));
