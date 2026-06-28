@@ -7288,9 +7288,12 @@ function checkBadges() {
                 // Raid Boss contribution
                 if (typeof window._raidOnBadgeEarned === 'function') window._raidOnBadgeEarned();
 
-                // Announce badge earned directly to News tab (independent of SF contribution)
-                // Don't rely on SF contribution to announce — dedup keys block repeat calls silently
-                if (typeof window.nachoGlobalAnnounce === 'function'
+                // Announce badge earned in Global Chat.
+                // Skip during active SF — contributeSatoshiFavor already sends a richer message
+                // ("earned a badge! Satoshi extended his blessing! +3 bonus minutes").
+                // Outside active SF we still want the standard badge announcement.
+                var _sfCurrentlyActive = typeof window.favorState !== 'undefined' && window.favorState && window.favorState.favorActive;
+                if (!_sfCurrentlyActive && typeof window.nachoGlobalAnnounce === 'function'
                     && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
                     var _badgeUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username)
                         ? currentUser.username : null;
