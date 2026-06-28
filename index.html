@@ -1113,9 +1113,10 @@
                         <div class="home-stat"><span class="home-stat-num">420</span><span class="home-stat-label">Music Tracks</span></div>
                         <div class="home-stat"><span class="home-stat-num">345</span><span class="home-stat-label">Badges</span></div>
                     </div>
-                    <!-- Contact/Support below grid -->
-                    <div style="text-align:center;margin-top:10px;">
-                        <button onclick="toggleSidebarMenu('homeSupportMenu')" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 20px;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;">📧 Support &amp; Feedback <span>▼</span></button>
+                    <!-- Contact/Support + Follow Us below grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+                        <button onclick="toggleSidebarMenu('homeSupportMenu');document.getElementById('homeFollowMenu').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📧 Support &amp; Feedback <span id="homeSupportArrow">▼</span></button>
+                        <button onclick="toggleSidebarMenu('homeFollowMenu');document.getElementById('homeSupportMenu').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">🔔 Follow Us! <span id="homeFollowArrow">▼</span></button>
                     </div>
                     <div id="homeSupportMenu" style="display:none;margin-top:8px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;">
                         <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
@@ -1132,6 +1133,20 @@
                                 <div id="suggestStatus"></div>
                             </div>
                         </div>
+                    </div>
+                    <div id="homeFollowMenu" style="display:none;margin-top:8px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;">
+                        <a href="https://x.com/BTCedu_app" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text);">
+                            <span style="font-size:1.3rem;">𝕏</span>
+                            <div><div style="font-size:0.85rem;font-weight:700;">Follow on X</div><div style="font-size:0.75rem;color:var(--text-muted);">@BTCedu_app — news &amp; updates</div></div>
+                        </a>
+                        <a href="https://t.me/bitcoinbeats" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text);">
+                            <span style="font-size:1.3rem;">✈️</span>
+                            <div><div style="font-size:0.85rem;font-weight:700;">Bitcoin Beats Telegram</div><div style="font-size:0.75rem;color:var(--text-muted);">Community chat &amp; Bitcoin music</div></div>
+                        </a>
+                        <a href="https://substack.com/@603btc" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text);">
+                            <span style="font-size:1.3rem;">📡</span>
+                            <div><div style="font-size:0.85rem;font-weight:700;">The Signal Newsletter</div><div style="font-size:0.75rem;color:var(--text-muted);">Weekly curated Bitcoin insights</div></div>
+                        </a>
                     </div>
                 <p class="home-footer" style="order:9999;">Open source · Free forever · Built on GitHub Pages<br><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Privacy Policy</a> · <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Terms of Service</a><br><span style="font-size:0.7rem;color:var(--text-faint);margin-top:6px;display:inline-block;">© 2026 603BTC LLC · Bitcoin Education Archive™</span></p>
             </div>
