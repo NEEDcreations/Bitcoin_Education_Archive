@@ -1150,7 +1150,7 @@ window.sendGlobalChat = function() {
     if (!localStorage.getItem(chatDay)) {
         localStorage.setItem(chatDay, '1');
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Global Chat');
-        if (typeof awardTickets === 'function') awardTickets(2, '💬 Daily chat');
+        if (typeof awardTickets === 'function') awardTickets(2, 'Daily chat');
 
         // Update chat streak
         var lastChatDate = localStorage.getItem('btc_chat_last_date') || '';
@@ -2559,7 +2559,7 @@ function djGoLive(uid, username, track) {
 
         // Award points for DJing
         if (typeof awardPoints === 'function') awardPoints(15, '🎧 DJ Set started!');
-        if (typeof awardTickets === 'function') awardTickets(5, '🎧 DJ Set');
+        if (typeof awardTickets === 'function') awardTickets(5, 'DJ Set');
         if (djSets === 1 && typeof awardPoints === 'function') awardPoints(25, '🎧 First DJ Set!');
         if (djSets === 5 && typeof awardPoints === 'function') awardPoints(30, '🎛️ Resident DJ — 5 sets!');
         if (djSets === 25 && typeof awardPoints === 'function') awardPoints(75, '🏆 Club Legend — 25 sets!');

@@ -977,7 +977,7 @@ function _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl
         showToast('🎵 ' + total + ' track' + (total > 1 ? 's' : '') + ' uploaded!');var _bu2=parseInt(localStorage.getItem('btc_beats_uploads')||'0')+total;localStorage.setItem('btc_beats_uploads',_bu2.toString());
         sessionStorage.setItem('_ch_beats_upload', '1');
         if (typeof awardPoints === 'function') awardPoints(25 * total, 'Uploaded ' + total + ' track' + (total > 1 ? 's' : '') + ' to Bitcoin Beats!');
-        if (typeof awardTickets === 'function') awardTickets(10 * total, '🎵 ' + total + ' beat' + (total > 1 ? 's' : '') + ' uploaded');
+        if (typeof awardTickets === 'function') awardTickets(10 * total, 'Beat uploaded');
         setTimeout(function() {
             var overlay = document.getElementById('beatsUploadOverlay');
             if (overlay) overlay.remove();
@@ -1255,7 +1255,7 @@ function _onUploadSuccess(btn) {
     document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
     showToast('🎵 Track uploaded!');var _bu=parseInt(localStorage.getItem('btc_beats_uploads')||'0')+1;localStorage.setItem('btc_beats_uploads',_bu.toString());
     sessionStorage.setItem('_ch_beats_upload', '1');
-    if (typeof awardPoints === 'function') awardPoints(50, 'Uploaded a track to Bitcoin Beats! 🎵');if(typeof awardTickets==='function')awardTickets(10,'🎵 Beat uploaded');
+    if (typeof awardPoints === 'function') awardPoints(50, 'Uploaded a track to Bitcoin Beats! 🎵');if(typeof awardTickets==='function')awardTickets(10,'Beat uploaded');
     setTimeout(function() {
         var overlay = document.getElementById('beatsUploadOverlay');
         if (overlay) overlay.remove();

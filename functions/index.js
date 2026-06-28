@@ -2137,6 +2137,14 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'flex_action': 15,             // Daily FLEX healthy action (one per action-id per day) — now 15 pts
         'combo_bonus': 250,            // Combo tier bonus (client specifies pts, capped at 250)
         'weekly_challenge_contrib': 0, // Weekly challenge contribution (no direct pts, just tracking)
+        'daily_trifecta_ticket': 0,   // +1 ticket for completing daily trifecta (no direct pts)
+        'nacho_chat_ticket': 0,       // +1 ticket for first Nacho message of the day
+        'daily_chat_ticket': 0,       // +2 tickets for first global chat message of the day
+        'dj_set_ticket': 0,           // +5 tickets for DJ set
+        'beats_upload_ticket': 0,     // +10 tickets for beat upload
+        'flashcard_ticket': 0,        // +5 tickets for flashcard deck complete
+        'pvp_win_ticket': 0,          // +1 ticket for PvP win
+        'raid_damage_ticket': 0,      // +N tickets for raid damage dealt
     };
 
     // Look up max allowed points for this action using keyword matching
@@ -2191,6 +2199,14 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
         'flex_action': ['💪 flex:', '🎯 Daily Challenge:'],
         'combo_bonus': ['combo', '🔥 Trio Combo', '💥 MEGA COMBO', '🏆 LEGENDARY COMBO', '🎯 Daily 3 Complete'],
+        'daily_trifecta_ticket': ['daily trifecta'],
+        'nacho_chat_ticket': ['daily nacho chat'],
+        'daily_chat_ticket': ['daily chat'],
+        'dj_set_ticket': ['dj set'],
+        'beats_upload_ticket': ['beat uploaded'],
+        'flashcard_ticket': ['flashcard deck complete'],
+        'pvp_win_ticket': ['pvp win'],
+        'raid_damage_ticket': ['raid damage'],
     };
 
     let pts = 0;
@@ -2328,6 +2344,30 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                     throw new Error('ALREADY_CLAIMED_TODAY:poll');
                 }
                 t.set(pollRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            }
+            // 1d-ext. Daily dedup for single-ticket-per-day sources
+            const DAILY_TICKET_ACTIONS = [
+                'daily_trifecta_ticket', 'nacho_chat_ticket', 'daily_chat_ticket',
+                'pvp_win_ticket', 'flashcard_ticket',
+            ];
+            if (DAILY_TICKET_ACTIONS.includes(matchedAction)) {
+                const dtRef = userRef.collection('daily_action_counts').doc(today + '_' + matchedAction);
+                const dtDoc = await t.get(dtRef);
+                if (dtDoc.exists) {
+                    throw new Error('ALREADY_CLAIMED_TODAY:' + matchedAction);
+                }
+                t.set(dtRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            }
+            // dj_set and beats_upload_ticket: cap at reasonable daily max (10/day)
+            if (matchedAction === 'dj_set_ticket' || matchedAction === 'beats_upload_ticket' || matchedAction === 'raid_damage_ticket') {
+                const countRef = userRef.collection('daily_action_counts').doc(today + '_' + matchedAction);
+                const countDoc = await t.get(countRef);
+                const currentCount = countDoc.exists ? (countDoc.data().count || 0) : 0;
+                const MAX = matchedAction === 'raid_damage_ticket' ? 50 : 10;
+                if (currentCount >= MAX) {
+                    throw new Error('DAILY_LIMIT_REACHED:' + matchedAction);
+                }
+                t.set(countRef, { count: currentCount + 1, lastAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
             }
             // 1d. Daily dedup for FLEX - one award per action-id per UTC day
             if (matchedAction === 'flex_action') {
@@ -4805,12 +4845,26 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
         const ts = admin.firestore.FieldValue.serverTimestamp();
 
         // Update user doc
+        const today = new Date().toISOString().split('T')[0];
+
+        // Award 1 orange ticket if donation >= 1000 XP, once per UTC day
+        let donationTicket = 0;
+        const donationTicketRef = userRef.collection('daily_action_counts').doc(today + '_donate_ticket');
+        const donationTicketDoc = await tx.get(donationTicketRef);
+        if (amount >= 1000 && !donationTicketDoc.exists) {
+            donationTicket = 1;
+            tx.set(donationTicketRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), amount });
+        }
+
         const userUpdate = {
             pointsDonated: admin.firestore.FieldValue.increment(amount),
         };
         if (newBadges.length > 0) {
             userUpdate.donationBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
             userUpdate.points = admin.firestore.FieldValue.increment(bonusPts);
+        }
+        if (donationTicket > 0) {
+            userUpdate.orangeTickets = admin.firestore.FieldValue.increment(donationTicket);
         }
         tx.update(userRef, userUpdate);
 
@@ -4838,7 +4892,7 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
         tx.update(statsRef, statsUpdate);
     });
 
-    return { success: true, newBadges, bonusPts };
+    return { success: true, newBadges, bonusPts, donationTicket };
 });
 
 // ===== LEADERBOARD USER SEARCH =====

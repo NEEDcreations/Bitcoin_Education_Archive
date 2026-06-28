@@ -4594,7 +4594,7 @@ window.startFlashcards = function(topic) {
                     if (!localStorage.getItem(_fcKey)) {
                         localStorage.setItem(_fcKey, '1');
                         if (typeof awardPoints === 'function') awardPoints(15, '📚 Completed ' + topic + ' deck');
-                        if (typeof awardTickets === 'function') awardTickets(5, '📚 Flashcard deck complete');
+                        if (typeof awardTickets === 'function') awardTickets(5, 'Flashcard deck complete');
                         // Raid Boss: flashcard completion
                         if (typeof window._raidOnFlashcardComplete === 'function') window._raidOnFlashcardComplete();
                         if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(15);

@@ -5118,7 +5118,7 @@ window._raidContribute = function(metric, amount, detail) {
                 console.log('[RAID] Result:', r.data.success, r.data.current + '/' + r.data.target, r.data.message || '');
                 // Award 1 orange ticket per damage point dealt
                 if (r.data.success && r.data.damage > 0 && typeof awardTickets === 'function') {
-                    awardTickets(r.data.damage, '⚔️ Raid Damage');
+                    awardTickets(r.data.damage, 'Raid Damage');
                 }
                 // Track boss defeat for badges
                 if (r.data.defeated) {

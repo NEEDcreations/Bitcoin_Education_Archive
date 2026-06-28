@@ -5527,7 +5527,12 @@ function showSettingsPage(tab) {
                     }
                     var badgeMsg = result.data && result.data.newBadges && result.data.newBadges.length > 0
                         ? ' +' + result.data.newBadges.length + ' badge' + (result.data.newBadges.length > 1 ? 's' : '') + ' unlocked!' : '';
-                    if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
+                    var ticketMsg = result.data && result.data.donationTicket > 0 ? ' 🎟️ +1 ticket!' : '';
+                    if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg + ticketMsg, 5000);
+                    if (result.data && result.data.donationTicket > 0 && typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + 1;
+                        if (typeof updateRankUI === 'function') updateRankUI();
+                    }
                     if (typeof window._charityThankYou === 'function') window._charityThankYou(amt, result.data && result.data.newBadges || [], result.data && result.data.bonusPts || 0);
                     // Announce earned badges to Global Chat via Satoshi's Favor
                     var _satsBadges = result.data && result.data.newBadges || [];
@@ -17047,7 +17052,7 @@ window._raidContribute = function(metric, amount, detail) {
                 console.log('[RAID] Result:', r.data.success, r.data.current + '/' + r.data.target, r.data.message || '');
                 // Award 1 orange ticket per damage point dealt
                 if (r.data.success && r.data.damage > 0 && typeof awardTickets === 'function') {
-                    awardTickets(r.data.damage, '⚔️ Raid Damage');
+                    awardTickets(r.data.damage, 'Raid Damage');
                 }
                 // Track boss defeat for badges
                 if (r.data.defeated) {
@@ -31076,7 +31081,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _nachoMsgDay = 'btc_nacho_msg_ticket_' + new Date().toDateString();
         if (!localStorage.getItem(_nachoMsgDay)) {
             localStorage.setItem(_nachoMsgDay, '1');
-            if (typeof awardTickets === 'function') awardTickets(1, '🦌 Daily Nacho Chat');
+            if (typeof awardTickets === 'function') awardTickets(1, 'Daily Nacho Chat');
         }
 
         // Track interaction + topic for conversation quiz
