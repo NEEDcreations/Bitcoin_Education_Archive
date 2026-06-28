@@ -81,7 +81,7 @@
                     '<span class="ht-chevron">▼</span>' +
                 '</div>' +
                 '<div class="ht-topic-body" id="ht-body-' + idx + '" style="display:none;">' +
-                    '<div class="ht-summary-label">📋 What\'s the debate?</div>' +
+                    '<div class="ht-summary-label">🦌 Nacho\'s take on the debate:</div>' +
                     '<div class="ht-summary">' + escHtml(topic.summary) + '</div>' +
                     (sidesHtml ? '<div class="ht-sides-label">⚖️ Both sides</div>' + sidesHtml : '') +
                     (postsHtml ? '<div class="ht-posts-label">🔗 From the community</div>' + postsHtml : '') +
@@ -89,7 +89,7 @@
             '</div>';
         });
 
-        var footer = updatedStr ? '<div class="ht-footer">Last updated: ' + updatedStr + ' · Refreshes every Sunday 10pm ET</div>' : '';
+        var footer = updatedStr ? '<div class="ht-footer">🦌 Nacho · Last updated: ' + updatedStr + ' · Refreshes every Sunday 10pm ET</div>' : '';
         container.innerHTML = html + footer;
     }
 
