@@ -14428,6 +14428,7 @@ function _renderFavorTab(body) {
                     '<td id="sfBlocksRow1" style="text-align:right;padding:5px 6px;font-weight:700;">...</td>' +
                     '<td style="text-align:right;padding:5px 6px;color:var(--accent);font-weight:700;">+2,900%</td>' +
                 '</tr>' +
+                '<tr><td colspan="5" id="sfBlocksGenesisNote" style="padding:2px 6px 4px;font-size:0.68rem;color:var(--text-faint);font-style:italic;"></td></tr>' +
             '</tbody>' +
         '</table>' +
     '</div>';
@@ -14634,11 +14635,22 @@ function _loadDifficultyHistoryBlocks() {
                 var t = d.difficultyTarget != null ? d.difficultyTarget : 1000;
                 counts[t] = (counts[t] || 0) + 1;
             });
-            // Update row 0 (target 1,000) and row 1 (target 30,000)
+            // Row 0: genesis difficulty blocks
+            var genesisBlocks = counts[1000] || 0;
+            // Row 1: current difficulty + any genesis blocks (cumulative)
+            var currentBlocks = counts[30000] || 0;
+            var totalBlocks = genesisBlocks + currentBlocks;
             var r0 = document.getElementById('sfBlocksRow0');
             var r1 = document.getElementById('sfBlocksRow1');
-            if (r0) r0.textContent = (counts[1000] || 0).toString();
-            if (r1) r1.textContent = (counts[30000] || 0).toString();
+            var note = document.getElementById('sfBlocksGenesisNote');
+            if (r0) r0.textContent = genesisBlocks.toString();
+            if (r1) r1.textContent = totalBlocks.toString();
+            // Show genesis note if genesis blocks exist
+            if (note) {
+                note.textContent = genesisBlocks > 0
+                    ? ('Includes ' + genesisBlocks + ' block' + (genesisBlocks === 1 ? '' : 's') + ' won at genesis difficulty (1,000)')
+                    : '';
+            }
         })
         .catch(function() {
             var r0 = document.getElementById('sfBlocksRow0');
