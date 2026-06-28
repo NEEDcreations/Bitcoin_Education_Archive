@@ -7001,8 +7001,10 @@ const BADGE_DEFS = [
 
     // ---- Daily All-Three ----
     { id: 'daily_triple_1', name: 'Triple Play', emoji: '🎯', desc: 'Completed quiz, trivia AND poll in one day', check: () => { try { var s = JSON.parse(localStorage.getItem('btc_daily_activities') || '{}'); return !!(s.sfAwarded); } catch(e) { return false; } }, pts: 25 },
-    { id: 'daily_triple_7', name: 'Consistent Stacker', emoji: '📚', desc: 'Completed all three daily activities 7 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 7, pts: 100 },
-    { id: 'daily_triple_30', name: 'Unstoppable', emoji: '🚂', desc: 'Completed all three daily activities 30 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 30, pts: 500 },
+    { id: 'daily_triple_7', name: 'Consistent Stacker', emoji: '📚', desc: 'Completed the Daily Trifecta 7 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 7, pts: 100 },
+    { id: 'daily_triple_30', name: 'Unstoppable', emoji: '🚂', desc: 'Completed the Daily Trifecta 30 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 30, pts: 500 },
+    { id: 'daily_triple_90', name: 'Trifecta Legend', emoji: '🏆', desc: 'Completed the Daily Trifecta 90 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 90, pts: 1500 },
+    { id: 'daily_triple_365', name: 'Satoshi\'s Disciple', emoji: '🟠', desc: 'Completed the Daily Trifecta 365 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 365, pts: 5000 },
 
     // ---- Marketplace ----
     { id: 'market_browse', name: 'Window Shopper', emoji: '🛍️', desc: 'Visited the Lightning Marketplace', check: () => localStorage.getItem('btc_market_rules_accepted') === 'true', pts: 10 },
@@ -14856,7 +14858,8 @@ window.showQuestHub = function() {
     header.style.cssText = 'padding:20px 24px 0;flex-shrink:0;';
     header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
         '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div></div>' +
+        '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div>' +
+        '<div style="margin-top:6px;padding:6px 10px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:600;">🎯 Daily Trifecta: Complete the daily quiz, trivia and poll to earn the Daily Trifecta!</div></div>' +
         '<button onclick="window._cleanupRaidBoss();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\'){history.replaceState({home:true},\'\',(window._qhReturnPath||\'/\'));if(typeof goHome===\'function\')goHome(true);}" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
         // Tabs
         '<div id="questHubTabs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;">' +

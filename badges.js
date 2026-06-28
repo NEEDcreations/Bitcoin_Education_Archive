@@ -219,8 +219,10 @@ const BADGE_DEFS = [
 
     // ---- Daily All-Three ----
     { id: 'daily_triple_1', name: 'Triple Play', emoji: '🎯', desc: 'Completed quiz, trivia AND poll in one day', check: () => { try { var s = JSON.parse(localStorage.getItem('btc_daily_activities') || '{}'); return !!(s.sfAwarded); } catch(e) { return false; } }, pts: 25 },
-    { id: 'daily_triple_7', name: 'Consistent Stacker', emoji: '📚', desc: 'Completed all three daily activities 7 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 7, pts: 100 },
-    { id: 'daily_triple_30', name: 'Unstoppable', emoji: '🚂', desc: 'Completed all three daily activities 30 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 30, pts: 500 },
+    { id: 'daily_triple_7', name: 'Consistent Stacker', emoji: '📚', desc: 'Completed the Daily Trifecta 7 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 7, pts: 100 },
+    { id: 'daily_triple_30', name: 'Unstoppable', emoji: '🚂', desc: 'Completed the Daily Trifecta 30 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 30, pts: 500 },
+    { id: 'daily_triple_90', name: 'Trifecta Legend', emoji: '🏆', desc: 'Completed the Daily Trifecta 90 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 90, pts: 1500 },
+    { id: 'daily_triple_365', name: 'Satoshi\'s Disciple', emoji: '🟠', desc: 'Completed the Daily Trifecta 365 times', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.dailyTripleCount || 0) >= 365, pts: 5000 },
 
     // ---- Marketplace ----
     { id: 'market_browse', name: 'Window Shopper', emoji: '🛍️', desc: 'Visited the Lightning Marketplace', check: () => localStorage.getItem('btc_market_rules_accepted') === 'true', pts: 10 },
