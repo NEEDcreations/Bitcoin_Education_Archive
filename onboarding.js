@@ -615,7 +615,7 @@ window._showSocialProofBar = function() {
         var parts = [];
         if (stats.active !== null && stats.active > 0) parts.push('🔥 ' + stats.active + ' plebs active now');
         if (stats.sfInfo) parts.push('⚡ Last SF: ' + stats.sfInfo);
-        if (stats.reads !== null && stats.reads > 0) parts.push('📚 ' + _fmtNum(stats.reads) + ' reads today');
+        // reads today hidden — internal metric, not shown to users
 
         if (parts.length === 0) return; // nothing to show
 
