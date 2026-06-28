@@ -249,6 +249,12 @@ window._showNachoQuestComplete = function() {
     localStorage.removeItem(QUEST_ACTIVE_KEY);
     clearInterval(window._nachoQuestPollInterval);
     window._nachoQuestDetectionActive = false;
+    // Persist to Firestore so it survives new-device login
+    try {
+        if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous && firebase.firestore) {
+            firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).update({ nachoQuestDone: true }).catch(function() {});
+        }
+    } catch(e) {}
 
     // Remove floating pill
     var pill = document.getElementById('nachoQuestPill');

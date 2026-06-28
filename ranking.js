@@ -1369,6 +1369,17 @@ async function loadUser(uid, prefetchedDoc) {
                 var merged = [...new Set([...existing, ...currentUser.visibleBadges])];
                 localStorage.setItem('btc_badges', JSON.stringify(merged));
             }
+            // Mark onboarding complete for existing users on new devices.
+            // An existing user has a username in Firestore — they clearly already onboarded.
+            // This prevents the onboarding wizard from firing on every new device login.
+            if (currentUser.username) {
+                try { localStorage.setItem('btc_onboarding_done', 'true'); } catch(e) {}
+            }
+            // Restore nachoQuestDone from Firestore so Nacho intro quest isn't re-triggered
+            if (currentUser.nachoQuestDone) {
+                try { localStorage.setItem('btc_onboarding_quest_done', '1'); } catch(e) {}
+            }
+
             if (currentUser.spinClosetItems) {
                 var existingItems = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
                 var mergedItems = [...new Set([...existingItems, ...currentUser.spinClosetItems])];
@@ -1417,6 +1428,12 @@ async function loadUser(uid, prefetchedDoc) {
                 var localSpin = localStorage.getItem('btc_last_spin') || '';
                 if (currentUser.lastSpinDate > localSpin) {
                     localStorage.setItem('btc_last_spin', currentUser.lastSpinDate);
+                }
+                // CRITICAL: also sync to btc_last_spin_date (the key showSpinWheel actually checks)
+                var today = new Date().toDateString();
+                var spinTs = new Date(currentUser.lastSpinDate);
+                if (!isNaN(spinTs) && spinTs.toDateString() === today) {
+                    localStorage.setItem('btc_last_spin_date', today);
                 }
                 if (typeof updateSpinBanner === 'function') updateSpinBanner();
             }

@@ -1535,6 +1535,17 @@ async function loadUser(uid, prefetchedDoc) {
                 var merged = [...new Set([...existing, ...currentUser.visibleBadges])];
                 localStorage.setItem('btc_badges', JSON.stringify(merged));
             }
+            // Mark onboarding complete for existing users on new devices.
+            // An existing user has a username in Firestore — they clearly already onboarded.
+            // This prevents the onboarding wizard from firing on every new device login.
+            if (currentUser.username) {
+                try { localStorage.setItem('btc_onboarding_done', 'true'); } catch(e) {}
+            }
+            // Restore nachoQuestDone from Firestore so Nacho intro quest isn't re-triggered
+            if (currentUser.nachoQuestDone) {
+                try { localStorage.setItem('btc_onboarding_quest_done', '1'); } catch(e) {}
+            }
+
             if (currentUser.spinClosetItems) {
                 var existingItems = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
                 var mergedItems = [...new Set([...existingItems, ...currentUser.spinClosetItems])];
@@ -1583,6 +1594,12 @@ async function loadUser(uid, prefetchedDoc) {
                 var localSpin = localStorage.getItem('btc_last_spin') || '';
                 if (currentUser.lastSpinDate > localSpin) {
                     localStorage.setItem('btc_last_spin', currentUser.lastSpinDate);
+                }
+                // CRITICAL: also sync to btc_last_spin_date (the key showSpinWheel actually checks)
+                var today = new Date().toDateString();
+                var spinTs = new Date(currentUser.lastSpinDate);
+                if (!isNaN(spinTs) && spinTs.toDateString() === today) {
+                    localStorage.setItem('btc_last_spin_date', today);
                 }
                 if (typeof updateSpinBanner === 'function') updateSpinBanner();
             }
@@ -29282,16 +29299,51 @@ window._startHalvingTicker = function() {
             isSpinning = true;
             spinBtn.disabled = true;
             spinBtn.style.opacity = '0.5';
-            
-            // STEP 1: Weighted random selection to pick the prize
-            var totalWeight = segments.reduce(function(sum, s) { return sum + s.weight; }, 0);
-            var random = Math.random() * totalWeight;
-            var selectedIndex = 0, currentWeight = 0;
-            for (var i = 0; i < segments.length; i++) {
-                currentWeight += segments[i].weight;
-                if (random <= currentWeight) { selectedIndex = i; break; }
-            }
-            var selected = segments[selectedIndex];
+            spinBtn.textContent = '⏳ Checking...';
+
+            // STEP 1: Call server FIRST — server determines reward and enforces 1-spin/day per user
+            var spinFn = (typeof firebase !== 'undefined' && firebase.functions) ? firebase.functions().httpsCallable('dailySpin') : null;
+            var serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
+
+            serverSpinPromise.then(function(result) {
+                var serverData = result && result.data;
+                var selectedIndex;
+                if (serverData && typeof serverData.rewardIndex === 'number') {
+                    // Use server-determined reward index
+                    selectedIndex = serverData.rewardIndex % segments.length;
+                } else {
+                    // No server (anonymous / offline) — fall back to client selection
+                    var totalWeight = segments.reduce(function(sum, s) { return sum + s.weight; }, 0);
+                    var random = Math.random() * totalWeight;
+                    selectedIndex = 0;
+                    var currentWeight = 0;
+                    for (var i = 0; i < segments.length; i++) {
+                        currentWeight += segments[i].weight;
+                        if (random <= currentWeight) { selectedIndex = i; break; }
+                    }
+                }
+                var selected = segments[selectedIndex];
+                spinBtn.textContent = 'SPIN! 🎰';
+                doSpin(selected, selectedIndex, serverData);
+            }).catch(function(err) {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                spinBtn.style.opacity = '';
+                spinBtn.textContent = 'SPIN! 🎰';
+                var msg = (err && err.message) ? err.message : '';
+                if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
+                    // Mark locally too so the gate catches it next time
+                    localStorage.setItem('btc_last_spin_date', new Date().toDateString());
+                    var modal = document.getElementById('spinModal');
+                    if (modal) modal.remove();
+                    if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
+                } else {
+                    if (typeof showToast === 'function') showToast('❌ Spin failed — try again.');
+                }
+                return;
+            });
+
+            function doSpin(selected, selectedIndex, serverData) {
             
             // STEP 2: Calculate rotation so the pointer visually lands on the selected segment
             // Segments are drawn clockwise starting at 0 radians (3 o'clock position)
@@ -29474,22 +29526,17 @@ window._startHalvingTicker = function() {
                     localStorage.setItem('btc_spin_last_day', today);
                     if (selected.value === 'rare_drop') { localStorage.setItem('btc_spin_hit_rare', 'true'); }
                     
-                    // Mark as spun today (server-side validation)
+                    // Mark as spun today locally (server already recorded it)
                     localStorage.setItem('btc_last_spin_date', today);
-                    if (typeof firebase !== 'undefined' && firebase.functions) {
-                        firebase.functions().httpsCallable('dailySpin')({}).catch(function(e) {
-                            // If server says already spun, that's fine — localStorage was stale
-                            console.log('[SPIN] Server validation:', e.message || 'ok');
-                        });
-                    }
-                    if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
-                        try {
-                        } catch(e) {}
+                    // Sync currentUser so in-session check is also blocked
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.lastSpinDate = today;
                     }
                 }
             }
             
             requestAnimationFrame(animate);
+            } // end doSpin
         });
         
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
