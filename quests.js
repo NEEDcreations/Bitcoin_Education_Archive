@@ -2716,14 +2716,11 @@ function _loadDifficultyHistoryBlocks() {
                 var t = d.difficultyTarget != null ? d.difficultyTarget : 1000;
                 counts[t] = (counts[t] || 0) + 1;
             });
-            // Row 0: genesis difficulty blocks
-            var genesisBlocks = counts[1000] || 0;
-            // Row 1: current difficulty + any genesis blocks (cumulative)
-            var currentBlocks = counts[30000] || 0;
-            var totalBlocks = genesisBlocks + currentBlocks;
+            // Genesis row always 0 — all won blocks count toward current difficulty row
+            var totalBlocks = snap.size;
             var r0 = document.getElementById('sfBlocksRow0');
             var r1 = document.getElementById('sfBlocksRow1');
-            if (r0) r0.textContent = genesisBlocks.toString();
+            if (r0) r0.textContent = '0';
             if (r1) r1.textContent = totalBlocks.toString();
         })
         .catch(function() {
