@@ -1035,6 +1035,9 @@ window.renderReadNext = function(currentId) {
     return html;
 };
 
+// Expose chapter count as single source of truth
+window.NACHO_STORY_TOTAL = CHAPTERS.length;
+
 // getNachoStoryProgress
 window.getNachoStoryProgress = function() {
     return parseInt(localStorage.getItem('btc_nacho_story_highest') || '0');

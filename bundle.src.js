@@ -5401,7 +5401,8 @@ function showSettingsPage(tab) {
         // Nacho Story (highlighted — right under name)
         if (typeof getNachoStoryProgress === 'function') {
             var storyProg = getNachoStoryProgress();
-            var storyComplete = storyProg >= 10;
+            var storyTotal = (typeof window.NACHO_STORY_TOTAL === 'number') ? window.NACHO_STORY_TOTAL : 7;
+            var storyComplete = storyProg >= storyTotal;
             var storyNickname = escapeHtml(nickname);
             html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                 '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
@@ -5410,8 +5411,8 @@ function showSettingsPage(tab) {
                     '<div style="font-size:0.7rem;color:var(--text-faint);">' + (storyComplete ? '✅ Complete!' : 'A new chapter unlocks every day!') + '</div></div>' +
                 '</div>' +
                 '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
-                '<div style="flex:1;background:var(--bg-side);border-radius:8px;height:10px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#f7931a,#ea580c);width:' + Math.round(storyProg / 10 * 100) + '%;border-radius:8px;transition:0.5s;"></div></div>' +
-                '<span style="color:var(--accent);font-size:0.85rem;font-weight:700;">' + storyProg + '/10</span>' +
+                '<div style="flex:1;background:var(--bg-side);border-radius:8px;height:10px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#f7931a,#ea580c);width:' + Math.round(storyProg / storyTotal * 100) + '%;border-radius:8px;transition:0.5s;"></div></div>' +
+                '<span style="color:var(--accent);font-size:0.85rem;font-weight:700;">' + storyProg + '/' + storyTotal + '</span>' +
                 '</div>' +
                 '<button onclick="hideUsernamePrompt();setTimeout(function(){if(typeof showNachoStory===\'function\')showNachoStory()},300)" style="width:100%;padding:12px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);">' + (storyComplete ? '📖 Re-read ' + storyNickname + '\'s Adventure' : '📖 Read Next Chapter →') + '</button>' +
                 '</div>';
@@ -25684,6 +25685,9 @@ window.renderReadNext = function(currentId) {
     html += '</div></div>';
     return html;
 };
+
+// Expose chapter count as single source of truth
+window.NACHO_STORY_TOTAL = CHAPTERS.length;
 
 // getNachoStoryProgress
 window.getNachoStoryProgress = function() {
