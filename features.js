@@ -1035,8 +1035,8 @@ window.renderReadNext = function(currentId) {
     return html;
 };
 
-// Expose chapter count as single source of truth
-window.NACHO_STORY_TOTAL = CHAPTERS.length;
+// Expose chapter count as single source of truth (7 chapters — keep in sync with showNachoStory)
+window.NACHO_STORY_TOTAL = 7;
 
 // getNachoStoryProgress
 window.getNachoStoryProgress = function() {
