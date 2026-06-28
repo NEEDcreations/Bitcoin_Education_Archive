@@ -13327,14 +13327,16 @@ function _triggerDailyAllThreeSF(attempt) {
         console.warn('[DAILY] contributeSatoshiFavor failed (attempt ' + attempt + '):', msg);
         // already-exists = dedup already recorded, silent success
         if (code === 'already-exists') return;
-        // failed-precondition = CF docs not written yet, retry up to 5x with 4s gap
-        if (code === 'failed-precondition' && attempt < 5) {
-            console.log('[DAILY] Retrying SF contribution in 4s (attempt ' + (attempt + 1) + '/5)...');
-            setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, 4000);
+        // Retry on: docs not written yet (failed-precondition) or transient read error (internal)
+        var shouldRetry = (code === 'failed-precondition' || code === 'internal') && attempt < 8;
+        if (shouldRetry) {
+            var delayMs = attempt < 3 ? 4000 : 8000;
+            console.log('[DAILY] Retrying SF in ' + (delayMs/1000) + 's (attempt ' + (attempt + 1) + '/8)...');
+            setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, delayMs);
             return;
         }
-        // Any other error: show toast so user knows it didn\'t count
-        if (typeof showToast === 'function') showToast('⚠️ Daily triple not counted — please try again later', 5000);
+        // Only show error toast after all retries exhausted
+        if (attempt >= 8 && typeof showToast === 'function') showToast('⚠️ Daily triple not counted — please try again later', 5000);
     });
 }
 
@@ -14806,7 +14808,7 @@ window._questHubShowQuizPicker = function() {
 window._questHubBackToTabs = function() {
     var tabs = document.getElementById('questHubTabs');
     var backBar = document.getElementById('qhBackBar');
-    if (tabs) tabs.style.display = '';
+    if (tabs) tabs.style.display = 'grid'; // must be grid, not '' (which resets to block)
     if (backBar) backBar.style.display = 'none';
     window._questHubTab = 'quiz';
     if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
