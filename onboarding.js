@@ -752,7 +752,7 @@ window.showOnboardingWizard = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'onboardingOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#020617;display:flex;flex-direction:column;align-items:center;padding:20px;font-family:inherit;overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding-top:30px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:300000;background:#020617;display:flex;flex-direction:column;align-items:center;padding:20px;padding-bottom:max(env(safe-area-inset-bottom,20px),20px);font-family:inherit;overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding-top:30px;';
 
     var state = { step: 0, level: null, interests: [] };
 
