@@ -1,6 +1,13 @@
 {
-  "updated": "2026-06-29T00:00:49.860Z",
+  "updated": "2026-06-29T04:00:51.041Z",
   "news": [
+    {
+      "date": "Jun 29, 2026",
+      "title": "If Global Wealth Hits $9 Quadrillion, Bitcoin Math Breaks Everything",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/LtSENAp2DzY",
+      "source": "lukemikic"
+    },
     {
       "date": "Jun 28, 2026",
       "title": "450 Bitcoin a Day Cannot Clear $7T of Daily Trade",
@@ -13,13 +20,6 @@
       "title": "450 Bitcoin a Day Cannot Clear $7T of Daily Trade",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/9hBMwn2qlKY",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jun 28, 2026",
-      "title": "The Czech Central Bank Just Put Bitcoin on Its Balance Sheet",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/71_Efz7z4bM",
       "source": "lukemikic"
     }
   ]
