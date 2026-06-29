@@ -1107,7 +1107,7 @@
                 var activateMsg = '⛏️ SATOSHI\'S FAVOR IS NOW ACTIVE!';
                 if (howEarned) activateMsg += ' ' + howEarned;
                 activateMsg += ' Mine now for 60 minutes! ➡️ [Satoshi\'s Favor](#favor)';
-                window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, '');
+                window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, (auth && auth.currentUser) ? auth.currentUser.uid : '');
             } else if (data.favorActive && wasFavorActive) {
                 if (typeof window.nachoGlobalAnnounce === 'function') {
                     var extMsg;
@@ -1116,13 +1116,13 @@
                     } else if (howEarned) {
                         extMsg = '🦌 ' + howEarned + ' Satoshi extended his blessing! +' + bonusAdded + ' bonus minutes ⏳ ➡️ [Satoshi\'s Favor](#favor)';
                     }
-                    if (extMsg) window.nachoGlobalAnnounce(extMsg, '');
+                    if (extMsg) window.nachoGlobalAnnounce(extMsg, (auth && auth.currentUser) ? auth.currentUser.uid : '');
                 }
             } else if (!data.favorActive && howEarned) {
                 var ptsRem = 21 - (data.points || 0);
                 if (ptsRem > 0 && typeof window.nachoGlobalAnnounce === 'function') {
                     var ptLabel = earnedPoints > 1 ? ('+' + earnedPoints) : '+1';
-                    window.nachoGlobalAnnounce('🦌 ' + howEarned + ' ' + ptLabel + ' toward Satoshi\'s Favor! ' + ptsRem + ' more to go ⛏️ ➡️ [Satoshi\'s Favor](#favor)', '');
+                    window.nachoGlobalAnnounce('🦌 ' + howEarned + ' ' + ptLabel + ' toward Satoshi\'s Favor! ' + ptsRem + ' more to go ⛏️ ➡️ [Satoshi\'s Favor](#favor)', (auth && auth.currentUser) ? auth.currentUser.uid : '');
                 }
             }
 

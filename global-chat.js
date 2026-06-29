@@ -3308,10 +3308,20 @@ function _renderAnnouncementItem(doc, context) {
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
     } else {
-        // No uid — single-word only (safe; user-typed @mentions are always one word)
-        text = text.replace(/@([A-Za-z0-9_]+)/g, function(_, uname) {
+        // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
+        // This regex is identical to the uid branch but routes to lookupUserByName by display name
+        var _annMentionFound = false;
+        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?= just | leveled| earned| completed| aced| SOLVED|[!.,;:?\u27A1]|$)/, function(_, rawName) {
+            _annMentionFound = true;
+            var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
+        // Also handle any remaining single-word @mentions (user-typed in normal chat)
+        if (!_annMentionFound) {
+            text = text.replace(/@([A-Za-z0-9_]+)/g, function(_, uname) {
+                return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+            });
+        }
     }
 
     var isOverlay = context === 'overlay';
@@ -3481,7 +3491,10 @@ window.nachoGlobalAnnounce = function(text, mentionUid) {
         isNachoAuto: true,
         ts: firebase.firestore.FieldValue.serverTimestamp()
     };
-    if (mentionUid) msgData.mentionUid = mentionUid;
+    // If no mentionUid passed, fall back to the current user's uid —
+    // system announcements are always about the currently signed-in user
+    var effectiveMentionUid = mentionUid || (uid !== 'nacho-bot' ? uid : '');
+    if (effectiveMentionUid) msgData.mentionUid = effectiveMentionUid;
     // Write to announcements collection (keeps global chat human-only)
     db.collection(ANNOUNCEMENTS_COLLECTION).add(msgData).catch(function(e) {
         console.error('[CHAT] Nacho announce failed:', e);
