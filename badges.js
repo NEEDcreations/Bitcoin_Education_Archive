@@ -1027,18 +1027,17 @@ function _renderBadgeSets(earnedBadges) {
             var emoji = bDef ? bDef.emoji : '🔘';
             var name = bDef ? bDef.name : bid;
             var desc = bDef ? bDef.desc : '';
-            var tooltipId = 'btt_' + bid.replace(/[^a-z0-9]/g,'_');
-            var safeDesc = (name + (desc ? ': ' + desc : '')).replace(/'/g, '&#39;');
-            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:52px;' + (bEarned ? '' : 'opacity:0.4;') + ';position:relative;cursor:pointer;"';
-            html += ' onclick="var t=document.getElementById(\'' + tooltipId + '\');t.style.display=t.style.display===\'block\'?\'none\':\'block\'"';
-            html += ' onmouseenter="document.getElementById(\'' + tooltipId + '\').style.display=\'block\'"';
-            html += ' onmouseleave="document.getElementById(\'' + tooltipId + '\').style.display=\'none\'">';
-            html += '<span style="font-size:1.3rem;' + (bEarned ? 'filter:drop-shadow(0 0 4px ' + set.color + '88);' : 'filter:grayscale(1);') + '">' + emoji + '</span>';
-            html += '<span style="font-size:0.55rem;color:' + (bEarned ? 'var(--text)' : 'var(--text-faint)') + ';text-align:center;line-height:1.2;word-break:break-word;">' + name + '</span>';
-            html += '<div id="' + tooltipId + '" style="display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1a2e;border:1px solid ' + set.color + ';border-radius:8px;padding:6px 8px;font-size:0.68rem;color:var(--text);line-height:1.4;width:140px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.5);pointer-events:none;">';
-            html += (bEarned ? '<span style="color:#22c55e;font-weight:700;">✅ Earned</span><br>' : '') + '<strong>' + name + '</strong>';
-            if (desc) html += '<br><span style="color:var(--text-muted);font-size:0.63rem;">' + desc + '</span>';
-            html += '</div>';
+            // Use shared _showBadgeSetTip: position:fixed opaque tooltip, no overflow/z-index clipping
+            var tipHtml = (bEarned ? '<span style=\"color:#22c55e;font-weight:700;\">\u2705 Earned</span><br>' : '<span style=\"color:#aaa;\">\uD83D\uDD12 Locked</span><br>') +
+                '<strong>' + escapeHtml(name) + '</strong>' +
+                (desc ? ('<br><span style=\"color:#aaa;font-size:0.63rem;\">' + escapeHtml(desc) + '</span>') : '');
+            html += '<div class=\"badge-set-item\" data-set-tip=\"' + tipHtml.replace(/\"/g,'&quot;') + '\" ';
+            html += 'style=\"display:flex;flex-direction:column;align-items:center;gap:2px;width:52px;' + (bEarned ? '' : 'opacity:0.4;') + 'cursor:pointer;\"';
+            html += ' onclick=\"window._showBadgeSetTip(event,this)\"';
+            html += ' onmouseenter=\"window._showBadgeSetTip(event,this)\"';
+            html += ' onmouseleave=\"window._hideBadgeSetTip()\">';
+            html += '<span style=\"font-size:1.3rem;' + (bEarned ? 'filter:drop-shadow(0 0 4px ' + set.color + '88);' : 'filter:grayscale(1);') + '\">' + emoji + '</span>';
+            html += '<span style=\"font-size:0.55rem;color:' + (bEarned ? 'var(--text)' : 'var(--text-faint)') + ';text-align:center;line-height:1.2;word-break:break-word;\">' + name + '</span>';
             html += '</div>';
         });
         html += '</div>';
@@ -1095,6 +1094,32 @@ window._checkBadgeSets = function() {
             window._claimSetBonus(set.id);
         }
     });
+};
+
+// ---- Tooltip for badge SET grid items (The Trifecta Set etc.) ----
+// Reuses #badgeFloatTip so it's always position:fixed, opaque, correct z-index
+window._showBadgeSetTip = function(e, el) {
+    e.stopPropagation && e.stopPropagation();
+    var tip = document.getElementById('badgeFloatTip');
+    if (!tip) return;
+    var content = el.getAttribute('data-set-tip') || '';
+    if (!content) return;
+    // Decode &quot; back to " for innerHTML
+    tip.innerHTML = content.replace(/&quot;/g, '"');
+    tip.style.display = 'block';
+    // Position above the element using getBoundingClientRect
+    var r = el.getBoundingClientRect();
+    var tw = tip.offsetWidth || 180;
+    var th = tip.offsetHeight || 60;
+    var left = Math.max(4, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 4));
+    var top  = r.top - th - 8;
+    if (top < 4) top = r.bottom + 8; // flip below if no room above
+    tip.style.left = left + 'px';
+    tip.style.top  = top  + 'px';
+};
+window._hideBadgeSetTip = function() {
+    var tip = document.getElementById('badgeFloatTip');
+    if (tip) tip.style.display = 'none';
 };
 
 // ---- Single floating tooltip for badge taps ----
