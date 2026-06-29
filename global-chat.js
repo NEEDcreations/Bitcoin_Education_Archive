@@ -3201,7 +3201,17 @@ window.lookupUserByName = function(username) {
                         if (!snap2.empty) {
                             if (typeof showUserProfile === 'function') showUserProfile(snap2.docs[0].id);
                         } else {
-                            if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                            // Try displayName for multi-word names (e.g. 'Sipho Ashley')
+                            db.collection('users').where('displayName', '==', username).limit(1).get()
+                                .then(function(snap3) {
+                                    if (!snap3.empty) {
+                                        if (typeof showUserProfile === 'function') showUserProfile(snap3.docs[0].id);
+                                    } else {
+                                        if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                                    }
+                                }).catch(function() {
+                                    if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                                });
                         }
                     }).catch(function() {
                         if (typeof showToast === 'function') showToast('User @' + username + ' not found');
@@ -3291,7 +3301,8 @@ function _renderAnnouncementItem(doc, context) {
 
     // 2. @username mentions — link to user profile using stored mentionUid
     var mentionUid = m.mentionUid || '';
-    text = text.replace(/@([A-Za-z0-9_]+)/g, function(_, username) {
+    text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_ ]*)(?= just | leveled| earned| completed| aced| SOLVED|[!.,;:?➡]|$)/g, function(_, rawName) {
+        var username = rawName.trim();
         if (mentionUid) {
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
         }
