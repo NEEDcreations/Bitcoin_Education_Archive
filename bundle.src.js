@@ -7326,6 +7326,105 @@ const TITLE_DEFS = [
     { id: 'community_darling',   title: 'Community Darling',    emoji: '🌟', requiredBadge: 'tip_received_50',        flavor: '50 tips received from the Archive community' },
     { id: 'time_traveler',       title: 'Time Traveler',        emoji: '⏳', requiredBadge: 'predict_correct_100',    flavor: '100 correct predictions. Saw the future.' },
     { id: 'the_long_walker',     title: 'The Long Walker',      emoji: '💎', requiredBadge: 'pow_streak_30',          flavor: '30-day Proof of Walk streak. Committed.' },
+
+    // ── Badge count milestones ──
+    { id: 'chancellor',          title: 'Chancellor on Brink',    emoji: '📰', requiredBadge: 'hall_of_fame',          flavor: '50 badges. The banks are already nervous.' },
+    { id: 'the_archivist_t',     title: 'The Archivist',          emoji: '🏛️', requiredBadge: 'the_archive',           flavor: '100 badges. You don\'t use the Archive — you are it.' },
+    { id: 'hall_of_fame_t',      title: 'Hall of Fame',           emoji: '🏆', requiredBadge: 'genesis_block',         flavor: '150 badges. A true legend.' },
+    { id: 'satoshis_revenge_t',  title: "Satoshi's Revenge",     emoji: '⚔️', requiredBadge: 'satoshis_ghost',        flavor: '200 badges. The network never forgets.' },
+    { id: 'satoshis_vendetta_t', title: "Satoshi's Vendetta",    emoji: '🗡️', requiredBadge: 'block_250',              flavor: '250 badges. Deeper than most will ever go.' },
+    { id: 'satoshis_ghost_t',    title: "Satoshi's Ghost",       emoji: '👻', requiredBadge: 'the_hodler',             flavor: '300 badges. So rare nobody knows if it\'s been done.' },
+    { id: 'satoshis_covenant_t', title: "Satoshi's Covenant",    emoji: '📜', requiredBadge: 'satoshis_covenant',     flavor: '350 badges. Bound to the protocol, forever.' },
+    { id: 'satoshis_cipher_t',   title: "Satoshi's Cipher",      emoji: '🔐', requiredBadge: 'satoshis_cipher',       flavor: '400 badges. You have cracked something most never will.' },
+
+    // ── Grand Scholar / Jack of All ──
+    { id: 'grand_scholar',       title: 'Grand Scholar',          emoji: '🎓', requiredBadge: 'all_certs',             flavor: 'All certifications and trails. The complete picture.' },
+    { id: 'jack_of_all_t',       title: 'Jack of All Trades',     emoji: '🃏', requiredBadge: 'jack_of_all',           flavor: 'A badge in every category. Truly well-rounded.' },
+
+    // ── Set completions ──
+    { id: 'master_miner_t',      title: 'Master Miner',           emoji: '⛏️', requiredBadge: 'set_miner_complete',    flavor: 'Every mining badge earned. The forge never cools.' },
+    { id: 'satoshi_scholar_t',   title: 'Satoshi Scholar',        emoji: '🎓', requiredBadge: 'set_scholar_complete',  flavor: 'The Scholar Set complete. Knowledge is sovereignty.' },
+    { id: 'community_pillar_t',  title: 'Community Pillar',       emoji: '🌐', requiredBadge: 'set_social_complete',   flavor: 'The Social Set done. The Archive runs on people like you.' },
+    { id: 'diamond_hands_set_t', title: 'Diamond Hands',          emoji: '💎', requiredBadge: 'set_streak_complete',   flavor: 'The Streak Set finished. Unbreakable.' },
+    { id: 'arena_champion_t',    title: 'Arena Champion',         emoji: '👑', requiredBadge: 'set_pvp_complete',      flavor: 'The Fighter Set complete. Dominant.' },
+    { id: 'archive_builder_t',   title: 'Archive Builder',        emoji: '🔧', requiredBadge: 'set_builder_complete',  flavor: 'The Builder Set done. You shaped this place.' },
+    { id: 'world_traveler_t',    title: 'World Traveler',         emoji: '🗺️', requiredBadge: 'set_explorer_complete', flavor: 'The Explorer Set complete. Every path walked.' },
+    { id: 'bitcoin_cal_hero_t',  title: 'Bitcoin Calendar Hero',  emoji: '🎊', requiredBadge: 'set_fun_complete',      flavor: 'All calendar badges. You never miss a Bitcoin holiday.' },
+    { id: 'challenge_master_t',  title: 'Challenge Master',       emoji: '🏅', requiredBadge: 'set_daily_complete',    flavor: 'The Daily Set complete. Every day, every challenge.' },
+    { id: 'timechain_veteran_t', title: 'Timechain Veteran',      emoji: '🛸', requiredBadge: 'set_tctv_complete',     flavor: 'The TCTV Set complete. You\'ve seen everything.' },
+    { id: 'lightning_lord_t',    title: 'Lightning Lord',         emoji: '⚡', requiredBadge: 'set_lightning_complete', flavor: 'The Lightning Set complete. Pure Bitcoin velocity.' },
+    { id: 'trail_blazer_t',      title: 'Trail Blazer',           emoji: '🏔️', requiredBadge: 'set_trails_complete',   flavor: 'The Trails Set blazed. Nacho is proud.' },
+    { id: 'beats_maestro_t',     title: 'Beats Maestro',          emoji: '🎤', requiredBadge: 'set_beats_complete',    flavor: 'The Beats Set complete. Music and Bitcoin forever.' },
+    { id: 'trifecta_god_t',      title: 'Trifecta God',           emoji: '🌞', requiredBadge: 'set_trifecta_complete', flavor: 'The Trifecta Set complete. Daily discipline personified.' },
+    { id: 'irl_set_t',           title: 'IRL Champion',           emoji: '🏟️', requiredBadge: 'set_irl_complete',     flavor: 'The IRL Set complete. Bitcoin isn\'t just on a screen.' },
+    { id: 'spin_set_t',          title: 'Wheel of Fortune',       emoji: '🎰', requiredBadge: 'set_spin_complete',     flavor: 'The Spin Set complete. Fortune favored you enough.' },
+    { id: 'pow_set_t',           title: 'Proof of Walker',        emoji: '👟', requiredBadge: 'set_pow_complete',      flavor: 'The Proof of Walk Set complete. Every step counted.' },
+
+    // ── Chat ──
+    { id: 'chat_immortal_t',     title: 'Chat Immortal',          emoji: '♾️', requiredBadge: 'chat_1000',             flavor: '1,000 messages. You are the chat.' },
+    { id: 'reaction_god_t',      title: 'Reaction God',           emoji: '🔮', requiredBadge: 'react_500',             flavor: '500 reactions. You feel everything.' },
+
+    // ── DJ / Music ──
+    { id: 'dj_legend_t',         title: 'DJ Legend',              emoji: '🎛️', requiredBadge: 'dj_50',                 flavor: '50 DJ sets. The decks are your home.' },
+    { id: 'super_fan_t',         title: 'Super Fan',              emoji: '🌟', requiredBadge: 'dj_listener_100',       flavor: '100 DJ sets listened to. Front row every time.' },
+    { id: 'audiophile_t',        title: 'The Audiophile',         emoji: '🎧', requiredBadge: 'beats_500_plays',       flavor: '500 tracks on Bitcoin Beats. Pure devotion.' },
+
+    // ── Forum / Writing ──
+    { id: 'forum_legend_t',      title: 'Forum Legend',           emoji: '🏛️', requiredBadge: 'forum_100',             flavor: '100 forum posts. Your words shaped the debate.' },
+    { id: 'staff_writer_t',      title: 'Staff Writer',           emoji: '🗞️', requiredBadge: 'article_10',            flavor: '10 articles published. The pen is mightier.' },
+
+    // ── PVP ──
+    { id: 'unstoppable_pvp_t',   title: 'Unstoppable',            emoji: '💥', requiredBadge: 'pvp_win_streak_5',      flavor: '5 PVP wins in a row. Nobody can touch you.' },
+
+    // ── Diamond Hands 100 ──
+    { id: 'diamond_hands_100_t', title: 'Diamond Hands',          emoji: '💎', requiredBadge: 'streak_100',            flavor: '100-day streak. Most quit long ago.' },
+
+    // ── Spin Wheel ──
+    { id: 'wheel_addict_t',      title: 'Wheel Addict',           emoji: '🎡', requiredBadge: 'spin_streak_30',        flavor: '30-day spin streak. Fortune favors the consistent.' },
+    { id: 'century_spinner_t',   title: 'Century Spinner',        emoji: '🏅', requiredBadge: 'spin_100',              flavor: '100 spins. No shame, only gains.' },
+
+    // ── Predictions ──
+    { id: 'precision_forecaster_t', title: 'Precision Forecaster', emoji: '🎯', requiredBadge: 'predict_accuracy_70', flavor: '70%+ accuracy across 20+ predictions. You see the chart.' },
+    { id: 'nostradamus_t',        title: 'Nostradamus',           emoji: '🔮', requiredBadge: 'predict_streak_10',    flavor: '10 correct in a row. The oracle speaks.' },
+
+    // ── Flex ──
+    { id: 'flex_legend_t',        title: 'Flex Legend',           emoji: '🦁', requiredBadge: 'flex_legend',           flavor: '1,000 Flex actions. Physical and financial sovereignty.' },
+    { id: 'full_stack_human_t',   title: 'Full Stack Human',      emoji: '🧬', requiredBadge: 'flex_all_once',         flavor: 'Every Flex action done. The complete sovereign.' },
+
+    // ── Combo ──
+    { id: 'legend_mode_t',        title: 'Legend Mode',           emoji: '🏆', requiredBadge: 'combo_legend',          flavor: 'All 8 features in one session. A true Archive legend.' },
+
+    // ── Nacho ──
+    { id: 'nachos_bestie_t',      title: "Nacho's Bestie",       emoji: '🧡', requiredBadge: 'nacho_bestie',          flavor: '250 Nacho interactions. He considers you a friend.' },
+
+    // ── Referrals ──
+    { id: 'super_spreader_t',     title: 'Super Spreader',        emoji: '📡', requiredBadge: 'referral_50',           flavor: 'Referred 50 people. Orange pill machine.' },
+
+    // ── Sats ──
+    { id: 'sat_hoarder_t',        title: 'Sat Hoarder',           emoji: '🏦', requiredBadge: 'sats_10k',              flavor: '10,000 sats claimed. The stack begins.' },
+
+    // ── SF ──
+    { id: 'favor_champion_t',     title: 'Favor Champion',        emoji: '🏅', requiredBadge: 'sf_contributor_10',     flavor: '10× Satoshi\'s Favor activated. The community owes you.' },
+    { id: 'golden_nonce_t',       title: 'Golden Nonce',          emoji: '✨', requiredBadge: 'sf_ultra_low',          flavor: 'Hash under 100,000. Almost divine luck.' },
+    { id: 'asic_mode_t',          title: 'ASIC Mode',             emoji: '🖥️', requiredBadge: 'sf_1000_hashes',        flavor: '1,000 SF hashes. Dedicated.' },
+
+    // ── Trails ──
+    { id: 'summit_conqueror_t',   title: 'Summit Conqueror',      emoji: '🏔️', requiredBadge: 'trail_summit',          flavor: 'The hardest Nacho trail. The summit was yours.' },
+
+    // ── PoW ──
+    { id: 'pow_titan_t',          title: 'The Titan',             emoji: '🌍', requiredBadge: 'pow_km_1000',           flavor: '1,000 km walked. A thousand kilometers of conviction.' },
+
+    // ── Story ──
+    { id: 'story_master_t',       title: 'Story Master',          emoji: '🦧', requiredBadge: 'story_complete',        flavor: 'All 7 chapters of Nacho\'s Story. You know the whole tale.' },
+
+    // ── IRL ──
+    { id: 'scene_regular_t',      title: 'Scene Regular',         emoji: '🗺️', requiredBadge: 'irl_attend_5',          flavor: '5 IRL events attended. You show up in person.' },
+
+    // ── Tips ──
+    { id: 'tip_magnet_t',         title: 'Tip Magnet',            emoji: '🧲', requiredBadge: 'tip_magnet',            flavor: '10 tips received. The community loves what you bring.' },
+
+    // ── Weekly Hero ──
+    { id: 'community_hero_t',     title: 'Community Hero',        emoji: '⚡', requiredBadge: 'weekly_hero',           flavor: 'Participated in a weekly community challenge. Showed up.' },
 ];
 
 let earnedBadges = new Set();
