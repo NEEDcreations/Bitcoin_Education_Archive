@@ -3731,6 +3731,27 @@ window._selectCountry = function(name) {
     if (dropdown) dropdown.style.display = 'none';
 };
 
+// Title equip
+window._equipTitle = function(titleId) {
+    var user = auth ? auth.currentUser : null;
+    if (!user) { if (typeof showToast === 'function') showToast('Sign in to equip a title'); return; }
+    if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to equip a title'); return; }
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.activeTitle = titleId || null;
+    if (typeof db !== 'undefined' && db) {
+        db.collection('users').doc(user.uid).update({ activeTitle: titleId || null }).catch(function(){});
+    }
+    var label = '';
+    if (titleId && typeof TITLE_DEFS !== 'undefined') {
+        var tDef = TITLE_DEFS.find(function(t){return t.id===titleId;});
+        if (tDef) label = tDef.emoji + ' ' + tDef.title;
+    }
+    if (typeof showToast === 'function') {
+        showToast(label ? '🎖️ Title equipped: ' + label : 'Title removed');
+    }
+    // Re-render settings to update the pill display
+    if (typeof showSettings === 'function') setTimeout(function(){ showSettings('account'); }, 300);
+};
+
 // Faction selection
 window._selectFaction = async function(faction) {
     try {
@@ -3859,10 +3880,32 @@ function showSettingsPage(tab) {
         var _pfpHtml = _pfpUrl
             ? '<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Change profile picture">'
             : '<div style="font-size:2.5rem;margin-bottom:0;">' + settingsEmoji + '</div>';
+        // Build title pill for own profile
+        var _activeTitleId = currentUser ? currentUser.activeTitle || '' : '';
+        var _activeTitleDef = (typeof TITLE_DEFS !== 'undefined' && _activeTitleId) ? TITLE_DEFS.find(function(t){return t.id===_activeTitleId;}) : null;
+        var _titlePillHtml = _activeTitleDef
+            ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _activeTitleDef.emoji + ' ' + escapeHtml(_activeTitleDef.title) + '</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_activeTitleDef.flavor) + '</div>'
+            : '';
+        // Build equip title button if user has earned titles
+        var _earnedTitles = currentUser ? currentUser.earnedTitles || [] : [];
+        var _equipTitleHtml = '';
+        if (_earnedTitles.length > 0 && typeof TITLE_DEFS !== 'undefined') {
+            var _titleOptions = '<option value="">— No Title —</option>';
+            _earnedTitles.forEach(function(tid) {
+                var tDef = TITLE_DEFS.find(function(t){return t.id===tid;});
+                if (tDef) _titleOptions += '<option value="' + escapeHtml(tDef.id) + '"' + (tDef.id===_activeTitleId?' selected':'') + '>' + tDef.emoji + ' ' + escapeHtml(tDef.title) + '</option>';
+            });
+            _equipTitleHtml = '<div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">' +
+                '<span style="font-size:0.8rem;color:var(--text-muted);">🎖️ Equip Title:</span>' +
+                '<select onchange="window._equipTitle(this.value)" style="padding:5px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:inherit;cursor:pointer;">' + _titleOptions + '</select>' +
+                '</div>';
+        }
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
+            _titlePillHtml +
+            _equipTitleHtml +
             '</div>';
 
         // Country selector (custom autocomplete — datalist broken on iOS Safari)

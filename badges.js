@@ -446,6 +446,44 @@ const BADGE_DEFS = [
     { id: 'set_pow_complete',       name: 'Distance Legend',      emoji: '🌍', desc: 'Completed The Proof of Walk Set',pts: 750,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_pow_complete') === '1' },
 ];
 
+// =============================================
+// User Titles — earned by reaching max-tier badges
+// =============================================
+const TITLE_DEFS = [
+    { id: 'the_completionist',    title: 'The Completionist',   emoji: '🗺️', requiredBadge: 'explorer_all',          flavor: 'Mapped every corner of the Archive' },
+    { id: 'quest_legend',        title: 'Quest Legend',         emoji: '⚔️', requiredBadge: 'quest_100',             flavor: 'A hundred quests. Countless battles won.' },
+    { id: 'hash_lord',           title: 'Hash Lord',            emoji: '☄️', requiredBadge: 'sf_10000_hashes',       flavor: '10,000 nonces ground into dust' },
+    { id: 'satoshis_chosen',     title: "Satoshi's Chosen",    emoji: '💎', requiredBadge: 'sf_lucky_1000',         flavor: 'Fortune favors the relentless' },
+    { id: 'block_solver',        title: 'Block Solver',         emoji: '🌞', requiredBadge: 'sf_block_solver',        flavor: 'Cracked the code. Won the sats.' },
+    { id: 'hodler_supreme',      title: 'HODLer Supreme',       emoji: '🪩', requiredBadge: 'streak_365',             flavor: '365 days. No days off.' },
+    { id: 'sovereign_individual',title: 'Sovereign Individual', emoji: '🗽', requiredBadge: 'streak_200',             flavor: '200 days of orange-pilled devotion' },
+    { id: 'the_satellite',       title: 'The Satellite',        emoji: '🛰️', requiredBadge: 'tctv_satellite',         flavor: '100 hours deep in the Timechain' },
+    { id: 'timechain_surfer',    title: 'Timechain Surfer',     emoji: '🏄', requiredBadge: 'tctv_timechain_surfer',  flavor: 'Surfed 100 channels. Seen it all.' },
+    { id: 'chat_legend',         title: 'Chat Legend',          emoji: '📯', requiredBadge: 'chat_500',               flavor: 'The voice of the Archive' },
+    { id: 'the_devoted',         title: 'The Devoted',          emoji: '💠', requiredBadge: 'chat_streak_30',         flavor: '30 days of relentless conversation' },
+    { id: 'pvp_legend',          title: 'PVP Legend',           emoji: '🥇', requiredBadge: 'pvp_100',               flavor: '100 wins. Undefeated in Bitcoin knowledge.' },
+    { id: 'raid_warlord',        title: 'Raid Warlord',         emoji: '🔱', requiredBadge: 'raid_100',               flavor: '100 damage dealt. Bosses tremble.' },
+    { id: 'dragon_slayer',       title: 'Dragon Slayer',        emoji: '🐲', requiredBadge: 'raid_boss_slayer_10',    flavor: 'Ten bosses defeated. A true slayer.' },
+    { id: 'the_viral_plebian',   title: 'The Viral Plebian',    emoji: '👑', requiredBadge: 'referral_100',           flavor: 'Orange-pilled 100 souls' },
+    { id: 'satoshis_disciple',   title: "Satoshi's Disciple",  emoji: '🟠', requiredBadge: 'daily_triple_365',       flavor: '365 Daily Trifectas. Absolute dedication.' },
+    { id: 'trifecta_legend',     title: 'Trifecta Legend',      emoji: '🏆', requiredBadge: 'daily_triple_90',        flavor: '90 consecutive days of learning, trivia, and polling' },
+    { id: 'double_scholar',      title: 'Double Scholar',       emoji: '🏛️', requiredBadge: 'cert_double',            flavor: 'Bitcoin Scholar AND Protocol Expert' },
+    { id: 'trivia_titan',        title: 'Trivia Titan',         emoji: '🏅', requiredBadge: 'trivia_correct_100',     flavor: '100 correct answers. Living Bitcoin encyclopedia.' },
+    { id: 'the_devotee',         title: 'The Devotee',          emoji: '🔱', requiredBadge: 'trivia_streak_30',       flavor: '30-day trivia streak. No excuses.' },
+    { id: 'vinyl_master',        title: 'Vinyl Master',         emoji: '🎼', requiredBadge: 'dj_songs_100',           flavor: '100 songs broadcast to the Archive' },
+    { id: 'nachos_confidant',    title: "Nacho's Confidant",   emoji: '🤫', requiredBadge: 'nacho_whisper',          flavor: '500 conversations with the deer himself' },
+    { id: 'regional_leader',     title: 'Regional Leader',      emoji: '🌆', requiredBadge: 'irl_host_10',            flavor: '10 Bitcoin events hosted. The community builder.' },
+    { id: 'twenty_one_million',  title: '21 Million Dreams',    emoji: '₿',  requiredBadge: 'sats_21k',              flavor: 'Claimed 21,000 sats. Lived the number.' },
+    { id: 'proof_of_pain',       title: 'Proof of Pain',        emoji: '🕱️', requiredBadge: 'sf_unlucky_1000',        flavor: '1,000 terrible hashes. Respect.' },
+    { id: 'trail_master',        title: 'Trail Master',         emoji: '🏁', requiredBadge: 'trail_all',              flavor: 'Completed every trail Nacho laid out' },
+    { id: 'to_the_moon',         title: 'To the Moon',          emoji: '🌕', requiredBadge: 'pow_km_5000',            flavor: 'Walked 5,000km. Unreal.' },
+    { id: 'democracy_maxi',      title: 'Democracy Maxi',       emoji: '⚖️', requiredBadge: 'poll_100',               flavor: '100 polls voted. The voice of reason.' },
+    { id: 'sat_slinger',         title: 'Sat Slinger',          emoji: '💰', requiredBadge: 'tip_sats_10k',           flavor: '10,000 sats tipped. Pure generosity.' },
+    { id: 'community_darling',   title: 'Community Darling',    emoji: '🌟', requiredBadge: 'tip_received_50',        flavor: '50 tips received from the Archive community' },
+    { id: 'time_traveler',       title: 'Time Traveler',        emoji: '⏳', requiredBadge: 'predict_correct_100',    flavor: '100 correct predictions. Saw the future.' },
+    { id: 'the_long_walker',     title: 'The Long Walker',      emoji: '💎', requiredBadge: 'pow_streak_30',          flavor: '30-day Proof of Walk streak. Committed.' },
+];
+
 let earnedBadges = new Set();
 let badgeCheckInterval = null;
 // Don't check badges until Firebase has restored the earned list
@@ -559,7 +597,39 @@ function checkBadges() {
             }
         } catch(e) {}
     }
+
+    // Check and award titles based on currently earned badges
+    if (typeof TITLE_DEFS !== 'undefined' && window._checkAndAwardTitles) {
+        window._checkAndAwardTitles([...earnedBadges]);
+    }
 }
+
+// Award titles when max-tier badges are earned
+window._checkAndAwardTitles = function(earnedBadgeIds) {
+    var u = typeof currentUser !== 'undefined' ? currentUser : null;
+    if (!u) return;
+    var currentTitles = u.earnedTitles || [];
+    var newTitles = [];
+    TITLE_DEFS.forEach(function(t) {
+        if (earnedBadgeIds.indexOf(t.requiredBadge) !== -1 && currentTitles.indexOf(t.id) === -1) {
+            newTitles.push(t.id);
+        }
+    });
+    if (newTitles.length === 0) return;
+    // Merge and save to Firestore
+    var merged = currentTitles.concat(newTitles);
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.earnedTitles = merged;
+    if (typeof db !== 'undefined' && db && typeof auth !== 'undefined' && auth && auth.currentUser) {
+        db.collection('users').doc(auth.currentUser.uid).update({ earnedTitles: merged });
+    }
+    // Toast/announce each new title
+    newTitles.forEach(function(tid) {
+        var tDef = TITLE_DEFS.find(function(x) { return x.id === tid; });
+        if (tDef && typeof showToast === 'function') {
+            showToast('🎖️ New Title Unlocked: ' + tDef.emoji + ' ' + tDef.title + '!');
+        }
+    });
+};
 
 // Major badges that deserve a share prompt
 const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100'];

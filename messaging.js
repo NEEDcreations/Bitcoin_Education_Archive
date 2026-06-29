@@ -489,6 +489,14 @@ window.showUserProfile = function(uid) {
                 '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">' + escapeHtml(u.username || 'Bitcoiner') +
                     '<span title="' + status.label + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + status.color + ';margin-left:6px;vertical-align:middle;' + (status.status === 'online' ? 'box-shadow:0 0 8px ' + status.color + ';' : '') + '"></span>' +
                 '</div>' +
+                // Active title pill
+                (function(){
+                    var _tid = u.activeTitle || '';
+                    var _tDef = (typeof TITLE_DEFS !== 'undefined' && _tid) ? TITLE_DEFS.find(function(t){return t.id===_tid;}) : null;
+                    if (!_tDef) return '';
+                    return '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _tDef.emoji + ' ' + escapeHtml(_tDef.title) + '</div>' +
+                           '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_tDef.flavor) + '</div>';
+                })() +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
                 // Faction + Country row
