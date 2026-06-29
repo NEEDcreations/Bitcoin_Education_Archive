@@ -5696,10 +5696,15 @@ exports.convertPointsToTickets = functions.https.onCall(async (data, context) =>
 
         const pointsCost = tickets * POINTS_PER_TICKET;
         const currentPoints = userData.points || 0;
+        const _ptsClaimed = userData.pointsClaimed || 0;
+        const _ptsDonated = userData.pointsDonated || 0;
+        // [VULN] Must check available (unspent) points, not just raw total.
+        // Raw points can exceed available once claims/donations are accounted for.
+        const availableForExchange = currentPoints - _ptsClaimed - _ptsDonated;
 
-        if (currentPoints < pointsCost) {
+        if (availableForExchange < pointsCost) {
             throw new functions.https.HttpsError('failed-precondition',
-                `Need ${pointsCost.toLocaleString()} XP, have ${currentPoints.toLocaleString()}.`);
+                `Need ${pointsCost.toLocaleString()} XP available, but only ${Math.max(0, availableForExchange).toLocaleString()} is unclaimed/undonated (total: ${currentPoints.toLocaleString()}).`);
         }
 
         tx.update(userRef, {

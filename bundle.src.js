@@ -4854,27 +4854,34 @@ function showSettingsPage(tab) {
             html += '<button onclick="showSettingsPage(\'account\')" style="padding:10px 24px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">🐝🦡 Choose Faction → Account</button>';
             html += '</div>';
         } else {
-            // Quick-pick percentage buttons
-            var _quickPcts = [5, 10, 25, 50, 100];
-            html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
-            _quickPcts.forEach(function(pct) {
-                var amt = Math.floor(_donateAvail * pct / 100);
-                html += '<button onclick="window._satsCharitySetAmt(' + amt + ')" style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
-            });
-            html += '</div>';
-
-            html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
-            html += '<input id="satsCharityAmtInput" type="number" min="1" max="' + _donateAvail + '" placeholder="Custom amount" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg,var(--card-bg));color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;">';
-            html += '</div>';
-
-            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
-            html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--text-muted);"><input type="checkbox" id="satsCharityAnonToggle" style="width:16px;height:16px;cursor:pointer;accent-color:#ef4444;"> Donate anonymously</label>';
-            html += '</div>';
-
-            html += '<button onclick="window._satsCharitySubmit()" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;">❤️ Donate XP for Charity</button>';
-
-            if (pointsDonated > 0) {
-                html += '<div style="font-size:0.75rem;color:var(--text-faint);text-align:center;margin-bottom:16px;">' + pointsDonated.toLocaleString() + ' XP already donated — thank you! ❤️</div>';
+            // Quick-pick percentage buttons — only show donate form if XP is available
+            if (_donateAvail > 0) {
+                var _quickPcts = [5, 10, 25, 50, 100];
+                html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
+                _quickPcts.forEach(function(pct) {
+                    var amt = Math.floor(_donateAvail * pct / 100);
+                    html += '<button onclick="window._satsCharitySetAmt(' + amt + ')" style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
+                });
+                html += '</div>';
+                html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+                html += '<input id="satsCharityAmtInput" type="number" min="1" max="' + _donateAvail + '" placeholder="Custom amount" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg,var(--card-bg));color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;">';
+                html += '</div>';
+                html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
+                html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--text-muted);"><input type="checkbox" id="satsCharityAnonToggle" style="width:16px;height:16px;cursor:pointer;accent-color:#ef4444;"> Donate anonymously</label>';
+                html += '</div>';
+                html += '<button onclick="window._satsCharitySubmit()" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;">❤️ Donate XP for Charity</button>';
+                if (pointsDonated > 0) {
+                    html += '<div style="font-size:0.75rem;color:var(--text-faint);text-align:center;margin-bottom:16px;">' + pointsDonated.toLocaleString() + ' XP already donated — thank you! ❤️</div>';
+                }
+            } else {
+                html += '<div style="width:100%;padding:20px 16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:12px;text-align:center;margin-bottom:16px;">';
+                html += '<div style="font-size:1.8rem;margin-bottom:8px;">💸</div>';
+                html += '<div style="font-size:0.92rem;font-weight:700;color:var(--text);margin-bottom:6px;">No XP Available to Donate</div>';
+                html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.5;">Your XP is all accounted for between past sats claims and donations. Keep earning XP and it will show up here.</div>';
+                if (pointsDonated > 0) {
+                    html += '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:10px;">' + pointsDonated.toLocaleString() + ' XP already donated — thank you! ❤️</div>';
+                }
+                html += '</div>';
             }
         }
 
@@ -5583,7 +5590,16 @@ function showSettingsPage(tab) {
             var avail = typeof currentUser !== 'undefined' && currentUser
                 ? Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0)) : 0;
             if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
-            if (amt > avail) { if (typeof showToast === 'function') showToast('Not enough available XP (' + avail.toLocaleString() + ' available)'); return; }
+            if (avail <= 0) {
+                if (typeof showToast === 'function') showToast('\u26a0\ufe0f No XP available to donate. Keep earning!', 5000);
+                return;
+            }
+            if (amt > avail) {
+                if (typeof showToast === 'function') showToast('\u26a0\ufe0f Max you can donate is ' + avail.toLocaleString() + ' XP \u2014 input adjusted.', 4000);
+                var _inp2 = document.getElementById('satsCharityAmtInput');
+                if (_inp2) _inp2.value = avail;
+                return;
+            }
             var anon = document.getElementById('satsCharityAnonToggle') ? document.getElementById('satsCharityAnonToggle').checked : false;
             var btn = document.querySelector('[onclick="window._satsCharitySubmit()"]');
             if (btn) { btn.disabled = true; btn.textContent = 'Donating...'; }
