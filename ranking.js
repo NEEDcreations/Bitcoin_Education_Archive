@@ -4489,7 +4489,11 @@ function showSettingsPage(tab) {
         html += '<div style="background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,179,8,0.1));border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Your Balance</div>';
         html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' claimable sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availableForClaim.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated)</div>';
+        var _displayAvail = Math.max(0, availableForClaim);
+        var _availLabel = availableForClaim < 0
+            ? '<span style="color:#ef4444;">' + _displayAvail.toLocaleString() + ' available XP</span> <span style="font-size:0.65rem;color:#ef4444;">(claims + donations exceed current total — keep earning!)</span>'
+            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated)';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + _availLabel + '</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
 
@@ -4499,7 +4503,11 @@ function showSettingsPage(tab) {
         } else if (onCooldown) {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
         } else if (!meetsMin && eligible) {
-            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' XP) to reach minimum claim</div>';
+            if (availableForClaim < 0) {
+                html += '<div style="width:100%;padding:16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⚠️ Your XP is fully used up between past claims and donations.<br><span style="font-size:0.75rem;">Earn <strong style="color:var(--accent);">' + Math.abs(availableForClaim + 1000).toLocaleString() + ' more XP</strong> to unlock your next claim.</span></div>';
+            } else {
+                html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' XP) to reach minimum claim</div>';
+            }
         } else {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Complete requirements below to claim</div>';
         }
@@ -4663,7 +4671,11 @@ function showSettingsPage(tab) {
         html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Available to Donate</div>';
         html += '<div style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
+        var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated;
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated</div>';
+        if (_rawAvailForDonate < 0) {
+            html += '<div style="margin-top:8px;font-size:0.75rem;color:#ef4444;font-weight:600;">⚠️ XP fully used — earn more to donate again</div>';
+        }
         html += '</div>';
 
         if (isAnon) {

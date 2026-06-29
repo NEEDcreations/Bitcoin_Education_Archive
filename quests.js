@@ -2907,11 +2907,16 @@ window.showQuestHub = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'questHubOverlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;animation:nachoPop 0.25s ease;';
+    var _qhAlign = window.innerWidth <= 900 ? 'flex-start' : 'center';
+    var _qhPad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px'; // bottom padding clears nav+FABs on mobile
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + _qhAlign + ';justify-content:center;backdrop-filter:blur(5px);padding:' + _qhPad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
 
     var modal = document.createElement('div');
-    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
+    var _qhMaxH = window.innerWidth <= 900
+        ? 'calc(100vh - 140px)' // mobile: subtract bottom nav (60px) + floating btns (50px) + safe area
+        : '85vh';
+    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:' + _qhMaxH + ';border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
 
     // Desktop font-size boost - everything in the modal reads larger on wide screens
     var qhStyle = document.createElement('style');

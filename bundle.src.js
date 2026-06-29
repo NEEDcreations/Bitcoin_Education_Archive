@@ -4655,7 +4655,11 @@ function showSettingsPage(tab) {
         html += '<div style="background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,179,8,0.1));border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Your Balance</div>';
         html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' claimable sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availableForClaim.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated)</div>';
+        var _displayAvail = Math.max(0, availableForClaim);
+        var _availLabel = availableForClaim < 0
+            ? '<span style="color:#ef4444;">' + _displayAvail.toLocaleString() + ' available XP</span> <span style="font-size:0.65rem;color:#ef4444;">(claims + donations exceed current total — keep earning!)</span>'
+            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated)';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + _availLabel + '</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
 
@@ -4665,7 +4669,11 @@ function showSettingsPage(tab) {
         } else if (onCooldown) {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
         } else if (!meetsMin && eligible) {
-            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' XP) to reach minimum claim</div>';
+            if (availableForClaim < 0) {
+                html += '<div style="width:100%;padding:16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⚠️ Your XP is fully used up between past claims and donations.<br><span style="font-size:0.75rem;">Earn <strong style="color:var(--accent);">' + Math.abs(availableForClaim + 1000).toLocaleString() + ' more XP</strong> to unlock your next claim.</span></div>';
+            } else {
+                html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' XP) to reach minimum claim</div>';
+            }
         } else {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Complete requirements below to claim</div>';
         }
@@ -4829,7 +4837,11 @@ function showSettingsPage(tab) {
         html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Available to Donate</div>';
         html += '<div style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
+        var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated;
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated</div>';
+        if (_rawAvailForDonate < 0) {
+            html += '<div style="margin-top:8px;font-size:0.75rem;color:#ef4444;font-weight:600;">⚠️ XP fully used — earn more to donate again</div>';
+        }
         html += '</div>';
 
         if (isAnon) {
@@ -15134,11 +15146,16 @@ window.showQuestHub = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'questHubOverlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;animation:nachoPop 0.25s ease;';
+    var _qhAlign = window.innerWidth <= 900 ? 'flex-start' : 'center';
+    var _qhPad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px'; // bottom padding clears nav+FABs on mobile
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + _qhAlign + ';justify-content:center;backdrop-filter:blur(5px);padding:' + _qhPad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
 
     var modal = document.createElement('div');
-    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
+    var _qhMaxH = window.innerWidth <= 900
+        ? 'calc(100vh - 140px)' // mobile: subtract bottom nav (60px) + floating btns (50px) + safe area
+        : '85vh';
+    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:' + _qhMaxH + ';border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
 
     // Desktop font-size boost - everything in the modal reads larger on wide screens
     var qhStyle = document.createElement('style');
