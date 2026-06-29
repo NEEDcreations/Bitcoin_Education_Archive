@@ -1616,11 +1616,11 @@ async function loadUser(uid, prefetchedDoc) {
                 if (currentUser.lastSpinDate > localSpin) {
                     localStorage.setItem('btc_last_spin', currentUser.lastSpinDate);
                 }
-                // CRITICAL: also sync to btc_last_spin_date (the key showSpinWheel actually checks)
-                var today = new Date().toDateString();
-                var spinTs = new Date(currentUser.lastSpinDate);
-                if (!isNaN(spinTs) && spinTs.toDateString() === today) {
-                    localStorage.setItem('btc_last_spin_date', today);
+                // Sync to btc_last_spin_date using UTC ISO date — matches server format
+                // (Do NOT use toDateString() — it causes timezone mismatch with server's ISO date)
+                var todayUTC = new Date().toISOString().split('T')[0];
+                if (currentUser.lastSpinDate === todayUTC) {
+                    localStorage.setItem('btc_last_spin_date', todayUTC);
                 }
                 if (typeof updateSpinBanner === 'function') updateSpinBanner();
             }
@@ -29264,7 +29264,7 @@ window._startHalvingTicker = function() {
         window._bonusSpinActive = false; // consume the flag
         if (!isBonusSpin) {
             var lastSpin = localStorage.getItem('btc_last_spin_date');
-            var today = new Date().toDateString();
+            var today = new Date().toISOString().split('T')[0]; // UTC ISO date — matches server
             if (lastSpin === today) {
                 showToast('🎡 You already spun today! Come back tomorrow!');
                 return;
@@ -29393,7 +29393,7 @@ window._startHalvingTicker = function() {
                 var msg = (err && err.message) ? err.message : '';
                 if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
                     // Mark locally too so the gate catches it next time
-                    localStorage.setItem('btc_last_spin_date', new Date().toDateString());
+                    localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
                     var modal = document.getElementById('spinModal');
                     if (modal) modal.remove();
                     if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');

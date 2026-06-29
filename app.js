@@ -591,7 +591,7 @@
         window._bonusSpinActive = false; // consume the flag
         if (!isBonusSpin) {
             var lastSpin = localStorage.getItem('btc_last_spin_date');
-            var today = new Date().toDateString();
+            var today = new Date().toISOString().split('T')[0]; // UTC ISO date — matches server
             if (lastSpin === today) {
                 showToast('🎡 You already spun today! Come back tomorrow!');
                 return;
@@ -720,7 +720,7 @@
                 var msg = (err && err.message) ? err.message : '';
                 if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
                     // Mark locally too so the gate catches it next time
-                    localStorage.setItem('btc_last_spin_date', new Date().toDateString());
+                    localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
                     var modal = document.getElementById('spinModal');
                     if (modal) modal.remove();
                     if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');

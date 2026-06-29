@@ -1450,11 +1450,11 @@ async function loadUser(uid, prefetchedDoc) {
                 if (currentUser.lastSpinDate > localSpin) {
                     localStorage.setItem('btc_last_spin', currentUser.lastSpinDate);
                 }
-                // CRITICAL: also sync to btc_last_spin_date (the key showSpinWheel actually checks)
-                var today = new Date().toDateString();
-                var spinTs = new Date(currentUser.lastSpinDate);
-                if (!isNaN(spinTs) && spinTs.toDateString() === today) {
-                    localStorage.setItem('btc_last_spin_date', today);
+                // Sync to btc_last_spin_date using UTC ISO date — matches server format
+                // (Do NOT use toDateString() — it causes timezone mismatch with server's ISO date)
+                var todayUTC = new Date().toISOString().split('T')[0];
+                if (currentUser.lastSpinDate === todayUTC) {
+                    localStorage.setItem('btc_last_spin_date', todayUTC);
                 }
                 if (typeof updateSpinBanner === 'function') updateSpinBanner();
             }
