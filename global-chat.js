@@ -3301,14 +3301,18 @@ function _renderAnnouncementItem(doc, context) {
 
     // 2. @username mentions — link to user profile using stored mentionUid
     var mentionUid = m.mentionUid || '';
-    text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_ ]*)(?= just | leveled| earned| completed| aced| SOLVED|[!.,;:?➡]|$)/g, function(_, rawName) {
-        var username = rawName.trim();
-        if (mentionUid) {
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
-        }
-        // No uid stored — try live lookup by username on click
-        return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(username)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+username+'</a>';
-    });
+    if (mentionUid) {
+        // Announcement with known uid: match multi-word display names via lookahead terminators (no /g — one mention per announcement)
+        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?= just | leveled| earned| completed| aced| SOLVED|[!.,;:?\u27A1]|$)/, function(_, rawName) {
+            var uname = rawName.trim();
+            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+        });
+    } else {
+        // No uid — single-word only (safe; user-typed @mentions are always one word)
+        text = text.replace(/@([A-Za-z0-9_]+)/g, function(_, uname) {
+            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+        });
+    }
 
     var isOverlay = context === 'overlay';
     var pad = isOverlay ? '10px 12px' : '12px 14px';
