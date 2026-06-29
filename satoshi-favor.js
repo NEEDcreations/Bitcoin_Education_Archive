@@ -566,12 +566,12 @@
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
             '<div id="minerCountdown" style="font-size:2rem;font-weight:900;color:var(--accent);font-family:monospace;">--:--:--</div>' +
             '</div>' +
-            '<div style="text-align:center;margin-bottom:16px;">' +
+            '<div style="text-align:center;margin-bottom:16px;min-height:148px;display:flex;flex-direction:column;align-items:center;justify-content:center;">' +
             '<div id="minerVisual" style="font-size:4rem;line-height:1;transition:transform 0.1s;">⛏️</div>' +
             '<div id="hashOutput" style="font-size:1.3rem;font-weight:800;margin-top:8px;font-family:monospace;color:var(--heading);">Ready to mine</div>' +
-            '<div id="hashMessage" style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;min-height:1.2em;"></div>' +
-            // Feature 3: Near-miss toast container
-            '<div id="sfNearMissToast" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.4);border-radius:10px;font-size:0.8rem;font-weight:700;color:#f7931a;"></div>' +
+            '<div id="hashMessage" style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;min-height:2.4em;line-height:1.2;"></div>' +
+            // Feature 3: Near-miss toast container — visibility toggle keeps layout stable
+            '<div id="sfNearMissToast" style="visibility:hidden;margin-top:8px;padding:8px 12px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.4);border-radius:10px;font-size:0.8rem;font-weight:700;color:#f7931a;"></div>' +
             '</div>' +
             '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px;font-size:0.8rem;">' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET + '</div></div>' +
@@ -736,11 +736,12 @@
         var el = document.getElementById('sfNearMissToast');
         if (!el) return;
         el.textContent = msg;
-        el.style.display = 'block';
+        el.style.visibility = 'visible';
+        el.style.opacity = '1';
         if (window._sfNMTimer) clearTimeout(window._sfNMTimer);
         window._sfNMTimer = setTimeout(function() {
             var e2 = document.getElementById('sfNearMissToast');
-            if (e2) e2.style.display = 'none';
+            if (e2) { e2.style.visibility = 'hidden'; e2.style.opacity = '0'; }
         }, 3500);
     }
 
