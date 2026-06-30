@@ -13,7 +13,17 @@
     // 2026-06-21  |  30,000 |      0       | -96.67% difficulty drop — no winner in 19 days, ~1:3,333 odds now
     // 2026-06-30  |  15,000 |      0       | +100% difficulty raise — tightening odds to ~1:6,667
     const DIFFICULTY_TARGET = 15000;
-    window.SF_DIFFICULTY_TARGET = DIFFICULTY_TARGET; // expose for other modules
+    // ── Difficulty history (ordered oldest→newest) ─────────────────
+    // Add a new entry here whenever the target changes. quests.js reads
+    // window.SF_DIFFICULTY_HISTORY to render the Difficulty History table
+    // automatically — no manual HTML edits needed.
+    const SF_DIFFICULTY_HISTORY = [
+        { date: '2026-06-02', target: 1000,  label: 'Genesis' },
+        { date: '2026-06-21', target: 30000, label: '-96.67% drop' },
+        { date: '2026-06-30', target: 15000, label: '+100% raise' },
+    ];
+    window.SF_DIFFICULTY_TARGET  = DIFFICULTY_TARGET;   // expose for other modules
+    window.SF_DIFFICULTY_HISTORY = SF_DIFFICULTY_HISTORY; // expose for difficulty table
     const HASH_MAX = 100000000;
     const HASHES_PER_MINUTE = 10;
     const HASH_WINDOW_MS = 60000; // 60 seconds

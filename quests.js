@@ -2492,10 +2492,16 @@ function _renderFavorTab(body) {
         '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\u2B50 Your Personal Best</div>' +
         '<div id="favorPersonalBest" style="font-size:0.8rem;color:var(--text-muted);">Loading...</div>' +
     '</div>';
-
-    html += '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
-        '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\uD83D\uDCCA Difficulty History</div>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">' +
+    // Difficulty History — rendered dynamically from window.SF_DIFFICULTY_HISTORY
+    (function() {
+        var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [
+            { date: '2026-06-02', target: 1000,  label: 'Genesis' },
+            { date: '2026-06-21', target: 30000, label: '-96.67% drop' },
+            { date: '2026-06-30', target: 15000, label: '+100% raise' },
+        ];
+        var _dhHtml = '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+            '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\uD83D\uDCCA Difficulty History</div>' +
+            '<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">' +
             '<thead><tr style="color:var(--text-faint);">' +
                 '<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);">Date</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Target</th>' +
@@ -2503,24 +2509,24 @@ function _renderFavorTab(body) {
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Blocks</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Change</th>' +
             '</tr></thead>' +
-            '<tbody id="sfDifficultyHistoryBody">' +
-                '<tr style="color:var(--text-muted);">' +
-                    '<td style="padding:5px 6px;">2026-06-02</td>' +
-                    '<td style="text-align:right;padding:5px 6px;font-family:monospace;">1,000</td>' +
-                    '<td style="text-align:right;padding:5px 6px;">1:100,000</td>' +
-                    '<td id="sfBlocksRow0" style="text-align:right;padding:5px 6px;">0</td>' +
-                    '<td style="text-align:right;padding:5px 6px;color:var(--text-faint);">Genesis</td>' +
-                '</tr>' +
-                '<tr style="color:var(--heading);background:rgba(247,147,26,0.06);">' +
-                    '<td style="padding:5px 6px;font-weight:700;">2026-06-21</td>' +
-                    '<td style="text-align:right;padding:5px 6px;font-family:monospace;font-weight:700;color:#22c55e;">30,000</td>' +
-                    '<td style="text-align:right;padding:5px 6px;">1:3,333</td>' +
-                    '<td id="sfBlocksRow1" style="text-align:right;padding:5px 6px;font-weight:700;">...</td>' +
-                    '<td style="text-align:right;padding:5px 6px;color:#ef4444;font-weight:700;">-96.67%</td>' +
-                '</tr>' +
-'' +
-            '</tbody>' +
-        '</table>' +
+            '<tbody id="sfDifficultyHistoryBody">';
+        _dh.forEach(function(row, i) {
+            var isCurrent = (i === _dh.length - 1);
+            var prevTarget = i > 0 ? _dh[i - 1].target : null;
+            var odds = '1:' + Math.round(100000000 / row.target).toLocaleString();
+            var changeColor = !prevTarget ? 'var(--text-faint)' : (row.target < prevTarget ? '#22c55e' : '#ef4444');
+            var changeTxt = row.label || (!prevTarget ? 'Genesis' : (((row.target - prevTarget) / prevTarget * 100).toFixed(2) + '%'));
+            _dhHtml += '<tr style="color:' + (isCurrent ? 'var(--heading)' : 'var(--text-muted)') + ';' + (isCurrent ? 'background:rgba(247,147,26,0.06);' : '') + '">' +
+                '<td style="padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + row.date + '</td>' +
+                '<td style="text-align:right;padding:5px 6px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
+                '<td style="text-align:right;padding:5px 6px;">' + odds + '</td>' +
+                '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
+                '<td style="text-align:right;padding:5px 6px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + '">' + changeTxt + '</td>' +
+            '</tr>';
+        });
+        _dhHtml += '</tbody></table></div>';
+        html += _dhHtml;
+    })();
     '</div>';
 
     html += '</div>';
@@ -2725,18 +2731,22 @@ function _loadDifficultyHistoryBlocks() {
                 var t = d.difficultyTarget != null ? d.difficultyTarget : 1000;
                 counts[t] = (counts[t] || 0) + 1;
             });
-            // Genesis row always 0 — all won blocks count toward current difficulty row
-            var totalBlocks = snap.size;
-            var r0 = document.getElementById('sfBlocksRow0');
-            var r1 = document.getElementById('sfBlocksRow1');
-            if (r0) r0.textContent = '0';
-            if (r1) r1.textContent = totalBlocks.toString();
+            // Update each row's block count using SF_DIFFICULTY_HISTORY index
+            var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
+            _dh.forEach(function(row, i) {
+                var el = document.getElementById('sfBlocksRow' + i);
+                if (!el) return;
+                // Genesis row is always 0 (target 1000 was never hit)
+                if (i === 0) { el.textContent = '0'; return; }
+                el.textContent = (counts[row.target] || 0).toString();
+            });
         })
         .catch(function() {
-            var r0 = document.getElementById('sfBlocksRow0');
-            var r1 = document.getElementById('sfBlocksRow1');
-            if (r0) r0.textContent = '?';
-            if (r1) r1.textContent = '?';
+            var _dh2 = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
+            _dh2.forEach(function(_, i) {
+                var el = document.getElementById('sfBlocksRow' + i);
+                if (el) el.textContent = '?';
+            });
         });
 }
 
