@@ -2757,12 +2757,21 @@ function _loadLastSFWindow() {
         var totalH = d.totalHashes || 0;
         var lowestH = d.lowestHash != null ? d.lowestHash.toLocaleString() : '—';
         var durMin = d.durationMinutes || 0;
-        var hadWinner = d.lowestHash != null && d.lowestHash < 30000;
-        var winnerName = d.winner ? d.winner.username : (hadWinner ? 'Unknown' : null);
+        var _sfTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 15000;
+        // Use the difficulty that was active at window end time, not current
+        var _windowTarget = d.difficultyTarget || _sfTarget;
+        var hadWinner = d.lowestHash != null && d.lowestHash < _windowTarget;
+        // winner field added 2026-06-30; fall back to topHashes lookup for old windows
+        var winnerName = (d.winner && d.winner.username) ? d.winner.username : (hadWinner ? null : null);
         var lowestColor = hadWinner ? '#f7931a' : '#22c55e';
+        // Build winner banner — if we have a winner hash but no name, look up via topHashes
+        function _renderWinnerBanner(name) {
+            var display = name ? '@' + escapeHtml(name) : '🏆 Winner';
+            return '<div data-winner-banner style="margin-top:8px;padding:8px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,179,8,0.08));border:1px solid rgba(247,147,26,0.4);border-radius:8px;display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem">🏆</span><span style="font-size:0.75rem;font-weight:700;color:#f7931a;">' + display + ' — ' + (d.lowestHash || 0).toLocaleString() + '</span></div>';
+        }
         var winnerBanner = hadWinner
-            ? '<div style="margin-top:8px;padding:8px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,179,8,0.08));border:1px solid rgba(247,147,26,0.4);border-radius:8px;display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem">🏆</span><span style="font-size:0.75rem;font-weight:700;color:#f7931a;">Winner: @' + escapeHtml(winnerName) + ' — ' + (d.lowestHash || 0).toLocaleString() + '</span></div>'
-            : '<div style="margin-top:8px;padding:6px 10px;background:var(--bg-side);border-radius:8px;font-size:0.72rem;color:var(--text-faint);text-align:center;">No winner this window (target: &lt;30,000)</div>';
+            ? _renderWinnerBanner(winnerName)
+            : '<div style="margin-top:8px;padding:6px 10px;background:var(--bg-side);border-radius:8px;font-size:0.72rem;color:var(--text-faint);text-align:center;">No winner this window (target: &lt;' + _windowTarget.toLocaleString() + ')</div>';
         el.innerHTML =
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
                 '<div style="background:var(--bg-side);border-radius:8px;padding:8px;text-align:center;">' +
@@ -2778,6 +2787,19 @@ function _loadLastSFWindow() {
             '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);">' +
                 '\u23F1\uFE0F ' + durMin + ' min window · ended ' + dateStr + ' ' + timeStr +
             '</div>';
+        // If we have a winner hash but no name stored (legacy lastWindow docs),
+        // look up the winner name from topHashes by matching the hash value
+        if (hadWinner && !winnerName && typeof db !== 'undefined') {
+            db.collection('satoshiFavor').doc('topHashes').get().then(function(thDoc) {
+                if (!thDoc.exists) return;
+                var entries = thDoc.data().entries || [];
+                var match = entries.find(function(e) { return e.value === d.lowestHash; });
+                if (match && match.username) {
+                    var bannerEl = el.querySelector('[data-winner-banner]');
+                    if (bannerEl) bannerEl.outerHTML = _renderWinnerBanner(match.username);
+                }
+            }).catch(function(){});
+        }
     }).catch(function() {
         var el2 = document.getElementById('lastSFWindowInner');
         if (el2) el2.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">Stats unavailable.</span>';

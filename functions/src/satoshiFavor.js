@@ -77,6 +77,11 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
         durationMinutes: Math.round((effectiveEnd - (stateData.favorStart ? stateData.favorStart.toMillis() : effectiveEnd)) / 60000),
         totalHashes: stateData.totalHashes || 0,
         lowestHash: stateData.lowestHashThisWindow || null,
+        difficultyTarget: DIFFICULTY_TARGET,
+        winner: stateData.lowestHashThisWindowUid ? {
+          uid: stateData.lowestHashThisWindowUid,
+          username: stateData.lowestHashThisWindowUsername || null,
+        } : null,
         archivedAt: admin.firestore.Timestamp.now(),
       }, { merge: false });
     } catch (e) {
@@ -514,7 +519,11 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     const currentDoc = await stateRef.get();
     const currentLowest = currentDoc.exists ? (currentDoc.data().lowestHashThisWindow || Infinity) : Infinity;
     const updatePayload = { totalHashes: admin.firestore.FieldValue.increment(1) };
-    if (value < currentLowest) updatePayload.lowestHashThisWindow = value;
+    if (value < currentLowest) {
+      updatePayload.lowestHashThisWindow = value;
+      updatePayload.lowestHashThisWindowUid = uid;
+      updatePayload.lowestHashThisWindowUsername = username || null;
+    }
     await stateRef.update(updatePayload);
   } catch (e) {
     console.warn('[FAVOR] totalHashes/lowestHash update failed:', e.message);
@@ -643,6 +652,11 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
           durationMinutes: Math.round((effectiveEnd - (stateData.favorStart ? stateData.favorStart.toMillis() : effectiveEnd)) / 60000),
           totalHashes: stateData.totalHashes || 0,
           lowestHash: stateData.lowestHashThisWindow || null,
+          difficultyTarget: DIFFICULTY_TARGET,
+          winner: stateData.lowestHashThisWindowUid ? {
+            uid: stateData.lowestHashThisWindowUid,
+            username: stateData.lowestHashThisWindowUsername || null,
+          } : null,
           archivedAt: admin.firestore.Timestamp.now(),
         }, { merge: false });
       } catch (e) {
