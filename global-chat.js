@@ -3303,7 +3303,7 @@ function _renderAnnouncementItem(doc, context) {
     var mentionUid = m.mentionUid || '';
     if (mentionUid) {
         // Announcement with known uid: match multi-word display names via lookahead terminators (no /g — one mention per announcement)
-        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?= just | leveled| earned| completed| aced| SOLVED|[!.,;:?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?= just | leveled| earned| completed| aced| SOLVED| crushed|[!.,;:?\u27A1]|$)/, function(_, rawName) {
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
@@ -3311,7 +3311,7 @@ function _renderAnnouncementItem(doc, context) {
         // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
         // This regex is identical to the uid branch but routes to lookupUserByName by display name
         var _annMentionFound = false;
-        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?= just | leveled| earned| completed| aced| SOLVED|[!.,;:?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?= just | leveled| earned| completed| aced| SOLVED| crushed|[!.,;:?\u27A1]|$)/, function(_, rawName) {
             _annMentionFound = true;
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';

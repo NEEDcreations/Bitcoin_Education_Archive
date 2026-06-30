@@ -29266,7 +29266,7 @@ window._startHalvingTicker = function() {
                             return '%%TW' + (twEmbeds.length - 1) + '%%';
                         });
                         // Now linkify remaining URLs
-                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + eu + '</a>'; });
                         // Restore YouTube embeds
                         t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
                             return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';

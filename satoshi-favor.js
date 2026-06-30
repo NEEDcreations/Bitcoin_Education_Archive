@@ -1096,6 +1096,14 @@
             const result = await fn({ source, detail });
             const data = result.data;
 
+            // Optimistically update local favorState so the bar re-renders immediately
+            // without waiting for the Firestore listener to fire (can lag 1-3s)
+            if (favorState && typeof data.points === 'number') {
+                favorState.points = data.points;
+                if (typeof data.favorActive === 'boolean') favorState.favorActive = data.favorActive;
+                updateAllUIs();
+            }
+
             var howEarned = '';
             if (source === 'level_up') {
                 howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
