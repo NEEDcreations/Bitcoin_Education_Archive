@@ -1,19 +1,12 @@
 {
-  "updated": "2026-06-30T00:00:50.128Z",
+  "updated": "2026-06-30T04:00:50.770Z",
   "news": [
     {
-      "date": "Jun 29, 2026",
-      "title": "CONFIRMED: Wall Street Is Moving Toward 5% Bitcoin Allocations",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/ay-Ka9ebS6w",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jun 29, 2026",
-      "title": "Retail Selling Could Unlock the Biggest Bitcoin Buyers on Earth",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/_x5FK_WwrPc",
-      "source": "lukemikic"
+      "date": "Jun 30, 2026",
+      "title": "Sovereign funds see Bitcoin discount as entry point: MidChains CEO",
+      "snippet": "Cointelegraph",
+      "link": "https://cointelegraph.com/news/sovereign-funds-see-bitcoin-discount-as-entry-point-midchains-ceo-says?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
+      "source": "cointelegraph"
     },
     {
       "date": "Jun 29, 2026",
@@ -21,6 +14,13 @@
       "snippet": "Cointelegraph",
       "link": "https://cointelegraph.com/markets/bitcoin-faces-critical-test-as-bulls-aim-to-hold-60k-did-btc-bottom?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
       "source": "cointelegraph"
+    },
+    {
+      "date": "Jun 29, 2026",
+      "title": "Strategy (MSTR) Surges Over 12% As Bitcoin-Linked Stocks Have Green Day",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/markets/strategy-mstr-surges-12-bitcoin-stocks",
+      "source": "bitcoin-magazine"
     }
   ]
 }
