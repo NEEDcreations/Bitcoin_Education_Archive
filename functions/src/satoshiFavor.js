@@ -21,6 +21,7 @@ function uidHash(uid) {
 const DIFFICULTY_HISTORY = [
   { target: 1000,  since: '2026-06-02' },
   { target: 30000, since: '2026-06-21' },
+  { target: 15000, since: '2026-06-30' },
 ];
 const DIFFICULTY_TARGET = DIFFICULTY_HISTORY[DIFFICULTY_HISTORY.length - 1].target;
 
