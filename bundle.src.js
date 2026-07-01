@@ -14924,16 +14924,24 @@ function _renderTopHashesHTML(entries) {
            // Winner = hash beat the difficulty target that was ACTIVE when it was mined.
         // e.difficultyTarget is stored by the cloud function (backfilled for legacy entries).
         // Fall back to inferring from timestamp using the known history if missing.
+        var tsMs = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp.toMillis() : (e.timestamp ? Number(e.timestamp) : 0);
         var diffTarget;
         if (e.difficultyTarget != null) {
             diffTarget = e.difficultyTarget;
         } else {
-            // Infer from timestamp: target was 1000 before 2026-06-21, then 30000
-            var _cutover = new Date('2026-06-21').getTime();
-            diffTarget = (tsMs && tsMs >= _cutover) ? 30000 : 1000;
+            // Infer from timestamp using full difficulty history
+            var _lbDh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [
+                { date: '2026-06-02', target: 1000 },
+                { date: '2026-06-21', target: 30000 },
+                { date: '2026-06-30', target: 15000 },
+            ];
+            diffTarget = _lbDh[0].target;
+            for (var _lbK = 0; _lbK < _lbDh.length; _lbK++) {
+                if (tsMs && new Date(_lbDh[_lbK].date).getTime() <= tsMs) diffTarget = _lbDh[_lbK].target;
+                else break;
+            }
         }
         var isWin = e.value < diffTarget;
-        var tsMs = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp.toMillis() : (e.timestamp ? Number(e.timestamp) : 0);
         var isNew = tsMs && (now - tsMs) < SEVENTY_TWO_HOURS;
         var badges = '';
         var winDate = tsMs ? new Date(tsMs).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) : '';
