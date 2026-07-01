@@ -14981,9 +14981,27 @@ function _loadDifficultyHistoryBlocks() {
         .then(function(snap) {
             // Count wins per difficulty target
             var counts = {}; // { target: count }
+            // Build a timestamp-based difficulty lookup for legacy hash docs missing difficultyTarget
+            var _dhRef = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
+            function _difficultyAtTs(tsMs) {
+                // Walk history oldest→newest; last one whose date <= tsMs wins
+                var result = _dhRef.length ? _dhRef[0].target : 1000;
+                for (var _k = 0; _k < _dhRef.length; _k++) {
+                    if (new Date(_dhRef[_k].date).getTime() <= tsMs) result = _dhRef[_k].target;
+                    else break;
+                }
+                return result;
+            }
             snap.forEach(function(doc) {
                 var d = doc.data();
-                var t = d.difficultyTarget != null ? d.difficultyTarget : 1000;
+                var t;
+                if (d.difficultyTarget != null) {
+                    t = d.difficultyTarget;
+                } else if (d.timestamp && d.timestamp.toMillis) {
+                    t = _difficultyAtTs(d.timestamp.toMillis());
+                } else {
+                    t = 1000; // true legacy (pre-June-21) — Genesis era
+                }
                 counts[t] = (counts[t] || 0) + 1;
             });
             // Update each row's block count using SF_DIFFICULTY_HISTORY index
@@ -14991,8 +15009,6 @@ function _loadDifficultyHistoryBlocks() {
             _dh.forEach(function(row, i) {
                 var el = document.getElementById('sfBlocksRow' + i);
                 if (!el) return;
-                // Genesis row is always 0 (target 1000 was never hit)
-                if (i === 0) { el.textContent = '0'; return; }
                 el.textContent = (counts[row.target] || 0).toString();
             });
         })

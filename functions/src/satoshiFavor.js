@@ -486,6 +486,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
     isWinner,
     cycleId: stateData.currentCycleId || null,
+    difficultyTarget: DIFFICULTY_TARGET,
   });
 
   // Feature 2A: Write session hash count for live leaderboard (per-cycle, resets on new window)
