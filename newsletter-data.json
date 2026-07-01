@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-01T00:01:14.538Z",
+  "updated": "2026-07-01T04:00:50.024Z",
   "news": [
+    {
+      "date": "Jul 1, 2026",
+      "title": "Spot bitcoin ETFs record worst month since debut, shedding $4.5 billion in June",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/post/406802/bitcoin-etf-worst-month-yet?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
     {
       "date": "Jun 30, 2026",
       "title": "President Donald Trump Discloses More Than $50 Million in Bitcoin Held in Cold Storage",
@@ -13,13 +20,6 @@
       "title": "Bitcoin just $5K away from ‘best investment opportunity’ of bear market",
       "snippet": "Cointelegraph",
       "link": "https://cointelegraph.com/markets/bitcoin-is-just-a-5k-drop-away-from-its-best-investment-opportunity-analysis?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
-      "source": "cointelegraph"
-    },
-    {
-      "date": "Jun 30, 2026",
-      "title": "Bitcoin price risks drop below $58K as US dollar hits 40-year high against yen",
-      "snippet": "Cointelegraph",
-      "link": "https://cointelegraph.com/markets/bitcoin-price-slumps-to-near-58k-as-us-dollar-hits-40-year-high-against-yen?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
       "source": "cointelegraph"
     }
   ]
