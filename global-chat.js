@@ -3189,23 +3189,32 @@ window.lookupUserByName = function(username) {
         }
     }
     // Fallback: query Firestore by username field
-    db.collection('users').where('username', '==', username).limit(1).get()
+    // Fetch up to 10 matches and pick the most active account (highest totalVisits)
+    db.collection('users').where('username', '==', username).limit(10).get()
         .then(function(snap) {
             if (!snap.empty) {
-                var uid = snap.docs[0].id;
-                if (typeof showUserProfile === 'function') showUserProfile(uid);
+                var best = snap.docs.reduce(function(a, b) {
+                    return ((b.data().totalVisits || 0) > (a.data().totalVisits || 0)) ? b : a;
+                });
+                if (typeof showUserProfile === 'function') showUserProfile(best.id);
             } else {
                 // Try case-insensitive (username_lower)
-                db.collection('users').where('username_lower', '==', username.toLowerCase()).limit(1).get()
+                db.collection('users').where('username_lower', '==', username.toLowerCase()).limit(10).get()
                     .then(function(snap2) {
                         if (!snap2.empty) {
-                            if (typeof showUserProfile === 'function') showUserProfile(snap2.docs[0].id);
+                            var best2 = snap2.docs.reduce(function(a, b) {
+                                return ((b.data().totalVisits || 0) > (a.data().totalVisits || 0)) ? b : a;
+                            });
+                            if (typeof showUserProfile === 'function') showUserProfile(best2.id);
                         } else {
                             // Try displayName for multi-word names (e.g. 'Sipho Ashley')
-                            db.collection('users').where('displayName', '==', username).limit(1).get()
+                            db.collection('users').where('displayName', '==', username).limit(10).get()
                                 .then(function(snap3) {
                                     if (!snap3.empty) {
-                                        if (typeof showUserProfile === 'function') showUserProfile(snap3.docs[0].id);
+                                        var best3 = snap3.docs.reduce(function(a, b) {
+                                            return ((b.data().totalVisits || 0) > (a.data().totalVisits || 0)) ? b : a;
+                                        });
+                                        if (typeof showUserProfile === 'function') showUserProfile(best3.id);
                                     } else {
                                         if (typeof showToast === 'function') showToast('User @' + username + ' not found');
                                     }
