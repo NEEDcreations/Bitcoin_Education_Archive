@@ -17046,7 +17046,8 @@ function _renderRaidBossCard(container, boss) {
             '<div id="raidTimer" style="font-size:1.3rem;font-weight:900;color:var(--heading);font-variant-numeric:tabular-nums;"></div>' +
         '</div>' +
         // Contribute button
-        '<button id="raidContributeBtn" onclick="window._contributeRaid()" style="width:100%;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;margin-bottom:12px;">⚔️ How to Deal Damage</button>' +
+        '<button id="raidContributeBtn" onclick="window._contributeRaid()" style="width:100%;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;margin-bottom:8px;">⚔️ How to Deal Damage</button>' +
+        '<div id="raidHowToPanel" style="display:none;margin-bottom:12px;padding:14px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:12px;"></div>' +
         // Prize note
         '<div style="padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">🏆 Community Prize</div>' +
@@ -17310,10 +17311,32 @@ window._contributeRaid = function() {
         return;
     }
 
-    var guidance = RAID_GUIDANCE[boss.metric] || { action: 'Complete activities on the site to deal damage!', nav: 'home' };
+    var panel = document.getElementById('raidHowToPanel');
+    var btn = document.getElementById('raidContributeBtn');
+    if (!panel) return;
 
-    // Show guidance toast
-    if (typeof showToast === 'function') showToast('⚔️ ' + guidance.action, 3500);
+    // Toggle panel open/close
+    if (panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        if (btn) btn.textContent = '⚔️ How to Deal Damage';
+        return;
+    }
+
+    var guidance = RAID_GUIDANCE[boss.metric] || { action: 'Complete activities on the site to deal damage!', nav: 'home' };
+    var navLabels = { home: '🏠 Home', quests: '📜 Quest Hub', tctv: '📺 Timechain TV', beats: '🎵 Bitcoin Beats', forum: '💬 Forum', chat: '💬 Global Chat', badges: '🏆 Leaderboard' };
+    var navLabel = navLabels[guidance.nav] || '🏠 Home';
+    panel.innerHTML =
+        '<div style="font-size:0.78rem;font-weight:800;color:#8b5cf6;margin-bottom:8px;">⚔️ Current Boss: ' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name) : boss.name) + '</div>' +
+        '<div style="font-size:0.82rem;color:var(--text);line-height:1.5;margin-bottom:10px;">' + (typeof escapeHtml === 'function' ? escapeHtml(guidance.action) : guidance.action) + '</div>' +
+        '<button onclick="window._contributeRaidNav()" style="width:100%;padding:10px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:10px;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:inherit;">Go to ' + navLabel + ' →</button>';
+    panel.style.display = 'block';
+    if (btn) btn.textContent = '✕ Close';
+};
+
+window._contributeRaidNav = function() {
+    var boss = window._currentRaidBoss;
+    if (!boss) return;
+    var guidance = RAID_GUIDANCE[boss.metric] || { action: 'Complete activities on the site to deal damage!', nav: 'home' };
 
     // Close Quest Hub and navigate to the relevant section
     var overlay = document.getElementById('questHubOverlay');
