@@ -8,7 +8,7 @@
   {"name":"Poll-Patroller","description":"Cast 500 poll votes in the Quest Hub.","metric":"pollVotes","target":500,"image":"images/raid-bosses/poll-patroller.png"},
   {"name":"Chat-Charger","description":"Send 2,500 messages in Global Chat.","metric":"chatMessages","target":2500,"image":"images/raid-bosses/chat-charger.png"},
   {"name":"Badge-Builder","description":"150 distinct badges must be earned across the community.","metric":"badgesEarned","target":150,"image":"images/raid-bosses/badge-builder.png"},
-  {"name":"Streak-Sage","description":"25 users must maintain a 7-day daily visit streak.","metric":"streakUsers","target":25,"image":"images/raid-bosses/streak-sage.png"},
+  {"name":"Streak-Sage","description":"The community must collectively reach 25 seven-day visit streaks. Every time any user hits a 7-day streak, it deals 1 damage.","metric":"streakUsers","target":25,"image":"images/raid-bosses/streak-sage.png"},
   {"name":"Topic-Explorer","description":"Every learning topic must be visited at least 3 times each (collectively).","metric":"uniqueTopicsVisited","target":250,"image":"images/raid-bosses/topic-explorer.png"},
   {"name":"Lightning-Lancer","description":"100 Lightning tips sent across the community.","metric":"tipsSent","target":100,"image":"images/raid-bosses/lightning-lancer.png"},
   {"name":"Forum-Forge","description":"150 new forum posts created.","metric":"forumPosts","target":150,"image":"images/raid-bosses/forum-forge.png"},
