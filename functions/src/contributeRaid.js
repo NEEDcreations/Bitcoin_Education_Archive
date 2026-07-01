@@ -35,7 +35,7 @@ const METRIC_RULES = {
   uniqueUsers5Topics:   { maxAmount: 1,    dailyUserCap: 1    },  // once per user per day
   watchMinutes:         { maxAmount: 10,   dailyUserCap: 240  },  // 4h TCTV max per day
   beatsMinutes:         { maxAmount: 10,   dailyUserCap: 120  },  // 2h Beats per day
-  streakUsers:          { maxAmount: 1,    dailyUserCap: 1    },  // once per day
+  streakUsers:          { maxAmount: 1,    dailyUserCap: 999, bossUserCap: 1 },  // once per boss (reaching 7-day streak)
 };
 
 exports.contributeRaid = functions.https.onCall(async (data, context) => {
@@ -113,8 +113,21 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
 
   // Per-user daily cap check (atomic via transaction on a rate-limit doc)
   const dailyCapRef = db.collection('raid_daily_caps').doc(`${uid}_${today}_${metric}`);
+  const participantRef = activeBossRef.collection('participants').doc(uid);
 
   const result = await db.runTransaction(async (tx) => {
+    // Check per-boss user cap (e.g. streakUsers: only 1 damage per boss total)
+    if (metricRules.bossUserCap != null) {
+      const participantDoc = await tx.get(participantRef);
+      const alreadyContributed = participantDoc.exists ? (participantDoc.data().contributed || 0) : 0;
+      if (alreadyContributed >= metricRules.bossUserCap) {
+        throw new functions.https.HttpsError(
+          'resource-exhausted',
+          `You've already dealt your damage to this boss — you reached a 7-day streak this challenge!`
+        );
+      }
+    }
+
     // Check daily user cap for this metric
     const capDoc = await tx.get(dailyCapRef);
     const usedToday = capDoc.exists ? (capDoc.data().contributed || 0) : 0;
@@ -137,7 +150,6 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     }, { merge: true });
 
     // Update participant doc
-    const participantRef = activeBossRef.collection('participants').doc(uid);
     const participantUpdate = {
       contributed: admin.firestore.FieldValue.increment(effectiveAmount),
       lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
