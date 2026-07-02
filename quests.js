@@ -4686,21 +4686,21 @@ function _raidVictoryBanner(boss) {
 
 // Boss name → image path fallback (for bosses created before image field was added)
 var RAID_BOSS_IMAGES = {
-    'Channel-Crawler': 'images/raid-bosses/channel-crawler.png',
-    'Quiz-Crusader': 'images/raid-bosses/quiz-crusader.png',
-    'TV-Titan': 'images/raid-bosses/tv-titan.png',
-    'Beats-Baron': 'images/raid-bosses/beats-baron.png',
-    'Flash-Flash': 'images/raid-bosses/flash-flash.png',
-    'XP-Hoarder': 'images/raid-bosses/xp-hoarder.png',
-    'Poll-Patroller': 'images/raid-bosses/poll-patroller.png',
-    'Chat-Charger': 'images/raid-bosses/chat-charger.png',
-    'Badge-Builder': 'images/raid-bosses/badge-builder.png',
-    'Streak-Sage': 'images/raid-bosses/streak-sage.png',
-    'Topic-Explorer': 'images/raid-bosses/topic-explorer.png',
-    'Lightning-Lancer': 'images/raid-bosses/lightning-lancer.png',
-    'Forum-Forge': 'images/raid-bosses/forum-forge.png',
-    'Trivia-Tactician': 'images/raid-bosses/trivia-tactician.png',
-    'Content-Conqueror': 'images/raid-bosses/content-conqueror.png'
+    'Channel-Crawler': 'https://assets.bitcoineducation.quest/images/raid-bosses/channel-crawler.png',
+    'Quiz-Crusader': 'https://assets.bitcoineducation.quest/images/raid-bosses/quiz-crusader.png',
+    'TV-Titan': 'https://assets.bitcoineducation.quest/images/raid-bosses/tv-titan.png',
+    'Beats-Baron': 'https://assets.bitcoineducation.quest/images/raid-bosses/beats-baron.png',
+    'Flash-Flash': 'https://assets.bitcoineducation.quest/images/raid-bosses/flash-flash.png',
+    'XP-Hoarder': 'https://assets.bitcoineducation.quest/images/raid-bosses/xp-hoarder.png',
+    'Poll-Patroller': 'https://assets.bitcoineducation.quest/images/raid-bosses/poll-patroller.png',
+    'Chat-Charger': 'https://assets.bitcoineducation.quest/images/raid-bosses/chat-charger.png',
+    'Badge-Builder': 'https://assets.bitcoineducation.quest/images/raid-bosses/badge-builder.png',
+    'Streak-Sage': 'https://assets.bitcoineducation.quest/images/raid-bosses/streak-sage.png',
+    'Topic-Explorer': 'https://assets.bitcoineducation.quest/images/raid-bosses/topic-explorer.png',
+    'Lightning-Lancer': 'https://assets.bitcoineducation.quest/images/raid-bosses/lightning-lancer.png',
+    'Forum-Forge': 'https://assets.bitcoineducation.quest/images/raid-bosses/forum-forge.png',
+    'Trivia-Tactician': 'https://assets.bitcoineducation.quest/images/raid-bosses/trivia-tactician.png',
+    'Content-Conqueror': 'https://assets.bitcoineducation.quest/images/raid-bosses/content-conqueror.png'
 };
 
 function _getRaidBossImage(boss) {

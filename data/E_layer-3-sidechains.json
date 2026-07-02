@@ -7,14 +7,14 @@
       "text": "<i>(under construction)</i>\n\n<b>SIDECHAIN</b>\nSidechains are in fact something of a hybrid between layer 1 and layer 2 solutions to scaling. A sidechain is another blockchain that is linked to a main chain such as Bitcoin’s. They are linked with a two-way peg (2WP) that is a protocol that allows for the open transfer of cryptocurrency from the main chain to a layer two chain that requires a degree of third-party trust.\n\nOne example of a sidechain is the Liquid Network, attached to Bitcoin’s main chain. Like other layer 2 scaling solutions, it aims to tackle scalability problems by offloading some of the validation and transaction processing processes to another blockchain. This frees up the main chain to take on a greater number of transactions.\n\n<b>RSK</b>\nLaunched in 2018, RSK is a Bitcoin sidechain which can support Ethereum smart contracts. The RSK sidechain is “merge mined” with Bitcoin, meaning miners who mine Bitcoin's blockchain also contribute hash rate to mine blocks on RSK.\n\n@RSKsmart (twitter)\nhttps://www.rsk.co/\n\nRSK's YouTube:\nhttps://www.youtube.com/c/RskSmart/videos",
       "link": "https://www.rsk.co/",
       "imgs": [
-        "images/experienced/layer-3-sidechains_209_layer-3-sidechains_rsk.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-3-sidechains_209_layer-3-sidechains_rsk.jpg"
       ]
     },
     {
       "text": "<b>The Liquid Network</b>\nA sidechain-based settlement network for traders & exchanges. Liquid enables faster, more confidential Bitcoin and Tether transactions, and the issuance of digital assets.\nhttps://liquid.net/\n\nLiquid uses Confidential Transactions (CTs) which are enables less auditability and surveillance of the Blockchain by disguising the amount of Bitcoin that is sent with each transaction. Hundreds of millions of dollars are settled privately on Liquid.\n\nMore on liquid https://www.youtube.com/watch?v=W90nOePOz58",
       "link": "https://liquid.net/",
       "imgs": [
-        "images/experienced/layer-3-sidechains_208_layer-3-sidechains_maxresdefault.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-3-sidechains_208_layer-3-sidechains_maxresdefault.jpg"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "text": "To see more on smart contracts being built on Bitcoin, as well as a better internet, check out https://www.stacks.co/\nAs well as accounts https://twitter.com/muneeb and https://twitter.com/Stacks",
       "link": "https://www.stacks.co/",
       "imgs": [
-        "images/experienced/layer-3-sidechains_201_layer-3-sidechains_60001db1a642500faf26a8d7_stacks_20og.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-3-sidechains_201_layer-3-sidechains_60001db1a642500faf26a8d7_stacks_20og.png"
       ]
     },
     {
@@ -48,7 +48,7 @@
       "text": "Coinos.io - Send and receive bitcoin w Liquid and Lightning\nhttps://coinos.io/",
       "link": "https://coinos.io/",
       "imgs": [
-        "images/experienced/layer-3-sidechains_199_layer-3-sidechains_coinos-logo.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-3-sidechains_199_layer-3-sidechains_coinos-logo.jpg"
       ]
     },
     {
@@ -115,7 +115,7 @@
     {
       "text": "Rootstock side chain",
       "imgs": [
-        "images/experienced/layer-3-sidechains_191_Screenshot_20231214-164228.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-3-sidechains_191_Screenshot_20231214-164228.png"
       ]
     },
     {
@@ -128,7 +128,7 @@
     {
       "text": "Transactions per second:\n• Visa: 1,700\n• MasterCard: 5,000\nBitcoin on Lightning: \n25,000,000+ (25,000+ nodes * 1,000 tps (transactions/sec)\n\nHow to achieve 1,000 tps:\nhttps://bottlepay.com/blog/bitcoin-lightning-benchmarking-performance/\n\n**LIGHTNING WALLETS**\nThere are many (free) lightning wallet apps that you can get on your phone to transact with small amounts of Bitcoin with little to no fees. It is quite spectacular to experience the instantaneous speed of transacting with the lightning network. Please let me know if you'd like to see it in action. I'll walk you through the steps and even send you some free Bitcoin in the process. It'd honestly be my pleasure to do so! 😀\n\nTrusted Lightning Wallets on mobile (be sure to confirm via reviews and download numbers that you are downloading the correct thing...there are many scams):\nStrike\nMuun\nBlueWallet\nSamourai\nWallet of Satoshi\nBreez\n\n**FREE BITCOIN (yes, really)**\nIf you have a lightning wallet on your phone, you can get some free satoshis from the website https://lightningnetworkstores.com\nNavigate to the website (on mobile) and click on the menu hamburger icon in the top right. Next, click \"Faucet.\" Then, follow the prompt to open up your lightning wallet and receive some free satoshis!\n\nThe network of Lightning Network channels, which has reached 14,000 nodes and over 56.000 channels as of 8/17/21 (network capacity up 25% in the last month alone)",
       "imgs": [
-        "images/resources/layer-3-sidechains_2021-08-17_lightning_network.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/layer-3-sidechains_2021-08-17_lightning_network.jpg"
       ],
       "link": "https://bottlepay.com/blog/bitcoin-lightning-benchmarking-performance/"
     },
@@ -153,7 +153,7 @@
     {
       "text": "The HTLCs in Lightning Network give bitcoin a path to become a global reserve currency.\n\nLightning Network provides a framework to measure the time-value of bitcoin, a precursor for a capital market and reserve currency status. Observable variables in Hashed Time Locked Contracts can be used to calculate the interest rate received on bitcoin held in payment channels, allowing investors to measure their opportunity cost of capital. \n\nMore: https://timevalueofbtc.medium.com/the-time-value-of-bitcoin-3807b91f02d2",
       "imgs": [
-        "images/resources/layer-3-sidechains_2021-09-13_HTLCs_in_lightning.jpeg"
+        "https://assets.bitcoineducation.quest/images/resources/layer-3-sidechains_2021-09-13_HTLCs_in_lightning.jpeg"
       ],
       "link": "https://timevalueofbtc.medium.com/the-time-value-of-bitcoin-3807b91f02d2"
     },
@@ -180,7 +180,7 @@
     {
       "text": "Growth",
       "imgs": [
-        "images/resources/layer-3-sidechains_2021-10-27_20211027_000020.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/layer-3-sidechains_2021-10-27_20211027_000020.jpg"
       ]
     },
     {
@@ -269,14 +269,14 @@
     {
       "text": "Tool for managing lightning node <@683432545794392147> you seen this?\nhttps://www.ridethelightning.info/",
       "imgs": [
-        "images/resources/layer-3-sidechains_2022-02-14_Screenshot_20220214-134449.png"
+        "https://assets.bitcoineducation.quest/images/resources/layer-3-sidechains_2022-02-14_Screenshot_20220214-134449.png"
       ],
       "link": "https://www.ridethelightning.info/"
     },
     {
       "text": "Lightning growth",
       "imgs": [
-        "images/resources/layer-3-sidechains_2022-02-15_20220215_145430.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/layer-3-sidechains_2022-02-15_20220215_145430.jpg"
       ]
     },
     {
@@ -308,7 +308,7 @@
     {
       "text": "lightning network ecosystem",
       "imgs": [
-        "images/resources/layer-3-sidechains_2022-04-12_lightning_network_ecosystem.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/layer-3-sidechains_2022-04-12_lightning_network_ecosystem.jpg"
       ]
     },
     {
@@ -439,7 +439,7 @@
     {
       "text": "Keysends are node to node transactions without an invoice. You can add a message to a keysend. Users tend to spam transactions to a node and ask for a connection in return",
       "imgs": [
-        "images/resources/layer-3-sidechains_2022-12-31_Screenshot_20221231-131249.png"
+        "https://assets.bitcoineducation.quest/images/resources/layer-3-sidechains_2022-12-31_Screenshot_20221231-131249.png"
       ]
     },
     {
@@ -461,7 +461,7 @@
     {
       "text": "Privacy features and non-features on lightning wallets",
       "imgs": [
-        "images/resources/layer-3-sidechains_2024-06-25_20240624_214732.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/layer-3-sidechains_2024-06-25_20240624_214732.jpg"
       ]
     },
     {

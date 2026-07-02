@@ -10,7 +10,7 @@
       "text": "Software: \nhttps://btcdir.org/links/nodessoftware/",
       "link": "https://btcdir.org/links/nodessoftware/",
       "imgs": [
-        "images/experienced/nodes_267_nodes_TwitterCard-2.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_267_nodes_TwitterCard-2.jpg"
       ]
     },
     {
@@ -37,7 +37,7 @@
       "text": "Live map of Bitcoin nodes:\nhttps://newhedge.io/bitcoin/node-map",
       "link": "https://newhedge.io/bitcoin/node-map",
       "imgs": [
-        "images/experienced/nodes_265_nodes_bitnodes-logo.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_265_nodes_bitnodes-logo.png"
       ]
     },
     {
@@ -55,14 +55,14 @@
     {
       "text": "Run a node on your phone with ABcore?",
       "imgs": [
-        "images/experienced/nodes_261_Screenshot_20220101-222600.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_261_Screenshot_20220101-222600.png"
       ]
     },
     {
       "text": "Six reasons to run a node:\nhttps://armantheparman.com/why-should-you-run-your-own-bitcoin-node/",
       "link": "https://armantheparman.com/why-should-you-run-your-own-bitcoin-node/",
       "imgs": [
-        "images/experienced/nodes_260_nodes_cropped-crop.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_260_nodes_cropped-crop.png"
       ]
     },
     {
@@ -81,7 +81,7 @@
       "text": "Umbrel tutorial \nhttps://youtu.be/fppmhqjqh2E",
       "link": "https://youtu.be/fppmhqjqh2E",
       "imgs": [
-        "images/experienced/nodes_259_nodes_maxresdefault.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_259_nodes_maxresdefault.jpg"
       ]
     },
     {
@@ -91,7 +91,7 @@
       "text": "https://blog.lopp.net/tor-only-bitcoin-lightning-guide/",
       "link": "https://blog.lopp.net/tor-only-bitcoin-lightning-guide/",
       "imgs": [
-        "images/experienced/nodes_258_nodes_network.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_258_nodes_network.png"
       ]
     },
     {
@@ -105,7 +105,7 @@
       "text": "The Bitcoin blockchain from space. No internet required.\nThe Blockstream Satellite network broadcasts the Bitcoin blockchain around the world 24/7 for free, protecting against network interruptions and providing areas without reliable internet connections with the opportunity to use Bitcoin.\nhttps://blockstream.com/satellite/",
       "link": "https://blockstream.com/satellite/",
       "imgs": [
-        "images/experienced/nodes_257_nodes_blog_placeholders_satellite.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_257_nodes_blog_placeholders_satellite.jpg"
       ]
     },
     {
@@ -116,14 +116,14 @@
       "text": "What is a full node? by bitcoin.org\nhttps://bitcoin.org/en/full-node#what-is-a-full-node",
       "link": "https://bitcoin.org/en/full-node#what-is-a-full-node",
       "imgs": [
-        "images/experienced/nodes_256_nodes_opengraph.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_256_nodes_opengraph.png"
       ]
     },
     {
       "text": "Semi live \n@Lightning Pool orders (unofficial). Helps you to determine fees, because the Lightning Pool model works with sealed bids (ie: you cannot see them).\nhttps://lightning.watch/\nhttps://twitter.com/LightningPool",
       "link": "https://lightning.watch/",
       "imgs": [
-        "images/experienced/nodes_255_nodes_HdW2FCZ6_400x400.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_255_nodes_HdW2FCZ6_400x400.png"
       ]
     },
     {
@@ -142,7 +142,7 @@
       "text": "Plug and play Bitcoin node - The Bitcoin Machine. Prebuilt\nhttps://thebitcoinmachines.com/",
       "link": "https://thebitcoinmachines.com/",
       "imgs": [
-        "images/experienced/nodes_254_nodes_HomePage.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_254_nodes_HomePage.png"
       ]
     },
     {
@@ -159,7 +159,7 @@
     {
       "text": "What you can do with a node, visualized",
       "imgs": [
-        "images/experienced/nodes_252_20250519_223524.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_252_20250519_223524.jpg"
       ]
     },
     {
@@ -170,7 +170,7 @@
       "text": "Internet down? Bitcoin uptime tracker \nhttps://bitbo.io/uptime",
       "link": "https://bitbo.io/uptime",
       "imgs": [
-        "images/experienced/nodes_0270_Screenshot_20250612-161214.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_0270_Screenshot_20250612-161214.png"
       ]
     },
     {
@@ -192,7 +192,7 @@
     {
       "text": "Importance of running a node",
       "imgs": [
-        "images/experienced/nodes_0271_G4N1T0VW4AArH8q.png"
+        "https://assets.bitcoineducation.quest/images/experienced/nodes_0271_G4N1T0VW4AArH8q.png"
       ]
     },
     {

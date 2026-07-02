@@ -16941,21 +16941,21 @@ function _raidVictoryBanner(boss) {
 
 // Boss name → image path fallback (for bosses created before image field was added)
 var RAID_BOSS_IMAGES = {
-    'Channel-Crawler': 'images/raid-bosses/channel-crawler.png',
-    'Quiz-Crusader': 'images/raid-bosses/quiz-crusader.png',
-    'TV-Titan': 'images/raid-bosses/tv-titan.png',
-    'Beats-Baron': 'images/raid-bosses/beats-baron.png',
-    'Flash-Flash': 'images/raid-bosses/flash-flash.png',
-    'XP-Hoarder': 'images/raid-bosses/xp-hoarder.png',
-    'Poll-Patroller': 'images/raid-bosses/poll-patroller.png',
-    'Chat-Charger': 'images/raid-bosses/chat-charger.png',
-    'Badge-Builder': 'images/raid-bosses/badge-builder.png',
-    'Streak-Sage': 'images/raid-bosses/streak-sage.png',
-    'Topic-Explorer': 'images/raid-bosses/topic-explorer.png',
-    'Lightning-Lancer': 'images/raid-bosses/lightning-lancer.png',
-    'Forum-Forge': 'images/raid-bosses/forum-forge.png',
-    'Trivia-Tactician': 'images/raid-bosses/trivia-tactician.png',
-    'Content-Conqueror': 'images/raid-bosses/content-conqueror.png'
+    'Channel-Crawler': 'https://assets.bitcoineducation.quest/images/raid-bosses/channel-crawler.png',
+    'Quiz-Crusader': 'https://assets.bitcoineducation.quest/images/raid-bosses/quiz-crusader.png',
+    'TV-Titan': 'https://assets.bitcoineducation.quest/images/raid-bosses/tv-titan.png',
+    'Beats-Baron': 'https://assets.bitcoineducation.quest/images/raid-bosses/beats-baron.png',
+    'Flash-Flash': 'https://assets.bitcoineducation.quest/images/raid-bosses/flash-flash.png',
+    'XP-Hoarder': 'https://assets.bitcoineducation.quest/images/raid-bosses/xp-hoarder.png',
+    'Poll-Patroller': 'https://assets.bitcoineducation.quest/images/raid-bosses/poll-patroller.png',
+    'Chat-Charger': 'https://assets.bitcoineducation.quest/images/raid-bosses/chat-charger.png',
+    'Badge-Builder': 'https://assets.bitcoineducation.quest/images/raid-bosses/badge-builder.png',
+    'Streak-Sage': 'https://assets.bitcoineducation.quest/images/raid-bosses/streak-sage.png',
+    'Topic-Explorer': 'https://assets.bitcoineducation.quest/images/raid-bosses/topic-explorer.png',
+    'Lightning-Lancer': 'https://assets.bitcoineducation.quest/images/raid-bosses/lightning-lancer.png',
+    'Forum-Forge': 'https://assets.bitcoineducation.quest/images/raid-bosses/forum-forge.png',
+    'Trivia-Tactician': 'https://assets.bitcoineducation.quest/images/raid-bosses/trivia-tactician.png',
+    'Content-Conqueror': 'https://assets.bitcoineducation.quest/images/raid-bosses/content-conqueror.png'
 };
 
 function _getRaidBossImage(boss) {
@@ -30050,12 +30050,12 @@ window._startHalvingTicker = function() {
                 '<p style="color:var(--text-faint,#666);font-size:0.75rem;margin-top:10px;">⚠️ Donations are non-refundable</p>' +
                 '<button onclick="var el=document.getElementById(\'moreDonateMethods\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';this.textContent=el.style.display===\'none\'?\'💳 More Ways to Donate ▼\':\'💳 Hide Other Methods ▲\'" style="width:100%;padding:12px;background:var(--card-bg,#222);border:1px solid var(--border,#333);border-radius:10px;color:var(--text,#ccc);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:12px;transition:0.2s;">💳 More Ways to Donate ▼</button>' +
                 '<div id="moreDonateMethods" style="display:none;margin-top:14px;text-align:left;">' +
-                    _donateMethodHtml('💵 Cash App', '$NEEDcreations', '$NEEDcreations', 'https://cash.app/$NEEDcreations', 'images/donate/cashapp-qr.jpg') +
-                    _donateMethodHtml('💜 Venmo', '@Phil2140', '@Phil2140', 'https://venmo.com/code?user_id=1358236213051392692&created=1773155307', 'images/donate/venmo-qr.jpg') +
-                    _donateMethodHtml('💙 PayPal', 'paypal.me/PhilipFazioli', 'paypal.me/PhilipFazioli', 'https://paypal.me/PhilipFazioli', 'images/donate/paypal-qr.jpg') +
-                    _donateMethodHtml('💚 Zelle', null, null, null, 'images/donate/zelle-qr.jpg') +
-                    _donateMethodHtml('₿ On-Chain Bitcoin', 'bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf', 'bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf', null, 'images/donate/onchain-qr.jpg') +
-                    _donateMethodHtml('🔒 BIP47 Payment Code', 'PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89', 'PM8TJWpq8Hq...Tg89', null, 'images/donate/bip47-qr.jpg') +
+                    _donateMethodHtml('💵 Cash App', '$NEEDcreations', '$NEEDcreations', 'https://cash.app/$NEEDcreations', 'https://assets.bitcoineducation.quest/images/donate/cashapp-qr.jpg') +
+                    _donateMethodHtml('💜 Venmo', '@Phil2140', '@Phil2140', 'https://venmo.com/code?user_id=1358236213051392692&created=1773155307', 'https://assets.bitcoineducation.quest/images/donate/venmo-qr.jpg') +
+                    _donateMethodHtml('💙 PayPal', 'paypal.me/PhilipFazioli', 'paypal.me/PhilipFazioli', 'https://paypal.me/PhilipFazioli', 'https://assets.bitcoineducation.quest/images/donate/paypal-qr.jpg') +
+                    _donateMethodHtml('💚 Zelle', null, null, null, 'https://assets.bitcoineducation.quest/images/donate/zelle-qr.jpg') +
+                    _donateMethodHtml('₿ On-Chain Bitcoin', 'bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf', 'bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf', null, 'https://assets.bitcoineducation.quest/images/donate/onchain-qr.jpg') +
+                    _donateMethodHtml('🔒 BIP47 Payment Code', 'PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89', 'PM8TJWpq8Hq...Tg89', null, 'https://assets.bitcoineducation.quest/images/donate/bip47-qr.jpg') +
                 '</div>' +
             '</div>';
         document.body.appendChild(modal);
@@ -30239,7 +30239,7 @@ window._startHalvingTicker = function() {
                         '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;font-size:0.95rem;" title="ELI5 Mode">🧒</button>' +
                         '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Save chat">💾</button>' +
                         '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Clear chat">🗑️</button>' +
-                        '<img src="images/btc-grad-logo-sm.jpg" alt="Home" style="width:24px;height:24px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
+                        '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Home" style="width:24px;height:24px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -32753,7 +32753,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
                 '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
-                '<img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
+                '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
                 '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +

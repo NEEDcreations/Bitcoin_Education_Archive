@@ -11,7 +11,7 @@
       "text": "Hash time locked contracts (HTLCs) (pending CTV activation)\nHave increased efficiency and liquidity in Bitcoin’s second-layer protocol, the Lightning Network.\nhttps://en.bitcoin.it/wiki/Hash_Time_Locked_Contracts\n\nVaults (pending CTV activation)\nVaults could allow a Bitcoin user to pre-define scheduled and limited spending of bitcoin from cold to hot storage, hence limiting the damage from a potential hack.\n\nSatoshi built smart contract opcodes into the bitcoin client, most of which were removed because they compromised security. Bitcoin devs have long understood that smart contracts’ proper place is higher layers, which is now bearing fruit with Lightning & federal designs:\nhttps://twitter.com/TuurDemeester/status/1540180474844397568?s=20&t=ygTs0YWFCD1PI8FV96redg",
       "link": "https://en.bitcoin.it/wiki/Hash_Time_Locked_Contracts",
       "imgs": [
-        "images/experienced/smart-contracts_374_smart-contracts_FV_R-sMXkAAutfc.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/smart-contracts_374_smart-contracts_FV_R-sMXkAAutfc.jpg"
       ]
     },
     {

@@ -10,7 +10,7 @@
       "text": "Some significant events in Bitcoin's history: Bitcoin Prehistory (1973 - 2009) A graphic outlining the major events that eventually led to Bitcoin can be seen here:\n\nThe Liberty Dollar (1998) Despite being forbidden by the Constitution, Bernard von Nothaus minted a new form of currency, later cited by Satoshi in 2008 for inspiring his creation of Bitcoin. More on the Liberty Dollar: https://youtu.be/argq_cxalZ8 Bitcoin Whitepaper released by Satoshi (October 31, 2008) Read the Bitcoin whitepaper here: https://bitcoin.org/bitcoin.pdf Bitcoin network went online (January 3, 2009) Satoshi Nakamoto mined the genesis block of bitcoin (block number 0), which had a reward of 50 bitcoins. Embedded in the coinbase of this block was the text: The Times Jan/03/2009 Chancellor on brink of second bailout for banks. \"Running Bitcoin\" tweet by developer, cryptographer and second person on the Bitcoin network, Hal Finney (January 10, 2009) https://twitter.com/halfin/status/1110302988 First peer-to-peer (P2P) Bitcoin transaction (January 12, 2009) Satoshi sent 10 bitcoin to Hal Finney. Finney wrote in a Bitcointalk forum: “I mined block 70-something, and I was the recipient of the first bitcoin transaction when Satoshi sent ten coins to me as a test. I carried on an email conversation with Satoshi over the next few days, mostly me reporting bugs and him fixing them...\" https://mempool.space/tx/f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16 Here is the first transaction on the blockchain: https://www.blockchain.com/btc/tx/f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
       "link": "https://bitcoineducation.quest/#charts",
       "imgs": [
-        "images/resources/history_bitcoin_prehistory.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_bitcoin_prehistory.jpg"
       ]
     },
     {
@@ -35,7 +35,7 @@
     {
       "text": "✨ Satoshi explaining the 21 million #Bitcoin supply limit exactly 12 years ago",
       "imgs": [
-        "images/resources/history_0470_20220214_142734.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0470_20220214_142734.jpg"
       ]
     },
     {
@@ -44,43 +44,43 @@
     {
       "text": "Satoshi Nakamoto published this thirteen years ago",
       "imgs": [
-        "images/resources/history_0469_p2p_foundation_satoshi.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0469_p2p_foundation_satoshi.jpg"
       ]
     },
     {
       "text": "2011 when \"satoshis\" got their name",
       "imgs": [
-        "images/resources/history_0468_satoshis_named.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0468_satoshis_named.jpg"
       ]
     },
     {
       "text": "2011 post from Hal Finney about bitcoin reaching $1",
       "imgs": [
-        "images/resources/history_0467_hal_2011_one_dollar.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0467_hal_2011_one_dollar.jpg"
       ]
     },
     {
       "text": "Bitcoin.org \nThis was the first Bitcoin website, registered by the network's first two developers, Satoshi Nakamoto and Martti Malmi.",
       "imgs": [
-        "images/resources/history_0466_bitcoin_dot_org.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0466_bitcoin_dot_org.jpg"
       ]
     },
     {
       "text": "2009. Satoshi explain that with Bitcoin's decentralization, it is different than anything previously attempted",
       "imgs": [
-        "images/resources/history_0465_20220215_102650.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0465_20220215_102650.jpg"
       ]
     },
     {
       "text": "2010 Satoshi replying to a post about mining when the block reward was 50 bitcoin",
       "imgs": [
-        "images/resources/history_0464_20220217_082417.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0464_20220217_082417.jpg"
       ]
     },
     {
       "text": "2010 Satoshi replying to an energy concern, saying that Bitcoin's energy expenditure is justified. Also includes one of the rarest things to ever happen on the internet—someone admitting a reply actually changed their mind.",
       "imgs": [
-        "images/resources/history_0463_satoshi_on_energy.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0463_satoshi_on_energy.jpg"
       ]
     },
     {
@@ -102,7 +102,7 @@
     {
       "text": "Adam Back post 2013",
       "imgs": [
-        "images/resources/history_0456_20220418_130447.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0456_20220418_130447.jpg"
       ]
     },
     {
@@ -117,9 +117,9 @@
       "text": "First ever Bitcoin website\nhttps://twitter.com/DocumentingBTC/status/1544298275163049984?t=RRZTDTlYjC3V4w9lnqqcjw&s=19",
       "link": "https://twitter.com/DocumentingBTC/status/1544298275163049984?t=RRZTDTlYjC3V4w9lnqqcjw&s=19",
       "imgs": [
-        "images/resources/history_0474_20220705_093631.jpg",
-        "images/resources/history_0475_20220705_093634.jpg",
-        "images/resources/history_0476_20220705_093641.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0474_20220705_093631.jpg",
+        "https://assets.bitcoineducation.quest/images/resources/history_0475_20220705_093634.jpg",
+        "https://assets.bitcoineducation.quest/images/resources/history_0476_20220705_093641.jpg"
       ]
     },
     {
@@ -129,7 +129,7 @@
     {
       "text": "price 2010 - 2011",
       "imgs": [
-        "images/resources/history_0446_price_2010_-_2011.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0446_price_2010_-_2011.jpg"
       ]
     },
     {
@@ -155,22 +155,22 @@
     {
       "text": "Some calendar dates",
       "imgs": [
-        "images/resources/history_0442_20221010_155935.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0442_20221010_155935.jpg"
       ]
     },
     {
       "text": "Hal Finney 1992: Digital cash used in games\nhttps://twitter.com/Cipherhoodlum/status/1579195684427030528?s=20&t=OUxGDVMWVYqnuDii7uuc-Q",
       "link": "https://twitter.com/Cipherhoodlum/status/1579195684427030528?s=20&t=OUxGDVMWVYqnuDii7uuc-Q",
       "imgs": [
-        "images/resources/history_0477_Hal_Finney_1992_Digital_cash_used_in_games.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0477_Hal_Finney_1992_Digital_cash_used_in_games.jpg"
       ]
     },
     {
       "text": "Video of $0.30 BTC purchase in 2010\nFull video https://youtu.be/YmPg4V-YE0k\nhttps://twitter.com/WatcherGuru/status/1583837808841879552?t=bl3FF4pDB6Cy0CqUyNq0Dg&s=19",
       "link": "https://youtu.be/YmPg4V-YE0k",
       "imgs": [
-        "images/resources/history_0414_history_maxresdefault.jpg",
-        "images/resources/history_0439_history_U6wxj5S5KW-BFULK.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0414_history_maxresdefault.jpg",
+        "https://assets.bitcoineducation.quest/images/resources/history_0439_history_U6wxj5S5KW-BFULK.jpg"
       ]
     },
     {
@@ -180,19 +180,19 @@
     {
       "text": "china headlines",
       "imgs": [
-        "images/resources/history_0436_china_headlines.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0436_china_headlines.jpg"
       ]
     },
     {
       "text": "May 2013 coinmarketcap",
       "imgs": [
-        "images/resources/history_0435_20221226_153348.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0435_20221226_153348.jpg"
       ]
     },
     {
       "text": "Satoshi on mining and heat",
       "imgs": [
-        "images/resources/history_0434_20230104_103424.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0434_20230104_103424.jpg"
       ]
     },
     {
@@ -215,7 +215,7 @@
       "text": "March 1, 2009 oldest known image of a bitcoin wallet\nhttps://twitter.com/satoshibaggins/status/1633886868243910656?s=20",
       "link": "https://twitter.com/satoshibaggins/status/1633886868243910656?s=20",
       "imgs": [
-        "images/resources/history_0478_oldest_known_image_of_a_bitcoin_wallet.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0478_oldest_known_image_of_a_bitcoin_wallet.jpg"
       ]
     },
     {
@@ -257,13 +257,13 @@
     {
       "text": "1996...NSA invented Bitcoin?",
       "imgs": [
-        "images/resources/history_0424_nsa.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0424_nsa.jpg"
       ]
     },
     {
       "text": "1970-2009 rise of the cypherpunks history",
       "imgs": [
-        "images/resources/history_0423_rise_of_the_cypherpunks_history.png"
+        "https://assets.bitcoineducation.quest/images/resources/history_0423_rise_of_the_cypherpunks_history.png"
       ]
     },
     {
@@ -285,7 +285,7 @@
       "text": "Feb 2010 sale of jpeg for 500 BTC (before pizza day)\nhttps://twitter.com/CodyB98504199/status/1754157436049478140?t=kloSNkD3T5YStH3XwPARNg&s=19\n\n\nhttps://mempool.space/address/1BHtsCnpmTvpgJEP7eMKEVhpJFunxSM8vq",
       "link": "https://twitter.com/CodyB98504199/status/1754157436049478140?t=kloSNkD3T5YStH3XwPARNg&s=19",
       "imgs": [
-        "images/resources/history_0479_20240203_140221.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0479_20240203_140221.jpg"
       ]
     },
     {
@@ -296,7 +296,7 @@
       "text": "satoshi advocating for a protocol like Lightning https://x.com/Arthur_van_Pelt/status/1781720165375471678\nhttps://en.bitcoin.it/wiki/Payment_channels",
       "link": "https://x.com/Arthur_van_Pelt/status/1781720165375471678",
       "imgs": [
-        "images/resources/history_0480_screenshot-twitter.com-2024.04.20-19_13_03.png"
+        "https://assets.bitcoineducation.quest/images/resources/history_0480_screenshot-twitter.com-2024.04.20-19_13_03.png"
       ]
     },
     {
@@ -307,8 +307,8 @@
       "text": "2011\nInterview with lead developer Gavin Anderson \nhttps://youtu.be/MUfKOIU_K1I?si=f7CIltf6UidYE_ix",
       "link": "https://youtu.be/MUfKOIU_K1I?si=f7CIltf6UidYE_ix",
       "imgs": [
-        "images/resources/history_0415_Screenshot_20240625-172552.png",
-        "images/resources/history_0416_history_sddefault.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0415_Screenshot_20240625-172552.png",
+        "https://assets.bitcoineducation.quest/images/resources/history_0416_history_sddefault.jpg"
       ]
     },
     {
@@ -326,7 +326,7 @@
     {
       "text": "2013 coin rankings",
       "imgs": [
-        "images/resources/history_0411_20250119_191145.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0411_20250119_191145.jpg"
       ]
     },
     {
@@ -337,20 +337,20 @@
       "text": "2011; 11 year old kid explaining Bitcoin. The price was $8 \nhttps://youtu.be/lcn6vIcgvbk?si=y7kQdI0suUYXe9PJ",
       "link": "https://youtu.be/lcn6vIcgvbk?si=y7kQdI0suUYXe9PJ",
       "imgs": [
-        "images/resources/history_0409_history_hqdefault.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0409_history_hqdefault.jpg"
       ]
     },
     {
       "text": "Slashdot article 2/10/2010 when Bitcoin hit dollar parity",
       "imgs": [
-        "images/resources/history_0408_20250512_084658.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0408_20250512_084658.jpg"
       ]
     },
     {
       "text": "April 20, 2011 Forbes article about Bitcoin \nhttps://www.forbes.com/forbes/2011/0509/technology-psilocybin-bitcoins-gavin-andresen-crypto-currency.html",
       "link": "https://www.forbes.com/forbes/2011/0509/technology-psilocybin-bitcoins-gavin-andresen-crypto-currency.html",
       "imgs": [
-        "images/resources/history_0407_history_0420_gavin-andersen-bitcoin_400x400.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0407_history_0420_gavin-andersen-bitcoin_400x400.jpg"
       ]
     },
     {
@@ -380,7 +380,7 @@
       "text": "http://laszlospizzeria.com/",
       "link": "http://laszlospizzeria.com/",
       "imgs": [
-        "images/resources/history_0472_laszlo_pizza.png"
+        "https://assets.bitcoineducation.quest/images/resources/history_0472_laszlo_pizza.png"
       ]
     },
     {
@@ -398,7 +398,7 @@
     {
       "text": "The evolution of the Bitcoin logo",
       "imgs": [
-        "images/resources/history_0473_20260217_142153.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/history_0473_20260217_142153.jpg"
       ]
     },
     {

@@ -14,16 +14,16 @@
       "text": "Transactions per second:\n• Visa: 1,700\n• MasterCard: 5,000\nBitcoin on Lightning: \n25,000,000+ (25,000+ nodes * 1,000 tps (transactions/sec)\n\nHow to achieve 1,000 tps:\nhttps://bottlepay.com/blog/bitcoin-lightning-benchmarking-performance/\n\n<b>LIGHTNING WALLETS</b>\nThere are many (free) lightning wallet apps that you can get on your phone to transact with small amounts of Bitcoin with little to no fees. It is quite spectacular to experience the instantaneous speed of transacting with the lightning network. Please let me know if you'd like to see it in action. I'll walk you through the steps and even send you some free Bitcoin in the process. It'd honestly be my pleasure to do so! 😀\n\nTrusted Lightning Wallets on mobile (be sure to confirm via reviews and download numbers that you are downloading the correct thing...there are many scams):\nStrike\nMuun\nBlueWallet\nSamourai\nWallet of Satoshi\nBreez\n\n<b>FREE BITCOIN (yes, really)</b>\nIf you have a lightning wallet on your phone, you can get some free satoshis from the website https://lightningnetworkstores.com\nNavigate to the website (on mobile) and click on the menu hamburger icon in the top right. Next, click \"Faucet.\" Then, follow the prompt to open up your lightning wallet and receive some free satoshis!\n\nThe network of Lightning Network channels, which has reached 14,000 nodes and over 56.000 channels as of 8/17/21 (network capacity up 25% in the last month alone)",
       "link": "https://bottlepay.com/blog/bitcoin-lightning-benchmarking-performance/",
       "imgs": [
-        "images/experienced/layer-2-lightning_188_lightning_network.jpg",
-        "images/experienced/layer-2-lightning_189_layer-2-lightning_e32a156b-641b-4e8c-802b-ad26fe370100_Cover__281_29.png",
-        "images/experienced/layer-2-lightning_190_layer-2-lightning_ogimage.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_188_lightning_network.jpg",
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_189_layer-2-lightning_e32a156b-641b-4e8c-802b-ad26fe370100_Cover__281_29.png",
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_190_layer-2-lightning_ogimage.png"
       ]
     },
     {
       "text": "More lightning network resources: https://www.lopp.net/lightning-information.html",
       "link": "https://www.lopp.net/lightning-information.html",
       "imgs": [
-        "images/experienced/layer-2-lightning_187_layer-2-lightning_avatar.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_187_layer-2-lightning_avatar.jpg"
       ]
     },
     {
@@ -34,7 +34,7 @@
       "text": "<b>SOVRYN</b>\nA decentralized layer 2 Bitcoin trading and lending platform.\nhttps://www.sovryn.app/",
       "link": "https://www.sovryn.app/",
       "imgs": [
-        "images/experienced/layer-2-lightning_185_layer-2-lightning_sovryn.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_185_layer-2-lightning_sovryn.jpg"
       ]
     },
     {
@@ -44,7 +44,7 @@
       "text": "The HTLCs in Lightning Network give bitcoin a path to become a global reserve currency.\n\nLightning Network provides a framework to measure the time-value of bitcoin, a precursor for a capital market and reserve currency status. Observable variables in Hashed Time Locked Contracts can be used to calculate the interest rate received on bitcoin held in payment channels, allowing investors to measure their opportunity cost of capital. \n\nMore: https://timevalueofbtc.medium.com/the-time-value-of-bitcoin-3807b91f02d2",
       "link": "https://timevalueofbtc.medium.com/the-time-value-of-bitcoin-3807b91f02d2",
       "imgs": [
-        "images/experienced/layer-2-lightning_184_HTLCs_in_lightning.jpeg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_184_HTLCs_in_lightning.jpeg"
       ]
     },
     {
@@ -63,13 +63,13 @@
       "text": "https://btcdir.org/lightning/",
       "link": "https://btcdir.org/lightning/",
       "imgs": [
-        "images/experienced/layer-2-lightning_183_layer-2-lightning_TwitterCard-2.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_183_layer-2-lightning_TwitterCard-2.jpg"
       ]
     },
     {
       "text": "Growth",
       "imgs": [
-        "images/experienced/layer-2-lightning_182_20211027_000020.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_182_20211027_000020.jpg"
       ]
     },
     {
@@ -121,7 +121,7 @@
       "text": "<b>BOLT 12</b>\nBOLT payments - Offers is a draft specification (called a \"BOLT\") for Lightning wallets and nodes, with experimental support already in c-lightning.\nYou scan a QR code, your wallet prompts you to pay it, just like BOLT11 invoices today (the QR code labelled BOLT11 Invoice).\nBut it could also offer to send you money, like for an ATM.\nAnd unlike invoices, you can (and should!) reuse them: a static image on your web page, a QR code on your billboard. The BOLT 12 offer can be used by as many people as want to: the BOLT 11 invoice can only be used once, and is insecure if someone else tries to reuse it!\nMore here: https://bolt12.org/\nArticle on Bolt12: https://bitcoinmagazine.com/.amp/technical/explaining-bolt-12\nhttps://twitter.com/LN_Capital/status/1589321548133203968?t=2KYJWDdTufNE7_rtvzF5Bw&s=19\nhttps://twitter.com/pippellia/status/1594721116529905664?s=20&t=AR_d0Gdac3JXDc7rBA0DHQ",
       "link": "https://bolt12.org/",
       "imgs": [
-        "images/experienced/layer-2-lightning_175_layer-2-lightning_FiGWZmOX0AQfWCQ.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_175_layer-2-lightning_FiGWZmOX0AQfWCQ.jpg"
       ]
     },
     {
@@ -136,7 +136,7 @@
       "text": "Setting up a lightning node by BTC sessions. Recommend by \nhttps://www.youtube.com/watch?v=yCZY1OoC3fg&list=PLxdf8G0kzsUULbG0_yt3pUaFOLgUdunXx&index=15",
       "link": "https://www.youtube.com/watch?v=yCZY1OoC3fg&list=PLxdf8G0kzsUULbG0_yt3pUaFOLgUdunXx&index=15",
       "imgs": [
-        "images/experienced/layer-2-lightning_174_layer-2-lightning_maxresdefault.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_174_layer-2-lightning_maxresdefault.jpg"
       ]
     },
     {
@@ -161,14 +161,14 @@
       "text": "Tool for managing lightning node you seen this?\nhttps://www.ridethelightning.info/",
       "link": "https://www.ridethelightning.info/",
       "imgs": [
-        "images/experienced/layer-2-lightning_171_Screenshot_20220214-134449.png",
-        "images/experienced/layer-2-lightning_172_layer-2-lightning_rtl_image_hu6136440dc5679e09c4d770ffe8a89075_176257_1200x0_res.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_171_Screenshot_20220214-134449.png",
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_172_layer-2-lightning_rtl_image_hu6136440dc5679e09c4d770ffe8a89075_176257_1200x0_res.jpg"
       ]
     },
     {
       "text": "Lightning growth",
       "imgs": [
-        "images/experienced/layer-2-lightning_170_20220215_145430.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_170_20220215_145430.jpg"
       ]
     },
     {
@@ -183,7 +183,7 @@
       "text": "Lightning Dev Kit (LDK)\nThe simplest way to integrate Lightning into your Bitcoin wallet\nhttps://lightningdevkit.org/",
       "link": "https://lightningdevkit.org/",
       "imgs": [
-        "images/experienced/layer-2-lightning_167_layer-2-lightning_card.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_167_layer-2-lightning_card.png"
       ]
     },
     {
@@ -194,7 +194,7 @@
       "text": "Coinos.io - Send and receive bitcoin w Liquid and Lightning\nhttps://coinos.io/",
       "link": "https://coinos.io/",
       "imgs": [
-        "images/experienced/layer-2-lightning_166_layer-2-lightning_coinos-logo.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_166_layer-2-lightning_coinos-logo.jpg"
       ]
     },
     {
@@ -210,7 +210,7 @@
     {
       "text": "lightning network ecosystem",
       "imgs": [
-        "images/experienced/layer-2-lightning_164_lightning_network_ecosystem.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_164_lightning_network_ecosystem.jpg"
       ]
     },
     {
@@ -229,7 +229,7 @@
       "text": "Guide to opening lightning channels:\nhttps://docs.lightning.engineering/lightning-network-tools/lightning-terminal/opening-channels",
       "link": "https://docs.lightning.engineering/lightning-network-tools/lightning-terminal/opening-channels",
       "imgs": [
-        "images/experienced/layer-2-lightning_162_layer-2-lightning_xum7tNVrY3CoedqSDUEi.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_162_layer-2-lightning_xum7tNVrY3CoedqSDUEi.png"
       ]
     },
     {
@@ -240,7 +240,7 @@
       "text": "One-click Bitcoin Lightning networks for local app development & testing\nhttps://lightningpolar.com/",
       "link": "https://lightningpolar.com/",
       "imgs": [
-        "images/experienced/layer-2-lightning_161_layer-2-lightning_image-12a.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_161_layer-2-lightning_image-12a.png"
       ]
     },
     {
@@ -267,7 +267,7 @@
       "text": "Splicing makes lightning channels more efficient\n\"What Is Splicing On The Lightning Network? - The Bitcoin Manual\" https://thebitcoinmanual.com/articles/splicing-lightning-network/#:~:text=Splicing%20is%20transferring%20funds%20from,spend%20the%20channel's%20other%20funds.",
       "link": "https://thebitcoinmanual.com/articles/splicing-lightning-network/#:~:text=Splicing%20is%20transferring%20funds%20from,spend%20the%20channel's%20other%20funds.",
       "imgs": [
-        "images/experienced/layer-2-lightning_156_layer-2-lightning_btc-splicing-channel.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_156_layer-2-lightning_btc-splicing-channel.png"
       ]
     },
     {
@@ -321,7 +321,7 @@
       "text": "Block tank - Lightning for businesses\nhttps://blocktank.to/",
       "link": "https://blocktank.to/",
       "imgs": [
-        "images/experienced/layer-2-lightning_150_layer-2-lightning_Blocktank.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_150_layer-2-lightning_Blocktank.png"
       ]
     },
     {
@@ -346,7 +346,7 @@
     {
       "text": "Keysends are node to node transactions without an invoice. You can add a message to a keysend. Users tend to spam transactions to a node and ask for a connection in return",
       "imgs": [
-        "images/experienced/layer-2-lightning_147_Screenshot_20221231-131249.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_147_Screenshot_20221231-131249.png"
       ]
     },
     {
@@ -365,13 +365,13 @@
       "text": "LN router best performing nodes \nhttps://lnrouter.app/node-ranking",
       "link": "https://lnrouter.app/node-ranking",
       "imgs": [
-        "images/experienced/layer-2-lightning_145_layer-2-lightning_twitter_image.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_145_layer-2-lightning_twitter_image.png"
       ]
     },
     {
       "text": "Privacy features and non-features on lightning wallets",
       "imgs": [
-        "images/experienced/layer-2-lightning_144_20240624_214732.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_144_20240624_214732.jpg"
       ]
     },
     {
@@ -418,19 +418,19 @@
       "text": "lightning torch list\nhttps://x.com/hodlonaut/status/2017184305273778417?s=20",
       "link": "https://x.com/hodlonaut/status/2017184305273778417?s=20",
       "imgs": [
-        "images/experienced/layer-2-lightning_0191_G_56bjyX0AA0pb8.png"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_0191_G_56bjyX0AA0pb8.png"
       ]
     },
     {
       "text": "The Lightning Network Industry 2026 (created by River)",
       "imgs": [
-        "images/experienced/layer-2-lightning_0192_lightning_network_industry_2026.jpg"
+        "https://assets.bitcoineducation.quest/images/experienced/layer-2-lightning_0192_lightning_network_industry_2026.jpg"
       ]
     },
     {
       "text": "Transaction fees, mastercard vs lightning",
       "imgs": [
-        "images/discord-may2026/discord_006_0.jpg"
+        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_006_0.jpg"
       ]
     },
     {
@@ -441,8 +441,8 @@
       "text": "bitcoin’s lightning network also works exactly like this when making a payment\n\nMathematics, Physics.\n\nThis is Dr. Matthew Henderson's (@matthen2) animation modeling a lightning strike by finding the shortest path in a random maze, first by sending out a frontier through the maze — and then tracing it back. \n\nIt also looks like fungi, and how Japanese designed some subway networks.",
       "link": "https://x.com/i/status/2044098290581393875",
       "imgs": [
-        "images/discord-may2026/discord_017_0.png",
-        "images/discord-may2026/discord_017_1.jpg"
+        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_017_0.png",
+        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_017_1.jpg"
       ]
     },
     {

@@ -13,9 +13,9 @@
       "text": "Resources:\n\nLearn more about all things nostr\nhttps://nostr-resources.com/\n\nMedia uploader\nhttps://nostr.build/\n\nGet emojis and find lists\nhttps://nostrudel.ninja/\n\nCreate and manage links and other notes \n[link removed]\n\nRequest features, earn sats for bounties \n\nSetting up a relay for beginners\nhttps://github.com/UTXOnly/nost-py",
       "link": "https://nostr-resources.com/",
       "imgs": [
-        "images/resources/nostr_0658_nostr_cover.png",
-        "images/resources/nostr_0659_nostr_35a3489682170c6797e36559088b7622900b541bfd5a627d8e3fee841675f5da.png",
-        "images/resources/nostr_0660_nostr_nostr.build_8ed2bdd79901d93c709cf81f2718c11cd5f06c286831f871d024ec05c0c93d.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/nostr_0658_nostr_cover.png",
+        "https://assets.bitcoineducation.quest/images/resources/nostr_0659_nostr_35a3489682170c6797e36559088b7622900b541bfd5a627d8e3fee841675f5da.png",
+        "https://assets.bitcoineducation.quest/images/resources/nostr_0660_nostr_nostr.build_8ed2bdd79901d93c709cf81f2718c11cd5f06c286831f871d024ec05c0c93d.jpg"
       ]
     },
     {

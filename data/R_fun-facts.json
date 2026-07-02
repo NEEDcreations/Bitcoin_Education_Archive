@@ -23,7 +23,7 @@
     {
       "text": "- In September of 2019 Hurricane Dorian hit the Bahamas and knocked out all the communications on the island. Massive online searches for the Bahamas Telecommunication Company (BTC) followed. The trading bots picked up on the surge in search results for BTC and price quickly pumped 5%.",
       "imgs": [
-        "images/resources/fun-facts_0000_btc_search.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0000_btc_search.jpg"
       ]
     },
     {
@@ -79,7 +79,7 @@
       "text": "- While Bitcoin blocks on average take 10 minutes to mine, it took Satoshi and his computer 6 days to mine the Genesis Block, the first block in the Bitcoin blockchain. \nMore on the Genesis Block:",
       "link": "",
       "imgs": [
-        "images/resources/fun-facts_0002_fun-facts_Genesis-Block.jpeg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0002_fun-facts_Genesis-Block.jpeg"
       ]
     },
     {
@@ -92,7 +92,7 @@
       "text": "- BITCOIN FAUCETS\nA bitcoin faucet is a reward system, in the form of a website or software app, that dispenses rewards in the form of a satoshi, which is worth a hundredth of a millionth BTC, for visitors to claim in exchange for completing a captcha or task as described by the website. There are also faucets that dispense alternative cryptocurrencies. The first bitcoin faucet was called \"The Bitcoin Faucet\" and was developed by Gavin Andresen in 2010. It originally gave out <b>FIVE BITCOINS</b> per person as seen in this picture. We have a bitcoin faucet in this discord! - Directions on how to get some free satoshis are pinned to . If you have any questions, please let me know.\nhttps://twitter.com/NEEDcreations/status/1609033838033883136?s=20",
       "link": "https://twitter.com/NEEDcreations/status/1609033838033883136?s=20",
       "imgs": [
-        "images/resources/fun-facts_0336_bitcoin_faucet.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0336_bitcoin_faucet.jpg"
       ]
     },
     {
@@ -102,14 +102,14 @@
       "text": "- Magic Internet Money Reddit post from 2013 https://www.reddit.com/r/Bitcoin/comments/18smyy/ideas_for_rbitcoin_ads/c8hmtr2/?context=3\nhttps://knowyourmeme.com/memes/magic-internet-money-bitcoin-wizard",
       "link": "https://www.reddit.com/r/Bitcoin/comments/18smyy/ideas_for_rbitcoin_ads/c8hmtr2/?context=3",
       "imgs": [
-        "images/resources/fun-facts_0005_magic_internet_money.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0005_magic_internet_money.jpg"
       ]
     },
     {
       "text": "- The Bitcoin logo was created by an anonymous artist in early November, 2010. He/she posted it on a forum for free use and it was talked about on the Bitcoin forum here: \nhttps://bitcointalk.org/index.php?topic=64.0\nand here: https://bitcointalk.org/index.php?topic=41.msg243#msg243\nMore on the history of Bitcoin's logo:\nhttps://twitter.com/MyLegacyKit/status/1353418347057184769?s=20",
       "link": "https://bitcointalk.org/index.php?topic=64.0",
       "imgs": [
-        "images/resources/fun-facts_0006_20211104_091703.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0006_20211104_091703.jpg"
       ]
     },
     {
@@ -120,7 +120,7 @@
       "text": "Bitcoin's first price, $.000994, was calculated by measuring the value of the electricity needed to produce a Bitcoin at the time (The Bitcoin Standard)\nhttps://www.bullionstar.com/blogs/ronan-manly/dawn-of-bitcoin-price-discovery-2009-2011-the-very-early-bitcoin-exchanges/",
       "link": "https://www.bullionstar.com/blogs/ronan-manly/dawn-of-bitcoin-price-discovery-2009-2011-the-very-early-bitcoin-exchanges/",
       "imgs": [
-        "images/resources/fun-facts_0007_fun-facts_BTCsq.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0007_fun-facts_BTCsq.png"
       ]
     },
     {
@@ -146,7 +146,7 @@
       "text": "The first ever #Bitcoin transaction was sent from Satoshi to Hal Finney 13 years ago on 01/11/09\nRead Hal's thoughts on the transaction and more on his story here: https://bitcointalk.org/index.php?topic=155054.0",
       "link": "https://bitcointalk.org/index.php?topic=155054.0",
       "imgs": [
-        "images/resources/fun-facts_0010_first_bitcoin_transaction.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0010_first_bitcoin_transaction.jpg"
       ]
     },
     {
@@ -172,7 +172,7 @@
       "text": "Not so fun, but a man from the UK threw away a hard drive with 7,500 Bitcoin on it. He is on the search for it in a local dump.\nhttps://www.cnbc.com/2021/01/15/uk-man-makes-last-ditch-effort-to-recover-lost-bitcoin-hard-drive.html",
       "link": "https://www.cnbc.com/2021/01/15/uk-man-makes-last-ditch-effort-to-recover-lost-bitcoin-hard-drive.html",
       "imgs": [
-        "images/resources/fun-facts_0015_fun-facts_106824589-1610640845035-gettyimages-462699470-150129_TFEA_PHT09.jpeg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0015_fun-facts_106824589-1610640845035-gettyimages-462699470-150129_TFEA_PHT09.jpeg"
       ]
     },
     {
@@ -183,27 +183,27 @@
       "text": "Can a seed word be repeated in your seed phrase? Yes. https://bitcoin.stackexchange.com/questions/59904/does-bip39-mnemonic-construction-avoid-repeating-words",
       "link": "https://bitcoin.stackexchange.com/questions/59904/does-bip39-mnemonic-construction-avoid-repeating-words",
       "imgs": [
-        "images/resources/fun-facts_0025_fun-facts_apple-touch-icon_2.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0025_fun-facts_apple-touch-icon_2.png"
       ]
     },
     {
       "text": "The first transaction (Satoshi to Hal Finney) was mined in block 170 here https://mempool.space/block/00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee\nThis means that all previous blocks were empty (no transactions). It is actually quite common for a block to be mined empty even today, as most mining pools pre-populate the next 2 blocks while mining the current. One pool always begins with an empty block, populates it after about 50 seconds.\nSource: https://www.reddit.com/r/Bitcoin/comments/si02lv/someone_just_mined_an_empty_block/?utm_source=share&utm_medium=web2x&context=3",
       "link": "https://mempool.space/block/00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee",
       "imgs": [
-        "images/resources/fun-facts_0017_fun-facts_mempool-space-preview.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0017_fun-facts_mempool-space-preview.png"
       ]
     },
     {
       "text": "Full nodes on the network will not accept blocks with headers which are more than two hours in the future according to their clock.\nSource:",
       "link": "",
       "imgs": [
-        "images/resources/fun-facts_0018_fun-facts_pexels-photo-1342460.jpeg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0018_fun-facts_pexels-photo-1342460.jpeg"
       ]
     },
     {
       "text": "Early in Bitcoin's history, all nodes were also miners. Miners weren't referred to separately until about 2010",
       "imgs": [
-        "images/resources/fun-facts_0019_20220221_092714.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0019_20220221_092714.jpg"
       ]
     },
     {
@@ -224,7 +224,7 @@
       "text": "You can create a private key by flipping a coin.\nhttps://bitcointalk.org/index.php?topic=944596.0\nhttps://www.youtube.com/watch?v=WyBdYhwweaE",
       "link": "https://bitcointalk.org/index.php?topic=944596.0",
       "imgs": [
-        "images/resources/fun-facts_0072_fun-facts_maxresdefault.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0072_fun-facts_maxresdefault.jpg"
       ]
     },
     {
@@ -234,7 +234,7 @@
     {
       "text": "This is on the time chain. txid 283f2a156022d3036da9ed1cbe988c9b50a78820a82c526150a9b0a1b05256b0\nTy for sharing",
       "imgs": [
-        "images/resources/fun-facts_0023_test.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0023_test.png"
       ]
     },
     {
@@ -259,19 +259,19 @@
       "text": "The original Bitcoin code includes the beginnings of a virtual poker game that Satoshi is believed to have started but never finished.\nhttps://news.bitcoin.com/bitcoin-history-part-14-the-1000-btc-poker-game/",
       "link": "https://news.bitcoin.com/bitcoin-history-part-14-the-1000-btc-poker-game/",
       "imgs": [
-        "images/resources/fun-facts_0026_fun-facts_p4tnUPIA-bitcoin-history.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0026_fun-facts_p4tnUPIA-bitcoin-history.jpg"
       ]
     },
     {
       "text": "Message embedded in block 666,666",
       "imgs": [
-        "images/resources/fun-facts_0027_20220712_164415.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0027_20220712_164415.jpg"
       ]
     },
     {
       "text": "My message in the Blockchain",
       "imgs": [
-        "images/resources/fun-facts_0028_Screenshot_20220712-165141.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0028_Screenshot_20220712-165141.png"
       ]
     },
     {
@@ -336,7 +336,7 @@
       "text": "In 2014, MIT students Jeremy Rubin and Dan Elitzer conducted an experiment where they gave any interested MIT student $100 worth of Bitcoin worth roughly $300 a coin at the time. The $100 worth of bitcoin those lucky students received would be worth over $14,000 today.\nhttps://greekreporter.com/2022/04/18/bitcoin-experiment-made-mit-students-rich/#:~:text=In%202014%2C%20MIT%20students%20Jeremy,be%20worth%20over%20%2414%2C000%20today.",
       "link": "https://greekreporter.com/2022/04/18/bitcoin-experiment-made-mit-students-rich/#:~:text=In%202014%2C%20MIT%20students%20Jeremy,be%20worth%20over%20%2414%2C000%20today.",
       "imgs": [
-        "images/resources/fun-facts_0033_fun-facts_bitcoin1-sitting-atop-bundles-dollars-credit-hiddenlogos-cc4-wikimedia.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0033_fun-facts_bitcoin1-sitting-atop-bundles-dollars-credit-hiddenlogos-cc4-wikimedia.jpg"
       ]
     },
     {
@@ -366,8 +366,8 @@
       "text": "StarCraft 2 prize pool from 2011 5th-8th place prize of 25 BTC while price was $1\nhttps://bitcoinist.com/this-old-bitcoin-prize-in-starcraft-tournament-would-have-made-you-a-millionaire/",
       "link": "https://bitcoinist.com/this-old-bitcoin-prize-in-starcraft-tournament-would-have-made-you-a-millionaire/",
       "imgs": [
-        "images/resources/fun-facts_0036_starcraft_2_prize_pool_2011.png",
-        "images/resources/fun-facts_0037_fun-facts_sigmund-By-tZImt0Ms-unsplash.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0036_starcraft_2_prize_pool_2011.png",
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0037_fun-facts_sigmund-By-tZImt0Ms-unsplash.jpg"
       ]
     },
     {
@@ -395,7 +395,7 @@
     {
       "text": "What is Bitcoin? On Jeopardy via 2015 I think",
       "imgs": [
-        "images/resources/fun-facts_0043_20221007_223935.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0043_20221007_223935.jpg"
       ]
     },
     {
@@ -456,8 +456,8 @@
       "text": "Bitcoin's inflation rate will be lower than golds after the 2024 cycle begins\nhttps://news.bitcoin.com/bitcoins-mathematical-monetary-policy-is-far-more-predictable-than-gold-and-fiat-currencies/",
       "link": "https://news.bitcoin.com/bitcoins-mathematical-monetary-policy-is-far-more-predictable-than-gold-and-fiat-currencies/",
       "imgs": [
-        "images/resources/fun-facts_0045_inflation_rate.png",
-        "images/resources/fun-facts_0046_fun-facts_ddfcx.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0045_inflation_rate.png",
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0046_fun-facts_ddfcx.jpg"
       ]
     },
     {
@@ -528,7 +528,7 @@
       "text": "Who owns the most bitcoin? Also noted here is that Satoshi has over 22,000 known addresses.\nhttps://river.com/learn/who-owns-the-most-bitcoin",
       "link": "https://river.com/learn/who-owns-the-most-bitcoin",
       "imgs": [
-        "images/resources/fun-facts_0056_fun-facts_who-owns-the-most-bitcoin.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0056_fun-facts_who-owns-the-most-bitcoin.png"
       ]
     },
     {
@@ -622,14 +622,14 @@
       "text": "The only other twitter account besides hal finney to tweet about bitcoin in 2009. Rumored to be satoshi himself https://x.com/fafcffacfff/status/1158416742?s=20",
       "link": "https://x.com/fafcffacfff/status/1158416742?s=20",
       "imgs": [
-        "images/resources/fun-facts_0337_satoshi_rumor.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0337_satoshi_rumor.png"
       ]
     },
     {
       "text": "One of Satoshi's wallets for your viewing pleasure. Note that 0 Bitcoin have moved from it. Link: https://bitinfocharts.com/bitcoin/address/1FeexV6bAHb8ybZjqQMjJrcCrHGW9sb6uF\n\nhttps://mempool.space/address/1FeexV6bAHb8ybZjqQMjJrcCrHGW9sb6uF",
       "link": "https://bitinfocharts.com/bitcoin/address/1FeexV6bAHb8ybZjqQMjJrcCrHGW9sb6uF",
       "imgs": [
-        "images/resources/fun-facts_0068_satoshi_wallet.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0068_satoshi_wallet.png"
       ]
     },
     {
@@ -639,7 +639,7 @@
       "text": "Bitcoin has its very own “Star of Satoshi-hem.” The object known as GPM J1839-10 has been blinking every 21 minutes since 1988. If one ascribes to the theory of bitcoin’s 21 million cap being closely related to Satoshi’s age at or very near the time of release…then perhaps even the heavens are in on all of this. https://explorersweb.com/mysterious-blinking-light-space/",
       "link": "https://explorersweb.com/mysterious-blinking-light-space/",
       "imgs": [
-        "images/resources/fun-facts_0070_fun-facts_Low-Res_Magnetar-4_ICRAR.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0070_fun-facts_Low-Res_Magnetar-4_ICRAR.jpg"
       ]
     },
     {
@@ -650,7 +650,7 @@
       "text": "The secret life of Jimmy Zhong, who stole – and lost – more than $3 billion of bitcoin \nhttps://www.cnbc.com/2023/10/17/crypto911.html\n\nMore in video\nhttps://youtu.be/pxvd1YOMGxU?si=oupcxO6vAE68jbMv\n\nMore on this\nhttps://twitter.com/FractalEncrypt/status/1590004511015571456?t=Q96VGHTitqNgQk10jX0TfA&s=19",
       "link": "https://www.cnbc.com/2023/10/17/crypto911.html",
       "imgs": [
-        "images/resources/fun-facts_0071_fun-facts_107317192-1697227621758-Jimmy_on_yatch.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0071_fun-facts_107317192-1697227621758-Jimmy_on_yatch.jpg"
       ]
     },
     {
@@ -707,7 +707,7 @@
     {
       "text": "Satoshi registered netcoin.org the day before bitcoin.org",
       "imgs": [
-        "images/resources/fun-facts_0075_IMG_20240106_155347.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0075_IMG_20240106_155347.jpg"
       ]
     },
     {
@@ -741,7 +741,7 @@
     {
       "text": "satoshi talking about the first difficulty adjustment",
       "imgs": [
-        "images/resources/fun-facts_0077_satoshi_talking_about_the_first_difficulty_adjustment.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0077_satoshi_talking_about_the_first_difficulty_adjustment.jpg"
       ]
     },
     {
@@ -760,7 +760,7 @@
       "text": "Burn address \nhttps://mempool.space/address/1BitcoinEaterAddressDontSendf59kuE",
       "link": "https://mempool.space/address/1BitcoinEaterAddressDontSendf59kuE",
       "imgs": [
-        "images/resources/fun-facts_0338_Screenshot_20250420-202554.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0338_Screenshot_20250420-202554.png"
       ]
     },
     {
@@ -782,15 +782,15 @@
       "text": "One of the first Asics available was in 2012 - Butterfly Lab's Jalapeno\n\nhttps://www.coindesk.com/tech/2013/04/24/butterfly-labs-jalapeno-aims-to-spice-up-bitcoin-mining/\n\nhttps://www.theverge.com/2014/9/23/6833047/bitcoin-conspiracy-theorists-vindicated-as-ftc-shuts-down-butterfly-labs",
       "link": "https://www.coindesk.com/tech/2013/04/24/butterfly-labs-jalapeno-aims-to-spice-up-bitcoin-mining/",
       "imgs": [
-        "images/resources/fun-facts_0098_Screenshot_20240818-161606.png",
-        "images/resources/fun-facts_0084_fun-facts_butterfly_labs_asics.0.1411572604.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0098_Screenshot_20240818-161606.png",
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0084_fun-facts_butterfly_labs_asics.0.1411572604.jpg"
       ]
     },
     {
       "text": "this tweet was published 6 minutes before the genesis block https://twitter.com/pdenlinger/status/1093727311",
       "link": "https://twitter.com/pdenlinger/status/1093727311",
       "imgs": [
-        "images/resources/fun-facts_0339_screenshot-twitter.com-2024.02.18-19_41_42.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0339_screenshot-twitter.com-2024.02.18-19_41_42.png"
       ]
     },
     {
@@ -812,7 +812,7 @@
     {
       "text": "first use of the word shitcoin 2010",
       "imgs": [
-        "images/resources/fun-facts_0087_screenshot-mail.google.com-2024.02.29-13_47_58.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0087_screenshot-mail.google.com-2024.02.29-13_47_58.png"
       ]
     },
     {
@@ -853,7 +853,7 @@
       "text": "Bitcoin's first price pump (Jan 16, 2010)\nhttps://x.com/woonomic/status/1801710702098264173?t=3kEBGZ0NDLhdb6gfdjouiA&s=19",
       "link": "https://x.com/woonomic/status/1801710702098264173?t=3kEBGZ0NDLhdb6gfdjouiA&s=19",
       "imgs": [
-        "images/resources/fun-facts_0340_Screenshot_20240614-164903.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0340_Screenshot_20240614-164903.png"
       ]
     },
     {
@@ -887,7 +887,7 @@
       "text": "\"God hash\"\n\n97 leading zeros https://x.com/NEEDcreations/status/1822630972254289925\n\nBlock : https://mempool.space/block/0000000000000000000000005d6f06154c8685146aa7bc3dc9843876c9cefd0f\n\nmore info (God) https://x.com/NEEDcreations/status/1823914156925268385",
       "link": "https://x.com/NEEDcreations/status/1822630972254289925",
       "imgs": [
-        "images/resources/fun-facts_0341_screenshot-twitter.com-2024.08.12-16_18_20.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0341_screenshot-twitter.com-2024.08.12-16_18_20.png"
       ]
     },
     {
@@ -906,7 +906,7 @@
       "text": "Downtime:\n\nhttps://x.com/__B__T__C__/status/1839670239262326827?t=JrmMJP2dTFZ-zxS65SIaGw&s=19",
       "link": "https://x.com/__B__T__C__/status/1839670239262326827?t=JrmMJP2dTFZ-zxS65SIaGw&s=19",
       "imgs": [
-        "images/resources/fun-facts_0342_Screenshot_20240927-104810.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0342_Screenshot_20240927-104810.jpg"
       ]
     },
     {
@@ -931,7 +931,7 @@
       "text": "what the distribution of bitcoin utxos looked like on the 1st halving.\n\nhttps://x.com/w_s_bitcoin/status/1869395680755937519?t=JR8oJearTqZwjHD0I4xOJg&s=19",
       "link": "https://x.com/w_s_bitcoin/status/1869395680755937519?t=JR8oJearTqZwjHD0I4xOJg&s=19",
       "imgs": [
-        "images/resources/fun-facts_0343_20241218_113025.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0343_20241218_113025.jpg"
       ]
     },
     {
@@ -974,7 +974,7 @@
     {
       "text": "Bitcoin's first logo. Created by Satoshi in 2009",
       "imgs": [
-        "images/resources/fun-facts_0328_20250214_195519.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0328_20250214_195519.jpg"
       ]
     },
     {
@@ -993,7 +993,7 @@
       "text": "The 1991 video game Space Quest IV: Roger Wilco and the Time Rippers featured a currency called the Buckazoid - with a symbol that looks strikingly similar to Bitcoin’s.\n\nhttps://x.com/RichNFrenz/status/1932056141917483303?t=f1mekxtybc479JPL6VGGIg&s=19",
       "link": "https://x.com/RichNFrenz/status/1932056141917483303?t=f1mekxtybc479JPL6VGGIg&s=19",
       "imgs": [
-        "images/resources/fun-facts_0344_20250328_142256.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0344_20250328_142256.jpg"
       ]
     },
     {
@@ -1008,7 +1008,7 @@
       "text": "Burn address\nhttps://x.com/EliNagarBrr/status/1913989764639866959?t=2hQPNIaUd-a8UkINJ7m9Og&s=19",
       "link": "https://x.com/EliNagarBrr/status/1913989764639866959?t=2hQPNIaUd-a8UkINJ7m9Og&s=19",
       "imgs": [
-        "images/resources/fun-facts_0345_Screenshot_20250420-202554.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0345_Screenshot_20250420-202554.png"
       ]
     },
     {
@@ -1023,7 +1023,7 @@
       "text": "More on Laszlo pizza guy \nhttps://x.com/MartyBent/status/1925554414678430017?t=ELa5wvXZQSWLy4P1r4kzSg&s=19",
       "link": "https://x.com/MartyBent/status/1925554414678430017?t=ELa5wvXZQSWLy4P1r4kzSg&s=19",
       "imgs": [
-        "images/resources/fun-facts_0346_Screenshot_20250522-170738.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0346_Screenshot_20250522-170738.png"
       ]
     },
     {
@@ -1044,7 +1044,7 @@
     {
       "text": "Fun fact",
       "imgs": [
-        "images/resources/fun-facts_0335_20251016_141418.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_0335_20251016_141418.jpg"
       ]
     },
     {
@@ -1110,21 +1110,21 @@
     {
       "text": "https://twitter.com/w_s_bitcoin/status/1748397802231656728?t=Q1Kytdphl0SnQFKw6gjrsA&s=19",
       "imgs": [
-        "images/resources/fun-facts_2024-01-19_Screenshot_20240119-124412.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2024-01-19_Screenshot_20240119-124412.png"
       ],
       "link": "https://twitter.com/w_s_bitcoin/status/1748397802231656728?t=Q1Kytdphl0SnQFKw6gjrsA&s=19"
     },
     {
       "text": "https://x.com/ckpooldev/status/1749418639420469635?s=20",
       "imgs": [
-        "images/resources/fun-facts_2024-01-23_screenshot-twitter.com-2024.01.22-19_42_36.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2024-01-23_screenshot-twitter.com-2024.01.22-19_42_36.png"
       ],
       "link": "https://x.com/ckpooldev/status/1749418639420469635?s=20"
     },
     {
       "text": "https://x.com/w_s_bitcoin/status/1749416894052917421?s=20",
       "imgs": [
-        "images/resources/fun-facts_2024-01-23_screenshot-twitter.com-2024.01.22-19_44_38.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2024-01-23_screenshot-twitter.com-2024.01.22-19_44_38.png"
       ],
       "link": "https://x.com/w_s_bitcoin/status/1749416894052917421?s=20"
     },
@@ -1139,7 +1139,7 @@
     {
       "text": "https://x.com/miketwenty1/status/1824842121314246785?t=ay9aDJnWQWH45zx68u0ZHg&s=19",
       "imgs": [
-        "images/resources/fun-facts_2024-08-17_Screenshot_20240817-181730.jpg"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2024-08-17_Screenshot_20240817-181730.jpg"
       ],
       "link": "https://x.com/miketwenty1/status/1824842121314246785?t=ay9aDJnWQWH45zx68u0ZHg&s=19"
     },
@@ -1149,35 +1149,35 @@
     {
       "text": "https://x.com/TomasGreif/status/1885714204147040687?t=koTY1e8uSb70jEVC8VxBBQ&s=19",
       "imgs": [
-        "images/resources/fun-facts_2025-02-01_Screenshot_20250201-123432.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2025-02-01_Screenshot_20250201-123432.png"
       ],
       "link": "https://x.com/TomasGreif/status/1885714204147040687?t=koTY1e8uSb70jEVC8VxBBQ&s=19"
     },
     {
       "text": "https://x.com/SaniExp/status/1887542453399408803?t=MTPMBWGxt-2SL1UpmH7rDg&s=19",
       "imgs": [
-        "images/resources/fun-facts_2025-02-06_Screenshot_20250206-115507.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2025-02-06_Screenshot_20250206-115507.png"
       ],
       "link": "https://x.com/SaniExp/status/1887542453399408803?t=MTPMBWGxt-2SL1UpmH7rDg&s=19"
     },
     {
       "text": "https://x.com/mononautical/status/1887340507778728072?t=qVd5vqrDgb7LcuoaOFkfnQ&s=19",
       "imgs": [
-        "images/resources/fun-facts_2025-02-06_Screenshot_20250206-122008.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2025-02-06_Screenshot_20250206-122008.png"
       ],
       "link": "https://x.com/mononautical/status/1887340507778728072?t=qVd5vqrDgb7LcuoaOFkfnQ&s=19"
     },
     {
       "text": "https://x.com/SaniExp/status/1907015662599286898?t=XnfMb4QLWEAIs8Nj9Pzf7g&s=19",
       "imgs": [
-        "images/resources/fun-facts_2025-04-01_Screenshot_20250401-073840.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2025-04-01_Screenshot_20250401-073840.png"
       ],
       "link": "https://x.com/SaniExp/status/1907015662599286898?t=XnfMb4QLWEAIs8Nj9Pzf7g&s=19"
     },
     {
       "text": "https://x.com/raw_avocado/status/1916909232030450163?t=apkE3PnDaV2Ng7QaQNNohg&s=19",
       "imgs": [
-        "images/resources/fun-facts_2025-04-30_Screenshot_20250429-222933.png"
+        "https://assets.bitcoineducation.quest/images/resources/fun-facts_2025-04-30_Screenshot_20250429-222933.png"
       ],
       "link": "https://x.com/raw_avocado/status/1916909232030450163?t=apkE3PnDaV2Ng7QaQNNohg&s=19"
     }
