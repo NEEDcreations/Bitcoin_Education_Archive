@@ -17720,13 +17720,19 @@ function _flexCheckAllDoneBadge(s) {
     // Check milestones
     FLEX_ALL_BADGE_DEFS.forEach(function(def) {
         if (total >= def.m) {
-            if (typeof earnedBadges !== 'undefined' && !earnedBadges.has(def.id)) {
+            var allCur = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+            var allAlreadyEarned = allCur.indexOf(def.id) !== -1;
+            if (typeof earnedBadges !== 'undefined' && !allAlreadyEarned && !earnedBadges.has(def.id)) {
                 earnedBadges.add(def.id);
-                var cur = JSON.parse(localStorage.getItem('btc_badges') || '[]');
-                if (cur.indexOf(def.id) === -1) { cur.push(def.id); localStorage.setItem('btc_badges', JSON.stringify(cur)); }
-                if (typeof window.contributeSatoshiFavor === 'function') window.contributeSatoshiFavor('badge_earned', def.emoji + ' ' + def.name).catch(function(){});
+                allCur.push(def.id); localStorage.setItem('btc_badges', JSON.stringify(allCur));
+                // Only fire SF on the exact completion that hit the milestone
+                if (total === def.m && typeof window.contributeSatoshiFavor === 'function') {
+                    window.contributeSatoshiFavor('badge_earned', def.emoji + ' ' + def.name).catch(function(){});
+                }
                 if (typeof showBadgeToast === 'function') showBadgeToast(def);
                 if (typeof awardPoints === 'function') awardPoints(def.pts, 'Badge: ' + def.name + ' ' + def.emoji, null, null, null, def.id);
+            } else if (allAlreadyEarned && typeof earnedBadges !== 'undefined') {
+                earnedBadges.add(def.id);
             }
         }
     });
@@ -17736,7 +17742,11 @@ function _flexCheckBadges(actionId, total) {
     FLEX_BADGE_MILESTONES.forEach(function(m) {
         if (total >= m) {
             var badgeId = 'flex_' + actionId + '_' + m;
-            if (typeof earnedBadges !== 'undefined' && !earnedBadges.has(badgeId)) {
+            // Dedup via localStorage (source of truth) — earnedBadges is in-memory
+            // only and may be empty on a fresh session, causing false re-fires.
+            var cur = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+            var alreadyEarned = cur.indexOf(badgeId) !== -1;
+            if (typeof earnedBadges !== 'undefined' && !alreadyEarned && !earnedBadges.has(badgeId)) {
                 var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
                 var fakeBadge = {
                     id: badgeId,
@@ -17746,11 +17756,18 @@ function _flexCheckBadges(actionId, total) {
                     pts: Math.round(m * 2)
                 };
                 earnedBadges.add(badgeId);
-                var cur = JSON.parse(localStorage.getItem('btc_badges') || '[]');
-                if (cur.indexOf(badgeId) === -1) { cur.push(badgeId); localStorage.setItem('btc_badges', JSON.stringify(cur)); }
-                if (typeof window.contributeSatoshiFavor === 'function') window.contributeSatoshiFavor('badge_earned', fakeBadge.emoji + ' ' + fakeBadge.name).catch(function(){});
+                cur.push(badgeId); localStorage.setItem('btc_badges', JSON.stringify(cur));
+                // Only award SF point if this completion EXACTLY hit the milestone
+                // (total === m). If total > m it means the badge was already earned in a
+                // prior session but earnedBadges was empty — do NOT re-fire SF.
+                if (total === m && typeof window.contributeSatoshiFavor === 'function') {
+                    window.contributeSatoshiFavor('badge_earned', fakeBadge.emoji + ' ' + fakeBadge.name).catch(function(){});
+                }
                 if (typeof showBadgeToast === 'function') showBadgeToast(fakeBadge);
                 if (typeof awardPoints === 'function') awardPoints(fakeBadge.pts, 'Badge: ' + fakeBadge.name + ' ' + fakeBadge.emoji, null, null, null, badgeId);
+            } else if (alreadyEarned && typeof earnedBadges !== 'undefined') {
+                // Sync localStorage badges into earnedBadges so future checks are fast
+                earnedBadges.add(badgeId);
             }
         }
     });
