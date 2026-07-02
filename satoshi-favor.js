@@ -1249,7 +1249,13 @@
                 '<div id="sfFloatLabel" style="' +
                     'font-size:0.58rem;font-weight:800;color:#f7931a;' +
                     'background:rgba(0,0,0,0.7);padding:2px 6px;border-radius:6px;' +
-                    'white-space:nowrap;pointer-events:none;letter-spacing:0.3px;">HASH</div>';
+                    'white-space:nowrap;pointer-events:none;letter-spacing:0.3px;">HASH</div>' +
+                // TCTV link hint
+                '<a href="#tctv" onclick="if(typeof go===\'function\'){go(\'tctv\');} return false;" style="' +
+                    'font-size:0.52rem;color:rgba(255,255,255,0.7);text-decoration:none;' +
+                    'background:rgba(0,0,0,0.5);padding:2px 5px;border-radius:5px;' +
+                    'white-space:nowrap;letter-spacing:0.2px;' +
+                    'transition:color 0.15s;">📺 TCTV</a>';
 
             document.body.appendChild(w);
 
@@ -1265,7 +1271,7 @@
                 _sfFloatTCTVNudgeDone = true;
                 setTimeout(function() {
                     if (typeof showToast === 'function') {
-                        showToast('⛏️ Satoshi\'s Favor is live! Tap the orange button to hash from anywhere — even while watching Timechain TV! 📺', 5000);
+                        showToast('⛏️ Satoshi\'s Favor is live! Tap the orange button to hash from anywhere — <a href="#tctv" onclick="if(typeof go===\'function\'){go(\'tctv\');}" style="color:#f7931a;font-weight:700;">even while watching Timechain TV</a>! 📺', 6000);
                     }
                 }, 3000);
             }
