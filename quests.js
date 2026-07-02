@@ -2679,6 +2679,7 @@ function _renderTopHashesHTML(entries) {
                 { date: '2026-06-02', target: 1000 },
                 { date: '2026-06-21', target: 30000 },
                 { date: '2026-06-30', target: 15000 },
+                { date: '2026-07-02', target: 10000 },
             ];
             diffTarget = _lbDh[0].target;
             for (var _lbK = 0; _lbK < _lbDh.length; _lbK++) {
@@ -2699,7 +2700,18 @@ function _renderTopHashesHTML(entries) {
                 '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
                 '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + name + (isMe ? ' (you)' : '') + badges + '</span>' +
             '</div>' +
-            '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" style="font-family:monospace;font-size:0.82rem;font-weight:800;cursor:help;color:' + (isWin ? '#22c55e' : 'var(--text-muted)') + ';">' + e.value.toLocaleString() + '</span>' +
+            '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" ' +
+                'onclick="(function(el){' +
+                    'var existing=el.parentNode.querySelector(\'.sf-diff-tip\');' +
+                    'if(existing){existing.remove();return;}' +
+                    'var tip=document.createElement(\'div\');' +
+                    'tip.className=\'sf-diff-tip\';' +
+                    'tip.style.cssText=\'font-size:0.68rem;color:var(--text-muted);margin-top:3px;padding:2px 6px;background:rgba(0,0,0,0.4);border-radius:5px;text-align:right;\';' +
+                    'tip.textContent=\'Target when mined: \' + ' + diffTarget + '.toLocaleString();' +
+                    'el.parentNode.insertAdjacentElement(\'afterend\',tip);' +
+                    'setTimeout(function(){if(tip.parentNode)tip.remove();},3000);' +
+                '})(this)" ' +
+                'style="font-family:monospace;font-size:0.82rem;font-weight:800;cursor:pointer;color:' + (isWin ? '#22c55e' : 'var(--text-muted)') + ';">' + e.value.toLocaleString() + '</span>' +
         '</div>';
     }
 
