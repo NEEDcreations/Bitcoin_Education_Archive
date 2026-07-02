@@ -1195,6 +1195,201 @@
         return !!(favorState && favorState.favorActive && isFavorEffectivelyActive());
     };
 
+    // ─── FLOAT WIDGET ───────────────────────────────────────────────────────────
+    // Small persistent mining button shown anywhere in the app while SF is active.
+    // Lets users hash without leaving TCTV (or any other page).
+    var _sfFloatCooldownTimer = null;
+    var _sfFloatShown = false;
+    var _sfFloatTCTVNudgeDone = false;
+
+    function _sfUpdateFloat() {
+        var isActive = !!(favorState && favorState.favorActive && isFavorEffectivelyActive());
+        var isLoggedIn = !!(typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
+
+        // Remove widget if SF ended or user logged out
+        if (!isActive || !isLoggedIn) {
+            var existing = document.getElementById('sfFloatWidget');
+            if (existing) {
+                existing.style.transform = 'scale(0)';
+                setTimeout(function() { if (existing.parentNode) existing.remove(); }, 200);
+            }
+            if (_sfFloatCooldownTimer) { clearInterval(_sfFloatCooldownTimer); _sfFloatCooldownTimer = null; }
+            _sfFloatShown = false;
+            return;
+        }
+
+        // Create widget if not present
+        if (!document.getElementById('sfFloatWidget')) {
+            var w = document.createElement('div');
+            w.id = 'sfFloatWidget';
+            w.style.cssText = [
+                'position:fixed',
+                'bottom:72px',               // above mobile bottom nav
+                'right:14px',
+                'z-index:9000',
+                'display:flex',
+                'flex-direction:column',
+                'align-items:center',
+                'gap:5px',
+                'transform:scale(0)',
+                'transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+            ].join(';');
+
+            w.innerHTML =
+                // Hash button
+                '<button id="sfFloatBtn" onclick="window._sfFloatHash()" style="' +
+                    'width:54px;height:54px;border-radius:50%;' +
+                    'background:linear-gradient(135deg,#f7931a,#e8720c);' +
+                    'border:none;color:#fff;font-size:1.4rem;cursor:pointer;' +
+                    'box-shadow:0 4px 16px rgba(247,147,26,0.5);' +
+                    'display:flex;align-items:center;justify-content:center;' +
+                    'font-family:inherit;transition:transform 0.15s,opacity 0.15s;' +
+                    'touch-action:manipulation;">⛏️</button>' +
+                // Cooldown label
+                '<div id="sfFloatLabel" style="' +
+                    'font-size:0.58rem;font-weight:800;color:#f7931a;' +
+                    'background:rgba(0,0,0,0.7);padding:2px 6px;border-radius:6px;' +
+                    'white-space:nowrap;pointer-events:none;letter-spacing:0.3px;">HASH</div>';
+
+            document.body.appendChild(w);
+
+            // Animate in
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    w.style.transform = 'scale(1)';
+                });
+            });
+
+            // One-time TCTV nudge toast after 3s
+            if (!_sfFloatTCTVNudgeDone) {
+                _sfFloatTCTVNudgeDone = true;
+                setTimeout(function() {
+                    if (typeof showToast === 'function') {
+                        showToast('⛏️ Satoshi\'s Favor is live! Tap the orange button to hash from anywhere — even while watching Timechain TV! 📺', 5000);
+                    }
+                }, 3000);
+            }
+
+            _sfFloatShown = true;
+        }
+
+        // Start cooldown ticker
+        if (!_sfFloatCooldownTimer) {
+            _sfFloatCooldownTimer = setInterval(_sfFloatTickCooldown, 500);
+        }
+    }
+
+    function _sfFloatTickCooldown() {
+        var label = document.getElementById('sfFloatLabel');
+        var btn = document.getElementById('sfFloatBtn');
+        if (!label || !btn) { clearInterval(_sfFloatCooldownTimer); _sfFloatCooldownTimer = null; return; }
+
+        // Calculate time until next hash is available
+        var effectiveRate = _sfEffectiveRate();
+        var now = Date.now();
+        var recent = hashTimestamps.filter(function(t) { return now - t < HASH_WINDOW_MS; });
+        var canHash = recent.length < effectiveRate;
+
+        if (canHash) {
+            label.textContent = 'HASH';
+            btn.style.opacity = '1';
+            btn.style.transform = 'scale(1)';
+        } else {
+            // Show seconds until oldest ts falls outside the window
+            var oldest = recent[0];
+            var waitMs = HASH_WINDOW_MS - (now - oldest);
+            var waitSec = Math.ceil(waitMs / 1000);
+            label.textContent = waitSec + 's';
+            btn.style.opacity = '0.55';
+        }
+    }
+
+    window._sfFloatHash = async function() {
+        var btn = document.getElementById('sfFloatBtn');
+        var label = document.getElementById('sfFloatLabel');
+
+        // Check logged in
+        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (typeof showToast === 'function') showToast('Sign in to mine!');
+            return;
+        }
+        if (!favorState || !favorState.favorActive) {
+            if (typeof showToast === 'function') showToast('Satoshi\'s Favor is not active.');
+            return;
+        }
+
+        // Check client-side rate limit
+        var effectiveRate = _sfEffectiveRate();
+        var now = Date.now();
+        hashTimestamps = hashTimestamps.filter(function(t) { return now - t < HASH_WINDOW_MS; });
+        if ((typeof currentUser === 'undefined' || !currentUser || !(currentUser.hashBoosterHashes > 0)) && hashTimestamps.length >= effectiveRate) {
+            var oldest = hashTimestamps[0];
+            var waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldest)) / 1000);
+            if (typeof showToast === 'function') showToast('⏳ ' + waitSec + 's until next hash');
+            return;
+        }
+
+        // Animate button
+        if (btn) { btn.textContent = '💫'; btn.style.transform = 'scale(0.88)'; btn.style.opacity = '0.7'; }
+        if (label) label.textContent = '...';
+
+        try {
+            var fn = firebase.functions().httpsCallable('hashForFavor');
+            var result = await fn({ rig: 1 });
+            var data = result.data;
+            var value = data.value;
+            var isWinner = data.isWinner;
+
+            // Record timestamp
+            hashTimestamps.push(Date.now());
+
+            // Decrement booster if active
+            if (typeof currentUser !== 'undefined' && currentUser && (currentUser.hashBoosterHashes || 0) > 0) {
+                currentUser.hashBoosterHashes = Math.max(0, currentUser.hashBoosterHashes - 1);
+            }
+
+            if (btn) { btn.textContent = isWinner ? '🏆' : '⛏️'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+
+            if (isWinner) {
+                if (typeof showToast === 'function') showToast('🏆 YOU WON! Hash: ' + value.toLocaleString() + ' — 21,000 sats incoming!', 6000);
+                if (typeof window.launchConfetti === 'function') window.launchConfetti();
+            } else {
+                // Brief flash of the hash value in the label
+                if (label) {
+                    label.textContent = value.toLocaleString();
+                    setTimeout(function() { _sfFloatTickCooldown(); }, 1200);
+                }
+                if (typeof showToast === 'function') showToast('⛏️ Hash: ' + value.toLocaleString() + (value < 100000 ? ' 🔥 So close!' : ''), 2000);
+            }
+
+            // Update SF hashes count for badges
+            var hc = parseInt(localStorage.getItem('btc_sf_hashes') || '0') + 1;
+            localStorage.setItem('btc_sf_hashes', hc.toString());
+
+        } catch(e) {
+            if (btn) { btn.textContent = '⛏️'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+            var msg = (e && e.message) || '';
+            if (msg.indexOf('rate') !== -1 || msg.indexOf('exhausted') !== -1) {
+                if (typeof showToast === 'function') showToast('⏳ Rate limit — wait a moment');
+            } else {
+                if (typeof showToast === 'function') showToast('Hash failed — try again');
+            }
+            console.error('[SF FLOAT] Hash error:', msg);
+        }
+    };
+
+    // Hook into updateAllUIs so widget appears/disappears with SF state changes
+    var _origUpdateAllUIs = typeof updateAllUIs === 'function' ? updateAllUIs : null;
+    function _sfFloatHookUpdateAllUIs() { _sfUpdateFloat(); }
+    // Patch updateAllUIs to also call float update
+    if (typeof updateAllUIs === 'function') {
+        var _updateAllUIsOrig = updateAllUIs;
+        updateAllUIs = function() {
+            _updateAllUIsOrig();
+            _sfUpdateFloat();
+        };
+    }
+
     // ─── START ───
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initSatoshiFavor);

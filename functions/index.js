@@ -6444,3 +6444,7 @@ function fallbackCluster(signals) {
 // ─────────────────────────────────────────────────────────────────────────────
 // END HOT TOPICS
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ── Satoshi's Favor → X auto-post ────────────────────────────────────────────
+const { tweetSatoshisFavor } = require('./src/tweetSatoshisFavor');
+exports.tweetSatoshisFavor = tweetSatoshisFavor;
