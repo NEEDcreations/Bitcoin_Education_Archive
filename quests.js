@@ -2791,7 +2791,7 @@ function _loadLastSFWindow() {
         var totalH = d.totalHashes || 0;
         var lowestH = d.lowestHash != null ? d.lowestHash.toLocaleString() : '—';
         var durMin = d.durationMinutes || 0;
-        var _sfTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 15000;
+        var _sfTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 10000;
         // Use the difficulty that was active at window end time, not current
         var _windowTarget = d.difficultyTarget || _sfTarget;
         var hadWinner = d.lowestHash != null && d.lowestHash < _windowTarget;
