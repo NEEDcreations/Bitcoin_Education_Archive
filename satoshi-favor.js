@@ -12,7 +12,7 @@
     // 2026-06-02  |   1,000 |      0       | Genesis (launch)
     // 2026-06-21  |  30,000 |      0       | -96.67% difficulty drop — no winner in 19 days, ~1:3,333 odds now
     // 2026-06-30  |  15,000 |      0       | +100% difficulty raise — tightening odds to ~1:6,667
-    // 2026-07-02  |  10,000 |      0       | -33% difficulty drop — loosening odds to ~1:10,000
+    // 2026-07-02  |  10,000 |      0       | +50% difficulty raise — tightening odds to ~1:10,000
     const DIFFICULTY_TARGET = 10000;
     // ── Difficulty history (ordered oldest→newest) ─────────────────
     // Add a new entry here whenever the target changes. quests.js reads
@@ -22,7 +22,7 @@
         { date: '2026-06-02', target: 1000,  label: 'Genesis' },
         { date: '2026-06-21', target: 30000, label: '-96.67% drop' },
         { date: '2026-06-30', target: 15000, label: '+100% raise' },
-        { date: '2026-07-02', target: 10000, label: '-33% drop' },
+        { date: '2026-07-02', target: 10000, label: '+50% raise' },
     ];
     window.SF_DIFFICULTY_TARGET  = DIFFICULTY_TARGET;   // expose for other modules
     window.SF_DIFFICULTY_HISTORY = SF_DIFFICULTY_HISTORY; // expose for difficulty table
@@ -1226,7 +1226,7 @@
             w.id = 'sfFloatWidget';
             w.style.cssText = [
                 'position:fixed',
-                'bottom:72px',               // above mobile bottom nav
+                'bottom:145px',              // above mobile bottom nav + FAB row
                 'right:14px',
                 'z-index:9000',
                 'display:flex',
@@ -1253,7 +1253,7 @@
                     'background:rgba(0,0,0,0.7);padding:2px 6px;border-radius:6px;' +
                     'white-space:nowrap;pointer-events:none;letter-spacing:0.3px;">HASH</div>' +
                 // TCTV link hint
-                '<a href="#tctv" onclick="if(typeof go===\'function\'){go(\'tctv\');} return false;" style="' +
+                '<a href="#timechain-tv" onclick="if(typeof go===\'function\'){go(\'timechain-tv\');} return false;" style="' +
                     'font-size:0.52rem;color:rgba(255,255,255,0.7);text-decoration:none;' +
                     'background:rgba(0,0,0,0.5);padding:2px 5px;border-radius:5px;' +
                     'white-space:nowrap;letter-spacing:0.2px;' +
@@ -1273,7 +1273,7 @@
                 _sfFloatTCTVNudgeDone = true;
                 setTimeout(function() {
                     if (typeof showToast === 'function') {
-                        showToast('⛏️ Satoshi\'s Favor is live! Tap the orange button to hash from anywhere — <a href="#tctv" onclick="if(typeof go===\'function\'){go(\'tctv\');}" style="color:#f7931a;font-weight:700;">even while watching Timechain TV</a>! 📺', 6000);
+                        showToast('⛏️ Satoshi\'s Favor is live! Tap the orange button to hash from anywhere — <a href="#timechain-tv" onclick="if(typeof go===\'function\'){go(\'timechain-tv\');}" style="color:#f7931a;font-weight:700;">even while watching Timechain TV</a>! 📺', 6000);
                     }
                 }, 3000);
             }
