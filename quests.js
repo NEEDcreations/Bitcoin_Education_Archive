@@ -3334,22 +3334,28 @@ function _renderNookShop() {
         '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);">🎟️ Sats Raffle Entry</div>' +
         '<div style="font-size:0.72rem;color:#f7931a;font-weight:800;margin-top:2px;">⚡ Prize: 21,000 sats</div>' +
         '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this month: <strong style="color:#eab308;">' + raffleEntries + '</strong> · Enter through July — first drawing August 1st!</div>' +
-        '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">🎟️ Community entries this month: ...</div>' +
+        '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">🎟️ Community entries (Jun+Jul): ...</div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;margin-bottom:4px;">10 🎟️</div>' +
         buyBtn('raffle_entry', 10, 1, 'Enter') +
         '</div>' +
         '</div>' +
     '</div>';
-    // Fetch community raffle total asynchronously (month-scoped)
+    // Fetch community raffle total — combine June + July (combined raffle period)
     (function() {
         if (typeof db === 'undefined') return;
-        var monthKey = new Date().toISOString().slice(0,7); // YYYY-MM
-        db.collection('stats').doc('raffle_' + monthKey).get().then(function(snap) {
+        Promise.all([
+            db.collection('stats').doc('raffle_2026-06').get(),
+            db.collection('stats').doc('raffle_2026-07').get()
+        ]).then(function(snaps) {
             var el2 = document.getElementById('_raffleCommTotal');
             if (!el2) return;
-            var tot = (snap.exists && snap.data() && snap.data().totalEntries) ? snap.data().totalEntries : 0;
-            el2.textContent = '🎟️ Community entries this month: ' + tot;
+            var jun = (snaps[0].exists && snaps[0].data() && snaps[0].data().totalEntries) ? snaps[0].data().totalEntries : 0;
+            var jul = (snaps[1].exists && snaps[1].data() && snaps[1].data().totalEntries) ? snaps[1].data().totalEntries : 0;
+            // July doc already carries June entries forward — use July total directly
+            // (carriedFrom === '2026-06' means June was merged in)
+            var tot = (snaps[1].exists && snaps[1].data() && snaps[1].data().carriedFrom === '2026-06') ? jul : (jun + jul);
+            el2.textContent = '🎟️ Community entries (Jun+Jul): ' + tot;
         }).catch(function() {});
     })();
 
