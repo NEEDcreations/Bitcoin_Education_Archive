@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-01T20:00:50.943Z",
+  "updated": "2026-07-02T00:00:48.466Z",
   "news": [
+    {
+      "date": "Jul 1, 2026",
+      "title": "Bitcoin Price Reclaims $60,000 As Strategy (MSTR) and Strive (ASST) Jump More Than 10%",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/markets/bitcoin-price-reclaims-60000-strategy",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Jul 1, 2026",
       "title": "AI&#8217;s Bitcoin Moment: Why the Open-Source Fight Looks Like Crypto Back in 2014",
@@ -14,13 +21,6 @@
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/moodys-flags-quantum-threat-to-bitcoin",
       "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 1, 2026",
-      "title": "Trump-backed American Bitcoin sets 1-for-15 reverse stock split in bid to maintain Nasdaq listing",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/post/406941/trump-backed-american-bitcoin-1-for-15-reverse-stock-split-maintain-nasdaq-listing?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
     }
   ]
 }
