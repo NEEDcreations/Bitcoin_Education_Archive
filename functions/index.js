@@ -2578,8 +2578,8 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             const limit = parts[2];
             return { success: false, error: 'Daily limit reached for this action (max ' + limit + '/day). Try again tomorrow.', dailyActionCapped: true };
         }
-        if (e.message === 'ALREADY_CLAIMED_TODAY') {
-            return { success: false, error: 'Daily tickets already claimed today.' };
+        if (e.message && e.message.startsWith('ALREADY_CLAIMED_TODAY')) {
+            return { success: false, error: 'Daily tickets already claimed today.', dailyActionCapped: true };
         }
         console.error('[AWARD_POINTS_TRANS_ERR]', e);
         return { success: false, error: e.message || 'Internal error' };

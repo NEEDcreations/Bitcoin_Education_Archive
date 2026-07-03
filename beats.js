@@ -977,7 +977,7 @@ function _uploadTracksSequential(storage, files, titles, artist, genre, coverUrl
         showToast('🎵 ' + total + ' track' + (total > 1 ? 's' : '') + ' uploaded!');var _bu2=parseInt(localStorage.getItem('btc_beats_uploads')||'0')+total;localStorage.setItem('btc_beats_uploads',_bu2.toString());
         sessionStorage.setItem('_ch_beats_upload', '1');
         if (typeof awardPoints === 'function') awardPoints(25 * total, 'Uploaded ' + total + ' track' + (total > 1 ? 's' : '') + ' to Bitcoin Beats!');
-        if (typeof awardTickets === 'function') awardTickets(10 * total, 'Beat uploaded');
+        // Tickets already awarded per-track by _onUploadSuccess — no bulk multiplier needed
         setTimeout(function() {
             var overlay = document.getElementById('beatsUploadOverlay');
             if (overlay) overlay.remove();
