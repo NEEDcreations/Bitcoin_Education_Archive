@@ -86,11 +86,11 @@ function renderPOWConnect() {
     const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${STRAVA_REDIRECT_URI}&approval_prompt=force&scope=read,activity:read_all&state=${stateUrl}`;
     
     document.getElementById('pow-ui-state').innerHTML = `
-        <a href="${authUrl}" style="display:inline-block;margin-bottom:12px;"><img src="images/strava/btn_connect_orange.svg" alt="Connect with Strava" style="height:48px;"></a>
+        <a href="${authUrl}" style="display:inline-block;margin-bottom:12px;"><img src="https://assets.bitcoineducation.quest/images/strava/btn_connect_orange.svg" alt="Connect with Strava" style="height:48px;"></a>
         <br>
         <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;margin-top:4px;display:inline-block;box-shadow:none;">Download Strava</a>
         <div style="font-size:0.7rem;color:#666;margin-top:16px;">We only read your activity distances to award points. No GPS, routes, or personal data is stored. <a href="#pow-support" style="color:#fc4c02;">Learn more</a></div>
-        <div style="margin-top:12px;"><a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:24px;opacity:0.7;"></a></div>
+        <div style="margin-top:12px;"><a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="https://assets.bitcoineducation.quest/images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:24px;opacity:0.7;"></a></div>
     `;
 }
 
@@ -135,7 +135,7 @@ function renderPOWDashboard(stravaData) {
         </div>
 
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-            <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:24px;opacity:0.7;"></a>
+            <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="https://assets.bitcoineducation.quest/images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:24px;opacity:0.7;"></a>
             <div style="display:flex;gap:8px;align-items:center;">
                 <a href="#pow-support" style="color:#888;font-size:0.75rem;">Support</a>
                 <button onclick="disconnectStrava()" style="background:transparent;border:1px solid #666;color:#888;font-size:0.7rem;padding:4px 10px;border-radius:6px;cursor:pointer;">Disconnect &amp; Delete Data</button>
@@ -395,7 +395,7 @@ window.renderPOWSupport = function() {
             '<div style="font-size:2.5rem;margin-bottom:8px;">👟</div>' +
             '<h1 style="font-size:1.5rem;font-weight:800;color:var(--heading);margin:0 0 6px;">Proof of Walk — Support</h1>' +
             '<p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 12px;">Help center for walkers using Strava with Bitcoin Education Archive</p>' +
-            '<a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:28px;opacity:0.7;"></a>' +
+            '<a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="https://assets.bitcoineducation.quest/images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:28px;opacity:0.7;"></a>' +
         '</div>' +
 
         '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
