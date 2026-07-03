@@ -101,17 +101,20 @@ exports.tweetSatoshisFavor = functions.firestore
     const before = change.before.exists ? change.before.data() : null;
     const after  = change.after.exists  ? change.after.data()  : null;
 
-    // Only fire when favorActive flips false → true
-    const wasFalse = !before || before.favorActive === false;
-    const isNowTrue = after && after.favorActive === true;
+    const isNowTrue      = after  && after.favorActive  === true;
+    const wasAlreadyTrue = before && before.favorActive === true;
 
-    if (!wasFalse || !isNowTrue) {
+    // Debug log to trace what values we're seeing
+    console.log(`[TWEET] before.favorActive=${before ? before.favorActive : 'null'} after.favorActive=${after ? after.favorActive : 'null'} isNowTrue=${isNowTrue} wasAlreadyTrue=${wasAlreadyTrue}`);
+
+    // Only fire when favorActive flips → true (wasn't already true)
+    if (!isNowTrue || wasAlreadyTrue) {
       return null;
     }
 
     // Build tweet text
     const HASH_MAX = 100000000; // 100 million — matches satoshi-favor.js
-    const target = after.difficultyTarget || 15000;
+    const target = after.difficultyTarget || 10000;
     const odds = Math.round(HASH_MAX / target).toLocaleString();
     const durationMin = 90; // matches FAVOR_DURATION_MINUTES in satoshiFavor.js
 
