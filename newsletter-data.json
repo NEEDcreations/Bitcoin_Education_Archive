@@ -1,26 +1,26 @@
 {
-  "updated": "2026-07-03T04:08:10.793Z",
+  "updated": "2026-07-03T08:01:02.420Z",
   "news": [
+    {
+      "date": "Jul 3, 2026",
+      "title": "US bitcoin ETFs break 10-day negative streak with $222 million worth of inflows",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/post/407110/us-bitcoin-etfs-222-million-inflows?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
+    {
+      "date": "Jul 3, 2026",
+      "title": "Institutional Bitcoin Adoption Explained: How Blackrock, Fidelity and Others Embraced BTC",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/learn/407111/institutional-bitcoin-adoption-explained-how-blackrock-fidelity-and-others-embraced-btc?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
     {
       "date": "Jul 3, 2026",
       "title": "Just 10% of Gold's $30 TRILLION Rotating Into Bitcoin Changes Everything",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/3jOGaThCfKc",
       "source": "lukemikic"
-    },
-    {
-      "date": "Jul 2, 2026",
-      "title": "Self-Custody Your Bitcoin NOW, This Is Serious",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/ffrTZStEVIU",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 2, 2026",
-      "title": "Bitcoin Exchange Inflows Spike to 49,000 BTC in a Day, Signaling More Volatility is Coming: Report",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/markets/bitcoin-exchange-inflows-spike-to-49000",
-      "source": "bitcoin-magazine"
     }
   ]
 }
