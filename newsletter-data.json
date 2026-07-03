@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-03T00:01:01.756Z",
+  "updated": "2026-07-03T04:08:10.793Z",
   "news": [
+    {
+      "date": "Jul 3, 2026",
+      "title": "Just 10% of Gold's $30 TRILLION Rotating Into Bitcoin Changes Everything",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/3jOGaThCfKc",
+      "source": "lukemikic"
+    },
     {
       "date": "Jul 2, 2026",
       "title": "Self-Custody Your Bitcoin NOW, This Is Serious",
@@ -13,13 +20,6 @@
       "title": "Bitcoin Exchange Inflows Spike to 49,000 BTC in a Day, Signaling More Volatility is Coming: Report",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/markets/bitcoin-exchange-inflows-spike-to-49000",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 2, 2026",
-      "title": "Wavespace Launches MiCA-Compliant Self-Custodial Bitcoin Debit Card Powered by Lightning and NWC",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/business/wavespace-launches-mica-compliant-self-custodial-bitcoin-debit-card-powered-by-lightning-and-nwc",
       "source": "bitcoin-magazine"
     }
   ]
