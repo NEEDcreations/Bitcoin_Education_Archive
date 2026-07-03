@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-03T08:01:02.420Z",
+  "updated": "2026-07-03T12:01:02.708Z",
   "news": [
+    {
+      "date": "Jul 3, 2026",
+      "title": "&#8216;Markets find their footing&#8217;: Bitcoin holds $61,000 rebound ahead of US Independence Day as soft jobs data eases rate fears",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/post/407131/markets-find-their-footing-bitcoin-holds-61000-rebound-ahead-of-us-independence-day-as-soft-jobs-data-eases-rate-fears?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
     {
       "date": "Jul 3, 2026",
       "title": "US bitcoin ETFs break 10-day negative streak with $222 million worth of inflows",
@@ -14,13 +21,6 @@
       "snippet": "The Block",
       "link": "https://www.theblock.co/learn/407111/institutional-bitcoin-adoption-explained-how-blackrock-fidelity-and-others-embraced-btc?utm_source=rss&amp;utm_medium=rss",
       "source": "the-block"
-    },
-    {
-      "date": "Jul 3, 2026",
-      "title": "Just 10% of Gold's $30 TRILLION Rotating Into Bitcoin Changes Everything",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/3jOGaThCfKc",
-      "source": "lukemikic"
     }
   ]
 }
