@@ -229,7 +229,7 @@
             const PAGE = (typeof isMobile === 'function' && isMobile()) ? 40 : 100;
             const showing = allImgs.slice(0, PAGE);
             showing.forEach(img => {
-                html += '<img src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">';
+                html += '<img src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async" onerror="this.dataset.broken=1;this.alt=\'\';this.style.minHeight=\'40px\';this.style.background=\'var(--card-bg)\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'">';
             });
             html += '</div>';
             if (allImgs.length > PAGE) {
@@ -309,9 +309,9 @@
                     }
                     if (m.imgs) m.imgs.forEach(img => {
                         if (m.link) {
-                            html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>';
+                            html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'"></a>';
                         } else {
-                            html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">';
+                            html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'">';
                         }
                     });
                     var msgIdx = startIdx + bi;
@@ -4101,13 +4101,23 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     function renderSearchResults(results, sr) {
         if (results.length === 0) {
+            // Pull the current query from whichever input is active
+            var _eq = (document.getElementById('searchOverlayInput') || {}).value ||
+                      (document.getElementById('searchInput') || {}).value || '';
+            var _eq2 = escapeHtml(_eq.trim());
+            var _noResMsg = _eq2
+                ? 'No results for \u201c' + _eq2 + '\u201d'
+                : 'No results found';
             sr.innerHTML = '<div style="padding:20px;text-align:center;">' +
-                '<div style="color:var(--text-faint);margin-bottom:12px;">No results found</div>' +
-                '<div style="font-size:0.75rem;color:var(--text-muted);">Try: "Lightning Network" or "What is Bitcoin?"</div>' +
+                '<div style="color:var(--text-faint);margin-bottom:12px;">' + _noResMsg + '</div>' +
+                '<div style="font-size:0.75rem;color:var(--text-muted);">Try: &ldquo;Lightning Network&rdquo; or &ldquo;What is Bitcoin?&rdquo;</div>' +
             '</div>';
             return;
         }
-        sr.innerHTML = results.slice(0, 30).map(r => {
+        // Result count header
+        var _countLabel = results.length === 1 ? '1 result' : Math.min(results.length, 30) + (results.length > 30 ? '+' : '') + ' results';
+        var _countHtml = '<div style="padding:8px 16px 4px;font-size:0.7rem;color:var(--text-faint);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">' + _countLabel + '</div>';
+        sr.innerHTML = _countHtml + '<div>' + results.slice(0, 30).map(r => {
             const isApp = r.key && r.key.startsWith('_');
             const onclick = isApp && r.action ? r.action : "selectResult('" + r.key + "'," + (typeof r.msgIdx === 'number' ? r.msgIdx : -1) + ")";
             const style = isApp ? 'border-left:3px solid var(--accent);' : '';
@@ -4115,7 +4125,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 '<div class="sr-cat">' + r.cat + '</div>' +
                 '<div>' + r.title + '</div>' +
                 '<div class="sr-match">' + r.match + '</div></div>';
-        }).join('');
+        }).join('') + '</div>';
     }
 
     function saveRecentSearch(q) {

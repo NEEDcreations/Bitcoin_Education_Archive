@@ -5398,6 +5398,17 @@ function showSettingsPage(tab) {
     box.innerHTML = html;
     modal.classList.add('open');
 
+    // Auto-focus key inputs after render
+    setTimeout(function() {
+        if (settingsTab === 'account') {
+            // Focus country input if empty (nudge to fill), else username field if visible
+            var _cInp = document.getElementById('countryInput');
+            var _uInp = document.getElementById('newUsername');
+            if (_cInp && !_cInp.value) { _cInp.focus(); }
+            else if (_uInp && document.activeElement !== _uInp) { /* don't steal focus from username, let user scroll to it */ }
+        }
+    }, 150);
+
     // Load sats history if on sats tab
     if (settingsTab === 'sats' && typeof loadSatsHistory === 'function') {
         setTimeout(loadSatsHistory, 100);

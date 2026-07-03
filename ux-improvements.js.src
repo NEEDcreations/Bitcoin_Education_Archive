@@ -207,5 +207,166 @@
         }, 150);
     };
 
+    // ─── UX-A: Search Clear Button (✕ inside overlay input) ────────
+    // Adds a clear button inside the search overlay input when it has text.
+    (function() {
+        function _installSearchClear() {
+            var overlay = document.getElementById('searchOverlay');
+            if (!overlay) { setTimeout(_installSearchClear, 500); return; }
+            var inp = document.getElementById('searchOverlayInput');
+            if (!inp) return;
+            // Only add once
+            if (document.getElementById('searchClearBtn')) return;
+
+            var wrapper = inp.parentNode;
+            var origStyle = getComputedStyle(inp);
+            // Wrap input in a relative container if not already
+            if (wrapper.style.position !== 'relative' && getComputedStyle(wrapper).position !== 'relative') {
+                wrapper.style.position = 'relative';
+            }
+
+            var btn = document.createElement('button');
+            btn.id = 'searchClearBtn';
+            btn.innerHTML = '✕';
+            btn.setAttribute('aria-label', 'Clear search');
+            btn.style.cssText = 'position:absolute;right:10px;top:50%;transform:translateY(-50%);' +
+                'background:none;border:none;color:var(--text-muted);font-size:1.1rem;cursor:pointer;' +
+                'padding:4px 6px;display:none;z-index:5;line-height:1;touch-action:manipulation;' +
+                '-webkit-tap-highlight-color:transparent;';
+            inp.parentNode.style.position = 'relative';
+            inp.parentNode.style.display = 'block';
+            inp.parentNode.appendChild(btn);
+            // Indent input so text doesn't go under button
+            inp.style.paddingRight = '36px';
+
+            function syncBtn() {
+                btn.style.display = inp.value.length > 0 ? 'flex' : 'none';
+            }
+            inp.addEventListener('input', syncBtn);
+            inp.addEventListener('focus', syncBtn);
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                inp.value = '';
+                if (typeof doSearch === 'function') doSearch('');
+                inp.focus();
+                syncBtn();
+            });
+            // Keep in sync if value set programmatically
+            setInterval(syncBtn, 500);
+        }
+        // Wait for overlay to be added to DOM
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(_installSearchClear, 300);
+        });
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(_installSearchClear, 300);
+        }
+    })();
+
+    // ─── UX-B: Toast Tap-to-Dismiss ───────────────────────────
+    // Tap any toast to dismiss it immediately.
+    (function() {
+        var _origShowToastNow = null;
+        function _patchToastTapDismiss() {
+            // ranking.js defines _showToastNow — patch it
+            if (typeof window._showToastNow === 'function' && !window._showToastTapPatched) {
+                window._showToastTapPatched = true;
+                var _orig = window._showToastNow;
+                window._showToastNow = function(msg, duration) {
+                    _orig(msg, duration);
+                    // Find the last toast added and wire dismiss
+                    requestAnimationFrame(function() {
+                        var toasts = document.querySelectorAll('.rank-toast');
+                        var t = toasts[toasts.length - 1];
+                        if (t && !t._tapPatched) {
+                            t._tapPatched = true;
+                            t.style.cursor = 'pointer';
+                            t.addEventListener('click', function() {
+                                t.classList.remove('show');
+                                setTimeout(function() { if (t.parentNode) t.remove(); }, 400);
+                            });
+                        }
+                    });
+                };
+                return true;
+            }
+            return false;
+        }
+        // Try immediately and retry until ranking.js has loaded
+        var _tapPatchInterval = setInterval(function() {
+            if (_patchToastTapDismiss()) clearInterval(_tapPatchInterval);
+        }, 200);
+        setTimeout(function() { clearInterval(_tapPatchInterval); }, 10000);
+    })();
+
+    // ─── UX-C: Broken Image Fallback ──────────────────────────
+    // Replace broken images with a subtle grey placeholder.
+    (function() {
+        var _style = document.createElement('style');
+        _style.textContent = '.msg-img[data-broken]{display:inline-block;width:100%;min-height:60px;max-height:140px;background:var(--card-bg,#1e293b);border:1px dashed var(--border,#333);border-radius:8px;opacity:0.4;}';
+        document.head.appendChild(_style);
+
+        function _handleBrokenImage(img) {
+            if (img._brokenHandled) return;
+            img._brokenHandled = true;
+            img.dataset.broken = '1';
+            img.alt = '';
+            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; // 1×1 transparent
+        }
+
+        // Delegate: any img.msg-img that fails
+        document.addEventListener('error', function(e) {
+            var el = e.target;
+            if (el && el.tagName === 'IMG' && el.classList.contains('msg-img')) {
+                _handleBrokenImage(el);
+            }
+        }, true);
+
+        // Also scan images already in DOM (e.g. gallery)
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('img.msg-img').forEach(function(img) {
+                if (!img.complete || img.naturalWidth === 0) {
+                    img.addEventListener('error', function() { _handleBrokenImage(img); });
+                }
+            });
+        });
+    })();
+
+    // ─── UX-D: Bottom Nav Tap Target Padding ──────────────────
+    // Increase the hit zone for mobile-bar buttons without changing visual size.
+    (function() {
+        function _patchMobileBarTargets() {
+            var bar = document.querySelector('.mobile-bar');
+            if (!bar) return;
+            bar.querySelectorAll('button').forEach(function(btn) {
+                // Only patch small icon buttons (<=40px wide), not the ☰ Topics button
+                var r = btn.getBoundingClientRect();
+                if (r.width && r.width <= 42) {
+                    btn.style.minWidth = '44px';
+                    btn.style.minHeight = '44px';
+                }
+            });
+        }
+        if (document.readyState === 'complete') { _patchMobileBarTargets(); }
+        else { window.addEventListener('load', _patchMobileBarTargets); }
+    })();
+
+    // ─── UX-E: System Dark Mode on First Visit ────────────────
+    // Respect prefers-color-scheme for first-time users (no stored theme).
+    (function() {
+        var stored = localStorage.getItem('theme');
+        if (!stored && window.matchMedia) {
+            if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+                document.body.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                // Update moon button if present
+                var btn = document.getElementById('mobileThemeBtn') || document.getElementById('themeBtn');
+                if (btn) btn.textContent = '☀️';
+            }
+        }
+    })();
+
     console.log('[AUDIT] UX improvements loaded');
 })();
