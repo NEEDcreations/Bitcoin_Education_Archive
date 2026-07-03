@@ -2794,6 +2794,7 @@ var _lbSearchQuery = '';
 var _lbSearchLastRank = 0;
 var _lbSearchHasMore = false;
 var _lbSearchLoading = false;
+var _lbSearchGeneration = 0; // incremented on every new query; stale in-flight results self-discard
 
 function _lbBuildResultRow(u) {
     var pts = (u.points || 0).toLocaleString();
@@ -2807,7 +2808,14 @@ function _lbBuildResultRow(u) {
 }
 
 async function _lbSearchLoad(query, afterRank, append) {
-    if (_lbSearchLoading) return;
+    // Stamp this call; any older in-flight request will discard its results when it lands
+    var myGen = ++_lbSearchGeneration;
+    // For fresh searches, always proceed (cancel previous); for load-more, gate on flag
+    if (!append) {
+        _lbSearchLoading = false; // release any stuck lock from previous query
+    } else if (_lbSearchLoading) {
+        return;
+    }
     _lbSearchLoading = true;
     var resultEl = document.getElementById('lbSearchResult');
     if (!resultEl) { _lbSearchLoading = false; return; }
@@ -2817,7 +2825,18 @@ async function _lbSearchLoad(query, afterRank, append) {
     if (oldBtn) oldBtn.remove();
 
     if (!append) {
-        resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
+        // Keep any local hits visible; show a subtle spinner below them
+        var _existingHits = resultEl.querySelectorAll('.lb-search-result');
+        if (!_existingHits.length) {
+            resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
+        } else {
+            var spinDiv = document.createElement('div');
+            spinDiv.id = 'lbSearchSpinner';
+            spinDiv.className = 'lb-search-none';
+            spinDiv.style.cssText = 'font-size:0.75rem;opacity:0.5;padding:4px 0;';
+            spinDiv.textContent = '\u29d7 Searching all users...';
+            resultEl.appendChild(spinDiv);
+        }
     } else {
         var loadingRow = document.createElement('div');
         loadingRow.id = 'lbSearchLoadingRow';
@@ -2829,15 +2848,24 @@ async function _lbSearchLoad(query, afterRank, append) {
     try {
         var searchFn = firebase.functions().httpsCallable('searchUsers');
         var res = await searchFn({ query: query, pageSize: 10, afterRank: afterRank });
+
+        // Stale response — a newer query already took over; silently discard
+        if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
+
         var users = (res.data && res.data.users) || [];
         var hasMore = !!(res.data && res.data.hasMore);
 
-        // Remove loading indicator
+        // Remove loading indicators
         var lr = document.getElementById('lbSearchLoadingRow');
         if (lr) lr.remove();
+        var sp = document.getElementById('lbSearchSpinner');
+        if (sp) sp.remove();
 
         if (!append && !users.length) {
-            resultEl.innerHTML = '<div class="lb-search-none">No users found matching "' + escapeHtml(query) + '"</div>';
+            // If local hits are already shown, don't wipe them — just remove spinner
+            if (!resultEl.querySelector('.lb-search-result')) {
+                resultEl.innerHTML = '<div class="lb-search-none">No users found matching \u201c' + escapeHtml(query) + '\u201d</div>';
+            }
             _lbSearchLoading = false;
             return;
         }
@@ -2852,15 +2880,20 @@ async function _lbSearchLoad(query, afterRank, append) {
             var btn = document.createElement('button');
             btn.id = 'lbSearchMoreBtn';
             btn.style.cssText = 'width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin:4px 0 2px;';
-            btn.textContent = 'Show more results ▼';
+            btn.textContent = 'Show more results \u25bc';
             btn.onclick = function() { _lbSearchLoad(_lbSearchQuery, _lbSearchLastRank, true); };
             resultEl.appendChild(btn);
         }
     } catch(e) {
+        if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
         console.warn('[lbSearch]', e);
         var lr2 = document.getElementById('lbSearchLoadingRow');
         if (lr2) lr2.remove();
-        if (!append) resultEl.innerHTML = '<div class="lb-search-none">Search error — try again</div>';
+        var sp2 = document.getElementById('lbSearchSpinner');
+        if (sp2) sp2.remove();
+        if (!append && !resultEl.querySelector('.lb-search-result')) {
+            resultEl.innerHTML = '<div class="lb-search-none">Search error \u2014 try again</div>';
+        }
     }
     _lbSearchLoading = false;
 }
@@ -2869,7 +2902,8 @@ window.lbSearchUser = function(val) {
     var resultEl = document.getElementById('lbSearchResult');
     if (!resultEl) return;
     val = (val || '').trim();
-    if (!val || val.length < 2) { resultEl.innerHTML = ''; _lbSearchQuery = ''; return; }
+    // Clear on empty; allow single-char (catches short usernames)
+    if (!val) { resultEl.innerHTML = ''; _lbSearchQuery = ''; _lbSearchGeneration++; clearTimeout(_lbSearchTimer); return; }
 
     // Track search use for Search Sleuth badge
     try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('user') === -1) { _ss.push('user'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
@@ -2895,14 +2929,16 @@ window.lbSearchUser = function(val) {
         // Still fire cloud search in background to catch users not in top 150
     }
 
+    // Always update query immediately so any in-flight call resolves to latest
+    _lbSearchQuery = val;
     clearTimeout(_lbSearchTimer);
+    // Shorter debounce for very short queries (mostly resolved from local cache anyway)
+    var _debounceMs = val.length <= 2 ? 160 : 260;
     _lbSearchTimer = setTimeout(function() {
-        _lbSearchQuery = val;
         _lbSearchLastRank = 0;
         _lbSearchHasMore = false;
-        _lbSearchLoading = false;
         _lbSearchLoad(val, 0, false);
-    }, 350);
+    }, _debounceMs);
 };
 
 // Close leaderboard when clicking/tapping outside.
