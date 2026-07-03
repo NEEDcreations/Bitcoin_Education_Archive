@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-02T20:00:48.930Z",
+  "updated": "2026-07-03T00:01:01.756Z",
   "news": [
+    {
+      "date": "Jul 2, 2026",
+      "title": "Self-Custody Your Bitcoin NOW, This Is Serious",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/ffrTZStEVIU",
+      "source": "lukemikic"
+    },
     {
       "date": "Jul 2, 2026",
       "title": "Bitcoin Exchange Inflows Spike to 49,000 BTC in a Day, Signaling More Volatility is Coming: Report",
@@ -14,13 +21,6 @@
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/business/wavespace-launches-mica-compliant-self-custodial-bitcoin-debit-card-powered-by-lightning-and-nwc",
       "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 2, 2026",
-      "title": "JPMorgan says Strategy&#8217;s bitcoin sale policy introduced &#8216;avoidable&#8217; risk into crypto markets",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/post/407071/jpmorgan-strategy-mstr-bitcoin-sale-policy-risk-crypto-markets?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
     }
   ]
 }
