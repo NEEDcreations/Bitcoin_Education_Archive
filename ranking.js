@@ -1058,25 +1058,99 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
     }
 }
 
+// Show the in-app browser sign-in modal: magic link works inline; OAuth needs real browser
+window._showIABSignInModal = function() {
+    if (document.getElementById('_iabSignInModal')) return;
+    var _ua = navigator.userAgent || '';
+    var _isAndroid = /Android/i.test(_ua);
+    var _isIOS = /iPhone|iPad/i.test(_ua);
+    var _currentUrl = window.location.href;
+    // Android intent:// deep link — forces Chrome/system browser to open the URL directly
+    var _intentUrl = _isAndroid
+        ? 'intent://' + _currentUrl.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'
+        : null;
+    var _openBtnHtml = _isAndroid
+        ? '<a href="' + _intentUrl + '" style="display:block;width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;font-size:0.9rem;box-sizing:border-box;text-align:center;margin-bottom:8px;">🌐 Open in Chrome</a>'
+        : '';
+        var _hint = _isIOS ? 'Tap the share icon (↑) → "Open in Safari"'
+        : _isAndroid ? 'Tap ⋮ (menu) → "Open in Browser"'
+        : 'Open this page in your default browser';
+
+    var _modal = document.createElement('div');
+    _modal.id = '_iabSignInModal';
+    _modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.85);padding:0;';
+    _modal.innerHTML =
+        '<div id="_iabSignInBox" style="background:var(--bg-side,#1a1a2e);border-top:2px solid var(--accent);border-radius:24px 24px 0 0;padding:28px 24px 36px;max-width:440px;width:100%;max-height:90vh;overflow-y:auto;">' +
+            '<div style="text-align:center;margin-bottom:20px;">' +
+                '<div style="font-size:2.2rem;margin-bottom:8px;">₿</div>' +
+                '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:900;margin:0 0 6px;">Create Your Account</h3>' +
+                '<p style="color:var(--text-muted);font-size:0.8rem;margin:0;line-height:1.5;">Use email sign-in below — it works right here.<br>Or open in your browser for Google/Twitter.</p>' +
+            '</div>' +
+            // Magic link section — works inside any IAB
+            '<div style="background:rgba(247,147,26,0.07);border:1px solid rgba(247,147,26,0.25);border-radius:14px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-size:0.78rem;font-weight:800;color:var(--accent);margin-bottom:10px;">✉️ Sign up / Sign in with Email</div>' +
+                '<div style="display:flex;gap:8px;">' +
+                    '<input id="_iabEmailInput" type="email" placeholder="your@email.com" autocomplete="email" style="flex:1;padding:11px 14px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
+                    '<button id="_iabSendBtn" onclick="window._iabSendMagicLink()" style="padding:11px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;white-space:nowrap;">Send Link</button>' +
+                '</div>' +
+                '<div id="_iabEmailStatus" style="font-size:0.75rem;color:var(--text-muted);margin-top:8px;min-height:18px;">We\'ll email you a one-tap sign-in link.</div>' +
+            '</div>' +
+            // Divider
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
+                '<div style="flex:1;height:1px;background:var(--border);"></div>' +
+                '<span style="font-size:0.72rem;color:var(--text-faint);">OR open in your browser for Google/Twitter</span>' +
+                '<div style="flex:1;height:1px;background:var(--border);"></div>' +
+            '</div>' +
+            // Open in browser buttons
+            _openBtnHtml +
+            '<button onclick="(function(){var url=window.location.href;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(function(){if(typeof showToast===\'function\')showToast(\'📋 Link copied! Paste in your browser.\');}).catch(function(){});}else{var ta=document.createElement(\'textarea\');ta.value=url;document.body.appendChild(ta);ta.select();try{document.execCommand(\'copy\');}catch(e){}document.body.removeChild(ta);if(typeof showToast===\'function\')showToast(\'📋 Link copied!\');}})()" style="width:100%;padding:12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;margin-bottom:8px;">📋 Copy Link</button>' +
+            '<p style="font-size:0.72rem;color:var(--text-faint);text-align:center;margin:0 0 12px;">' + _hint + '</p>' +
+            '<button onclick="document.getElementById(\'_iabSignInModal\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;font-size:0.85rem;">Close</button>' +
+        '</div>';
+    document.body.appendChild(_modal);
+    // Allow tap-on-backdrop to dismiss
+    _modal.addEventListener('click', function(e) { if (e.target === _modal) _modal.remove(); });
+    // Focus email input
+    setTimeout(function() {
+        var inp = document.getElementById('_iabEmailInput');
+        if (inp) inp.focus();
+    }, 100);
+};
+
+window._iabSendMagicLink = async function() {
+    var input = document.getElementById('_iabEmailInput');
+    var btn = document.getElementById('_iabSendBtn');
+    var status = document.getElementById('_iabEmailStatus');
+    if (!input) return;
+    var email = input.value.trim();
+    if (!email || !email.includes('@')) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Please enter a valid email address.</span>';
+        if (input) input.style.borderColor = '#ef4444';
+        return;
+    }
+    input.disabled = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+    if (status) status.innerHTML = '<span style="color:var(--accent);">Sending magic link…</span>';
+    window._captureSignupFormState && window._captureSignupFormState();
+    var sent = await sendMagicLink(email);
+    if (sent) {
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Check your email! Tap the link to sign in.</span>';
+        if (btn) { btn.textContent = '✅ Sent!'; }
+        if (input) input.style.borderColor = '#22c55e';
+    } else {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Could not send — check your email address.</span>';
+        input.disabled = false;
+        if (btn) { btn.disabled = false; btn.textContent = 'Send Link'; }
+        if (input) input.style.borderColor = '#ef4444';
+    }
+};
+
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
 
-    // In-app browsers can't do popups or redirects reliably — open in system browser
+    // In-app browsers can't do OAuth popups/redirects — show IAB-aware modal instead
     if (isInAppBrowser()) {
-        var _ua = navigator.userAgent || '';
-        var _hint = /iPhone|iPad/i.test(_ua) ? 'Tap the share icon (↑) → "Open in Safari"'
-            : /Android/i.test(_ua) ? 'Tap ⋮ (menu) → "Open in Browser"'
-            : 'Open this page in your default browser';
-        var _iab = document.createElement('div');
-        _iab.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.9);padding:20px;';
-        _iab.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
-            '<div style="font-size:2.5rem;margin-bottom:12px;">🌐</div>' +
-            '<h3 style="color:var(--heading);margin-bottom:8px;">Open in Browser</h3>' +
-            '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Sign-in doesn\'t work inside apps. ' + _hint + '</p>' +
-            '<button onclick="navigator.clipboard.writeText(window.location.href);if(typeof showToast===\'function\')showToast(\'📋 Link copied!\')" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">📋 Copy Link</button>' +
-            '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Close</button>' +
-        '</div>';
-        document.body.appendChild(_iab);
+        window._showIABSignInModal();
         return;
     }
 
@@ -3559,6 +3633,12 @@ function showUsernamePrompt() {
         }
         if (currentUser && currentUser.username) {
             showAccountInfo();
+            return;
+        }
+        // In-app browser (Instagram, TikTok, FB, etc.) — OAuth won't work.
+        // Skip the regular sign-up modal and show the IAB-aware sheet directly.
+        if (isInAppBrowser()) {
+            window._showIABSignInModal();
             return;
         }
         // If redirect result hasn't resolved yet, wait briefly for it
