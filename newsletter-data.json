@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-04T16:00:51.679Z",
+  "updated": "2026-07-04T20:00:50.916Z",
   "news": [
+    {
+      "date": "Jul 4, 2026",
+      "title": "This Is Why Self-Custody Beats Every Bitcoin ETF EVER",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/1AVEmjyPhKc",
+      "source": "lukemikic"
+    },
     {
       "date": "Jul 4, 2026",
       "title": "Gold's Reset Score Comes Down to Supply and Tax Risk",
@@ -13,13 +20,6 @@
       "title": "Even Bitcoin Is DEACTIVATED When the Power Goes Out",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/m2BU8IGB_AQ",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 3, 2026",
-      "title": "Bitcoin on an Exchange Means You Trust Larry Fink, Get a Hardware Wallet",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/zBi_zyRMGFM",
       "source": "lukemikic"
     }
   ]
