@@ -75,7 +75,12 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
         cycleId: stateData.currentCycleId || null,
         startedAt: stateData.favorStart || null,
         endedAt: admin.firestore.Timestamp.now(),
-        durationMinutes: Math.round((effectiveEnd - (stateData.favorStart ? stateData.favorStart.toMillis() : effectiveEnd)) / 60000),
+        durationMinutes: (function() {
+          if (!stateData.favorStart || !effectiveEnd) return 0;
+          const startMs = stateData.favorStart.toMillis();
+          const durMs = effectiveEnd - startMs;
+          return durMs > 0 ? Math.round(durMs / 60000) : 0;
+        })(),
         totalHashes: stateData.totalHashes || 0,
         lowestHash: stateData.lowestHashThisWindow || null,
         difficultyTarget: DIFFICULTY_TARGET,
@@ -651,7 +656,12 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
           cycleId: stateData.currentCycleId || null,
           startedAt: stateData.favorStart || null,
           endedAt: admin.firestore.Timestamp.now(),
-          durationMinutes: Math.round((effectiveEnd - (stateData.favorStart ? stateData.favorStart.toMillis() : effectiveEnd)) / 60000),
+          durationMinutes: (function() {
+            if (!stateData.favorStart || !effectiveEnd) return 0;
+            const startMs = stateData.favorStart.toMillis();
+            const durMs = effectiveEnd - startMs;
+            return durMs > 0 ? Math.round(durMs / 60000) : 0;
+          })(),
           totalHashes: stateData.totalHashes || 0,
           lowestHash: stateData.lowestHashThisWindow || null,
           difficultyTarget: DIFFICULTY_TARGET,
