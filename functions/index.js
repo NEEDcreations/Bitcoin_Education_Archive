@@ -2309,135 +2309,130 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
     let transactionResult = null;
     try {
         transactionResult = await db.runTransaction(async (t) => {
-            // 1. Check Cooldown (Atomic)
-            if (cooldownRef) {
-                const cooldownDoc = await t.get(cooldownRef);
-                if (cooldownDoc.exists) {
-                    const lastAction = cooldownDoc.data().ts;
-                    const lastTime = lastAction ? (lastAction.toDate ? lastAction.toDate() : new Date(lastAction)) : null;
-                    const cooldownMs = ACTION_COOLDOWNS[matchedAction];
-                    if (lastTime && (Date.now() - lastTime.getTime()) < cooldownMs) {
-                        throw new Error('TOO_FAST');
-                    }
-                }
-            }
+            // ── PHASE 1: ALL READS (Firestore requires reads before writes) ──
 
-            // 1a. Badge dedup - each badge can only award XP once per user, ever
-            // Use badgeKnown (set only when badge is in BADGE_VALUES catalog) so that
-            // omitting badgeId can no longer bypass this guard (exploit B).
-            if (badgeKnown) {
-                const badgeAwardRef = userRef.collection('badge_awards').doc(badgeId);
-                const badgeAwardDoc = await t.get(badgeAwardRef);
-                if (badgeAwardDoc.exists) {
-                    throw new Error('BADGE_ALREADY_AWARDED:' + badgeId);
-                }
-                // Stamp it inside the transaction so concurrent calls can't double-award
-                t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action });
-                // [AUDIT FIX H-2] Write visibleBadges server-side (blocked from client in rules)
-                t.update(userRef, { visibleBadges: admin.firestore.FieldValue.arrayUnion(badgeId) });
-            }
-
-            // 1c. Daily dedup for trivia and poll - one award per UTC day per action
-            // Uses daily_action_counts subcollection (CF-only, rules block client writes)
-            if (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt') {
-                const triviaRef = userRef.collection('daily_action_counts').doc(today + '_trivia');
-                const triviaDoc = await t.get(triviaRef);
-                if (triviaDoc.exists) {
-                    throw new Error('ALREADY_CLAIMED_TODAY:trivia');
-                }
-                t.set(triviaRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
-            }
-            if (matchedAction === 'poll_vote') {
-                const pollRef = userRef.collection('daily_action_counts').doc(today + '_poll_vote');
-                const pollDoc = await t.get(pollRef);
-                if (pollDoc.exists) {
-                    throw new Error('ALREADY_CLAIMED_TODAY:poll');
-                }
-                t.set(pollRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
-            }
-            // 1d-ext. Daily dedup for single-ticket-per-day sources
+            // Pre-compute all ref keys we may need to read
             const DAILY_TICKET_ACTIONS = [
                 'daily_trifecta_ticket', 'nacho_chat_ticket', 'daily_chat_ticket',
                 'pvp_win_ticket', 'flashcard_ticket',
                 'forum_post_ticket', 'marketplace_listing_ticket', 'irl_listing_ticket',
                 'tctv_watch_ticket',
             ];
-            if (DAILY_TICKET_ACTIONS.includes(matchedAction)) {
-                const dtRef = userRef.collection('daily_action_counts').doc(today + '_' + matchedAction);
-                const dtDoc = await t.get(dtRef);
-                if (dtDoc.exists) {
-                    throw new Error('ALREADY_CLAIMED_TODAY:' + matchedAction);
+            const flexId = matchedAction === 'flex_action'
+                ? (data.flexActionId || '').replace(/[^a-z0-9_]/g, '').substring(0, 30)
+                : null;
+            const comboTier = matchedAction === 'combo_bonus'
+                ? (data.comboTier || '').replace(/[^a-z0-9_]/g, '').substring(0, 20)
+                : null;
+
+            const badgeAwardRef = badgeKnown ? userRef.collection('badge_awards').doc(badgeId) : null;
+            const triviaRef = (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt')
+                ? userRef.collection('daily_action_counts').doc(today + '_trivia') : null;
+            const pollRef = matchedAction === 'poll_vote'
+                ? userRef.collection('daily_action_counts').doc(today + '_poll_vote') : null;
+            const dtRef = DAILY_TICKET_ACTIONS.includes(matchedAction)
+                ? userRef.collection('daily_action_counts').doc(today + '_' + matchedAction) : null;
+            const stravaRef = matchedAction === 'strava_connect_ticket'
+                ? userRef.collection('lifetime_awards').doc('strava_connect') : null;
+            const countedRef = (matchedAction === 'dj_set_ticket' || matchedAction === 'beats_upload_ticket' || matchedAction === 'raid_damage_ticket')
+                ? userRef.collection('daily_action_counts').doc(today + '_' + matchedAction) : null;
+            const flexRef = flexId ? userRef.collection('daily_action_counts').doc(today + '_flex_' + flexId) : null;
+            const comboRef = comboTier ? userRef.collection('daily_action_counts').doc(today + '_combo_' + comboTier) : null;
+
+            // Execute all reads in parallel
+            const readPromises = [
+                cooldownRef ? t.get(cooldownRef) : Promise.resolve(null),
+                badgeAwardRef ? t.get(badgeAwardRef) : Promise.resolve(null),
+                triviaRef ? t.get(triviaRef) : Promise.resolve(null),
+                pollRef ? t.get(pollRef) : Promise.resolve(null),
+                dtRef ? t.get(dtRef) : Promise.resolve(null),
+                stravaRef ? t.get(stravaRef) : Promise.resolve(null),
+                countedRef ? t.get(countedRef) : Promise.resolve(null),
+                flexRef ? t.get(flexRef) : Promise.resolve(null),
+                comboRef ? t.get(comboRef) : Promise.resolve(null),
+                dailyActionRef ? t.get(dailyActionRef) : Promise.resolve(null),
+                t.get(userRef),
+                t.get(dailyPtsRef),
+            ];
+            const [
+                cooldownDoc, badgeAwardDoc, triviaDoc, pollDoc, dtDoc,
+                stravaDoc, countedDoc, flexDoc, comboDoc,
+                dailyActionDoc, userDoc, dailyDoc
+            ] = await Promise.all(readPromises);
+
+            // ── PHASE 2: ALL VALIDATION (throws abort transaction before any writes) ──
+
+            // 1. Cooldown check
+            if (cooldownDoc && cooldownDoc.exists) {
+                const lastAction = cooldownDoc.data().ts;
+                const lastTime = lastAction ? (lastAction.toDate ? lastAction.toDate() : new Date(lastAction)) : null;
+                const cooldownMs = ACTION_COOLDOWNS[matchedAction];
+                if (lastTime && (Date.now() - lastTime.getTime()) < cooldownMs) {
+                    throw new Error('TOO_FAST');
                 }
-                t.set(dtRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
             }
-            // strava_connect: one-time ever (use a permanent doc, not daily)
-            if (matchedAction === 'strava_connect_ticket') {
-                const stravaRef = userRef.collection('lifetime_awards').doc('strava_connect');
-                const stravaDoc = await t.get(stravaRef);
-                if (stravaDoc.exists) {
-                    throw new Error('ALREADY_AWARDED:strava_connect');
-                }
-                t.set(stravaRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+            // 1a. Badge dedup
+            if (badgeAwardDoc && badgeAwardDoc.exists) {
+                throw new Error('BADGE_ALREADY_AWARDED:' + badgeId);
             }
-            // dj_set and beats_upload_ticket: cap at reasonable daily max (10/day)
-            if (matchedAction === 'dj_set_ticket' || matchedAction === 'beats_upload_ticket' || matchedAction === 'raid_damage_ticket') {
-                const countRef = userRef.collection('daily_action_counts').doc(today + '_' + matchedAction);
-                const countDoc = await t.get(countRef);
-                const currentCount = countDoc.exists ? (countDoc.data().count || 0) : 0;
+
+            // 1c. Daily dedup for trivia
+            if (triviaDoc && triviaDoc.exists) {
+                throw new Error('ALREADY_CLAIMED_TODAY:trivia');
+            }
+            // Daily dedup for poll
+            if (pollDoc && pollDoc.exists) {
+                throw new Error('ALREADY_CLAIMED_TODAY:poll');
+            }
+            // Daily dedup for single-ticket-per-day
+            if (dtDoc && dtDoc.exists) {
+                throw new Error('ALREADY_CLAIMED_TODAY:' + matchedAction);
+            }
+            // strava one-time check
+            if (stravaDoc && stravaDoc.exists) {
+                throw new Error('ALREADY_AWARDED:strava_connect');
+            }
+            // dj_set / beats_upload / raid_damage daily max
+            if (countedDoc) {
+                const currentCount = countedDoc.exists ? (countedDoc.data().count || 0) : 0;
                 const MAX = matchedAction === 'raid_damage_ticket' ? 50 : 10;
                 if (currentCount >= MAX) {
                     throw new Error('DAILY_LIMIT_REACHED:' + matchedAction);
                 }
-                t.set(countRef, { count: currentCount + 1, lastAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
             }
-            // 1d. Daily dedup for FLEX - one award per action-id per UTC day
+            // flex dedup
             if (matchedAction === 'flex_action') {
-                const flexId = (data.flexActionId || '').replace(/[^a-z0-9_]/g, '').substring(0, 30);
                 if (!flexId) throw new Error('FLEX_MISSING_ACTION_ID');
-                const flexRef = userRef.collection('daily_action_counts').doc(today + '_flex_' + flexId);
-                const flexDoc = await t.get(flexRef);
-                if (flexDoc.exists) {
-                    throw new Error('ALREADY_CLAIMED_TODAY:flex_' + flexId);
-                }
-                t.set(flexRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'flex_action', flexId });
+                if (flexDoc && flexDoc.exists) throw new Error('ALREADY_CLAIMED_TODAY:flex_' + flexId);
             }
-            // 1e. Daily dedup for combo bonus - one award per combo tier per UTC day
+            // combo dedup
             if (matchedAction === 'combo_bonus') {
-                const comboTier = (data.comboTier || '').replace(/[^a-z0-9_]/g, '').substring(0, 20);
                 if (!comboTier) throw new Error('COMBO_MISSING_TIER');
-                const comboRef = userRef.collection('daily_action_counts').doc(today + '_combo_' + comboTier);
-                const comboDoc = await t.get(comboRef);
-                if (comboDoc.exists) {
-                    throw new Error('ALREADY_CLAIMED_TODAY:combo_' + comboTier);
-                }
-                t.set(comboRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'combo_bonus', comboTier });
+                if (comboDoc && comboDoc.exists) throw new Error('ALREADY_CLAIMED_TODAY:combo_' + comboTier);
             }
-
-            // 1b. Check per-day action count (anti-spam)
+            // 1b. Per-day action count anti-spam
             let dailyActionUsed = 0;
-            if (dailyActionRef) {
-                const dailyActionDoc = await t.get(dailyActionRef);
-                dailyActionUsed = dailyActionDoc.exists ? (dailyActionDoc.data().count || 0) : 0;
+            if (dailyActionDoc && dailyActionDoc.exists) {
+                dailyActionUsed = dailyActionDoc.data().count || 0;
                 const limit = ACTION_DAILY_LIMITS[matchedAction];
-                if (dailyActionUsed >= limit) {
+                if (limit && dailyActionUsed >= limit) {
                     throw new Error('DAILY_ACTION_LIMIT:' + matchedAction + ':' + limit);
                 }
             }
 
-            const userDoc = await t.get(userRef);
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
 
-            // 2. Throttling for Daily Tickets (Server-side Fix)
+            // 2. Throttle for Daily Tickets
             if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
                 if (userData.lastTicketDate === today) {
                     throw new Error('ALREADY_CLAIMED_TODAY');
                 }
             }
 
-            // 3. Daily Cap Logic (affects points only, NOT channel tracking)
-            const dailyDoc = await t.get(dailyPtsRef);
-            const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
+            // 3. Daily cap
+            const dailyUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
 
             // 3a. OVERFLOW ROLLOVER (rebuilt 2026-04-22 per Phil)
             // Users who exceed 500 pts/day now bank the excess in `pendingOverflow`
@@ -2528,6 +2523,36 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             if (overflowAdded > 0 || overflowRedeemed > 0) {
                 userUpdate.pendingOverflow = pendingOverflowAfter + overflowAdded;
                 userUpdate.lastOverflowDate = today;
+            }
+
+            // ── PHASE 3: ALL WRITES ──
+
+            // Dedup stamps (badge, trivia, poll, tickets, strava, counted, flex, combo)
+            if (badgeAwardRef) {
+                t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action });
+                t.update(userRef, { visibleBadges: admin.firestore.FieldValue.arrayUnion(badgeId) });
+            }
+            if (triviaRef) {
+                t.set(triviaRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            }
+            if (pollRef) {
+                t.set(pollRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            }
+            if (dtRef) {
+                t.set(dtRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            }
+            if (stravaRef) {
+                t.set(stravaRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp() });
+            }
+            if (countedRef) {
+                const currentCount = countedDoc && countedDoc.exists ? (countedDoc.data().count || 0) : 0;
+                t.set(countedRef, { count: currentCount + 1, lastAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            }
+            if (flexRef) {
+                t.set(flexRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'flex_action', flexId });
+            }
+            if (comboRef) {
+                t.set(comboRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'combo_bonus', comboTier });
             }
 
             // Write user doc if we have anything to write (channel visit and/or points)
