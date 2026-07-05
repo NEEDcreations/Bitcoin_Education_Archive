@@ -753,7 +753,9 @@ function formatChatText(text, mentionUid) {
     var _mentionHandled = false;
     if (mentionUid) {
         // If we have a direct uid (from level-up announcements etc), use it for the first @mention
-        text = text.replace(/@([a-zA-Z0-9_ ]+?)(?= just | leveled| earned| completed| aced|[!.,;:?]|$)/, function(match, name) {
+        // Greedy multi-word match; terminators are keyword verbs or '!?' only — NOT bare punctuation
+        // (bare : or . appear mid-sentence in "earned a badge:" and must NOT be swallowed into the link)
+        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?='s | just | leveled| earned| completed| aced|[!?]|$)/, function(match, name) {
             _mentionHandled = true;
             var safeName = name.trim();
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
@@ -761,9 +763,18 @@ function formatChatText(text, mentionUid) {
             return placeholder;
         });
     }
-    // Handle remaining @mentions without uid (user-typed)
-    text = text.replace(/@([a-zA-Z0-9_]+)/g, function(match, name) {
-        var safeName = name.replace(/[\\'"/]/g, '').trim();
+    // Handle remaining @mentions without uid — try multi-word first (handles display names with spaces)
+    text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?='s | just | leveled| earned| completed| aced|[!?]|$)/g, function(match, name) {
+        if (_mentionHandled) return match; // already handled by uid branch above
+        var safeName = name.trim().replace(/['"]/g, '');
+        if (!safeName) return match;
+        var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
+        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
+        return placeholder;
+    });
+    // Fallback: single-word @mentions (user-typed, no space in name)
+    text = text.replace(/@([A-Za-z0-9_]+)/g, function(match, name) {
+        var safeName = name.replace(/['"]/g, '').trim();
         if (!safeName) return match;
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
         _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
@@ -3311,16 +3322,16 @@ function _renderAnnouncementItem(doc, context) {
     // 2. @username mentions — link to user profile using stored mentionUid
     var mentionUid = m.mentionUid || '';
     if (mentionUid) {
-        // Announcement with known uid: match multi-word display names via lookahead terminators (no /g — one mention per announcement)
-        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?= just | leveled| earned| completed| aced| SOLVED| crushed|[!.,;:?\u27A1]|$)/, function(_, rawName) {
+        // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
+        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?='s | just | leveled| earned| completed| aced| SOLVED| crushed|[!?\u27A1]|$)/, function(_, rawName) {
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
     } else {
         // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
-        // This regex is identical to the uid branch but routes to lookupUserByName by display name
+        // No uid — try multi-word first (for system announcements missing uid)
         var _annMentionFound = false;
-        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?= just | leveled| earned| completed| aced| SOLVED| crushed|[!.,;:?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?='s | just | leveled| earned| completed| aced| SOLVED| crushed|[!?\u27A1]|$)/, function(_, rawName) {
             _annMentionFound = true;
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
