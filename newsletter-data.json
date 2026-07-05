@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-05T12:00:49.539Z",
+  "updated": "2026-07-05T16:00:49.946Z",
   "news": [
+    {
+      "date": "Jul 5, 2026",
+      "title": "The Big Print Is Coming, and the Fed Will Need an Excuse",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/PlRsB0aUb9k",
+      "source": "lukemikic"
+    },
     {
       "date": "Jul 5, 2026",
       "title": "This Bitcoin Backup Mistake Could Cost Everything",
@@ -13,13 +20,6 @@
       "title": "Countries Are Buying, Mining And Trading Bitcoin in Secret",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/T4Qtrql4-AY",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 5, 2026",
-      "title": "Coinbase Insider Says 40 Countries Are Silently Building Bitcoin Reserves",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/VI0omUzS2kc",
       "source": "lukemikic"
     }
   ]
