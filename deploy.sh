@@ -7,7 +7,7 @@ cd /root/simple-archive
 
 # Load env vars if .env exists (not committed to git)
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    set -o allexport; source .env; set +o allexport
 fi
 
 # ---- Update data feeds ----

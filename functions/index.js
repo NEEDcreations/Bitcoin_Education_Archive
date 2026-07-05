@@ -5924,6 +5924,34 @@ exports.useBonusSpin = functions.https.onCall(async (data, context) => {
 const { onSchedule: onScheduleV2 } = require('firebase-functions/v2/scheduler');
 
 // Trigger: Friday 10 PM Eastern (America/New_York handles DST automatically)
+// Quality gate: reject fallback/template topics before they reach Firestore
+function isRealTopics(topics) {
+    if (!topics || !topics.length) return false;
+    const SLOP_PHRASES = [
+        'the bitcoin community is actively discussing',
+        'multiple perspectives are circulating',
+        'community members see positive developments',
+        'others raise concerns and call for more caution',
+        'discussion',
+    ];
+    // Reject if ANY topic summary contains boilerplate phrases
+    for (const t of topics) {
+        const summary = (t.summary || '').toLowerCase();
+        const sideTexts = (t.sides || []).map(s => (s.summary || '').toLowerCase()).join(' ');
+        if (SLOP_PHRASES.slice(0, 4).some(p => summary.includes(p))) {
+            console.warn('[HotTopics] Quality gate rejected topic (boilerplate detected):', t.title);
+            return false;
+        }
+        // Require specificity: summary must contain at least one of: a year, a BIP number, a proper noun (capitalized word 4+ chars)
+        const hasSpecificity = /20\d{2}|BIP-?\d+|[A-Z][a-z]{3,}/.test(t.summary || '');
+        if (!hasSpecificity) {
+            console.warn('[HotTopics] Quality gate rejected topic (no specificity):', t.title);
+            return false;
+        }
+    }
+    return true;
+}
+
 exports.refreshHotTopics = onScheduleV2({
     schedule: '0 22 * * 5',
     timeZone: 'America/New_York',
@@ -5933,12 +5961,17 @@ exports.refreshHotTopics = onScheduleV2({
     console.log('[HotTopics] Starting weekly refresh...');
     try {
         const topics = await buildHotTopics();
+        if (!isRealTopics(topics)) {
+            // AI failed and fallback produced slop — leave existing data intact
+            console.warn('[HotTopics] Quality gate failed — keeping existing Firestore data intact, not overwriting with fallback slop');
+            return;
+        }
         await db.collection('hotTopics').doc('latest').set({
             topics,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             version: 1,
         });
-        console.log('[HotTopics] Saved', topics.length, 'topics to Firestore');
+        console.log('[HotTopics] Saved', topics.length, 'real topics to Firestore');
     } catch (err) {
         console.error('[HotTopics] Fatal error:', err);
     }
@@ -5959,6 +5992,25 @@ exports.refreshHotTopicsHttp = functions.https.onRequest(async (req, res) => {
         res.json({ ok: true, topicsCount: topics.length, topics });
     } catch (err) {
         console.error('[HotTopics] HTTP trigger error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Manual force-refresh that bypasses the quality gate (admin use only)
+exports.refreshHotTopicsForce = functions.https.onRequest(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+        const topics = await buildHotTopics();
+        const passed = isRealTopics(topics);
+        await db.collection('hotTopics').doc('latest').set({
+            topics,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            version: 1,
+            qualityGatePassed: passed,
+        });
+        res.json({ ok: true, topicsCount: topics.length, qualityGatePassed: passed, topics });
+    } catch (err) {
+        console.error('[HotTopics] Force refresh error:', err);
         res.status(500).json({ error: err.message });
     }
 });
