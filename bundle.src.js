@@ -33664,15 +33664,19 @@ window.nachoQuizAnswer = function(btn, correct) {
     // Exploration map (initial render)
     if (typeof renderExplorationMap === 'function') renderExplorationMap();
 
-    // Reading progress bar + back to top (desktop only — mobile-ux.js handles mobile)
-    if (window.innerWidth > 900) {
-        document.getElementById('main').addEventListener('scroll', function() {
-            const el = this;
-            document.getElementById('backToTop').classList.toggle('visible', el.scrollTop > 400);
+    // Reading progress bar + back to top (both desktop and mobile)
+    (function() {
+        var mainEl = document.getElementById('main');
+        if (!mainEl) return;
+        mainEl.addEventListener('scroll', function() {
+            var el = this;
+            var backToTop = document.getElementById('backToTop');
+            var scrollToBottom = document.getElementById('scrollToBottom');
+            if (backToTop) backToTop.classList.toggle('visible', el.scrollTop > 400);
             var nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 200;
-            document.getElementById('scrollToBottom').classList.toggle('visible', !nearBottom);
-        });
-    }
+            if (scrollToBottom) scrollToBottom.classList.toggle('visible', !nearBottom);
+        }, { passive: true });
+    })();
 
     // Robust PVP launcher — handles race where pvp.js hasn't loaded yet
     window._launchPVP = function() {

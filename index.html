@@ -61,7 +61,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260706_0948" as="script">
+    <link rel="preload" href="bundle.js?v=20260706_1007" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -255,10 +255,10 @@
         .msg-img:hover { border-color: var(--accent); box-shadow: 0 8px 30px var(--accent-glow); }
         .msg-link { color: var(--link); text-decoration: none; word-break: break-all; }
         /* Floating UI Stack (Right-aligned) */
-        .back-to-top { position: fixed; bottom: 180px; right: 16px; width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.1rem; cursor: pointer; z-index: 150; opacity: 0; transform: translateY(10px); transition: 0.3s; pointer-events: none; box-shadow: 0 4px 15px var(--accent-glow); display: flex; align-items: center; justify-content: center; }
+        .back-to-top { position: fixed; bottom: 290px; right: 16px; width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.1rem; cursor: pointer; z-index: 150; opacity: 0; transform: translateY(10px); transition: 0.3s; pointer-events: none; box-shadow: 0 4px 15px var(--accent-glow); display: flex; align-items: center; justify-content: center; }
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:hover { transform: translateY(-3px); box-shadow: 0 8px 25px var(--accent-glow); }
-        .scroll-to-bottom { bottom: 130px; }
+        .scroll-to-bottom { bottom: 240px; }
         #desktopSearchBtn { display: none !important; }
         @media (max-width: 900px) { .desktop-only-apps { display: none !important; } }
 
@@ -532,8 +532,8 @@
             .msg-link { font-size: 0.85rem; }
             .share-bar { gap: 6px; }
             .share-btn { padding: 6px 10px; font-size: 0.75rem; }
-            .back-to-top { bottom: calc(200px + env(safe-area-inset-bottom, 0px)); right: 12px; width: 34px; height: 34px; font-size: 0.95rem; }
-            .scroll-to-bottom { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); right: 12px; width: 34px; height: 34px; font-size: 0.95rem; }
+            .back-to-top { bottom: calc(290px + env(safe-area-inset-bottom, 0px)); right: 12px; width: 34px; height: 34px; font-size: 0.95rem; }
+            .scroll-to-bottom { bottom: calc(240px + env(safe-area-inset-bottom, 0px)); right: 12px; width: 34px; height: 34px; font-size: 0.95rem; }
             .home-page { padding: 30px 16px; min-height: auto; }
             .home-title { font-size: 2rem; letter-spacing: -1px; }
             .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
@@ -1243,7 +1243,7 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260706_0948" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260706_1007" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260629_1905" defer></script>
     <script src="timechain-tv.js?v=20260703_2300" defer></script>
