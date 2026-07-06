@@ -14945,6 +14945,7 @@ window.closeQuestHubForFavor = function() {
     var overlay = document.getElementById('questHubOverlay');
     if (overlay) overlay.remove();
     window._cleanupRaidBoss && window._cleanupRaidBoss();
+    window._cleanupCharityListeners && window._cleanupCharityListeners();
     // Clean up faction listener
     if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
     // Store that we should reopen Quest Hub on miner close
@@ -15360,7 +15361,7 @@ window.showQuestHub = function() {
     var _qhAlign = window.innerWidth <= 900 ? 'flex-start' : 'center';
     var _qhPad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px'; // bottom padding clears nav+FABs on mobile
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + _qhAlign + ';justify-content:center;backdrop-filter:blur(5px);padding:' + _qhPad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
+    overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); window._cleanupCharityListeners && window._cleanupCharityListeners(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
 
     var modal = document.createElement('div');
     var _qhMaxH = window.innerWidth <= 900
@@ -15394,7 +15395,7 @@ window.showQuestHub = function() {
         '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div>' +
         '<div style="margin-top:6px;padding:6px 10px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:600;">🎯 Daily Trifecta: Complete the daily quiz, trivia and poll to earn the Daily Trifecta!</div></div>' +
-        '<button onclick="window._cleanupRaidBoss();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\'){history.replaceState({home:true},\'\',(window._qhReturnPath||\'/\'));if(typeof goHome===\'function\')goHome(true);}" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
+        '<button onclick="window._cleanupRaidBoss();window._cleanupCharityListeners&&window._cleanupCharityListeners();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\'){history.replaceState({home:true},\'\',(window._qhReturnPath||\'/\'));if(typeof goHome===\'function\')goHome(true);}" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
         // Tabs
         '<div id="questHubTabs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;">' +
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
@@ -16050,29 +16051,144 @@ function _renderCitadelTab(body) {
 var _charityStats = null;
 var _charityRecent = [];
 var _charityStatsLoaded = false;
+var _charityStatsUnsub = null;
+var _charityRecentUnsub = null;
 
-function _loadCharityStats(cb) {
-    if (typeof firebase === 'undefined' || !firebase.firestore) return cb && cb();
+window._cleanupCharityListeners = function() {
+    if (_charityStatsUnsub) { _charityStatsUnsub(); _charityStatsUnsub = null; }
+    if (_charityRecentUnsub) { _charityRecentUnsub(); _charityRecentUnsub = null; }
+};
+
+function _setupCharityListeners(body) {
+    window._cleanupCharityListeners();
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
     var db = firebase.firestore();
-    Promise.all([
-        db.collection('charity_stats').doc('global').get({ source: 'server' }),
-        db.collection('charity_donations').orderBy('ts', 'desc').limit(10).get({ source: 'server' })
-    ]).then(function(results) {
-        var statsDoc = results[0];
-        var recentSnap = results[1];
-        _charityStats = statsDoc.exists ? statsDoc.data() : { totalDonated: 0, factionTotals: {} };
-        _charityRecent = [];
-        recentSnap.forEach(function(doc) { _charityRecent.push(doc.data()); });
+
+    // Listen to global stats (total pledge + faction splits)
+    _charityStatsUnsub = db.collection('charity_stats').doc('global').onSnapshot(function(doc) {
+        _charityStats = doc.exists ? doc.data() : { totalDonated: 0, factionTotals: {} };
         _charityStatsLoaded = true;
-        if (cb) cb();
-    }).catch(function() { if (cb) cb(); });
+        // Patch totals in place if the tab is still open
+        var b = document.getElementById('questHubBody');
+        if (b && window._questHubTab === 'charity') _patchCharityTotals();
+    }, function() {});
+
+    // Listen to recent donations stream
+    _charityRecentUnsub = db.collection('charity_donations').orderBy('ts', 'desc').limit(10).onSnapshot(function(snap) {
+        _charityRecent = [];
+        snap.forEach(function(doc) { _charityRecent.push(doc.data()); });
+        var b = document.getElementById('questHubBody');
+        if (b && window._questHubTab === 'charity') _patchCharityRecent();
+    }, function() {});
+}
+
+// Patch just the totals section without full re-render (avoids losing input state)
+function _patchCharityTotals() {
+    var stats = _charityStats || { totalDonated: 0, factionTotals: {} };
+    var totalDonated = stats.totalDonated || 0;
+    var hornets = (stats.factionTotals && stats.factionTotals.cyber_hornets) || 0;
+    var badgers = (stats.factionTotals && stats.factionTotals.honey_badgers) || 0;
+    var unattributed = (stats.factionTotals && stats.factionTotals.no_faction) || 0;
+    // Update community pledge totals
+    var pledgeEl = document.getElementById('charityPledgeTotal');
+    if (pledgeEl) pledgeEl.innerHTML = totalDonated.toLocaleString() + ' <span style="font-size:1rem;font-weight:600;color:var(--text-muted);">sats pledged</span>';
+    var pledgeSubEl = document.getElementById('charityPledgeSub');
+    if (pledgeSubEl) pledgeSubEl.textContent = '(' + totalDonated.toLocaleString() + ' XP donated by the community)';
+    // Update faction bar
+    var factionTotal = hornets + badgers;
+    var hornetsPct = factionTotal > 0 ? Math.round((hornets / factionTotal) * 100) : 50;
+    var badgersPct = 100 - hornetsPct;
+    var hBar = document.getElementById('charityHornetBar');
+    var bBar = document.getElementById('charityBadgerBar');
+    if (hBar) hBar.style.width = hornetsPct + '%';
+    if (bBar) bBar.style.width = badgersPct + '%';
+    var hLbl = document.getElementById('charityHornetLbl');
+    var bLbl = document.getElementById('charityBadgerLbl');
+    if (hLbl) hLbl.textContent = hornets.toLocaleString() + ' XP (' + hornetsPct + '%)';
+    if (bLbl) bLbl.textContent = badgers.toLocaleString() + ' XP (' + badgersPct + '%)';
+    // Unattributed row
+    var unaEl = document.getElementById('charityUnattributed');
+    if (unaEl) {
+        if (unattributed > 0) {
+            unaEl.style.display = 'flex';
+            var unaAmt = unaEl.querySelector('.unaAmt');
+            if (unaAmt) unaAmt.textContent = unattributed.toLocaleString() + ' XP';
+        } else {
+            unaEl.style.display = 'none';
+        }
+    }
+}
+
+// Patch just the recent donations list without re-rendering the whole tab
+function _patchCharityRecent() {
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var container = document.getElementById('charityRecentList');
+    if (!container) return;
+    if (_charityRecent.length === 0) { container.innerHTML = ''; return; }
+    var html = '';
+    _charityRecent.forEach(function(d) {
+        var isAnon = d.anonymous || !d.uid || (d.username || '') === 'Anonymous';
+        var factionLabel = d.faction === 'cyber_hornets' ? '<span style="color:#f7e400;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;">🐝</span>' :
+                           d.faction === 'honey_badgers' ? '<span style="color:#1a1a1a;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;font-weight:700;">🦡</span>' : '';
+        var nameStyle;
+        if (d.faction === 'cyber_hornets') {
+            nameStyle = 'color:#f7e400;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;' + (isAnon ? '' : 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;');
+        } else if (d.faction === 'honey_badgers') {
+            nameStyle = 'color:#e5e7eb;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;' + (isAnon ? '' : 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;');
+        } else if (isAnon) {
+            nameStyle = 'color:var(--text-muted);';
+        } else {
+            nameStyle = 'color:var(--text);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+        }
+        var nameHtml = isAnon
+            ? '<span style="' + nameStyle + '">' + esc(d.username || 'Anonymous') + '</span>'
+            : '<span style="' + nameStyle + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + esc(d.uid) + '\')" title="View profile">' + esc(d.username || 'Anonymous') + '</span>';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82rem;">' +
+            '<span style="display:flex;align-items:center;gap:5px;">' + factionLabel + ' ' + nameHtml + '</span>' +
+            '<span style="color:#ef4444;font-weight:700;">+' + (d.amount || 0).toLocaleString() + ' XP</span>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+    // Ensure the parent wrapper is visible
+    var wrapper = document.getElementById('charityRecentWrapper');
+    if (wrapper) wrapper.style.display = '';
 }
 
 function _renderCharityTab(body) {
     body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">Loading charity data...</div>';
-    _loadCharityStats(function() {
+    // Start real-time listeners; they'll call _renderCharityTabInner once first snapshot arrives
+    var _firstRender = false;
+    window._cleanupCharityListeners();
+    if (typeof firebase === 'undefined' || !firebase.firestore) {
         _renderCharityTabInner(body);
-    });
+        return;
+    }
+    var db = firebase.firestore();
+    var _statsReady = false, _recentReady = false;
+    function _maybeRender() {
+        if (_statsReady && _recentReady && !_firstRender) {
+            _firstRender = true;
+            _charityStatsLoaded = true;
+            _renderCharityTabInner(body);
+        }
+    }
+    _charityStatsUnsub = db.collection('charity_stats').doc('global').onSnapshot(function(doc) {
+        _charityStats = doc.exists ? doc.data() : { totalDonated: 0, factionTotals: {} };
+        _statsReady = true;
+        if (_firstRender) {
+            var b = document.getElementById('questHubBody');
+            if (b && window._questHubTab === 'charity') _patchCharityTotals();
+        } else _maybeRender();
+    }, function() { _statsReady = true; _maybeRender(); });
+    _charityRecentUnsub = db.collection('charity_donations').orderBy('ts', 'desc').limit(10).onSnapshot(function(snap) {
+        _charityRecent = [];
+        snap.forEach(function(doc) { _charityRecent.push(doc.data()); });
+        _recentReady = true;
+        if (_firstRender) {
+            var b = document.getElementById('questHubBody');
+            if (b && window._questHubTab === 'charity') _patchCharityRecent();
+        } else _maybeRender();
+    }, function() { _recentReady = true; _maybeRender(); });
 }
 
 function _renderCharityTabInner(body) {
@@ -16102,8 +16218,8 @@ function _renderCharityTabInner(body) {
     // Community total
     html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:16px;text-align:center;margin-bottom:16px;">' +
         '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:#ef4444;font-weight:800;margin-bottom:6px;">🌍 Community Pledge</div>' +
-        '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);">' + totalDonated.toLocaleString() + ' <span style="font-size:1rem;font-weight:600;color:var(--text-muted);">sats pledged</span></div>' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">(' + totalDonated.toLocaleString() + ' XP donated by the community)</div>' +
+        '<div id="charityPledgeTotal" style="font-size:1.8rem;font-weight:900;color:var(--heading);">' + totalDonated.toLocaleString() + ' <span style="font-size:1rem;font-weight:600;color:var(--text-muted);">sats pledged</span></div>' +
+        '<div id="charityPledgeSub" style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">(' + totalDonated.toLocaleString() + ' XP donated by the community)</div>' +
     '</div>';
 
     // Faction leaderboard
@@ -16117,14 +16233,14 @@ function _renderCharityTabInner(body) {
             '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;">🦡 Honey Badgers</span>' +
         '</div>' +
         '<div style="display:flex;border-radius:8px;overflow:hidden;height:14px;margin-bottom:6px;">' +
-            '<div style="width:' + hornetsPct + '%;background:linear-gradient(90deg,#f7e400,#f59e0b);transition:0.5s;"></div>' +
-            '<div style="width:' + badgersPct + '%;background:linear-gradient(90deg,#374151,#1f2937);transition:0.5s;"></div>' +
+            '<div id="charityHornetBar" style="width:' + hornetsPct + '%;background:linear-gradient(90deg,#f7e400,#f59e0b);transition:0.5s;"></div>' +
+            '<div id="charityBadgerBar" style="width:' + badgersPct + '%;background:linear-gradient(90deg,#374151,#1f2937);transition:0.5s;"></div>' +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-faint);">' +
-            '<span>' + hornets.toLocaleString() + ' XP (' + hornetsPct + '%)</span>' +
-            '<span>' + badgers.toLocaleString() + ' XP (' + badgersPct + '%)</span>' +
+            '<span id="charityHornetLbl">' + hornets.toLocaleString() + ' XP (' + hornetsPct + '%)</span>' +
+            '<span id="charityBadgerLbl">' + badgers.toLocaleString() + ' XP (' + badgersPct + '%)</span>' +
         '</div>' +
-        (unattributed > 0 ? '<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:0.72rem;color:var(--text-faint);display:flex;justify-content:space-between;align-items:center;"><span>⏳ Unattributed (no faction at time of donation)</span><span style="font-weight:700;">' + unattributed.toLocaleString() + ' XP</span></div>' : '') +
+        '<div id="charityUnattributed" style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:0.72rem;color:var(--text-faint);display:' + (unattributed > 0 ? 'flex' : 'none') + ';justify-content:space-between;align-items:center;"><span>⏳ Unattributed (no faction at time of donation)</span><span class="unaAmt" style="font-weight:700;">' + unattributed.toLocaleString() + ' XP</span></div>' +
     '</div>';
 
     // Donate UI
@@ -16143,7 +16259,7 @@ function _renderCharityTabInner(body) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">🎡 Your Donation</div>' +
             '<div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">' +
-                'Available to donate: <strong style="color:var(--heading);">' + available.toLocaleString() + ' XP</strong>' +
+                'Available to donate: <strong data-charity-avail style="color:var(--heading);">' + available.toLocaleString() + ' XP</strong>' +
                 (donated > 0 ? ' <span style="color:var(--text-faint);font-size:0.75rem;">(' + donated.toLocaleString() + ' already donated)</span>' : '') +
             '</div>';
 
@@ -16174,35 +16290,11 @@ function _renderCharityTabInner(body) {
         html += '</div>';
     }
 
-    // Recent donations
-    if (_charityRecent.length > 0) {
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📜 Recent Donations</div>';
-        _charityRecent.forEach(function(d) {
-            var isAnon = d.anonymous || !d.uid || (d.username || '') === 'Anonymous';
-            var factionLabel = d.faction === 'cyber_hornets' ? '<span style="color:#f7e400;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;">🐝</span>' :
-                               d.faction === 'honey_badgers' ? '<span style="color:#1a1a1a;font-size:0.65rem;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;font-weight:700;">🦡</span>' : '';
-            // Faction-coloured name style — applies even for anonymous donors (name hidden ≠ faction hidden)
-            var nameStyle;
-            if (d.faction === 'cyber_hornets') {
-                nameStyle = 'color:#f7e400;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;' + (isAnon ? '' : 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;');
-            } else if (d.faction === 'honey_badgers') {
-                nameStyle = 'color:#e5e7eb;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;font-weight:700;' + (isAnon ? '' : 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;');
-            } else if (isAnon) {
-                nameStyle = 'color:var(--text-muted);';
-            } else {
-                nameStyle = 'color:var(--text);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
-            }
-            var nameHtml = isAnon
-                ? '<span style="' + nameStyle + '">' + esc(d.username || 'Anonymous') + '</span>'
-                : '<span style="' + nameStyle + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + esc(d.uid) + '\')" title="View profile">' + esc(d.username || 'Anonymous') + '</span>';
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82rem;">' +
-                '<span style="display:flex;align-items:center;gap:5px;">' + factionLabel + ' ' + nameHtml + '</span>' +
-                '<span style="color:#ef4444;font-weight:700;">+' + (d.amount || 0).toLocaleString() + ' XP</span>' +
-            '</div>';
-        });
-        html += '</div>';
-    }
+    // Recent donations (always render the wrapper; _patchCharityRecent fills it live)
+    html += '<div id="charityRecentWrapper" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;' + (_charityRecent.length === 0 ? 'display:none;' : '') + '">' +
+        '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📜 Recent Donations</div>' +
+        '<div id="charityRecentList"></div>' +
+    '</div>';
 
     // Charity vote placeholder
     html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;">' +
@@ -16246,6 +16338,9 @@ function _renderCharityTabInner(body) {
     html += '</div></div>';
 
     body.innerHTML = html;
+
+    // Populate recent donations from current in-memory state (listeners will keep it live)
+    _patchCharityRecent();
 
     // Wire up amount setter
     window._charitySetAmount = function(amt) {
@@ -16295,9 +16390,10 @@ function _renderCharityTabInner(body) {
                     }
                 });
             }
-            // Refresh tab (force server read so faction bar reflects new totals)
-            _charityStatsLoaded = false;
-            _renderCharityTab(document.getElementById('questHubBody'));
+            // Listeners are already live — no need to re-render the tab;
+            // but patch the user's own available XP shown in the donate UI.
+            var avEl = document.querySelector('#questHubBody [data-charity-avail]');
+            if (avEl) { var newAvail = Math.max(0,(typeof currentUser!=='undefined'&&currentUser?(currentUser.points||0)-(currentUser.pointsClaimed||0)-(currentUser.pointsDonated||0):0)); avEl.textContent = newAvail.toLocaleString() + ' XP'; }
         }).catch(function(e) {
             if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
             if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Donation failed. Try again.'), 4000);
