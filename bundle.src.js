@@ -14946,6 +14946,7 @@ window.closeQuestHubForFavor = function() {
     if (overlay) overlay.remove();
     window._cleanupRaidBoss && window._cleanupRaidBoss();
     window._cleanupCharityListeners && window._cleanupCharityListeners();
+    _cleanupLastWindowListener && _cleanupLastWindowListener();
     // Clean up faction listener
     if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
     // Store that we should reopen Quest Hub on miner close
@@ -15169,11 +15170,15 @@ function _loadDifficultyHistoryBlocks() {
         });
 }
 
+var _lastWindowUnsub = null;
 function _loadLastSFWindow() {
     var el = document.getElementById('lastSFWindowInner');
     if (!el || typeof db === 'undefined') return;
-    db.collection('satoshiFavor').doc('lastWindow').get().then(function(doc) {
-        if (!el) return;
+    // Detach any previous listener
+    if (_lastWindowUnsub) { _lastWindowUnsub(); _lastWindowUnsub = null; }
+    _lastWindowUnsub = db.collection('satoshiFavor').doc('lastWindow').onSnapshot(function(doc) {
+        var el = document.getElementById('lastSFWindowInner');
+        if (!el) { if (_lastWindowUnsub) { _lastWindowUnsub(); _lastWindowUnsub = null; } return; }
         if (!doc.exists) {
             el.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">No completed windows yet.</span>';
             return;
@@ -15229,10 +15234,14 @@ function _loadLastSFWindow() {
                 }
             }).catch(function(){});
         }
-    }).catch(function() {
+    }, function() {
         var el2 = document.getElementById('lastSFWindowInner');
         if (el2) el2.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">Stats unavailable.</span>';
     });
+}
+
+function _cleanupLastWindowListener() {
+    if (_lastWindowUnsub) { _lastWindowUnsub(); _lastWindowUnsub = null; }
 }
 
 function _loadFavorLeaderboards() {
@@ -15361,7 +15370,7 @@ window.showQuestHub = function() {
     var _qhAlign = window.innerWidth <= 900 ? 'flex-start' : 'center';
     var _qhPad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px'; // bottom padding clears nav+FABs on mobile
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + _qhAlign + ';justify-content:center;backdrop-filter:blur(5px);padding:' + _qhPad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); window._cleanupCharityListeners && window._cleanupCharityListeners(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
+    overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); window._cleanupCharityListeners && window._cleanupCharityListeners(); _cleanupLastWindowListener && _cleanupLastWindowListener(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
 
     var modal = document.createElement('div');
     var _qhMaxH = window.innerWidth <= 900
@@ -15395,7 +15404,7 @@ window.showQuestHub = function() {
         '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div>' +
         '<div style="margin-top:6px;padding:6px 10px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:600;">🎯 Daily Trifecta: Complete the daily quiz, trivia and poll to earn the Daily Trifecta!</div></div>' +
-        '<button onclick="window._cleanupRaidBoss();window._cleanupCharityListeners&&window._cleanupCharityListeners();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\'){history.replaceState({home:true},\'\',(window._qhReturnPath||\'/\'));if(typeof goHome===\'function\')goHome(true);}" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
+        '<button onclick="window._cleanupRaidBoss();window._cleanupCharityListeners&&window._cleanupCharityListeners();_cleanupLastWindowListener&&_cleanupLastWindowListener();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\'){history.replaceState({home:true},\'\',(window._qhReturnPath||\'/\'));if(typeof goHome===\'function\')goHome(true);}" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
         // Tabs
         '<div id="questHubTabs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;">' +
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
@@ -15460,8 +15469,10 @@ function _renderQuestHubTab() {
     var body = document.getElementById('questHubBody');
     if (!body) return;
 
-    // Cleanup raid listeners when switching away
+    // Cleanup listeners when switching away
     if (tab !== 'raid') window._cleanupRaidBoss();
+    if (tab !== 'charity') window._cleanupCharityListeners && window._cleanupCharityListeners();
+    if (tab !== 'favor') _cleanupLastWindowListener && _cleanupLastWindowListener();
 
     if (tab === 'quiz') _renderQuizTab(body);
     else if (tab === 'trivia') _renderTriviaTab(body);
