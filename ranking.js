@@ -1772,6 +1772,12 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         showToast('⚠️ That username is not allowed. Please choose another.');
         return;
     }
+    // Uniqueness check — must happen after we have uid
+    var _taken = await isUsernameTaken(username, uid);
+    if (_taken) {
+        showToast('⚠️ That username is already taken. Please choose another.');
+        return;
+    }
     if (email) email = sanitizeInput(email);
     const userData = {
         username: username,
@@ -6124,6 +6130,23 @@ window.hideUsernamePrompt = function() {
     }
 };
 
+// Returns true if the given username (case-insensitive) is already taken by someone other than excludeUid.
+async function isUsernameTaken(username, excludeUid) {
+    try {
+        var snap = await db.collection('users')
+            .where('username_lower', '==', username.toLowerCase())
+            .limit(2)
+            .get();
+        if (snap.empty) return false;
+        // Allow if the only match is the user themselves
+        if (snap.docs.length === 1 && snap.docs[0].id === excludeUid) return false;
+        return true;
+    } catch(e) {
+        console.warn('[isUsernameTaken] query failed:', e);
+        return false; // fail open — don't block signup on a Firestore hiccup
+    }
+}
+
 window.submitUsername = async function() {
     try {
     // Check if this is the INITIAL SIGNUP modal or the settings username change
@@ -6180,6 +6203,13 @@ window.submitUsername = async function() {
     // SETTINGS USERNAME CHANGE (newUsername exists = settings page)
     if (!currentUser || currentUser._isLocal) { showToast('Sign in first to change username'); return; }
     var status = document.getElementById('usernameStatus');
+    if (status) status.innerHTML = 'Checking...';
+    var _settingsTaken = await isUsernameTaken(name, currentUser.uid);
+    if (_settingsTaken) {
+        if (status) status.innerHTML = '❌ Username taken';
+        showToast('⚠️ That username is already taken. Please choose another.');
+        return;
+    }
     if (status) status.innerHTML = 'Saving...';
     try {
         await db.collection('users').doc(currentUser.uid).update({ username: name, username_lower: name.toLowerCase() });
