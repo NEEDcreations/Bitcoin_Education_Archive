@@ -4803,13 +4803,44 @@ exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'U
     const effectiveEnd = favorEndBase + bonusMs;
 
     if (now > effectiveEnd) {
-        // Reset
+        // Archive window stats BEFORE resetting
+        try {
+            const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
+            const DIFFICULTY_TARGET = 10000; // keep in sync with satoshiFavor.js
+            await lastWindowRef.set({
+                cycleId: stateData.currentCycleId || null,
+                startedAt: stateData.favorStart || null,
+                endedAt: admin.firestore.Timestamp.fromMillis(effectiveEnd),
+                durationMinutes: (function() {
+                    if (!stateData.favorStart) return 0;
+                    const durMs = effectiveEnd - stateData.favorStart.toMillis();
+                    return durMs > 0 ? Math.round(durMs / 60000) : 0;
+                })(),
+                totalHashes: stateData.totalHashes || 0,
+                lowestHash: stateData.lowestHashThisWindow || null,
+                difficultyTarget: DIFFICULTY_TARGET,
+                winner: stateData.lowestHashThisWindowUid ? {
+                    uid: stateData.lowestHashThisWindowUid,
+                    username: stateData.lowestHashThisWindowUsername || null,
+                } : null,
+                archivedAt: admin.firestore.Timestamp.now(),
+                archivedBy: 'cron',
+            }, { merge: false });
+            console.log('[SF-CRON] Archived lastWindow — hashes:', stateData.totalHashes || 0, 'lowest:', stateData.lowestHashThisWindow || 'none');
+        } catch (e) {
+            console.warn('[SF-CRON] Failed to archive lastWindow:', e.message);
+        }
+        // Reset state
         await stateRef.set({
             points: 0,
             favorActive: false,
             favorStart: null,
             favorEndBase: null,
             bonusMinutes: 0,
+            totalHashes: 0,
+            lowestHashThisWindow: null,
+            lowestHashThisWindowUid: null,
+            lowestHashThisWindowUsername: null,
             lastReset: admin.firestore.Timestamp.now(),
             currentCycleId: stateData.currentCycleId || null,
         });
