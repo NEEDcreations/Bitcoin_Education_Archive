@@ -6556,3 +6556,36 @@ function fallbackCluster(signals) {
 // ── Satoshi's Favor → X auto-post ────────────────────────────────────────────
 const { tweetSatoshisFavor } = require('./src/tweetSatoshisFavor');
 exports.tweetSatoshisFavor = tweetSatoshisFavor;
+
+// ── GIF Search Proxy (Tenor v2) ───────────────────────────────────────────────
+// Proxies Tenor v2 requests server-side so the API key never leaks to the client
+// and no browser-side API activation is required.
+exports.searchGifs = functions.https.onCall(async (data, context) => {
+    const query = (data.query || '').trim().slice(0, 100);
+    const limit = Math.min(Math.max(parseInt(data.limit) || 20, 1), 50);
+    if (!query) return { results: [] };
+
+    const TENOR_KEY = 'AIzaSyDvfMI3A2NWibbhd4cRgJUVQzCuU5nzNLM';
+    const url = 'https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(query)
+        + '&key=' + TENOR_KEY
+        + '&limit=' + limit
+        + '&media_filter=tinygif,gif'
+        + '&contentfilter=medium';
+
+    try {
+        const resp = await fetch(url);
+        const json = await resp.json();
+        if (!json.results) return { results: [] };
+        // Return only what the client needs: thumb url + full url
+        const results = json.results.map(function(gif) {
+            const fmt = gif.media_formats || {};
+            const thumb = (fmt.tinygif && fmt.tinygif.url) || (fmt.nanogif && fmt.nanogif.url) || (fmt.gif && fmt.gif.url) || '';
+            const full  = (fmt.gif && fmt.gif.url) || (fmt.mediumgif && fmt.mediumgif.url) || thumb;
+            return { thumb, full };
+        }).filter(function(r) { return r.thumb; });
+        return { results };
+    } catch (e) {
+        console.error('[searchGifs]', e.message);
+        throw new functions.https.HttpsError('internal', 'GIF search failed');
+    }
+});

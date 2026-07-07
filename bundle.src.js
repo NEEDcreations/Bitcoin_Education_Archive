@@ -24883,22 +24883,24 @@ window.searchDMGifs = function(query) {
     el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Searching...</div>';
 
     _dmGifSearchTimer = setTimeout(function() {
-        var TENOR_KEY = 'AIzaSyDvfMI3A2NWibbhd4cRgJUVQzCuU5nzNLM';
-        fetch('https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(query) + '&key=' + TENOR_KEY + '&limit=20&media_filter=tinygif,gif&contentfilter=medium')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (!data.results || data.results.length === 0) {
+        // Proxy via Firebase callable
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">GIF search unavailable</div>';
+            return;
+        }
+        firebase.functions().httpsCallable('searchGifs')({ query: query, limit: 20 })
+            .then(function(result) {
+                var results = result.data && result.data.results || [];
+                if (results.length === 0) {
                     el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
                     return;
                 }
                 var html = '';
-                for (var i = 0; i < data.results.length; i++) {
-                    var gif = data.results[i];
-                    var fmt = gif.media_formats || {};
-                    var url = (fmt.tinygif && fmt.tinygif.url) || (fmt.nanogif && fmt.nanogif.url) || (fmt.gif && fmt.gif.url) || '';
-                    var fullUrl = (fmt.gif && fmt.gif.url) || (fmt.mediumgif && fmt.mediumgif.url) || url;
+                for (var i = 0; i < results.length; i++) {
+                    var url = results[i].thumb;
+                    var fullUrl = results[i].full || url;
                     if (!url) continue;
-                    html += '<img src="' + url + '" onclick="sendDMGif(\'' + fullUrl.replace(/[\\\'\"]/g, '') + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+                    html += '<img src="' + url + '" onclick="sendDMGif(\'' + fullUrl.replace(/[\\'"]/g, '') + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
                 }
                 el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
             })
@@ -24906,6 +24908,7 @@ window.searchDMGifs = function(query) {
                 el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Search failed</div>';
             });
     }, 400);
+
 };
 
 window.sendDMGifUrl = function() {
