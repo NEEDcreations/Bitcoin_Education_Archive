@@ -1934,6 +1934,11 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         showToast('⚠️ Username must be at least 2 characters (letters, numbers, basic symbols only).');
         return;
     }
+    // Only allow English letters, digits, spaces, underscores, hyphens, and dots
+    if (/[^A-Za-z0-9 _\-.]/g.test(username)) {
+        showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.');
+        return;
+    }
     if (containsProfanity(username)) {
         showToast('⚠️ That username is not allowed. Please choose another.');
         return;
@@ -6322,6 +6327,7 @@ window.submitUsername = async function() {
     if (!name) { showToast('Please enter a username!'); return; }
     if (name.length < 2) { showToast('Username must be at least 2 characters'); return; }
     if (name.length > 20) { showToast('Username must be 20 characters or less'); return; }
+    if (/[^A-Za-z0-9 _\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
 
     // INITIAL SIGNUP (usernameInput exists = signup modal)
