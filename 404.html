@@ -52,7 +52,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'"><noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&display=swap" rel="stylesheet"></noscript>
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -61,7 +61,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260708_0335" as="script">
+    <link rel="preload" href="bundle.js?v=20260708_0350" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -672,8 +672,7 @@
       ]
     }
     </script>
-<script src="proof-of-walk.js?v=20260527_strava_comply" defer></script>
-<script src="proof-of-play.js?v=20260609_pop" defer></script>
+<!-- proof-of-walk and proof-of-play are lazy-loaded on demand (saves ~55KB on initial parse) -->
 </head>
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;"></div>
@@ -1242,17 +1241,10 @@
     <!-- App Check: lazy-loaded to avoid 724KB reCAPTCHA on first paint -->
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
-    <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260708_0335" defer fetchpriority="high"></script>
-    <script src="event-cleanup.js?v=20260307" defer></script>
+    <script src="bundle.js?v=20260708_0350" defer fetchpriority="high"></script>
+    <script src="patches.js?v=20260708_perf" defer></script>
     <script src="onboarding.js?v=20260629_1905" defer></script>
     <script src="timechain-tv.js?v=20260708_0335" defer></script>
-    <script src="mobile-optimize.js?v=20260411" defer></script>
-    <script src="audit-fixes-v2.js?v=20260307" defer></script>
-    <script src="ux-improvements.js?v=20260703" defer></script>
-    <script src="performance-patches.js?v=20260307" defer></script>
-    <script src="accessibility-patches.js?v=20260307" defer></script>
-    <script src="audit-v3-phase1.js?v=20260308" defer></script>
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
     <script>
     (function(){
@@ -1310,7 +1302,8 @@
             'irl-sync':      ['irl-sync.js?v=20260703_0449'],
             'lightning':     ['lightning.js?v=20260514_1424', 'lightning-tips.js?v=20260613_0241'],
             'pvp':           ['pvp.js?v=20260703_0449'],
-            'proof-of-play': ['pvp.js?v=20260703_0449'],
+            'proof-of-play': ['pvp.js?v=20260703_0449', 'proof-of-play.js?v=20260609_pop'],
+            'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20260331'],
             'timechain-tv':  ['timechain-tv.js?v=20260708_0335']
         };

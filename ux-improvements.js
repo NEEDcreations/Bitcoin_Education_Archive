@@ -233,7 +233,7 @@
             img._brokenHandled = true;
             img.dataset.broken = '1';
             img.alt = '';
-            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP
+            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
         }
         document.addEventListener('error', function(e) {
             var el = e.target;

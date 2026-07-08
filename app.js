@@ -4471,7 +4471,7 @@ if (locked) {
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
                 appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false) +
-                appBtn('🕹️', 'Proof of Play', "enterProofOfPlay()", false) +
+                appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20260609_pop';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) +
                 appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) +
                 appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) +
                 appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) +
@@ -4508,7 +4508,15 @@ if (locked) {
         history.pushState({ channel: 'proof-of-walk' }, '', '/app/proof-of-walk');
         if (isMobile && isMobile()) { var sb = document.getElementById('sidebar'); if (sb) sb.classList.remove('open'); }
         if (typeof setFloatingElementsVisible === 'function') setFloatingElementsVisible(true);
-        if (window.renderProofOfWalk) window.renderProofOfWalk();
+        if (window.renderProofOfWalk) {
+            window.renderProofOfWalk();
+        } else {
+            // Lazy-load proof-of-walk.js on demand
+            var _pow = document.createElement('script');
+            _pow.src = 'proof-of-walk.js?v=20260527_strava_comply';
+            _pow.onload = function() { if (window.renderProofOfWalk) window.renderProofOfWalk(); };
+            document.head.appendChild(_pow);
+        }
     };
     window.toggleSidebarMenu = function(id) {
         var menu = document.getElementById(id);
