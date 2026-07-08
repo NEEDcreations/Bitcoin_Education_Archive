@@ -63,10 +63,10 @@
         }
     });
 
-    // Add role="navigation" to sidebar
+    // sidebar is now a <nav> element with implicit role="navigation"
+    // Just ensure aria-label is present for AI agent accessibility
     const sidebar = document.getElementById('sidebar');
-    if (sidebar && !sidebar.getAttribute('role')) {
-        sidebar.setAttribute('role', 'navigation');
+    if (sidebar && !sidebar.getAttribute('aria-label')) {
         sidebar.setAttribute('aria-label', 'Channel navigation');
     }
 
