@@ -711,10 +711,36 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     div.innerHTML = html;
     document.body.appendChild(div.firstChild);
 
-    // Focus input
+    // Focus input + wire up paste-to-send-image on the DM text input
     setTimeout(function() {
         var inp = document.getElementById('dmInput');
-        if (inp) inp.focus();
+        if (inp) {
+            inp.focus();
+            // Paste image from clipboard into DM
+            inp.addEventListener('paste', function(e) {
+                var items = e.clipboardData && e.clipboardData.items;
+                if (!items) return;
+                for (var i = 0; i < items.length; i++) {
+                    if (items[i].type.startsWith('image/')) {
+                        e.preventDefault();
+                        var file = items[i].getAsFile();
+                        if (file) {
+                            // Route through handleDMImage using a synthetic input-like object
+                            var fakeInput = { files: [file], value: '' };
+                            handleDMImage(fakeInput, convoId, otherUid, otherName);
+                        }
+                        return;
+                    }
+                }
+            });
+        }
+        // Re-wire the file input in case of stale DOM from prior DM open
+        var fileInput = document.getElementById('dmImageInput');
+        if (fileInput) {
+            fileInput.onchange = function() {
+                handleDMImage(this, convoId, otherUid, otherName);
+            };
+        }
     }, 300);
 
     // Load messages + listen for real-time updates
@@ -832,7 +858,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
 window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
     if (!input || !input.files || !input.files[0]) return;
     var file = input.files[0];
-    input.value = ''; // Reset so same file can be re-selected
+    try { input.value = ''; } catch(e) {} // Reset so same file can be re-selected (may throw on synthetic objects)
 
     // Validate
     if (!file.type.startsWith('image/')) {
