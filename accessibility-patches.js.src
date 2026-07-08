@@ -63,8 +63,7 @@
         }
     });
 
-    // sidebar is now a <nav> element with implicit role="navigation"
-    // Just ensure aria-label is present for AI agent accessibility
+    // sidebar is <aside> — keep its native complementary role, just add aria-label
     const sidebar = document.getElementById('sidebar');
     if (sidebar && !sidebar.getAttribute('aria-label')) {
         sidebar.setAttribute('aria-label', 'Channel navigation');
