@@ -3693,22 +3693,20 @@ function _setupCharityListeners(body) {
     if (typeof firebase === 'undefined' || !firebase.firestore) return;
     var db = firebase.firestore();
 
-    // Listen to global stats (total pledge + faction splits)
-    _charityStatsUnsub = db.collection('charity_stats').doc('global').onSnapshot(function(doc) {
+    // One-time fetch (no live stream — saves reads; refresh happens on tab re-open)
+    db.collection('charity_stats').doc('global').get().then(function(doc) {
         _charityStats = doc.exists ? doc.data() : { totalDonated: 0, factionTotals: {} };
         _charityStatsLoaded = true;
-        // Patch totals in place if the tab is still open
         var b = document.getElementById('questHubBody');
         if (b && window._questHubTab === 'charity') _patchCharityTotals();
-    }, function() {});
+    }).catch(function() {});
 
-    // Listen to recent donations stream
-    _charityRecentUnsub = db.collection('charity_donations').orderBy('ts', 'desc').limit(10).onSnapshot(function(snap) {
+    db.collection('charity_donations').orderBy('ts', 'desc').limit(10).get().then(function(snap) {
         _charityRecent = [];
         snap.forEach(function(doc) { _charityRecent.push(doc.data()); });
         var b = document.getElementById('questHubBody');
         if (b && window._questHubTab === 'charity') _patchCharityRecent();
-    }, function() {});
+    }).catch(function() {});
 }
 
 // Patch just the totals section without full re-render (avoids losing input state)
@@ -3801,15 +3799,16 @@ function _renderCharityTab(body) {
             _renderCharityTabInner(body);
         }
     }
-    _charityStatsUnsub = db.collection('charity_stats').doc('global').onSnapshot(function(doc) {
+    // One-time fetch instead of live listeners — saves reads
+    db.collection('charity_stats').doc('global').get().then(function(doc) {
         _charityStats = doc.exists ? doc.data() : { totalDonated: 0, factionTotals: {} };
         _statsReady = true;
         if (_firstRender) {
             var b = document.getElementById('questHubBody');
             if (b && window._questHubTab === 'charity') _patchCharityTotals();
         } else _maybeRender();
-    }, function() { _statsReady = true; _maybeRender(); });
-    _charityRecentUnsub = db.collection('charity_donations').orderBy('ts', 'desc').limit(10).onSnapshot(function(snap) {
+    }).catch(function() { _statsReady = true; _maybeRender(); });
+    db.collection('charity_donations').orderBy('ts', 'desc').limit(10).get().then(function(snap) {
         _charityRecent = [];
         snap.forEach(function(doc) { _charityRecent.push(doc.data()); });
         _recentReady = true;
@@ -3817,7 +3816,7 @@ function _renderCharityTab(body) {
             var b = document.getElementById('questHubBody');
             if (b && window._questHubTab === 'charity') _patchCharityRecent();
         } else _maybeRender();
-    }, function() { _recentReady = true; _maybeRender(); });
+    }).catch(function() { _recentReady = true; _maybeRender(); });
 }
 
 function _renderCharityTabInner(body) {
@@ -7636,15 +7635,12 @@ function _renderCommunityTab(body) {
     var weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
     var weekKey = now.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
 
-    _communityUnsub = db.collection('weekly_challenges').orderBy('startDate', 'desc').limit(1).onSnapshot(function(snapshot) {
-        if (snapshot.empty) {
-            _renderCommunityEmpty(body);
-            return;
-        }
+    // One-time fetch — weekly challenges don’t need a live stream
+    db.collection('weekly_challenges').orderBy('startDate', 'desc').limit(1).get().then(function(snapshot) {
+        if (snapshot.empty) { _renderCommunityEmpty(body); return; }
         var doc = snapshot.docs[0];
-        var data = doc.data();
-        _renderCommunityChallenge(body, doc.id, data);
-    }, function(err) {
+        _renderCommunityChallenge(body, doc.id, doc.data());
+    }).catch(function(err) {
         console.warn('[COMMUNITY] Error:', err);
         _renderCommunityEmpty(body);
     });

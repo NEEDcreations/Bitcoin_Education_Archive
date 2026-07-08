@@ -3358,13 +3358,13 @@ async function toggleLeaderboard() {
     }
 
     try {
-        // Cache leaderboard data for 2 minutes to reduce Firestore reads
+        // Cache leaderboard data for 10 minutes to reduce Firestore reads
         var now = Date.now();
         var _lbPeriod = window._lbPeriod || 'alltime';
         let allUsers = [];
 
         if (_lbPeriod === 'weekly') {
-            var useWeekCache = window._lbWeekCache && window._lbWeekCacheTime && (now - window._lbWeekCacheTime < 120000);
+            var useWeekCache = window._lbWeekCache && window._lbWeekCacheTime && (now - window._lbWeekCacheTime < 600000);
             if (useWeekCache) {
                 allUsers = window._lbWeekCache;
             } else {
@@ -3380,7 +3380,7 @@ async function toggleLeaderboard() {
                 window._lbWeekCacheTime = now;
             }
         } else if (_lbPeriod === 'monthly') {
-            var useMonthCache = window._lbMonthCache && window._lbMonthCacheTime && (now - window._lbMonthCacheTime < 120000);
+            var useMonthCache = window._lbMonthCache && window._lbMonthCacheTime && (now - window._lbMonthCacheTime < 600000);
             if (useMonthCache) {
                 allUsers = window._lbMonthCache;
             } else {
@@ -3396,7 +3396,7 @@ async function toggleLeaderboard() {
                 window._lbMonthCacheTime = now;
             }
         } else {
-            var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 120000);
+            var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
             if (useCache) {
                 allUsers = window._lbCache;
             } else {

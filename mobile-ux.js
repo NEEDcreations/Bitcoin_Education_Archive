@@ -291,37 +291,42 @@ window.renderRaidBossHome = function() {
     if (!el) return;
     if (typeof firebase === 'undefined' || typeof db === 'undefined') { el.style.display = 'none'; return; }
 
-    // Clean up previous listener
+    // Clean up any previous poll timer (no live listener — use polling to save reads)
     if (window._raidHomeUnsub) { window._raidHomeUnsub(); window._raidHomeUnsub = null; }
     if (window._raidHomeTimer) { clearInterval(window._raidHomeTimer); window._raidHomeTimer = null; }
 
-    window._raidHomeUnsub = db.collection('raid_bosses')
-        .orderBy('startTime', 'desc').limit(5)
-        .onSnapshot(function(snap) {
-            if (snap.empty) { el.style.display = 'none'; return; }
-            var now = Date.now();
-            var activeBoss = null;
-            var upcomingBoss = null;
-            var defeatedBoss = null;
-
-            snap.forEach(function(doc) {
-                var d = doc.data();
-                d.id = doc.id;
-                var startMs = d.startTime && d.startTime.toDate ? d.startTime.toDate().getTime() : 0;
-                var endMs = d.endTime && d.endTime.toDate ? d.endTime.toDate().getTime() : 0;
-                if (!d.placeholder && !d.defeated && startMs <= now && endMs > now) {
-                    if (!activeBoss) activeBoss = d;
-                } else if (d.placeholder && startMs > now) {
-                    if (!upcomingBoss || startMs < (upcomingBoss.startTime && upcomingBoss.startTime.toDate ? upcomingBoss.startTime.toDate().getTime() : 0)) {
-                        upcomingBoss = d;
+    function _fetchRaidBossHome() {
+        db.collection('raid_bosses')
+            .orderBy('startTime', 'desc').limit(5)
+            .get()
+            .then(function(snap) {
+                if (snap.empty) { el.style.display = 'none'; return; }
+                var now = Date.now();
+                var activeBoss = null;
+                var upcomingBoss = null;
+                var defeatedBoss = null;
+                snap.forEach(function(doc) {
+                    var d = doc.data();
+                    d.id = doc.id;
+                    var startMs = d.startTime && d.startTime.toDate ? d.startTime.toDate().getTime() : 0;
+                    var endMs = d.endTime && d.endTime.toDate ? d.endTime.toDate().getTime() : 0;
+                    if (!d.placeholder && !d.defeated && startMs <= now && endMs > now) {
+                        if (!activeBoss) activeBoss = d;
+                    } else if (d.placeholder && startMs > now) {
+                        if (!upcomingBoss || startMs < (upcomingBoss.startTime && upcomingBoss.startTime.toDate ? upcomingBoss.startTime.toDate().getTime() : 0)) {
+                            upcomingBoss = d;
+                        }
+                    } else if (d.defeated) {
+                        if (!defeatedBoss) defeatedBoss = d;
                     }
-                } else if (d.defeated) {
-                    if (!defeatedBoss) defeatedBoss = d;
-                }
-            });
-
-            _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss);
-        }, function() { el.style.display = 'none'; });
+                });
+                _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss);
+            })
+            .catch(function() { el.style.display = 'none'; });
+    }
+    _fetchRaidBossHome();
+    // Re-poll every 5 minutes — raid bosses don't change per-second
+    window._raidHomePollTimer = setInterval(_fetchRaidBossHome, 300000);
 };
 
 function _renderRaidHomeCard(el, activeBoss, upcomingBoss, defeatedBoss) {

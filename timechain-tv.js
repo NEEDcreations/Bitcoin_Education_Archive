@@ -6498,6 +6498,7 @@ function _leavePresence() {
     if (_viewerUnsub) { try { _viewerUnsub(); } catch(e) {} _viewerUnsub = null; }
     if (_tctvPeakUnsub) { try { _tctvPeakUnsub(); } catch(e) {} _tctvPeakUnsub = null; }
     if (_tctvViewsUnsub) { try { _tctvViewsUnsub(); } catch(e) {} _tctvViewsUnsub = null; }
+    if (_tctvStatsPollTimer) { clearInterval(_tctvStatsPollTimer); _tctvStatsPollTimer = null; }
     _tctvPeakLastWriteAt = 0;
     _viewerCounts = {};
     // Hide peak tooltip if visible
@@ -6542,23 +6543,23 @@ var _tctvPeakUnsub = null;
 var _tctvViewsUnsub = null;
 var _tctvPeakLastWriteAt = 0;
 
+var _tctvStatsPollTimer = null;
 function _subscribeTctvStats() {
     if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    var fs = firebase.firestore();
-    if (!_tctvPeakUnsub) {
-        try {
-            _tctvPeakUnsub = fs.collection('tctv_stats').doc('peak').onSnapshot(function(doc) {
-                _tctvPeak = (doc.exists && doc.data() && doc.data().peak) || 0;
-            });
-        } catch (e) {}
+    if (_tctvStatsPollTimer) return; // already polling
+    function _fetchTctvStats() {
+        if (typeof firebase === 'undefined' || !firebase.firestore) return;
+        var fs = firebase.firestore();
+        fs.collection('tctv_stats').doc('peak').get().then(function(doc) {
+            _tctvPeak = (doc.exists && doc.data() && doc.data().peak) || 0;
+        }).catch(function() {});
+        fs.collection('tctv_stats').doc('views').get().then(function(doc) {
+            _tctvTotalViews = (doc.exists && doc.data() && doc.data().count) || 0;
+        }).catch(function() {});
     }
-    if (!_tctvViewsUnsub) {
-        try {
-            _tctvViewsUnsub = fs.collection('tctv_stats').doc('views').onSnapshot(function(doc) {
-                _tctvTotalViews = (doc.exists && doc.data() && doc.data().count) || 0;
-            });
-        } catch (e) {}
-    }
+    _fetchTctvStats();
+    // Poll every 2 minutes — view counts don’t need real-time streaming
+    _tctvStatsPollTimer = setInterval(_fetchTctvStats, 120000);
 }
 
 // Bump tctv_stats/views atomically via transaction so concurrent +1s don't clobber.
