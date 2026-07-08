@@ -492,7 +492,8 @@
         .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
         
         /* Search overlay — always out of normal flow; flex only when JS shows it */
-        #searchOverlay { position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; flex-shrink: 0; flex-grow: 0; width: auto !important; height: auto !important; }
+        #searchOverlay { position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; flex-shrink: 0 !important; flex-grow: 0 !important; width: 100% !important; height: 100% !important; }
+        #searchOverlay:not([data-open="1"]) { display: none !important; }
         /* Mobile nav bar */
         .mobile-bar { display: none; }
 
@@ -684,7 +685,7 @@
     <div id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:rgba(0,0,0,0.85);padding:16px;flex-direction:column;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div style="font-size:1.1rem;font-weight:800;color:var(--heading);">🔍 Search Archive</div>
-            <button onclick="document.getElementById('searchOverlay').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
+            <button onclick="var _so=document.getElementById('searchOverlay');_so.style.display='none';_so.removeAttribute('data-open');" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
         </div>
         <input type="text" class="search-input" id="searchOverlayInput" placeholder="What are you looking for?" style="width:100%;padding:14px;background:#0f172a;border:2px solid var(--accent);border-radius:12px;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;" oninput="doSearch(this.value)">
         <div id="searchResults" class="search-results" style="flex:1;overflow-y:auto;background:none;padding:0;"></div>
@@ -699,14 +700,14 @@
             <span id="mobileUserInfo" style="font-size:0.65rem;color:var(--text-muted);cursor:pointer;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;"></span>
             <div style="display:flex;align-items:center;gap:4px;">
                 <button onclick="toggleMenu()" style="background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">☰ Topics</button>
-                <button onclick="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;flex-shrink:0;">🔍</button>
+                <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;flex-shrink:0;">🔍</button>
                 <button onclick="toggleTheme()" id="mobileThemeBtn" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;flex-shrink:0;" title="Light/Dark mode"><script>document.write(localStorage.getItem('theme')==='light'?'☀️':'🌙')</script></button>
             </div>
         </div>
     </div>
 
     <aside id="sidebar">
-        <button onclick="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
+        <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
         <button class="mobile-close" onclick="toggleMenu()">✕</button>
         <div class="sidebar-header">
             <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
@@ -961,7 +962,7 @@
 
     <button class="back-to-top" id="backToTop" onclick="document.getElementById('main').scrollTo({top:0,behavior:'smooth'})">↑</button>
     <button class="back-to-top scroll-to-bottom" id="scrollToBottom" onclick="var m=document.getElementById('main');m.scrollTo({top:m.scrollHeight,behavior:'smooth'})">↓</button>
-    <button id="desktopSearchBtn" onclick="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();" title="Search Archive">🔍</button>
+    <button id="desktopSearchBtn" onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" title="Search Archive">🔍</button>
     <main id="main">
         <!-- Home / Landing -->
         <div id="home" class="home-page">

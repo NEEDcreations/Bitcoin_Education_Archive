@@ -33,7 +33,7 @@ var isMobile = window.innerWidth <= 900 || ('ontouchstart' in window);
         if (e.key !== 'Escape') return;
 
         var overlays = [
-            { id: 'searchOverlay', check: 'display', close: function(el) { el.style.display = 'none'; } },
+            { id: 'searchOverlay', check: 'display', close: function(el) { el.style.display = 'none'; el.removeAttribute('data-open'); } },
             { id: 'nachoModeScreen', check: 'display', close: function(el) {
                 if (typeof exitNachoMode === 'function') exitNachoMode();
                 else el.style.display = 'none';
