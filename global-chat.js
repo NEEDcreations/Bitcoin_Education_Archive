@@ -1816,6 +1816,9 @@ window.showReactPicker = function(msgId, btnEl) {
 };
 
 window.toggleReaction = function(msgId, emoji) {
+    // Close any open picker immediately — prevents stale btnEl / dismissPicker race
+    var _openPicker = document.getElementById('reactPicker');
+    if (_openPicker) _openPicker.remove();
     if (typeof auth === 'undefined' || !auth || !auth.currentUser) {
         console.warn('[CHAT] Reaction blocked — not authenticated');
         if (typeof showToast === 'function') showToast('Sign in to react!');
