@@ -61,7 +61,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260708_0350" as="script">
+    <link rel="preload" href="bundle.js?v=20260708_0357" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -593,7 +593,8 @@
 
     .no-desktop { display: none !important; } .mobile-back-btn { display: none !important; } @media (max-width: 900px) { .no-desktop { display: flex !important; } .mobile-back-btn { display: inline-flex !important; } }
     </style>
-    <script src="https://accounts.google.com/gsi/client" async defer integrity="sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM" crossorigin="anonymous"></script>
+    <!-- Google Sign-In (gsi/client) lazy-loaded on demand to avoid 2s reCAPTCHA CPU hit on every page load -->
+    <script>window._loadGSI=function(){if(window._gsiLoaded)return;window._gsiLoaded=true;var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.integrity='sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM';s.crossOrigin='anonymous';s.async=true;document.head.appendChild(s);};</script>
     <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js" integrity="sha384-f7yO6sr2qrvOa6/1Yh/+PnBJyeuC8AvZwVNBWdF/60cWQ1kSpWmT64yiLZEh6T0u"></script>
     <script type="application/ld+json">
     {
@@ -1241,10 +1242,10 @@
     <!-- App Check: lazy-loaded to avoid 724KB reCAPTCHA on first paint -->
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
-    <script src="bundle.js?v=20260708_0350" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260708_0357" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260708_perf" defer></script>
-    <script src="onboarding.js?v=20260629_1905" defer></script>
-    <script src="timechain-tv.js?v=20260708_0335" defer></script>
+    <script src="onboarding.js?v=20260708_0357" defer></script>
+    <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
     <script>
     (function(){
@@ -1257,7 +1258,7 @@
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260523_batch','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20260703_0449',
-            'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602','timechain-tv.js?v=20260708_0335','satoshi-favor.js?v=20260702_1626'
+            'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602','satoshi-favor.js?v=20260702_1626'
         ];
         var _loaded = false;
         function _loadDeferred() {
@@ -1305,7 +1306,7 @@
             'proof-of-play': ['pvp.js?v=20260703_0449', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20260331'],
-            'timechain-tv':  ['timechain-tv.js?v=20260708_0335']
+            'timechain-tv':  ['timechain-tv.js?v=20260708_0357']
         };
         var scripts = _hashScripts[hash];
         if (scripts) {

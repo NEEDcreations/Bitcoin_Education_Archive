@@ -505,14 +505,28 @@ window.signInWithGoogle = async function() {
     var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     // On desktop, try GIS One Tap (fast if available)
     // On mobile, skip GIS entirely — go straight to Firebase popup (faster, more reliable)
-    if (!isMobile && typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-        try {
-            await signInWithGIS();
-            return;
-        } catch(gisErr) {
-            console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
-            try { google.accounts.id.cancel(); } catch(e) {}
-            document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
+    if (!isMobile) {
+        // Lazy-load the GSI script if not already loaded
+        if (typeof window._loadGSI === 'function') window._loadGSI();
+        // Wait up to 3s for google.accounts to become available
+        if (typeof google === 'undefined' || !google.accounts) {
+            await new Promise(function(resolve) {
+                var waited = 0;
+                var t = setInterval(function() {
+                    waited += 100;
+                    if ((typeof google !== 'undefined' && google.accounts) || waited >= 3000) { clearInterval(t); resolve(); }
+                }, 100);
+            });
+        }
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            try {
+                await signInWithGIS();
+                return;
+            } catch(gisErr) {
+                console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
+                try { google.accounts.id.cancel(); } catch(e) {}
+                document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
+            }
         }
     }
     // Firebase popup/redirect
