@@ -1309,13 +1309,23 @@
             'timechain-tv':  ['timechain-tv.js?v=20260708_0357']
         };
         var scripts = _hashScripts[hash];
-        if (scripts) {
-            scripts.forEach(function(src) {
-                // Skip if already queued in the lazy batch
-                if (document.querySelector('script[src="' + src + '"]')) return;
+        if (scripts && scripts.length) {
+            var _toLoad = scripts.filter(function(src) {
+                return !document.querySelector('script[src="' + src + '"]');
+            });
+            var _loaded = 0;
+            function _onScriptLoad() {
+                _loaded++;
+                if (_loaded >= _toLoad.length) {
+                    // All scripts loaded — re-trigger routing so go() runs with scripts ready
+                    if (typeof window.go === 'function') window.go(hash);
+                }
+            }
+            _toLoad.forEach(function(src) {
                 var s = document.createElement('script');
                 s.src = src;
                 s.async = true;
+                s.onload = _onScriptLoad;
                 document.head.appendChild(s);
             });
             // Also trigger the full deferred batch early so everything else loads too
