@@ -491,6 +491,8 @@
         .lightbox.open { display: flex; }
         .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
         
+        /* Search overlay — always out of normal flow; flex only when JS shows it */
+        #searchOverlay { position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; flex-shrink: 0; flex-grow: 0; width: auto !important; height: auto !important; }
         /* Mobile nav bar */
         .mobile-bar { display: none; }
 
@@ -723,7 +725,7 @@
                 <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(0,0,0,0.9);padding:3px 10px;border-radius:4px;flex-shrink:0;z-index:2;position:relative;border:1px solid rgba(247,147,26,0.3);box-shadow:8px 0 12px rgba(0,0,0,0.9);">🔴 Live</span>
                 <div id="ticker-content" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
             </div>
-            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all topics..." oninput="doSearch(this.value)" onfocus="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all topics..." oninput="doSearch(this.value)" onfocus="if(window.innerWidth<=900){document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();}">
 
         </div>
         <div class="channels" id="channelList">
