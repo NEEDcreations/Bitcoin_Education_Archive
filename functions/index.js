@@ -4966,7 +4966,7 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
             updatedAt: ts,
             [`factionTotals.${factionKey}`]: admin.firestore.FieldValue.increment(amount),
         };
-        tx.update(statsRef, statsUpdate);
+        tx.set(statsRef, statsUpdate, { merge: true });
     });
 
     return { success: true, newBadges, bonusPts, donationTicket };

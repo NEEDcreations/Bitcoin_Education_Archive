@@ -3693,20 +3693,20 @@ function _setupCharityListeners(body) {
     if (typeof firebase === 'undefined' || !firebase.firestore) return;
     var db = firebase.firestore();
 
-    // One-time fetch (no live stream — saves reads; refresh happens on tab re-open)
-    db.collection('charity_stats').doc('global').get().then(function(doc) {
+    // Live listener — updates totals + recent donations in real time
+    _charityStatsUnsub = db.collection('charity_stats').doc('global').onSnapshot(function(doc) {
         _charityStats = doc.exists ? doc.data() : { totalDonated: 0, factionTotals: {} };
         _charityStatsLoaded = true;
         var b = document.getElementById('questHubBody');
         if (b && window._questHubTab === 'charity') _patchCharityTotals();
-    }).catch(function() {});
+    }, function() {});
 
-    db.collection('charity_donations').orderBy('ts', 'desc').limit(10).get().then(function(snap) {
+    _charityRecentUnsub = db.collection('charity_donations').orderBy('ts', 'desc').limit(10).onSnapshot(function(snap) {
         _charityRecent = [];
         snap.forEach(function(doc) { _charityRecent.push(doc.data()); });
         var b = document.getElementById('questHubBody');
         if (b && window._questHubTab === 'charity') _patchCharityRecent();
-    }).catch(function() {});
+    }, function() {});
 }
 
 // Patch just the totals section without full re-render (avoids losing input state)
@@ -3799,16 +3799,16 @@ function _renderCharityTab(body) {
             _renderCharityTabInner(body);
         }
     }
-    // One-time fetch instead of live listeners — saves reads
-    db.collection('charity_stats').doc('global').get().then(function(doc) {
+    // Live listeners — real-time updates for totals + recent donations
+    _charityStatsUnsub = db.collection('charity_stats').doc('global').onSnapshot(function(doc) {
         _charityStats = doc.exists ? doc.data() : { totalDonated: 0, factionTotals: {} };
         _statsReady = true;
         if (_firstRender) {
             var b = document.getElementById('questHubBody');
             if (b && window._questHubTab === 'charity') _patchCharityTotals();
         } else _maybeRender();
-    }).catch(function() { _statsReady = true; _maybeRender(); });
-    db.collection('charity_donations').orderBy('ts', 'desc').limit(10).get().then(function(snap) {
+    }, function() { _statsReady = true; _maybeRender(); });
+    _charityRecentUnsub = db.collection('charity_donations').orderBy('ts', 'desc').limit(10).onSnapshot(function(snap) {
         _charityRecent = [];
         snap.forEach(function(doc) { _charityRecent.push(doc.data()); });
         _recentReady = true;
@@ -3816,7 +3816,7 @@ function _renderCharityTab(body) {
             var b = document.getElementById('questHubBody');
             if (b && window._questHubTab === 'charity') _patchCharityRecent();
         } else _maybeRender();
-    }).catch(function() { _recentReady = true; _maybeRender(); });
+    }, function() { _recentReady = true; _maybeRender(); });
 }
 
 function _renderCharityTabInner(body) {
