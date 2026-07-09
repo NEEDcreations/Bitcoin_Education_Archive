@@ -15131,6 +15131,18 @@ function _startFactionScoreboardListener() {
 var _favorTopHashesUnsub = null;
 var _favorPBUnsub = null;
 
+// Tap handler for hash difficulty tooltip — works on both mobile (tap) and desktop (click)
+window._sfHashTap = function(rowId, diffTarget) {
+    var tip = document.getElementById(rowId + '_tip');
+    if (!tip) return;
+    var isOpen = tip.style.display !== 'none';
+    tip.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+        // Auto-dismiss after 4 seconds
+        setTimeout(function() { if (tip) tip.style.display = 'none'; }, 4000);
+    }
+};
+
 function _renderTopHashesHTML(entries) {
     var myUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
     var now = Date.now();
@@ -15169,25 +15181,23 @@ function _renderTopHashesHTML(entries) {
         var winDate = tsMs ? new Date(tsMs).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) : '';
         if (isWin) badges += '<span title="Won ' + winDate + '" style="margin-left:6px;padding:1px 6px;background:#22c55e;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;cursor:help;">WINNER</span>';
         if (isNew) badges += '<span style="margin-left:4px;padding:1px 5px;background:#f7931a;color:#fff;font-size:0.6rem;font-weight:900;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;">NEW</span>';
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;margin-bottom:3px;' +
+        var rowId = 'sfHashRow' + rank;
+        return '<div id="' + rowId + '" style="padding:6px 10px;margin-bottom:3px;' +
             'background:' + (isWin ? 'rgba(34,197,94,0.12)' : (isMe ? 'rgba(247,147,26,0.1)' : 'transparent')) + ';' +
             'border:1px solid ' + (isWin ? '#22c55e' : (isMe ? 'var(--accent)' : 'var(--border)')) + ';border-radius:8px;">' +
-            '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
-                '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + name + (isMe ? ' (you)' : '') + badges + '</span>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+                '<div style="display:flex;align-items:center;gap:6px;">' +
+                    '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
+                    '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + name + (isMe ? ' (you)' : '') + badges + '</span>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:6px;">' +
+                    '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" ' +
+                        'onclick="window._sfHashTap(\'' + rowId + '\',' + diffTarget + ')" ' +
+                        'style="font-family:monospace;font-size:0.82rem;font-weight:800;cursor:pointer;color:' + (isWin ? '#22c55e' : 'var(--text-muted)') + ';">' + e.value.toLocaleString() + '</span>' +
+                    '<span onclick="window._sfHashTap(\'' + rowId + '\',' + diffTarget + ')" style="font-size:0.65rem;color:var(--text-faint);cursor:pointer;user-select:none;" title="Tap to see difficulty">ⓘ</span>' +
+                '</div>' +
             '</div>' +
-            '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" ' +
-                'onclick="(function(el){' +
-                    'var existing=el.parentNode.querySelector(\'.sf-diff-tip\');' +
-                    'if(existing){existing.remove();return;}' +
-                    'var tip=document.createElement(\'div\');' +
-                    'tip.className=\'sf-diff-tip\';' +
-                    'tip.style.cssText=\'font-size:0.68rem;color:var(--text-muted);margin-top:3px;padding:2px 6px;background:rgba(0,0,0,0.4);border-radius:5px;text-align:right;\';' +
-                    'tip.textContent=\'Target when mined: \' + ' + diffTarget + '.toLocaleString();' +
-                    'el.parentNode.insertAdjacentElement(\'afterend\',tip);' +
-                    'setTimeout(function(){if(tip.parentNode)tip.remove();},3000);' +
-                '})(this)" ' +
-                'style="font-family:monospace;font-size:0.82rem;font-weight:800;cursor:pointer;color:' + (isWin ? '#22c55e' : 'var(--text-muted)') + ';">' + e.value.toLocaleString() + '</span>' +
+            '<div id="' + rowId + '_tip" style="display:none;font-size:0.72rem;color:var(--text-muted);margin-top:4px;padding:4px 8px;background:rgba(0,0,0,0.35);border-radius:6px;">⛏️ Difficulty when mined: <strong>' + diffTarget.toLocaleString() + '</strong></div>' +
         '</div>';
     }
 
