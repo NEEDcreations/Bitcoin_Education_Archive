@@ -2250,7 +2250,9 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     // ── Signed-in users: Cloud Function enforces daily cap server-side ──
     // Eagerly log to notification tracker so it always appears in 🔔 Alerts
     // (CF is async — user may navigate away before it returns)
-    if (pts > 0 && reason && typeof notifySelfPoints === 'function') {
+    // Exception: badge_earned — defer notification until server confirms (prevents ghost XP on cache-clear re-trigger)
+    var _isBadgeEarned = !!(badgeId);
+    if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
         notifySelfPoints(pts, reason);
     }
     try {
@@ -2282,10 +2284,14 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var overflowAdded = result.data.overflowAdded || 0;
             var pendingOverflow = result.data.pendingOverflow || 0;
             var totalAdded = awarded + overflowRedeemed;
+            // For badge_earned: notify here (deferred from eager path above) — server confirmed it's real
+            if (_isBadgeEarned && awarded > 0 && typeof notifySelfPoints === 'function') {
+                notifySelfPoints(awarded, reason);
+            }
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
                 _showPointsToast(awarded, reason);
-                // Notification already logged eagerly before CF call
+                // Notification already logged eagerly before CF call (or above for badges)
                 if (overflowRedeemed > 0) {
                     setTimeout(function() {
                         showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
@@ -7696,13 +7702,19 @@ window.markVisibleBadgesReady = function() {
 };
 
 // Safety: allow badges after 20 seconds even if Firebase is slow
-setTimeout(function() { if (!window._visibleBadgesReady) window._visibleBadgesReady = true; }, 20000);
+setTimeout(function() { if (!window._visibleBadgesReady) { if (typeof window.markVisibleBadgesReady === "function") window.markVisibleBadgesReady(); else window._visibleBadgesReady = true; } }, 20000);
 
 function checkBadges() {
     // Wait until Firebase has restored earned badges
     if (!window._visibleBadgesReady) return;
     // Don't pop badges while Nacho is busy
     if (window._nachoBusy) return;
+
+    // Extra guard: sync earnedBadges from Firestore visibleBadges in case of race condition
+    // (e.g. cache cleared, currentUser loaded but markVisibleBadgesReady not yet called)
+    var _fsVisibleBadges = (typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.visibleBadges))
+        ? currentUser.visibleBadges : [];
+    _fsVisibleBadges.forEach(function(bid) { earnedBadges.add(bid); });
 
     const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
     const totalChannels = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;

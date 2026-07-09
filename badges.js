@@ -647,13 +647,19 @@ window.markVisibleBadgesReady = function() {
 };
 
 // Safety: allow badges after 20 seconds even if Firebase is slow
-setTimeout(function() { if (!window._visibleBadgesReady) window._visibleBadgesReady = true; }, 20000);
+setTimeout(function() { if (!window._visibleBadgesReady) { if (typeof window.markVisibleBadgesReady === "function") window.markVisibleBadgesReady(); else window._visibleBadgesReady = true; } }, 20000);
 
 function checkBadges() {
     // Wait until Firebase has restored earned badges
     if (!window._visibleBadgesReady) return;
     // Don't pop badges while Nacho is busy
     if (window._nachoBusy) return;
+
+    // Extra guard: sync earnedBadges from Firestore visibleBadges in case of race condition
+    // (e.g. cache cleared, currentUser loaded but markVisibleBadgesReady not yet called)
+    var _fsVisibleBadges = (typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.visibleBadges))
+        ? currentUser.visibleBadges : [];
+    _fsVisibleBadges.forEach(function(bid) { earnedBadges.add(bid); });
 
     const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
     const totalChannels = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
