@@ -755,7 +755,7 @@ function formatChatText(text, mentionUid) {
         // If we have a direct uid (from level-up announcements etc), use it for the first @mention
         // Greedy multi-word match; terminators are keyword verbs or '!?' only — NOT bare punctuation
         // (bare : or . appear mid-sentence in "earned a badge:" and must NOT be swallowed into the link)
-        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?='s | just | leveled| earned| completed| aced|[!?]|$)/, function(match, name) {
+        text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+){0,2})(?='s | just | leveled| earned| completed| aced|[!?]|$)/, function(match, name) {
             _mentionHandled = true;
             var safeName = name.trim();
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
@@ -764,7 +764,7 @@ function formatChatText(text, mentionUid) {
         });
     }
     // Handle remaining @mentions without uid — try multi-word first (handles display names with spaces)
-    text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+)*)(?='s | just | leveled| earned| completed| aced|[!?]|$)/g, function(match, name) {
+    text = text.replace(/@([A-Za-z0-9_][A-Za-z0-9_]*(?: [A-Za-z0-9_]+){0,2})(?='s | just | leveled| earned| completed| aced|[!?]|$)/g, function(match, name) {
         if (_mentionHandled) return match; // already handled by uid branch above
         var safeName = name.trim().replace(/['"]/g, '');
         if (!safeName) return match;
