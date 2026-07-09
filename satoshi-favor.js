@@ -43,7 +43,7 @@
 
     // Feature 1: Streak multiplier state (localStorage-backed)
     // btc_sf_window_streak: int — consecutive windows participated in (0-3)
-    // btc_sf_easy_window: '1' — pending Easy Window bonus (earned after 3-window streak)
+    // btc_sf_easy_window: '1' — pending Supercharged Window bonus (earned after 3-window streak)
     // sfState.myHashCount: hashes submitted this window (resets on window change)
     var sfState = { myHashCount: 0, currentWindowId: null };
 
@@ -229,11 +229,11 @@
             }
 
             if (nowActive && !_prevFavorActive) {
-                // Feature 1: Window opened — check for pending Easy Window bonus
+                // Feature 1: Window opened — check for pending Supercharged Window bonus
                 if (_sfGetEasyWindowPending()) {
                     window._sfEasyWindowActive = true;
                     _sfSetEasyWindowPending(false);
-                    console.log('[FAVOR] Easy Window activated! 1 click = 10 hashes this window.');
+                    console.log('[FAVOR] Supercharged Window activated! 1 click = 10 hashes this window.');
                 } else {
                     window._sfEasyWindowActive = false;
                 }
@@ -249,12 +249,12 @@
                 if (sfState.myHashCount > 0) {
                     var newStreak = _sfGetStreak() + 1;
                     if (newStreak >= 3) {
-                        // Earned Easy Window — bank it for next window, reset streak
+                        // Earned Supercharged Window — bank it for next window, reset streak
                         _sfSetStreak(0);
                         _sfSetEasyWindowPending(true);
-                        console.log('[FAVOR] 3-window streak complete! Easy Window banked for next window.');
+                        console.log('[FAVOR] 3-window streak complete! Supercharged Window banked for next window.');
                         if (typeof window.forceShowBubble === 'function') {
-                            window.forceShowBubble("🎉 3-window streak! Your NEXT mining window is an Easy Window — 1 click = 10 hashes! You earned the break! ⛏️🦌", 'fire');
+                            window.forceShowBubble("⚡ 3-window streak! Your NEXT mining window is a Supercharged Window — 1 click = 10 hashes! You earned the break! ⛏️🦌", 'fire');
                         }
                     } else {
                         _sfSetStreak(newStreak);
@@ -471,18 +471,18 @@
 
         if (easyWindowActive) {
             return '<div style="text-align:center;padding:10px 14px;background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(247,147,26,0.1));border:2px solid #22c55e;border-radius:10px;margin-bottom:10px;">' +
-                '<div style="font-size:0.88rem;font-weight:800;color:#22c55e;">🎉 EASY WINDOW!</div>' +
-                '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;">1 click = 10 quick hashes. You earned the break!</div>' +
+                '<div style="font-size:0.88rem;font-weight:800;color:#22c55e;">⚡ SUPERCHARGED WINDOW!</div>' +
+                '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;">1 click = 10 quick hashes. You earned the break! ⚡</div>' +
                 '</div>';
         }
         if (easyWindowPending) {
             return '<div style="text-align:center;padding:8px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,179,8,0.08));border:1px solid #f7931a;border-radius:10px;margin-bottom:10px;">' +
-                '<div style="font-size:0.82rem;font-weight:800;color:#f7931a;">⚡ Easy Window banked!</div>' +
-                '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your next window = 1 click → 10 hashes 🎉</div>' +
+                '<div style="font-size:0.82rem;font-weight:800;color:#f7931a;">⚡ Supercharged Window banked!</div>' +
+                '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your next window = 1 click → 10 hashes ⚡</div>' +
                 '</div>';
         }
         if (streak === 0) {
-            return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Mine 3 windows in a row to earn an Easy Window!</div>';
+            return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Mine 3 windows in a row to earn a Supercharged Window!</div>';
         }
         var dots = '';
         for (var i = 0; i < 3; i++) {
@@ -492,7 +492,7 @@
         }
         return '<div style="text-align:center;padding:6px;margin-bottom:8px;">' +
             '<span style="font-size:0.8rem;font-weight:700;color:var(--heading);">🔥 Mining Streak: ' + dots + '</span>' +
-            '<span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-top:2px;">' + streak + '/3 — earn an Easy Window (1 click = 10 hashes)!</span>' +
+            '<span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-top:2px;">' + streak + '/3 — earn a Supercharged Window (1 click = 10 hashes)!</span>' +
             '</div>';
     }
 
@@ -565,7 +565,7 @@
         // Determine effective hash rate
         var effectiveRateDisplay = _sfEffectiveRate();
         var isEasyWindow = !!window._sfEasyWindowActive;
-        var easyBtnLabel = '🎉 EASY HASH (1 click = 10!)';
+        var easyBtnLabel = '⚡ SUPERCHARGED (1 click = 10!)';
 
         // Second rig buttons HTML
         var hashBtnsHTML = hasSecondRig
@@ -951,10 +951,10 @@
         var boosterHashes = u.hashBoosterHashes || 0;
         var hasSecondRig = (u.secondRigCharges || 0) > 0;
 
-        // Easy Window: 1 click = 10 hashes (only Rig 1, rate-limited naturally)
+        // Supercharged Window: 1 click = 10 hashes (only Rig 1, rate-limited naturally)
         if (window._sfEasyWindowActive && rig === 1) {
             var btnEW = document.getElementById('minerHashBtn');
-            if (btnEW) { btnEW.disabled = true; btnEW.textContent = '🎉 EASY HASHING...'; btnEW.style.opacity = '0.7'; }
+            if (btnEW) { btnEW.disabled = true; btnEW.textContent = '⚡ SUPERCHARGING...'; btnEW.style.opacity = '0.7'; }
             var easyWinFound = null;
             var easyCount = 0;
             var easyRateLimit = null;
@@ -970,10 +970,10 @@
                 easyCount++;
                 if (eRes.isWinner) { easyWinFound = eRes.value; break; }
             }
-            if (btnEW) { btnEW.disabled = false; btnEW.textContent = '⛏️ EASY HASH'; btnEW.style.opacity = '1'; }
+            if (btnEW) { btnEW.disabled = false; btnEW.textContent = '⚡ SUPERCHARGED'; btnEW.style.opacity = '1'; }
             var msgEW = document.getElementById('hashMessage');
             if (easyWinFound !== null) {
-                if (msgEW) msgEW.innerHTML = '<strong style="color:#22c55e;font-size:1.1rem;">🏆 WINNER! (Easy Window!) You solved a block!</strong><br>21,000 sats incoming! Check your DMs.';
+                if (msgEW) msgEW.innerHTML = '<strong style="color:#22c55e;font-size:1.1rem;">🏆 WINNER! (Supercharged Window!) You solved a block!</strong><br>21,000 sats incoming! Check your DMs.';
                 _showWinnerCelebration(easyWinFound);
                 announceWinner(easyWinFound);
             } else if (easyRateLimit) {
@@ -987,7 +987,7 @@
             return;
         }
 
-        // ── Normal (non-Easy-Window) hash flow ──
+        // ── Normal (non-Supercharged) hash flow ──
         var timestamps = rig === 2 ? hashTimestamps2 : hashTimestamps;
         var btnId = rig === 2 ? 'minerHashBtn2' : 'minerHashBtn';
         var cooldownId = rig === 2 ? 'hashCooldown2' : 'hashCooldown';
