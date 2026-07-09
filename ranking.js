@@ -5280,7 +5280,7 @@ function showSettingsPage(tab) {
         html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">12 🏟️ tickets</span></button>';
         html += '</div></div>';
         html += statRow('Total Site Visits', totalVisits, '👁️');
-        html += statRow('Channels Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
+        html += statRow('Topics Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
         html += statRow('Saved Favorites', localFavs, '⭐');
         html += statRow('Hidden Badges Found', hiddenBadges + ' / ' + (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.length : 8), '🏅');
         html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
@@ -5366,7 +5366,7 @@ function showSettingsPage(tab) {
             var _readProg = JSON.parse(localStorage.getItem('btc_channel_progress') || '{}');
             var _readComplete = Object.values(_readProg).filter(function(v) { return v >= 100; }).length;
             var _readStarted = Object.keys(_readProg).length;
-            if (_readStarted > 0) html += statRow('Channels Read (100%)', _readComplete + ' complete, ' + _readStarted + ' started', '📖');
+            if (_readStarted > 0) html += statRow('Topics Read (100%)', _readComplete + ' complete, ' + _readStarted + ' started', '📖');
         } catch(e) {}
 
         if (typeof getNachoFriendship === 'function') {

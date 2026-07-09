@@ -517,7 +517,7 @@ window.renderProgressRings = function() {
     }
 
     el.innerHTML = '<div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">' +
-        ring(Math.min(100, (visited / totalChannels) * 100), '#f7931a', 'Channels', visited + '/' + totalChannels) +
+        ring(Math.min(100, (visited / totalChannels) * 100), '#f7931a', 'Topics', visited + '/' + totalChannels) +
         ring(Math.min(100, streak * 5), '#22c55e', 'Streak', '🔥' + streak) +
         ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'XP', points > 999 ? Math.floor(points/1000) + 'k' : points) +
         ring(Math.min(100, interactions * 2), '#3B82F6', 'Nacho', interactions) +
