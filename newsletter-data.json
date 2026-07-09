@@ -1,25 +1,25 @@
 {
-  "updated": "2026-07-09T16:00:49.869Z",
+  "updated": "2026-07-09T20:00:48.532Z",
   "news": [
+    {
+      "date": "Jul 9, 2026",
+      "title": "Binance Founder Talked About FREEZING Satoshi's Coins",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/toeNXBqmW8A",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Jul 9, 2026",
+      "title": "Bitcoin&#8217;s New Debt Machine is Facing Its First Major Test",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/markets/bitcoins-new-debt-machine-is-facing",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Jul 9, 2026",
       "title": "New Hampshire Council Rejects $100 Million Bitcoin-Backed Bond",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/new-hampshire-council-rejects-100-million",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 9, 2026",
-      "title": "BitGo Adds Quantum-Risk Controls to Bitcoin Custody",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitgo-adds-quantum-risk-controls-bitcoin",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 9, 2026",
-      "title": "Russia&#8217;s Largest Private Bank Alfa-Bank To Test Bitcoin and Crypto Trading",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/russias-largest-private-bank-alfa-bank",
       "source": "bitcoin-magazine"
     }
   ]
