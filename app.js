@@ -591,7 +591,7 @@
         window._bonusSpinActive = false; // consume the flag
         if (!isBonusSpin) {
             var lastSpin = localStorage.getItem('btc_last_spin_date');
-            var today = new Date().toISOString().split('T')[0]; // UTC ISO date — matches server
+            var today = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]); // 5 AM UTC reset — matches getDailyKey
             if (lastSpin === today) {
                 showToast('🎡 You already spun today! Come back tomorrow!');
                 return;
@@ -945,18 +945,19 @@
 
             var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0'); localStorage.setItem('btc_spin_count', String(_sc + 1));
             var _lastSpinDay = localStorage.getItem('btc_spin_last_day') || '';
-            var _yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+            var _dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+            var _yesterday = new Date(Date.now() - (5 + 24) * 3600000).toISOString().split('T')[0]; // yesterday in offset-day space
             if (_lastSpinDay === _yesterday) {
                 var _ss = parseInt(localStorage.getItem('btc_spin_streak') || '0'); localStorage.setItem('btc_spin_streak', String(_ss + 1));
-            } else if (_lastSpinDay !== today) {
+            } else if (_lastSpinDay !== _dk) {
                 localStorage.setItem('btc_spin_streak', '1');
             }
-            localStorage.setItem('btc_spin_last_day', today);
+            localStorage.setItem('btc_spin_last_day', _dk);
             if (selected.value === 'rare_drop') { localStorage.setItem('btc_spin_hit_rare', 'true'); }
 
-            localStorage.setItem('btc_last_spin_date', today);
+            localStorage.setItem('btc_last_spin_date', _dk);
             if (typeof currentUser !== 'undefined' && currentUser) {
-                currentUser.lastSpinDate = today;
+                currentUser.lastSpinDate = _dk;
             }
             } // end doSpin
         });

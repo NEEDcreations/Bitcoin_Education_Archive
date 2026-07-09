@@ -50,8 +50,11 @@ const POINT_VALUES = {
  * Helper: Get today's date string in YYYY-MM-DD format
  */
 function getTodayString() {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+  // 5-hour UTC offset — matches client getDailyKey() which resets at 5 AM UTC
+  // Prevents users from double-completing daily challenges at the UTC midnight boundary
+  const RESET_HOUR_UTC = 5;
+  const shifted = new Date(Date.now() - RESET_HOUR_UTC * 3600 * 1000);
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}-${String(shifted.getUTCDate()).padStart(2, '0')}`;
 }
 
 /**

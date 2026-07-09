@@ -7,6 +7,14 @@ const fetch = require('node-fetch');
 
 admin.initializeApp();
 const db = admin.firestore();
+// Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
+// Prevents server/client day mismatch that lets users double-complete daily challenges
+function getOffsetDateKey() {
+    const RESET_HOUR_UTC = 5;
+    const shifted = new Date(Date.now() - RESET_HOUR_UTC * 3600 * 1000);
+    return shifted.toISOString().split('T')[0];
+}
+
 
 // HTML escape for server-side email/notification content
 function _escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -232,8 +240,9 @@ exports.totpStatus = functions.https.onCall(async (data, context) => {
 // Streak Reminder Push Notifications
 // Runs daily at 8pm UTC (adjustable)
 // =============================================
-exports.streakReminder = onSchedule({ schedule: '0 20 * * *', timeZone: 'UTC' }, async (event) => {
-        const today = new Date().toISOString().split('T')[0];
+// Fires at midnight UTC = 7 PM ET, warning users 5h before the 5 AM UTC (midnight ET) streak reset
+exports.streakReminder = onSchedule({ schedule: '0 0 * * *', timeZone: 'UTC' }, async (event) => {
+        const today = getOffsetDateKey(); // offset key — warns about the correct reset boundary
 
         // Find users with push tokens who visited yesterday but NOT today
         // (their streak is about to expire at midnight)
@@ -2281,7 +2290,8 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
     // ── ATOMIC UPDATES ──
     const DAILY_CAP = 500;
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]; // UTC midnight — used for daily points cap
+    const offsetToday = getOffsetDateKey(); // 5h offset — used for daily action dedup (matches client getDailyKey)
     const userRef = db.collection('users').doc(uid);
     const dailyPtsRef = userRef.collection('daily_points').doc(today);
 
@@ -2327,11 +2337,11 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
             const badgeAwardRef = badgeKnown ? userRef.collection('badge_awards').doc(badgeId) : null;
             const triviaRef = (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt')
-                ? userRef.collection('daily_action_counts').doc(today + '_trivia') : null;
+                ? userRef.collection('daily_action_counts').doc(offsetToday + '_trivia') : null;
             const pollRef = matchedAction === 'poll_vote'
-                ? userRef.collection('daily_action_counts').doc(today + '_poll_vote') : null;
+                ? userRef.collection('daily_action_counts').doc(offsetToday + '_poll_vote') : null;
             const dtRef = DAILY_TICKET_ACTIONS.includes(matchedAction)
-                ? userRef.collection('daily_action_counts').doc(today + '_' + matchedAction) : null;
+                ? userRef.collection('daily_action_counts').doc(offsetToday + '_' + matchedAction) : null;
             const stravaRef = matchedAction === 'strava_connect_ticket'
                 ? userRef.collection('lifetime_awards').doc('strava_connect') : null;
             const countedRef = (matchedAction === 'dj_set_ticket' || matchedAction === 'beats_upload_ticket' || matchedAction === 'raid_damage_ticket')
@@ -2848,7 +2858,7 @@ exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
             if (!userDoc.exists) throw new Error('User not found');
             const user = userDoc.data();
 
-            const today = new Date().toISOString().split('T')[0];
+            const today = getOffsetDateKey(); // 5 AM UTC reset — matches client getDailyKey()
             const lastVisit = user.lastVisit || '';
 
             // Already visited today
@@ -3580,8 +3590,9 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
     // hard cap AND enforces a per-day quest grading limit to stop abuse.
     const DAILY_QUEST_LIMIT = 3;   // max completed quests per UTC day
     const DAILY_POINTS_CAP = 500;  // matches awardPoints cap exactly
-    const today = new Date().toISOString().split('T')[0];
-    const dailyQuestRef = userRef.collection('daily_action_counts').doc(today + '_quest');
+    const today = new Date().toISOString().split('T')[0]; // UTC midnight — used for daily points cap
+    const offsetToday = getOffsetDateKey(); // 5h offset — matches client getDailyKey
+    const dailyQuestRef = userRef.collection('daily_action_counts').doc(offsetToday + '_quest');
     const dailyPtsRef = userRef.collection('daily_points').doc(today);
 
     const result = await db.runTransaction(async (tx) => {

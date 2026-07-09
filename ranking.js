@@ -1868,8 +1868,10 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
 
 async function awardVisitPoints() {
     if (!currentUser) return;
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    // Use 5 AM UTC offset key — matches getDailyKey() and server getOffsetDateKey()
+    const RESET_HOUR_UTC = 5;
+    const today = new Date(Date.now() - RESET_HOUR_UTC * 3600000).toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - (RESET_HOUR_UTC + 24) * 3600000).toISOString().split('T')[0];
 
     // Only award once per day — no refresh exploits
     if (currentUser.lastVisit === today) return;
