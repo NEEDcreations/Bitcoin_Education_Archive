@@ -4935,9 +4935,10 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
         // Update user doc
         const today = new Date().toISOString().split('T')[0];
 
-        // Award 1 orange ticket if donation >= 1000 XP, once per UTC day
+        // Award 1 orange ticket if donation >= 1000 XP, once per day (5 AM UTC reset)
         let donationTicket = 0;
-        const donationTicketRef = userRef.collection('daily_action_counts').doc(today + '_donate_ticket');
+        const _donateOffsetToday = getOffsetDateKey();
+        const donationTicketRef = userRef.collection('daily_action_counts').doc(_donateOffsetToday + '_donate_ticket');
         const donationTicketDoc = await tx.get(donationTicketRef);
         if (amount >= 1000 && !donationTicketDoc.exists) {
             donationTicket = 1;

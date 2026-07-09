@@ -4985,7 +4985,7 @@ function showSettingsPage(tab) {
         // Balance card
         html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Available to Donate</div>';
-        html += '<div style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
+        html += '<div data-sats-charity-avail style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
         var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated;
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated</div>';
         if (_rawAvailForDonate < 0) {
@@ -5020,7 +5020,7 @@ function showSettingsPage(tab) {
                 html += '</div>';
                 html += '<button onclick="window._satsCharitySubmit()" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;">❤️ Donate XP for Charity</button>';
                 if (pointsDonated > 0) {
-                    html += '<div style="font-size:0.75rem;color:var(--text-faint);text-align:center;margin-bottom:16px;">' + pointsDonated.toLocaleString() + ' XP already donated — thank you! ❤️</div>';
+                    html += '<div data-sats-donated-total style="font-size:0.75rem;color:var(--text-faint);text-align:center;margin-bottom:16px;">' + pointsDonated.toLocaleString() + ' XP already donated — thank you! ❤️</div>';
                 }
             } else {
                 html += '<div style="width:100%;padding:20px 16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:12px;text-align:center;margin-bottom:16px;">';
@@ -5033,6 +5033,13 @@ function showSettingsPage(tab) {
                 html += '</div>';
             }
         }
+
+        // Recent Donations section (same structure as Quest Hub charity tab — _patchCharityRecent fills it live)
+        var _satsRecentArr = (typeof _charityRecent !== 'undefined' && Array.isArray(_charityRecent)) ? _charityRecent : [];
+        html += '<div id="charityRecentWrapper" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;' + (_satsRecentArr.length === 0 ? 'display:none;' : '') + '">' +
+            '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📜 Recent Donations</div>' +
+            '<div id="charityRecentList"></div>' +
+        '</div>';
 
         // Expandable disclaimer note
         html += '<div style="margin-bottom:8px;">';
@@ -5731,6 +5738,10 @@ function showSettingsPage(tab) {
 
     // Wire up charity donate helpers for the Sats > Donate sub-tab
     if (settingsTab === 'sats') {
+        // Populate recent donations list if we're on the donate sub-tab
+        if ((window._satsSubTab || 'claim') === 'donate' && typeof _patchCharityRecent === 'function') {
+            setTimeout(_patchCharityRecent, 50);
+        }
         window._toggleSatsCharityNote = function() {
             var n = document.getElementById('satsCharityNote');
             var arr = document.getElementById('satsCharityNoteArrow');
@@ -5786,11 +5797,28 @@ function showSettingsPage(tab) {
                     }
                     // Reset charity stats cache so Quest Hub picks up fresh totals
                     if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;
-                    showSettingsPage('sats');
+                    // Update available XP display in-place
+                    var _avEl = document.querySelector('#settingsModal [data-sats-charity-avail]');
+                    if (_avEl) {
+                        var _newAvail = Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0));
+                        _avEl.textContent = '\u2764\ufe0f ' + _newAvail.toLocaleString() + ' XP';
+                    }
+                    // Patch donated total line
+                    var _donEl = document.querySelector('#settingsModal [data-sats-donated-total]');
+                    if (_donEl) _donEl.textContent = (currentUser.pointsDonated||0).toLocaleString() + ' XP already donated \u2014 thank you! \u2764\ufe0f';
+                    // Refresh recent donations list
+                    if (typeof _patchCharityRecent === 'function') _patchCharityRecent();
+                    // Clear the input
+                    var _inp3 = document.getElementById('satsCharityAmtInput');
+                    if (_inp3) _inp3.value = '';
+                    if (btn) { btn.disabled = false; btn.textContent = '\u2764\ufe0f Donate XP for Charity'; }
                 })
                 .catch(function(e) {
-                    if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
-                    if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Donation failed. Try again.'), 4000);
+                    if (btn) { btn.disabled = false; btn.textContent = '\u2764\ufe0f Donate XP for Charity'; }
+                    var _errMsg = e.message || 'Donation failed. Try again.';
+                    // Strip Firebase internal error prefixes for clean display
+                    _errMsg = _errMsg.replace(/^\[\w+\/[\w-]+\]\s*/, '');
+                    if (typeof showToast === 'function') showToast('\u274c ' + _errMsg, 4000);
                 });
         };
     }
