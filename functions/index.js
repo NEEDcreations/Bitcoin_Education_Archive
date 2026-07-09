@@ -5040,11 +5040,26 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
     let ri = 0;
     scanSnap.forEach(doc => { rankMap.set(doc.id, ++ri); });
 
+    // For users not in the top-500 scan, fetch their real rank by counting
+    // how many users have more points. Batch these lookups in parallel.
+    const needRankDocs = prefixDocs.filter(({ id }) => !rankMap.has(id) && (prefixDocs.find(p => p.id === id)?.data?.points || 0) > 0);
+    const rankFetches = await Promise.all(
+        needRankDocs.map(({ id, data: d }) =>
+            db.collection('users')
+                .where('points', '>', d.points || 0)
+                .count()
+                .get()
+                .then(snap => ({ id, rank: snap.data().count + 1 }))
+                .catch(() => ({ id, rank: null }))
+        )
+    );
+    rankFetches.forEach(({ id, rank }) => { if (rank !== null) rankMap.set(id, rank); });
+
     const toEntry = ({ id, data: d }) => ({
         uid: id,
         username: d.username || 'Anon',
         points: d.points || 0,
-        rank: rankMap.get(id) || 9999,
+        rank: rankMap.get(id) || null,
         faction: d.faction || null,
         country: d.country || null,
         lightningAddress: d.lightningAddress || d.lightning || null,

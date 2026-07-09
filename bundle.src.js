@@ -235,7 +235,7 @@ let signInAttempts = 0;
 let signInLockout = 0;
 let redirectResultResolved = false; // Track whether getRedirectResult has resolved
 let redirectResultPromise = Promise.resolve(null); // Resolves when getRedirectResult completes
-// Session timeout removed — users stay signed in via Firebase LOCAL persistence
+// Session timeout removed - users stay signed in via Firebase LOCAL persistence
 let sessionChannels = new Set();
 let readTimer = null;
 let readSeconds = 0;
@@ -251,18 +251,18 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // Firebase App Check — temporarily disabled to fix Cloud Functions auth
-                // Firebase App Check — temporarily disabled until key is verified
-        // App Check DISABLED — not enforced, and reCAPTCHA adds 724KB to page load
+        // Firebase App Check - temporarily disabled to fix Cloud Functions auth
+                // Firebase App Check - temporarily disabled until key is verified
+        // App Check DISABLED - not enforced, and reCAPTCHA adds 724KB to page load
         // Re-enable when Firebase App Check is enforced in the console
         // if (typeof firebase.appCheck === 'function') {
         //     firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
         // }
 
         db = firebase.firestore();
-        // Enable offline persistence — data survives connection loss
+        // Enable offline persistence - data survives connection loss
         db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
-            // multi-tab or unimplemented — not critical
+            // multi-tab or unimplemented - not critical
             if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
                 console.log('Persistence error:', err.code);
             }
@@ -285,7 +285,7 @@ function initRanking() {
             console.log('[Auth] getRedirectResult:', result ? (result.user ? result.user.uid : 'no user') : 'null');
             if (!result || !result.user) return null;
             const user = result.user;
-            // Mark that we came from a redirect — prevent anonymous sign-in from overwriting
+            // Mark that we came from a redirect - prevent anonymous sign-in from overwriting
             sessionStorage.setItem('btc_redirect_auth', '1');
             const existingDoc = await db.collection('users').doc(user.uid).get();
 
@@ -363,24 +363,24 @@ function initRanking() {
         var _pendingRedirect = !!localStorage.getItem('btc_anon_uid') || sessionStorage.getItem('btc_redirect_pending') === '1' || !!_pwaAuthPending;
         if (_pwaAuthPending) { localStorage.removeItem('btc_pwa_auth_pending'); console.log('[Auth] PWA auth pending detected'); }
         if (_pendingRedirect) console.log('[Auth] Detected pending redirect return');
-        
+
         auth.onAuthStateChanged(user => {
             console.log('[Auth] onAuthStateChanged:', user ? (user.isAnonymous ? 'anon:' + user.uid : 'real:' + user.uid) : 'null', 'firstEvent:', firstAuthEvent, 'pendingRedirect:', _pendingRedirect);
             // Detect account switch: if a real user signs in and it's a different UID, clear old data
             if (user && !user.isAnonymous) {
                 var prevUid = localStorage.getItem('btc_last_auth_uid');
                 if (prevUid && prevUid !== user.uid) {
-                    console.log('[Auth] Account switch detected:', prevUid, '->', user.uid, '— clearing localStorage');
+                    console.log('[Auth] Account switch detected:', prevUid, '->', user.uid, '- clearing localStorage');
                     clearUserLocalStorage();
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
             }
             if (firstAuthEvent) {
                 firstAuthEvent = false;
-                // If email link sign-in is being handled, skip — handleEmailSignIn manages it
+                // If email link sign-in is being handled, skip - handleEmailSignIn manages it
                 if (emailLinkHandled) return;
                 if (user && !user.isAnonymous) {
-                    // Real user restored immediately — load them
+                    // Real user restored immediately - load them
                     console.log('[Auth] Real user on first event:', user.uid);
                     sessionStorage.removeItem('btc_redirect_auth');
                     loadUser(user.uid).then(function() {
@@ -391,9 +391,9 @@ function initRanking() {
                         }
                     }).catch(function() {});
                 } else if (user && user.isAnonymous) {
-                    // If we're pending a redirect, DON'T load anon yet — wait longer for auth to resolve
+                    // If we're pending a redirect, DON'T load anon yet - wait longer for auth to resolve
                     if (_pendingRedirect) {
-                        console.log('[Auth] Anon user but pending redirect — waiting 8s for real auth...');
+                        console.log('[Auth] Anon user but pending redirect - waiting 8s for real auth...');
                         // Give Firebase extra time to restore the redirect session
                         // (mobile redirects can be slow due to cross-origin ITP/partitioning)
                         var _redirectTimeout = setTimeout(function() {
@@ -402,7 +402,7 @@ function initRanking() {
                                 console.log('[Auth] Real user appeared after wait:', auth.currentUser.uid);
                                 loadUser(auth.currentUser.uid);
                             } else {
-                                console.log('[Auth] No real user after 8s — loading anon');
+                                console.log('[Auth] No real user after 8s - loading anon');
                                 loadUserLocal(user.uid);
                             }
                             localStorage.removeItem('btc_anon_uid');
@@ -418,17 +418,17 @@ function initRanking() {
                         loadUserLocal(user.uid);
                     }
                 } else {
-                    // null user — WAIT for getRedirectResult before signing in anonymously
+                    // null user - WAIT for getRedirectResult before signing in anonymously
                     // Otherwise we clobber the redirect auth state on mobile
                     if (redirectResultResolved && !_pendingRedirect) {
-                        // Redirect already resolved (no redirect happened) — safe to go anonymous
+                        // Redirect already resolved (no redirect happened) - safe to go anonymous
                         auth.signInAnonymously().then(() => {});
                     } else {
                         // Wait for redirect result to resolve first, with extra timeout for mobile
                         var _nullUserTimeout = setTimeout(function() {
                             // After 10s if still no user, go anonymous
                             if (!auth.currentUser) {
-                                console.log('[Auth] 10s timeout with no user — going anonymous');
+                                console.log('[Auth] 10s timeout with no user - going anonymous');
                                 localStorage.removeItem('btc_pwa_auth_pending');
                                 auth.signInAnonymously().then(() => {});
                             }
@@ -478,12 +478,12 @@ function initRanking() {
 
 // Handle email magic link return
 async function handleEmailSignIn() {
-    // Save the full URL before any modifications — needed for signInWithEmailLink
+    // Save the full URL before any modifications - needed for signInWithEmailLink
     var _signInUrl = window.location.href;
-    
+
     // Try to get email from: 1) URL param (works cross-device), 2) localStorage (same device), 3) prompt (last resort)
     let email = null;
-    // Check URL parameter first — this is embedded in the magic link
+    // Check URL parameter first - this is embedded in the magic link
     var urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('signin_email')) {
         email = decodeURIComponent(urlParams.get('signin_email'));
@@ -581,7 +581,7 @@ async function finishEmailSignIn(email, _signInUrl) {
             anonData.email = email;
             await db.collection('users').doc(emailUid).set(anonData);
         } else if (existingDoc.exists && anonData) {
-            // Existing email user — merge points if anon had more (one-time only)
+            // Existing email user - merge points if anon had more (one-time only)
             const existData = existingDoc.data();
             var _mergedPts = Math.min(anonData.points || 0, 500);
                 if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
@@ -609,7 +609,7 @@ async function finishEmailSignIn(email, _signInUrl) {
         const pendingFaction  = localStorage.getItem('btc_pending_faction')    || '';
         const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
         if (pendingUsername && !existingDoc.exists) {
-            // New user verifying their email — create their full account now
+            // New user verifying their email - create their full account now
             const userData = {
                 username: pendingUsername,
                 email: email,
@@ -663,14 +663,14 @@ async function finishEmailSignIn(email, _signInUrl) {
     }
 }
 
-// Google Sign-In — uses Google Identity Services (GIS) for PWA compatibility
+// Google Sign-In - uses Google Identity Services (GIS) for PWA compatibility
 var GOOGLE_CLIENT_ID = '1055248200518-jcn5efjp7vhk0vm8cbmj4mfsgc0edkga.apps.googleusercontent.com';
 
 window.signInWithGoogle = async function() {
     window._captureSignupFormState();
     var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     // On desktop, try GIS One Tap (fast if available)
-    // On mobile, skip GIS entirely — go straight to Firebase popup (faster, more reliable)
+    // On mobile, skip GIS entirely - go straight to Firebase popup (faster, more reliable)
     if (!isMobile) {
         // Lazy-load the GSI script if not already loaded
         if (typeof window._loadGSI === 'function') window._loadGSI();
@@ -735,7 +735,7 @@ async function signInWithGIS() {
         // Try One Tap first
         google.accounts.id.prompt(function(notification) {
             if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // One Tap not available — fall back to Firebase popup immediately (no second button)
+                // One Tap not available - fall back to Firebase popup immediately (no second button)
                 console.log('[Auth] One Tap not shown, falling back to Firebase popup');
                 reject(new Error('One Tap unavailable'));
             }
@@ -743,7 +743,7 @@ async function signInWithGIS() {
     });
 }
 
-// Twitter/X Sign-In — no client SDK, must use Firebase popup/redirect
+// Twitter/X Sign-In - no client SDK, must use Firebase popup/redirect
 window.signInWithTwitter = async function() {
     window._captureSignupFormState();
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -796,7 +796,7 @@ function showPWAAuthFallback(providerName) {
     document.body.appendChild(msg);
 }
 
-// Facebook Sign-In — uses FB SDK for PWA compatibility
+// Facebook Sign-In - uses FB SDK for PWA compatibility
 var FB_APP_ID = '1400842698021858';
 
 window.fbAsyncInit = function() {
@@ -831,7 +831,7 @@ async function signInWithFBSDK() {
     });
 }
 
-// Nostr sign-in — full modal with extension/nsec/npub options
+// Nostr sign-in - full modal with extension/nsec/npub options
 // Uses nostr-tools CDN for nsec decoding, signing, and key derivation
 window.signInWithNostr = async function() {
     if (!checkRateLimit()) return;
@@ -879,7 +879,7 @@ window.nostrSignInWithExtension = async function() {
     } catch(e) { console.error('Nostr extension error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Extension error: ' + (e.message || 'Unknown') + '</span>'; }
 };
 
-// nsec sign-in — uses nostr-tools CDN for key derivation and signing
+// nsec sign-in - uses nostr-tools CDN for key derivation and signing
 window.nostrSignInWithNsec = async function() {
     var nsec = (document.getElementById('nostrNsecInput').value || '').trim();
     var statusEl = document.getElementById('nostrAuthStatus');
@@ -922,7 +922,7 @@ window.nostrSignInWithNsec = async function() {
     }
 };
 
-// npub linking (read-only — links pubkey to current account)
+// npub linking (read-only - links pubkey to current account)
 window.nostrSignInWithNpub = async function() {
     var npub = (document.getElementById('nostrNpubInput').value || '').trim();
     var statusEl = document.getElementById('nostrAuthStatus');
@@ -958,7 +958,7 @@ window.nostrSignInWithNpub = async function() {
     } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Unknown') + '</span>'; }
 };
 
-// Complete Nostr auth — send signed event to Cloud Function for verification
+// Complete Nostr auth - send signed event to Cloud Function for verification
 window.nostrCompleteAuth = async function(pubkey, sig, event) {
     var statusEl = document.getElementById('nostrAuthStatus');
     try {
@@ -978,7 +978,7 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             loadUser(uid); hideUsernamePrompt();
             var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
             showToast('🟣 Signed in with Nostr!');
-        } else { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed — no token received</span>'; }
+        } else { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed - no token received</span>'; }
     } catch(e) { console.error('Nostr auth error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>'; }
 };
 
@@ -1125,8 +1125,8 @@ function checkRateLimit() {
     return true;
 }
 
-// Session timeout — sign out after 30 min inactivity
-// Session timer removed — users stay signed in indefinitely via Firebase LOCAL persistence
+// Session timeout - sign out after 30 min inactivity
+// Session timer removed - users stay signed in indefinitely via Firebase LOCAL persistence
 
 // Generic provider sign-in (reused by Google, Twitter, GitHub)
 function isInAppBrowser() {
@@ -1185,7 +1185,7 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
             await db.collection('users').doc(user.uid).set(_newProviderDoc);
         }
     } else {
-        // Returning user — apply fields they typed only if not already set
+        // Returning user - apply fields they typed only if not already set
         var _returnUpdates = {};
         if (_pendingLn && !existingDoc.data().lightningAddress && !existingDoc.data().lightning) {
             _returnUpdates.lightning = _pendingLn;
@@ -1245,7 +1245,7 @@ window._showIABSignInModal = function() {
     var _isAndroid = /Android/i.test(_ua);
     var _isIOS = /iPhone|iPad/i.test(_ua);
     var _currentUrl = window.location.href;
-    // Android intent:// deep link — forces Chrome/system browser to open the URL directly
+    // Android intent:// deep link - forces Chrome/system browser to open the URL directly
     var _intentUrl = _isAndroid
         ? 'intent://' + _currentUrl.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'
         : null;
@@ -1264,9 +1264,9 @@ window._showIABSignInModal = function() {
             '<div style="text-align:center;margin-bottom:20px;">' +
                 '<div style="font-size:2.2rem;margin-bottom:8px;">₿</div>' +
                 '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:900;margin:0 0 6px;">Create Your Account</h3>' +
-                '<p style="color:var(--text-muted);font-size:0.8rem;margin:0;line-height:1.5;">Use email sign-in below — it works right here.<br>Or open in your browser for Google/Twitter.</p>' +
+                '<p style="color:var(--text-muted);font-size:0.8rem;margin:0;line-height:1.5;">Use email sign-in below - it works right here.<br>Or open in your browser for Google/Twitter.</p>' +
             '</div>' +
-            // Magic link section — works inside any IAB
+            // Magic link section - works inside any IAB
             '<div style="background:rgba(247,147,26,0.07);border:1px solid rgba(247,147,26,0.25);border-radius:14px;padding:16px;margin-bottom:16px;">' +
                 '<div style="font-size:0.78rem;font-weight:800;color:var(--accent);margin-bottom:10px;">✉️ Sign up / Sign in with Email</div>' +
                 '<div style="display:flex;gap:8px;">' +
@@ -1310,7 +1310,7 @@ window._iabSendMagicLink = async function() {
     }
     input.disabled = true;
     if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
-    if (status) status.innerHTML = '<span style="color:var(--accent);">Sending magic link…</span>';
+    if (status) status.innerHTML = '<span style="color:var(--accent);">Sending magic link...</span>';
     window._captureSignupFormState && window._captureSignupFormState();
     var sent = await sendMagicLink(email);
     if (sent) {
@@ -1318,7 +1318,7 @@ window._iabSendMagicLink = async function() {
         if (btn) { btn.textContent = '✅ Sent!'; }
         if (input) input.style.borderColor = '#22c55e';
     } else {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Could not send — check your email address.</span>';
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Could not send - check your email address.</span>';
         input.disabled = false;
         if (btn) { btn.disabled = false; btn.textContent = 'Send Link'; }
         if (input) input.style.borderColor = '#ef4444';
@@ -1328,7 +1328,7 @@ window._iabSendMagicLink = async function() {
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
 
-    // In-app browsers can't do OAuth popups/redirects — show IAB-aware modal instead
+    // In-app browsers can't do OAuth popups/redirects - show IAB-aware modal instead
     if (isInAppBrowser()) {
         window._showIABSignInModal();
         return;
@@ -1371,7 +1371,7 @@ async function signInWithProvider(provider) {
                 }
             } catch(popupErr) {
                 console.log('[Auth] Mobile popup failed, falling back to redirect:', popupErr.code);
-                // Popup failed — use redirect
+                // Popup failed - use redirect
                 sessionStorage.setItem('btc_redirect_pending', '1');
                 localStorage.setItem('btc_pwa_auth_pending', '1');
                 await auth.signInWithRedirect(provider);
@@ -1393,7 +1393,7 @@ async function signInWithProvider(provider) {
     } catch(e) {
         console.error('Provider sign-in error:', e.code, e.message, e);
 
-        // Popup blocked, closed, or failed — fallback to redirect
+        // Popup blocked, closed, or failed - fallback to redirect
         if (e.code === 'auth/popup-blocked' ||
             e.code === 'auth/cancelled-popup-request' ||
             e.code === 'auth/popup-closed-by-user' ||
@@ -1421,7 +1421,7 @@ async function signInWithProvider(provider) {
             return;
         }
 
-        // User intentionally closed popup — do nothing
+        // User intentionally closed popup - do nothing
         if (e.code === 'auth/popup-closed-by-user') return;
 
         // Actionable error messages
@@ -1482,7 +1482,7 @@ async function sendMagicLink(email) {
     }
 }
 
-// Load anonymous user from localStorage only — no Firestore reads
+// Load anonymous user from localStorage only - no Firestore reads
 function loadUserLocal(uid) {
     var localPoints = parseInt(localStorage.getItem('btc_points') || '0');
     var localChannels = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
@@ -1521,7 +1521,7 @@ async function loadUser(uid, prefetchedDoc) {
 
         // Sync read checkmarks: for real users, use Firebase as source of truth
         // visitedChannelsList is the authoritative field (written by awardPoints CF via arrayUnion)
-        // readChannels is the legacy field — union both for backward compat
+        // readChannels is the legacy field - union both for backward compat
         var _fbRead = [...new Set([
             ...(Array.isArray(currentUser.visitedChannelsList) ? currentUser.visitedChannelsList : []),
             ...(Array.isArray(currentUser.readChannels) ? currentUser.readChannels : [])
@@ -1536,7 +1536,7 @@ async function loadUser(uid, prefetchedDoc) {
             }
             restoreVisitedUI();
         } else if (isRealUser) {
-            // Real user with nothing in Firebase yet — clear local
+            // Real user with nothing in Firebase yet - clear local
             localStorage.setItem('btc_visited_channels', '[]');
             restoreVisitedUI();
         }
@@ -1568,7 +1568,7 @@ async function loadUser(uid, prefetchedDoc) {
             }
             if (typeof renderFavs === 'function') renderFavs();
         } else if (isRealUser) {
-            // No bookmarks in Firebase yet — push local ones up if any exist
+            // No bookmarks in Firebase yet - push local ones up if any exist
             var _localBm = JSON.parse(localStorage.getItem('btc_bookmarks') || '[]');
             if (_localBm.length > 0 && db && auth.currentUser) {
                 db.collection('users').doc(auth.currentUser.uid).update({ bookmarks: _localBm }).catch(function() {});
@@ -1598,15 +1598,15 @@ async function loadUser(uid, prefetchedDoc) {
 
         // Update high-res lastActive timestamp for DAU tracking
         if (!auth.currentUser.isAnonymous) {
-            db.collection('users').doc(uid).update({ 
-                lastActive: firebase.firestore.FieldValue.serverTimestamp() 
+            db.collection('users').doc(uid).update({
+                lastActive: firebase.firestore.FieldValue.serverTimestamp()
             }).catch(function() {});
         }
 
         // Restore badges and scholar status from Firebase
         if (isRealUser) {
             if (currentUser.hiddenBadges) {
-                // Merge Firebase hidden badges into localStorage (don't replace — avoids losing locally-earned badges)
+                // Merge Firebase hidden badges into localStorage (don't replace - avoids losing locally-earned badges)
                 var existingHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
                 var mergedHidden = [...new Set([...existingHidden, ...currentUser.hiddenBadges])];
                 localStorage.setItem('btc_hidden_badges', JSON.stringify(mergedHidden));
@@ -1624,7 +1624,7 @@ async function loadUser(uid, prefetchedDoc) {
                 localStorage.setItem('btc_badges', JSON.stringify(merged));
             }
             // Mark onboarding complete for existing users on new devices.
-            // An existing user has a username in Firestore — they clearly already onboarded.
+            // An existing user has a username in Firestore - they clearly already onboarded.
             // This prevents the onboarding wizard from firing on every new device login.
             if (currentUser.username) {
                 try { localStorage.setItem('btc_onboarding_done', 'true'); } catch(e) {}
@@ -1640,7 +1640,7 @@ async function loadUser(uid, prefetchedDoc) {
                     localStorage.removeItem('btc_onboarding_active');
                 } catch(e) {}
             } else if (currentUser.nachoQuestActive && typeof currentUser.nachoQuestStep === 'number') {
-                // Quest is in progress — restore step so they resume where they left off
+                // Quest is in progress - restore step so they resume where they left off
                 try {
                     localStorage.setItem('btc_onboarding_active', '1');
                     localStorage.setItem('btc_onboarding_step', String(currentUser.nachoQuestStep));
@@ -1674,7 +1674,7 @@ async function loadUser(uid, prefetchedDoc) {
                 if (cs.nachoLevelCelebrated) localStorage.setItem('btc_nacho_level_celebrated', JSON.stringify(cs.nachoLevelCelebrated));
                 if (cs.nachoItemsNotified) localStorage.setItem('btc_nacho_items_notified', JSON.stringify(cs.nachoItemsNotified));
             }
-            // Restore Nacho interaction counts — use max of Firebase vs localStorage
+            // Restore Nacho interaction counts - use max of Firebase vs localStorage
             if (currentUser.nachoInteractions) {
                 var localInteractions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
                 var fbInteractions = currentUser.nachoInteractions || 0;
@@ -1704,8 +1704,8 @@ async function loadUser(uid, prefetchedDoc) {
                 if (currentUser.lastSpinDate > localSpin) {
                     localStorage.setItem('btc_last_spin', currentUser.lastSpinDate);
                 }
-                // Sync to btc_last_spin_date using UTC ISO date — matches server format
-                // (Do NOT use toDateString() — it causes timezone mismatch with server's ISO date)
+                // Sync to btc_last_spin_date using UTC ISO date - matches server format
+                // (Do NOT use toDateString() - it causes timezone mismatch with server's ISO date)
                 var todayUTC = new Date().toISOString().split('T')[0];
                 if (currentUser.lastSpinDate === todayUTC) {
                     localStorage.setItem('btc_last_spin_date', todayUTC);
@@ -1740,7 +1740,7 @@ async function loadUser(uid, prefetchedDoc) {
             }
         }
 
-        // Badges are now safe to check — Firebase data has been restored
+        // Badges are now safe to check - Firebase data has been restored
         window._badgesReady = true;
         if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady(); window._hiddenBadgesReady = true;
 
@@ -1768,7 +1768,7 @@ async function loadUser(uid, prefetchedDoc) {
         if (typeof initMessaging === 'function') initMessaging();
 
     } else {
-        // User exists in auth but not in Firestore — recreate their doc
+        // User exists in auth but not in Firestore - recreate their doc
         const user = auth.currentUser;
         if (user && !user.isAnonymous) {
             const newData = {
@@ -1792,7 +1792,7 @@ async function loadUser(uid, prefetchedDoc) {
     }
 }
 
-// Track if button was ever set to "signed in" state — never downgrade once set
+// Track if button was ever set to "signed in" state - never downgrade once set
 var _authBtnSignedIn = false;
 
 function updateAuthButton() {
@@ -1805,25 +1805,25 @@ function updateAuthButton() {
     var localUsername = localStorage.getItem('btc_username');
     var displayName = fsUsername || localUsername || (firebaseUser && firebaseUser.displayName) || '';
     var isNostrOrLn = firebaseUser && firebaseUser.uid && (firebaseUser.uid.startsWith('nostr:') || firebaseUser.uid.startsWith('ln:'));
-    
+
     var shouldShowSignedIn = isRealAuth || isNostrOrLn || displayName;
-    
+
     // Once signed in, NEVER go back to "Create Account" unless explicitly signed out (firebaseUser is null)
     if (shouldShowSignedIn) {
         _authBtnSignedIn = true;
     } else if (_authBtnSignedIn && firebaseUser) {
-        // Auth still exists but Firestore temporarily lost — don't downgrade
+        // Auth still exists but Firestore temporarily lost - don't downgrade
         return;
     } else if (!firebaseUser) {
         // Actually signed out
         _authBtnSignedIn = false;
     }
-    
+
     if (_authBtnSignedIn) {
         var name = displayName || 'My Account';
-        btn.innerHTML = '⚙️ <strong>' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong> — Settings';
+        btn.innerHTML = '⚙️ <strong>' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong> - Settings';
         btn.onclick = function() { showSettings(); };
-        // Hide on mobile — mobile top bar already shows username + Topics
+        // Hide on mobile - mobile top bar already shows username + Topics
         btn.style.display = (window.innerWidth <= 900) ? 'none' : 'block';
         btn.style.background = 'none';
         btn.style.border = '2px solid #3b82f6';
@@ -1851,7 +1851,7 @@ function updateAuthButton() {
 
 }
 
-// Sanitize user input — strip HTML tags and dangerous chars
+// Sanitize user input - strip HTML tags and dangerous chars
 function sanitizeInput(str) {
     return str.replace(/<[^>]*>/g, '').replace(/[<>"'&]/g, '').trim();
 }
@@ -1957,7 +1957,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         showToast('⚠️ That username is not allowed. Please choose another.');
         return;
     }
-    // Uniqueness check — must happen after we have uid
+    // Uniqueness check - must happen after we have uid
     var _taken = await isUsernameTaken(username, uid);
     if (_taken) {
         showToast('⚠️ That username is already taken. Please choose another.');
@@ -1986,7 +1986,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     if (_signupLn) userData.lightningAddress = _signupLn;
     // Faction choice from signup
     if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
-    // Campaign source tracking — written once at signup, never overwritten
+    // Campaign source tracking - written once at signup, never overwritten
     var _signupSrc = localStorage.getItem('btc_signup_source');
     if (_signupSrc) { userData.signupSource = _signupSrc; }
 
@@ -2034,12 +2034,12 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
 
 async function awardVisitPoints() {
     if (!currentUser) return;
-    // Use 5 AM UTC offset key — matches getDailyKey() and server getOffsetDateKey()
+    // Use 5 AM UTC offset key - matches getDailyKey() and server getOffsetDateKey()
     const RESET_HOUR_UTC = 5;
     const today = new Date(Date.now() - RESET_HOUR_UTC * 3600000).toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - (RESET_HOUR_UTC + 24) * 3600000).toISOString().split('T')[0];
 
-    // Only award once per day — no refresh exploits
+    // Only award once per day - no refresh exploits
     if (currentUser.lastVisit === today) return;
 
     let streakBonus = false;
@@ -2070,7 +2070,7 @@ async function awardVisitPoints() {
             }, 3000);
             // Streak freeze is now deducted server-side in recordDailyVisit Cloud Function
         } else if (oldStreak > 1) {
-            // No freeze available — streak is broken
+            // No freeze available - streak is broken
             setTimeout(function() {
                 showToast('💔 Your ' + oldStreak + '-day streak was broken! Earn 🧊 Freeze Tickets from the Daily Spin to protect your streak next time.');
             }, 3000);
@@ -2109,7 +2109,7 @@ async function awardVisitPoints() {
         var _visitPts = pointsToAdd + (bonusTickets * 5);
         if (_visitPts > 0) await awardPoints(_visitPts, '✅ Daily visit' + (newStreak > 1 ? ' (' + newStreak + '-day streak!)' : ''));
     }
-    
+
     if (bonusTickets > 0) {
         if (typeof notifySelfStreak === 'function') notifySelfStreak(newStreak);
         setTimeout(function() {
@@ -2118,7 +2118,7 @@ async function awardVisitPoints() {
     } else if (streakBonus) {
         showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' XP');
     }
-    // Silent for non-streak daily visits — ticket toast covers it
+    // Silent for non-streak daily visits - ticket toast covers it
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
     refreshLeaderboardIfOpen();
@@ -2133,7 +2133,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     // Allow 0 pts if tickets or streakFreezes are being awarded
     if (pts === 0 && !tickets && !streakFreezes) return;
 
-    // Anti-abuse: rate limit — max 20 point awards per minute
+    // Anti-abuse: rate limit - max 20 point awards per minute
     window._pointAwardTimes = window._pointAwardTimes || [];
     var _now = Date.now();
     window._pointAwardTimes = window._pointAwardTimes.filter(function(t) { return _now - t < 60000; });
@@ -2172,7 +2172,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var cdKey = 'btc_cd_' + reason;
             var last = parseInt(localStorage.getItem(cdKey) || '0', 10);
             if (last && (Date.now() - last) < cdMs) {
-                if (typeof showToast === 'function') showToast('⏳ Slow down — cooldown still active');
+                if (typeof showToast === 'function') showToast('⏳ Slow down - cooldown still active');
                 return;
             }
             try { localStorage.setItem(cdKey, String(Date.now())); } catch(e) {}
@@ -2226,7 +2226,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var _overflowNotifKey = 'btc_overflow_notified_' + _today;
             if (!localStorage.getItem(_overflowNotifKey)) {
                 try { localStorage.setItem(_overflowNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow — they roll over tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow. Sign in to convert to sats.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         } else if (_dailyUsed + awarded >= DAILY_CAP) {
@@ -2248,15 +2248,15 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
 
     // Update lastActive timestamp on heartbeat
     if (!auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({ 
-            lastActive: firebase.firestore.FieldValue.serverTimestamp() 
+        db.collection('users').doc(auth.currentUser.uid).update({
+            lastActive: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function() {});
     }
 
     // ── Signed-in users: Cloud Function enforces daily cap server-side ──
     // Eagerly log to notification tracker so it always appears in 🔔 Alerts
-    // (CF is async — user may navigate away before it returns)
-    // Exception: badge_earned — defer notification until server confirms (prevents ghost XP on cache-clear re-trigger)
+    // (CF is async - user may navigate away before it returns)
+    // Exception: badge_earned - defer notification until server confirms (prevents ghost XP on cache-clear re-trigger)
     var _isBadgeEarned = !!(badgeId);
     if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
         notifySelfPoints(pts, reason);
@@ -2290,7 +2290,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var overflowAdded = result.data.overflowAdded || 0;
             var pendingOverflow = result.data.pendingOverflow || 0;
             var totalAdded = awarded + overflowRedeemed;
-            // For badge_earned: notify here (deferred from eager path above) — server confirmed it's real
+            // For badge_earned: notify here (deferred from eager path above) - server confirmed it's real
             if (_isBadgeEarned && awarded > 0 && typeof notifySelfPoints === 'function') {
                 notifySelfPoints(awarded, reason);
             }
@@ -2308,7 +2308,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 var _overflowKey = 'btc_overflow_notified_' + new Date().toISOString().split('T')[0];
                 if (!localStorage.getItem(_overflowKey)) {
                     localStorage.setItem(_overflowKey, '1');
-                    showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow — they roll over tomorrow.', 8000);
+                    showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow.', 8000);
                     _updateCapIndicator(true);
                 }
                 // Cache pendingOverflow locally for the CAP indicator tooltip
@@ -2323,7 +2323,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             }
         }
     } catch (e) {
-        // [SECURITY] No local fallback — server is the only source of truth for points
+        // [SECURITY] No local fallback - server is the only source of truth for points
         console.warn('[POINTS] Cloud Function failed:', e.message);
         if (typeof showToast === 'function') showToast('⏳ XP will sync when connection restores');
     }
@@ -2344,11 +2344,11 @@ function _showPointsToast(pts, reason) {
     }
     if (_show && reason) {
         window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' XP — ' + reason, 2500);
+        showToast('+' + pts + ' XP - ' + reason, 2500);
     }
 }
 
-// Points notification log — stored in localStorage for the bell panel
+// Points notification log - stored in localStorage for the bell panel
 // Defined here (in bundle) so it's available before lazy-loaded notifications.js
 window.notifySelfPoints = function(pts, reason) {
     if (!pts || pts < 1) return;
@@ -2365,7 +2365,7 @@ window.notifySelfPoints = function(pts, reason) {
 };
 
 // Auto-refresh leaderboard if it's currently open
-// Switch leaderboard period WITHOUT closing — used by the tab buttons
+// Switch leaderboard period WITHOUT closing - used by the tab buttons
 function _lbSwitchPeriod(period) {
     window._lbPeriod = period;
     window._lbCache = null;
@@ -2378,7 +2378,7 @@ function _lbSwitchPeriod(period) {
     lb.classList.add('open');
     lb.classList.remove('minimized');
     toggleLeaderboard._renderOnly = true;
-    // Re-invoke render path directly — set lb to loading state, then reload
+    // Re-invoke render path directly - set lb to loading state, then reload
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading...</div>';
     // Call the actual data+render logic by temporarily forcing open state
     var fab = document.getElementById('lbFloatBtn');
@@ -2420,7 +2420,7 @@ async function onChannelOpen(channelId) {
     if (!allTimeChannels.has(channelId)) {
         allTimeChannels.add(channelId);
         sessionChannels.add(channelId);
-        
+
         let ptsAwarded = POINTS.openChannel;
         // Apply daily 2X boost
         if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
@@ -2478,7 +2478,7 @@ async function onChannelOpen(channelId) {
 
 // Sync read checkmarks to Firebase
 async function syncReadToFirebase(channelId) {
-    // readChannels is now blocked in Firestore rules — channel tracking goes through awardPoints CF
+    // readChannels is now blocked in Firestore rules - channel tracking goes through awardPoints CF
     // This function is kept as a no-op for backward compatibility
 }
 
@@ -2506,7 +2506,7 @@ async function syncBookmarksToFirebase() {
 window.syncBookmarksToFirebase = syncBookmarksToFirebase;
 
 // Sync badges and scholar status to Firebase
-// syncProgressToFirebase removed — badges and scholar status are synced inline at award time
+// syncProgressToFirebase removed - badges and scholar status are synced inline at award time
 
 // Restore visited UI checkmarks
 function restoreVisitedUI() {
@@ -2596,7 +2596,7 @@ function updateGuestPointsBanner() {
         if (banner) banner.style.display = 'none';
         return;
     }
-    // Mobile: don't show old guest banner — user info is in the mobile top bar
+    // Mobile: don't show old guest banner - user info is in the mobile top bar
     if (window.innerWidth <= 900) {
         if (banner) banner.style.display = 'none';
         return;
@@ -2701,7 +2701,7 @@ function updateRankUI() {
     updateGuestPointsBanner();
     updateUserDisplay(lv);
 
-    // Detect level-up — only celebrate going UP, never on initial load
+    // Detect level-up - only celebrate going UP, never on initial load
     const highestLevelSeen = parseInt(localStorage.getItem('btc_highest_level_seen') || '0');
     if (levelUpReady && lastLevelName && lastLevelName !== lv.name && lv.min > lastLevelMin && lv.min > highestLevelSeen) {
         showLevelUpCelebration(lv);
@@ -2719,7 +2719,7 @@ function updateRankUI() {
             }
         }
 
-        // Satoshi's Favor contribution for level-ups — fire-and-forget
+        // Satoshi's Favor contribution for level-ups - fire-and-forget
         if (typeof window.contributeSatoshiFavor === 'function') {
             var levelName = lv.name || '';
             var source = null;
@@ -2768,7 +2768,7 @@ function updateRankUI() {
         bar.style.border = '';
     }
 
-    // Cosmetics: Nacho skin — show deer avatar next to username
+    // Cosmetics: Nacho skin - show deer avatar next to username
     var _hasNachoSkin = _ownedCosmetics.indexOf('nacho_skin_nook') !== -1;
     var _nachoAvatarHtml = _hasNachoSkin
         ? '<img src="nacho-deer.svg" style="width:18px;height:18px;border-radius:50%;border:1px solid #f7931a;vertical-align:-4px;margin-right:2px;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));" onerror="this.textContent=\'🦌\';this.style.fontSize=\'0.9rem\'" />'
@@ -2799,7 +2799,7 @@ function updateRankUI() {
 
 }
 
-// Get user's display emoji — chosen badge or default level emoji
+// Get user's display emoji - chosen badge or default level emoji
 function getUserDisplayEmoji(lv) {
     var chosenBadge = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.displayBadge : null;
     if (chosenBadge) {
@@ -2828,7 +2828,7 @@ function updateUserDisplay(lv) {
         if (_ud) _ud.style.display = 'none';
         return;
     }
-    // Hide old guest banner — we now use unified display
+    // Hide old guest banner - we now use unified display
     var guestBanner = document.getElementById('guestPointsBanner');
     if (guestBanner) guestBanner.style.display = 'none';
 
@@ -2846,7 +2846,7 @@ function updateUserDisplay(lv) {
     }
 
     if (isAnon || (auth.currentUser && auth.currentUser.isAnonymous && !hasUsername)) {
-        // Mobile: hide the fixed overlay — user info already lives in the mobile top bar.
+        // Mobile: hide the fixed overlay - user info already lives in the mobile top bar.
         // Anonymous users on mobile see their stats in #mobileUserInfo, no need for the
         // intrusive bottom sign-up banner.
         var _isMob = window.innerWidth <= 900;
@@ -2867,7 +2867,7 @@ function updateUserDisplay(lv) {
         el.classList.remove('user-hidden');
         // Consolidated Metric Dashboard + Guest Sign-in
         el.setAttribute('data-anon', '1');
-        
+
         // NEW POSITIONING: Under sidebar branding for tablet/laptop
         if (!_isMob) {
             var sidebarHeader = document.querySelector('.sidebar-header');
@@ -2886,7 +2886,7 @@ function updateUserDisplay(lv) {
         }
 
         el.onclick = function(e) { if(!_isMob && e.target.closest('button')) return; showSettingsPage('account'); };
-        
+
         el.innerHTML =
             (_isMob ? '<button onclick="event.stopPropagation();minimizeSignUpBanner();" style="position:absolute;top:-8px;right:-8px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text-muted,#888);width:24px;height:24px;border-radius:50%;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;padding:0;line-height:1;">▼</button>' : '') +
             '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">' +
@@ -2902,7 +2902,7 @@ function updateUserDisplay(lv) {
                     var ch = parseInt(localStorage.getItem('btc_last_height')) || 0;
                     if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cp = nachoLiveData.price;
                     if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) ch = nachoLiveData.blockHeight;
-                    
+
                     var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:12px;padding-top:4px;' + (_isMob ? 'font-size:0.7rem;' : 'font-size:0.75rem;') + '">';
                     if (cp) s += '<div style="display:flex;align-items:center;gap:4px;"><span style="color:#f7931a;font-weight:900;">₿</span> <span style="color:var(--heading);font-weight:800;font-family:monospace;">$' + Math.round(cp).toLocaleString() + '</span></div>';
                     if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:var(--text-muted);text-decoration:none;font-weight:700;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
@@ -2919,7 +2919,7 @@ function updateUserDisplay(lv) {
         el.removeAttribute('data-mob-hidden');
         var _isMob = window.innerWidth <= 900;
 
-        // dashboardFloatBtn is static HTML — just ensure onclick is wired
+        // dashboardFloatBtn is static HTML - just ensure onclick is wired
         var dashBtn = document.getElementById('dashboardFloatBtn');
         if (!dashBtn) {
             dashBtn = document.createElement('div');
@@ -2931,7 +2931,7 @@ function updateUserDisplay(lv) {
         }
         dashBtn.onclick = function() { if (typeof toggleDashboard === 'function') toggleDashboard(); };
 
-        // Mobile: hide the fixed overlay entirely — user info lives in the mobile-bar instead
+        // Mobile: hide the fixed overlay entirely - user info lives in the mobile-bar instead
         if (_isMob) {
             el.style.display = 'none';
             // updateRankUI will populate #mobileUserInfo in the mobile-bar
@@ -2955,9 +2955,9 @@ function updateUserDisplay(lv) {
 
         // Clicking the user display opens settings (except block height link)
         el.onclick = function(e) { if (e.target.closest('a')) return; showSettings(); };
-        
+
         var displayName = currentUser.username || (auth.currentUser && auth.currentUser.displayName) || 'Anon';
-        
+
         // Show BOTH display badge and rank emoji if a badge is selected
         var chosenBadge = currentUser.displayBadge;
         var iconsHtml = '';
@@ -3019,7 +3019,7 @@ function updateUserDisplay(lv) {
     if (wb && currentUser.username) {
         // Sync auth button whenever we update the welcome banner to ensure identity consistency
         updateAuthButton();
-        
+
         const streak = currentUser.streak || 0;
         const wbBestStreak = currentUser.bestStreak || 0;
         const streakText = (streak > 0 || wbBestStreak > 0) ? '<span style="color:#f97316;font-weight:700;"> · 🔥 ' + streak + (wbBestStreak > 0 ? '(' + wbBestStreak + ')' : '') + ' day streak</span>' : '';
@@ -3080,7 +3080,7 @@ function _lbBuildResultRow(u) {
     return '<div class="lb-search-result">' +
         '<span>' + lv.emoji + '</span>' +
         '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>' +
-        '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + u.rank + '</strong></span>' +
+        '<span class="lb-sr-pts">' + pts + ' XP · <strong>' + (u.rank ? '#' + u.rank : '—') + '</strong></span>' +
     '</div>';
 }
 
@@ -3126,7 +3126,7 @@ async function _lbSearchLoad(query, afterRank, append) {
         var searchFn = firebase.functions().httpsCallable('searchUsers');
         var res = await searchFn({ query: query, pageSize: 10, afterRank: afterRank });
 
-        // Stale response — a newer query already took over; silently discard
+        // Stale response - a newer query already took over; silently discard
         if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
 
         var users = (res.data && res.data.users) || [];
@@ -3139,7 +3139,7 @@ async function _lbSearchLoad(query, afterRank, append) {
         if (sp) sp.remove();
 
         if (!append && !users.length) {
-            // If local hits are already shown, don't wipe them — just remove spinner
+            // If local hits are already shown, don't wipe them - just remove spinner
             if (!resultEl.querySelector('.lb-search-result')) {
                 resultEl.innerHTML = '<div class="lb-search-none">No users found matching \u201c' + escapeHtml(query) + '\u201d</div>';
             }
@@ -3378,13 +3378,13 @@ window.confirmDeleteAccount = async function() {
         // 9. Close overlay and show confirmation
         var overlay = document.getElementById('deleteAccountOverlay');
         if (overlay) overlay.remove();
-        
+
         // Close settings
         var settingsEl = document.getElementById('settings-overlay') || document.querySelector('[id*="settings"]');
         if (settingsEl) settingsEl.remove();
 
         showToast('👋 Account deleted. We\'re sorry to see you go.');
-        
+
         // Reload after brief delay
         setTimeout(function() { window.location.reload(); }, 2000);
 
@@ -3403,10 +3403,10 @@ window.toggleGhostMode = async function() {
     if (!currentUser) return;
     const isGhost = !currentUser.ghostMode;
     currentUser.ghostMode = isGhost;
-    
+
     // Update local state and UI
     showSettingsPage('security');
-    
+
     // Update Firestore
     try {
         await db.collection('users').doc(auth.currentUser.uid).update({ ghostMode: isGhost });
@@ -3415,7 +3415,7 @@ window.toggleGhostMode = async function() {
 };
 
 // Stubs for upcoming features
-window.setNachoNickname = function(val) { 
+window.setNachoNickname = function(val) {
     var nick = (val || '').trim();
     if (!nick) return;
     // Save to localStorage (used everywhere)
@@ -3478,7 +3478,7 @@ window.updateNachoNameUI = function(name) {
     });
 };
 
-// Render leaderboard badge emoji — compact multi-emoji into a fixed-size cell
+// Render leaderboard badge emoji - compact multi-emoji into a fixed-size cell
 function _lbBadgeEmoji(emoji) {
     // Split emoji string into individual emoji characters (handles multi-byte emoji)
     var chars = [];
@@ -3517,7 +3517,7 @@ async function toggleLeaderboard() {
     lb.classList.add('open');
     if (fab) fab.style.display = 'none';
 
-    // Leaderboard open sound — dramatic reveal
+    // Leaderboard open sound - dramatic reveal
     if ((typeof canPlaySound !== 'function' || canPlaySound()) && (typeof audioEnabled === 'undefined' || audioEnabled)) {
         try {
             if (!window._sharedAudioCtx) window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); var ctx = window._sharedAudioCtx; if (ctx.state === "suspended") ctx.resume();
@@ -3534,7 +3534,7 @@ async function toggleLeaderboard() {
             g1.gain.setValueAtTime(0.08 * vol, now);
             g1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
             osc1.start(now); osc1.stop(now + 0.2);
-            // Trophy chime — two bright notes
+            // Trophy chime - two bright notes
             [880, 1175].forEach((freq, i) => {
                 const osc = ctx.createOscillator();
                 const g = ctx.createGain();
@@ -3608,7 +3608,7 @@ async function toggleLeaderboard() {
         // Period (all-time, weekly, monthly)
         var _lbPeriod = window._lbPeriod || 'alltime';
 
-        let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
+        let html = '<div class="lb-min-bar">🏆 Leaderboard - tap to expand</div>';
         html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
         // Period toggle
         html += '<div style="display:flex;gap:4px;padding:0 12px 10px;">';
@@ -3637,7 +3637,7 @@ async function toggleLeaderboard() {
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             const hidden = rank > 10 ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
             var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
-            
+
             // Certifications display
             let certIcons = '';
             if (d.earnedHidden && d.earnedHidden.includes('cert_scholar')) certIcons += ' 🎓';
@@ -3693,7 +3693,7 @@ async function toggleLeaderboard() {
     }
 }
 
-// PVP Leaderboard — loaded after main leaderboard renders, sorted by win %
+// PVP Leaderboard - loaded after main leaderboard renders, sorted by win %
 async function _loadPVPLeaderboard() {
     var container = document.getElementById('pvpLeaderboardList');
     if (!container) return;
@@ -3730,7 +3730,7 @@ async function _loadPVPLeaderboard() {
         lossSnap.forEach(addPlayer);
         var players = Object.values(playerMap);
         if (players.length === 0) {
-            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet — be the first to compete!</div>';
+            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
             return;
         }
         players.sort(function(a, b) { return b.winRate - a.winRate || b.wins - a.wins; });
@@ -3746,7 +3746,7 @@ async function _loadPVPLeaderboard() {
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
                 '<span class="lb-name">' + p.username + '</span>' +
-                '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W – ' + p.losses + 'L</span>' +
+                '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W - ' + p.losses + 'L</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + p.username + '">⚡</span>' +
             '</div>';
         });
@@ -3755,7 +3755,7 @@ async function _loadPVPLeaderboard() {
         }
         container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
     } catch(e) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet — be the first to compete!</div>';
+        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
     }
 }
 
@@ -3838,7 +3838,7 @@ function showUsernamePrompt() {
             showAccountInfo();
             return;
         }
-        // In-app browser (Instagram, TikTok, FB, etc.) — OAuth won't work.
+        // In-app browser (Instagram, TikTok, FB, etc.) - OAuth won't work.
         // Skip the regular sign-up modal and show the IAB-aware sheet directly.
         if (isInAppBrowser()) {
             window._showIABSignInModal();
@@ -3873,7 +3873,7 @@ function showAccountInfo() {
     showSettingsPage('account');
 }
 
-// Sign-in only mode — hides signup fields, shows only sign-in options
+// Sign-in only mode - hides signup fields, shows only sign-in options
 window.showSignInOnly = function() {
     if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
         showAccountInfo();
@@ -4037,7 +4037,7 @@ window._filterCountryList = function() {
         html += '<div onmousedown="window._selectCountry(\'' + m.replace(/'/g, "\\'") + '\')" style="padding:10px 14px;color:var(--text);font-size:0.9rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;" ontouchstart="this.style.background=\'rgba(247,147,26,0.15)\'" ontouchend="this.style.background=\'none\'" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="this.style.background=\'none\'">' + highlighted + '</div>';
     }
     if (matches.length > 8) {
-        html += '<div style="padding:8px 14px;color:var(--text-faint);font-size:0.75rem;text-align:center;">+' + (matches.length - 8) + ' more — keep typing</div>';
+        html += '<div style="padding:8px 14px;color:var(--text-faint);font-size:0.75rem;text-align:center;">+' + (matches.length - 8) + ' more - keep typing</div>';
     }
     dropdown.innerHTML = html;
     dropdown.style.display = 'block';
@@ -4081,7 +4081,7 @@ window._selectFaction = async function(faction) {
         var previousFaction = currentUser ? (currentUser.faction || null) : null;
         var isFirstChoice = !previousFaction;
 
-        // Factions are now locked — users can only pick once (switching enabled again later)
+        // Factions are now locked - users can only pick once (switching enabled again later)
         if (!isFirstChoice) {
             if (typeof showToast === 'function') showToast('🔒 Factions are locked. You can switch once every 3 months.');
             return;
@@ -4209,7 +4209,7 @@ function showSettingsPage(tab) {
         var _earnedTitles = currentUser ? currentUser.earnedTitles || [] : [];
         var _equipTitleHtml = '';
         if (_earnedTitles.length > 0 && typeof TITLE_DEFS !== 'undefined') {
-            var _titleOptions = '<option value="">— No Title —</option>';
+            var _titleOptions = '<option value="">- No Title -</option>';
             _earnedTitles.forEach(function(tid) {
                 var tDef = TITLE_DEFS.find(function(t){return t.id===tid;});
                 if (tDef) _titleOptions += '<option value="' + escapeHtml(tDef.id) + '"' + (tDef.id===_activeTitleId?' selected':'') + '>' + tDef.emoji + ' ' + escapeHtml(tDef.title) + '</option>';
@@ -4227,7 +4227,7 @@ function showSettingsPage(tab) {
             _equipTitleHtml +
             '</div>';
 
-        // Country selector (custom autocomplete — datalist broken on iOS Safari)
+        // Country selector (custom autocomplete - datalist broken on iOS Safari)
         var _userCountry = currentUser ? currentUser.country || '' : '';
         var _countryXpNudge = !_userCountry ? ' <span style="color:#22c55e;font-size:0.7rem;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:2px 7px;margin-left:4px;">+100 XP + badge</span>' : '';
         html += '<div style="background:var(--card-bg);border:1px solid ' + (!_userCountry ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -4245,7 +4245,7 @@ function showSettingsPage(tab) {
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">⚔️ Faction</div>' +
             (_userFaction
                 ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">🔒 Factions are locked. You can switch factions once every 3 months (feature coming soon).</div>'
-                : '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Choose your allegiance! ⚠️ Factions will be locked — you can change your faction once every 3 months (starting at a later date).</div>') +
+                : '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Choose your allegiance! ⚠️ Factions will be locked - you can change your faction once every 3 months (starting at a later date).</div>') +
             '<div style="display:flex;gap:10px;">' +
             '<div onclick="window._selectFaction(\'cyber_hornets\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'cyber_hornets' ? '#f7931a' : 'var(--border)') + ';background:' + (_userFaction === 'cyber_hornets' ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:' + (_userFaction && _userFaction !== 'cyber_hornets' ? 'default' : 'pointer') + ';text-align:center;transition:all 0.2s;opacity:' + (_userFaction && _userFaction !== 'cyber_hornets' ? '0.5' : '1') + ';">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">🐝</div>' +
@@ -4357,12 +4357,12 @@ function showSettingsPage(tab) {
         // Artist Profile (inside Advanced Account)
         _advHtml += '<button onclick="showArtistProfileModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--accent);font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">🎸 Artist Profile</button>';
 
-        // Profile section (OUTSIDE advAcctContent — always visible)
+        // Profile section (OUTSIDE advAcctContent - always visible)
         var bio = currentUser ? currentUser.bio || '' : '';
         // Social links config: key, emoji, label, placeholder, maxlen, type
         var _slDef = [
             { k:'website', e:'🌐', l:'Website', p:'https://yoursite.com', m:100, t:'url' },
-            { k:'twitter', e:'𝕏', l:'Twitter/X', p:'@yourusername', m:30 },
+            { k:'twitter', e:'X', l:'Twitter/X', p:'@yourusername', m:30 },
             { k:'nostr', e:'🟣', l:'Nostr', p:'npub... or NIP-05', m:80 },
             { k:'instagram', e:'📸', l:'Instagram', p:'@yourusername', m:30 },
             { k:'tiktok', e:'🎵', l:'TikTok', p:'@yourusername', m:30 },
@@ -4397,10 +4397,10 @@ function showSettingsPage(tab) {
         });
         html += '</div>';
 
-        // Add link dropdown — only show if there are empty slots
+        // Add link dropdown - only show if there are empty slots
         if (_emptyLinks.length > 0) {
             html += '<div id="addLinkArea" style="margin-bottom:12px;">' +
-                '<button id="addLinkBtn" onclick="document.getElementById(\'addLinkMenu\').style.display=document.getElementById(\'addLinkMenu\').style.display===\'none\'?\'block\':\'none\'" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:none;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;width:100%;touch-action:manipulation;"><span style="font-size:1rem;">＋</span> Add a link</button>' +
+                '<button id="addLinkBtn" onclick="document.getElementById(\'addLinkMenu\').style.display=document.getElementById(\'addLinkMenu\').style.display===\'none\'?\'block\':\'none\'" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:none;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;width:100%;touch-action:manipulation;"><span style="font-size:1rem;">+</span> Add a link</button>' +
                 '<div id="addLinkMenu" style="display:none;margin-top:6px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.3);">';
             _emptyLinks.forEach(function(s) {
                 html += '<button onclick="addProfileLink(\'' + s.k + '\',\'' + s.e + '\',\'' + s.l + '\',\'' + s.p + '\',' + s.m + ',\'' + (s.t||'text') + '\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;text-align:left;touch-action:manipulation;"><span style="font-size:1.1rem;">' + s.e + '</span> ' + s.l + (s.note ? ' <span style="color:var(--text-faint);font-size:0.7rem;">(' + s.note + ')</span>' : '') + '</button>';
@@ -4422,7 +4422,7 @@ function showSettingsPage(tab) {
                 '<span style="color:var(--accent);font-size:1.1rem;margin-left:auto;">→</span></div>';
         }
 
-        // Advanced Account toggle — content renders BELOW this button
+        // Advanced Account toggle - content renders BELOW this button
         html += '<button onclick="var p=document.getElementById(\'advAcctContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Account <span>▼</span></button>';
 
         // Advanced Account content (hidden, appears at bottom when toggled)
@@ -4500,7 +4500,7 @@ function showSettingsPage(tab) {
         html += '<button onclick="hideUsernamePrompt();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + (auth && auth.currentUser ? auth.currentUser.uid : '') + '\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>';
 
     } else if (settingsTab === 'scholar') {
-        // Scholar — Quests, Certifications, Flashcards
+        // Scholar - Quests, Certifications, Flashcards
         html += '<div style="margin-bottom:20px;text-align:center;">' +
             '<div style="font-size:2.5rem;margin-bottom:8px;">🎓</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">Bitcoin Scholar</div>' +
@@ -4515,7 +4515,7 @@ function showSettingsPage(tab) {
             '<button onclick="hideUsernamePrompt(); startQuestManual();" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">⚡ Start a Quest</button>' +
             '</div>';
 
-        // Scholar Certification — Properties
+        // Scholar Certification - Properties
         var propPassed = localStorage.getItem('btc_scholar_prop_passed') === 'true';
         html += '<div style="background:linear-gradient(135deg, rgba(247,147,26,0.1), rgba(247,147,26,0.02));border:1px solid '+(propPassed ? '#22c55e' : 'var(--accent)')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(propPassed ? '✅' : '📜')+'</div>' +
@@ -4524,7 +4524,7 @@ function showSettingsPage(tab) {
             '<button onclick="hideUsernamePrompt(); startScholarQuest(\'properties\');" style="width:100%;padding:12px;background:'+(propPassed ? '#22c55e' : 'var(--accent)')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(propPassed ? '✅ View Certificate' : '🎓 Start Scholar Exam')+'</button>' +
             '</div>';
 
-        // Scholar Certification — Technical
+        // Scholar Certification - Technical
         var techPassed = localStorage.getItem('btc_scholar_tech_passed') === 'true';
         html += '<div style="background:linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.02));border:1px solid '+(techPassed ? '#22c55e' : '#3b82f6')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(techPassed ? '✅' : '🛠️')+'</div>' +
@@ -4592,7 +4592,7 @@ function showSettingsPage(tab) {
         html += '</div>'; // close signalPanel
 
     } else if (settingsTab === 'signal') {
-        // The Weekly Signal — Newsletter
+        // The Weekly Signal - Newsletter
         html += '<div style="margin-bottom:20px;text-align:center;">' +
             '<div style="font-size:2.5rem;margin-bottom:8px;">📡</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">The Weekly Signal</div>' +
@@ -4607,7 +4607,7 @@ function showSettingsPage(tab) {
 
         // Curated editorial + live news from ticker
         var signalPosts = [
-            { date: 'Feb 26, 2026', title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But Gigi explains why energy IS the point — PoW converts real-world resources into unforgeable security.', channel: 'pow-vs-pos' },
+            { date: 'Feb 26, 2026', title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But Gigi explains why energy IS the point - PoW converts real-world resources into unforgeable security.', channel: 'pow-vs-pos' },
             { date: 'Feb 19, 2026', title: 'The Great Definancialization', snippet: 'Parker Lewis breaks down why we don\'t need thousands of stocks, bonds, and derivatives if we have one form of hard money that can\'t be debased.', channel: 'problems-of-money' },
             { date: 'Feb 12, 2026', title: 'The 21 Million Cap is Inviolate', snippet: 'Why even if every miner in the world wanted to change the supply, they couldn\'t. The users run the rules.', channel: 'scarce' },
             { date: 'Feb 5, 2026', title: 'Not Your Keys, Not Your Coins', snippet: 'After another exchange collapse, the importance of self-custody has never been clearer. Here\'s how to take control.', channel: 'self-custody' },
@@ -4638,7 +4638,7 @@ function showSettingsPage(tab) {
         setTimeout(function() {
             var container = document.getElementById('signalLiveNews');
             if (!container) return;
-            
+
             fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
                 if (!data || !data.news || data.news.length === 0) {
                     container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">No signals available</div>';
@@ -4715,7 +4715,7 @@ function showSettingsPage(tab) {
                 '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How to Earn Tickets</div>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket/day just for visiting.<br>' +
-                '<strong style="color:var(--text);">🎡 Daily Spin:</strong> Spin the wheel for 1–5+ tickets!<br>' +
+                '<strong style="color:var(--text);">🎡 Daily Spin:</strong> Spin the wheel for 1-5+ tickets!<br>' +
                 '<strong style="color:var(--text);">🎯 Daily Trifecta:</strong> Complete quiz + trivia + poll = +1 ticket/day.<br>' +
                 '<strong style="color:var(--text);">🦌 Nacho Chat:</strong> Send Nacho a message = +1 ticket/day.<br>' +
                 '<strong style="color:var(--text);">💬 Global Chat:</strong> First message of the day = +2 tickets.<br>' +
@@ -4748,7 +4748,7 @@ function showSettingsPage(tab) {
         var userPts = currentUser ? currentUser.points || 0 : 0;
         var pointsClaimed = currentUser ? currentUser.pointsClaimed || 0 : 0;
         var pointsDonated = currentUser ? currentUser.pointsDonated || 0 : 0;
-        // [VULN-4 FIX] donated points can't also fund sats claims — subtract both offsets
+        // [VULN-4 FIX] donated points can't also fund sats claims - subtract both offsets
         var availableForClaim = userPts - pointsClaimed - pointsDonated;
         var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
         var satsBalance = Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
@@ -4810,8 +4810,8 @@ function showSettingsPage(tab) {
         html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' claimable sats</div>';
         var _displayAvail = Math.max(0, availableForClaim);
         var _availLabel = availableForClaim < 0
-            ? '<span style="color:#ef4444;">' + _displayAvail.toLocaleString() + ' available XP</span> <span style="font-size:0.65rem;color:#ef4444;">(claims + donations exceed current total — keep earning!)</span>'
-            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated)';
+            ? '<span style="color:#ef4444;">' + _displayAvail.toLocaleString() + ' available XP</span> <span style="font-size:0.65rem;color:#ef4444;">(claims + donations exceed current total - keep earning!)</span>'
+            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated)';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + _availLabel + '</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
@@ -4838,9 +4838,9 @@ function showSettingsPage(tab) {
         var checks = [
             { met: !isAnon, label: 'Signed in (not anonymous)', detail: isAnon ? 'Sign in with email, Google, etc.' : '✓ Signed in' },
             { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
-            { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days — ' + (7 - acctAgeDays) + ' more to go' },
-            { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics — read ' + (10 - channelsRead) + ' more' },
-            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats — earn ' + ((100 - satsBalance) * 10) + ' more XP' }
+            { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days - ' + (7 - acctAgeDays) + ' more to go' },
+            { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics - read ' + (10 - channelsRead) + ' more' },
+            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' }
         ];
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -4854,13 +4854,13 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">⚡ How It Works</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        html += '• <strong>1,000 XP = 100 sats</strong> — earn XP by reading, quests, and daily visits<br>';
+        html += '• <strong>1,000 XP = 100 sats</strong> - earn XP by reading, quests, and daily visits<br>';
         html += '• <strong>Min claim: 100 sats</strong> (1,000 XP)<br>';
         html += '• <strong>Max claim: 500 sats/day</strong><br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
         html += '• <strong>Lifetime max: 10,000 sats</strong> per account<br>';
         html += '• <strong>Daily XP cap: 500 XP</strong> (50 sats worth) to prevent abuse<br>';
-        html += '• Unclaimed sats roll over — no expiration<br>';
+        html += '• Unclaimed sats roll over - no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
         html += '</div>';
         html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;font-size:0.75rem;color:#22c55e;line-height:1.5;">';
@@ -4885,27 +4885,27 @@ function showSettingsPage(tab) {
             '📖 Open a channel: <strong>10 XP</strong>',
             '⏱️ Read for 30 sec: <strong>15 XP</strong>',
             '🧭 Explore 10+ topics/session: <strong>50 XP</strong>',
-            '🗺️ Exploration milestones: <strong>50–2,000 XP</strong> (10 / 25 / 50 / 100 / all topics)',
+            '🗺️ Exploration milestones: <strong>50-2,000 XP</strong> (10 / 25 / 50 / 100 / all topics)',
             '🔖 Bookmark a message: <strong>5 XP</strong>'
         ]);
         html += _es('ep_daily', '✅ Daily Activities', [
             '✅ Daily visit: <strong>5 XP</strong>',
             '🔥 Streak bonus: <strong>100 XP/day</strong>',
-            '🎰 Daily spin: <strong>25–100 XP</strong> (XP reward spins)',
+            '🎰 Daily spin: <strong>25-100 XP</strong> (XP reward spins)',
             '📈 Price prediction: <strong>5 XP</strong> (25 if correct!)',
             '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched',
             '⚡ Visit Lightning Wallet: <strong>5 XP</strong>',
-            '🎯 Quest Hub – Daily Quiz: <strong>25–100 XP</strong>',
-            '🧠 Quest Hub – Daily Trivia: <strong>10–15 XP</strong>',
-            '📊 Quest Hub – Daily Poll: <strong>5 XP</strong>',
+            '🎯 Quest Hub - Daily Quiz: <strong>25-100 XP</strong>',
+            '🧠 Quest Hub - Daily Trivia: <strong>10-15 XP</strong>',
+            '📊 Quest Hub - Daily Poll: <strong>5 XP</strong>',
             '🏆 Complete all three in one day: <strong>bonus Satoshi\'s Favor point!</strong>'
         ]);
         html += _es('ep_quiz', '🧠 Quizzes & Learning', [
             '🎯 Daily quests (perfect): <strong>100 XP</strong> (50 for 3+, 25 retry)',
-            '🧠 Nacho trivia pop-ups: <strong>10–15 XP</strong>',
+            '🧠 Nacho trivia pop-ups: <strong>10-15 XP</strong>',
             '🎮 Channel quizzes: <strong>10 XP</strong>',
             '🎯 Conversation quests: <strong>5 XP/correct</strong>',
-            '📖 Nacho\'s Trails chapters: <strong>25–50 XP</strong> (100 for completing all)',
+            '📖 Nacho\'s Trails chapters: <strong>25-50 XP</strong> (100 for completing all)',
             '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all + badges)',
             '🎓 Scholar Certification (Bitcoin): <strong>2,100 XP</strong>',
             '🎓 Scholar Certification (Protocol): <strong>2,100 XP</strong>'
@@ -4917,7 +4917,7 @@ function showSettingsPage(tab) {
             '📖 Read an article: <strong>5 XP</strong>',
             '💬 Article comment: <strong>5 XP</strong>',
             '🌍 Global Chat message: <strong>5 XP</strong>',
-            '🔥 Chat streaks: <strong>10–25 XP</strong> (3-day / 7-day)',
+            '🔥 Chat streaks: <strong>10-25 XP</strong> (3-day / 7-day)',
             '🤝 Host IRL event: <strong>15 XP</strong>',
             '🤝 Refer a friend: <strong>bonus XP per referral</strong>',
             '💬 Feedback bonus: <strong>5 XP</strong>'
@@ -4936,15 +4936,15 @@ function showSettingsPage(tab) {
         html += _es('ep_pvp', '⚔️ PVP & Competitions', [
             '⚔️ PVP match victory: <strong>score-based XP</strong>',
             '🧠 PVP practice question: <strong>10 XP/correct</strong>',
-            '🏅 PVP badges: <strong>25–500 XP</strong>'
+            '🏅 PVP badges: <strong>25-500 XP</strong>'
         ]);
         html += _es('ep_badges', '🏅 Badges', [
-            '📚 Standard badges: <strong>20–2,000 XP each</strong>',
-            '🔑 Hidden / secret badges: <strong>50–2,100 XP each</strong>',
-            '🎯 Goal badges (Tickets, Exploration, Charity): <strong>200–15,000 XP</strong>',
+            '📚 Standard badges: <strong>20-2,000 XP each</strong>',
+            '🔑 Hidden / secret badges: <strong>50-2,100 XP each</strong>',
+            '🎯 Goal badges (Tickets, Exploration, Charity): <strong>200-15,000 XP</strong>',
             '🛒 First Purchase guide: <strong>100 XP</strong>',
-            '🏆 Milestone badges (50 / 100 / 150 / 200 badges): <strong>5,000–21,000 XP</strong>',
-            '💡 Tip: secret badges are discovered, not unlocked — explore everything!'
+            '🏆 Milestone badges (50 / 100 / 150 / 200 badges): <strong>5,000-21,000 XP</strong>',
+            '💡 Tip: secret badges are discovered, not unlocked - explore everything!'
         ]);
         html += _es('ep_big', '🏆 Big Achievements', [
             '🌍 Set your country: <strong>100 XP</strong>',
@@ -4983,7 +4983,7 @@ function showSettingsPage(tab) {
         html += '<div style="text-align:center;margin-bottom:20px;">';
         html += '<div style="font-size:2.5rem;">❤️</div>';
         html += '<div style="font-size:1.3rem;font-weight:800;color:#ef4444;margin-top:4px;">Donate XP for Charity</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">1,000 XP = 1,000 sats donated — 10× more impact than claiming</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">1,000 XP = 1,000 sats donated - 10× more impact than claiming</div>';
         html += '</div>';
 
         // Balance card
@@ -4991,9 +4991,9 @@ function showSettingsPage(tab) {
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Available to Donate</div>';
         html += '<div data-sats-charity-avail style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
         var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated;
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total − ' + pointsClaimed.toLocaleString() + ' claimed − ' + pointsDonated.toLocaleString() + ' donated</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated</div>';
         if (_rawAvailForDonate < 0) {
-            html += '<div style="margin-top:8px;font-size:0.75rem;color:#ef4444;font-weight:600;">⚠️ XP fully used — earn more to donate again</div>';
+            html += '<div style="margin-top:8px;font-size:0.75rem;color:#ef4444;font-weight:600;">⚠️ XP fully used - earn more to donate again</div>';
         }
         html += '</div>';
 
@@ -5007,7 +5007,7 @@ function showSettingsPage(tab) {
             html += '<button onclick="showSettingsPage(\'account\')" style="padding:10px 24px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">🐝🦡 Choose Faction → Account</button>';
             html += '</div>';
         } else {
-            // Quick-pick percentage buttons — only show donate form if XP is available
+            // Quick-pick percentage buttons - only show donate form if XP is available
             if (_donateAvail > 0) {
                 var _quickPcts = [5, 10, 25, 50, 100];
                 html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
@@ -5024,7 +5024,7 @@ function showSettingsPage(tab) {
                 html += '</div>';
                 html += '<button onclick="window._satsCharitySubmit()" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;">❤️ Donate XP for Charity</button>';
                 if (pointsDonated > 0) {
-                    html += '<div data-sats-donated-total style="font-size:0.75rem;color:var(--text-faint);text-align:center;margin-bottom:16px;">' + pointsDonated.toLocaleString() + ' XP already donated — thank you! ❤️</div>';
+                    html += '<div data-sats-donated-total style="font-size:0.75rem;color:var(--text-faint);text-align:center;margin-bottom:16px;">' + pointsDonated.toLocaleString() + ' XP already donated - thank you! ❤️</div>';
                 }
             } else {
                 html += '<div style="width:100%;padding:20px 16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:12px;text-align:center;margin-bottom:16px;">';
@@ -5032,13 +5032,13 @@ function showSettingsPage(tab) {
                 html += '<div style="font-size:0.92rem;font-weight:700;color:var(--text);margin-bottom:6px;">No XP Available to Donate</div>';
                 html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.5;">Your XP is all accounted for between past sats claims and donations. Keep earning XP and it will show up here.</div>';
                 if (pointsDonated > 0) {
-                    html += '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:10px;">' + pointsDonated.toLocaleString() + ' XP already donated — thank you! ❤️</div>';
+                    html += '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:10px;">' + pointsDonated.toLocaleString() + ' XP already donated - thank you! ❤️</div>';
                 }
                 html += '</div>';
             }
         }
 
-        // Recent Donations section (same structure as Quest Hub charity tab — _patchCharityRecent fills it live)
+        // Recent Donations section (same structure as Quest Hub charity tab - _patchCharityRecent fills it live)
         var _satsRecentArr = (typeof _charityRecent !== 'undefined' && Array.isArray(_charityRecent)) ? _charityRecent : [];
         html += '<div id="charityRecentWrapper" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;' + (_satsRecentArr.length === 0 ? 'display:none;' : '') + '">' +
             '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">📜 Recent Donations</div>' +
@@ -5047,7 +5047,7 @@ function showSettingsPage(tab) {
 
         // Expandable disclaimer note
         html += '<div style="margin-bottom:8px;">';
-        html += '<button onclick="window._toggleSatsCharityNote()" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">ℹ️ About Donations <span id="satsCharityNoteArrow">▼</span></button>';
+        html += '<button onclick="window._toggleSatsCharityNote()" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">i️ About Donations <span id="satsCharityNoteArrow">▼</span></button>';
         html += '<div id="satsCharityNote" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:12px;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Donations are non-refundable and not tax-deductible. Faction is always recorded even for anonymous donations. Community votes on which charities receive the funds.</div>';
         html += '</div>';
 
@@ -5113,7 +5113,7 @@ function showSettingsPage(tab) {
             if (sel) sel.value = saved;
         }, 50);
 
-        // Font Size — merged into Appearance card above
+        // Font Size - merged into Appearance card above
 
         // Sound settings
         const soundOn = typeof audioEnabled === 'undefined' || audioEnabled;
@@ -5189,9 +5189,9 @@ function showSettingsPage(tab) {
             '<button id="pushToggleBtn" onclick="togglePushNotifications()" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pushEnabled ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pushEnabled ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pushEnabled ? 'ON' : 'OFF') + '</button></div>' +
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.75rem;color:var(--text-muted);line-height:1.5;">' +
                 '<strong style="color:var(--text);">What you\'ll get:</strong><br>' +
-                '🎡 <strong>Spin reminders</strong> — a couple times a week, never daily<br>' +
-                '🔥 <strong>Streak alerts</strong> — don\'t lose your streak!<br>' +
-                '📰 <strong>New content</strong> — when we add major new topics<br>' +
+                '🎡 <strong>Spin reminders</strong> - a couple times a week, never daily<br>' +
+                '🔥 <strong>Streak alerts</strong> - don\'t lose your streak!<br>' +
+                '📰 <strong>New content</strong> - when we add major new topics<br>' +
                  +
                 '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
             '</div>' +
@@ -5215,14 +5215,14 @@ function showSettingsPage(tab) {
             '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
             '<div><span style="color:var(--text);font-size:0.85rem;">Autoplay Videos</span><div style="color:var(--text-faint);font-size:0.7rem;">Start video playback immediately on tune-in</div></div>' +
             '<button onclick="localStorage.setItem(\'btc_tctv_autoplay\',localStorage.getItem(\'btc_tctv_autoplay\')===\'false\'?\'true\':\'false\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tctvAuto ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tctvAuto ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tctvAuto ? 'ON' : 'OFF') + '</button></div>';
-        
+
         const tctvRemotePersistent = localStorage.getItem('btc_tctv_remote_open') === 'true';
         html += '<div style="display:flex;align-items:center;justify-content:space-between;">' +
             '<div><span style="color:var(--text);font-size:0.85rem;">Persistent Remote</span><div style="color:var(--text-faint);font-size:0.7rem;">Keep the TV remote open by default</div></div>' +
             '<button onclick="localStorage.setItem(\'btc_tctv_remote_open\',localStorage.getItem(\'btc_tctv_remote_open\')===\'true\'?\'false\':\'true\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tctvRemotePersistent ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tctvRemotePersistent ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tctvRemotePersistent ? 'ON' : 'OFF') + '</button></div>' +
             '</div>';
 
-        // Keyboard Shortcuts (collapsible — takes lots of space)
+        // Keyboard Shortcuts (collapsible - takes lots of space)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div onclick="window._expanded_shortcuts=!window._expanded_shortcuts;showSettingsPage(\'prefs\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">⌨️ Keyboard Shortcuts & Gestures</div>' +
@@ -5275,7 +5275,7 @@ function showSettingsPage(tab) {
         // Email verification status
         const emailVerified = user.emailVerified;
         const hasEmail = user.email || (user.providerData && user.providerData.some(function(p) { return p.providerId === 'password'; }));
-        
+
         if (hasEmail) {
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                 '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Email Verification</div>';
@@ -5377,7 +5377,7 @@ function showSettingsPage(tab) {
             }, 100);
         }
 
-        // Delete Account — Danger Zone
+        // Delete Account - Danger Zone
         if (!user.isAnonymous) {
             html += '<div style="background:rgba(239,68,68,0.05);border:2px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;margin-top:24px;">' +
                 '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">⚠️ Danger Zone</div>' +
@@ -5388,7 +5388,7 @@ function showSettingsPage(tab) {
         html += '</div>'; // close advSecPanel
 
     } else if (settingsTab === 'data') {
-        // Refresh data from Firebase — cache for 2 minutes
+        // Refresh data from Firebase - cache for 2 minutes
         var now = Date.now();
         if (typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined' &&
             (!window._statsCache || now - window._statsCacheTime > 120000)) {
@@ -5440,7 +5440,7 @@ function showSettingsPage(tab) {
         var _tcktCount = currentUser ? (currentUser.orangeTickets || 0) : 0;
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;">';
         html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧊 Buy Streak Freezes</div>';
-        html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Protect your streak — freezes auto-activate when you miss a day. You have <strong>' + _tcktCount + ' 🏟️ Orange Tickets</strong>.</div>';
+        html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Protect your streak - freezes auto-activate when you miss a day. You have <strong>' + _tcktCount + ' 🏟️ Orange Tickets</strong>.</div>';
         html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
         html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">5 🏟️ tickets</span></button>';
         html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">12 🏟️ tickets</span></button>';
@@ -5457,10 +5457,10 @@ function showSettingsPage(tab) {
         var _pvpT = _pvpW + _pvpL;
         var _pvpPct = _pvpT > 0 ? Math.round((_pvpW / _pvpT) * 100) : 0;
         if (_pvpT > 0) {
-            html += statRow('PVP Record', _pvpW + 'W – ' + _pvpL + 'L', '⚔️');
+            html += statRow('PVP Record', _pvpW + 'W - ' + _pvpL + 'L', '⚔️');
             html += statRow('PVP Win Rate', _pvpPct + '%', '📊');
         } else {
-            html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
+            html += statRow('PVP Record', 'No battles yet - <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
         }
         // Prediction Stats
         if (typeof getPredictionStats === 'function') {
@@ -5479,15 +5479,15 @@ function showSettingsPage(tab) {
         var _estMinutes = _totalSessions * 8; // estimate 8 min avg session
         var _timeStr = _estMinutes >= 60 ? Math.floor(_estMinutes / 60) + 'h ' + (_estMinutes % 60) + 'm' : _estMinutes + ' min';
         html += statRow('Est. Time Learning', _timeStr, '⏱️');
-        
+
         // Chat messages
         var _chatMsgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0');
         if (_chatMsgs > 0) html += statRow('Chat Messages Sent', _chatMsgs, '💬');
-        
+
         // DMs sent
         var _dmsSent = parseInt(localStorage.getItem('btc_dms_sent') || '0');
         if (_dmsSent > 0) html += statRow('DMs Sent', _dmsSent, '✉️');
-        
+
         // Tips given/received
         var _tipsSent = parseInt(localStorage.getItem('btc_tips_sent') || '0');
         var _tipsReceived = parseInt(localStorage.getItem('btc_tips_received') || '0');
@@ -5496,37 +5496,37 @@ function showSettingsPage(tab) {
             html += statRow('Tips Given', _tipsSent + (_tipsSatsSent > 0 ? ' (' + _tipsSatsSent.toLocaleString() + ' sats)' : ''), '⚡');
             html += statRow('Tips Received', _tipsReceived, '🙏');
         }
-        
+
         // Spin wheel stats
         var _spinCount = parseInt(localStorage.getItem('btc_spin_count') || '0');
         if (_spinCount > 0) html += statRow('Daily Spins', _spinCount + ' total', '🎡');
-        
+
         // TCTV watch time
         var _tctvMinutes = parseInt(localStorage.getItem('btc_tctv_watch_time') || '0');
         if (_tctvMinutes > 0) {
             var _tctvStr = _tctvMinutes >= 60 ? Math.floor(_tctvMinutes / 60) + 'h ' + (_tctvMinutes % 60) + 'm' : _tctvMinutes + ' min';
             html += statRow('Timechain TV Watched', _tctvStr, '📺');
         }
-        
+
         // Beats interactions
         var _beatsUploads = parseInt(localStorage.getItem('btc_beats_uploads') || '0');
         if (_beatsUploads > 0) html += statRow('Songs Uploaded', _beatsUploads, '🎵');
-        
+
         // DJ stats
         var _djSets = parseInt(localStorage.getItem('btc_dj_sets') || '0');
         if (_djSets > 0) html += statRow('DJ Sets', _djSets, '🎧');
-        
+
         // Referrals
         var _referralCount = currentUser ? (currentUser.referralCount || 0) : 0;
         if (_referralCount > 0) html += statRow('Friends Referred', _referralCount, '🔗');
-        
+
         // Badges earned count
         var _badgeCount = typeof earnedBadges !== 'undefined' ? earnedBadges.size || 0 : JSON.parse(localStorage.getItem('btc_badges') || '[]').length;
         // BADGE_DEFS = 190 static badges. Dynamic per-action FLEX badges: 20 actions × 8 milestones = 160.
         var _totalBadges = (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 190) +
             (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined' ? FLEX_ACTIONS.length * FLEX_BADGE_MILESTONES.length : 160);
         html += statRow('Badges Earned', _badgeCount + ' / ' + _totalBadges, '🏅');
-        
+
         // Reading progress
         try {
             var _readProg = JSON.parse(localStorage.getItem('btc_channel_progress') || '{}');
@@ -5565,10 +5565,10 @@ function showSettingsPage(tab) {
                     '<button onclick="if(typeof window._showChatFlairPicker===\'function\')window._showChatFlairPicker()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Change →</button></div>';
             }
             if (_settCosmetics.indexOf('profile_frame') !== -1) {
-                html += '<div style="padding:10px 0;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:0.85rem;">🧓 Profile Frame: <strong style="color:#f7931a;">Active — orange glow on your rank card</strong></div>';
+                html += '<div style="padding:10px 0;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:0.85rem;">🧓 Profile Frame: <strong style="color:#f7931a;">Active - orange glow on your rank card</strong></div>';
             }
             if (_settCosmetics.indexOf('nacho_skin_nook') !== -1) {
-                html += '<div style="padding:10px 0;color:var(--text-muted);font-size:0.85rem;">🦌 Nacho Skin: <strong style="color:#f7931a;">Active — golden avatar in chat &amp; profile</strong></div>';
+                html += '<div style="padding:10px 0;color:var(--text-muted);font-size:0.85rem;">🦌 Nacho Skin: <strong style="color:#f7931a;">Active - golden avatar in chat &amp; profile</strong></div>';
             }
             html += '</div>';
         }
@@ -5623,7 +5623,7 @@ function showSettingsPage(tab) {
             }
         }
 
-        // Nacho Nickname (first — let user name their Nacho)
+        // Nacho Nickname (first - let user name their Nacho)
         var nickname = localStorage.getItem('btc_nacho_nickname') || 'Nacho';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Buck</div>' +
@@ -5633,7 +5633,7 @@ function showSettingsPage(tab) {
             '<button onclick="var n=document.getElementById(\'nachoNicknameInput\').value.trim();if(n)setNachoNickname(n)" style="width:100%;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>' +
             '</div></div>';
 
-        // Nacho Story (highlighted — right under name)
+        // Nacho Story (highlighted - right under name)
         if (typeof getNachoStoryProgress === 'function') {
             var storyProg = getNachoStoryProgress();
             var storyTotal = (typeof window.NACHO_STORY_TOTAL === 'number') ? window.NACHO_STORY_TOTAL : 7;
@@ -5684,7 +5684,7 @@ function showSettingsPage(tab) {
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔒 Privacy</div>' +
             '<div style="color:var(--text);font-size:0.85rem;line-height:1.6;">' +
             '<strong style="color:#22c55e;">We do not sell, share, or monetize your data. Ever.</strong><br>' +
-            'The only data we store is your username, points, and progress — just enough to power your experience. No tracking, no ads, no third-party analytics. Your data is yours.</div></div>';
+            'The only data we store is your username, points, and progress - just enough to power your experience. No tracking, no ads, no third-party analytics. Your data is yours.</div></div>';
 
         // Orange Tickets section (collapsible)
         html += '<button onclick="var p=document.getElementById(\'ticketsPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:10px;color:var(--accent);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;"><span style="filter:hue-rotate(30deg) saturate(1.5);">🎟️</span> Orange Tickets & Referrals <span>▼</span></button>';
@@ -5856,7 +5856,7 @@ function showSettingsPage(tab) {
 function changeLanguage(lang) {
     const status = document.getElementById('langStatus');
     if (!lang) {
-        // Reset to English — clear storage/cookies then reload (in-place DOM cleanup is unreliable after GT mutation)
+        // Reset to English - clear storage/cookies then reload (in-place DOM cleanup is unreliable after GT mutation)
         document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
         document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.' + location.hostname;
         document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + location.hostname;
@@ -5961,7 +5961,7 @@ window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
 };
 
 // =============================================
-// PROFILE PICTURE — upload, resize, store as base64 in Firestore
+// PROFILE PICTURE - upload, resize, store as base64 in Firestore
 // =============================================
 window.handleProfilePicUpload = function(input) {
     var file = input.files && input.files[0];
@@ -6039,23 +6039,23 @@ async function saveProfile() {
         if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 1500);
         return;
     }
-    
+
     var uid = auth.currentUser.uid;
     var bio = document.getElementById('profileBio') ? document.getElementById('profileBio').value.trim() : '';
-    
+
     var countryEl = document.getElementById('countryInput');
     var country = countryEl ? countryEl.value.trim().substring(0, 60) : '';
-    // Validate country against the known list — reject freeform text
+    // Validate country against the known list - reject freeform text
     if (country && window._countryList && window._countryList.indexOf(country) === -1) {
         if (typeof showToast === 'function') showToast('\u26a0\ufe0f Please select a valid country from the dropdown list.');
         countryEl.focus();
         return;
     }
     var updateData = { bio: bio, country: country };
-    
+
     // Social links mapping
     var links = ['website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail', 'lightning'];
-    // URL scheme validation — block javascript:, data:, vbscript: etc.
+    // URL scheme validation - block javascript:, data:, vbscript: etc.
     var _safeUrl = function(url) {
         if (!url) return '';
         url = url.trim();
@@ -6082,17 +6082,17 @@ async function saveProfile() {
         else if (currentUser && typeof currentUser[k] !== 'undefined') {
             // If the element doesn't exist but the user had it, we check if it was removed
             // Actually, addProfileLink adds the element. If it's gone from DOM, they likely clicked Remove.
-            // But we only want to null it if it was explicitly removed. 
+            // But we only want to null it if it was explicitly removed.
             // pf-link-row has data-key.
             var row = document.querySelector('.pf-link-row[data-key="' + k + '"]');
-            if (!row) updateData[k] = ''; 
+            if (!row) updateData[k] = '';
         }
     });
 
     try {
         if (status) status.innerHTML = '<span style="color:var(--accent);">Saving...</span>';
         await db.collection('users').doc(uid).update(updateData);
-        
+
         // One-time +100 XP reward + Global Citizen badge for adding country for the first time
         var _prevCountry = currentUser ? (currentUser.country || '') : '';
         if (country && !_prevCountry) {
@@ -6107,10 +6107,10 @@ async function saveProfile() {
 
         // Update local currentUser object
         Object.assign(currentUser, updateData);
-        
+
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
         if (typeof showToast === 'function') showToast('✅ Profile saved successfully!');
-        
+
         // Small delay then close or refresh settings view
         setTimeout(function() {
             if (status) status.innerHTML = '';
@@ -6166,7 +6166,7 @@ window.showArtistProfileModal = function() {
             '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🔗 Music Links</div>' +
             '<div style="display:flex;flex-direction:column;gap:6px;">' +
                 '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🌐</span><input type="url" id="artistLinkWebsite" placeholder="Website" value="' + escapeHtml(ap.website || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
-                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">𝕏</span><input type="text" id="artistLinkX" placeholder="X handle (e.g. @artist)" maxlength="50" value="' + escapeHtml(ap.x || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">X</span><input type="text" id="artistLinkX" placeholder="X handle (e.g. @artist)" maxlength="50" value="' + escapeHtml(ap.x || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
                 '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">📸</span><input type="text" id="artistLinkInstagram" placeholder="Instagram handle (e.g. @artist)" maxlength="50" value="' + escapeHtml(ap.instagram || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
             '</div>' +
         '</div>' +
@@ -6247,7 +6247,7 @@ function _pasteFieldFallback(field) {
     field.value = '';
     field.setSelectionRange(0, 0);
     try { document.execCommand('paste'); } catch(e) {}
-    if (typeof showToast === 'function') showToast('📋 Field ready — tap and hold, then tap Paste', 5000);
+    if (typeof showToast === 'function') showToast('📋 Field ready - tap and hold, then tap Paste', 5000);
 }
 
 // Load Signal live news content
@@ -6347,7 +6347,7 @@ window.hideUsernamePrompt = function() {
     if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
         showGuideReturnBtn();
     }
-    // One-shot callback — used e.g. by Charity tab to return after faction selection
+    // One-shot callback - used e.g. by Charity tab to return after faction selection
     if (typeof window._onSettingsClose === 'function') {
         var cb = window._onSettingsClose;
         window._onSettingsClose = null;
@@ -6368,7 +6368,7 @@ async function isUsernameTaken(username, excludeUid) {
         return true;
     } catch(e) {
         console.warn('[isUsernameTaken] query failed:', e);
-        return false; // fail open — don't block signup on a Firestore hiccup
+        return false; // fail open - don't block signup on a Firestore hiccup
     }
 }
 
@@ -6408,7 +6408,7 @@ window.submitUsername = async function() {
         if (lnAddress) localStorage.setItem('btc_pending_ln_address', lnAddress);
 
         if (email) {
-            // Email provided — send magic link for verification
+            // Email provided - send magic link for verification
             var sent = await sendMagicLink(email);
             if (sent) {
                 localStorage.setItem('btc_pending_username', name);
@@ -6421,7 +6421,7 @@ window.submitUsername = async function() {
             }
         }
 
-        // No email — create user directly (anonymous)
+        // No email - create user directly (anonymous)
         await createUser(name, email, enteredGiveaway, lnAddress, signupCountry);
         return;
     }
@@ -6502,7 +6502,7 @@ window.setDisplayBadge = function(badgeId) {
     updateRankUI();
     updateAuthButton();
     showToast(badgeId ? '🏅 Display badge updated!' : '🏅 Using default rank emoji');
-    // Refresh just the badge picker panel in-place — no full page re-render
+    // Refresh just the badge picker panel in-place - no full page re-render
     var _bp = document.getElementById('badgePickerPanel');
     if (_bp) {
         // Re-render badge options with updated selection
@@ -6674,7 +6674,7 @@ window.saveSatsLnAddress = async function() {
         return;
     }
     try {
-        if (status) status.innerHTML = '<span style="color:var(--accent);">Saving…</span>';
+        if (status) status.innerHTML = '<span style="color:var(--accent);">Saving...</span>';
         await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr, lightningAddress: addr });
         if (typeof currentUser !== 'undefined' && currentUser) { currentUser.lightning = addr; currentUser.lightningAddress = addr; }
         if (addr) {
@@ -6690,7 +6690,7 @@ window.saveSatsLnAddress = async function() {
             if (status) status.innerHTML = '<span style="color:var(--text-faint);">Lightning Address removed.</span>';
         }
     } catch(e) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Error saving — try again</span>';
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Error saving - try again</span>';
     }
 };
 
@@ -6735,7 +6735,7 @@ window.initSatsClaim = function() {
     html += '<div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center;">';
     html += '<div style="font-size:0.75rem;color:var(--text-muted);">You can claim up to</div>';
     html += '<div style="font-size:1.5rem;font-weight:900;color:var(--accent);">⚡ ' + maxClaim + ' sats</div>';
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Zero fees — we cover all routing costs</div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Zero fees - we cover all routing costs</div>';
     html += '</div>';
 
     // Tab switcher
@@ -6751,19 +6751,19 @@ window.initSatsClaim = function() {
     html += '<input id="satsLnAddr" type="text" placeholder="you@walletofsatoshi.com" value="' + (typeof escapeHtml === 'function' ? escapeHtml(_savedLnAddr) : _savedLnAddr) + '" style="width:100%;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">';
     html += '</div>';
     html += '<div style="margin-bottom:12px;">';
-    html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Amount <span style="color:var(--text-faint);">(100–' + maxClaim + ' sats)</span></label>';
+    html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Amount <span style="color:var(--text-faint);">(100-' + maxClaim + ' sats)</span></label>';
     html += '<div style="display:flex;gap:6px;align-items:center;">';
     html += '<input id="satsLnAmount" type="number" min="100" max="' + maxClaim + '" value="' + maxClaim + '" style="flex:1;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;text-align:center;font-weight:700;">';
     html += '<button onclick="document.getElementById(\'satsLnAmount\').value=' + maxClaim + '" style="padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Max</button>';
     html += '</div></div>';
-    html += '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:14px;">✅ Your wallet receives sats automatically — no invoice needed!</div>';
+    html += '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:14px;">✅ Your wallet receives sats automatically - no invoice needed!</div>';
     html += '</div>';
 
     // Invoice paste panel
     html += '<div id="satsInvPanel" style="display:' + (!_savedLnAddr ? 'block' : 'none') + ';">';
     html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Paste Lightning Invoice</label>';
     html += '<textarea id="satsClaimInvoice" placeholder="lnbc..." rows="3" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;resize:none;margin-bottom:4px;box-sizing:border-box;word-break:break-all;"></textarea>';
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Open your Lightning wallet, generate an invoice for 100–' + maxClaim + ' sats, paste it here.</div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Open your Lightning wallet, generate an invoice for 100-' + maxClaim + ' sats, paste it here.</div>';
     html += '</div>';
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
@@ -6882,7 +6882,7 @@ window.submitSatsClaim = async function() {
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
             window._satsClaimInProgress = false;
-            // Secret badge: Dust Collector — track consecutive faucet claim days
+            // Secret badge: Dust Collector - track consecutive faucet claim days
             try {
                 var _fcToday = new Date().toISOString().split('T')[0];
                 var _fcLast = localStorage.getItem('btc_faucet_last_day');
@@ -6925,7 +6925,7 @@ window.submitSatsClaim = async function() {
 
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
-            var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed — try again';
+            var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
             window._satsClaimInProgress = false;
             btn.disabled = false;
@@ -6934,7 +6934,7 @@ window.submitSatsClaim = async function() {
         }
     } catch(e) {
         console.error('Sats claim error:', e);
-        var errMsg = e.message || 'Claim failed — try again';
+        var errMsg = e.message || 'Claim failed - try again';
         if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
         window._satsClaimInProgress = false;
         btn.disabled = false;
@@ -6956,7 +6956,7 @@ window.loadSatsHistory = function() {
             var d = doc.data();
             var amt = parseInt(d.amount) || 0;
             totalWithdrawn += amt;
-            var date = d.timestamp ? new Date(d.timestamp.seconds * 1000).toLocaleDateString() : '—';
+            var date = d.timestamp ? new Date(d.timestamp.seconds * 1000).toLocaleDateString() : '-';
             rows += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>' + date + '</span><span style="color:var(--accent);font-weight:700;">⚡ ' + amt + ' sats</span></div>';
         });
         var remaining = Math.max(0, LIFETIME_MAX - totalWithdrawn);
@@ -6980,7 +6980,7 @@ window.loadSatsHistory = function() {
 };
 
 function showLevelUpCelebration(lv) {
-    // Suppress during Nacho Mode — track for exit summary instead
+    // Suppress during Nacho Mode - track for exit summary instead
     if (window._nachoBusy || window._nachoMode) {
         if (window._nachoModeEarnings) window._nachoModeEarnings.badges.push('🎉 Level up: ' + lv.emoji + ' ' + lv.name);
         return;
@@ -7014,7 +7014,7 @@ function showLevelUpCelebration(lv) {
     const overlay = document.createElement('div');
     overlay.id = 'levelUpModal';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.4s;';
-    
+
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:3px solid var(--accent);border-radius:30px;padding:40px 30px;max-width:420px;width:100%;text-align:center;box-shadow:0 0 50px rgba(247,147,26,0.3);animation:popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">' +
         '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + lv.emoji + '</div>' +
         '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">⬆️ LEVEL UP!</div>' +
@@ -7032,19 +7032,19 @@ function getLevelFlavor(name) {
     const flavors = {
         'Curious': 'You\'re starting to see what all the fuss is about.',
         'Pleb': 'Welcome to the pleb life. You\'re one of us now.',
-        'Pleb II': '170 — the block height when Satoshi mined the first 1,000 blocks. You\'re going deeper.',
-        'Pleb III': '256 — the number of bits in a private key. You\'re becoming unbreakable.',
+        'Pleb II': '170 - the block height when Satoshi mined the first 1,000 blocks. You\'re going deeper.',
+        'Pleb III': '256 - the number of bits in a private key. You\'re becoming unbreakable.',
         'Stacker': 'Stacking sats and stacking knowledge. Impressive.',
-        'Stacker II': 'Double stacking! 1913 — the year the Fed was born. You know why that matters.',
-        'Stacker III': 'Triple stack mode. 2016 — the year the halving changed everything.',
-        'Maxi': '2140 — when the last sat is mined. There is no second best. You know it.',
-        'Maxi II': '6102 — Executive Order 6102 banned gold. They can\'t ban Bitcoin. Double the conviction.',
-        'Maxi III': '8888 — triple maxi. The signal only gets stronger.',
+        'Stacker II': 'Double stacking! 1913 - the year the Fed was born. You know why that matters.',
+        'Stacker III': 'Triple stack mode. 2016 - the year the halving changed everything.',
+        'Maxi': '2140 - when the last sat is mined. There is no second best. You know it.',
+        'Maxi II': '6102 - Executive Order 6102 banned gold. They can\'t ban Bitcoin. Double the conviction.',
+        'Maxi III': '8888 - triple maxi. The signal only gets stronger.',
         'Papa John': '10,000 BTC for two pizzas. Never forget. 🍕 You\'ve earned your slice.',
-        'Full Node': '18,333 — port 18333. You verify everything yourself. Don\'t trust, verify.',
+        'Full Node': '18,333 - port 18333. You verify everything yourself. Don\'t trust, verify.',
         'Whale': '50,000 strong. You move markets. Unstoppable, just like Bitcoin.',
         'Sovereign': 'Self-sovereign. 100K channels deep. No permission needed. You ARE the bank.',
-        'Cypherpunk': '133,337 — leet beyond leet. Privacy is a right, not a privilege. Code is law.',
+        'Cypherpunk': '133,337 - leet beyond leet. Privacy is a right, not a privilege. Code is law.',
         'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
     };
     return flavors[name] || 'You\'re leveling up!';
