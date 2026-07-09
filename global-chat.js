@@ -1769,63 +1769,58 @@ window.addEventListener('popstate', function() {
 // ---- Emoji Reaction System ----
 var _reactPickerDismiss = null; // module-level dismiss listener — prevents orphaned listeners
 window.showReactPicker = function(msgId, btnEl) {
+    if (_reactPickerDismiss) { document.removeEventListener('click', _reactPickerDismiss); _reactPickerDismiss = null; }
     var old = document.getElementById('reactPicker');
-    // Remove any orphaned dismiss listener before doing anything
-    if (_reactPickerDismiss) {
-        document.removeEventListener('click', _reactPickerDismiss);
-        _reactPickerDismiss = null;
-    }
-    // If the existing picker is for THIS same message, toggle it closed
-    if (old) {
-        var sameMsgId = old.dataset.msgId === msgId;
-        old.remove();
-        if (sameMsgId) return; // toggle closed
-        // Otherwise fall through and open fresh picker for new message
-    }
+    if (old) { var sameMsgId = old.dataset.msgId === msgId; old.remove(); if (sameMsgId) return; }
 
-    _reactExpanded = false;
     var picker = document.createElement('div');
     picker.id = 'reactPicker';
-    picker.dataset.msgId = msgId; // track which message this picker belongs to
+    picker.dataset.msgId = msgId;
     var _rIsDark = document.body.getAttribute('data-theme') !== 'light';
-    picker.style.cssText = 'position:fixed;z-index:260000;background:' + (_rIsDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:14px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);max-width:280px;';
+    var bg = _rIsDark ? '#1a1a2e' : '#f0f0f5';
+    picker.style.cssText = 'position:fixed;z-index:260000;background:'+bg+';border:1px solid var(--border);border-radius:16px;padding:10px;width:300px;max-height:320px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
 
-    function renderEmojis() {
-        var emojis = _reactExpanded ? REACT_EMOJIS_EXPANDED : REACT_EMOJIS_DEFAULT;
-        var html = '<div style="display:flex;flex-wrap:wrap;gap:2px;">';
-        for (var i = 0; i < emojis.length; i++) {
-            html += '<button onclick="toggleReaction(\'' + msgId + '\',\'' + emojis[i] + '\');var _rp=document.getElementById(\'reactPicker\');if(_rp)_rp.remove();if(typeof _reactPickerDismiss===\'function\'){document.removeEventListener(\'click\',_reactPickerDismiss);_reactPickerDismiss=null;}" style="padding:5px 6px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.15s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + emojis[i] + '</button>';
-        }
-        html += '</div>';
-        html += '<button onclick="window._reactExpanded=!window._reactExpanded;window._rerenderReactPicker(\'' + msgId + '\')" style="width:100%;padding:4px;margin-top:4px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;font-family:inherit;">' + (_reactExpanded ? '▲ Less' : '▼ More emojis') + '</button>';
-        picker.innerHTML = html;
-    }
+    var cats = Object.keys(EMOJI_CATEGORIES);
+    var tabHtml = '<div style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
+    cats.forEach(function(cat, i) {
+        var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : '🔥';
+        tabHtml += '<button onclick="window._switchGcEmojiTab(\''+cat+'\');" id="gcEmojiCatTab_'+i+'" style="padding:5px 8px;font-size:0.95rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
+    });
+    tabHtml += '<button onclick="var p=document.getElementById(\'reactPicker\');if(p)p.remove();if(typeof _reactPickerDismiss===\'function\'){document.removeEventListener(\'click\',_reactPickerDismiss);_reactPickerDismiss=null;}" style="margin-left:auto;padding:4px 7px;background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;flex-shrink:0;">✕</button></div>';
+    picker.innerHTML = tabHtml + '<div id="gcEmojiCatGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:240px;justify-content:center;"></div>';
 
-    window._rerenderReactPicker = function() {
-        // Delay re-render to avoid click event bubbling to dismiss handler
-        setTimeout(renderEmojis, 10);
+    window._switchGcEmojiTab = function(cat) {
+        var grid = document.getElementById('gcEmojiCatGrid');
+        if (!grid) return;
+        var emojis = EMOJI_CATEGORIES[cat] || [];
+        var html = '';
+        emojis.forEach(function(e) {
+            html += '<button onclick="var p=document.getElementById(\'reactPicker\');if(p)p.remove();if(typeof _reactPickerDismiss===\'function\'){document.removeEventListener(\'click\',_reactPickerDismiss);_reactPickerDismiss=null;}toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        });
+        grid.innerHTML = html;
+        var catKeys = Object.keys(EMOJI_CATEGORIES);
+        catKeys.forEach(function(c, i) {
+            var t = document.getElementById('gcEmojiCatTab_'+i);
+            if (t) { t.style.background = c===cat?'var(--accent-bg)':'none'; t.style.borderColor = c===cat?'var(--accent)':'var(--border)'; }
+        });
     };
-    renderEmojis();
+    window._switchGcEmojiTab(cats[0]);
 
-    // Position near button
-    var rect = btnEl.getBoundingClientRect();
-    picker.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
-    picker.style.left = Math.max(8, Math.min(rect.left - 40, window.innerWidth - 290)) + 'px';
     document.body.appendChild(picker);
+    var rect = btnEl.getBoundingClientRect();
+    var top = rect.top - picker.offsetHeight - 8;
+    if (top < 8) top = rect.bottom + 8;
+    picker.style.top = top + 'px';
+    picker.style.left = Math.max(8, Math.min(rect.left - 80, window.innerWidth - 316)) + 'px';
 
     setTimeout(function() {
         _reactPickerDismiss = function(e) {
             var p = document.getElementById('reactPicker');
-            if (p && !p.contains(e.target)) {
-                p.remove();
-                document.removeEventListener('click', _reactPickerDismiss);
-                _reactPickerDismiss = null;
-            }
+            if (p && !p.contains(e.target)) { p.remove(); document.removeEventListener('click', _reactPickerDismiss); _reactPickerDismiss = null; }
         };
         document.addEventListener('click', _reactPickerDismiss);
     }, 50);
 };
-
 window.toggleReaction = function(msgId, emoji) {
     // Close any open picker immediately — prevents stale btnEl / dismissPicker race
     var _openPicker = document.getElementById('reactPicker');
@@ -2053,10 +2048,10 @@ window.sendGifUrl = function() {
 
 // ---- Emoji Picker (for message input) ----
 var EMOJI_CATEGORIES = {
-    'Smileys': ['😀','😂','🤣','😊','😍','🥰','😎','🤩','😤','😡','😢','😭','🥺','😱','🤯','🤔','🤫','🤭','😏','😈','💀','☠️','🤡','👻','😴','🥳','😇','🙄','😬','😮‍💨','😅','😉'],
-    'Gestures': ['👍','👎','👏','🙌','🤝','🤜🤛','✊','👊','🫡','💪','🙏','👀','🫂','🤷','🤦','✌️','🤘','👌','🖕','👋','🫶'],
-    'Bitcoin': ['₿','⚡','⛏️','🔑','🧡','💎','🚀','🐋','📈','📉','🪙','🛡️','🔒','🗝️','💰','🏦','💸','🐂','🐻','📊'],
-    'Objects': ['🔥','💯','🎉','🎊','🏆','🥇','🎯','💡','⭐','❤️','🧡','💛','💚','💙','💜','🖤','❌','✅','⬆️','⬇️','🍿','🍕','🍺','🎵','📱','💻','🎮','🎲','⏰','📢']
+    'Smileys': ['😀','😁','😂','🤣','😃','😄','😅','😆','😇','😉','😊','😋','😌','😍','😎','😏','😐','😑','😒','😓','😔','😕','😖','😗','😘','😙','😚','😛','😜','😝','😞','😟','😠','😡','😢','😤','😥','😦','😧','😨','😩','😪','😫','😬','😭','😮','😯','😰','😱','😲','😳','😴','😵','😶','😷','🥰','🥺','🤩','🥳','🤔','🤭','🤫','🤯','🤪','🥴','🤤','🤧','🤡','🤢','🤬','🤮','🤗','💀','☠️','👻','😈','👿','🙈','🙉','🙊','💩','🤖'],
+    'Gestures': ['👍','👎','👏','🙌','🤲','🤝','🤜','🤛','✊','👊','🫡','💪','🙏','🫶','👀','🫂','🤷','🤦','✌️','🤘','🤙','👌','🤌','🤏','🫰','🖕','👋','🤚','🖐️','✋','🖖','👈','👉','👆','👇','☝️','🤞','🫵','💅','👑','😘','💋'],
+    'Bitcoin': ['₿','⚡','⛏️','🔑','🗝️','🧡','💎','🚀','🐋','🦁','🐂','🐻','📈','📉','🪙','🛡️','🔒','💰','🏦','💸','📊','🏴','🧮','🌐','🦅','🐝','🦌','🏆','🎯','💡','🔭','🧪','🔧','🔨','📜','🧾','💾','📡','🌋','🗺️'],
+    'Objects': ['🔥','💯','🎉','🎊','🎈','🎀','🏅','🥇','🥈','🥉','🎯','✨','🌟','⭐','💫','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❌','✅','☑️','✔️','⬆️','⬇️','➡️','⬅️','🔄','♾️','🎵','🎶','🎸','🎹','🥁','🎤','🎧','📱','💻','🎮','🕹️','🎲','♟️','🎭','📚','📖','🗺️','🍿','🍕','🍔','🍣','🍺','🍻','🥂','☕','🍵','🌈','⚽','🏀','🏈','⚾','🎾','🏐','🏓','⛳']
 };
 
 window.showEmojiPicker = function() {
