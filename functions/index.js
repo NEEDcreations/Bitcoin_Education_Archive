@@ -5414,7 +5414,7 @@ async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
 // Monthly: skip any month reset where the completed month is before 2026-07 (i.e. June 2026 and earlier).
 const REWARDS_START_DATE = new Date('2026-07-01T00:00:00Z');
 
-exports.resetWeeklyXP = functions.pubsub.schedule('0 0 * * 1').timeZone('UTC').onRun(async (ctx) => {
+exports.resetWeeklyXP = functions.pubsub.schedule('0 5 * * 1').timeZone('UTC').onRun(async (ctx) => { // Monday 5 AM UTC — consistent with daily reset boundary
     const now = new Date();
     // Skip weeks that end before rewards start date
     if (now < REWARDS_START_DATE) {
