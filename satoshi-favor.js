@@ -481,18 +481,32 @@
                 '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your next window = 1 click → 10 hashes ⚡</div>' +
                 '</div>';
         }
-        if (streak === 0) {
+        // Count current window as in-progress if hashes have been submitted this window
+        var displayStreak = streak;
+        var inProgressThisWindow = sfState.myHashCount > 0;
+        if (inProgressThisWindow && displayStreak < 3) displayStreak = streak + 1;
+
+        if (displayStreak === 0) {
             return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Mine 3 windows in a row to earn a Supercharged Window!</div>';
         }
         var dots = '';
         for (var i = 0; i < 3; i++) {
-            dots += i < streak
-                ? '<span style="font-size:1rem;color:#f7931a;">●</span>'
-                : '<span style="font-size:1rem;color:var(--border);">○</span>';
+            if (i < streak) {
+                // Confirmed completed windows
+                dots += '<span style="font-size:1rem;color:#f7931a;">●</span>';
+            } else if (inProgressThisWindow && i === streak) {
+                // Current window — in progress (dimmed dot to show it counts but isn't sealed yet)
+                dots += '<span style="font-size:1rem;color:#f7931a;opacity:0.55;">●</span>';
+            } else {
+                dots += '<span style="font-size:1rem;color:var(--border);">○</span>';
+            }
         }
+        var streakLabel = displayStreak >= 3
+            ? displayStreak + '/3 — keep mining this window to lock in your Supercharged Window!'
+            : displayStreak + '/3 — earn a Supercharged Window (1 click = 10 hashes)!';
         return '<div style="text-align:center;padding:6px;margin-bottom:8px;">' +
             '<span style="font-size:0.8rem;font-weight:700;color:var(--heading);">🔥 Mining Streak: ' + dots + '</span>' +
-            '<span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-top:2px;">' + streak + '/3 — earn a Supercharged Window (1 click = 10 hashes)!</span>' +
+            '<span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-top:2px;">' + streakLabel + '</span>' +
             '</div>';
     }
 
