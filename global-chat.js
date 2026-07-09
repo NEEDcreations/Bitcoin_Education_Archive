@@ -1767,8 +1767,14 @@ window.addEventListener('popstate', function() {
 });
 
 // ---- Emoji Reaction System ----
+var _reactPickerDismiss = null; // module-level dismiss listener — prevents orphaned listeners
 window.showReactPicker = function(msgId, btnEl) {
     var old = document.getElementById('reactPicker');
+    // Remove any orphaned dismiss listener before doing anything
+    if (_reactPickerDismiss) {
+        document.removeEventListener('click', _reactPickerDismiss);
+        _reactPickerDismiss = null;
+    }
     // If the existing picker is for THIS same message, toggle it closed
     if (old) {
         var sameMsgId = old.dataset.msgId === msgId;
@@ -1788,7 +1794,7 @@ window.showReactPicker = function(msgId, btnEl) {
         var emojis = _reactExpanded ? REACT_EMOJIS_EXPANDED : REACT_EMOJIS_DEFAULT;
         var html = '<div style="display:flex;flex-wrap:wrap;gap:2px;">';
         for (var i = 0; i < emojis.length; i++) {
-            html += '<button onclick="toggleReaction(\'' + msgId + '\',\'' + emojis[i] + '\');document.getElementById(\'reactPicker\').remove()" style="padding:5px 6px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.15s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + emojis[i] + '</button>';
+            html += '<button onclick="toggleReaction(\'' + msgId + '\',\'' + emojis[i] + '\');var _rp=document.getElementById(\'reactPicker\');if(_rp)_rp.remove();if(typeof _reactPickerDismiss===\'function\'){document.removeEventListener(\'click\',_reactPickerDismiss);_reactPickerDismiss=null;}" style="padding:5px 6px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.15s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + emojis[i] + '</button>';
         }
         html += '</div>';
         html += '<button onclick="window._reactExpanded=!window._reactExpanded;window._rerenderReactPicker(\'' + msgId + '\')" style="width:100%;padding:4px;margin-top:4px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;font-family:inherit;">' + (_reactExpanded ? '▲ Less' : '▼ More emojis') + '</button>';
@@ -1808,10 +1814,15 @@ window.showReactPicker = function(msgId, btnEl) {
     document.body.appendChild(picker);
 
     setTimeout(function() {
-        document.addEventListener('click', function dismissPicker(e) {
+        _reactPickerDismiss = function(e) {
             var p = document.getElementById('reactPicker');
-            if (p && !p.contains(e.target)) { p.remove(); document.removeEventListener('click', dismissPicker); }
-        });
+            if (p && !p.contains(e.target)) {
+                p.remove();
+                document.removeEventListener('click', _reactPickerDismiss);
+                _reactPickerDismiss = null;
+            }
+        };
+        document.addEventListener('click', _reactPickerDismiss);
     }, 50);
 };
 
