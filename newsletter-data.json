@@ -1,13 +1,6 @@
 {
-  "updated": "2026-07-09T00:00:48.625Z",
+  "updated": "2026-07-09T04:00:49.006Z",
   "news": [
-    {
-      "date": "Jul 8, 2026",
-      "title": "Satoshi's Coins Are Suddenly Becoming the Target of Mainstream Media",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/609Wg4pTRmY",
-      "source": "lukemikic"
-    },
     {
       "date": "Jul 8, 2026",
       "title": "Bitcoin tumbles back to key $60K support level: What’s behind the sell pressure?",
@@ -21,6 +14,13 @@
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/markets/bitcoin-slips-to-62000-paring-rebound",
       "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jul 8, 2026",
+      "title": "Bitcoin peels back to $62K as Fed-wary futures traders cut risk: Is the BTC rally over?",
+      "snippet": "Cointelegraph",
+      "link": "https://cointelegraph.com/markets/bitcoin-peels-back-to-62k-as-fed-wary-futures-traders-cut-risk-is-the-btc-rally-over?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
+      "source": "cointelegraph"
     }
   ]
 }
