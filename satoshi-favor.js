@@ -42,9 +42,17 @@
     let _prevFavorActive = null; // null = first snapshot, not yet initialized
 
     // Feature 1: Streak multiplier state (localStorage-backed)
-    // btc_sf_window_streak: int — consecutive windows participated in
+    // btc_sf_window_streak: int — consecutive windows participated in (0-3)
+    // btc_sf_easy_window: '1' — pending Easy Window bonus (earned after 3-window streak)
     // sfState.myHashCount: hashes submitted this window (resets on window change)
     var sfState = { myHashCount: 0, currentWindowId: null };
+
+    function _sfGetEasyWindowPending() {
+        return localStorage.getItem('btc_sf_easy_window') === '1';
+    }
+    function _sfSetEasyWindowPending(val) {
+        localStorage.setItem('btc_sf_easy_window', val ? '1' : '0');
+    }
 
     function _sfGetStreak() {
         return parseInt(localStorage.getItem('btc_sf_window_streak') || '0') || 0;
@@ -69,8 +77,6 @@
 
     function _sfEffectiveRate() {
         var base = HASHES_PER_MINUTE;
-        // Streak boost: +5 flat
-        if (_sfGetStreak() >= 3) base = 15;
         // Community-wide 2x boost: doubles the base (applied before heat stacking)
         if (window._sfBoostActive) base = base * 2;
         // Community heat bonus: +1 per 1000 hashes, caps at +10 (stacks additively)
@@ -223,15 +229,13 @@
             }
 
             if (nowActive && !_prevFavorActive) {
-                // Feature 1: Window opened — check streak and apply boost
-                var streak = _sfGetStreak();
-                if (streak >= 3) {
-                    // Streak boost active — reset streak and tag this window
-                    _sfSetStreak(0);
-                    window._sfStreakBoostThisWindow = true;
-                    console.log('[FAVOR] Streak boost activated! 15 hashes/min this window.');
+                // Feature 1: Window opened — check for pending Easy Window bonus
+                if (_sfGetEasyWindowPending()) {
+                    window._sfEasyWindowActive = true;
+                    _sfSetEasyWindowPending(false);
+                    console.log('[FAVOR] Easy Window activated! 1 click = 10 hashes this window.');
                 } else {
-                    window._sfStreakBoostThisWindow = false;
+                    window._sfEasyWindowActive = false;
                 }
                 sfState.myHashCount = 0;
                 sfState.currentWindowId = favorState.currentCycleId || null;
@@ -243,13 +247,25 @@
             } else if (!nowActive && _prevFavorActive) {
                 // Feature 1: Window closed — update streak based on participation
                 if (sfState.myHashCount > 0) {
-                    _sfSetStreak(_sfGetStreak() + 1);
-                    console.log('[FAVOR] Streak incremented to', _sfGetStreak());
+                    var newStreak = _sfGetStreak() + 1;
+                    if (newStreak >= 3) {
+                        // Earned Easy Window — bank it for next window, reset streak
+                        _sfSetStreak(0);
+                        _sfSetEasyWindowPending(true);
+                        console.log('[FAVOR] 3-window streak complete! Easy Window banked for next window.');
+                        if (typeof window.forceShowBubble === 'function') {
+                            window.forceShowBubble("🎉 3-window streak! Your NEXT mining window is an Easy Window — 1 click = 10 hashes! You earned the break! ⛏️🦌", 'fire');
+                        }
+                    } else {
+                        _sfSetStreak(newStreak);
+                        console.log('[FAVOR] Streak incremented to', newStreak);
+                    }
                 } else {
                     _sfSetStreak(0);
+                    _sfSetEasyWindowPending(false);
                     console.log('[FAVOR] Streak reset — no hashes submitted this window');
                 }
-                window._sfStreakBoostThisWindow = false;
+                window._sfEasyWindowActive = false;
                 sfState.myHashCount = 0;
 
                 // Clean up session leaderboard listener
@@ -450,14 +466,23 @@
     // ─── Feature 1: Streak UI indicator ───
     function _buildStreakIndicatorHTML() {
         var streak = _sfGetStreak();
-        var streakBoostActive = window._sfStreakBoostThisWindow;
-        if (streakBoostActive) {
-            return '<div style="text-align:center;padding:8px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.2),rgba(234,179,8,0.1));border:1px solid #f7931a;border-radius:10px;margin-bottom:10px;">' +
-                '<span style="font-size:0.82rem;font-weight:800;color:#f7931a;">⚡ STREAK BOOST: 15 hashes/min!</span>' +
+        var easyWindowActive = window._sfEasyWindowActive;
+        var easyWindowPending = _sfGetEasyWindowPending();
+
+        if (easyWindowActive) {
+            return '<div style="text-align:center;padding:10px 14px;background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(247,147,26,0.1));border:2px solid #22c55e;border-radius:10px;margin-bottom:10px;">' +
+                '<div style="font-size:0.88rem;font-weight:800;color:#22c55e;">🎉 EASY WINDOW!</div>' +
+                '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;">1 click = 10 quick hashes. You earned the break!</div>' +
+                '</div>';
+        }
+        if (easyWindowPending) {
+            return '<div style="text-align:center;padding:8px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,179,8,0.08));border:1px solid #f7931a;border-radius:10px;margin-bottom:10px;">' +
+                '<div style="font-size:0.82rem;font-weight:800;color:#f7931a;">⚡ Easy Window banked!</div>' +
+                '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your next window = 1 click → 10 hashes 🎉</div>' +
                 '</div>';
         }
         if (streak === 0) {
-            return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Mine 3 windows in a row for a speed boost!</div>';
+            return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Mine 3 windows in a row to earn an Easy Window!</div>';
         }
         var dots = '';
         for (var i = 0; i < 3; i++) {
@@ -467,7 +492,7 @@
         }
         return '<div style="text-align:center;padding:6px;margin-bottom:8px;">' +
             '<span style="font-size:0.8rem;font-weight:700;color:var(--heading);">🔥 Mining Streak: ' + dots + '</span>' +
-            '<span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-top:2px;">' + streak + '/3 — next window boosts to 15/min</span>' +
+            '<span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-top:2px;">' + streak + '/3 — earn an Easy Window (1 click = 10 hashes)!</span>' +
             '</div>';
     }
 
@@ -539,15 +564,17 @@
 
         // Determine effective hash rate
         var effectiveRateDisplay = _sfEffectiveRate();
+        var isEasyWindow = !!window._sfEasyWindowActive;
+        var easyBtnLabel = '🎉 EASY HASH (1 click = 10!)';
 
         // Second rig buttons HTML
         var hashBtnsHTML = hasSecondRig
             ? '<div style="display:flex;gap:8px;margin-bottom:16px;">' +
-              '<button id="minerHashBtn" onclick="window.minerDoHash(1)" style="flex:1;padding:14px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;">⛏️ Hash #1</button>' +
+              '<button id="minerHashBtn" onclick="window.minerDoHash(1)" style="flex:1;padding:14px;background:linear-gradient(135deg,' + (isEasyWindow ? '#22c55e,#16a34a' : 'var(--accent),#e8720c') + ');border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;">' + (isEasyWindow ? easyBtnLabel : '⛏️ Hash #1') + '</button>' +
               '<button id="minerHashBtn2" onclick="window.minerDoHash(2)" style="flex:1;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;">⛏️ Hash #2</button>' +
               '</div>'
-            : '<button id="minerHashBtn" onclick="window.minerDoHash(1)" style="width:100%;padding:16px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:12px;color:#fff;font-size:1.1rem;font-weight:800;cursor:pointer;margin-bottom:8px;">⛏️ HASH</button>' +
-              '<div style="text-align:center;margin-bottom:8px;"><a onclick="window.closeSatoshiFavorMiner();window.showQuestHub&&window.showQuestHub();window._questHubTab=\'nook\';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab();},50);" style="font-size:0.72rem;color:var(--text-muted);cursor:pointer;text-decoration:underline;">⚡ Want more hashing power? → Get Second Rig in Nacho\'s Nook</a></div>';
+            : '<button id="minerHashBtn" onclick="window.minerDoHash(1)" style="width:100%;padding:16px;background:linear-gradient(135deg,' + (isEasyWindow ? '#22c55e,#16a34a' : 'var(--accent),#e8720c') + ');border:none;border-radius:12px;color:#fff;font-size:1.1rem;font-weight:800;cursor:pointer;margin-bottom:8px;">' + (isEasyWindow ? easyBtnLabel : '⛏️ HASH') + '</button>' +
+              (isEasyWindow ? '' : '<div style="text-align:center;margin-bottom:8px;"><a onclick="window.closeSatoshiFavorMiner();window.showQuestHub&&window.showQuestHub();window._questHubTab=\'nook\';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab();},50);" style="font-size:0.72rem;color:var(--text-muted);cursor:pointer;text-decoration:underline;">⚡ Want more hashing power? → Get Second Rig in Nacho\'s Nook</a></div>');
 
         // Feature 2B: Session leaderboard panel (only during active window)
         var sessionLBPanel = '<div id="sfSessionLB" style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;">' +
@@ -838,6 +865,81 @@
     }
 
     // ─── HASHING (Rig 1 and Rig 2) ───
+    // Internal single-hash submission (used by minerDoHash)
+    async function _minerSubmitOneHash(rig, boosterHashes, hasSecondRig) {
+        var timestamps = rig === 2 ? hashTimestamps2 : hashTimestamps;
+        var btnId = rig === 2 ? 'minerHashBtn2' : 'minerHashBtn';
+        var btn = document.getElementById(btnId);
+        var visual = document.getElementById('minerVisual');
+        var output = document.getElementById('hashOutput');
+        var msg = document.getElementById('hashMessage');
+
+        if (!favorState || !favorState.favorActive) return null;
+
+        var effectiveRate = _sfEffectiveRate();
+        var now60 = Date.now();
+        var allTs = (rig === 2) ? hashTimestamps2 : hashTimestamps;
+        allTs = allTs.filter(function(t) { return now60 - t < HASH_WINDOW_MS; });
+        if (rig === 2) hashTimestamps2 = allTs; else hashTimestamps = allTs;
+
+        if (boosterHashes <= 0) {
+            if (allTs.length >= effectiveRate) {
+                var oldest = allTs[0];
+                var waitMs = HASH_WINDOW_MS - (now60 - oldest);
+                return { rateLimited: true, waitMs: waitMs, effectiveRate: effectiveRate };
+            }
+        }
+
+        let shake = setInterval(function() {
+            if (visual) visual.style.transform = 'rotate(' + (Math.random() * 10 - 5) + 'deg) scale(' + (0.95 + Math.random() * 0.1) + ')';
+            if (output) output.textContent = Math.floor(Math.random() * HASH_MAX).toLocaleString();
+        }, 50);
+
+        try {
+            const fn = firebase.functions().httpsCallable('hashForFavor');
+            const result = await fn({ rig: rig });
+            clearInterval(shake);
+
+            const { value, isWinner, hashId } = result.data;
+
+            if (rig === 2) hashTimestamps2.push(Date.now()); else hashTimestamps.push(Date.now());
+
+            sfState.myHashCount++;
+
+            var _sfH = parseInt(localStorage.getItem('btc_sf_hashes') || '0') + 1;
+            localStorage.setItem('btc_sf_hashes', _sfH.toString());
+            var _sfBest = parseInt(localStorage.getItem('btc_sf_best_hash') || '999999999');
+            if (value < _sfBest) localStorage.setItem('btc_sf_best_hash', value.toString());
+            if (isWinner) localStorage.setItem('btc_sf_solved_block', 'true');
+            if (typeof window._trackCombo === 'function') window._trackCombo('sf');
+
+            if (visual) visual.style.transform = 'scale(1)';
+            if (output) {
+                output.textContent = value.toLocaleString();
+                output.style.color = isWinner ? '#22c55e' : (value < DIFFICULTY_TARGET * 10 ? '#f7931a' : 'var(--text-muted)');
+            }
+
+            if (value < 1000000) {
+                var luckyCount = parseInt(localStorage.getItem('btc_sf_lucky_count') || '0') + 1;
+                localStorage.setItem('btc_sf_lucky_count', luckyCount);
+                if (typeof checkBadges === 'function') checkBadges();
+            } else if (value > 99000000) {
+                var unluckyCount = parseInt(localStorage.getItem('btc_sf_unlucky_count') || '0') + 1;
+                localStorage.setItem('btc_sf_unlucky_count', unluckyCount);
+                if (typeof checkBadges === 'function') checkBadges();
+            }
+
+            return { value: value, isWinner: isWinner };
+        } catch (err) {
+            clearInterval(shake);
+            if (visual) visual.style.transform = 'scale(1)';
+            if (output) output.textContent = 'Error';
+            if (msg) msg.textContent = err.message || 'Hash failed. Try again.';
+            console.error('[FAVOR] Hash error:', err);
+            return { error: err };
+        }
+    }
+
     window.minerDoHash = async function(rig) {
         rig = rig || 1;
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
@@ -849,15 +951,51 @@
         var boosterHashes = u.hashBoosterHashes || 0;
         var hasSecondRig = (u.secondRigCharges || 0) > 0;
 
-        // Use appropriate timestamps array for the rig
+        // Easy Window: 1 click = 10 hashes (only Rig 1, rate-limited naturally)
+        if (window._sfEasyWindowActive && rig === 1) {
+            var btnEW = document.getElementById('minerHashBtn');
+            if (btnEW) { btnEW.disabled = true; btnEW.textContent = '🎉 EASY HASHING...'; btnEW.style.opacity = '0.7'; }
+            var easyWinFound = null;
+            var easyCount = 0;
+            var easyRateLimit = null;
+            for (var ei = 0; ei < 10; ei++) {
+                if (!favorState || !favorState.favorActive) break;
+                var eRes = await _minerSubmitOneHash(1, boosterHashes, hasSecondRig);
+                if (!eRes) break;
+                if (eRes.rateLimited) {
+                    easyRateLimit = eRes;
+                    break;
+                }
+                if (eRes.error) break;
+                easyCount++;
+                if (eRes.isWinner) { easyWinFound = eRes.value; break; }
+            }
+            if (btnEW) { btnEW.disabled = false; btnEW.textContent = '⛏️ EASY HASH'; btnEW.style.opacity = '1'; }
+            var msgEW = document.getElementById('hashMessage');
+            if (easyWinFound !== null) {
+                if (msgEW) msgEW.innerHTML = '<strong style="color:#22c55e;font-size:1.1rem;">🏆 WINNER! (Easy Window!) You solved a block!</strong><br>21,000 sats incoming! Check your DMs.';
+                _showWinnerCelebration(easyWinFound);
+                announceWinner(easyWinFound);
+            } else if (easyRateLimit) {
+                showToast('Rate limit: ' + Math.ceil(easyRateLimit.waitMs / 1000) + 's (' + easyRateLimit.effectiveRate + '/min) — got ' + easyCount + ' hashes in');
+            } else {
+                if (msgEW) msgEW.textContent = easyCount + ' hashes fired! 🎉';
+            }
+            _updateHeatMeterDisplay();
+            loadRecentHashes();
+            updateCooldownDisplay();
+            return;
+        }
+
+        // ── Normal (non-Easy-Window) hash flow ──
         var timestamps = rig === 2 ? hashTimestamps2 : hashTimestamps;
         var btnId = rig === 2 ? 'minerHashBtn2' : 'minerHashBtn';
         var cooldownId = rig === 2 ? 'hashCooldown2' : 'hashCooldown';
 
-        const btn = document.getElementById(btnId);
-        const visual = document.getElementById('minerVisual');
-        const output = document.getElementById('hashOutput');
-        const msg = document.getElementById('hashMessage');
+        var btn = document.getElementById(btnId);
+        var visual = document.getElementById('minerVisual');
+        var output = document.getElementById('hashOutput');
+        var msg = document.getElementById('hashMessage');
 
         if (!favorState || !favorState.favorActive) {
             showToast('Satoshi\'s Favor has expired.');
