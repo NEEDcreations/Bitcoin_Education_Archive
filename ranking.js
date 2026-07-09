@@ -805,7 +805,9 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             if (!userDoc.exists || !userDoc.data().username) {
                 var npubShort = 'npub...' + pubkey.substring(0, 8);
                 var _nostrUserData = { username: npubShort, nostr: pubkey, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
-                if (!userDoc.exists) { _nostrUserData.points = 0; _nostrUserData.channelsVisited = 0; _nostrUserData.created = firebase.firestore.FieldValue.serverTimestamp(); }
+                if (!userDoc.exists) { _nostrUserData.points = 0; _nostrUserData.channelsVisited = 0; }
+                // Always ensure 'created' is set — write it if missing (covers new docs and existing docs without the field)
+                if (!userDoc.exists || !userDoc.data().created) { _nostrUserData.created = firebase.firestore.FieldValue.serverTimestamp(); }
                 await db.collection('users').doc(uid).set(_nostrUserData, { merge: true });
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             }
