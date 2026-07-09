@@ -5392,6 +5392,11 @@ window._raidOnTipSent = function() {
     window._raidContribute('tipsSent', 1);
 };
 
+// Hook: 7-day visit streak milestone (fires every multiple of 7)
+window._raidOnStreakMilestone = function() {
+    window._raidContribute('streakUsers', 1);
+};
+
 // Hook: forum post created
 window._raidOnForumPost = function() {
     window._raidContribute('forumPosts', 1);

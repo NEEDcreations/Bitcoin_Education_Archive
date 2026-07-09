@@ -1931,6 +1931,10 @@ async function awardVisitPoints() {
                     currentUser.streakFreezes = Math.max(0, (currentUser.streakFreezes || 0) - 1);
                     setTimeout(function() { showToast('🧊 STREAK FROZEN! A freeze was used to save your ' + newStreak + '-day streak!'); }, 3000);
                 }
+                // Fire raid damage for Streak-Sage boss when streak hits a 7-day multiple
+                if (newStreak > 0 && newStreak % 7 === 0 && typeof window._raidContribute === 'function') {
+                    setTimeout(function() { window._raidContribute('streakUsers', 1); }, 1500);
+                }
             }
         } catch (e) {
             console.warn('[VISIT] Cloud Function failed:', e.message);

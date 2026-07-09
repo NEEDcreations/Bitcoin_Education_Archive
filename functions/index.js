@@ -6601,3 +6601,69 @@ exports.searchGifs = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', 'GIF search failed');
     }
 });
+
+// ===== WEEKLY RAID BOSS ANNOUNCEMENT =====
+// Fires Sunday 7 PM ET (11 PM UTC / 23:00 UTC)
+// Posts a boss status update to the announcements collection (shown in GGs tab)
+// with a deep link to the Quest Hub Raid section
+exports.raidBossWeeklyAnnouncement = onSchedule(
+  { schedule: '0 23 * * 0', timeZone: 'UTC', region: 'us-central1' },
+  async (event) => {
+    const now = admin.firestore.Timestamp.now();
+    const nowMs = now.toDate().getTime();
+
+    // Find active boss
+    const bossQuery = await db.collection('raid_bosses')
+      .orderBy('startTime', 'desc')
+      .limit(5)
+      .get();
+
+    let activeBoss = null;
+    bossQuery.forEach((doc) => {
+      if (activeBoss) return;
+      const d = doc.data();
+      if (d.defeated || d.placeholder) return;
+      const startMs = d.startTime ? d.startTime.toDate().getTime() : 0;
+      const endMs = d.endTime ? d.endTime.toDate().getTime() : 0;
+      if (startMs <= nowMs && endMs > nowMs) {
+        activeBoss = d;
+      }
+    });
+
+    if (!activeBoss) {
+      console.log('[RAID ANNOUNCE] No active boss found — skipping announcement.');
+      return null;
+    }
+
+    const current = activeBoss.current || 0;
+    const target = activeBoss.target || 0;
+    const name = activeBoss.name || 'Raid Boss';
+    const pct = target > 0 ? Math.round((current / target) * 100) : 0;
+    const hp = Math.max(0, target - current);
+    const defeated = activeBoss.defeated || false;
+
+    let text;
+    if (defeated) {
+      text = `⚔️ BOSS DEFEATED! The community took down **${name}** — amazing work everyone! 🏆 Check the [Quest Hub → Raid](#questhub) for results.`;
+    } else if (pct === 0) {
+      text = `⚔️ **${name}** is waiting! Boss has ${hp}/${target} HP remaining — we haven't dealt any damage yet. Every action counts! 👉 [Quest Hub → Raid](#questhub)`;
+    } else if (pct >= 75) {
+      text = `⚔️ ALMOST THERE! **${name}** is at ${pct}% damage — only ${hp} HP left! Push through and claim the community prize! 🔥👉 [Quest Hub → Raid](#questhub)`;
+    } else if (pct >= 50) {
+      text = `⚔️ Halfway there! **${name}** is taking a beating — ${pct}% damage dealt, ${hp} HP remaining. Keep it up! 💪 [Quest Hub → Raid](#questhub)`;
+    } else {
+      text = `⚔️ Weekly Raid Update: **${name}** — ${pct}% damage dealt (${current}/${target}). ${hp} HP remaining. Deal more damage — [Quest Hub → Raid](#questhub) 🗡️`;
+    }
+
+    await db.collection('announcements').add({
+      uid: 'nacho-bot',
+      name: '🦌 Nacho',
+      text: text,
+      isNachoAuto: true,
+      ts: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`[RAID ANNOUNCE] Posted: "${text}"`);
+    return null;
+  }
+);
