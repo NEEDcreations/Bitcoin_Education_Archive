@@ -2290,10 +2290,10 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
     // ── ATOMIC UPDATES ──
     const DAILY_CAP = 500;
-    const today = new Date().toISOString().split('T')[0]; // UTC midnight — used for daily points cap
-    const offsetToday = getOffsetDateKey(); // 5h offset — used for daily action dedup (matches client getDailyKey)
+    const today = new Date().toISOString().split('T')[0]; // UTC midnight — kept for raw audit logs only
+    const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
     const userRef = db.collection('users').doc(uid);
-    const dailyPtsRef = userRef.collection('daily_points').doc(today);
+    const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
 
     // ACTION COOLDOWN: Atomic read-then-write (Fix M-NEW-13)
     const ACTION_COOLDOWNS = {
@@ -2461,7 +2461,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             // over multiple days instead of all at once.
             let overflowRedeemed = 0;
             let pendingOverflowAfter = pendingOverflow;
-            if (pendingOverflow > 0 && lastOverflowDate && lastOverflowDate !== today) {
+            if (pendingOverflow > 0 && lastOverflowDate && lastOverflowDate !== offsetToday) {
                 overflowRedeemed = Math.min(pendingOverflow, OVERFLOW_REDEEM_CAP);
                 pendingOverflowAfter = pendingOverflow - overflowRedeemed;
             }
@@ -2532,7 +2532,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             // Update overflow bank. Net change = new overflow added today minus what we redeemed.
             if (overflowAdded > 0 || overflowRedeemed > 0) {
                 userUpdate.pendingOverflow = pendingOverflowAfter + overflowAdded;
-                userUpdate.lastOverflowDate = today;
+                userUpdate.lastOverflowDate = offsetToday;
             }
 
             // ── PHASE 3: ALL WRITES ──
@@ -3590,10 +3590,10 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
     // hard cap AND enforces a per-day quest grading limit to stop abuse.
     const DAILY_QUEST_LIMIT = 3;   // max completed quests per UTC day
     const DAILY_POINTS_CAP = 500;  // matches awardPoints cap exactly
-    const today = new Date().toISOString().split('T')[0]; // UTC midnight — used for daily points cap
-    const offsetToday = getOffsetDateKey(); // 5h offset — matches client getDailyKey
+    const today = new Date().toISOString().split('T')[0]; // UTC midnight — kept for raw audit logs only
+    const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
     const dailyQuestRef = userRef.collection('daily_action_counts').doc(offsetToday + '_quest');
-    const dailyPtsRef = userRef.collection('daily_points').doc(today);
+    const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
 
     const result = await db.runTransaction(async (tx) => {
         const questDoc = await tx.get(questRef);
@@ -3659,7 +3659,7 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
             }
             if (overflowAdded > 0) {
                 userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(overflowAdded);
-                userUpdate.lastOverflowDate = today;
+                userUpdate.lastOverflowDate = offsetToday;
             }
             if (Object.keys(userUpdate).length > 0) {
                 tx.update(userRef, userUpdate);
