@@ -654,6 +654,29 @@ window.markVisibleBadgesReady = function() {
         // visibleBadges is now CF-only (blocked from client writes). Migration is read-only here.
     }
 
+    // Restore btc_badge_earned_* localStorage sentinel keys from earnedBadges set.
+    // These are used as check() conditions for combo/set/weekly_hero badges.
+    // If localStorage was cleared, these keys are gone and badges would re-fire.
+    // Restoring them here prevents re-award toasts (server-side dedup catches XP anyway).
+    var _sentinelPrefixes = ['combo_trio','combo_mega','combo_legend','weekly_hero',
+        'set_miner_complete','set_scholar_complete','set_social_complete',
+        'set_streak_complete','set_pvp_complete','set_builder_complete'];
+    _sentinelPrefixes.forEach(function(id) {
+        if (earnedBadges.has(id)) {
+            try { localStorage.setItem('btc_badge_earned_' + id, '1'); } catch(e) {}
+        }
+    });
+
+    // Restore btc_visited_channels from currentUser.readChannels if localStorage was cleared.
+    // Prevents exploration badges from re-firing on cache clear.
+    try {
+        var _lsVisited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        if (typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.readChannels)
+            && currentUser.readChannels.length > _lsVisited.length) {
+            localStorage.setItem('btc_visited_channels', JSON.stringify(currentUser.readChannels));
+        }
+    } catch(e) {}
+
     window._visibleBadgesReady = true;
 };
 
