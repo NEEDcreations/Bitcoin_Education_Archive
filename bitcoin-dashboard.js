@@ -101,6 +101,33 @@ function stopPriceWs() {
     if (_priceWs) { _priceWs.onclose = null; _priceWs.close(); _priceWs = null; }
 }
 
+// ---- Real-time 24h High/Low (Binance 24hr ticker) ----
+var _highLowTimer = null;
+function refreshHighLow() {
+    fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d || !d.highPrice) return;
+            var high = parseFloat(d.highPrice);
+            var low  = parseFloat(d.lowPrice);
+            if (!isFinite(high) || !isFinite(low)) return;
+            // Update cached data object used by renderDashboard
+            if (window._dashData) {
+                window._dashData.high24h = high;
+                window._dashData.low24h  = low;
+            }
+            // Update DOM directly if dashboard is open
+            var highEl = document.getElementById('dashHighLow_high');
+            var lowEl  = document.getElementById('dashHighLow_low');
+            if (highEl) highEl.textContent = '$' + fmtNum(high, 0);
+            if (lowEl)  lowEl.textContent  = '$' + fmtNum(low, 0);
+        }).catch(function() {});
+}
+function startHighLowRefresh() {
+    refreshHighLow();
+    if (!_highLowTimer) _highLowTimer = setInterval(refreshHighLow, 5 * 60 * 1000); // every 5 min
+}
+
 // ---- Cache & State ----
 var DASH_CACHE_KEY = 'btc_dashboard_cache';
 var DASH_CACHE_TTL = 120000; // 2 min
@@ -230,6 +257,23 @@ async function fetchDashboardData() {
             data.mempoolTxs = m.count;
             data.mempoolSize = m.vsize; // vbytes
         }).catch(() => {})
+    );
+
+    // 1b. Binance 24hr ticker — accurate real-time high/low (runs in parallel, no rate limits)
+    promises.push(
+        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d || !d.highPrice) return;
+                var high = parseFloat(d.highPrice);
+                var low  = parseFloat(d.lowPrice);
+                if (isFinite(high)) data.high24h = high;
+                if (isFinite(low))  data.low24h  = low;
+                // Also seed the open price for % change if not yet set
+                if (!_wsOpenPrice && d.openPrice) {
+                    _wsOpenPrice = parseFloat(d.openPrice);
+                }
+            }).catch(function() {})
     );
 
     // 2. CoinGecko — serialized to avoid rate limiting (free tier is aggressive)
@@ -403,8 +447,8 @@ function renderDashboard(data) {
     html += '<div id="dashLiveChange" style="font-size:1rem;font-weight:700;margin-top:4px;"><span style="color:' + liveColor + ';">' + liveArrow + ' ' + Math.abs(liveChange).toFixed(2) + '%</span></div>';
     html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;" id="dashLiveIndicator">🔴 Live — updates automatically · All % changes are 24h</div>';
     html += '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">';
-    html += '<span>24h High: <strong style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
-    html += '<span>24h Low: <strong style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
+    html += '<span>24h High: <strong id="dashHighLow_high" style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
+    html += '<span>24h Low: <strong id="dashHighLow_low" style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
     html += '</div>';
     html += '</div>';
 
@@ -677,8 +721,9 @@ window.toggleDashboard = async function() {
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    // Start real-time price
+    // Start real-time price + live high/low
     startPriceWs();
+    startHighLowRefresh();
 
     // Show cached/live data IMMEDIATELY — never make user wait
     var _shown = false;

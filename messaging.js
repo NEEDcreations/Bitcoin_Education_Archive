@@ -486,6 +486,13 @@ window.showUserProfile = function(uid) {
             '</div>' +
             '</div></div>';
         document.body.appendChild(_nd.firstChild);
+        // Track Nacho profile view for badge
+        try {
+            if (!localStorage.getItem('btc_viewed_nacho_profile')) {
+                localStorage.setItem('btc_viewed_nacho_profile', '1');
+                if (typeof checkBadges === 'function') setTimeout(checkBadges, 300);
+            }
+        } catch(e) {}
         return;
     }
 
@@ -508,6 +515,25 @@ window.showUserProfile = function(uid) {
             return;
         }
         var u = doc.data();
+
+        // — Profile explorer badge tracking —
+        var _selfUid = auth && auth.currentUser ? auth.currentUser.uid : null;
+        if (_selfUid && uid !== _selfUid) {
+            try {
+                // Count unique profiles viewed (use a Set stored in sessionStorage to avoid repeat-counting)
+                var _viewedSet = new Set(JSON.parse(sessionStorage.getItem('btc_profiles_viewed_set') || '[]'));
+                if (!_viewedSet.has(uid)) {
+                    _viewedSet.add(uid);
+                    sessionStorage.setItem('btc_profiles_viewed_set', JSON.stringify([..._viewedSet]));
+                    // Increment persistent counter
+                    var _totalViewed = parseInt(localStorage.getItem('btc_profiles_viewed') || '0') + 1;
+                    localStorage.setItem('btc_profiles_viewed', _totalViewed.toString());
+                    // Check badges
+                    if (typeof checkBadges === 'function') setTimeout(checkBadges, 300);
+                }
+            } catch(e) {}
+        }
+
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
         var joinDate = 'OG 🫡'; // fallback for pre-createdAt legacy accounts

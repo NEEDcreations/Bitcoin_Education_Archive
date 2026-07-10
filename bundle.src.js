@@ -7229,6 +7229,16 @@ const BADGE_DEFS = [
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
     { id: 'global_citizen', name: 'Global Citizen', emoji: '🌍', desc: 'Added your country to your profile — representing Bitcoin worldwide', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.country), pts: 100 },
+    { id: 'bio_author', name: 'Got Something to Say', emoji: '✍️', desc: 'Added a bio to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.bio && currentUser.bio.trim().length > 0), pts: 50 },
+    { id: 'lightning_address_set', name: 'Zap Me', emoji: '⚡', desc: 'Added a Lightning Address to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.lightningAddress || currentUser.lightning), pts: 75 },
+
+    // ---- Profile Explorer Badges (viewing other users' profiles) ----
+    { id: 'profile_curious', name: 'People Person', emoji: '👋', desc: "Opened Nacho's profile — you found the legend", check: () => { try { return !!localStorage.getItem('btc_viewed_nacho_profile'); } catch(e) { return false; } }, pts: 25 },
+    { id: 'profile_explorer_5', name: 'Profile Prowler', emoji: '🕵️', desc: 'Viewed 5 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 5; } catch(e) { return false; } }, pts: 50 },
+    { id: 'profile_explorer_10', name: 'Social Butterfly', emoji: '🦋', desc: 'Viewed 10 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 10; } catch(e) { return false; } }, pts: 75 },
+    { id: 'profile_explorer_25', name: 'Community Watcher', emoji: '🔭', desc: 'Viewed 25 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 25; } catch(e) { return false; } }, pts: 100 },
+    { id: 'profile_explorer_50', name: 'The Networker', emoji: '🤝', desc: 'Viewed 50 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 50; } catch(e) { return false; } }, pts: 150 },
+    { id: 'profile_explorer_100', name: 'Archive Archivist', emoji: '📚', desc: 'Viewed 100 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 100; } catch(e) { return false; } }, pts: 300 },
 
     // ---- Trail Badges ----
     { id: 'trail_meadow', name: 'Meadow Walker', emoji: '🌿', desc: 'Completed The Meadow trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('meadow'); } catch(e) { return false; } }, pts: 200 },
@@ -8017,6 +8027,7 @@ function getBadgeHTML() {
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
         '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_') || b.id === 'global_citizen' || b.id === 'referred'),
+        '👤 Profile': _cat(BADGE_DEFS, b => b.id.startsWith('profile_') || b.id === 'bio_author' || b.id === 'lightning_address_set'),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
         '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50' || b.id === 'react_5' || b.id === 'react_200'),
@@ -24507,6 +24518,13 @@ window.showUserProfile = function(uid) {
             '</div>' +
             '</div></div>';
         document.body.appendChild(_nd.firstChild);
+        // Track Nacho profile view for badge
+        try {
+            if (!localStorage.getItem('btc_viewed_nacho_profile')) {
+                localStorage.setItem('btc_viewed_nacho_profile', '1');
+                if (typeof checkBadges === 'function') setTimeout(checkBadges, 300);
+            }
+        } catch(e) {}
         return;
     }
 
@@ -24529,6 +24547,25 @@ window.showUserProfile = function(uid) {
             return;
         }
         var u = doc.data();
+
+        // — Profile explorer badge tracking —
+        var _selfUid = auth && auth.currentUser ? auth.currentUser.uid : null;
+        if (_selfUid && uid !== _selfUid) {
+            try {
+                // Count unique profiles viewed (use a Set stored in sessionStorage to avoid repeat-counting)
+                var _viewedSet = new Set(JSON.parse(sessionStorage.getItem('btc_profiles_viewed_set') || '[]'));
+                if (!_viewedSet.has(uid)) {
+                    _viewedSet.add(uid);
+                    sessionStorage.setItem('btc_profiles_viewed_set', JSON.stringify([..._viewedSet]));
+                    // Increment persistent counter
+                    var _totalViewed = parseInt(localStorage.getItem('btc_profiles_viewed') || '0') + 1;
+                    localStorage.setItem('btc_profiles_viewed', _totalViewed.toString());
+                    // Check badges
+                    if (typeof checkBadges === 'function') setTimeout(checkBadges, 300);
+                }
+            } catch(e) {}
+        }
+
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
         var joinDate = 'OG 🫡'; // fallback for pre-createdAt legacy accounts
@@ -27693,6 +27730,33 @@ function stopPriceWs() {
     if (_priceWs) { _priceWs.onclose = null; _priceWs.close(); _priceWs = null; }
 }
 
+// ---- Real-time 24h High/Low (Binance 24hr ticker) ----
+var _highLowTimer = null;
+function refreshHighLow() {
+    fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d || !d.highPrice) return;
+            var high = parseFloat(d.highPrice);
+            var low  = parseFloat(d.lowPrice);
+            if (!isFinite(high) || !isFinite(low)) return;
+            // Update cached data object used by renderDashboard
+            if (window._dashData) {
+                window._dashData.high24h = high;
+                window._dashData.low24h  = low;
+            }
+            // Update DOM directly if dashboard is open
+            var highEl = document.getElementById('dashHighLow_high');
+            var lowEl  = document.getElementById('dashHighLow_low');
+            if (highEl) highEl.textContent = '$' + fmtNum(high, 0);
+            if (lowEl)  lowEl.textContent  = '$' + fmtNum(low, 0);
+        }).catch(function() {});
+}
+function startHighLowRefresh() {
+    refreshHighLow();
+    if (!_highLowTimer) _highLowTimer = setInterval(refreshHighLow, 5 * 60 * 1000); // every 5 min
+}
+
 // ---- Cache & State ----
 var DASH_CACHE_KEY = 'btc_dashboard_cache';
 var DASH_CACHE_TTL = 120000; // 2 min
@@ -27822,6 +27886,23 @@ async function fetchDashboardData() {
             data.mempoolTxs = m.count;
             data.mempoolSize = m.vsize; // vbytes
         }).catch(() => {})
+    );
+
+    // 1b. Binance 24hr ticker — accurate real-time high/low (runs in parallel, no rate limits)
+    promises.push(
+        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d || !d.highPrice) return;
+                var high = parseFloat(d.highPrice);
+                var low  = parseFloat(d.lowPrice);
+                if (isFinite(high)) data.high24h = high;
+                if (isFinite(low))  data.low24h  = low;
+                // Also seed the open price for % change if not yet set
+                if (!_wsOpenPrice && d.openPrice) {
+                    _wsOpenPrice = parseFloat(d.openPrice);
+                }
+            }).catch(function() {})
     );
 
     // 2. CoinGecko — serialized to avoid rate limiting (free tier is aggressive)
@@ -27995,8 +28076,8 @@ function renderDashboard(data) {
     html += '<div id="dashLiveChange" style="font-size:1rem;font-weight:700;margin-top:4px;"><span style="color:' + liveColor + ';">' + liveArrow + ' ' + Math.abs(liveChange).toFixed(2) + '%</span></div>';
     html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;" id="dashLiveIndicator">🔴 Live — updates automatically · All % changes are 24h</div>';
     html += '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">';
-    html += '<span>24h High: <strong style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
-    html += '<span>24h Low: <strong style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
+    html += '<span>24h High: <strong id="dashHighLow_high" style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
+    html += '<span>24h Low: <strong id="dashHighLow_low" style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
     html += '</div>';
     html += '</div>';
 
@@ -28269,8 +28350,9 @@ window.toggleDashboard = async function() {
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    // Start real-time price
+    // Start real-time price + live high/low
     startPriceWs();
+    startHighLowRefresh();
 
     // Show cached/live data IMMEDIATELY — never make user wait
     var _shown = false;

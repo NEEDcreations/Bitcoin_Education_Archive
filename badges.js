@@ -138,6 +138,16 @@ const BADGE_DEFS = [
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
     { id: 'global_citizen', name: 'Global Citizen', emoji: '🌍', desc: 'Added your country to your profile — representing Bitcoin worldwide', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.country), pts: 100 },
+    { id: 'bio_author', name: 'Got Something to Say', emoji: '✍️', desc: 'Added a bio to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.bio && currentUser.bio.trim().length > 0), pts: 50 },
+    { id: 'lightning_address_set', name: 'Zap Me', emoji: '⚡', desc: 'Added a Lightning Address to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.lightningAddress || currentUser.lightning), pts: 75 },
+
+    // ---- Profile Explorer Badges (viewing other users' profiles) ----
+    { id: 'profile_curious', name: 'People Person', emoji: '👋', desc: "Opened Nacho's profile — you found the legend", check: () => { try { return !!localStorage.getItem('btc_viewed_nacho_profile'); } catch(e) { return false; } }, pts: 25 },
+    { id: 'profile_explorer_5', name: 'Profile Prowler', emoji: '🕵️', desc: 'Viewed 5 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 5; } catch(e) { return false; } }, pts: 50 },
+    { id: 'profile_explorer_10', name: 'Social Butterfly', emoji: '🦋', desc: 'Viewed 10 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 10; } catch(e) { return false; } }, pts: 75 },
+    { id: 'profile_explorer_25', name: 'Community Watcher', emoji: '🔭', desc: 'Viewed 25 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 25; } catch(e) { return false; } }, pts: 100 },
+    { id: 'profile_explorer_50', name: 'The Networker', emoji: '🤝', desc: 'Viewed 50 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 50; } catch(e) { return false; } }, pts: 150 },
+    { id: 'profile_explorer_100', name: 'Archive Archivist', emoji: '📚', desc: 'Viewed 100 user profiles', check: () => { try { return parseInt(localStorage.getItem('btc_profiles_viewed') || '0') >= 100; } catch(e) { return false; } }, pts: 300 },
 
     // ---- Trail Badges ----
     { id: 'trail_meadow', name: 'Meadow Walker', emoji: '🌿', desc: 'Completed The Meadow trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('meadow'); } catch(e) { return false; } }, pts: 200 },
@@ -926,6 +936,7 @@ function getBadgeHTML() {
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
         '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_') || b.id === 'global_citizen' || b.id === 'referred'),
+        '👤 Profile': _cat(BADGE_DEFS, b => b.id.startsWith('profile_') || b.id === 'bio_author' || b.id === 'lightning_address_set'),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
         '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50' || b.id === 'react_5' || b.id === 'react_200'),
