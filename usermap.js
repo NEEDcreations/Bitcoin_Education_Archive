@@ -13,8 +13,8 @@ var REGIONS = [
     { name: 'South America',   emoji: '🌎', countries: ['Brazil','Argentina','Chile','Colombia','Venezuela','Peru','Ecuador','Bolivia','Paraguay','Uruguay','Guyana','Suriname'] },
     { name: 'Europe',          emoji: '🌍', countries: ['United Kingdom','Germany','France','Italy','Spain','Netherlands','Switzerland','Sweden','Norway','Denmark','Finland','Belgium','Austria','Portugal','Poland','Czech Republic','Hungary','Romania','Bulgaria','Greece','Croatia','Slovakia','Slovenia','Estonia','Latvia','Lithuania','Luxembourg','Malta','Cyprus','Ireland','Iceland','Serbia','Montenegro','Bosnia and Herzegovina','North Macedonia','Kosovo','Albania','Moldova','Ukraine','Belarus','Russia','Georgia','Armenia','Azerbaijan','Turkey','Liechtenstein','Monaco','San Marino','Vatican City','Andorra'] },
     { name: 'Africa',          emoji: '🌍', countries: ['Nigeria','South Africa','Kenya','Ghana','Ethiopia','Tanzania','Uganda','Rwanda','Cameroon','Senegal','Ivory Coast','Zambia','Zimbabwe','Mozambique','Angola','Egypt','Morocco','Algeria','Tunisia','Libya','Sudan','South Sudan','Somalia','Eritrea','Djibouti','Botswana','Namibia','Lesotho','Eswatini','Malawi','Madagascar','Comoros','Seychelles','Mauritius','Cabo Verde','Sao Tome and Principe','Equatorial Guinea','Gabon','Republic of the Congo','Central African Republic','Chad','Niger','Mali','Burkina Faso','Benin','Togo','Gambia','Guinea','Guinea-Bissau','Sierra Leone','Liberia','Mauritania'] },
-    { name: 'Asia & Pacific',  emoji: '🌏', countries: ['Japan','South Korea','China','India','Indonesia','Philippines','Vietnam','Thailand','Malaysia','Singapore','Bangladesh','Pakistan','Sri Lanka','Nepal','Bhutan','Myanmar','Cambodia','Laos','Taiwan','Hong Kong','Mongolia','Kazakhstan','Uzbekistan','Kyrgyzstan','Tajikistan','Turkmenistan','Afghanistan','Iran','Iraq','Saudi Arabia','United Arab Emirates','Qatar','Kuwait','Bahrain','Oman','Jordan','Lebanon','Israel','Palestine','Syria','Yemen','Australia','New Zealand','Papua New Guinea','Fiji','Samoa','Tonga','Vanuatu','Solomon Islands','Kiribati','Marshall Islands','Micronesia','Nauru','Palau','Timor-Leste','Brunei','Maldives'] },
-    { name: 'Latin America',   emoji: '🌎', countries: [] } // absorbed into N/S America above; kept for display compat
+    { name: 'Asia',           emoji: '🌏', countries: ['Japan','South Korea','China','India','Indonesia','Philippines','Vietnam','Thailand','Malaysia','Singapore','Bangladesh','Pakistan','Sri Lanka','Nepal','Bhutan','Myanmar','Cambodia','Laos','Taiwan','Hong Kong','Mongolia','Kazakhstan','Uzbekistan','Kyrgyzstan','Tajikistan','Turkmenistan','Afghanistan','Iran','Iraq','Saudi Arabia','United Arab Emirates','Qatar','Kuwait','Bahrain','Oman','Jordan','Lebanon','Israel','Palestine','Syria','Yemen','Brunei','Maldives','Timor-Leste'] },
+    { name: 'Oceania',         emoji: '🌏', countries: ['Australia','New Zealand','Papua New Guinea','Fiji','Samoa','Tonga','Vanuatu','Solomon Islands','Kiribati','Marshall Islands','Micronesia','Nauru','Palau'] }
 ];
 
 // Flatten all known countries from REGIONS for total-countries-reached count
@@ -63,6 +63,44 @@ var COUNTRY_FLAG = {
 };
 
 var TOTAL_COUNTRIES = 195; // UN-recognised + Taiwan/Kosovo
+
+// Country name → ISO 3166-1 alpha-2 (for flagcdn.com images)
+var COUNTRY_ISO = {
+    'Afghanistan':'af','Albania':'al','Algeria':'dz','Andorra':'ad','Angola':'ao','Argentina':'ar',
+    'Armenia':'am','Australia':'au','Austria':'at','Azerbaijan':'az','Bahamas':'bs','Bahrain':'bh',
+    'Bangladesh':'bd','Barbados':'bb','Belarus':'by','Belgium':'be','Belize':'bz','Benin':'bj',
+    'Bhutan':'bt','Bolivia':'bo','Bosnia and Herzegovina':'ba','Botswana':'bw','Brazil':'br',
+    'Brunei':'bn','Bulgaria':'bg','Burkina Faso':'bf','Cambodia':'kh','Cameroon':'cm','Canada':'ca',
+    'Chad':'td','Chile':'cl','China':'cn','Colombia':'co','Costa Rica':'cr','Croatia':'hr',
+    'Cuba':'cu','Cyprus':'cy','Czech Republic':'cz','Denmark':'dk','Dominican Republic':'do',
+    'Ecuador':'ec','Egypt':'eg','El Salvador':'sv','Estonia':'ee','Ethiopia':'et','Fiji':'fj',
+    'Finland':'fi','France':'fr','Gambia':'gm','Georgia':'ge','Germany':'de','Ghana':'gh',
+    'Greece':'gr','Guatemala':'gt','Guinea':'gn','Haiti':'ht','Honduras':'hn','Hungary':'hu',
+    'Iceland':'is','India':'in','Indonesia':'id','Iran':'ir','Iraq':'iq','Ireland':'ie',
+    'Israel':'il','Italy':'it','Ivory Coast':'ci','Jamaica':'jm','Japan':'jp','Jordan':'jo',
+    'Kazakhstan':'kz','Kenya':'ke','Kuwait':'kw','Kyrgyzstan':'kg','Laos':'la','Latvia':'lv',
+    'Lebanon':'lb','Libya':'ly','Lithuania':'lt','Luxembourg':'lu','Madagascar':'mg','Malawi':'mw',
+    'Malaysia':'my','Maldives':'mv','Mali':'ml','Malta':'mt','Mauritius':'mu','Mexico':'mx',
+    'Moldova':'md','Mongolia':'mn','Montenegro':'me','Morocco':'ma','Mozambique':'mz','Myanmar':'mm',
+    'Namibia':'na','Nepal':'np','Netherlands':'nl','New Zealand':'nz','Nicaragua':'ni','Niger':'ne',
+    'Nigeria':'ng','North Macedonia':'mk','Norway':'no','Oman':'om','Pakistan':'pk','Palestine':'ps',
+    'Panama':'pa','Paraguay':'py','Peru':'pe','Philippines':'ph','Poland':'pl','Portugal':'pt',
+    'Qatar':'qa','Romania':'ro','Russia':'ru','Rwanda':'rw','Saudi Arabia':'sa','Senegal':'sn',
+    'Serbia':'rs','Singapore':'sg','Slovakia':'sk','Slovenia':'si','Somalia':'so',
+    'South Africa':'za','South Korea':'kr','South Sudan':'ss','Spain':'es','Sri Lanka':'lk',
+    'Sudan':'sd','Sweden':'se','Switzerland':'ch','Syria':'sy','Taiwan':'tw','Tajikistan':'tj',
+    'Tanzania':'tz','Thailand':'th','Togo':'tg','Trinidad and Tobago':'tt','Tunisia':'tn',
+    'Turkey':'tr','Uganda':'ug','Ukraine':'ua','United Arab Emirates':'ae','United Kingdom':'gb',
+    'United States':'us','Uruguay':'uy','Uzbekistan':'uz','Venezuela':'ve','Vietnam':'vn',
+    'Yemen':'ye','Zambia':'zm','Zimbabwe':'zw','Kosovo':'xk','Hong Kong':'hk'
+};
+
+function _flagImg(country, size) {
+    var iso = COUNTRY_ISO[country];
+    if (!iso) return '<span style="font-size:1rem;">&#127988;</span>';
+    var sz = size || 24;
+    return '<img src="https://flagcdn.com/w' + sz + '/' + iso + '.png" width="' + sz + '" alt="' + country + '" style="border-radius:2px;vertical-align:middle;" loading="lazy" onerror="this.style.display=\'none\'">';
+}
 
 /* ───────────────── Cache ───────────────── */
 var _mapCache = null;
@@ -146,8 +184,11 @@ function _renderMap(el, counts) {
 
     // ── Header ──
     var html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:16px;">';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">';
     html += '<div style="font-weight:700;font-size:0.95rem;color:var(--text);">🌍 Bitcoin is Global</div>';
+    html += '</div>';
+    html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;">Bitcoin is Global and so is our userbase</div>';
+    html += '<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;">'
     html += '<div style="font-size:0.8rem;color:var(--text-muted);">';
     html += '<span style="color:var(--accent);font-weight:700;">' + countriesReached + '</span>';
     html += '<span style="color:var(--text-faint)"> / ' + TOTAL_COUNTRIES + ' countries</span>';
@@ -188,11 +229,10 @@ function _renderMap(el, counts) {
         html += '<div style="font-size:0.72rem;color:var(--text-faint);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Top Countries</div>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
         topN.forEach(function(c) {
-            var flag = COUNTRY_FLAG[c] || '🏳';
             var n = counts[c] || 0;
             var barW = Math.max(8, Math.round((n / maxCount) * 40));
             html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default;" title="' + c + ': ' + n + ' user' + (n !== 1 ? 's' : '') + '">';
-            html += '<span style="font-size:1.4rem;line-height:1;">' + flag + '</span>';
+            html += _flagImg(c, 24);
             html += '<div style="width:' + barW + 'px;height:3px;background:var(--accent);border-radius:2px;opacity:0.7;min-width:8px;"></div>';
             html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + _fmt(n) + '</span>';
             html += '</div>';
@@ -207,8 +247,7 @@ function _renderMap(el, counts) {
         html += '<div style="font-size:0.72rem;color:var(--text-faint);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Also representing</div>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
         remaining.forEach(function(c) {
-            var flag = COUNTRY_FLAG[c] || '🏳';
-            html += '<span title="' + c + ': ' + _fmt(counts[c] || 0) + ' user' + ((counts[c] || 0) !== 1 ? 's' : '') + '" style="font-size:1.2rem;cursor:default;">' + flag + '</span>';
+            html += '<span title="' + c + ': ' + _fmt(counts[c] || 0) + ' user' + ((counts[c] || 0) !== 1 ? 's' : '') + '" style="cursor:default;display:inline-block;">' + _flagImg(c, 20) + '</span>';
         });
         html += '</div></div>';
         html += '<button onclick="var m=document.getElementById(\'umMoreCountries\');m.style.display=m.style.display===\'none\'?\'block\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ ' + remaining.length + ' more countries\':\'▲ hide\'" style="background:none;border:none;color:var(--text-faint);font-size:0.72rem;cursor:pointer;padding:0;font-family:inherit;margin-bottom:10px;">▼ ' + remaining.length + ' more countries</button>';
