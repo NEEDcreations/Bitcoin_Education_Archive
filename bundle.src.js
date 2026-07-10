@@ -4977,6 +4977,13 @@ function showSettingsPage(tab) {
         html += '<button onclick="hideUsernamePrompt();setTimeout(function(){go(\'lightning\')},200)" style="margin-top:10px;width:100%;padding:11px;background:none;border:1px dashed rgba(247,147,26,0.5);border-radius:10px;color:var(--accent);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background=\'rgba(247,147,26,0.08)\'" onmouseout="this.style.background=\'none\'">⚡ I need a Lightning Address →</button>';
         html += '</div>';
 
+        // Legal disclaimer
+        html += '<div style="font-size:0.68rem;color:var(--text-faint);line-height:1.6;text-align:center;padding:0 4px 8px;">' +
+            'In-app sats balances are reward entitlements, not stored Bitcoin. We never custody user funds. ' +
+            'Bitcoin&rsquo;s value is highly volatile. You are responsible for any tax obligations in your jurisdiction. ' +
+            'Must be 18+ to participate. <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);text-decoration:underline;">Terms of Service</a>' +
+        '</div>';
+
         } else {
         // ===== DONATE XP SUB-TAB =====
         var _donateAvail = Math.max(0, userPts - pointsClaimed - pointsDonated);
@@ -5748,15 +5755,22 @@ function showSettingsPage(tab) {
         if ((window._satsSubTab || 'claim') === 'donate') {
             // Ensure quests.js is loaded (hosts _patchCharityRecent + charity listeners)
             var _ensureCharityReady = function() {
-                if (typeof _setupCharityListeners === 'function' && typeof _charityRecentUnsub !== 'undefined' && !_charityRecentUnsub) {
-                    // Listeners not yet started — spin them up now
+                // Start listeners if not already running
+                if (typeof _setupCharityListeners === 'function' && !_charityRecentUnsub) {
                     _setupCharityListeners(null);
                 }
                 if (typeof _patchCharityRecent === 'function') {
-                    // Already have data — patch immediately
-                    if (typeof _charityRecent !== 'undefined' && _charityRecent.length > 0) _patchCharityRecent();
-                    // Also fire after listeners return first snapshot (50ms grace)
-                    setTimeout(_patchCharityRecent, 600);
+                    // Patch immediately if we already have data
+                    if (typeof _charityRecent !== 'undefined' && _charityRecent.length > 0) {
+                        _patchCharityRecent();
+                    }
+                    // Retry at 800ms and 2500ms — Firestore snapshot may take >600ms on slow connections
+                    setTimeout(function() {
+                        if (window._satsSubTab === 'donate' && typeof _patchCharityRecent === 'function') _patchCharityRecent();
+                    }, 800);
+                    setTimeout(function() {
+                        if (window._satsSubTab === 'donate' && typeof _patchCharityRecent === 'function') _patchCharityRecent();
+                    }, 2500);
                 }
             };
             if (typeof _patchCharityRecent !== 'function') {
@@ -5766,14 +5780,14 @@ function showSettingsPage(tab) {
                     var _qs = document.createElement('script');
                     var _qv = (document.querySelector('script[src*="quests.js?"]') || {src:''}).src.split('?v=')[1] || '';
                     _qs.src = 'quests.js' + (_qv ? '?v=' + _qv : '');
-                    _qs.onload = function() { setTimeout(_ensureCharityReady, 200); };
+                    _qs.onload = function() { setTimeout(_ensureCharityReady, 300); };
                     document.head.appendChild(_qs);
                 } else {
-                    // Already loading — wait
-                    setTimeout(_ensureCharityReady, 800);
+                    // Script tag exists but still loading — wait
+                    setTimeout(_ensureCharityReady, 1000);
                 }
             } else {
-                setTimeout(_ensureCharityReady, 50);
+                _ensureCharityReady();
             }
         }
         window._toggleSatsCharityNote = function() {
