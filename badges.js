@@ -1214,7 +1214,7 @@ var BADGE_SETS = [
     ,
     { id:'set_spin',     name:'The Wheel Set',        emoji:'🎡', color:'#f97316', badgeIds:['spin_1','spin_7','spin_30','spin_100','spin_streak_7','spin_streak_14','spin_streak_30','spin_jackpot','spin_closet_1','spin_closet_5'], bonusId:'set_spin_complete', bonusPts:300, bonusEmoji:'🎰', bonusName:'Wheel Master',    bonusDesc:'Completed The Wheel Set' },
     ,
-    { id:'set_profile',  name:'The Profile Set',      emoji:'👤', color:'#6366f1', badgeIds:['global_citizen','bio_author','lightning_address_set','profile_curious','profile_explorer_5','profile_explorer_10','profile_explorer_25','profile_explorer_50','profile_explorer_100'], bonusId:'set_profile_complete', bonusPts:500, bonusEmoji:'🦌', bonusName:'Archive Legend', bonusDesc:'Completed The Profile Set' }
+    { id:'set_profile',  name:'The Profile Set',      emoji:'👤', color:'#6366f1', badgeIds:['profile_explorer_100','profile_explorer_25','global_citizen','bio_author','profile_curious','profile_explorer_5','profile_explorer_10','profile_explorer_50','lightning_address_set'], bonusId:'set_profile_complete', bonusPts:500, bonusEmoji:'🦌', bonusName:'Archive Legend', bonusDesc:'Completed The Profile Set' }
 ];
 
 function _renderBadgeSets(earnedBadges) {
