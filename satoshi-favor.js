@@ -13,7 +13,8 @@
     // 2026-06-21  |  30,000 |      0       | -96.67% difficulty drop — no winner in 19 days, ~1:3,333 odds now
     // 2026-06-30  |  15,000 |      0       | +100% difficulty raise — tightening odds to ~1:6,667
     // 2026-07-02  |  10,000 |      0       | +50% difficulty raise — tightening odds to ~1:10,000
-    const DIFFICULTY_TARGET = 10000;
+    // 2026-07-10  |   8,000 |      0       | -20% difficulty drop — easing odds to ~1:8,000
+    const DIFFICULTY_TARGET = 8000;
     // ── Difficulty history (ordered oldest→newest) ─────────────────
     // Add a new entry here whenever the target changes. quests.js reads
     // window.SF_DIFFICULTY_HISTORY to render the Difficulty History table
@@ -23,6 +24,7 @@
         { date: '2026-06-21', target: 30000, label: '-96.67% drop' },
         { date: '2026-06-30', target: 15000, label: '+100% raise' },
         { date: '2026-07-02', target: 10000, label: '+50% raise' },
+        { date: '2026-07-10', target: 8000,  label: '-20% drop' },
     ];
     window.SF_DIFFICULTY_TARGET  = DIFFICULTY_TARGET;   // expose for other modules
     window.SF_DIFFICULTY_HISTORY = SF_DIFFICULTY_HISTORY; // expose for difficulty table
@@ -614,7 +616,7 @@
             // Feature 4: Heat meter
             _buildHeatMeterHTML() +
             '<div id="sfRateInfoBox" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
-            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you win <strong style="color:var(--accent);">21,000 sats!</strong> That\'s a 1 in 10,000 chance per hash (~0.01%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
+            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you win <strong style="color:var(--accent);">21,000 sats!</strong> That\'s a 1 in 8,000 chance per hash (~0.00125%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
@@ -629,7 +631,7 @@
             '</div>' +
             '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px;font-size:0.8rem;">' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET + '</div></div>' +
-            '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:10,000</div></div>' +
+            '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:8,000</div></div>' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 1</div><div id="hashCooldown" style="font-weight:800;color:var(--accent);">Ready</div></div>' +
             (hasSecondRig ? '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 2</div><div id="hashCooldown2" style="font-weight:800;color:#8b5cf6;">Ready</div></div>' : '') +
             '</div>' +
