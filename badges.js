@@ -453,6 +453,7 @@ const BADGE_DEFS = [
     { id: 'set_trifecta_complete',  name: 'Trifecta God',         emoji: '🌞', desc: 'Completed The Trifecta Set',     pts: 1000, hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_trifecta_complete') === '1' },
     { id: 'set_irl_complete',       name: 'Community Anchor',     emoji: '🌍', desc: 'Completed The IRL Set',          pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_irl_complete') === '1' },
     { id: 'set_spin_complete',      name: 'Wheel Master',         emoji: '🎰', desc: 'Completed The Wheel Set',        pts: 300,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_spin_complete') === '1' },
+    { id: 'set_profile_complete',   name: 'Archive Legend',       emoji: '🦌', desc: 'Completed The Profile Set',      pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_profile_complete') === '1' },
     { id: 'set_pow_complete',       name: 'Distance Legend',      emoji: '🌍', desc: 'Completed The Proof of Walk Set',pts: 750,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_pow_complete') === '1' },
 ];
 
@@ -1188,7 +1189,9 @@ var BADGE_SETS = [
     ,
     { id:'set_trifecta', name:'The Trifecta Set',     emoji:'🔱', color:'#f7931a', badgeIds:['daily_triple_1','daily_triple_7','daily_triple_30','daily_triple_90','daily_triple_365'], bonusId:'set_trifecta_complete', bonusPts:1000, bonusEmoji:'🌞', bonusName:'Trifecta God',   bonusDesc:'Completed The Trifecta Set' },
     ,
-    { id:'set_spin',     name:'The Wheel Set',        emoji:'🎡', color:'#f97316', badgeIds:['spin_1','spin_7','spin_30','spin_100','spin_streak_7','spin_streak_14','spin_streak_30','spin_jackpot','spin_closet_1','spin_closet_5'], bonusId:'set_spin_complete', bonusPts:300, bonusEmoji:'🎰', bonusName:'Wheel Master',    bonusDesc:'Completed The Wheel Set' }
+    { id:'set_spin',     name:'The Wheel Set',        emoji:'🎡', color:'#f97316', badgeIds:['spin_1','spin_7','spin_30','spin_100','spin_streak_7','spin_streak_14','spin_streak_30','spin_jackpot','spin_closet_1','spin_closet_5'], bonusId:'set_spin_complete', bonusPts:300, bonusEmoji:'🎰', bonusName:'Wheel Master',    bonusDesc:'Completed The Wheel Set' },
+    ,
+    { id:'set_profile',  name:'The Profile Set',      emoji:'👤', color:'#6366f1', badgeIds:['global_citizen','bio_author','lightning_address_set','profile_curious','profile_explorer_5','profile_explorer_10','profile_explorer_25','profile_explorer_50','profile_explorer_100'], bonusId:'set_profile_complete', bonusPts:500, bonusEmoji:'🦌', bonusName:'Archive Legend', bonusDesc:'Completed The Profile Set' }
 ];
 
 function _renderBadgeSets(earnedBadges) {
