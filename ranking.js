@@ -5579,8 +5579,36 @@ function showSettingsPage(tab) {
     // Wire up charity donate helpers for the Sats > Donate sub-tab
     if (settingsTab === 'sats') {
         // Populate recent donations list if we're on the donate sub-tab
-        if ((window._satsSubTab || 'claim') === 'donate' && typeof _patchCharityRecent === 'function') {
-            setTimeout(_patchCharityRecent, 50);
+        if ((window._satsSubTab || 'claim') === 'donate') {
+            // Ensure quests.js is loaded (hosts _patchCharityRecent + charity listeners)
+            var _ensureCharityReady = function() {
+                if (typeof _setupCharityListeners === 'function' && typeof _charityRecentUnsub !== 'undefined' && !_charityRecentUnsub) {
+                    // Listeners not yet started — spin them up now
+                    _setupCharityListeners(null);
+                }
+                if (typeof _patchCharityRecent === 'function') {
+                    // Already have data — patch immediately
+                    if (typeof _charityRecent !== 'undefined' && _charityRecent.length > 0) _patchCharityRecent();
+                    // Also fire after listeners return first snapshot (50ms grace)
+                    setTimeout(_patchCharityRecent, 600);
+                }
+            };
+            if (typeof _patchCharityRecent !== 'function') {
+                // quests.js not loaded yet — inject script tag then retry
+                var _qScript = document.querySelector('script[src*="quests.js"]');
+                if (!_qScript) {
+                    var _qs = document.createElement('script');
+                    var _qv = (document.querySelector('script[src*="quests.js?"]') || {src:''}).src.split('?v=')[1] || '';
+                    _qs.src = 'quests.js' + (_qv ? '?v=' + _qv : '');
+                    _qs.onload = function() { setTimeout(_ensureCharityReady, 200); };
+                    document.head.appendChild(_qs);
+                } else {
+                    // Already loading — wait
+                    setTimeout(_ensureCharityReady, 800);
+                }
+            } else {
+                setTimeout(_ensureCharityReady, 50);
+            }
         }
         window._toggleSatsCharityNote = function() {
             var n = document.getElementById('satsCharityNote');

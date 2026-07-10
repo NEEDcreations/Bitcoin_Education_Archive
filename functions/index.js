@@ -6682,3 +6682,39 @@ exports.raidBossWeeklyAnnouncement = onSchedule(
     return null;
   }
 );
+
+// ===== COUNTRY STATS AGGREGATION =====
+// Fires when a user document is written. If country changed, updates stats/countries
+// with atomic increments so the world map always has fresh data.
+exports.updateCountryStats = functions.firestore
+    .document('users/{userId}')
+    .onWrite(async (change, context) => {
+        const before = change.before.exists ? change.before.data() : {};
+        const after  = change.after.exists  ? change.after.data()  : {};
+
+        const prevCountry = (before.country || '').trim();
+        const newCountry  = (after.country  || '').trim();
+
+        // No change to country field — skip
+        if (prevCountry === newCountry) return null;
+
+        const statsRef = db.collection('stats').doc('countries');
+        const updates  = {};
+
+        if (prevCountry) {
+            updates['counts.' + prevCountry] = admin.firestore.FieldValue.increment(-1);
+        }
+        if (newCountry) {
+            updates['counts.' + newCountry] = admin.firestore.FieldValue.increment(1);
+        }
+
+        if (Object.keys(updates).length === 0) return null;
+
+        try {
+            await statsRef.set(updates, { merge: true });
+            console.log('[COUNTRY STATS] ' + prevCountry + ' → ' + newCountry + ' for uid=' + context.params.userId);
+        } catch(e) {
+            console.error('[COUNTRY STATS] Error:', e);
+        }
+        return null;
+    });

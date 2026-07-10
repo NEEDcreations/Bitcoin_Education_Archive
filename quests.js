@@ -3716,6 +3716,8 @@ function _setupCharityListeners(body) {
         snap.forEach(function(doc) { _charityRecent.push(doc.data()); });
         var b = document.getElementById('questHubBody');
         if (b && window._questHubTab === 'charity') _patchCharityRecent();
+        // Also update settings modal donate tab if it's open
+        if (document.getElementById('charityRecentList') && window._satsSubTab === 'donate') _patchCharityRecent();
     }, function() {});
 }
 
@@ -3825,6 +3827,8 @@ function _renderCharityTab(body) {
         if (_firstRender) {
             var b = document.getElementById('questHubBody');
             if (b && window._questHubTab === 'charity') _patchCharityRecent();
+            // Also update settings modal donate tab if open
+            if (document.getElementById('charityRecentList') && window._satsSubTab === 'donate') _patchCharityRecent();
         } else _maybeRender();
     }, function() { _recentReady = true; _maybeRender(); });
 }

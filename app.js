@@ -2883,6 +2883,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         showContinueReading();
         // Refresh exploration map and daily quote
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
+        if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
         if (typeof renderDailyQuote === 'function') renderDailyQuote();
         if (typeof loadCommunityStats === 'function') loadCommunityStats();
         // Raid Boss home card

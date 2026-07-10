@@ -5745,8 +5745,36 @@ function showSettingsPage(tab) {
     // Wire up charity donate helpers for the Sats > Donate sub-tab
     if (settingsTab === 'sats') {
         // Populate recent donations list if we're on the donate sub-tab
-        if ((window._satsSubTab || 'claim') === 'donate' && typeof _patchCharityRecent === 'function') {
-            setTimeout(_patchCharityRecent, 50);
+        if ((window._satsSubTab || 'claim') === 'donate') {
+            // Ensure quests.js is loaded (hosts _patchCharityRecent + charity listeners)
+            var _ensureCharityReady = function() {
+                if (typeof _setupCharityListeners === 'function' && typeof _charityRecentUnsub !== 'undefined' && !_charityRecentUnsub) {
+                    // Listeners not yet started — spin them up now
+                    _setupCharityListeners(null);
+                }
+                if (typeof _patchCharityRecent === 'function') {
+                    // Already have data — patch immediately
+                    if (typeof _charityRecent !== 'undefined' && _charityRecent.length > 0) _patchCharityRecent();
+                    // Also fire after listeners return first snapshot (50ms grace)
+                    setTimeout(_patchCharityRecent, 600);
+                }
+            };
+            if (typeof _patchCharityRecent !== 'function') {
+                // quests.js not loaded yet — inject script tag then retry
+                var _qScript = document.querySelector('script[src*="quests.js"]');
+                if (!_qScript) {
+                    var _qs = document.createElement('script');
+                    var _qv = (document.querySelector('script[src*="quests.js?"]') || {src:''}).src.split('?v=')[1] || '';
+                    _qs.src = 'quests.js' + (_qv ? '?v=' + _qv : '');
+                    _qs.onload = function() { setTimeout(_ensureCharityReady, 200); };
+                    document.head.appendChild(_qs);
+                } else {
+                    // Already loading — wait
+                    setTimeout(_ensureCharityReady, 800);
+                }
+            } else {
+                setTimeout(_ensureCharityReady, 50);
+            }
         }
         window._toggleSatsCharityNote = function() {
             var n = document.getElementById('satsCharityNote');
@@ -16226,6 +16254,8 @@ function _setupCharityListeners(body) {
         snap.forEach(function(doc) { _charityRecent.push(doc.data()); });
         var b = document.getElementById('questHubBody');
         if (b && window._questHubTab === 'charity') _patchCharityRecent();
+        // Also update settings modal donate tab if it's open
+        if (document.getElementById('charityRecentList') && window._satsSubTab === 'donate') _patchCharityRecent();
     }, function() {});
 }
 
@@ -16335,6 +16365,8 @@ function _renderCharityTab(body) {
         if (_firstRender) {
             var b = document.getElementById('questHubBody');
             if (b && window._questHubTab === 'charity') _patchCharityRecent();
+            // Also update settings modal donate tab if open
+            if (document.getElementById('charityRecentList') && window._satsSubTab === 'donate') _patchCharityRecent();
         } else _maybeRender();
     }, function() { _recentReady = true; _maybeRender(); });
 }
@@ -29619,6 +29651,260 @@ window._startHalvingTicker = function() {
 };
 
 })();
+// usermap.js — Community World Map
+// Shows where Bitcoin Education Archive users are from.
+// Reads from stats/countries (aggregated by Cloud Function).
+// Falls back to a lightweight client-side query if stats doc is missing.
+// Renders: regional progress bars + country flag grid + CTA if no country set.
+
+(function() {
+'use strict';
+
+/* ───────────────── Region definitions ───────────────── */
+var REGIONS = [
+    { name: 'North America',   emoji: '🌎', countries: ['United States','Canada','Mexico','Guatemala','Belize','Honduras','El Salvador','Nicaragua','Costa Rica','Panama','Cuba','Jamaica','Haiti','Dominican Republic','Puerto Rico','Trinidad and Tobago','Barbados','Saint Lucia','Saint Kitts and Nevis','Saint Vincent and the Grenadines','Grenada','Antigua and Barbuda','Dominica','Bahamas'] },
+    { name: 'South America',   emoji: '🌎', countries: ['Brazil','Argentina','Chile','Colombia','Venezuela','Peru','Ecuador','Bolivia','Paraguay','Uruguay','Guyana','Suriname'] },
+    { name: 'Europe',          emoji: '🌍', countries: ['United Kingdom','Germany','France','Italy','Spain','Netherlands','Switzerland','Sweden','Norway','Denmark','Finland','Belgium','Austria','Portugal','Poland','Czech Republic','Hungary','Romania','Bulgaria','Greece','Croatia','Slovakia','Slovenia','Estonia','Latvia','Lithuania','Luxembourg','Malta','Cyprus','Ireland','Iceland','Serbia','Montenegro','Bosnia and Herzegovina','North Macedonia','Kosovo','Albania','Moldova','Ukraine','Belarus','Russia','Georgia','Armenia','Azerbaijan','Turkey','Liechtenstein','Monaco','San Marino','Vatican City','Andorra'] },
+    { name: 'Africa',          emoji: '🌍', countries: ['Nigeria','South Africa','Kenya','Ghana','Ethiopia','Tanzania','Uganda','Rwanda','Cameroon','Senegal','Ivory Coast','Zambia','Zimbabwe','Mozambique','Angola','Egypt','Morocco','Algeria','Tunisia','Libya','Sudan','South Sudan','Somalia','Eritrea','Djibouti','Botswana','Namibia','Lesotho','Eswatini','Malawi','Madagascar','Comoros','Seychelles','Mauritius','Cabo Verde','Sao Tome and Principe','Equatorial Guinea','Gabon','Republic of the Congo','Central African Republic','Chad','Niger','Mali','Burkina Faso','Benin','Togo','Gambia','Guinea','Guinea-Bissau','Sierra Leone','Liberia','Mauritania'] },
+    { name: 'Asia & Pacific',  emoji: '🌏', countries: ['Japan','South Korea','China','India','Indonesia','Philippines','Vietnam','Thailand','Malaysia','Singapore','Bangladesh','Pakistan','Sri Lanka','Nepal','Bhutan','Myanmar','Cambodia','Laos','Taiwan','Hong Kong','Mongolia','Kazakhstan','Uzbekistan','Kyrgyzstan','Tajikistan','Turkmenistan','Afghanistan','Iran','Iraq','Saudi Arabia','United Arab Emirates','Qatar','Kuwait','Bahrain','Oman','Jordan','Lebanon','Israel','Palestine','Syria','Yemen','Australia','New Zealand','Papua New Guinea','Fiji','Samoa','Tonga','Vanuatu','Solomon Islands','Kiribati','Marshall Islands','Micronesia','Nauru','Palau','Timor-Leste','Brunei','Maldives'] },
+    { name: 'Latin America',   emoji: '🌎', countries: [] } // absorbed into N/S America above; kept for display compat
+];
+
+// Flatten all known countries from REGIONS for total-countries-reached count
+var ALL_REGION_COUNTRIES = (function() {
+    var set = {};
+    REGIONS.forEach(function(r) { r.countries.forEach(function(c) { set[c] = true; }); });
+    return set;
+})();
+
+// Country → emoji flag helper (ISO 3166-1 alpha-2 lookup)
+var COUNTRY_FLAG = {
+    'Afghanistan':'🇦🇫','Albania':'🇦🇱','Algeria':'🇩🇿','Andorra':'🇦🇩','Angola':'🇦🇴','Antigua and Barbuda':'🇦🇬',
+    'Argentina':'🇦🇷','Armenia':'🇦🇲','Australia':'🇦🇺','Austria':'🇦🇹','Azerbaijan':'🇦🇿','Bahamas':'🇧🇸',
+    'Bahrain':'🇧🇭','Bangladesh':'🇧🇩','Barbados':'🇧🇧','Belarus':'🇧🇾','Belgium':'🇧🇪','Belize':'🇧🇿',
+    'Benin':'🇧🇯','Bhutan':'🇧🇹','Bolivia':'🇧🇴','Bosnia and Herzegovina':'🇧🇦','Botswana':'🇧🇼','Brazil':'🇧🇷',
+    'Brunei':'🇧🇳','Bulgaria':'🇧🇬','Burkina Faso':'🇧🇫','Burundi':'🇧🇮','Cabo Verde':'🇨🇻','Cambodia':'🇰🇭',
+    'Cameroon':'🇨🇲','Canada':'🇨🇦','Central African Republic':'🇨🇫','Chad':'🇹🇩','Chile':'🇨🇱','China':'🇨🇳',
+    'Colombia':'🇨🇴','Comoros':'🇰🇲','Congo':'🇨🇬','Costa Rica':'🇨🇷','Croatia':'🇭🇷','Cuba':'🇨🇺',
+    'Cyprus':'🇨🇾','Czech Republic':'🇨🇿','Denmark':'🇩🇰','Djibouti':'🇩🇯','Dominica':'🇩🇲','Dominican Republic':'🇩🇴',
+    'Ecuador':'🇪🇨','Egypt':'🇪🇬','El Salvador':'🇸🇻','Equatorial Guinea':'🇬🇶','Eritrea':'🇪🇷','Estonia':'🇪🇪',
+    'Eswatini':'🇸🇿','Ethiopia':'🇪🇹','Fiji':'🇫🇯','Finland':'🇫🇮','France':'🇫🇷','Gabon':'🇬🇦',
+    'Gambia':'🇬🇲','Georgia':'🇬🇪','Germany':'🇩🇪','Ghana':'🇬🇭','Greece':'🇬🇷','Grenada':'🇬🇩',
+    'Guatemala':'🇬🇹','Guinea':'🇬🇳','Guinea-Bissau':'🇬🇼','Guyana':'🇬🇾','Haiti':'🇭🇹','Honduras':'🇭🇳',
+    'Hungary':'🇭🇺','Iceland':'🇮🇸','India':'🇮🇳','Indonesia':'🇮🇩','Iran':'🇮🇷','Iraq':'🇮🇶',
+    'Ireland':'🇮🇪','Israel':'🇮🇱','Italy':'🇮🇹','Ivory Coast':'🇨🇮','Jamaica':'🇯🇲','Japan':'🇯🇵',
+    'Jordan':'🇯🇴','Kazakhstan':'🇰🇿','Kenya':'🇰🇪','Kiribati':'🇰🇮','Kosovo':'🇽🇰','Kuwait':'🇰🇼',
+    'Kyrgyzstan':'🇰🇬','Laos':'🇱🇦','Latvia':'🇱🇻','Lebanon':'🇱🇧','Lesotho':'🇱🇸','Liberia':'🇱🇷',
+    'Libya':'🇱🇾','Liechtenstein':'🇱🇮','Lithuania':'🇱🇹','Luxembourg':'🇱🇺','Madagascar':'🇲🇬','Malawi':'🇲🇼',
+    'Malaysia':'🇲🇾','Maldives':'🇲🇻','Mali':'🇲🇱','Malta':'🇲🇹','Marshall Islands':'🇲🇭','Mauritania':'🇲🇷',
+    'Mauritius':'🇲🇺','Mexico':'🇲🇽','Micronesia':'🇫🇲','Moldova':'🇲🇩','Monaco':'🇲🇨','Mongolia':'🇲🇳',
+    'Montenegro':'🇲🇪','Morocco':'🇲🇦','Mozambique':'🇲🇿','Myanmar':'🇲🇲','Namibia':'🇳🇦','Nauru':'🇳🇷',
+    'Nepal':'🇳🇵','Netherlands':'🇳🇱','New Zealand':'🇳🇿','Nicaragua':'🇳🇮','Niger':'🇳🇪','Nigeria':'🇳🇬',
+    'North Korea':'🇰🇵','North Macedonia':'🇲🇰','Norway':'🇳🇴','Oman':'🇴🇲','Pakistan':'🇵🇰','Palau':'🇵🇼',
+    'Palestine':'🇵🇸','Panama':'🇵🇦','Papua New Guinea':'🇵🇬','Paraguay':'🇵🇾','Peru':'🇵🇪','Philippines':'🇵🇭',
+    'Poland':'🇵🇱','Portugal':'🇵🇹','Qatar':'🇶🇦','Romania':'🇷🇴','Russia':'🇷🇺','Rwanda':'🇷🇼',
+    'Saint Kitts and Nevis':'🇰🇳','Saint Lucia':'🇱🇨','Saint Vincent and the Grenadines':'🇻🇨','Samoa':'🇼🇸',
+    'San Marino':'🇸🇲','Sao Tome and Principe':'🇸🇹','Saudi Arabia':'🇸🇦','Senegal':'🇸🇳','Serbia':'🇷🇸',
+    'Seychelles':'🇸🇨','Sierra Leone':'🇸🇱','Singapore':'🇸🇬','Slovakia':'🇸🇰','Slovenia':'🇸🇮',
+    'Solomon Islands':'🇸🇧','Somalia':'🇸🇴','South Africa':'🇿🇦','South Korea':'🇰🇷','South Sudan':'🇸🇸',
+    'Spain':'🇪🇸','Sri Lanka':'🇱🇰','Sudan':'🇸🇩','Suriname':'🇸🇷','Sweden':'🇸🇪','Switzerland':'🇨🇭',
+    'Syria':'🇸🇾','Taiwan':'🇹🇼','Tajikistan':'🇹🇯','Tanzania':'🇹🇿','Thailand':'🇹🇭','Timor-Leste':'🇹🇱',
+    'Togo':'🇹🇬','Tonga':'🇹🇴','Trinidad and Tobago':'🇹🇹','Tunisia':'🇹🇳','Turkey':'🇹🇷',
+    'Turkmenistan':'🇹🇲','Tuvalu':'🇹🇻','Uganda':'🇺🇬','Ukraine':'🇺🇦','United Arab Emirates':'🇦🇪',
+    'United Kingdom':'🇬🇧','United States':'🇺🇸','Uruguay':'🇺🇾','Uzbekistan':'🇺🇿','Vanuatu':'🇻🇺',
+    'Vatican City':'🇻🇦','Venezuela':'🇻🇪','Vietnam':'🇻🇳','Yemen':'🇾🇪','Zambia':'🇿🇲','Zimbabwe':'🇿🇼'
+};
+
+var TOTAL_COUNTRIES = 195; // UN-recognised + Taiwan/Kosovo
+
+/* ───────────────── Cache ───────────────── */
+var _mapCache = null;
+var _mapCacheTs = 0;
+var _MAP_CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+/* ───────────────── Public entry point ───────────────── */
+window.renderUserWorldMap = function() {
+    var el = document.getElementById('communityWorldMap');
+    if (!el) return;
+
+    // Skeleton while loading
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">🌍 Loading world map…</div>';
+
+    // Use cache if fresh
+    if (_mapCache && (Date.now() - _mapCacheTs < _MAP_CACHE_TTL)) {
+        _renderMap(el, _mapCache);
+        return;
+    }
+
+    if (typeof db === 'undefined') { el.innerHTML = ''; return; }
+
+    // Try stats/countries first (cheap single-doc read)
+    db.collection('stats').doc('countries').get().then(function(doc) {
+        var data = doc.exists ? doc.data() : null;
+        if (data && data.counts && Object.keys(data.counts).length > 0) {
+            _mapCache = data.counts;
+            _mapCacheTs = Date.now();
+            _renderMap(el, data.counts);
+        } else {
+            // Fallback: lightweight aggregate (query users with country set, limit 500)
+            _fetchCountsFromUsers(el);
+        }
+    }).catch(function() {
+        _fetchCountsFromUsers(el);
+    });
+};
+
+function _fetchCountsFromUsers(el) {
+    if (typeof db === 'undefined') { el.innerHTML = ''; return; }
+    db.collection('users')
+      .where('country', '>', '')
+      .limit(500)
+      .get()
+      .then(function(snap) {
+          var counts = {};
+          snap.forEach(function(doc) {
+              var c = (doc.data().country || '').trim();
+              if (c) counts[c] = (counts[c] || 0) + 1;
+          });
+          _mapCache = counts;
+          _mapCacheTs = Date.now();
+          _renderMap(el, counts);
+      }).catch(function() {
+          el.innerHTML = '';
+      });
+}
+
+/* ───────────────── Renderer ───────────────── */
+function _renderMap(el, counts) {
+    var totalUsers     = Object.keys(counts).reduce(function(s, k) { return s + (counts[k] || 0); }, 0);
+    var countriesReached = Object.keys(counts).filter(function(c) { return counts[c] > 0; }).length;
+    if (totalUsers === 0 && countriesReached === 0) { el.innerHTML = ''; return; }
+
+    // Sort countries by count desc
+    var sorted = Object.keys(counts).sort(function(a, b) { return (counts[b] || 0) - (counts[a] || 0); });
+
+    // Build region totals
+    var regionTotals = {};
+    REGIONS.forEach(function(r) {
+        if (!r.countries.length) return;
+        var total = 0;
+        var reached = 0;
+        r.countries.forEach(function(c) {
+            if (counts[c]) { total += counts[c]; reached++; }
+        });
+        if (total > 0) regionTotals[r.name] = { total: total, reached: reached, emoji: r.emoji };
+    });
+
+    var maxCount = sorted.length > 0 ? (counts[sorted[0]] || 1) : 1;
+
+    // ── Header ──
+    var html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:16px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">';
+    html += '<div style="font-weight:700;font-size:0.95rem;color:var(--text);">🌍 Bitcoin is Global</div>';
+    html += '<div style="font-size:0.8rem;color:var(--text-muted);">';
+    html += '<span style="color:var(--accent);font-weight:700;">' + countriesReached + '</span>';
+    html += '<span style="color:var(--text-faint)"> / ' + TOTAL_COUNTRIES + ' countries</span>';
+    html += '</div></div>';
+
+    // ── Progress bar: countries reached ──
+    var pct = Math.min(100, Math.round((countriesReached / TOTAL_COUNTRIES) * 100));
+    html += '<div style="margin-bottom:14px;">';
+    html += '<div style="height:8px;background:var(--border);border-radius:6px;overflow:hidden;margin-bottom:4px;">';
+    html += '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,var(--accent),#ffb833);border-radius:6px;transition:width 0.6s ease;"></div>';
+    html += '</div>';
+    html += '<div style="font-size:0.72rem;color:var(--text-faint);text-align:right;">' + pct + '% of the world reached 🟠</div>';
+    html += '</div>';
+
+    // ── Region breakdown ──
+    var regionKeys = Object.keys(regionTotals).sort(function(a, b) { return regionTotals[b].total - regionTotals[a].total; });
+    if (regionKeys.length > 0) {
+        html += '<div style="margin-bottom:14px;">';
+        var maxRegion = regionTotals[regionKeys[0]].total;
+        regionKeys.forEach(function(rName) {
+            var r = regionTotals[rName];
+            var rPct = Math.max(4, Math.round((r.total / maxRegion) * 100));
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+            html += '<div style="width:110px;font-size:0.72rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + r.emoji + ' ' + rName + '</div>';
+            html += '<div style="flex:1;height:6px;background:var(--border);border-radius:4px;overflow:hidden;">';
+            html += '<div style="height:100%;width:' + rPct + '%;background:var(--accent);border-radius:4px;opacity:0.85;"></div>';
+            html += '</div>';
+            html += '<div style="width:40px;text-align:right;font-size:0.72rem;color:var(--text-faint);">' + _fmt(r.total) + '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+    }
+
+    // ── Country flag grid (top 30 by count) ──
+    var topN = sorted.slice(0, 30);
+    if (topN.length > 0) {
+        html += '<div style="margin-bottom:12px;">';
+        html += '<div style="font-size:0.72rem;color:var(--text-faint);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Top Countries</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        topN.forEach(function(c) {
+            var flag = COUNTRY_FLAG[c] || '🏳';
+            var n = counts[c] || 0;
+            var barW = Math.max(8, Math.round((n / maxCount) * 40));
+            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default;" title="' + c + ': ' + n + ' user' + (n !== 1 ? 's' : '') + '">';
+            html += '<span style="font-size:1.4rem;line-height:1;">' + flag + '</span>';
+            html += '<div style="width:' + barW + 'px;height:3px;background:var(--accent);border-radius:2px;opacity:0.7;min-width:8px;"></div>';
+            html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + _fmt(n) + '</span>';
+            html += '</div>';
+        });
+        html += '</div></div>';
+    }
+
+    // ── Show more toggle (remaining countries) ──
+    var remaining = sorted.slice(30);
+    if (remaining.length > 0) {
+        html += '<div id="umMoreCountries" style="display:none;margin-bottom:10px;">';
+        html += '<div style="font-size:0.72rem;color:var(--text-faint);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Also representing</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+        remaining.forEach(function(c) {
+            var flag = COUNTRY_FLAG[c] || '🏳';
+            html += '<span title="' + c + ': ' + _fmt(counts[c] || 0) + ' user' + ((counts[c] || 0) !== 1 ? 's' : '') + '" style="font-size:1.2rem;cursor:default;">' + flag + '</span>';
+        });
+        html += '</div></div>';
+        html += '<button onclick="var m=document.getElementById(\'umMoreCountries\');m.style.display=m.style.display===\'none\'?\'block\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ ' + remaining.length + ' more countries\':\'▲ hide\'" style="background:none;border:none;color:var(--text-faint);font-size:0.72rem;cursor:pointer;padding:0;font-family:inherit;margin-bottom:10px;">▼ ' + remaining.length + ' more countries</button>';
+    }
+
+    // ── CTA: add your country ──
+    var hasCountry = typeof currentUser !== 'undefined' && currentUser && currentUser.country;
+    if (!hasCountry) {
+        var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+        html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(247,147,26,0.03));border:1px dashed rgba(247,147,26,0.35);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;">';
+        html += '<span style="font-size:1.3rem;">📍</span>';
+        html += '<div style="flex:1;">';
+        html += '<div style="font-size:0.8rem;font-weight:700;color:var(--text);">Put your flag on the map!</div>';
+        html += '<div style="font-size:0.72rem;color:var(--text-muted);">Add your country and earn <span style="color:#22c55e;font-weight:700;">+100 XP</span> + the 🌍 Global Citizen badge.</div>';
+        html += '</div>';
+        if (isSignedIn) {
+            html += '<button onclick="if(typeof showSettings===\'function\')showSettings();setTimeout(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')},200)" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Add Country →</button>';
+        } else {
+            html += '<button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Sign In →</button>';
+        }
+        html += '</div>';
+    }
+
+    html += '</div>'; // card close
+    el.innerHTML = html;
+}
+
+function _fmt(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+}
+
+/* ───────────────── Refresh after profile save ───────────────── */
+// Hook into profile save — clear cache so map updates immediately
+var _origSaveProfile = null;
+document.addEventListener('btcProfileSaved', function() {
+    _mapCache = null;
+    _mapCacheTs = 0;
+    var el = document.getElementById('communityWorldMap');
+    if (el && el.offsetParent !== null) window.renderUserWorldMap();
+});
+
+})();
 (function() {
     window._sessionStart = window._sessionStart || Date.now();
 
@@ -32504,6 +32790,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         showContinueReading();
         // Refresh exploration map and daily quote
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
+        if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
         if (typeof renderDailyQuote === 'function') renderDailyQuote();
         if (typeof loadCommunityStats === 'function') loadCommunityStats();
         // Raid Boss home card
