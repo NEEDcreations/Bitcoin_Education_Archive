@@ -97,9 +97,12 @@ var COUNTRY_ISO = {
 
 function _flagImg(country, size) {
     var iso = COUNTRY_ISO[country];
-    if (!iso) return '<span style="font-size:1rem;">&#127988;</span>';
     var sz = size || 24;
-    return '<img src="https://flagcdn.com/w' + sz + '/' + iso + '.png" width="' + sz + '" alt="' + country + '" style="border-radius:2px;vertical-align:middle;" loading="lazy" onerror="this.style.display=\'none\'">';
+    if (!iso) {
+        var abbr = country.substring(0, 2).toUpperCase();
+        return '<span style="font-size:0.65rem;font-weight:700;color:var(--text-faint);display:inline-block;width:' + sz + 'px;text-align:center;">' + abbr + '</span>';
+    }
+    return '<img src="https://flagcdn.com/' + iso + '.svg" width="' + sz + '" height="' + Math.round(sz * 0.75) + '" alt="' + country + '" title="' + country + '" style="border-radius:2px;vertical-align:middle;display:inline-block;" onerror="this.outerHTML=\'<span style=font-size:0.65rem;font-weight:700>' + iso.toUpperCase() + '</span>\'">';
 }
 
 /* ───────────────── Cache ───────────────── */
@@ -184,16 +187,12 @@ function _renderMap(el, counts) {
 
     // ── Header ──
     var html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:16px;">';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">';
-    html += '<div style="font-weight:700;font-size:0.95rem;color:var(--text);">🌍 Bitcoin is Global</div>';
-    html += '</div>';
-    html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;">Bitcoin is Global and so is our userbase</div>';
-    html += '<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;">'
-    html += '<div style="font-size:0.8rem;color:var(--text-muted);">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">';
+    html += '<div style="font-size:0.95rem;color:var(--text);">🌍 <span style="font-weight:700;">Bitcoin is Global</span> <span style="font-weight:400;">and so is our userbase</span></div>';
+    html += '<div style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;">';
     html += '<span style="color:var(--accent);font-weight:700;">' + countriesReached + '</span>';
-    html += '<span style="color:var(--text-faint)"> / ' + TOTAL_COUNTRIES + ' countries</span>';
+    html += '<span style="color:var(--text-faint);"> / ' + TOTAL_COUNTRIES + ' countries</span>';
     html += '</div></div>';
-
     // ── Progress bar: countries reached ──
     var pct = Math.min(100, Math.round((countriesReached / TOTAL_COUNTRIES) * 100));
     html += '<div style="margin-bottom:14px;">';
