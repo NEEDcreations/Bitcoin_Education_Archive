@@ -460,11 +460,18 @@ window.showUserProfile = function(uid) {
 
         var badgesHtml = '';
         if (displayBadge) {
-            // Find emoji for selected badge
+            // Find emoji for selected badge — check BADGE_DEFS first, then HIDDEN_BADGES
             var badgeEmoji = displayBadge;
-            if (typeof HIDDEN_BADGES !== 'undefined' && displayBadge.length > 5) {
-                var badgeDef = HIDDEN_BADGES.find(b => b.id === displayBadge);
-                if (badgeDef) badgeEmoji = badgeDef.emoji;
+            var _allBadges = [].concat(
+                (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : []),
+                (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : [])
+            );
+            var badgeDef = _allBadges.find(function(b) { return b.id === displayBadge; });
+            if (badgeDef) {
+                badgeEmoji = badgeDef.emoji;
+            } else if (!/^\p{Emoji}/u.test(displayBadge)) {
+                // Raw badge ID with no emoji found — hide it rather than show ugly ID text
+                badgeEmoji = '';
             }
             badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;">' + badgeEmoji + ' <span style="font-size:1.8rem;opacity:0.6;vertical-align:middle;">' + lvl.emoji + '</span></div>';
         } else {
