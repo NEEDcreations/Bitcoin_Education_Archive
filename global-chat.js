@@ -3198,6 +3198,11 @@ if (localStorage.getItem('hasUsedChat')) {
 // ---- Lookup User by Username (for clickable @mentions) ----
 window.lookupUserByName = function(username) {
     if (!username) return;
+    // Nacho shortcut
+    if (username.toLowerCase() === 'nacho' || username === '🦌 Nacho') {
+        if (typeof showUserProfile === 'function') showUserProfile('nacho-bot');
+        return;
+    }
     if (typeof db === 'undefined' || !db) {
         if (typeof showToast === 'function') showToast('Loading...');
         return;

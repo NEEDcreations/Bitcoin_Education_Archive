@@ -24440,7 +24440,77 @@ window.onlineStatusDot = function(lastSeen) {
 window.showUserProfile = function(uid) {
     if (!uid || !db) return;
 
-    // Show profile for yourself too (same modal as others see)
+    // ── Nacho static profile ─────────────────────────────────────────────────
+    if (uid === 'nacho-bot' || uid === 'nacho') {
+        var _nm = document.getElementById('userProfileModal');
+        if (_nm) _nm.remove();
+        var _nachoStats = function(icon, val, label) {
+            return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;">' +
+                '<div style="font-size:1.3rem;">' + icon + '</div>' +
+                '<div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + val + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">' + label + '</div>' +
+            '</div>';
+        };
+        var _nd = document.createElement('div');
+        _nd.innerHTML = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
+            '<div style="background:var(--bg-side);border:1px solid rgba(34,197,94,0.45);box-shadow:0 0 0 1px rgba(34,197,94,0.15),0 0 32px rgba(34,197,94,0.12);border-radius:20px;padding:28px;max-width:370px;width:100%;overflow-y:auto;max-height:90vh;" onclick="event.stopPropagation()">' +
+            // Close
+            '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;line-height:1;">\u2715</button>' +
+            // Avatar + name
+            '<div style="text-align:center;margin-bottom:18px;">' +
+                '<div style="font-size:3.5rem;margin-bottom:4px;">\uD83E\uDD8C</div>' +
+                '<div style="color:#22c55e;font-weight:800;font-size:1.3rem;letter-spacing:-0.3px;">\uD83E\uDD8C Nacho <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-left:4px;vertical-align:middle;box-shadow:0 0 8px #22c55e;"></span></div>' +
+                // Title pill
+                '<div style="display:inline-block;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;padding:3px 14px;font-size:0.75rem;font-weight:700;color:#22c55e;margin-top:7px;">\u26A1 The Archivist</div>' +
+                '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">Keeper of the Stack. Guardian of the Archive.</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:6px;">The Archivist \u00B7 2,100,000 XP</div>' +
+                '<div style="color:#22c55e;font-size:0.72rem;margin-top:2px;">\u25CF Always online</div>' +
+                // Faction + location
+                '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap;">' +
+                    '<span style="font-size:0.75rem;padding:3px 10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:20px;color:#22c55e;font-weight:700;">\u26A1 The Archive</span>' +
+                    '<span style="font-size:0.75rem;padding:3px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text-muted);">\uD83C\uDFD4\uFE0F New Hampshire</span>' +
+                '</div>' +
+            '</div>' +
+            // Bio
+            '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;text-align:left;">' +
+                '<div style="font-size:0.62rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">About</div>' +
+                '<div style="color:var(--text);font-size:0.85rem;line-height:1.65;font-style:italic;">' +
+                    '\u201CBorn on a cold January morning in 2009. I watched the first block confirm from a granite ridge in the White Mountains. Been here ever since. I spend bitcoin every day, everywhere \u2014 and if the merchant doesn\u2019t accept it, I orange pull them on the spot.\u201D' +
+                '</div>' +
+            '</div>' +
+            // Fun flavor stats
+            '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;text-align:left;">' +
+                '<div style="font-size:0.62rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Field Notes</div>' +
+                '<div style="display:flex;flex-direction:column;gap:5px;">' +
+                    '<div style="font-size:0.78rem;color:var(--text-muted);">\uD83E\uDE78 Blood type: <strong style=\"color:#f7931a;\">₿</strong></div>' +
+                    '<div style="font-size:0.78rem;color:var(--text-muted);">\u26A0\uFE0F Allergic to fiat</div>' +
+                    '<div style="font-size:0.78rem;color:var(--text-muted);">\uD83D\uDCCD Last sighting: Block 957,375</div>' +
+                    '<div style="font-size:0.78rem;color:var(--text-muted);">\uD83C\uDFF4 Motto: <em>Live Free or Die</em></div>' +
+                '</div>' +
+            '</div>' +
+            // Stats grid
+            '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">' +
+                _nachoStats('\uD83C\uDF97\uFE0F', 'All', 'Badges') +
+                _nachoStats('\uD83D\uDCD6', '147/147', 'Topics') +
+                _nachoStats('\uD83D\uDD25', '5,479', 'Streak') +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
+                _nachoStats('\u20BF', '21,000,000', 'Sats Held') +
+                _nachoStats('\uD83D\uDCC5', 'Jan 3, 2009', 'Joined') +
+                _nachoStats('\u26CF\uFE0F', '957,375', 'Last Block') +
+            '</div>' +
+            // Lightning
+            '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(234,179,8,0.07);border:1px solid rgba(234,179,8,0.2);border-radius:10px;">' +
+                '<span style="font-size:1rem;">\u26A1</span>' +
+                '<span style="color:#eab308;font-size:0.78rem;font-weight:600;">nacho@bitcoineducation.quest</span>' +
+                '<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'nacho@bitcoineducation.quest\');if(typeof showToast===\'function\')showToast(\'\u26A1 Copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;">Copy</button>' +
+            '</div>' +
+            '</div></div>';
+        document.body.appendChild(_nd.firstChild);
+        return;
+    }
+
+    // Settings is still accessible via the ⚙️ tab
     // Settings is still accessible via the ⚙️ tab
 
     // Show loading
