@@ -24098,7 +24098,7 @@ var MSG_CONFIG = {
     presenceInterval: 60 * 1000,        // Update presence every 60s
     maxMsgLength: 500,                  // Max characters per message
     maxMsgsPerHour: 30,                 // Rate limit
-    maxConvoHistory: 100,               // Max messages loaded per conversation
+    maxConvoHistory: 500,               // Max messages loaded per conversation
     unreadPollInterval: 30 * 1000,      // Check unread every 30s
     maxNewConvosPerDay: 5,              // Max NEW unique recipients per day (anti-blast)
     newAccountCooldownMs: 24 * 60 * 60 * 1000, // 24h before new accounts can DM
@@ -25446,12 +25446,11 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     }).then(function() {
         return convoRef.collection('messages').add(msgData);
     }).then(function() {
-        // Re-subscribe the listener now that the conversation doc exists.
-        // This handles the case where the initial onSnapshot errored on a
-        // new conversation (Firestore rules need the conversation doc to
-        // exist for read access). The listener will replace optimistic
-        // messages with the real Firestore data.
-        if (container && document.getElementById('dmMessages')) {
+        // Only re-subscribe if the listener isn't already active (e.g. new conversation
+        // where the initial onSnapshot errored on permissions before the doc existed).
+        // For existing conversations the live onSnapshot picks up the new message automatically.
+        // Re-subscribing on every send wipes the container and misses messages beyond the limit.
+        if (container && document.getElementById('dmMessages') && !window._dmUnsubscribe) {
             loadDMMessages(convoId, myUid, recipientUid, recipientName);
         }
         var _dmc = parseInt(localStorage.getItem('btc_dms_sent') || '0'); localStorage.setItem('btc_dms_sent', String(_dmc + 1));
