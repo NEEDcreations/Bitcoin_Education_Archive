@@ -1341,6 +1341,7 @@ function loadUserLocal(uid) {
     updateAuthButton();
     if (typeof renderProgressRings === 'function') renderProgressRings();
     if (typeof renderExplorationMap === 'function') renderExplorationMap();
+    if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
     startReadTimer();
 }
 
@@ -1593,6 +1594,7 @@ async function loadUser(uid, prefetchedDoc) {
 
         // Refresh exploration map and home page elements
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
+        if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
         if (typeof showContinueReading === 'function') showContinueReading();
 
         // Update auth button text if signed in with a provider
@@ -2289,6 +2291,7 @@ async function onChannelOpen(channelId) {
 
         // Update exploration map + toast
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
+        if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
         if (typeof showToast === 'function') {
             const totalCh = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
             const pct = Math.round((allTimeChannels.size / totalCh) * 100);
