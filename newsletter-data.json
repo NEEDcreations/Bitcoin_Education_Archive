@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-10T16:00:50.005Z",
+  "updated": "2026-07-10T20:00:54.217Z",
   "news": [
+    {
+      "date": "Jul 10, 2026",
+      "title": "Larry Fink TITLE:  Larry Fink Now Controls 700,000 Bitcoin, Remember Who He Is",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/LrBAl1dNnfI",
+      "source": "lukemikic"
+    },
     {
       "date": "Jul 10, 2026",
       "title": "Metaplanet Announces Joint Study to Bring Bitcoin-Backed Digital Credit to Japan",
@@ -14,13 +21,6 @@
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/bitcoin-screaming-buy-standard-chartered",
       "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 10, 2026",
-      "title": "Bitcoin Has RULES, Not Rulers, Never Forget That",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/mmbBzXvKsJk",
-      "source": "lukemikic"
     }
   ]
 }
