@@ -471,18 +471,18 @@ window.showUserProfile = function(uid) {
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">' +
                 _nachoStats('\uD83C\uDF97\uFE0F', 'All', 'Badges') +
                 _nachoStats('\uD83D\uDCD6', '147/147', 'Topics') +
-                _nachoStats('\uD83D\uDD25', '5,479', 'Streak') +
+                _nachoStats('\uD83D\uDD25', (Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000)).toLocaleString(), 'Streak') +
             '</div>' +
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 _nachoStats('\u20BF', '21,000,000', 'Sats Held') +
                 _nachoStats('\uD83D\uDCC5', 'Jan 3, 2009', 'Joined') +
-                _nachoStats('\u26CF\uFE0F', '957,375', 'Last Block') +
+                _nachoStats('\u26CF\uFE0F', (window._btcPriceCache && window._btcPriceCache.blockHeight ? Number(window._btcPriceCache.blockHeight).toLocaleString() : Number(localStorage.getItem('btc_last_height') || 957377).toLocaleString()), 'Last Block') +
             '</div>' +
             // Lightning
             '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(234,179,8,0.07);border:1px solid rgba(234,179,8,0.2);border-radius:10px;">' +
                 '<span style="font-size:1rem;">\u26A1</span>' +
-                '<span style="color:#eab308;font-size:0.78rem;font-weight:600;">nacho@bitcoineducation.quest</span>' +
-                '<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'nacho@bitcoineducation.quest\');if(typeof showToast===\'function\')showToast(\'\u26A1 Copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;">Copy</button>' +
+                '<span style="color:#eab308;font-size:0.78rem;font-weight:600;">spontaneousleopard54@zeuspay.com</span>' +
+                '<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'spontaneousleopard54@zeuspay.com\');if(typeof showToast===\'function\')showToast(\'\u26A1 Copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;">Copy</button>' +
             '</div>' +
             '</div></div>';
         document.body.appendChild(_nd.firstChild);
