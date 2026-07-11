@@ -1383,7 +1383,7 @@
                 'position:fixed',
                 'bottom:145px',              // above mobile bottom nav + FAB row
                 'right:14px',
-                'z-index:9000',
+                'z-index:100003',   // must be above PVP overlay (100002) and all other overlays
                 'display:flex',
                 'flex-direction:column',
                 'align-items:center',
