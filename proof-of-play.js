@@ -428,9 +428,91 @@ window._popSwitchTab = function(tab) {
 };
 
 window._popLaunchGame = function(url, title) {
-    if (typeof showToast === 'function') showToast('🎮 Launching ' + title + '...');
-    if (typeof awardPoints === 'function') awardPoints(5, '🎮 Proof of Play: ' + title);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    if (typeof awardPoints === 'function') awardPoints(5, '\uD83C\uDFAE Proof of Play: ' + title);
+
+    // Open a full-screen in-app game overlay with the game in an iframe.
+    // timechainarcade.com sets X-Frame-Options: SAMEORIGIN which blocks cross-origin iframes.
+    // We attempt the iframe and fall back to a styled "open in tab" prompt if it gets blocked.
+    var existing = document.getElementById('popGameOverlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'popGameOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:500000;background:#000;display:flex;flex-direction:column;';
+
+    // Top bar
+    var bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0a0a0a;border-bottom:1px solid #222;flex-shrink:0;';
+    bar.innerHTML =
+        '<button onclick="document.getElementById(\'popGameOverlay\').remove()" style="background:none;border:1px solid #333;color:#aaa;width:36px;height:36px;border-radius:8px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;touch-action:manipulation;">←</button>' +
+        '<div style="flex:1;font-size:0.9rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (typeof escapeHtml === 'function' ? escapeHtml(title) : title) + '</div>' +
+        '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="background:none;border:1px solid #444;color:#aaa;padding:6px 10px;border-radius:8px;font-size:0.72rem;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;flex-shrink:0;">⧉ Full Tab</a>';
+
+    // iframe wrapper
+    var iframeWrap = document.createElement('div');
+    iframeWrap.style.cssText = 'flex:1;position:relative;overflow:hidden;';
+
+    var iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('allow', 'fullscreen; autoplay; payment');
+    iframe.setAttribute('loading', 'eager');
+
+    // Fallback: if iframe is blocked (SAMEORIGIN), show a prompt after a short delay
+    var _blocked = false;
+    var _fallbackTimer = setTimeout(function() {
+        // Check if iframe navigated at all; if contentDocument is inaccessible and src unchanged, assume blocked
+        try {
+            // This throws if cross-origin blocked; if it didn't navigate, location.href is 'about:blank'
+            var loc = iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.href;
+            if (!loc || loc === 'about:blank') _blocked = true;
+        } catch(e) {
+            // Cross-origin access denied = page loaded (good) or blocked (bad)
+            // If we get a SecurityError, the iframe has content — it loaded!
+            _blocked = false;
+        }
+        if (_blocked) _showFallback();
+    }, 3000);
+
+    iframe.onload = function() {
+        clearTimeout(_fallbackTimer);
+        try {
+            // If SAMEORIGIN blocked, location.href will be empty or throw
+            var loc = iframe.contentWindow.location.href;
+            if (!loc || loc === 'about:blank') _showFallback();
+        } catch(e) {
+            // SecurityError = loaded cross-origin content = actually good!
+        }
+    };
+
+    function _showFallback() {
+        if (document.getElementById('popGameFallback')) return;
+        iframeWrap.style.display = 'none';
+        var fb = document.createElement('div');
+        fb.id = 'popGameFallback';
+        fb.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;background:#0a0a10;';
+        fb.innerHTML =
+            '<div style="font-size:3rem;margin-bottom:12px;">🎮</div>' +
+            '<div style="font-size:1.1rem;font-weight:800;color:#fff;margin-bottom:8px;">' + (typeof escapeHtml === 'function' ? escapeHtml(title) : title) + '</div>' +
+            '<div style="font-size:0.82rem;color:#888;line-height:1.6;margin-bottom:24px;max-width:320px;">This game can\'t be embedded in-app due to the platform\'s security policy.<br>Tap below to play in your browser — tap Back when done.</div>' +
+            '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="padding:14px 32px;background:#f7931a;color:#000;border-radius:14px;font-size:1rem;font-weight:800;text-decoration:none;display:inline-block;">\u25B6 Play Now</a>';
+        overlay.appendChild(fb);
+    }
+
+    iframeWrap.appendChild(iframe);
+    overlay.appendChild(bar);
+    overlay.appendChild(iframeWrap);
+    document.body.appendChild(overlay);
+
+    // Back-button support
+    history.pushState({ popGame: title }, '', window.location.pathname + window.location.hash);
+    var _popGamePopstate = function() {
+        var el = document.getElementById('popGameOverlay');
+        if (el) el.remove();
+        window.removeEventListener('popstate', _popGamePopstate);
+    };
+    window.addEventListener('popstate', _popGamePopstate);
 };
 
 window._popEnterPVP = function() {
