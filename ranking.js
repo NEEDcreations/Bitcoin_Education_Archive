@@ -6239,13 +6239,36 @@ window.hideUsernamePrompt = function() {
 // Returns true if the given username (case-insensitive) is already taken by someone other than excludeUid.
 async function isUsernameTaken(username, excludeUid) {
     try {
+        var lowerName = username.toLowerCase();
+        // Primary check: username_lower field (indexed, fast)
         var snap = await db.collection('users')
-            .where('username_lower', '==', username.toLowerCase())
-            .limit(2)
+            .where('username_lower', '==', lowerName)
+            .limit(5)
             .get();
-        if (snap.empty) return false;
-        // Allow if the only match is the user themselves
-        if (snap.docs.length === 1 && snap.docs[0].id === excludeUid) return false;
+        // Also check case-insensitive against the username field for legacy users
+        // who were created before username_lower was added
+        var snapOrig = await db.collection('users')
+            .where('username', '==', username)
+            .limit(5)
+            .get();
+        // Merge both result sets (de-dupe by doc id)
+        var allDocs = {};
+        snap.docs.forEach(function(d) { allDocs[d.id] = d; });
+        snapOrig.docs.forEach(function(d) { allDocs[d.id] = d; });
+        var ids = Object.keys(allDocs);
+        if (ids.length === 0) return false;
+        // Allow if the only match is the requesting user themselves
+        var others = ids.filter(function(id) { return id !== excludeUid; });
+        if (others.length === 0) return false;
+        // Backfill username_lower for any legacy doc that's missing it
+        others.forEach(function(id) {
+            var d = allDocs[id].data();
+            if (!d.username_lower && d.username) {
+                db.collection('users').doc(id)
+                  .update({ username_lower: d.username.toLowerCase() })
+                  .catch(function() {});
+            }
+        });
         return true;
     } catch(e) {
         console.warn('[isUsernameTaken] query failed:', e);
