@@ -701,6 +701,20 @@ window.showUserProfile = function(uid) {
     });
 };
 
+// Look up a user profile by username (for leaderboards that store username but not uid)
+window.showUserProfileByUsername = function(username) {
+    if (!username || typeof db === 'undefined') return;
+    db.collection('users').where('username', '==', username).limit(1).get().then(function(snap) {
+        if (snap.empty) {
+            if (typeof showToast === 'function') showToast('Profile not found for @' + username);
+            return;
+        }
+        window.showUserProfile(snap.docs[0].id);
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('Could not load profile for @' + username);
+    });
+};
+
 // Tip button handler for user profile modal — avoids inline onclick escaping hell
 window._tipFromProfile = function() {
     var data = window._profileTipData;

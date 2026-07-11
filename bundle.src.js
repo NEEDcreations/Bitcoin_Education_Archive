@@ -15292,7 +15292,7 @@ function _renderTopHashesHTML(entries) {
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
-                    '<span style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';">' + name + (isMe ? ' (you)' : '') + badges + '</span>' +
+                    (function(){ var _safeU = (e.username||'').replace(/'/g,''); return '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeU+'\')" style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View @'+name+'\'s profile">' + name + (isMe ? ' (you)' : '') + badges + '</span>'; })() +
                 '</div>' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" ' +
@@ -15403,14 +15403,25 @@ function _loadLastSFWindow() {
         var hadWinner = d.lowestHash != null && d.lowestHash < _windowTarget;
         // winner field added 2026-06-30; fall back to topHashes lookup for old windows
         var winnerName = (d.winner && d.winner.username) ? d.winner.username : (hadWinner ? null : null);
+        var winnerUid = (d.winner && d.winner.uid) ? d.winner.uid : null;
         var lowestColor = hadWinner ? '#f7931a' : '#22c55e';
         // Build winner banner — if we have a winner hash but no name, look up via topHashes
-        function _renderWinnerBanner(name) {
+        function _renderWinnerBanner(name, winnerUid) {
             var display = name ? '@' + escapeHtml(name) : '🏆 Winner';
-            return '<div data-winner-banner style="margin-top:8px;padding:8px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,179,8,0.08));border:1px solid rgba(247,147,26,0.4);border-radius:8px;display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem">🏆</span><span style="font-size:0.75rem;font-weight:700;color:#f7931a;">' + display + ' — ' + (d.lowestHash || 0).toLocaleString() + '</span></div>';
+            var baseStyle = 'font-size:0.75rem;font-weight:700;color:#f7931a;';
+            var clickHandler = '';
+            if (winnerUid) {
+                clickHandler = 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+winnerUid+'\')"';
+                baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
+            } else if (name) {
+                var _safeName = escapeHtml(name).replace(/'/g, '');
+                clickHandler = 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeName+'\')"';
+                baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
+            }
+            return '<div data-winner-banner style="margin-top:8px;padding:8px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,179,8,0.08));border:1px solid rgba(247,147,26,0.4);border-radius:8px;display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem">🏆</span><span ' + clickHandler + ' style="' + baseStyle + '">' + display + ' — ' + (d.lowestHash || 0).toLocaleString() + '</span></div>';
         }
         var winnerBanner = hadWinner
-            ? _renderWinnerBanner(winnerName)
+            ? _renderWinnerBanner(winnerName, winnerUid)
             : '<div style="margin-top:8px;padding:6px 10px;background:var(--bg-side);border-radius:8px;font-size:0.72rem;color:var(--text-faint);text-align:center;">No winner this window (target: &lt;' + _windowTarget.toLocaleString() + ')</div>';
         el.innerHTML =
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
@@ -24805,6 +24816,20 @@ window.showUserProfile = function(uid) {
         var modal = document.getElementById('userProfileModal');
         if (modal) modal.remove();
         if (typeof showToast === 'function') showToast('Could not load profile [' + uid + ']: ' + (err.message || 'permission error'));
+    });
+};
+
+// Look up a user profile by username (for leaderboards that store username but not uid)
+window.showUserProfileByUsername = function(username) {
+    if (!username || typeof db === 'undefined') return;
+    db.collection('users').where('username', '==', username).limit(1).get().then(function(snap) {
+        if (snap.empty) {
+            if (typeof showToast === 'function') showToast('Profile not found for @' + username);
+            return;
+        }
+        window.showUserProfile(snap.docs[0].id);
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('Could not load profile for @' + username);
     });
 };
 
