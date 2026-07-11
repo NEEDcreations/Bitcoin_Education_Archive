@@ -31010,7 +31010,7 @@ document.addEventListener('btcProfileSaved', function() {
         if (existing) existing.remove();
         var modal = document.createElement('div');
         modal.id = 'donateModal';
-        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:flex-start;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:260000;display:flex;align-items:flex-start;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
         var lnAddr = 'spontaneousleopard54@zeuspay.com';
         var qrUrl = _donateQRDataUri || 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=lightning:' + lnAddr;
         
