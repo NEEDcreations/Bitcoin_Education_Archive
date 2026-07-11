@@ -6683,6 +6683,37 @@ exports.raidBossWeeklyAnnouncement = onSchedule(
   }
 );
 
+// ===== PVP LOBBY CLEANUP =====
+// Runs every 10 minutes. Deletes pvp_lobby docs whose lastSeen is older than
+// 60 seconds (2x the client heartbeat interval of 5s, well beyond the 30s
+// stale threshold). Prevents stale lobby docs from blocking matchmaking.
+exports.cleanupExpiredLobbies = functions.pubsub.schedule('every 60 minutes').timeZone('UTC').onRun(async (ctx) => {
+    const STALE_MS = 60 * 1000; // 60 seconds
+    const cutoff = Date.now() - STALE_MS;
+    try {
+        const snap = await db.collection('pvp_lobby').get();
+        const batch = db.batch();
+        let count = 0;
+        snap.forEach(doc => {
+            const d = doc.data();
+            // Delete if: no lastSeen, OR lastSeen is stale
+            if (!d.lastSeen || d.lastSeen < cutoff) {
+                batch.delete(doc.ref);
+                count++;
+            }
+        });
+        if (count > 0) {
+            await batch.commit();
+            console.log('[PVP CLEANUP] Deleted', count, 'stale lobby docs');
+        } else {
+            console.log('[PVP CLEANUP] No stale lobby docs found');
+        }
+    } catch (e) {
+        console.error('[PVP CLEANUP] Error:', e.message);
+    }
+    return null;
+});
+
 // ===== COUNTRY STATS AGGREGATION =====
 // Fires when a user document is written. If country changed, updates stats/countries
 // with atomic increments so the world map always has fresh data.
