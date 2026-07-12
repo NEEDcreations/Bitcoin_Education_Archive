@@ -979,16 +979,22 @@
                 <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" onclick="showUsernamePrompt()"></div>
                 <!-- Quest Guide Banner — always visible, collapsible -->
                 <div id="questGuideBanner" style="margin-bottom:16px;max-width:500px;margin-left:auto;margin-right:auto;">
-                    <div id="questGuideFull" onclick="if(typeof showGuide==='function')showGuide()" style="padding:16px 18px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(168,85,247,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:16px;cursor:pointer;transition:all 0.2s;position:relative;" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)';this.style.boxShadow='0 4px 20px rgba(99,102,241,0.15)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.25)';this.style.boxShadow='none'">
-                        <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='none';document.getElementById('questGuideMini').style.display='flex';localStorage.setItem('btc_guide_collapsed','1')" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;opacity:0.6;">▲ hide</button>
-                        <div style="display:flex;align-items:center;gap:14px;">
-                            <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(168,85,247,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📜</div>
-                            <div style="flex:1;min-width:0;">
-                                <div style="font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;">Your Quest Begins</div>
-                                <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">Everything you can do — how to earn XP, unlock apps, and level up. Tap to open the full guide.</div>
+                    <div id="questGuideFull" style="display:flex;gap:8px;align-items:stretch;">
+                        <div onclick="if(typeof showGuide==='function')showGuide()" style="flex:1;padding:16px 18px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(168,85,247,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:16px;cursor:pointer;transition:all 0.2s;position:relative;" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)';this.style.boxShadow='0 4px 20px rgba(99,102,241,0.15)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.25)';this.style.boxShadow='none'">
+                            <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='none';document.getElementById('questGuideMini').style.display='flex';localStorage.setItem('btc_guide_collapsed','1')" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;opacity:0.6;">▲ hide</button>
+                            <div style="display:flex;align-items:center;gap:14px;">
+                                <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(168,85,247,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📜</div>
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;">Your Quest Begins</div>
+                                    <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">Everything you can do — how to earn XP, unlock apps, and level up. Tap to open the full guide.</div>
+                                </div>
+                                <div style="color:var(--accent);font-size:1.2rem;flex-shrink:0;">→</div>
                             </div>
-                            <div style="color:var(--accent);font-size:1.2rem;flex-shrink:0;">→</div>
                         </div>
+                        <button onclick="if(typeof showFAQ==='function')showFAQ()" style="flex-shrink:0;width:56px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,179,8,0.06));border:1px solid rgba(247,147,26,0.3);border-radius:16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='rgba(247,147,26,0.6)';this.style.boxShadow='0 4px 16px rgba(247,147,26,0.15)'" onmouseout="this.style.borderColor='rgba(247,147,26,0.3)';this.style.boxShadow='none'" title="FAQ — Frequently Asked Questions">
+                            <span style="font-size:1.3rem;">❓</span>
+                            <span style="font-size:0.6rem;font-weight:800;color:var(--accent);letter-spacing:0.5px;">FAQ</span>
+                        </button>
                     </div>
                     <div id="questGuideMini" onclick="if(typeof showGuide==='function')showGuide()" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor='rgba(99,102,241,0.4)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.15)'">
                         <span style="font-size:1.1rem;">📜</span>

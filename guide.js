@@ -248,6 +248,7 @@
     console.log('[GUIDE] Quest guide module loaded');
 })();
 
+
 // ---- Scroll-reactive animations for Guide ----
 (function() {
     var animStyle = document.createElement('style');
@@ -377,4 +378,65 @@
         if (typeof goHome === 'function') goHome();
         setTimeout(function() { if (typeof showGuide === 'function') showGuide(); }, 400);
     };
+
+    // ---- FAQ Modal ----
+    window.showFAQ = function() {
+        var existing = document.getElementById('faqOverlay');
+        if (existing) { existing.remove(); return; }
+
+        var faqs = [
+            { q: 'What is this app for?', a: 'Bitcoin Education Archive is a free platform with 146+ organized channels of Bitcoin knowledge. Read content, earn XP, unlock mini-apps, and stack real sats (bitcoin) just by learning. Built for everyone — total beginners to hardcore Bitcoiners.' },
+            { q: 'Do I need to sign up?', a: 'No! You can start reading and earning XP immediately without an account. Creating a free account lets you save your progress, appear on the leaderboard, receive Lightning tips from other users, and withdraw earned sats to your wallet.' },
+            { q: 'Where do I start?', a: 'Tap any channel in the sidebar to start reading. Beginners: try "One-Stop Shop" or "Why Bitcoin?" first. You can also tap "Your Quest Begins" above for a full walkthrough, or let Nacho (the deer in the corner) guide you with a 5-step quest.' },
+            { q: 'How do I earn XP and sats?', a: 'You earn XP by reading channels (25 XP each), completing daily quizzes (+10 XP per correct answer), spinning the daily wheel, winning PVP trivia matches, logging streaks, earning badges, participating in Global Chat, and more. XP converts to sats: 1,000 XP = 100 sats, redeemable to your Lightning wallet.' },
+            { q: 'How do I withdraw my sats?', a: 'Add a Lightning address to your profile (Settings → Profile → Lightning Address). Once you have enough sats accumulated, go to Settings → Wallet to initiate a withdrawal. You need a Lightning wallet — popular options include Wallet of Satoshi, Phoenix, or Zeus. Your Lightning address also lets other users tip you directly.' },
+            { q: 'What is a Lightning address?', a: 'A Lightning address looks like an email (e.g. you@walletofsatoshi.com) but it\'s actually a Bitcoin payment address on the Lightning Network. It lets anyone send you instant, near-free sats. You get one when you sign up with a Lightning-compatible wallet like Wallet of Satoshi, Phoenix, Alby, or Zeus.' },
+            { q: 'What is hashing / Satoshi\'s Favor?', a: 'Hashing is the process Bitcoin miners use to secure the network — computers guess billions of numbers per second trying to find a special one below a target value. In our app, you can try this yourself! Each attempt generates a random number; if it\'s below the difficulty target, you win the Satoshi\'s Favor window and earn 21,000 sats. It resets every window.' },
+            { q: 'What is Satoshi\'s Favor all about?', a: 'Satoshi\'s Favor (SF) is our in-app hashing game. A window opens periodically and users compete to find the lowest hash. The player who mines the lowest hash value below the difficulty target wins 21,000 sats sent directly to their Lightning address. It teaches you how Bitcoin proof-of-work mining actually feels — while giving you a real shot at winning bitcoin.' },
+            { q: 'What is PVP Battle?', a: 'PVP (Player vs Player) lets you challenge other users to live Bitcoin trivia duels. Both players answer the same questions simultaneously — fastest and most accurate wins. It\'s a real-time head-to-head match. You earn points and badges for wins.' },
+            { q: 'What are Orange Tickets?', a: 'Orange Tickets are earned by completing special actions (hosting IRL events, winning PVP streaks, daily spins, etc). You can spend them in the Ticket Redemption store for XP boosts, hint tokens, streak freezes, and bonus spins.' },
+            { q: 'What are ranks and how do I level up?', a: 'Your rank is based on your total XP. Starting at Pleb, you progress through Hodler, Stacker, Satoshi\'s Student, Lightning Node, Full Node, and all the way up to Whale and Bitcoin Legend. Each rank unlocks new features and apps.' },
+            { q: 'What mini-apps are in the Archive?', a: 'The Archive has 7 built-in apps: Timechain TV (Bitcoin video streaming), Bitcoin Beats (music by Bitcoiners), PVP Battle (trivia duels), Proof of Play (Lightning-powered arcade games), Nacho Q&A (AI Bitcoin tutor), Quest Hub (quizzes, trails, Scholar certification), and IRL Sync (local Bitcoin meetups).' },
+            { q: 'What is Nacho?', a: 'Nacho is your AI Bitcoin guide — a friendly deer who lives in the corner of the app. Tap Nacho to ask any Bitcoin question in plain English. Nacho has a database of 500+ curated Bitcoin answers and can explain anything from "What is a private key?" to "How does the Lightning Network work?"' },
+            { q: 'What is the Scholar Certification?', a: 'Scholar Certification is a timed exam covering Bitcoin fundamentals — mining, wallets, Lightning, security, and more. Pass with 80%+ to earn your certificate, a special badge, bonus XP, and Orange Tickets. Access it from Quest Hub once you\'ve reached a sufficient rank.' },
+            { q: 'Is this app free?', a: 'Yes — 100% free, forever. No subscriptions, no ads, no paywalls. The sats you earn are real bitcoin. The app is supported by community donations. You can donate at the ⚡ lightning button at the top of the home screen.' },
+            { q: 'Is my data safe?', a: 'Your progress is stored securely in Firebase (Google Cloud). We do not sell your data, run ads, or use tracking cookies. Your Lightning wallet details never leave your device except to process tip/withdrawal transactions you initiate. See our full privacy policy in Settings.' }
+        ];
+
+        var overlay = document.createElement('div');
+        overlay.id = 'faqOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:260000;background:rgba(0,0,0,0.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;padding:0;animation:faqFadeIn 0.25s ease-out;';
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+        var sheet = document.createElement('div');
+        sheet.style.cssText = 'background:var(--bg,#0a0a0f);border:1px solid var(--border);border-bottom:none;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.6);';
+
+        // Header
+        var header = '<div style="display:flex;align-items:center;gap:12px;padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">' +
+            '<div style="width:40px;height:40px;border-radius:12px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.25);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">❓</div>' +
+            '<div style="flex:1;"><div style="font-size:1.05rem;font-weight:800;color:var(--heading);">Frequently Asked Questions</div>' +
+            '<div style="font-size:0.72rem;color:var(--text-faint);margin-top:1px;">Tap a question to expand the answer</div></div>' +
+            '<button onclick="document.getElementById(\'faqOverlay\').remove()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:10px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;touch-action:manipulation;">✕</button>' +
+            '</div>';
+
+        // FAQ items
+        var itemsHtml = '<div style="overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;padding:12px 16px 24px;">';
+        faqs.forEach(function(item, idx) {
+            var id = 'faqItem' + idx;
+            var aid = 'faqAns' + idx;
+            itemsHtml += '<div id="' + id + '" style="border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden;transition:border-color 0.2s;">' +
+                '<button onclick="(function(){var a=document.getElementById(\'' + aid + '\');var open=a.style.display!==\'none\';a.style.display=open?\'none\':\'block\';document.getElementById(\'' + id + '\').style.borderColor=open?\'var(--border)\':\'rgba(247,147,26,0.4)\';this.querySelector(\'span.faq-arrow\').textContent=open?\'▼\':\'▲\';})()" style="width:100%;display:flex;align-items:center;gap:10px;padding:14px 16px;background:none;border:none;cursor:pointer;text-align:left;font-family:inherit;touch-action:manipulation;">' +
+                '<span style="font-size:0.85rem;font-weight:700;color:var(--heading);flex:1;line-height:1.4;">' + item.q + '</span>' +
+                '<span class="faq-arrow" style="color:var(--text-faint);font-size:0.65rem;flex-shrink:0;margin-left:4px;">▼</span></button>' +
+                '<div id="' + aid + '" style="display:none;padding:0 16px 14px;font-size:0.82rem;color:var(--text-muted);line-height:1.65;border-top:1px solid var(--border);">' +
+                '<div style="padding-top:10px;">' + item.a + '</div></div>' +
+                '</div>';
+        });
+        itemsHtml += '</div>';
+
+        sheet.innerHTML = '<style>@keyframes faqFadeIn{from{opacity:0}to{opacity:1}}</style>' + header + itemsHtml;
+        overlay.appendChild(sheet);
+        document.body.appendChild(overlay);
+    };
+
 })();
