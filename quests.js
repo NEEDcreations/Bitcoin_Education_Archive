@@ -3009,7 +3009,7 @@ window.showQuestHub = function() {
     var _qhAlign = window.innerWidth <= 900 ? 'flex-start' : 'center';
     var _qhPad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px'; // bottom padding clears nav+FABs on mobile
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + _qhAlign + ';justify-content:center;backdrop-filter:blur(5px);padding:' + _qhPad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    overlay.onclick = function(e) { if (e.target === overlay) { window._cleanupRaidBoss(); window._cleanupCharityListeners && window._cleanupCharityListeners(); _cleanupLastWindowListener && _cleanupLastWindowListener(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
+    overlay.onclick = function(e) { if (e.target === overlay && !window._flexJustCompleted) { window._cleanupRaidBoss(); window._cleanupCharityListeners && window._cleanupCharityListeners(); _cleanupLastWindowListener && _cleanupLastWindowListener(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
 
     var modal = document.createElement('div');
     var _qhMaxH = window.innerWidth <= 900
@@ -5998,7 +5998,7 @@ function _renderFlexInteraction(action) {
         // Daily accent color variation
         var _pbColors = ['#f7931a','#22c55e','#f59e0b','#8b5cf6','#ef4444','#3b82f6','#ec4899','#14b8a6'];
         var _pbColor = _pbColors[_flexDailySeed(action.id + '_pbcol') % _pbColors.length];
-        var _pbThresh = 80; // % fill needed
+        var _pbThresh = (action.id === 'sellchairs') ? 100 : 80; // % fill needed — sellchairs requires 100%
         return '<div id="paintbox-wrap-' + action.id + '" data-id="' + action.id + '" style="text-align:center;">' +
             '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Shade it in</div>' +
             '<div style="position:relative;display:inline-block;">' +
@@ -6335,6 +6335,9 @@ function _bjAttachStart(id) {
 function _flexCardSuccess(id) {
     var card = document.getElementById('flex-card-' + id);
     if (!card) return;
+    // Prevent overlay backdrop-click from closing the modal immediately after a slide/drag completes
+    window._flexJustCompleted = true;
+    setTimeout(function() { window._flexJustCompleted = false; }, 600);
     card.style.animation = 'flexPop 0.4s';
     setTimeout(function() {
         card.classList.add('done');
