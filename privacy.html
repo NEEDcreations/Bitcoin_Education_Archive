@@ -379,8 +379,37 @@
         <li>Your <strong>PVP battle results</strong> may be displayed on leaderboards</li>
     </ul>
 
-    <h2>7. Cookies & Local Storage</h2>
-    <p>We do not use tracking cookies. Firebase Authentication may set necessary session cookies for sign-in functionality. Your browser's localStorage is used extensively to store preferences, Nacho interaction data, block lists, and cached progress. The PWA service worker caches site assets for offline access.</p>
+    <h2 id="cookies">7. Cookies &amp; Local Storage</h2>
+    <p>We take a minimal, privacy-first approach to browser storage. Here is an exact breakdown of what we store and why:</p>
+
+    <h3>Cookies</h3>
+    <p>We set <strong>one</strong> first-party cookie under normal operation:</p>
+    <ul>
+        <li><strong><code>googtrans</code></strong> — set only if you use the Google Translate feature, solely to remember your selected language. It is a functional cookie with no tracking purpose. If you do not use translation, this cookie is never set.</li>
+    </ul>
+    <p>Firebase Authentication may set a short-lived <strong><code>__session</code></strong> cookie to manage your sign-in state. This is an HttpOnly, first-party session cookie. It contains no personal data beyond an opaque auth token and is cleared when you sign out or it expires.</p>
+    <p>We do <strong>not</strong> use:</p>
+    <ul>
+        <li>Advertising or marketing cookies</li>
+        <li>Cross-site tracking cookies</li>
+        <li>Third-party analytics cookies (Google Analytics, Facebook Pixel, etc.)</li>
+        <li>Fingerprinting or supercookies</li>
+    </ul>
+    <p>Because we do not use non-essential cookies, you are <strong>not required to give cookie consent</strong> under GDPR/ePrivacy rules. There is no cookie banner because there is nothing to consent to beyond functional operation.</p>
+
+    <h3>Browser localStorage</h3>
+    <p>The majority of your in-app state is stored in your browser&apos;s localStorage — entirely on your device, never transmitted to us unless you create an account. Examples of what we store locally:</p>
+    <ul>
+        <li><strong>Preferences:</strong> theme (dark/light), audio settings, language, visited channels, notification preferences</li>
+        <li><strong>Session state:</strong> anonymous user ID (<code>btc_anon_uid</code>), pending username/email during sign-up, streak data</li>
+        <li><strong>Game &amp; progress state:</strong> badges earned, PVP win history, daily spin timestamps, Satoshi&apos;s Favor data, quiz answers</li>
+        <li><strong>Lightning wallet:</strong> your wallet connection method and NWC relay URL (if provided). These are stored only locally and are never sent to our servers. They are transmitted only directly to your own Lightning node or wallet when you initiate a payment.</li>
+        <li><strong>Nacho AI:</strong> question history, friendship level, trivia scores, and closet items — all local only</li>
+    </ul>
+    <p>You can clear all localStorage data at any time from your browser settings, which will reset app preferences and cached progress. If you have a signed-in account, your server-side profile (XP, badges, wallet balance, posts) is unaffected.</p>
+
+    <h3>Service Worker Cache</h3>
+    <p>The app operates as a <strong>Progressive Web App (PWA)</strong>. A service worker caches app assets (scripts, stylesheets, images) on your device for offline access and faster loading. This cache contains only static app files — no personal data. You can clear it via your browser&apos;s &quot;Clear site data&quot; or &quot;Clear cache&quot; function.</p>
 
     <h2>8. Nacho (AI Mascot) Privacy</h2>
     <p>Nacho's AI answers are powered by <strong>Meta Llama 4 Scout</strong>, a large language model (LLM) hosted by Cloudflare Workers AI. Cloudflare processes questions on our behalf under their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a>. The Llama model is provided by Meta; see <a href="https://github.com/meta-llama/llama-models/blob/main/models/llama4/LICENSE" target="_blank" rel="noopener">Meta's Llama 4 license</a>. We do not use your questions to train AI models.</p>
