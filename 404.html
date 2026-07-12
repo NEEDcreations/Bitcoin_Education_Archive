@@ -61,7 +61,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260711_1349" as="script">
+    <link rel="preload" href="bundle.js?v=20260712_0109" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -1252,7 +1252,7 @@
     <!-- App Check: lazy-loaded to avoid 724KB reCAPTCHA on first paint -->
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
-    <script src="bundle.js?v=20260711_1349" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260712_0109" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260708_perf" defer></script>
     <script src="onboarding.js?v=20260708_0357" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
@@ -1263,7 +1263,7 @@
             'hot-topics.js?v=20260628_1300',
             'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260627_0028',
             'scholar.js?v=20260628_0933','beats.js?v=20260709_1720',
-            'global-chat.js?v=20260710_0252','lightning.js?v=20260514_1424','lightning-tips.js?v=20260711_1346',
+            'global-chat.js?v=20260712_0109','lightning.js?v=20260514_1424','lightning-tips.js?v=20260711_1346',
             'notifications.js?v=20260623_0252','guide.js?v=20260526','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260523_batch','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
@@ -1307,10 +1307,10 @@
         var hash = (window.location.hash || '').replace('#', '').split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20260709_1720', 'global-chat.js?v=20260710_0252'],
-            'beats':         ['beats.js?v=20260709_1720', 'global-chat.js?v=20260710_0252'],
-            'chat':          ['global-chat.js?v=20260710_0252'],
-            'dms':           ['global-chat.js?v=20260710_0252'],
+            'bitcoin-beats': ['beats.js?v=20260709_1720', 'global-chat.js?v=20260712_0109'],
+            'beats':         ['beats.js?v=20260709_1720', 'global-chat.js?v=20260712_0109'],
+            'chat':          ['global-chat.js?v=20260712_0109'],
+            'dms':           ['global-chat.js?v=20260712_0109'],
             'irl-sync':      ['irl-sync.js?v=20260703_0449'],
             'lightning':     ['lightning.js?v=20260514_1424', 'lightning-tips.js?v=20260711_1346'],
             'pvp':           ['pvp.js?v=20260708_0427'],

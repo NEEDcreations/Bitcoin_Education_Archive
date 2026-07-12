@@ -4851,6 +4851,13 @@ if (locked) {
             }
             
             switch(hash) {
+                case 'faq':
+                    if (typeof showFAQ === 'function') { showFAQ(); return; }
+                    break;
+                case 'sats':
+                case 'wallet':
+                    if (typeof showSettings === 'function') { showSettings(); setTimeout(function(){ if (typeof showSettingsPage === 'function') showSettingsPage('sats'); }, 120); return; }
+                    break;
                 case 'nacho':
                     if (typeof enterNachoMode === 'function') { enterNachoMode(); return; }
                     break;

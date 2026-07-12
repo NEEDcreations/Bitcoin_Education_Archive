@@ -216,15 +216,21 @@ var GIF_HOSTS = /tenor\.com|giphy\.com|imgur\.com|gfycat\.com/i;
 
 // Known apps/pages for # autocomplete
 var HASH_TARGETS = [
+    {tag:'faq', label:'FAQ – Frequently Asked Questions'},
+    {tag:'sats', label:'Sats & Wallet – earn, withdraw'},
+    {tag:'quests', label:'Quest Hub – quizzes & trails'},
+    {tag:'sf', label:'Satoshi\'s Favor – hashing game'},
+    {tag:'scholar', label:'Scholar Certification'},
+    {tag:'timechain-tv', label:'Timechain TV – Bitcoin streaming'},
+    {tag:'proof-of-play', label:'Proof of Play – arcade games'},
     {tag:'forum', label:'PlebTalk Forum'},
     {tag:'marketplace', label:'Marketplace'},
     {tag:'bitcoin-beats', label:'Bitcoin Beats'},
     {tag:'irl-sync', label:'IRL Sync'},
     {tag:'dms', label:'Direct Messages'},
-    {tag:'lightning', label:'Lightning'},
+    {tag:'lightning', label:'Lightning wallet'},
     {tag:'nacho', label:'Ask Nacho'},
     {tag:'pvp', label:'PVP Trivia'},
-    {tag:'wallet', label:'Wallet'},
     {tag:'settings', label:'Settings'}
 ];
 // Add channels dynamically from CHANNELS if available
@@ -745,9 +751,27 @@ function formatChatText(text, mentionUid) {
         return placeholder;
     });
     // #channel tags — skip matches inside HTML attributes (href, onclick, style, etc.)
+    // Special routes: faq → showFAQ(); sats/wallet → showSettingsPage('sats'); scholar → showSettingsPage('scholar')
     text = text.replace(/(<[^>]*>)|(#([a-zA-Z0-9_-]+))/g, function(match, htmlTag, hashMatch, tag) {
         if (htmlTag) return htmlTag; // Pass HTML tags through unchanged
-        return '<a href="#' + tag + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + tag + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">#' + tag + '</a>';
+        var onclick;
+        if (tag === 'faq') {
+            onclick = "event.preventDefault();if(typeof showFAQ==='function')showFAQ();";
+        } else if (tag === 'sats' || tag === 'wallet') {
+            onclick = "event.preventDefault();if(typeof showSettings==='function')showSettings();setTimeout(function(){if(typeof showSettingsPage==='function')showSettingsPage('sats');},120);";
+        } else if (tag === 'scholar') {
+            onclick = "event.preventDefault();if(typeof showSettings==='function')showSettings();setTimeout(function(){if(typeof showSettingsPage==='function')showSettingsPage('scholar');},120);";
+        } else if (tag === 'sf' || tag === 'satoshi-favor') {
+            onclick = "event.preventDefault();if(typeof showQuestHub==='function'){showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof window._renderQuestHubTab==='function')window._renderQuestHubTab();},100);}";
+        } else {
+            onclick = "event.preventDefault();if(typeof go==='function')go('" + tag + "');";
+        }
+        // Look up friendly label from HASH_TARGETS
+        var friendly = null;
+        for (var _hi = 0; _hi < HASH_TARGETS.length; _hi++) {
+            if (HASH_TARGETS[_hi].tag === tag) { friendly = HASH_TARGETS[_hi].label; break; }
+        }
+        return '<a href="#' + tag + '" onclick="' + onclick + '" title="' + (friendly ? friendly.replace(/"/g, '&quot;') : tag) + '" style="color:#f59e0b;font-weight:700;text-decoration:none;cursor:pointer;border-bottom:1px dotted rgba(245,158,11,0.4);">#' + tag + '</a>';
     });
     // @mentions — clickable to open user profile
     var _mentionHandled = false;
@@ -1222,7 +1246,14 @@ window.sendGlobalChat = function() {
             // Add links for common app/navigation references
             var lowerAnswer = answer.toLowerCase();
             if (!result.channel) {
-                if (/\bhome\b/.test(lowerAnswer) && !/#/.test(answer)) answer += ' 👉 Go to Home by tapping the ₿ logo!';
+                if (/withdraw|redeem|cash.?out|send.*sats|get.*sats|lightning.?address/.test(lowerAnswer) && !/#sats/.test(answer)) answer += ' 👉 #sats';
+                else if (/faq|frequently asked|common question|how do i|where do i|what is this app/.test(lowerAnswer) && !/#faq/.test(answer)) answer += ' 👉 #faq';
+                else if (/satoshi.?s favor|sf.*window|hashing.?game|hash.*compete|miner.*window|proof.?of.?work.*game/.test(lowerAnswer) && !/#sf/.test(answer)) answer += ' 👉 #sf';
+                else if (/scholar|certif|exam|test.*bitcoin.*knowledge/.test(lowerAnswer) && !/#scholar/.test(answer)) answer += ' 👉 #scholar';
+                else if (/quest hub|daily quiz|quiz|trail|progress|xp.*earn|earn.*xp/.test(lowerAnswer) && !/#quests/.test(answer)) answer += ' 👉 #quests';
+                else if (/timechain.?tv|bitcoin.*video|stream|watch.*bitcoin/.test(lowerAnswer) && !/#timechain-tv/.test(answer)) answer += ' 👉 #timechain-tv';
+                else if (/arcade|proof.?of.?play|play.*game|bitcoin.*game/.test(lowerAnswer) && !/#proof-of-play/.test(answer)) answer += ' 👉 #proof-of-play';
+                else if (/\bhome\b/.test(lowerAnswer) && !/#/.test(answer)) answer += ' 👉 Go to Home by tapping the ₿ logo!';
                 else if (/\bnacho mode\b/.test(lowerAnswer) && !/#nacho/.test(answer)) answer += ' 👉 #nacho';
                 else if (/\bbeats\b|\bmusic\b|\bdj\b/.test(lowerAnswer) && !/#bitcoin-beats/.test(answer)) answer += ' 👉 #bitcoin-beats';
                 else if (/\bforum\b|\bpleb\s*talk\b/.test(lowerAnswer) && !/#forum/.test(answer)) answer += ' 👉 #forum';
