@@ -710,7 +710,7 @@
                     var medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
                     html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:8px;margin-bottom:3px;' + bgStyle + '">' +
                         '<span style="font-size:0.78rem;min-width:22px;text-align:center;">' + medalEmoji + '</span>' +
-                        '<span ' + (d.uid ? 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+d.uid+'\')" style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View @'+escapeHtml(d.username||'Anon')+'\"s profile"' : 'style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';"') + '>@' + escapeHtml(d.username || 'Anon') + '</span>' +
+                        '<span ' + (d.uid ? 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+d.uid+'\')" style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';cursor:pointer;text-decoration:none;" title="View @'+escapeHtml(d.username||'Anon')+'\"s profile"' : 'style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';"') + '>@' + escapeHtml(d.username || 'Anon') + '</span>' +
                         '<span style="font-size:0.78rem;font-family:monospace;color:' + (isMe ? '#f7931a' : 'var(--text)') + ';font-weight:700;">' + (d.count || 0) + ' hashes</span>' +
                         '</div>';
                     rank++;
@@ -1218,7 +1218,7 @@
                 const val = h.value.toLocaleString();
                 const time = h.timestamp ? new Date(h.timestamp.toMillis()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '--:--';
                 const name = escapeHtml(h.username || 'Anon');
-                const profileClick = h.uid ? `onclick="if(typeof showUserProfile==='function')showUserProfile('${h.uid}')" title="View @${name}'s profile" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;"` : '';
+                const profileClick = h.uid ? `onclick="if(typeof showUserProfile==='function')showUserProfile('${h.uid}')" title="View @${name}'s profile" style="cursor:pointer;text-decoration:none;"` : '';
 
                 if (isWin) {
                     html += `<div style="padding:12px 14px;margin-bottom:6px;background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.08));border:2px solid #22c55e;border-radius:10px;animation:favorPulse 2s ease-in-out infinite;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span ${profileClick} style="font-weight:900;font-size:0.95rem;color:#22c55e;">🏆 WINNER — @${name}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div><div style="font-family:monospace;font-size:1.1rem;font-weight:900;color:#22c55e;text-align:center;">${val}</div></div>`;
