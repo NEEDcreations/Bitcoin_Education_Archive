@@ -33675,7 +33675,12 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
     
         
-        msgs.innerHTML = breadcrumbs + '<div style="padding:20px;">' +
+        // Skip skeleton for special app routes (TCTV, forum, etc) — they clear msgs
+        // immediately anyway and the skeleton flash looks like a ghost loading artifact.
+        var _isAppRoute = (id === 'timechain-tv' || id === 'forum' || id === 'marketplace' ||
+            id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' ||
+            id === 'chat' || id === 'first-purchase' || id === 'trails');
+        if (!_isAppRoute) msgs.innerHTML = breadcrumbs + '<div style="padding:20px;">' +
             '<!-- Nacho Summary skeleton -->' +
             '<div style="background:var(--card-bg);border:1px dashed var(--border);border-radius:12px;padding:14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">' +
                 '<div class="skeleton" style="width:32px;height:32px;border-radius:8px;flex-shrink:0;"></div>' +
@@ -33688,7 +33693,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div class="skeleton" style="height:180px;width:100%;margin-bottom:16px;border-radius:12px;"></div>' +
             '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:20%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:90%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:65%;"></div></div></div>' +
         '</div>';
-        msgs.style.display = '';
+        if (!_isAppRoute) msgs.style.display = '';
         var _homeEl = document.getElementById('home');
         _homeEl.classList.add('hidden');
         if (_homeEl.style.visibility) _homeEl.style.visibility = ''; // clear direct-link preload hide
