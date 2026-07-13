@@ -1827,6 +1827,13 @@ window.addEventListener('popstate', function() {
 
 // ---- Emoji Reaction System ----
 var _reactPickerDismiss = null; // module-level dismiss listener — prevents orphaned listeners
+
+function _closeReactPicker() {
+    var p = document.getElementById('reactPicker');
+    if (p) p.remove();
+    if (typeof _reactPickerDismiss === 'function') { document.removeEventListener('click', _reactPickerDismiss); _reactPickerDismiss = null; }
+}
+
 window.showReactPicker = function(msgId, btnEl) {
     if (_reactPickerDismiss) { document.removeEventListener('click', _reactPickerDismiss); _reactPickerDismiss = null; }
     var old = document.getElementById('reactPicker');
@@ -1837,45 +1844,100 @@ window.showReactPicker = function(msgId, btnEl) {
     picker.dataset.msgId = msgId;
     var _rIsDark = document.body.getAttribute('data-theme') !== 'light';
     var bg = _rIsDark ? '#1a1a2e' : '#f0f0f5';
-    picker.style.cssText = 'position:fixed;z-index:260000;background:'+bg+';border:1px solid var(--border);border-radius:16px;padding:10px;width:300px;max-height:320px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+    picker.style.cssText = 'position:fixed;z-index:260000;background:'+bg+';border:1px solid var(--border);border-radius:16px;padding:10px;width:310px;max-height:340px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
 
     var cats = Object.keys(EMOJI_CATEGORIES);
-    var tabHtml = '<div style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
+
+    // Search bar — same as showEmojiPicker
+    var searchHtml = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
+        '<input id="reactSearchInput" type="text" placeholder="🔍 Search emojis..." autocomplete="off" ' +
+        'style="flex:1;padding:7px 10px;background:var(--input-bg,rgba(255,255,255,0.07));border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;" ' +
+        'oninput="window._reactEmojiSearch(this.value)">' +
+        '<button onclick="_closeReactPicker()" style="padding:4px 8px;background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;flex-shrink:0;">&#x2715;</button>' +
+        '</div>';
+
+    // Category tabs
+    var tabHtml = '<div id="reactEmojiTabBar" style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
     cats.forEach(function(cat, i) {
         var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : '🔥';
-        tabHtml += '<button onclick="window._switchGcEmojiTab(\''+cat+'\');" id="gcEmojiCatTab_'+i+'" style="padding:5px 8px;font-size:0.95rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
+        tabHtml += '<button onclick="window._switchReactTab(\''+cat+'\')" id="reactEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.95rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
     });
-    tabHtml += '<button onclick="var p=document.getElementById(\'reactPicker\');if(p)p.remove();if(typeof _reactPickerDismiss===\'function\'){document.removeEventListener(\'click\',_reactPickerDismiss);_reactPickerDismiss=null;}" style="margin-left:auto;padding:4px 7px;background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;flex-shrink:0;">✕</button></div>';
-    picker.innerHTML = tabHtml + '<div id="gcEmojiCatGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:240px;justify-content:center;"></div>';
+    tabHtml += '</div>';
 
-    window._switchGcEmojiTab = function(cat) {
-        var grid = document.getElementById('gcEmojiCatGrid');
+    picker.innerHTML = searchHtml + tabHtml + '<div id="reactEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:230px;justify-content:center;"></div>';
+
+    function _reactEmojiBtn(e) {
+        return '<button onclick="_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+    }
+
+    window._switchReactTab = function(cat) {
+        var grid = document.getElementById('reactEmojiGrid');
         if (!grid) return;
+        var si = document.getElementById('reactSearchInput');
+        if (si) si.value = '';
         var emojis = EMOJI_CATEGORIES[cat] || [];
         var html = '';
-        emojis.forEach(function(e) {
-            html += '<button onclick="var p=document.getElementById(\'reactPicker\');if(p)p.remove();if(typeof _reactPickerDismiss===\'function\'){document.removeEventListener(\'click\',_reactPickerDismiss);_reactPickerDismiss=null;}toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
-        });
-        grid.innerHTML = html;
-        var catKeys = Object.keys(EMOJI_CATEGORIES);
-        catKeys.forEach(function(c, i) {
-            var t = document.getElementById('gcEmojiCatTab_'+i);
+        emojis.forEach(function(e) { html += _reactEmojiBtn(e); });
+        grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
+        cats.forEach(function(c, i) {
+            var t = document.getElementById('reactEmojiTab_'+i);
             if (t) { t.style.background = c===cat?'var(--accent-bg)':'none'; t.style.borderColor = c===cat?'var(--accent)':'var(--border)'; }
         });
     };
-    window._switchGcEmojiTab(cats[0]);
+
+    window._reactEmojiSearch = function(query) {
+        var grid = document.getElementById('reactEmojiGrid');
+        if (!grid) return;
+        var q = (query || '').trim().toLowerCase();
+        if (!q) { window._switchReactTab(cats[0]); return; }
+        var results = [], seen = {};
+        if (typeof EMOJI_SEARCH_INDEX !== 'undefined') {
+            EMOJI_SEARCH_INDEX.forEach(function(entry) {
+                var e = entry[0], kw = entry[1];
+                if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
+            });
+        }
+        Object.keys(EMOJI_CATEGORIES).forEach(function(cat) {
+            EMOJI_CATEGORIES[cat].forEach(function(e) {
+                if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
+            });
+        });
+        if (typeof EMOJI_SEARCH_INDEX !== 'undefined') {
+            EMOJI_SEARCH_INDEX.forEach(function(entry) {
+                var e = entry[0], kw = entry[1];
+                if (!seen[e]) {
+                    var words = kw.split(' ');
+                    for (var wi = 0; wi < words.length; wi++) {
+                        if (words[wi].indexOf(q) === 0) { results.push(e); seen[e] = true; break; }
+                    }
+                }
+            });
+        }
+        var html = results.length === 0
+            ? '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "'+q+'"</div>'
+            : results.map(_reactEmojiBtn).join('');
+        grid.innerHTML = html;
+        cats.forEach(function(c, i) {
+            var t = document.getElementById('reactEmojiTab_'+i);
+            if (t) { t.style.background = 'none'; t.style.borderColor = 'var(--border)'; }
+        });
+    };
+
+    window._switchReactTab(cats[0]);
 
     document.body.appendChild(picker);
     var rect = btnEl.getBoundingClientRect();
-    var top = rect.top - picker.offsetHeight - 8;
+    var top = rect.top - 340 - 8;
     if (top < 8) top = rect.bottom + 8;
-    picker.style.top = top + 'px';
-    picker.style.left = Math.max(8, Math.min(rect.left - 80, window.innerWidth - 316)) + 'px';
+    picker.style.top = Math.max(8, top) + 'px';
+    picker.style.left = Math.max(8, Math.min(rect.left - 80, window.innerWidth - 320)) + 'px';
+
+    setTimeout(function() { var si = document.getElementById('reactSearchInput'); if (si && window.innerWidth > 600) si.focus(); }, 80);
 
     setTimeout(function() {
         _reactPickerDismiss = function(e) {
             var p = document.getElementById('reactPicker');
-            if (p && !p.contains(e.target)) { p.remove(); document.removeEventListener('click', _reactPickerDismiss); _reactPickerDismiss = null; }
+            if (p && !p.contains(e.target)) { _closeReactPicker(); }
         };
         document.addEventListener('click', _reactPickerDismiss);
     }, 50);
