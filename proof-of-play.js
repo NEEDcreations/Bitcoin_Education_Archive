@@ -281,6 +281,28 @@ function _injectPOPStyles() {
 }
 
 // ---- Render arcade tab ----
+function _renderGalaxyMindTab(wrap) {
+    wrap.style.padding = '0';
+    wrap.style.overflow = 'hidden';
+    wrap.innerHTML =
+        '<div style="position:relative;width:100%;height:100%;background:#000;display:flex;flex-direction:column;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(0,0,0,0.85);border-bottom:1px solid #222;flex-shrink:0;">' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<span style="font-size:1.1rem;">🌌</span>' +
+                    '<span style="font-size:0.85rem;font-weight:800;color:#fff;">Galaxy Mind Arcade</span>' +
+                    '<a href="https://galaxymind.space/arcade" target="_blank" rel="noopener" style="font-size:0.65rem;color:#f7931a;text-decoration:none;border:1px solid rgba(247,147,26,0.4);border-radius:6px;padding:2px 7px;">↗ Open full site</a>' +
+                '</div>' +
+            '</div>' +
+            '<iframe src="https://galaxymind.space/arcade" ' +
+                'style="flex:1;width:100%;border:none;display:block;" ' +
+                'allow="fullscreen; autoplay; gamepad" ' +
+                'allowfullscreen ' +
+                'title="Galaxy Mind Arcade" ' +
+                'id="galaxyMindFrame">' +
+            '</iframe>' +
+        '</div>';
+}
+
 function _renderArcadeTab(wrap) {
     var html = '';
 
@@ -382,6 +404,7 @@ window.enterProofOfPlay = function(startTab) {
             '<div class="pop-tabs">' +
                 '<button id="popTabPVP" class="pop-tab ' + (startTab === 'pvp' ? 'active' : '') + '" onclick="window._popSwitchTab(\'pvp\')">⚔️ PVP</button>' +
                 '<button id="popTabArcade" class="pop-tab ' + (startTab === 'arcade' ? 'active' : '') + '" onclick="window._popSwitchTab(\'arcade\')">🎮 Arcade</button>' +
+                '<button id="popTabGalaxy" class="pop-tab ' + (startTab === 'galaxy' ? 'active' : '') + '" onclick="window._popSwitchTab(\'galaxy\')">🌌 Galaxy Mind</button>' +
             '</div>' +
         '</div>' +
         '<div class="pop-body" id="popBody"></div>';
@@ -391,6 +414,8 @@ window.enterProofOfPlay = function(startTab) {
     var body = document.getElementById('popBody');
     if (startTab === 'pvp') {
         _renderPVPTab(body);
+    } else if (startTab === 'galaxy') {
+        _renderGalaxyMindTab(body);
     } else {
         _renderArcadeTab(body);
     }
@@ -414,11 +439,15 @@ window._popSwitchTab = function(tab) {
     if (!body) return;
     document.getElementById('popTabArcade').classList.toggle('active', tab === 'arcade');
     document.getElementById('popTabPVP').classList.toggle('active', tab === 'pvp');
+    var gTab = document.getElementById('popTabGalaxy');
+    if (gTab) gTab.classList.toggle('active', tab === 'galaxy');
     body.style.opacity = '0';
     body.style.transition = 'opacity 0.15s';
     setTimeout(function() {
         if (tab === 'pvp') {
             _renderPVPTab(body);
+        } else if (tab === 'galaxy') {
+            _renderGalaxyMindTab(body);
         } else {
             _renderArcadeTab(body);
         }
