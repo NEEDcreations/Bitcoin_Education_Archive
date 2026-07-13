@@ -170,9 +170,8 @@ function updateDisplay() {
 }
 
 function formatNum(n) {
-    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-    return n.toString();
+    // Always show the full number with comma formatting so users can see it going up
+    return (n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 function injectWidget() {
