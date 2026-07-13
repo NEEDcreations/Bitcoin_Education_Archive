@@ -68,6 +68,9 @@ function escapeHtml(str) {
 function sanitizeUrl(url) {
     if (!url) return '';
     url = url.trim();
+    // Allow data:image/ URLs (base64 profile pictures stored by the app)
+    if (/^data:image\//i.test(url)) return url;
+    // Block all other data:, javascript:, vbscript:, blob: URLs
     if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
     return url;
 }
