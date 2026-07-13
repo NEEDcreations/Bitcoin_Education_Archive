@@ -3466,6 +3466,44 @@ window.lookupUserByName = function(username) {
 
 // ---- Announcement link navigation helper ----
 // Closes whichever chat surface is open, then routes to the hash.
+// Badge tooltip popup for GGs announcement badge tags
+window._showBadgeTooltip = function(el, name, desc) {
+    // Remove any existing tooltip
+    var existing = document.getElementById('_gcBadgeTip');
+    if (existing) {
+        existing.remove();
+        if (existing._el === el) return; // toggle off if same badge
+    }
+    var tip = document.createElement('div');
+    tip.id = '_gcBadgeTip';
+    tip._el = el;
+    var _isDark = document.body.getAttribute('data-theme') !== 'light';
+    tip.style.cssText = 'position:fixed;z-index:999999;background:' + (_isDark ? '#1a1a2e' : '#fff') + ';border:1px solid var(--accent);border-radius:12px;padding:12px 14px;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.4);pointer-events:none;';
+    tip.innerHTML = '<div style="font-size:0.95rem;font-weight:700;color:var(--accent);margin-bottom:4px;">' + name + '</div>' +
+        '<div style="font-size:0.8rem;color:var(--text,#eee);line-height:1.4;">' + desc + '</div>';
+    document.body.appendChild(tip);
+    // Position above the element
+    var rect = el.getBoundingClientRect();
+    var tw = Math.min(260, window.innerWidth - 16);
+    tip.style.width = tw + 'px';
+    var left = Math.max(8, Math.min(rect.left, window.innerWidth - tw - 8));
+    var top = rect.top - tip.offsetHeight - 8;
+    if (top < 8) top = rect.bottom + 8;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    // Dismiss on next tap/click anywhere
+    setTimeout(function() {
+        function dismiss(e) {
+            var t = document.getElementById('_gcBadgeTip');
+            if (t) t.remove();
+            document.removeEventListener('click', dismiss, true);
+            document.removeEventListener('touchstart', dismiss, true);
+        }
+        document.addEventListener('click', dismiss, true);
+        document.addEventListener('touchstart', dismiss, true);
+    }, 50);
+};
+
 window._annNavToHash = function(hash) {
     var wasOverlayOpen = !!window._chatOverlayOpen;
     // Close overlay if open
@@ -3565,6 +3603,31 @@ function _renderAnnouncementItem(doc, context) {
             });
         }
     }
+
+
+    // Badge tooltip — "earned a badge: EMOJI NAME!" → clickable with tooltip showing description
+    text = text.replace(/earned a badge: ([^!]+?)!/g, function(match, badgeRef) {
+        var _allBadgeDefs = [].concat(
+            (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : []),
+            (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : [])
+        );
+        // Find badge by matching emoji+name (decoded — text was already HTML-escaped so compare decoded)
+        var decoded = badgeRef.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+        var foundBadge = null;
+        for (var _bi = 0; _bi < _allBadgeDefs.length; _bi++) {
+            var _bd = _allBadgeDefs[_bi];
+            var _bdLabel = (_bd.emoji || '') + ' ' + (_bd.name || '');
+            if (decoded.trim() === _bdLabel.trim() || decoded.trim().replace(/^[sS]*? /,'') === (_bd.name || '').trim()) {
+                foundBadge = _bd; break;
+            }
+        }
+        if (!foundBadge) return match; // no match — leave as-is
+        var safeDesc = esc(foundBadge.desc || foundBadge.description || foundBadge.name || '');
+        var safeName = esc(foundBadge.emoji + ' ' + foundBadge.name);
+        var safePts = foundBadge.pts ? '+' + foundBadge.pts + ' XP' : '';
+        var tooltipHtml = safeDesc + (safePts ? ' · ' + safePts : '');
+        return 'earned a badge: <span data-badge-name="' + safeName.replace(/"/g,'&quot;') + '" data-badge-desc="' + tooltipHtml.replace(/"/g,'&quot;') + '" onclick="event.stopPropagation();window._showBadgeTooltip(this,this.getAttribute(\'data-badge-name\'),this.getAttribute(\'data-badge-desc\'))" style="background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:2px 8px;cursor:pointer;font-weight:700;color:var(--accent);white-space:nowrap;display:inline-block;">' + badgeRef + '</span>!';
+    });
 
     var isOverlay = context === 'overlay';
     var pad = isOverlay ? '10px 12px' : '12px 14px';
