@@ -20,12 +20,28 @@ function _mbResource(emoji, title, url, desc) {
 }
 
 // Wait for IRL Sync to render, then inject Meetup Builder section
-var _origRenderIRL = window.renderIRLSync;
-if (_origRenderIRL) {
-    window.renderIRLSync = function(opts) {
-        _origRenderIRL(opts);
-        setTimeout(injectMeetupBuilder, 300);
-    };
+// Uses a polling approach because irl-sync.js may load after meetup-builder.js (both async)
+function _hookRenderIRL() {
+    if (window.renderIRLSync && !window.renderIRLSync._mbHooked) {
+        var _orig = window.renderIRLSync;
+        window.renderIRLSync = function(opts) {
+            _orig(opts);
+            setTimeout(injectMeetupBuilder, 300);
+        };
+        window.renderIRLSync._mbHooked = true;
+    }
+}
+// Try immediately, then poll until irl-sync.js is ready
+_hookRenderIRL();
+if (!window.renderIRLSync || !window.renderIRLSync._mbHooked) {
+    var _mbHookInterval = setInterval(function() {
+        if (window.renderIRLSync) {
+            _hookRenderIRL();
+            clearInterval(_mbHookInterval);
+        }
+    }, 100);
+    // Give up after 15s
+    setTimeout(function() { clearInterval(_mbHookInterval); }, 15000);
 }
 
 function injectMeetupBuilder() {
