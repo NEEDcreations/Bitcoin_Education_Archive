@@ -2138,13 +2138,13 @@ window.showEmojiPicker = function() {
         '<input id="emojiSearchInput" type="text" placeholder="🔍 Search emojis..." autocomplete="off" ' +
         'style="flex:1;padding:7px 10px;background:var(--input-bg,rgba(255,255,255,0.07));border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;" ' +
         'oninput="window._emojiSearch(this.value)">' +
-        '<button onclick="document.getElementById('gcEmojiPicker').remove()" style="padding:4px 8px;background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;flex-shrink:0;">&#x2715;</button>' +
+        '<button onclick="document.getElementById(\'gcEmojiPicker\').remove()" style="padding:4px 8px;background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;flex-shrink:0;">&#x2715;</button>' +
         '</div>';
     // Category tabs
     var tabHtml = '<div id="emojiTabBar" style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;">';
     cats.forEach(function(cat, i) {
         var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : '🔥';
-        tabHtml += '<button onclick="window._switchEmojiTab('' + cat + '')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
+        tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
     });
     tabHtml += '</div>';
 
