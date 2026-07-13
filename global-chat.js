@@ -212,7 +212,7 @@ var REACT_EMOJIS_DEFAULT = ['👍','👎','❤️','😂','🔥','⚡','🤔','�
 var REACT_EMOJIS_EXPANDED = ['👍','👎','❤️','😂','🔥','⚡','🤔','👀','🙌','💯','🤙','🦌','🎉','😢','😡','🤣','💀','🙏','💪','🤯','😱','🥳','😎','🤡','💎','🚀','⛏️','🧡','₿','🫡','👑','🐋','❌','✅','⬆️','⬇️','🍿','☠️','🫂','🤝','💩','😅','😉'];
 var _reactExpanded = false;
 var IMG_REGEX = /https?:\/\/[^\s<]+\.(?:gif|png|jpg|jpeg|webp)(\?[^\s<]*)?/i;
-var GIF_HOSTS = /tenor\.com|giphy\.com|imgur\.com|gfycat\.com/i;
+var GIF_HOSTS = /tenor\.com|giphy\.com|media\.giphy\.com|media[0-9]\.giphy\.com|imgur\.com|gfycat\.com/i;
 
 // Known apps/pages for # autocomplete
 var HASH_TARGETS = [
@@ -1939,7 +1939,7 @@ window.showGifPicker = function() {
             '<input type="text" id="gifSearchInput" placeholder="Search GIFs..." style="flex:1;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;" oninput="searchGifs(this.value)">' +
             '<button onclick="document.getElementById(\'gifPicker\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;">✕</button>' +
         '</div>' +
-        '<div style="font-size:0.6rem;color:var(--text-faint);margin-bottom:6px;">Paste any GIF/image URL, or search Tenor</div>' +
+        '<div style="font-size:0.6rem;color:var(--text-faint);margin-bottom:6px;">Paste any GIF/image URL, or search Giphy</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">' +
             '<button onclick="searchGifs(\'bitcoin\')" class="gif-tag" style="padding:4px 10px;border-radius:8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);color:var(--accent);font-size:0.7rem;cursor:pointer;font-family:inherit;">₿ Bitcoin</button>' +
             '<button onclick="searchGifs(\'lightning\')" class="gif-tag" style="padding:4px 10px;border-radius:8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#6366f1;font-size:0.7rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' +

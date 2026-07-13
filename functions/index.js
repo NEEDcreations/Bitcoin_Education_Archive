@@ -6592,22 +6592,28 @@ exports.searchGifs = functions.https.onCall(async (data, context) => {
     const limit = Math.min(Math.max(parseInt(data.limit) || 20, 1), 50);
     if (!query) return { results: [] };
 
-    const TENOR_KEY = 'AIzaSyDvfMI3A2NWibbhd4cRgJUVQzCuU5nzNLM';
-    const url = 'https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(query)
-        + '&key=' + TENOR_KEY
+    // Giphy API (replaces discontinued Tenor v1 / blocked Tenor v2 key)
+    const GIPHY_KEY = (functions.config().giphy && functions.config().giphy.api_key) || process.env.GIPHY_API_KEY || '';
+    const url = 'https://api.giphy.com/v1/gifs/search'
+        + '?api_key=' + GIPHY_KEY
+        + '&q=' + encodeURIComponent(query)
         + '&limit=' + limit
-        + '&media_filter=tinygif,gif'
-        + '&contentfilter=medium';
+        + '&rating=pg-13'
+        + '&lang=en';
 
     try {
         const resp = await fetch(url);
         const json = await resp.json();
-        if (!json.results) return { results: [] };
-        // Return only what the client needs: thumb url + full url
-        const results = json.results.map(function(gif) {
-            const fmt = gif.media_formats || {};
-            const thumb = (fmt.tinygif && fmt.tinygif.url) || (fmt.nanogif && fmt.nanogif.url) || (fmt.gif && fmt.gif.url) || '';
-            const full  = (fmt.gif && fmt.gif.url) || (fmt.mediumgif && fmt.mediumgif.url) || thumb;
+        if (!json.data || !Array.isArray(json.data)) return { results: [] };
+        // Map Giphy response to same {thumb, full} shape the client expects
+        const results = json.data.map(function(gif) {
+            const images = gif.images || {};
+            const thumb = (images.fixed_height_small && images.fixed_height_small.url)
+                       || (images.fixed_height && images.fixed_height.url)
+                       || '';
+            const full  = (images.original && images.original.url)
+                       || (images.fixed_height && images.fixed_height.url)
+                       || thumb;
             return { thumb, full };
         }).filter(function(r) { return r.thumb; });
         return { results };
