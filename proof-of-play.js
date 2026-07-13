@@ -280,27 +280,60 @@ function _injectPOPStyles() {
     document.head.appendChild(s);
 }
 
-// ---- Render arcade tab ----
+// ---- Render Galaxy Mind tab ----
+// galaxymind.space has X-Frame-Options: DENY — iframe embedding is blocked by them.
+// We show a styled game card grid with preview images + deep links instead.
 function _renderGalaxyMindTab(wrap) {
     wrap.style.padding = '0';
-    wrap.style.overflow = 'hidden';
-    wrap.innerHTML =
-        '<div style="position:relative;width:100%;height:100%;background:#000;display:flex;flex-direction:column;">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(0,0,0,0.85);border-bottom:1px solid #222;flex-shrink:0;">' +
-                '<div style="display:flex;align-items:center;gap:8px;">' +
-                    '<span style="font-size:1.1rem;">🌌</span>' +
-                    '<span style="font-size:0.85rem;font-weight:800;color:#fff;">Galaxy Mind Arcade</span>' +
-                    '<a href="https://galaxymind.space/arcade" target="_blank" rel="noopener" style="font-size:0.65rem;color:#f7931a;text-decoration:none;border:1px solid rgba(247,147,26,0.4);border-radius:6px;padding:2px 7px;">↗ Open full site</a>' +
-                '</div>' +
+    wrap.style.overflowY = 'auto';
+    var games = [
+        { slug: 'super-saylor', path: 'super-saylor', emoji: '🏃', label: 'THE FLAGSHIP', name: 'SUPER SAYLOR', desc: 'Mario-style platformer through bitcoin history. Run 21 levels from genesis to the moon, stomp FUD bears, face Peter Schiff.' },
+        { slug: 'wen', path: 'wen', emoji: '📅', label: 'DAILY · 30 SECONDS', name: 'WEN', desc: 'A real 90-day slice of the tape with dates redacted. Five guesses — closeness earns sats.' },
+        { slug: 'gauntlet', path: 'gauntlet', emoji: '⚔️', label: 'DAILY · BLIND HISTORY', name: 'THE BITCOIN GAUNTLET', desc: 'Trade a hidden bitcoin history window blind against a DCA bot. Beat the bot that never thinks.' },
+        { slug: 'runner', path: 'runner', emoji: '⚡', label: 'ONE TAP · REAL CANDLES', name: 'NODE RUNNER', desc: 'One-tap arcade run over the real price tape. Bear markets run downhill — reach the present and go to the moon.' },
+        { slug: 'horizon', path: 'horizon', emoji: '⛓️', label: 'ONE TAP · BUILD THE CHAIN', name: 'TIMECHAIN', desc: 'One-tap block stacker on the halving clock. Blocks pay 50, 25, then 12.5 — stack clean, bank the sats.' }
+    ];
+
+    var html = '<div style="background:var(--bg,#0d0d0d);min-height:100%;padding:0 0 80px;">';
+    // Header
+    html += '<div style="padding:16px;background:rgba(0,0,0,0.6);border-bottom:1px solid rgba(247,147,26,0.2);display:flex;align-items:center;justify-content:space-between;">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<span style="font-size:1.2rem;">🌌</span>' +
+            '<div>' +
+                '<div style="font-size:0.85rem;font-weight:800;color:#fff;letter-spacing:0.05em;">GALAXY MIND ARCADE</div>' +
+                '<div style="font-size:0.65rem;color:#f7931a;letter-spacing:0.15em;text-transform:uppercase;">5 games · real bitcoin data</div>' +
             '</div>' +
-            '<iframe src="https://galaxymind.space/arcade" ' +
-                'style="flex:1;width:100%;border:none;display:block;" ' +
-                'allow="fullscreen; autoplay; gamepad" ' +
-                'allowfullscreen ' +
-                'title="Galaxy Mind Arcade" ' +
-                'id="galaxyMindFrame">' +
-            '</iframe>' +
-        '</div>';
+        '</div>' +
+        '<a href="https://galaxymind.space/arcade" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:#f7931a;color:#000;font-weight:800;font-size:0.72rem;text-decoration:none;border-radius:8px;letter-spacing:0.08em;">PLAY ↗</a>' +
+    '</div>';
+
+    // Notice
+    html += '<div style="margin:12px 12px 0;padding:10px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;font-size:0.72rem;color:rgba(255,255,255,0.5);line-height:1.5;">' +
+        '🔒 Galaxy Mind doesn&#39;t allow in-app embedding. Tap any game to play on their site \u2014 opens in a new tab.' +
+    '</div>';
+
+    // Game cards grid
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px;">';
+    games.forEach(function(g, i) {
+        var isWide = (i === 0); // Super Saylor spans full width (flagship)
+        var gridSpan = isWide ? 'grid-column:1/-1;' : '';
+        var imgHeight = isWide ? '140px' : '90px';
+        html += '<a href="https://galaxymind.space/' + g.path + '" target="_blank" rel="noopener" style="' + gridSpan + 'display:block;background:rgba(255,255,255,0.04);border:1px solid rgba(247,147,26,0.25);border-radius:12px;overflow:hidden;text-decoration:none;transition:border-color 0.2s;">' +
+            '<div style="position:relative;width:100%;height:' + imgHeight + ';overflow:hidden;background:#111;">' +
+                '<img src="https://galaxymind.space/arcade-previews/' + g.slug + '.png" alt="' + g.name + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:top;opacity:0.85;">' +
+                '<div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);"></div>' +
+            '</div>' +
+            '<div style="padding:8px 10px;">' +
+                '<div style="font-size:0.6rem;color:#f7931a;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:2px;">' + g.label + '</div>' +
+                '<div style="font-size:0.78rem;font-weight:800;color:#fff;margin-bottom:3px;">' + g.name + '</div>' +
+                '<div style="font-size:0.68rem;color:rgba(255,255,255,0.5);line-height:1.4;">' + g.desc + '</div>' +
+            '</div>' +
+        '</a>';
+    });
+    html += '</div>';
+
+    html += '</div>';
+    wrap.innerHTML = html;
 }
 
 function _renderArcadeTab(wrap) {
