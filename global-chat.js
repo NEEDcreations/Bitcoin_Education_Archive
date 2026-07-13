@@ -1447,7 +1447,8 @@ function createChatOverlay() {
         btn.innerHTML = '💬';
         document.body.appendChild(btn);
     }
-    btn.onclick = toggleChatOverlay;
+    // Do NOT override btn.onclick here — toggleChatOverlay may not be assigned yet
+    // The static HTML onclick attribute calls toggleChatOverlay by name (window lookup) and always works
     btn.title = 'Open Chat';
 
     // Overlay panel
@@ -1490,6 +1491,8 @@ function createChatOverlay() {
 }
 
 window.toggleChatOverlay = function() {
+    // Ensure overlay exists before toggling
+    if (!document.getElementById('chatOverlay')) createChatOverlay();
     var panel = document.getElementById('chatOverlay');
     var btn = document.getElementById('chatOverlayBtn');
     if (!panel) return;
