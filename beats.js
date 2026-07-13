@@ -1758,7 +1758,7 @@ window.beatsRenderLivestream = function() {
             var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
             var amDJ = activeDJ && data.djUid === myUid;
 
-            var html = '<div style="animation:fadeSlideIn 0.4s ease-out;">';
+            var html = '<div style="animation:fadeSlideIn 0.4s ease-out;padding-bottom:80px;">';
 
             // Header
             html += '<div style="text-align:center;margin-bottom:24px;">' +
@@ -1863,6 +1863,16 @@ window.beatsRenderLivestream = function() {
                 '</div>';
             }
 
+            // Music platforms — visible at top before scrolling
+            html += '<div style="padding:12px 16px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;text-align:center;">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bitcoin Lightning Music Platforms</div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">' +
+                    '<a href="https://www.twitch.tv/noderunnersradio" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.78rem;text-decoration:none;">📻 Noderunners Radio</a>' +
+                    '<a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-weight:700;font-size:0.78rem;text-decoration:none;">🎵 Wavlake</a>' +
+                    '<a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.25);border-radius:10px;color:#eab308;font-weight:700;font-size:0.78rem;text-decoration:none;">⚡ LN Beats</a>' +
+                '</div>' +
+            '</div>';
+
             // How it works
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:10px;">How DJ Mode Works</div>' +
@@ -1904,15 +1914,7 @@ window.beatsRenderLivestream = function() {
                 '</div>' +
             '</div>';
 
-            // Music platforms — very bottom
-            html += '<div style="margin-top:20px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;text-align:center;">' +
-                '<h3 style="color:var(--heading);font-weight:800;font-size:0.85rem;margin-bottom:10px;">Support our friends with great Bitcoin Lightning music platforms!</h3>' +
-                '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">' +
-                    '<a href="https://www.twitch.tv/noderunnersradio" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;text-decoration:none;">📻 Noderunners Radio</a>' +
-                    '<a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-weight:700;font-size:0.8rem;text-decoration:none;">🎵 Wavlake</a>' +
-                    '<a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.25);border-radius:10px;color:#eab308;font-weight:700;font-size:0.8rem;text-decoration:none;">⚡ LN Beats</a>' +
-                '</div>' +
-            '</div>';
+            // Music platforms — shown at top so mobile users don't have to scroll past the embed
 
             html += '</div>';
             listEl.innerHTML = html;
