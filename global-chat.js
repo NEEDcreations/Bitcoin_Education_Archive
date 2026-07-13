@@ -2104,11 +2104,21 @@ window.sendGifUrl = function() {
 
 // ---- Emoji Picker (for message input) ----
 var EMOJI_CATEGORIES = {
-    'Smileys': ['😀','😁','😂','🤣','😃','😄','😅','😆','😇','😉','😊','😋','😌','😍','😎','😏','😐','😑','😒','😓','😔','😕','😖','😗','😘','😙','😚','😛','😜','😝','😞','😟','😠','😡','😢','😤','😥','😦','😧','😨','😩','😪','😫','😬','😭','😮','😯','😰','😱','😲','😳','😴','😵','😶','😷','🥰','🥺','🤩','🥳','🤔','🤭','🤫','🤯','🤪','🥴','🤤','🤧','🤡','🤢','🤬','🤮','🤗','💀','☠️','👻','😈','👿','🙈','🙉','🙊','💩','🤖'],
-    'Gestures': ['👍','👎','👏','🙌','🤲','🤝','🤜','🤛','✊','👊','🫡','💪','🙏','🫶','👀','🫂','🤷','🤦','✌️','🤘','🤙','👌','🤌','🤏','🫰','🖕','👋','🤚','🖐️','✋','🖖','👈','👉','👆','👇','☝️','🤞','🫵','💅','👑','😘','💋'],
-    'Bitcoin': ['₿','⚡','⛏️','🔑','🗝️','🧡','💎','🚀','🐋','🦁','🐂','🐻','📈','📉','🪙','🛡️','🔒','💰','🏦','💸','📊','🏴','🧮','🌐','🦅','🐝','🦌','🏆','🎯','💡','🔭','🧪','🔧','🔨','📜','🧾','💾','📡','🌋','🗺️'],
-    'Objects': ['🔥','💯','🎉','🎊','🎈','🎀','🏅','🥇','🥈','🥉','🎯','✨','🌟','⭐','💫','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❌','✅','☑️','✔️','⬆️','⬇️','➡️','⬅️','🔄','♾️','🎵','🎶','🎸','🎹','🥁','🎤','🎧','📱','💻','🎮','🕹️','🎲','♟️','🎭','📚','📖','🗺️','🍿','🍕','🍔','🍣','🍺','🍻','🥂','☕','🍵','🌈','⚽','🏀','🏈','⚾','🎾','🏐','🏓','⛳']
+    'Smileys': ['😀','😁','😂','🤣','😃','😄','😅','😆','😇','😉','😊','😋','😌','😍','😎','😏','😐','😑','😒','😓','😔','😕','😖','😗','😘','😙','😚','😛','😜','😝','😞','😟','😠','😡','😢','😤','😥','😦','😧','😨','😩','😪','😫','😬','😭','😮','😯','😰','😱','😲','😳','😴','😵','😶','😷','🥰','🥺','🤩','🥳','🤔','🤭','🤫','🤯','🤪','🥴','🤤','🤧','🤡','🤢','🤬','🤮','🤗','💀','☠️','👻','😈','👿','🙈','🙉','🙊','💩','🤖','🫠','🫣','🫤','🫡','🥹','🤌','😶‍🌫️','❤️‍🔥','❤️‍🩹','🫶'],
+    'Gestures': ['👍','👎','👏','🙌','🤲','🤝','🤜','🤛','✊','👊','🫡','💪','🙏','🫶','👀','🫂','🤷','🤦','✌️','🤘','🤙','👌','🤌','🤏','🫰','🖕','👋','🤚','🖐️','✋','🖖','👈','👉','👆','👇','☝️','🤞','🫵','💅','👑','😘','💋','🦶','🦵','🦾','🦿','🧠','👁️','👂','👃'],
+    'Bitcoin': ['₿','⚡','⛏️','🔑','🗝️','🧡','💎','🚀','🐋','🦁','🐂','🐻','📈','📉','🪙','🛡️','🔒','💰','🏦','💸','📊','🏴','🧮','🌐','🦅','🐝','🦌','🏆','🎯','💡','🔭','🧪','🔧','🔨','📜','🧾','💾','📡','🌋','🗺️','⛓️','🏛️','🌍','🌎','🌏','🕊️','⚖️','🗳️','🧩'],
+    'Objects': ['🔥','💯','🎉','🎊','🎈','🎀','🏅','🥇','🥈','🥉','🎯','✨','🌟','⭐','💫','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❌','✅','☑️','✔️','⬆️','⬇️','➡️','⬅️','🔄','♾️','💯','💯','🎵','🎶','🎸','🎹','🥁','🎤','🎧','📱','💻','🎮','🕹️','🎲','♟️','🎭','📚','📖','🗺️','🍿','🍕','🍔','🍣','🍺','🍻','🥂','☕','🍵','🌈','⚽','🏀','🏈','⚾','🎾','🏐','🏓','⛳','🚨','🚀','🛸','🌙','☀️','🌊','🔮','💊','🧲','🪄','🧿','🎪','🎠','🏖️','🌴']
 };
+
+// Flat emoji search index: [emoji, keywords]
+var EMOJI_SEARCH_INDEX = [
+    ['😀','grinning happy smile face'],['😂','joy laugh crying face'],['🤣','rolling floor laughing lmao'],['😊','blush smile happy'],['😍','heart eyes love'],['🥰','smiling hearts love'],['😎','sunglasses cool'],['🤔','thinking hmm'],['😭','loudly crying sad'],['😱','scream shocked'],['😤','steam nose angry'],['😡','angry mad rage'],['💀','skull dead'],['🙈','see no evil monkey'],['💩','poop shit'],['🤡','clown joke'],['😈','smiling devil evil'],['👻','ghost spooky'],['🤖','robot'],['🥺','pleading cute'],['🤩','star struck wow'],['😴','sleeping tired'],['🥳','party hat celebrate'],['🤯','mind blown explode'],['😇','angel halo good'],['🥴','woozy drunk dizzy'],['😬','grimace awkward'],['🫠','melting face'],['🫣','peeking eye'],['❤️‍🔥','heart fire love passion'],
+    ['👍','thumbs up like approve'],['👎','thumbs down dislike'],['👏','clap applause'],['🙌','raise hands celebrate'],['🙏','pray thanks please'],['💪','muscle strong flex'],['🤝','handshake deal'],['👀','eyes look see watching'],['🤷','shrug whatever'],['🤦','facepalm smh'],['🫶','heart hands love'],['🫂','hug embrace'],['✌️','peace victory'],['🤌','italian hand pinch'],['👌','ok perfect'],['🤞','fingers crossed luck'],['🫵','point you'],
+    ['₿','bitcoin btc'],['⚡','lightning fast zap bolt'],['🚀','rocket moon launch'],['💎','diamond gem'],['🔑','key access'],['💰','money bag rich'],['💸','money wings spend'],['📈','chart up trend bull'],['📉','chart down bear'],['⛏️','pickaxe mining'],['🏆','trophy win champion'],['🌐','globe world internet'],['🔒','lock secure'],['🪙','coin money'],['🦌','deer nacho'],['🦁','lion king'],['🐂','bull ox'],['🐋','whale'],['🐻','bear'],
+    ['🔥','fire hot trending'],['💯','100 percent perfect'],['✨','sparkle star magic'],['🎉','party celebrate tada'],['⭐','star favorite'],['🌟','glowing star shine'],['❤️','red heart love'],['💔','broken heart sad'],['✅','check mark done correct'],['❌','cross wrong no'],['🔄','refresh cycle repeat'],['♾️','infinity forever'],['🎵','music note'],['🎮','video game controller'],['🎲','dice game random'],['📚','books read study'],['🍕','pizza food'],['🍺','beer drink cheers'],['☕','coffee hot drink'],['🌈','rainbow colors'],['⚽','soccer football'],['🏀','basketball'],['🎯','dart target goal'],
+    ['💯','100 perfect score'],['🎊','confetti party'],['🥇','gold medal first place'],['🥈','silver second'],['🥉','bronze third'],['💫','dizzy star spin'],['🧡','orange heart'],['💛','yellow heart'],['💚','green heart'],['💙','blue heart'],['💜','purple heart'],['🖤','black heart'],['🤍','white heart'],['🤎','brown heart'],
+    ['😋','yum delicious eating'],['😏','smirk'],['🥹','holding back tears emotional'],['🤫','shush quiet secret'],['🤭','hand over mouth giggle'],['🙃','upside down sarcasm'],['😑','expressionless'],['😶','no mouth silent'],['😮','open mouth surprise'],['🤐','zipper mouth secret'],
+];
 
 window.showEmojiPicker = function() {
     var old = document.getElementById('gcEmojiPicker');
@@ -2120,16 +2130,25 @@ window.showEmojiPicker = function() {
     picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:320px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
     var cats = Object.keys(EMOJI_CATEGORIES);
-    var tabHtml = '<div style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;">';
+    // Search bar
+    var searchHtml = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
+        '<input id="emojiSearchInput" type="text" placeholder="🔍 Search emojis..." autocomplete="off" ' +
+        'style="flex:1;padding:7px 10px;background:var(--input-bg,rgba(255,255,255,0.07));border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;" ' +
+        'oninput="window._emojiSearch(this.value)">' +
+        '<button onclick="document.getElementById('gcEmojiPicker').remove()" style="padding:4px 8px;background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;flex-shrink:0;">&#x2715;</button>' +
+        '</div>';
+    // Category tabs
+    var tabHtml = '<div id="emojiTabBar" style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;">';
     cats.forEach(function(cat, i) {
         var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : '🔥';
-        tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
+        tabHtml += '<button onclick="window._switchEmojiTab('' + cat + '')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
     });
-    tabHtml += '<button onclick="document.getElementById(\'gcEmojiPicker\').remove()" style="margin-left:auto;padding:4px 8px;background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;flex-shrink:0;">\u2715</button></div>';
+    tabHtml += '</div>';
 
-    picker.innerHTML = tabHtml + '<div id="emojiGrid" style="display:flex;flex-wrap:wrap;gap:2px;overflow-y:auto;max-height:240px;justify-content:center;"></div>';
+    picker.innerHTML = searchHtml + tabHtml + '<div id="emojiGrid" style="display:flex;flex-wrap:wrap;gap:2px;overflow-y:auto;max-height:220px;justify-content:center;"></div>';
 
-    // Insert before the chat input container
+    // Auto-focus search on desktop after picker opens
+    setTimeout(function() { var si = document.getElementById('emojiSearchInput'); if (si && window.innerWidth > 600) si.focus(); }, 120);
     var chatWrap = _gcActiveInput();
     if (chatWrap) {
         var container = chatWrap.closest('[style*="flex-shrink"]') || chatWrap.parentElement.parentElement.parentElement;
@@ -2144,12 +2163,15 @@ window.showEmojiPicker = function() {
 window._switchEmojiTab = function(cat) {
     var grid = document.getElementById('emojiGrid');
     if (!grid) return;
+    // Clear search input when switching tabs
+    var si = document.getElementById('emojiSearchInput');
+    if (si) si.value = '';
     var emojis = EMOJI_CATEGORIES[cat] || [];
     var html = '';
     emojis.forEach(function(e) {
         html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
     });
-    grid.innerHTML = html;
+    grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
 
     // Update tab styles
     var cats = Object.keys(EMOJI_CATEGORIES);
@@ -2159,6 +2181,58 @@ window._switchEmojiTab = function(cat) {
             tab.style.background = (c === cat) ? 'var(--accent-bg)' : 'none';
             tab.style.borderColor = (c === cat) ? 'var(--accent)' : 'var(--border)';
         }
+    });
+};
+
+window._emojiSearch = function(query) {
+    var grid = document.getElementById('emojiGrid');
+    if (!grid) return;
+    var q = (query || '').trim().toLowerCase();
+    if (!q) {
+        // Restore first tab on empty search
+        window._switchEmojiTab(Object.keys(EMOJI_CATEGORIES)[0]);
+        var si = document.getElementById('emojiSearchInput');
+        if (si) si.value = '';
+        return;
+    }
+    // Search across EMOJI_SEARCH_INDEX (keyword match) + category arrays (direct char match)
+    var results = [];
+    var seen = {};
+    // 1. Keyword index search
+    EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        var e = entry[0], kw = entry[1];
+        if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
+    });
+    // 2. Also scan all category emojis for the emoji char itself
+    Object.keys(EMOJI_CATEGORIES).forEach(function(cat) {
+        EMOJI_CATEGORIES[cat].forEach(function(e) {
+            if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
+        });
+    });
+    // 3. Partial keyword match for first word
+    EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        var e = entry[0], kw = entry[1];
+        if (!seen[e]) {
+            var words = kw.split(' ');
+            for (var i = 0; i < words.length; i++) {
+                if (words[i].indexOf(q) === 0) { results.push(e); seen[e] = true; break; }
+            }
+        }
+    });
+    var html = '';
+    if (results.length === 0) {
+        html = '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "' + q + '"</div>';
+    } else {
+        results.forEach(function(e) {
+            html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
+        });
+    }
+    grid.innerHTML = html;
+    // Dim all tabs to show search mode is active
+    var cats = Object.keys(EMOJI_CATEGORIES);
+    cats.forEach(function(c, i) {
+        var tab = document.getElementById('emojiTab_' + i);
+        if (tab) { tab.style.background = 'none'; tab.style.borderColor = 'var(--border)'; tab.style.opacity = '0.5'; }
     });
 };
 
