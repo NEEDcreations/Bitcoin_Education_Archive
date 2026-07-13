@@ -6774,3 +6774,40 @@ exports.updateCountryStats = functions.firestore
         }
         return null;
     });
+
+// ══════════════════════════════════════════════════════════════════════
+// 🌍 COUNTRY STATS — Weekly full recount safeguard
+// Runs every Sunday at 3 AM UTC. Counts ALL users with country set,
+// overwrites stats/countries with a fresh accurate tally.
+// This ensures the world map never drifts due to missed trigger fires.
+// ══════════════════════════════════════════════════════════════════════
+exports.recountCountryStats = functions.pubsub
+    .schedule('0 3 * * 0')  // Every Sunday 3 AM UTC
+    .timeZone('UTC')
+    .onRun(async (ctx) => {
+        console.log('[COUNTRY RECOUNT] Starting full recount...');
+        const counts = {};
+        let processed = 0;
+        let cursor = null;
+
+        // Page through ALL users with country set (no limit)
+        while (true) {
+            let query = db.collection('users').where('country', '>', '').orderBy('country').limit(500);
+            if (cursor) query = query.startAfter(cursor);
+            const snap = await query.get();
+            if (snap.empty) break;
+
+            snap.forEach(doc => {
+                const c = (doc.data().country || '').trim();
+                if (c) counts[c] = (counts[c] || 0) + 1;
+            });
+            processed += snap.size;
+            cursor = snap.docs[snap.docs.length - 1];
+            if (snap.size < 500) break;  // last page
+        }
+
+        const countryCount = Object.keys(counts).length;
+        await db.collection('stats').doc('countries').set({ counts, lastRecount: admin.firestore.FieldValue.serverTimestamp(), totalUsersWithCountry: processed }, { merge: false });
+        console.log('[COUNTRY RECOUNT] Done. Countries: ' + countryCount + ', Users: ' + processed);
+        return null;
+    });

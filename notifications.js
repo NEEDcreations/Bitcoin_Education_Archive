@@ -43,13 +43,13 @@ function startDMListener(uid) {
     try {
         window._dmUnsub = db.collection('dm_conversations')
             .where('participants', 'array-contains', uid)
-            .where('lastMessageAt', '>', new Date(Date.now() - 86400000))
+            .where('lastMessageTime', '>', new Date(Date.now() - 86400000))
             .onSnapshot(function(snap) {
                 var unread = 0;
                 snap.forEach(function(doc) {
                     var d = doc.data();
                     var lastRead = d['lastRead_' + uid];
-                    if (d.lastMessageAt && (!lastRead || d.lastMessageAt.toMillis() > lastRead.toMillis())) {
+                    if (d.lastMessageTime && (!lastRead || d.lastMessageTime.toMillis() > lastRead.toMillis())) {
                         unread++;
                     }
                 });
@@ -74,13 +74,13 @@ function checkUnreadDMsOnce() {
     var uid = auth.currentUser.uid;
     db.collection('dm_conversations')
         .where('participants', 'array-contains', uid)
-        .where('lastMessageAt', '>', new Date(Date.now() - 86400000))
+        .where('lastMessageTime', '>', new Date(Date.now() - 86400000))
         .get().then(function(snap) {
             var unread = 0;
             snap.forEach(function(doc) {
                 var d = doc.data();
                 var lastRead = d['lastRead_' + uid];
-                if (d.lastMessageAt && (!lastRead || d.lastMessageAt.toMillis() > lastRead.toMillis())) {
+                if (d.lastMessageTime && (!lastRead || d.lastMessageTime.toMillis() > lastRead.toMillis())) {
                     unread++;
                 }
             });

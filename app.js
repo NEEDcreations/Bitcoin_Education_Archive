@@ -3638,8 +3638,9 @@ window.nachoQuizAnswer = function(btn, correct) {
                 else if (id === 'chat' && typeof renderChatHub === 'function') renderChatHub('global');
                 else if (id === 'trails' && typeof renderModules === 'function') renderModules();
                 else if (id === 'forum' && typeof renderForum === 'function') renderForum();
-                else if (attempt < 50) {
+                else if (attempt < 150) {
                     // Script not loaded yet — retry quickly (lazy scripts load on-demand for direct links)
+                    // 150 attempts × 100ms = 15 seconds max (timechain-tv.js is 795KB, needs more time on slow connections)
                     setTimeout(function() { _routeApp(id, attempt + 1); }, 100);
                     if (attempt === 0) {
                         var fc2 = document.getElementById('forumContainer');
