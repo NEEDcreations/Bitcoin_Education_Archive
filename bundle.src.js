@@ -8885,14 +8885,18 @@ async function attachReferral(uid) {
         });
 
         // Also record in referrals collection for tracking
-        await db.collection('referrals').doc(uid).set({
+        // Include signup source so Stacker News / Pleb Underground links are attributable
+        var _refSource = localStorage.getItem('btc_signup_source') || '';
+        var _refDoc = {
             referredUser: uid,
             referrerCode: refCode,
             referrerUid: referrerUid || '',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             verified: false,
             ticketsAwarded: false,
-        });
+        };
+        if (_refSource) _refDoc.source = _refSource;
+        await db.collection('referrals').doc(uid).set(_refDoc);
 
         localStorage.removeItem('btc_referral_code');
     } catch (e) {
