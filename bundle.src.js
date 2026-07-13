@@ -4255,7 +4255,7 @@ function showSettingsPage(tab) {
         var settingsEmoji = getUserDisplayEmoji(lvl);
         var _pfpUrl = currentUser ? currentUser.profilePic || '' : '';
         var _pfpHtml = _pfpUrl
-            ? '<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Change profile picture">'
+            ? ('<img src="' + (_pfpUrl && /^data:image\//i.test(_pfpUrl) ? _pfpUrl : escapeHtml(sanitizeUrl(_pfpUrl))) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">')
             : '<div style="font-size:2.5rem;margin-bottom:0;">' + settingsEmoji + '</div>';
         // Build title pill for own profile
         var _activeTitleId = currentUser ? currentUser.activeTitle || '' : '';
@@ -4322,19 +4322,22 @@ function showSettingsPage(tab) {
 
         // Profile Picture upload
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📷 Profile Picture</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📷 Profile Picture</div>' +
             '<input type="file" id="pfpFileInput" accept="image/*" style="display:none;" onchange="handleProfilePicUpload(this)">' +
-            '<div style="display:flex;align-items:center;gap:12px;">' +
+            '<div style="text-align:center;">' +
                 (_pfpUrl
-                    ? '<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;">'
-                    : '<div style="width:48px;height:48px;border-radius:50%;background:var(--bg);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">👤</div>') +
-                '<div style="flex:1;">' +
-                    '<button onclick="document.getElementById(\'pfpFileInput\').click()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (_pfpUrl ? 'Change Photo' : 'Upload Photo') + '</button>' +
-                    (_pfpUrl ? ' <button onclick="removeProfilePic()" style="padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Remove</button>' : '') +
-                    '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Square image recommended · Max 2MB</div>' +
+                    ? ('<div style="position:relative;display:inline-block;margin-bottom:12px;cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">' +
+                        '<img src="' + (_pfpUrl && /^data:image\//i.test(_pfpUrl) ? _pfpUrl : escapeHtml(sanitizeUrl(_pfpUrl))) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 16px rgba(247,147,26,0.3);display:block;" onerror="this.style.display=\'none\'">' +
+                        '<div style="position:absolute;bottom:2px;right:2px;background:var(--accent);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;border:2px solid var(--bg-side);">✏️</div>' +
+                       '</div>')
+                    : '<div style="width:96px;height:96px;border-radius:50%;background:var(--bg);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin:0 auto 12px;">👤</div>') +
+                '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
+                    '<button onclick="document.getElementById(\'pfpFileInput\').click()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (_pfpUrl ? '📷 Change Photo' : '📷 Upload Photo') + '</button>' +
+                    (_pfpUrl ? '<button onclick="removeProfilePic()" style="padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Remove</button>' : '') +
                 '</div>' +
+                '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;">Square image recommended · Max 2MB</div>' +
             '</div>' +
-            '<div id="pfpUploadStatus" style="margin-top:8px;font-size:0.8rem;"></div>' +
+            '<div id="pfpUploadStatus" style="margin-top:8px;font-size:0.8rem;text-align:center;"></div>' +
         '</div>';
 
         // Build Advanced Account content (will be rendered AFTER visible sections)
@@ -24808,7 +24811,7 @@ window.showUserProfile = function(uid) {
         var _safePickUrl = _picUrl ? (typeof sanitizeUrl === 'function' ? sanitizeUrl(_picUrl) : _picUrl) : '';
         var avatarHtml = _safePickUrl
             ? '<div style="position:relative;display:inline-block;margin-bottom:8px;">' +
-                '<img src="' + (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl) + '" ' +
+                '<img src="' + (_safePickUrl && /^data:image\//.test(_safePickUrl) ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
                 'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + '" ' +
                 'onerror="this.outerHTML=\'<div style=font-size:2.5rem>' + lvl.emoji + '</div>\'">' +
                 '</div>'

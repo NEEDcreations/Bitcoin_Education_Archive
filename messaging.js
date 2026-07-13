@@ -595,7 +595,7 @@ window.showUserProfile = function(uid) {
         var _safePickUrl = _picUrl ? (typeof sanitizeUrl === 'function' ? sanitizeUrl(_picUrl) : _picUrl) : '';
         var avatarHtml = _safePickUrl
             ? '<div style="position:relative;display:inline-block;margin-bottom:8px;">' +
-                '<img src="' + (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl) + '" ' +
+                '<img src="' + (_safePickUrl && /^data:image\//.test(_safePickUrl) ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
                 'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + '" ' +
                 'onerror="this.outerHTML=\'<div style=font-size:2.5rem>' + lvl.emoji + '</div>\'">' +
                 '</div>'
