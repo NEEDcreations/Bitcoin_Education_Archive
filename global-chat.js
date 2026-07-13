@@ -3101,10 +3101,20 @@ function initOverlay() {
         if (_lbInit) _lbInit.classList.remove('chat-shifted');
     }
 }
+function _initOverlayAndOpenIfPending() {
+    initOverlay();
+    // If user tapped chat before script loaded, open immediately now
+    if (window._pendingChatOpen) {
+        window._pendingChatOpen = false;
+        setTimeout(function() {
+            if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+        }, 100);
+    }
+}
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { setTimeout(initOverlay, 2000); });
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(_initOverlayAndOpenIfPending, 300); });
 } else {
-    setTimeout(initOverlay, 2000);
+    setTimeout(_initOverlayAndOpenIfPending, 300);
 }
 
 // ---- Online Users Counter ----
