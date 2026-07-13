@@ -4316,11 +4316,25 @@ function downloadCertificate(type) {
     ctx.fillStyle = '#334155';
     ctx.fillText('BITCOIN EDUCATION ARCHIVE © 2026', 600, 820);
 
-    // Download
-    const link = document.createElement('a');
-    link.download = 'Bitcoin-' + (certType === 'technical' ? 'Technical' : 'Scholar') + '-Certificate.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    // Download — must append to DOM before clicking for Firefox / mobile Safari compatibility
+    try {
+        const link = document.createElement('a');
+        link.download = 'Bitcoin-' + (certType === 'technical' ? 'Technical' : 'Scholar') + '-Certificate.png';
+        link.href = canvas.toDataURL('image/png');
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(function() { document.body.removeChild(link); }, 100);
+    } catch (e) {
+        // Fallback: open in new tab so user can save manually
+        var win = window.open();
+        if (win) {
+            win.document.write('<img src="' + canvas.toDataURL('image/png') + '" style="max-width:100%">');
+            win.document.title = 'Bitcoin Scholar Certificate';
+        } else if (typeof showToast === 'function') {
+            showToast('⚠️ Download blocked — try disabling your popup blocker', 5000);
+        }
+    }
 }
 
 // --- FLASHCARDS SYSTEM ---

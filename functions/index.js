@@ -6619,7 +6619,7 @@ exports.searchGifs = functions.https.onCall(async (data, context) => {
 
 // ===== WEEKLY RAID BOSS ANNOUNCEMENT =====
 // Fires Sunday 7 PM ET (11 PM UTC / 23:00 UTC)
-// Posts a boss status update to the announcements collection (shown in GGs tab)
+// Posts a boss status update to global_chat (visible to all users)
 // with a deep link to the Quest Hub Raid section
 exports.raidBossWeeklyAnnouncement = onSchedule(
   { schedule: '0 23 * * 0', timeZone: 'UTC', region: 'us-central1' },
@@ -6657,28 +6657,29 @@ exports.raidBossWeeklyAnnouncement = onSchedule(
     const hp = Math.max(0, target - current);
     const defeated = activeBoss.defeated || false;
 
+    const hpPct = target > 0 ? Math.round((hp / target) * 100) : 0;
     let text;
     if (defeated) {
       text = `⚔️ BOSS DEFEATED! The community took down **${name}** — amazing work everyone! 🏆 Check the [Quest Hub → Raid](#questhub) for results.`;
     } else if (pct === 0) {
       text = `⚔️ **${name}** is waiting! Boss has ${hp}/${target} HP remaining — we haven't dealt any damage yet. Every action counts! 👉 [Quest Hub → Raid](#questhub)`;
     } else if (pct >= 75) {
-      text = `⚔️ ALMOST THERE! **${name}** is at ${pct}% damage — only ${hp} HP left! Push through and claim the community prize! 🔥👉 [Quest Hub → Raid](#questhub)`;
+      text = `⚔️ ALMOST THERE! **${name}** has only ${hpPct}% health remaining — only ${hp} HP left! Push through and claim the community prize! 🔥👉 [Quest Hub → Raid](#questhub)`;
     } else if (pct >= 50) {
-      text = `⚔️ Halfway there! **${name}** is taking a beating — ${pct}% damage dealt, ${hp} HP remaining. Keep it up! 💪 [Quest Hub → Raid](#questhub)`;
+      text = `⚔️ Halfway there! **${name}** is at ${hpPct}% health remaining (${hp} HP left). Keep it up! 💪 [Quest Hub → Raid](#questhub)`;
     } else {
-      text = `⚔️ Weekly Raid Update: **${name}** — ${pct}% damage dealt (${current}/${target}). ${hp} HP remaining. Deal more damage — [Quest Hub → Raid](#questhub) 🗡️`;
+      text = `⚔️ Weekly Raid Update: **${name}** — ${hpPct}% health remaining (${hp}/${target} HP). Deal more damage — [Quest Hub → Raid](#questhub) 🗡️`;
     }
 
-    await db.collection('announcements').add({
+    await db.collection('global_chat').add({
       uid: 'nacho-bot',
       name: '🦌 Nacho',
       text: text,
-      isNachoAuto: true,
+      isNachoAuto: false,
       ts: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    console.log(`[RAID ANNOUNCE] Posted: "${text}"`);
+    console.log(`[RAID ANNOUNCE] Posted to global_chat: "${text}"`);
     return null;
   }
 );
