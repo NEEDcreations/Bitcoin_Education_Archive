@@ -1863,15 +1863,73 @@ window.beatsRenderLivestream = function() {
                 '</div>';
             }
 
-            // Music platforms — visible at top before scrolling
-            html += '<div style="padding:12px 16px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;text-align:center;">' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bitcoin Lightning Music Platforms</div>' +
-                '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">' +
-                    '<a href="https://www.twitch.tv/noderunnersradio" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.78rem;text-decoration:none;">📻 Noderunners Radio</a>' +
-                    '<a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-weight:700;font-size:0.78rem;text-decoration:none;">🎵 Wavlake</a>' +
-                    '<a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.25);border-radius:10px;color:#eab308;font-weight:700;font-size:0.78rem;text-decoration:none;">⚡ LN Beats</a>' +
+            // Music platforms — embedded in-app players
+            html += '<div style="margin-bottom:16px;">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;text-align:center;">⚡ Bitcoin Lightning Music Platforms</div>' +
+                '<div style="display:flex;flex-direction:column;gap:10px;">' +
+                    // Noderunners Radio — Twitch embed
+                    '<div style="background:var(--card-bg);border:1px solid rgba(145,71,255,0.3);border-radius:14px;overflow:hidden;">' +
+                        '<div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(145,71,255,0.15);">' +
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span style="font-size:1.1rem;">📻</span>' +
+                                '<div><div style="font-weight:700;font-size:0.85rem;color:var(--heading);">Noderunners Radio</div>' +
+                                '<div style="font-size:0.7rem;color:var(--text-faint);">Live on Twitch</div></div>' +
+                            '</div>' +
+                            '<div style="display:flex;gap:6px;">' +
+                                '<button onclick="window._toggleBeatsEmbed(\'noderunners\')" id="beatsBtnNoderunners" style="padding:5px 12px;background:rgba(145,71,255,0.15);border:1px solid rgba(145,71,255,0.3);border-radius:8px;color:#9147ff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">▶ Watch</button>' +
+                                '<a href="https://www.twitch.tv/noderunnersradio" target="_blank" rel="noopener" style="padding:5px 8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.75rem;text-decoration:none;">↗</a>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div id="beatsEmbedNoderunners" style="display:none;">' +
+                            '<iframe src="https://player.twitch.tv/?channel=noderunnersradio&parent=bitcoineducation.quest&muted=false" frameborder="0" allowfullscreen scrolling="no" height="240" style="width:100%;display:block;"></iframe>' +
+                            '<iframe src="https://www.twitch.tv/embed/noderunnersradio/chat?darkpopout&parent=bitcoineducation.quest" frameborder="0" scrolling="yes" height="160" style="width:100%;display:block;border-top:1px solid rgba(145,71,255,0.15);"></iframe>' +
+                        '</div>' +
+                    '</div>' +
+                    // Wavlake
+                    '<div style="background:var(--card-bg);border:1px solid rgba(139,92,246,0.3);border-radius:14px;overflow:hidden;">' +
+                        '<div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(139,92,246,0.15);">' +
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span style="font-size:1.1rem;">🎵</span>' +
+                                '<div><div style="font-weight:700;font-size:0.85rem;color:var(--heading);">Wavlake</div>' +
+                                '<div style="font-size:0.7rem;color:var(--text-faint);">Value 4 Value music</div></div>' +
+                            '</div>' +
+                            '<div style="display:flex;gap:6px;">' +
+                                '<button onclick="window._toggleBeatsEmbed(\'wavlake\')" id="beatsBtnWavlake" style="padding:5px 12px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);border-radius:8px;color:#8b5cf6;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">▶ Open</button>' +
+                                '<a href="https://wavlake.com" target="_blank" rel="noopener" style="padding:5px 8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.75rem;text-decoration:none;">↗</a>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div id="beatsEmbedWavlake" style="display:none;">' +
+                            '<iframe src="https://embed.wavlake.com" frameborder="0" height="400" style="width:100%;display:block;" allow="autoplay;clipboard-write"></iframe>' +
+                        '</div>' +
+                    '</div>' +
+                    // LN Beats
+                    '<div style="background:var(--card-bg);border:1px solid rgba(234,179,8,0.3);border-radius:14px;overflow:hidden;">' +
+                        '<div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(234,179,8,0.15);">' +
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span style="font-size:1.1rem;">⚡</span>' +
+                                '<div><div style="font-weight:700;font-size:0.85rem;color:var(--heading);">LN Beats</div>' +
+                                '<div style="font-size:0.7rem;color:var(--text-faint);">Lightning-native music</div></div>' +
+                            '</div>' +
+                            '<div style="display:flex;gap:6px;">' +
+                                '<button onclick="window._toggleBeatsEmbed(\'lnbeats\')" id="beatsBtnLnbeats" style="padding:5px 12px;background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);border-radius:8px;color:#eab308;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">▶ Open</button>' +
+                                '<a href="https://lnbeats.com" target="_blank" rel="noopener" style="padding:5px 8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.75rem;text-decoration:none;">↗</a>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div id="beatsEmbedLnbeats" style="display:none;">' +
+                            '<iframe src="https://lnbeats.com" frameborder="0" height="500" style="width:100%;display:block;" allow="autoplay;clipboard-write;payment"></iframe>' +
+                        '</div>' +
+                    '</div>' +
                 '</div>' +
             '</div>';
+
+            window._toggleBeatsEmbed = function(id) {
+                var el = document.getElementById("beatsEmbed" + id.charAt(0).toUpperCase() + id.slice(1));
+                var btn = document.getElementById("beatsBtn" + id.charAt(0).toUpperCase() + id.slice(1));
+                if (!el) return;
+                var isOpen = el.style.display !== "none";
+                el.style.display = isOpen ? "none" : "block";
+                if (btn) btn.textContent = isOpen ? "▶ " + (id === "noderunners" ? "Watch" : "Open") : "✕ Close";
+            };
 
             // How it works
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
