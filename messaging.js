@@ -536,7 +536,7 @@ window.showUserProfile = function(uid) {
 
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
-        var joinDate = 'OG 🫡'; // fallback for pre-createdAt legacy accounts
+        var joinDate = ''; // will be set below; empty means unknown join date
         try {
             // Field is 'created' in Firestore (ranking.js writes it as 'created')
             // Also check 'createdAt' for any accounts written via other paths
@@ -544,6 +544,14 @@ window.showUserProfile = function(uid) {
             if (_rawCreated) {
                 var jd = _rawCreated.toDate ? _rawCreated.toDate() : (_rawCreated.seconds ? new Date(_rawCreated.seconds * 1000) : new Date(_rawCreated));
                 if (!isNaN(jd.getTime())) joinDate = jd.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+            }
+            // If still empty after parsing, fall back to lastLogin or lastVisit as best estimate
+            if (!joinDate) {
+                var _fallback = u.lastLogin || null;
+                if (_fallback) {
+                    var _fd = _fallback.toDate ? _fallback.toDate() : (_fallback.seconds ? new Date(_fallback.seconds * 1000) : new Date(_fallback));
+                    if (!isNaN(_fd.getTime())) joinDate = _fd.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+                }
             }
         } catch(e) {}
         
@@ -632,7 +640,7 @@ window.showUserProfile = function(uid) {
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('🗣️', u.forumPosts || 0, 'Posts') +
                 profileStat('🔥', u.streak || 0, 'Streak' + ((u.bestStreak && u.bestStreak > (u.streak||0)) ? ' (best: ' + u.bestStreak + ')' : '')) +
-                profileStat('📅', joinDate, 'Joined') +
+                profileStat('📅', joinDate || '—', 'Joined') +
             '</div>' +
             // PVP Stats (only show if they've played)
             ((u.pvpWins || u.pvpLosses) ? '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +

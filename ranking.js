@@ -802,12 +802,15 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             await auth.signInWithCustomToken(result.data.token);
             var uid = result.data.uid;
             var userDoc = await db.collection('users').doc(uid).get();
+            // Always patch 'created' if missing — even for returning users who already have a username
+            // Fixes Nostr users who logged in before this field was written
+            if (!userDoc.exists || !userDoc.data().created) {
+                await db.collection('users').doc(uid).set({ created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            }
             if (!userDoc.exists || !userDoc.data().username) {
                 var npubShort = 'npub...' + pubkey.substring(0, 8);
                 var _nostrUserData = { username: npubShort, nostr: pubkey, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
                 if (!userDoc.exists) { _nostrUserData.points = 0; _nostrUserData.channelsVisited = 0; }
-                // Always ensure 'created' is set — write it if missing (covers new docs and existing docs without the field)
-                if (!userDoc.exists || !userDoc.data().created) { _nostrUserData.created = firebase.firestore.FieldValue.serverTimestamp(); }
                 await db.collection('users').doc(uid).set(_nostrUserData, { merge: true });
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             }

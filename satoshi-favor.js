@@ -1246,7 +1246,9 @@
     window.contributeSatoshiFavor = async function(source, detail) {
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
         var wasFavorActive = favorState && favorState.favorActive;
-        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'A community member';
+        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+        // Don't post anonymous badge announcements — skip if user has no username yet
+        if (!username && source === 'badge_earned') return;
 
         try {
             const fn = firebase.functions().httpsCallable('contributeFavor');
