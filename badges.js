@@ -455,6 +455,12 @@ const BADGE_DEFS = [
     { id: 'set_spin_complete',      name: 'Wheel Master',         emoji: '🎰', desc: 'Completed The Wheel Set',        pts: 300,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_spin_complete') === '1' },
     { id: 'set_profile_complete',   name: 'Archive Legend',       emoji: '🦌', desc: 'Completed The Profile Set',      pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_profile_complete') === '1' },
     { id: 'set_pow_complete',       name: 'Distance Legend',      emoji: '🌍', desc: 'Completed The Proof of Walk Set',pts: 750,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_pow_complete') === '1' },
+    // Leaderboard Lurker — secret badge for repeat leaderboard openers
+    { id: 'lb_lurker_5',    name: 'Leaderboard Lurker',    emoji: '👀', desc: 'Opened the leaderboard 5 times',    pts: 10,  hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 5    },
+    { id: 'lb_lurker_10',   name: 'Rank Watcher',           emoji: '📊', desc: 'Opened the leaderboard 10 times',   pts: 25,  hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 10   },
+    { id: 'lb_lurker_50',   name: 'Standing Obsession',     emoji: '🔭', desc: 'Opened the leaderboard 50 times',   pts: 50,  hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 50   },
+    { id: 'lb_lurker_100',  name: 'Rank Addict',            emoji: '🎯', desc: 'Opened the leaderboard 100 times',  pts: 100, hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 100  },
+    { id: 'lb_lurker_500',  name: 'Leaderboard Legend',     emoji: '🏆', desc: 'Opened the leaderboard 500 times',  pts: 500, hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 500  },
 ];
 
 // =============================================

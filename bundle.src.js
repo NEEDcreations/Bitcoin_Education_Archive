@@ -3516,6 +3516,23 @@ async function toggleLeaderboard() {
     }
     // Daily challenge tracking: leaderboard viewed today
     (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_lb_visited_'+dk,'1'); })();
+    // Leaderboard Lurker badge tracking
+    (function(){
+        var opens = (parseInt(localStorage.getItem('btc_lb_opens') || '0') || 0) + 1;
+        localStorage.setItem('btc_lb_opens', opens.toString());
+        var milestones = [5, 10, 50, 100, 500];
+        var ids = ['lb_lurker_5','lb_lurker_10','lb_lurker_50','lb_lurker_100','lb_lurker_500'];
+        milestones.forEach(function(m, i) {
+            if (opens === m) {
+                var bid = ids[i];
+                if (typeof checkBadges === 'function') setTimeout(checkBadges, 400);
+                else if (typeof HIDDEN_BADGES !== 'undefined') {
+                    var def = HIDDEN_BADGES.find(function(b){ return b.id === bid; });
+                    if (def && typeof showBadgeToast === 'function') setTimeout(function(){ showBadgeToast(def); }, 400);
+                }
+            }
+        });
+    })();
 
     lb.classList.remove('minimized');
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
@@ -7614,6 +7631,12 @@ const BADGE_DEFS = [
     { id: 'set_spin_complete',      name: 'Wheel Master',         emoji: '🎰', desc: 'Completed The Wheel Set',        pts: 300,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_spin_complete') === '1' },
     { id: 'set_profile_complete',   name: 'Archive Legend',       emoji: '🦌', desc: 'Completed The Profile Set',      pts: 500,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_profile_complete') === '1' },
     { id: 'set_pow_complete',       name: 'Distance Legend',      emoji: '🌍', desc: 'Completed The Proof of Walk Set',pts: 750,  hidden: true, check: () => localStorage.getItem('btc_badge_earned_set_pow_complete') === '1' },
+    // Leaderboard Lurker — secret badge for repeat leaderboard openers
+    { id: 'lb_lurker_5',    name: 'Leaderboard Lurker',    emoji: '👀', desc: 'Opened the leaderboard 5 times',    pts: 10,  hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 5    },
+    { id: 'lb_lurker_10',   name: 'Rank Watcher',           emoji: '📊', desc: 'Opened the leaderboard 10 times',   pts: 25,  hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 10   },
+    { id: 'lb_lurker_50',   name: 'Standing Obsession',     emoji: '🔭', desc: 'Opened the leaderboard 50 times',   pts: 50,  hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 50   },
+    { id: 'lb_lurker_100',  name: 'Rank Addict',            emoji: '🎯', desc: 'Opened the leaderboard 100 times',  pts: 100, hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 100  },
+    { id: 'lb_lurker_500',  name: 'Leaderboard Legend',     emoji: '🏆', desc: 'Opened the leaderboard 500 times',  pts: 500, hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 500  },
 ];
 
 // =============================================
