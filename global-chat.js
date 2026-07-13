@@ -3095,9 +3095,9 @@ function initOverlay() {
     // Keep desktopDMBtn visible on desktop — it now triggers toggleChatOverlay
     // var oldBtn = document.getElementById('desktopDMBtn');
     // if (oldBtn) oldBtn.style.display = 'none';
-    // Hide floating button on mobile — bottom nav "Chat" is enough
+    // Keep chat button visible on all screen sizes — it's the only chat entry point
     var chatBtn = document.getElementById('chatOverlayBtn');
-    if (chatBtn && window.innerWidth <= 900) chatBtn.style.display = 'none';
+    if (chatBtn) chatBtn.style.display = '';
     // Safety net: strip chat-shifted from lbFloatBtn if chat panel is not open on init
     if (!_overlayOpen && !document.getElementById('chatContent')) {
         var _lbInit = document.getElementById('lbFloatBtn');
