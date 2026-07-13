@@ -7637,6 +7637,12 @@ const BADGE_DEFS = [
     { id: 'lb_lurker_50',   name: 'Standing Obsession',     emoji: '🔭', desc: 'Opened the leaderboard 50 times',   pts: 50,  hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 50   },
     { id: 'lb_lurker_100',  name: 'Rank Addict',            emoji: '🎯', desc: 'Opened the leaderboard 100 times',  pts: 100, hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 100  },
     { id: 'lb_lurker_500',  name: 'Leaderboard Legend',     emoji: '🏆', desc: 'Opened the leaderboard 500 times',  pts: 500, hidden: true, check: () => parseInt(localStorage.getItem('btc_lb_opens') || '0') >= 500  },
+    // Chat Lurker — secret badge for repeat chat openers
+    { id: 'chat_lurker_5',   name: 'Chat Lurker',            emoji: '💬', desc: 'Opened the chat 5 times',    pts: 10,  hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 5    },
+    { id: 'chat_lurker_10',  name: 'Social Butterfly',       emoji: '🦋', desc: 'Opened the chat 10 times',   pts: 25,  hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 10   },
+    { id: 'chat_lurker_50',  name: 'Always Online',          emoji: '🟢', desc: 'Opened the chat 50 times',   pts: 50,  hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 50   },
+    { id: 'chat_lurker_100', name: 'Chat Addict',            emoji: '🗣️', desc: 'Opened the chat 100 times',  pts: 100, hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 100  },
+    { id: 'chat_lurker_500', name: 'Global Chat Legend',     emoji: '🌐', desc: 'Opened the chat 500 times',  pts: 500, hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 500  },
 ];
 
 // =============================================

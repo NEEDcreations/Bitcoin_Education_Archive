@@ -1502,6 +1502,17 @@ window.toggleChatOverlay = function() {
     if (_lbFab) { if (_overlayOpen) _lbFab.classList.add('chat-shifted'); else _lbFab.classList.remove('chat-shifted'); }
     if (_overlayOpen) {
         localStorage.setItem('hasUsedChat', '1');
+        // Chat Lurker badge tracking
+        (function(){
+            var opens = (parseInt(localStorage.getItem('btc_chat_opens') || '0') || 0) + 1;
+            localStorage.setItem('btc_chat_opens', opens.toString());
+            var milestones = [5, 10, 50, 100, 500];
+            milestones.forEach(function(m) {
+                if (opens === m) {
+                    if (typeof checkBadges === 'function') setTimeout(checkBadges, 400);
+                }
+            });
+        })();
         // Always open to Global Chat tab
         _overlayTab = 'global';
         // Render Satoshi's Favor banner
