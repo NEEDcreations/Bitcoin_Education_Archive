@@ -1531,6 +1531,36 @@ async function loadUser(uid, prefetchedDoc) {
         localStorage.setItem('btc_pvp_wins', String(currentUser.pvpWins || 0));
         localStorage.setItem('btc_pvp_losses', String(currentUser.pvpLosses || 0));
 
+        // ===== LEADERBOARD REWARD LOGIN TOAST =====
+        // If this user has pending leaderboard ticket rewards, show a toast + clear the flag
+        if (isRealUser && Array.isArray(currentUser.pendingLeaderboardReward) && currentUser.pendingLeaderboardReward.length > 0) {
+            var _pendingRewards = currentUser.pendingLeaderboardReward;
+            // Clear the flag immediately so it only shows once
+            db.collection('users').doc(uid).update({
+                pendingLeaderboardReward: firebase.firestore.FieldValue.delete()
+            }).catch(function() {});
+            // Show celebration after a short delay (let the page settle)
+            setTimeout(function() {
+                _pendingRewards.forEach(function(reward) {
+                    if (!reward || !reward.tickets) return;
+                    // Big celebration modal for leaderboard wins
+                    if (typeof window.showCelebration === 'function') {
+                        window.showCelebration({
+                            emoji: '🏆',
+                            title: 'Leaderboard Winner!',
+                            message: reward.reason || 'You finished in the Top 10!',
+                            rewards: [{ label: reward.tickets.toLocaleString(), sub: 'ORANGE TICKETS 🎫', color: '#f7931a' }],
+                            btnText: 'Claim! 🎫'
+                        });
+                    } else {
+                        if (typeof showToast === 'function') {
+                            showToast('🏆 ' + (reward.reason || 'Leaderboard reward') + ': +' + reward.tickets + ' 🎫 Orange Tickets!');
+                        }
+                    }
+                });
+            }, 2500);
+        }
+
             // Restore Nacho nickname from Firestore
             if (currentUser.nachoNickname) {
                 localStorage.setItem('btc_nacho_nickname', currentUser.nachoNickname);

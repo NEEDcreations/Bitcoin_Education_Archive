@@ -5367,8 +5367,26 @@ exports.backfillJoinDates = functions.https.onRequest(async (req, res) => {
 
 async function _awardTicketsToUser(uid, ticketCount, reason) {
     const userRef = db.collection('users').doc(uid);
+    // Award tickets + queue a login-toast notification
     await userRef.update({
         orangeTickets: admin.firestore.FieldValue.increment(ticketCount),
+        pendingLeaderboardReward: admin.firestore.FieldValue.arrayUnion({
+            tickets: ticketCount,
+            reason: reason,
+            awardedAt: Date.now()
+        })
+    });
+    // Write a persistent notification so it shows in the bell tray
+    await db.collection('notifications').add({
+        recipientId: uid,
+        senderId: 'system',
+        senderName: 'Leaderboard',
+        type: 'leaderboard_reward',
+        message: '🏆 ' + reason + ' — you earned ' + ticketCount + ' 🎫 Orange Tickets! Check your wallet.',
+        targetType: null,
+        targetId: null,
+        read: false,
+        createdAt: admin.firestore.Timestamp.now()
     });
 }
 
