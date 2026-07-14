@@ -1828,7 +1828,7 @@ window.addEventListener('popstate', function() {
 // ---- Emoji Reaction System ----
 var _reactPickerDismiss = null; // module-level dismiss listener — prevents orphaned listeners
 
-function _closeReactPicker() {
+window._closeReactPicker = function _closeReactPicker() {
     var p = document.getElementById('reactPicker');
     if (p) p.remove();
     if (typeof _reactPickerDismiss === 'function') { document.removeEventListener('click', _reactPickerDismiss); _reactPickerDismiss = null; }
