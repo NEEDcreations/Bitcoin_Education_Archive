@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-14T04:00:52.280Z",
+  "updated": "2026-07-14T08:00:53.184Z",
   "news": [
+    {
+      "date": "Jul 14, 2026",
+      "title": "How Bitcoin ETFs Changed Institutional Adoption",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/learn/408156/how-bitcoin-etfs-changed-institutional-adoption?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
     {
       "date": "Jul 13, 2026",
       "title": "Bitwise Sees a Bottom in Bitcoin&#8217;s Worst Vibes Yet: &#8216;Darkest Before the Dawn&#8217;",
@@ -14,13 +21,6 @@
       "snippet": "The Block",
       "link": "https://www.theblock.co/post/408069/strategy-no-bitcoin-buy-week-shows-balance-sheet-discipline-analysts-say?utm_source=rss&amp;utm_medium=rss",
       "source": "the-block"
-    },
-    {
-      "date": "Jul 13, 2026",
-      "title": "Strive (ASST) Adds 18 Bitcoin, Pushing Treasury to 19,900 BTC",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/strive-asst-adds-18-treasury-to-19900-btc",
-      "source": "bitcoin-magazine"
     }
   ]
 }
