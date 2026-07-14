@@ -1,25 +1,25 @@
 {
-  "updated": "2026-07-14T16:00:49.436Z",
+  "updated": "2026-07-14T20:00:54.576Z",
   "news": [
     {
       "date": "Jul 14, 2026",
-      "title": "Bitcoin mining production slips in June for CleanSpark, BitFuFu and Canaan",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/post/408260/bitcoin-mining-production-slips-june-cleanspark-bitfufu-canaan?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
-    },
-    {
-      "date": "Jul 14, 2026",
-      "title": "&#8216;Soft print, hard regime&#8217;: Bitcoin climbs toward $64,000 as June CPI falls 0.4% in largest monthly drop since 2020",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/post/408263/soft-print-hard-regime-bitcoin-climbs-64000-june-cpi-falls-largest-monthly-drop-since-2020?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
-    },
-    {
-      "date": "Jul 14, 2026",
-      "title": "Bitcoin Price Jumps Above $64,000 as Cooler-Than-Expected Inflation Strengthens the Case for Rate Cuts",
+      "title": "The Bitcoin Softfork That Tried to Police “Junk Data” — And Why It’s Already Failing",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/markets/bitcoin-price-jumps-above-64000",
+      "link": "https://bitcoinmagazine.com/technical/the-bitcoin-softfork-that-tried-to-police-junk-data-and-why-its-already-failing",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jul 14, 2026",
+      "title": "Why Nation States Are Quietly Buying Bitcoin to Erase The Debt!!!",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/Pcp4EP8KxJI",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Jul 14, 2026",
+      "title": "CleanSpark Signs $6.6 Billion Data Center Lease as Bitcoin Miner Pivots to Compute",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/cleanspark-signs-6-billion-center-lease",
       "source": "bitcoin-magazine"
     }
   ]
