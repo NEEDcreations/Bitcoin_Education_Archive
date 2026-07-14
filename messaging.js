@@ -593,13 +593,20 @@ window.showUserProfile = function(uid) {
         // Profile picture or rank emoji avatar
         var _picUrl = u.profilePic || '';
         var _safePickUrl = _picUrl ? (typeof sanitizeUrl === 'function' ? sanitizeUrl(_picUrl) : _picUrl) : '';
+        var _initials = (u.username || 'B').charAt(0).toUpperCase();
+        var _isOwnProfile = auth && auth.currentUser && auth.currentUser.uid === uid;
         var avatarHtml = _safePickUrl
             ? '<div style="position:relative;display:inline-block;margin-bottom:8px;">' +
                 '<img src="' + (_safePickUrl && /^data:image\//.test(_safePickUrl) ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
-                'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + '" ' +
-                'onerror="this.outerHTML=\'<div style=font-size:2.5rem>' + lvl.emoji + '</div>\'">' +
+                'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + 'display:block;" ' +
+                'onerror="this.outerHTML=\'<div style=\'font-size:2.5rem;\'>" + lvl.emoji + "</div>\'">' +
                 '</div>'
-            : badgesHtml;
+            : '<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px;width:72px;height:72px;border-radius:50%;border:2px ' + (_isOwnProfile ? 'dashed' : 'solid') + ' var(--border);background:var(--card-bg);cursor:' + (_isOwnProfile ? 'pointer' : 'default') + ';' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);border-color:#f7931a;' : '') + '" ' + (_isOwnProfile ? 'onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showSettings===\'function\')showSettings(\'profile\')" title="Upload profile photo"' : '') + '>' +
+                '<span style="font-size:1.8rem;line-height:1;">' + lvl.emoji + '</span>' +
+                '<span style="position:absolute;bottom:0;right:0;font-size:0.6rem;font-weight:700;color:var(--text-faint);background:var(--card-bg);border:1px solid var(--border);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;">' + (typeof escapeHtml === 'function' ? escapeHtml(_initials) : _initials) + '</span>' +
+                (_isOwnProfile ? '<div style="position:absolute;inset:0;border-radius:50%;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;opacity:0;transition:0.2s;" onmouseover="this.style.opacity=1;this.style.background=\'rgba(0,0,0,0.5)\'" onmouseout="this.style.opacity=0;this.style.background=\'transparent\'">' +
+                    '<span style="font-size:0.55rem;color:#fff;font-weight:700;text-align:center;line-height:1.2;">📷<br>Upload</span></div>' : '') +
+                '</div>';
 
         var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;' + _frameStyle + '" onclick="event.stopPropagation()">' +
