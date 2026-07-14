@@ -61,7 +61,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260714_2043" as="script">
+    <link rel="preload" href="bundle.js?v=20260714_2215" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -688,7 +688,7 @@
             <div style="font-size:1.1rem;font-weight:800;color:var(--heading);">🔍 Search Archive</div>
             <button onclick="var _so=document.getElementById('searchOverlay');_so.style.display='none';_so.removeAttribute('data-open');" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
         </div>
-        <input type="text" class="search-input" id="searchOverlayInput" placeholder="What are you looking for?" style="width:100%;padding:14px;background:#0f172a;border:2px solid var(--accent);border-radius:12px;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;" oninput="doSearch(this.value)">
+        <input type="text" class="search-input" id="searchOverlayInput" placeholder="What are you looking for?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:14px;background:#0f172a;border:2px solid var(--accent);border-radius:12px;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;" oninput="doSearch(this.value)">
         <div id="searchResults" class="search-results" style="flex:1;overflow-y:auto;background:none;padding:0;"></div>
     </div>
     
@@ -727,7 +727,7 @@
                 <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(0,0,0,0.9);padding:3px 10px;border-radius:4px;flex-shrink:0;z-index:2;position:relative;border:1px solid rgba(247,147,26,0.3);box-shadow:8px 0 12px rgba(0,0,0,0.9);">🔴 Live</span>
                 <div id="ticker-content" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
             </div>
-            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all topics..." oninput="doSearch(this.value)">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all topics..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="doSearch(this.value)">
 
         </div>
         <div class="channels" id="channelList">
@@ -1265,7 +1265,7 @@
     <!-- App Check: lazy-loaded to avoid 724KB reCAPTCHA on first paint -->
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
-    <script src="bundle.js?v=20260714_2043" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260714_2215" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
     <script src="onboarding.js?v=20260713_1248" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
