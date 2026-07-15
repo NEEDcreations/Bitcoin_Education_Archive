@@ -233,7 +233,68 @@ function _lqIllustration_privacy(idx) {
         '</div>';
 }
 
+// --- Per-slide real images (from archive graphics/charts/memes) ---
+var _LQ_SLIDE_IMAGES = {
+    'what-is-bitcoin': {
+        0: 'https://assets.bitcoineducation.quest/images/resources/graphics_0086_What_does_Bitcoin_solve.jpg',
+        1: 'https://assets.bitcoineducation.quest/images/resources/graphics_0004_tx.jpg',
+        2: 'https://assets.bitcoineducation.quest/images/resources/graphics_0025_properties_of_money.jpg',
+        3: 'https://assets.bitcoineducation.quest/images/resources/graphics_0022_money_transfer.jpg'
+    },
+    'scarcity': {
+        0: 'https://assets.bitcoineducation.quest/images/resources/graphics_0009_supply_cap.jpg',
+        1: 'https://assets.bitcoineducation.quest/images/resources/graphics_0042_bitcoin_issuance_per_epoch.jpg',
+        2: 'https://assets.bitcoineducation.quest/images/resources/graphics_0073_Bitcoin_supply_visualized.jpg',
+        3: 'https://assets.bitcoineducation.quest/images/resources/graphics_0202_relative_scarcity_vs_absolute_scarcity_gold_vs_bitcoin.jpg'
+    },
+    'mining': {
+        0: 'https://assets.bitcoineducation.quest/images/resources/graphics_0226_how_mining_works_put_together_by_the_White_House.png',
+        1: 'https://assets.bitcoineducation.quest/images/resources/graphics_0142_sha256_visualization.jpg',
+        2: 'https://assets.bitcoineducation.quest/images/resources/graphics_0157_proof_of_work.jpg',
+        3: 'https://assets.bitcoineducation.quest/images/resources/graphics_0714_20220517_070749.jpg'
+    },
+    'nodes': {
+        0: 'https://assets.bitcoineducation.quest/images/resources/graphics_0020_network_effects.png',
+        1: 'https://assets.bitcoineducation.quest/images/resources/graphics_0046_cryptocurrency_ven_diagram.jpg',
+        2: 'https://assets.bitcoineducation.quest/images/resources/graphics_0018_node_verification_is_better.png',
+        3: 'https://assets.bitcoineducation.quest/images/resources/graphics_0017_miners_vs_nodes.png'
+    },
+    'lightning': {
+        0: 'https://assets.bitcoineducation.quest/images/resources/charts_0287_20220628_093515.jpg',
+        1: 'https://assets.bitcoineducation.quest/images/resources/graphics_0088_lightning_network_ecosystem.jpg',
+        2: 'https://assets.bitcoineducation.quest/images/resources/charts_0003_growth_of_lightning_network.png',
+        3: 'https://assets.bitcoineducation.quest/images/resources/graphics_0026_Lightning_Network_growth.jpg'
+    },
+    'self-custody': {
+        0: 'https://assets.bitcoineducation.quest/images/resources/memes-funny_0086_false_sense_of_security.png',
+        1: 'https://assets.bitcoineducation.quest/images/resources/graphics_0014_key.jpg',
+        2: 'https://assets.bitcoineducation.quest/images/resources/graphics_0095_20220426_153941.jpg',
+        3: 'https://assets.bitcoineducation.quest/images/resources/graphics_0076_True_ownership.jpg'
+    },
+    'privacy': {
+        0: 'https://assets.bitcoineducation.quest/images/resources/charts_0241_20220309_081833.jpg',
+        1: 'https://assets.bitcoineducation.quest/images/resources/graphics_0225_cbdc_tracker.jpg',
+        2: 'https://assets.bitcoineducation.quest/images/resources/graphics_0068_1_BTC__1_BTC.png',
+        3: 'https://assets.bitcoineducation.quest/images/resources/graphics_0140_RDT_20220624_1902452176181798029452076.jpg'
+    },
+    'bitcoin-only': {
+        0: 'https://assets.bitcoineducation.quest/images/resources/graphics_0043_Top_10_crypto_by_year.jpg',
+        1: 'https://assets.bitcoineducation.quest/images/resources/graphics_0047_centralization_of_other_chains.jpg',
+        2: 'https://assets.bitcoineducation.quest/images/resources/graphics_0134_bitcoin_vs_crypto.jpg'
+    }
+};
+
 function _lqGetIllustration(slug, idx) {
+    // Show real archive image if one is mapped for this slide
+    var slideImgs = _LQ_SLIDE_IMAGES[slug];
+    if (slideImgs && slideImgs[idx]) {
+        return '<div style="display:flex;justify-content:center;align-items:center;min-height:140px;padding:4px 0;">' +
+            '<img src="' + slideImgs[idx] + '" alt="" loading="lazy" ' +
+            'style="max-width:100%;max-height:200px;object-fit:contain;border-radius:8px;" ' +
+            'onerror="this.style.display=\'none\'">' +
+            '</div>';
+    }
+    // Fallback: animated illustration
     var map = {
         'what-is-bitcoin': _lqIllustration_what_is_bitcoin,
         'mining': _lqIllustration_mining,
