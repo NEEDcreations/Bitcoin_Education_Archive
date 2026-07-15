@@ -622,7 +622,7 @@ window.renderLearningQuestHub = function() {
     hub.id = 'lqHub';
     hub.className = 'lq-overlay';
     hub.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.97);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:lqFadeIn 0.3s ease;';
-    hub.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:20px 16px 40px;">' +
+    hub.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:56px 16px 40px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
         '<div><div style="font-size:1.4rem;font-weight:900;color:var(--text,#fff);">📖 Learning Quests</div>' +
         '<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin-top:2px;">' + passedCount + '/8 completed</div></div>' +
@@ -682,7 +682,7 @@ window._lqOpenTopic = function(slug) {
         var overlay = document.createElement('div');
         overlay.id = 'lqLesson';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:9510;background:rgba(0,0,0,0.98);overflow-y:auto;-webkit-overflow-scrolling:touch;';
-        overlay.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:20px 16px 40px;min-height:100vh;display:flex;flex-direction:column;">' +
+        overlay.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:56px 16px 40px;min-height:100vh;display:flex;flex-direction:column;">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
             '<div style="font-size:0.9rem;color:' + topic.color + ';font-weight:700;">' + topic.emoji + ' ' + topic.title + '</div>' +
             '<button onclick="document.getElementById(\'lqLesson\').remove()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);border-radius:10px;padding:6px 12px;cursor:pointer;font-family:inherit;font-weight:700;font-size:0.85rem;">✕</button>' +
@@ -776,7 +776,7 @@ function _lqShowQuestion() {
     var overlay = document.createElement('div');
     overlay.id = 'lqQuiz';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:9520;background:rgba(0,0,0,0.98);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:lqFadeIn 0.25s ease;';
-    overlay.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:20px 16px 40px;">' +
+    overlay.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:56px 16px 40px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
         '<div style="font-size:0.85rem;color:' + state.topic.color + ';font-weight:700;">' + state.topic.emoji + ' ' + state.topic.title + '</div>' +
         '<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);">Question ' + (state.qIdx + 1) + ' of 5</div>' +
@@ -884,7 +884,7 @@ function _lqShowScore() {
           '<div style="font-size:0.95rem;font-weight:700;color:#ef4444;">' + score + '/5 — Almost! Need 4 to pass</div>' +
           '</div>';
 
-    overlay.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:20px 16px 40px;">' +
+    overlay.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:56px 16px 40px;">' +
         '<div style="text-align:center;margin-bottom:20px;">' +
         '<div style="font-size:0.9rem;color:' + topic.color + ';font-weight:700;margin-bottom:12px;">' + topic.emoji + ' ' + topic.title + '</div>' +
         '<div style="font-size:4rem;font-weight:900;color:' + scoreColor + ';animation:lqBounce 0.5s ease;">' + score + '/5</div>' +
@@ -956,7 +956,7 @@ window._lqShowDigDeeper = function(slug) {
     var overlay = document.createElement('div');
     overlay.id = 'lqDigDeeper';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:9530;background:rgba(0,0,0,0.98);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:lqFadeIn 0.3s ease;';
-    overlay.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:20px 16px 40px;">' +
+    overlay.innerHTML = '<div style="max-width:540px;margin:0 auto;padding:56px 16px 40px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
         '<div style="font-size:1rem;font-weight:800;color:var(--text,#fff);">📖 Dig Deeper</div>' +
         '<button onclick="document.getElementById(\'lqDigDeeper\').remove()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);border-radius:10px;padding:6px 12px;cursor:pointer;font-family:inherit;font-weight:700;font-size:0.85rem;">✕</button>' +
