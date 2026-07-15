@@ -280,6 +280,58 @@ function _injectPOPStyles() {
     document.head.appendChild(s);
 }
 
+// ---- Render RyRacer tab ----
+function _renderRyRacerTab(wrap) {
+    wrap.style.padding = '0';
+    wrap.style.overflowY = 'auto';
+    var html = '<div style="background:#0a0a0f;min-height:100%;">';
+
+    // Hero banner
+    html += '<div style="position:relative;overflow:hidden;">' +
+        '<img src="https://ryracer.com/metaimage.png" alt="RyRacer" loading="eager" style="width:100%;height:200px;object-fit:cover;object-position:center;opacity:0.75;display:block;">' +
+        '<div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.2),rgba(10,10,15,0.95));"></div>' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;padding:16px 20px;">' +
+            '<div style="font-size:0.65rem;color:#f7931a;letter-spacing:0.18em;text-transform:uppercase;font-weight:800;margin-bottom:4px;">⚡ BITCOIN RACING</div>' +
+            '<div style="font-size:1.5rem;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1.1;">RyRacer</div>' +
+            '<div style="font-size:0.75rem;color:rgba(255,255,255,0.55);margin-top:4px;">3D arcade combat racing · 1 free race · pay sats to compete</div>' +
+        '</div>' +
+    '</div>';
+
+    // Play button
+    html += '<div style="padding:16px 16px 8px;">' +
+        '<button onclick="window._popLaunchGame(\'https://ryracer.com/\',\'RyRacer\')" style="width:100%;padding:16px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:14px;color:#fff;font-size:1.05rem;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:0.05em;touch-action:manipulation;box-shadow:0 4px 20px rgba(247,147,26,0.4);">🏎️ RACE NOW — 1 FREE RUN</button>' +
+        '<div style="text-align:center;margin-top:8px;font-size:0.68rem;color:rgba(255,255,255,0.35);">1 free race included · leaderboard runs pay sats via ⚡ Lightning</div>' +
+    '</div>';
+
+    // Stats strip
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:rgba(255,255,255,0.06);margin:12px 16px;border-radius:12px;overflow:hidden;">' +
+        '<div style="background:#0d0d14;padding:12px;text-align:center;"><div style="font-size:1rem;font-weight:900;color:#f7931a;">3D</div><div style="font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;">COMBAT RACING</div></div>' +
+        '<div style="background:#0d0d14;padding:12px;text-align:center;"><div style="font-size:1rem;font-weight:900;color:#f7931a;">1,000</div><div style="font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;">SATS PER RACE</div></div>' +
+        '<div style="background:#0d0d14;padding:12px;text-align:center;"><div style="font-size:1rem;font-weight:900;color:#f7931a;">WEEKLY</div><div style="font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;">SATS POT</div></div>' +
+    '</div>';
+
+    // How to play
+    html += '<div style="margin:0 16px 12px;padding:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;">' +
+        '<div style="font-size:0.65rem;color:#f7931a;text-transform:uppercase;letter-spacing:0.15em;font-weight:800;margin-bottom:10px;">🕹️ CONTROLS</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">' +
+            '<div style="font-size:0.73rem;color:rgba(255,255,255,0.55);"><span style="color:#fff;font-weight:700;">← →</span> Steer</div>' +
+            '<div style="font-size:0.73rem;color:rgba(255,255,255,0.55);"><span style="color:#fff;font-weight:700;">SHIFT</span> Boost</div>' +
+            '<div style="font-size:0.73rem;color:rgba(255,255,255,0.55);"><span style="color:#fff;font-weight:700;">SPACE</span> Drift</div>' +
+            '<div style="font-size:0.73rem;color:rgba(255,255,255,0.55);"><span style="color:#fff;font-weight:700;">Z</span> Fire weapon</div>' +
+        '</div>' +
+        '<div style="margin-top:8px;font-size:0.68rem;color:rgba(255,255,255,0.35);">📱 Mobile: on-screen touch controls appear automatically</div>' +
+    '</div>';
+
+    // Note about embedding + external link
+    html += '<div style="margin:0 16px 20px;padding:10px 12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+        '<div style="font-size:0.7rem;color:rgba(255,255,255,0.4);line-height:1.5;">🔒 RyRacer may open in a new tab — payment confirmation requires the tab stay open.</div>' +
+        '<a href="https://ryracer.com" target="_blank" rel="noopener noreferrer" style="flex-shrink:0;padding:7px 12px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.4);border-radius:8px;color:#f7931a;font-size:0.72rem;font-weight:700;text-decoration:none;">Open ↗</a>' +
+    '</div>';
+
+    html += '</div>';
+    wrap.innerHTML = html;
+}
+
 // ---- Render Galaxy Mind tab ----
 // galaxymind.space has X-Frame-Options: DENY — iframe embedding is blocked by them.
 // We show a styled game card grid with preview images + deep links instead.
@@ -438,6 +490,7 @@ window.enterProofOfPlay = function(startTab) {
                 '<button id="popTabPVP" class="pop-tab ' + (startTab === 'pvp' ? 'active' : '') + '" onclick="window._popSwitchTab(\'pvp\')">⚔️ PVP</button>' +
                 '<button id="popTabArcade" class="pop-tab ' + (startTab === 'arcade' ? 'active' : '') + '" onclick="window._popSwitchTab(\'arcade\')">🎮 Arcade</button>' +
                 '<button id="popTabGalaxy" class="pop-tab ' + (startTab === 'galaxy' ? 'active' : '') + '" onclick="window._popSwitchTab(\'galaxy\')">🌌 Galaxy Mind</button>' +
+                '<button id="popTabRyRacer" class="pop-tab ' + (startTab === 'ryracer' ? 'active' : '') + '" onclick="window._popSwitchTab(\'ryracer\')">🏎️ RyRacer</button>' +
             '</div>' +
         '</div>' +
         '<div class="pop-body" id="popBody"></div>';
@@ -449,6 +502,8 @@ window.enterProofOfPlay = function(startTab) {
         _renderPVPTab(body);
     } else if (startTab === 'galaxy') {
         _renderGalaxyMindTab(body);
+    } else if (startTab === 'ryracer') {
+        _renderRyRacerTab(body);
     } else {
         _renderArcadeTab(body);
     }
@@ -474,6 +529,8 @@ window._popSwitchTab = function(tab) {
     document.getElementById('popTabPVP').classList.toggle('active', tab === 'pvp');
     var gTab = document.getElementById('popTabGalaxy');
     if (gTab) gTab.classList.toggle('active', tab === 'galaxy');
+    var rTab = document.getElementById('popTabRyRacer');
+    if (rTab) rTab.classList.toggle('active', tab === 'ryracer');
     body.style.opacity = '0';
     body.style.transition = 'opacity 0.15s';
     setTimeout(function() {
@@ -481,6 +538,8 @@ window._popSwitchTab = function(tab) {
             _renderPVPTab(body);
         } else if (tab === 'galaxy') {
             _renderGalaxyMindTab(body);
+        } else if (tab === 'ryracer') {
+            _renderRyRacerTab(body);
         } else {
             _renderArcadeTab(body);
         }
