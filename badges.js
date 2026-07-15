@@ -467,6 +467,16 @@ const BADGE_DEFS = [
     { id: 'chat_lurker_50',  name: 'Always Online',          emoji: '🟢', desc: 'Opened the chat 50 times',   pts: 50,  hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 50   },
     { id: 'chat_lurker_100', name: 'Chat Addict',            emoji: '🗣️', desc: 'Opened the chat 100 times',  pts: 100, hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 100  },
     { id: 'chat_lurker_500', name: 'Global Chat Legend',     emoji: '🌐', desc: 'Opened the chat 500 times',  pts: 500, hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 500  },
+    // --- Learning Quests ---
+    { id: 'lq_what_is_bitcoin', name: '🟠 Bitcoin Basics',          emoji: '🟠', pts: 0, desc: 'Passed the What is Bitcoin? Learning Quest',              hint: 'Complete the Bitcoin Basics Learning Quest',          hidden: false, check: () => false },
+    { id: 'lq_mining',          name: '⛏️ Hash Slinger',              emoji: '⛏️', pts: 0, desc: 'Passed the Mining & Proof of Work Learning Quest',       hint: 'Complete the Mining Learning Quest',                  hidden: false, check: () => false },
+    { id: 'lq_nodes',           name: '🖥️ Node Runner',               emoji: '🖥️', pts: 0, desc: 'Passed the Nodes & Decentralization Learning Quest',     hint: 'Complete the Nodes Learning Quest',                   hidden: false, check: () => false },
+    { id: 'lq_self_custody',    name: '🔑 Sovereign Stacker',         emoji: '🔑', pts: 0, desc: 'Passed the Self-Custody & Keys Learning Quest',          hint: 'Complete the Self-Custody Learning Quest',            hidden: false, check: () => false },
+    { id: 'lq_lightning',       name: '⚡ Lightning Pleb',             emoji: '⚡', pts: 0, desc: 'Passed the Lightning Network Learning Quest',            hint: 'Complete the Lightning Learning Quest',               hidden: false, check: () => false },
+    { id: 'lq_scarcity',        name: '💎 21M Believer',               emoji: '💎', pts: 0, desc: 'Passed the Fixed Supply Learning Quest',                hint: 'Complete the Scarcity Learning Quest',                hidden: false, check: () => false },
+    { id: 'lq_bitcoin_only',    name: '🛡️ Bitcoin Maximalist',        emoji: '🛡️', pts: 0, desc: 'Passed the Why Bitcoin, Not Crypto Learning Quest',     hint: 'Complete the Bitcoin-Only Learning Quest',            hidden: false, check: () => false },
+    { id: 'lq_privacy',         name: '🕵️ Cypherpunk',                emoji: '🕵️', pts: 0, desc: 'Passed the Privacy & Sovereignty Learning Quest',       hint: 'Complete the Privacy Learning Quest',                 hidden: false, check: () => false },
+    { id: 'lq_graduate',        name: '📖 Learning Quest Graduate',   emoji: '📖', pts: 0, desc: 'Completed ALL 8 Learning Quests — true Bitcoin scholar', hint: 'Pass all 8 Learning Quests to earn this rare badge',  hidden: false, check: () => false },
 ];
 
 // =============================================
@@ -963,6 +973,7 @@ function getBadgeHTML() {
         '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm' || b.id === 'first_purchase'),
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_') || b.id === 'experienced_pro'),
         '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
+        '📖 Learning Quests': _cat(BADGE_DEFS, b => b.id.startsWith('lq_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
         '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_') || b.id.startsWith('story_')),
         '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),

@@ -7682,6 +7682,16 @@ const BADGE_DEFS = [
     { id: 'chat_lurker_50',  name: 'Always Online',          emoji: '🟢', desc: 'Opened the chat 50 times',   pts: 50,  hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 50   },
     { id: 'chat_lurker_100', name: 'Chat Addict',            emoji: '🗣️', desc: 'Opened the chat 100 times',  pts: 100, hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 100  },
     { id: 'chat_lurker_500', name: 'Global Chat Legend',     emoji: '🌐', desc: 'Opened the chat 500 times',  pts: 500, hidden: true, check: () => parseInt(localStorage.getItem('btc_chat_opens') || '0') >= 500  },
+    // --- Learning Quests ---
+    { id: 'lq_what_is_bitcoin', name: '🟠 Bitcoin Basics',          emoji: '🟠', pts: 0, desc: 'Passed the What is Bitcoin? Learning Quest',              hint: 'Complete the Bitcoin Basics Learning Quest',          hidden: false, check: () => false },
+    { id: 'lq_mining',          name: '⛏️ Hash Slinger',              emoji: '⛏️', pts: 0, desc: 'Passed the Mining & Proof of Work Learning Quest',       hint: 'Complete the Mining Learning Quest',                  hidden: false, check: () => false },
+    { id: 'lq_nodes',           name: '🖥️ Node Runner',               emoji: '🖥️', pts: 0, desc: 'Passed the Nodes & Decentralization Learning Quest',     hint: 'Complete the Nodes Learning Quest',                   hidden: false, check: () => false },
+    { id: 'lq_self_custody',    name: '🔑 Sovereign Stacker',         emoji: '🔑', pts: 0, desc: 'Passed the Self-Custody & Keys Learning Quest',          hint: 'Complete the Self-Custody Learning Quest',            hidden: false, check: () => false },
+    { id: 'lq_lightning',       name: '⚡ Lightning Pleb',             emoji: '⚡', pts: 0, desc: 'Passed the Lightning Network Learning Quest',            hint: 'Complete the Lightning Learning Quest',               hidden: false, check: () => false },
+    { id: 'lq_scarcity',        name: '💎 21M Believer',               emoji: '💎', pts: 0, desc: 'Passed the Fixed Supply Learning Quest',                hint: 'Complete the Scarcity Learning Quest',                hidden: false, check: () => false },
+    { id: 'lq_bitcoin_only',    name: '🛡️ Bitcoin Maximalist',        emoji: '🛡️', pts: 0, desc: 'Passed the Why Bitcoin, Not Crypto Learning Quest',     hint: 'Complete the Bitcoin-Only Learning Quest',            hidden: false, check: () => false },
+    { id: 'lq_privacy',         name: '🕵️ Cypherpunk',                emoji: '🕵️', pts: 0, desc: 'Passed the Privacy & Sovereignty Learning Quest',       hint: 'Complete the Privacy Learning Quest',                 hidden: false, check: () => false },
+    { id: 'lq_graduate',        name: '📖 Learning Quest Graduate',   emoji: '📖', pts: 0, desc: 'Completed ALL 8 Learning Quests — true Bitcoin scholar', hint: 'Pass all 8 Learning Quests to earn this rare badge',  hidden: false, check: () => false },
 ];
 
 // =============================================
@@ -8178,6 +8188,7 @@ function getBadgeHTML() {
         '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm' || b.id === 'first_purchase'),
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_') || b.id === 'experienced_pro'),
         '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
+        '📖 Learning Quests': _cat(BADGE_DEFS, b => b.id.startsWith('lq_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
         '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_') || b.id.startsWith('story_')),
         '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),
@@ -27789,6 +27800,7 @@ window.toggleMobileLearnMenu = function() {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px;">' +
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" title="Start here if you\'re new to Bitcoin" data-tooltip="Start here if you\'re new to Bitcoin" style="padding:12px 14px;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid #3b82f6;color:#3b82f6;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;gap:8px;">🟢 Brand New to Bitcoin?</button>' +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'learning-quests\')" style="padding:12px 14px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06));border:1px solid #10b981;color:#10b981;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;gap:8px;">📖 Learning Quests <span style="margin-left:auto;font-size:0.7rem;opacity:0.8;">8 topics ▸</span></button>' +
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'trails\')" style="padding:12px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;gap:8px;">🦌🗺️ Nacho\'s Trails: Guided Learning</button>' +
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();setTimeout(function(){if(typeof showQuestHub===\'function\')showQuestHub()},200)" title="Play daily quizzes, trivia & polls for XP" data-tooltip="Play daily quizzes, trivia & polls for XP" style="padding:12px 14px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08));border:1px solid #8b5cf6;color:#a78bfa;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;gap:8px;">🎯 Daily Quests</button>' +
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'first-purchase\')" title="Learn how to buy Bitcoin safely" data-tooltip="Learn how to buy Bitcoin safely" style="padding:12px 14px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06));border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;gap:8px;">🛒 Your First Bitcoin Purchase</button>' +
@@ -30153,7 +30165,7 @@ document.addEventListener('btcProfileSaved', function() {
     var nachoLiveData = { price: null, blockHeight: null };
 
     // ---- Clean URL helpers ----
-    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho','quests','proof-of-play'];
+    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho','quests','proof-of-play','learning-quests'];
     window._cleanUrl = function(id) {
         if (!id) return '/';
         // If we're already on the clean URL path, don't add a hash
@@ -33771,6 +33783,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 else if (id === 'dms' && typeof showInbox === 'function') showInbox();
                 else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
                 else if (id === 'chat' && typeof renderChatHub === 'function') renderChatHub('global');
+                else if (id === 'learning-quests' && typeof renderLearningQuestHub === 'function') renderLearningQuestHub();
                 else if (id === 'trails' && typeof renderModules === 'function') renderModules();
                 else if (id === 'forum' && typeof renderForum === 'function') renderForum();
                 else if (attempt < 150) {
@@ -34114,6 +34127,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_signin', title: '🔐 Sign In', desc: 'Sign in or create an account', keywords: 'sign in login register create account google twitter github facebook email', action: 'showUsernamePrompt()' },
         { id: '_home', title: '🏠 Home', desc: 'Return to the homepage', keywords: 'home main start beginning', action: 'goHome()' },
         { id: '_firstpurchase', title: '🛒 Your First Bitcoin Purchase', desc: 'Step-by-step guide to buying your first Bitcoin — apps for 11 regions', keywords: 'buy purchase first bitcoin exchange app strike river cash coinbase amber wallet region country how to start beginner dca', action: "go('first-purchase')" },
+        { id: '_lq', title: '📖 Learning Quests', desc: 'Interactive Bitcoin lessons with slideshow, animations & quiz. 8 topics.', keywords: 'learning quest lesson slideshow quiz topic bitcoin mining nodes lightning scarcity decentralization privacy self-custody altcoin', action: "go('learning-quests')" },
         { id: '_trails', title: '🦌 Nacho\'s Trails', desc: 'Guided learning paths through Bitcoin education — Meadow, Mountain & Summit', keywords: 'trails nacho guided path learning course module meadow mountain summit exam test progress curriculum education beginner intermediate advanced', action: "go('trails')" },
         { id: '_dashboard', title: '📊 Top Indicators', desc: 'Live Bitcoin cycle top indicators — Pi Cycle, NUPL, Puell, Power Law & more', keywords: 'dashboard indicators top cycle signal pi cycle nupl puell mayer multiple rsi ahr999 mstr etf power law rainbow reserve risk bitcoin metrics data analytics chart', action: "if(typeof toggleDashboard==='function')toggleDashboard()" },
         { id: '_meetupbox', title: '📦 Meetup-in-a-Box', desc: 'Ready-made meetup templates with agendas and host tips', keywords: 'meetup box template agenda host tips lightning workshop self custody mining event organize plan download', action: "go('irl-sync')" },
@@ -34968,7 +34982,7 @@ if (locked) {
         console.log('[ROUTE] Routing to:', hash);
         // If this is a deep link to a lazy-loaded feature, kick off deferred loading immediately
         // so the script is ready when _routeApp starts polling for it.
-        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv'];
+        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests'];
         if (_lazyRoutes.indexOf(hash.split('/')[0]) !== -1 && typeof window._loadDeferred === 'function') {
             window._loadDeferred();
         }
@@ -35009,6 +35023,9 @@ if (locked) {
                 case 'first-purchase':
                 case 'buy':
                     if (typeof go === 'function') { go('first-purchase'); return; }
+                    break;
+                case 'learning-quests':
+                    if (typeof renderLearningQuestHub === 'function') { renderLearningQuestHub(); return; }
                     break;
                 case 'trails':
                 case 'learn':
