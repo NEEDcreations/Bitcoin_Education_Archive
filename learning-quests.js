@@ -613,7 +613,7 @@ window._lqOpenTopic = function(slug) {
             var t = lqGetTopic(slug);
             if (!t.lessonSeen) {
                 lqSaveTopic(slug, { lessonSeen: true });
-                if (typeof awardPoints === 'function') awardPoints(50, '📖 Learning Quest: ' + topic.title + ' lesson');
+                if (typeof awardPoints === 'function') awardPoints(50, '📖 Learning Quest: ' + topic.title + ' lesson', null, null, null, null, { actionKey: 'lq_lesson' });
             }
         }
         _lqDoStartQuiz(s);
@@ -640,7 +640,7 @@ window._lqStartQuiz = function(slug) {
     var t = lqGetTopic(slug);
     if (!t.lessonSeen) {
         lqSaveTopic(slug, { lessonSeen: true });
-        if (typeof awardPoints === 'function') awardPoints(50, '📖 Learning Quest: ' + topic.title + ' lesson');
+        if (typeof awardPoints === 'function') awardPoints(50, '📖 Learning Quest: ' + topic.title + ' lesson', null, null, null, null, { actionKey: 'lq_lesson' });
     }
     _lqDoStartQuiz(slug);
 };
@@ -740,7 +740,7 @@ function _lqShowScore() {
     var isFirstPass = passed && !t.passed;
     if (isFirstPass) {
         lqSaveTopic(slug, { passed: true, passedAt: Date.now() });
-        if (typeof awardPoints === 'function') awardPoints(100, '📖 Learning Quest: ' + topic.title + ' quiz');
+        if (typeof awardPoints === 'function') awardPoints(100, '📖 Learning Quest: ' + topic.title + ' quiz', null, null, null, null, { actionKey: 'lq_quiz' });
         if (typeof awardHiddenBadge === 'function') awardHiddenBadge(topic.badgeId, topic.badgeName);
     }
 
@@ -796,7 +796,7 @@ function _lqShowGraduate() {
     if (existing) return;
 
     localStorage.setItem(LQ_GRADUATE_KEY, '1');
-    if (typeof awardPoints === 'function') awardPoints(250, '📖 Learning Quest Graduate');
+    if (typeof awardPoints === 'function') awardPoints(250, '📖 Learning Quest Graduate', null, null, null, null, { actionKey: 'lq_graduate' });
     if (typeof awardOrangeTickets === 'function') awardOrangeTickets(10, '📖 Graduate');
     if (typeof awardHiddenBadge === 'function') awardHiddenBadge('lq_graduate', '📖 Learning Quest Graduate');
     _lqPlayPass();

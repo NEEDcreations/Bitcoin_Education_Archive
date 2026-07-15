@@ -2054,6 +2054,10 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         story_begun: 15, story_halfway: 50, story_complete: 150,
         // Trails
         trail_meadow: 200, trail_mountain: 400, trail_summit: 750, trail_all: 500,
+        // Learning Quests — per-topic badges
+        lq_what_is_bitcoin: 100, lq_mining: 100, lq_nodes: 100, lq_self_custody: 100,
+        lq_lightning: 100, lq_scarcity: 100, lq_bitcoin_only: 100, lq_privacy: 100,
+        lq_graduate: 250,
         // FLEX aggregate badges
         flex_rookie: 25, flex_committed: 75, flex_athlete: 200, flex_legend: 1000, flex_all_once: 150,
         // Proof of Walk
@@ -2134,6 +2138,9 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'story_complete': 100,        // All story chapters
         'trail_chapter': 25,          // Trail chapter
         'trail_complete': 50,         // Trail completion
+        'lq_lesson': 50,              // Learning Quest lesson completed (first time)
+        'lq_quiz': 100,               // Learning Quest quiz passed (first time)
+        'lq_graduate': 250,           // All 8 Learning Quests completed
         'ticket_bonus': 5,            // Per-ticket bonus (tickets × 5)
         'streak_freeze': 0,           // Streak freeze only (no points)
         'tickets_only': 0,            // Tickets only (no points)
@@ -2201,6 +2208,9 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'story_complete': ['completed nacho', 'story_complete'],
         'trail_chapter': ['trail_chapter', 'trail chapter'],
         'trail_complete': ['trail_complete'],
+        'lq_lesson': ['📖 learning quest:', 'lq_lesson'],
+        'lq_quiz': ['lq_quiz'],
+        'lq_graduate': ['📖 learning quest graduate', 'lq_graduate'],
         'ticket_bonus': ['ticket', '🎟️'],
         'streak_freeze': ['streak freeze', 'streak_freeze', '🧊'],
         'tickets_only': ['tickets_only'],
