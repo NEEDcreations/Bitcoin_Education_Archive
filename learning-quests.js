@@ -233,6 +233,59 @@ function _lqIllustration_privacy(idx) {
         '</div>';
 }
 
+// --- Per-slide stat callouts and analogies ---
+var _LQ_SLIDE_EXTRAS = {
+    'what-is-bitcoin': {
+        0: { stat: '💡 There are ~106 billion people who have ever lived. Only 21 million BTC will ever exist — less than 1 per 5,000 people who ever walked the earth.', analogy: '💡 Think of it like: email for money — you can send value to anyone, anywhere, instantly, with no bank in the middle.' },
+        1: { stat: '📊 Since 2009, Bitcoin has had 99.98% uptime — more reliable than any bank in history.', analogy: '💡 Think of it like: a vending machine — it follows its rules exactly, no matter who asks. No bribing the machine.' },
+        2: { stat: '📊 The US Federal Reserve printed more money in 2020 alone than in the previous 200 years combined.', analogy: '💡 Think of it like: gold — except the scarcity is guaranteed by math, not geology. You can verify it yourself.' },
+        3: { stat: '🌍 1.4 billion adults worldwide have no bank account. Bitcoin needs only a phone and internet.', analogy: '💡 Think of it like: cash — but borderless. A Nigerian farmer and a New York banker use the exact same system.' },
+        4: { stat: '⚡ Sending $1 billion in Bitcoin takes ~10 minutes and costs a few dollars. A SWIFT wire transfer takes 3–5 days and costs hundreds.', analogy: '💡 Think of it like: the internet itself — it doesn\'t care what country you\'re in, what time it is, or how much you\'re sending.' }
+    },
+    'scarcity': {
+        0: { stat: '📊 As of 2024, ~19.7 million BTC have been mined. Only ~1.3 million remain to be created — ever.', analogy: '💡 Think of it like: a pianist who can only play 21 million unique notes, built into the instrument itself. The limit is structural, not a promise.' },
+        1: { stat: '⛏️ The 2024 halving dropped the daily new supply from ~900 BTC/day to ~450 BTC/day. Gold mines produce more gold every year.', analogy: '💡 Think of it like: a gold mine that produces half as much gold every 4 years — on a perfectly predictable schedule, enforced by code.' },
+        2: { stat: '📉 After the 2140 halving, zero new Bitcoin will ever be created. Only fees will reward miners — forever.', analogy: '💡 Think of it like: a countdown clock set in 2009 that nobody can speed up, slow down, or stop.' },
+        3: { stat: '💸 The US dollar has lost over 96% of its purchasing power since 1913. Bitcoin\'s supply has never changed once in its coded schedule.', analogy: '💡 Think of it like: a fixed-supply antique — the fewer that exist and the more people want one, the more each one is worth.' }
+    },
+    'mining': {
+        0: { stat: '🔢 Bitcoin miners collectively attempt over 600 quintillion (6×10²⁰) hashes per second. That\'s more calculations per second than grains of sand on Earth.', analogy: '💡 Think of it like: a global lottery where billions of tickets are bought every second — and the winner earns the right to add the next page to history.' },
+        1: { stat: '🔐 SHA-256 produces 2²⁵⁶ possible outputs. Brute-forcing a single hash would take longer than the age of the universe on all computers ever built.', analogy: '💡 Think of it like: rolling a trillion dice simultaneously — and needing them all to come up six. Guessing is the only option.' },
+        2: { stat: '⛓️ To rewrite Bitcoin\'s last year of history, you\'d need to outpace the entire global network\'s computing power — continuously, for months.', analogy: '💡 Think of it like: amber — once work is encased in a block, undoing it becomes more impossibly expensive with every new block added on top.' },
+        3: { stat: '💰 In April 2024, the block reward halved to 3.125 BTC. At today\'s prices, a winning miner earns ~$300,000 per block — every ~10 minutes.', analogy: '💡 Think of it like: a gold rush where the reward is cut in half every 4 years, but the value of gold keeps going up.' }
+    },
+    'nodes': {
+        0: { stat: '🌐 There are 15,000+ publicly reachable Bitcoin nodes across 100+ countries. Tens of thousands more run privately. There is no master server.', analogy: '💡 Think of it like: everyone in a town keeping their own copy of the ledger. No single person can fake an entry — the whole town would reject it.' },
+        1: { stat: '🛡️ Bitcoin has never had a successful double-spend on the main chain in 15+ years of operation. Decentralization is why.', analogy: '💡 Think of it like: Wikipedia — but where every single editor independently verifies every fact, and no one editor can change anything alone.' },
+        2: { stat: '✅ A full node validates every single rule: supply cap, transaction signatures, block size, difficulty — all of it, automatically, forever.', analogy: '💡 Think of it like: auditing your own bank statement rather than trusting the bank\'s summary. Your node is the audit.' },
+        3: { stat: '⚖️ In 2017, users running nodes rejected a miner-backed plan to increase block size. Users, not miners, decide the rules.', analogy: '💡 Think of it like: the difference between calling your bank to check your balance (trusting them) versus counting the cash yourself.' }
+    },
+    'lightning': {
+        0: { stat: '⏱️ Bitcoin settles a block every ~10 minutes by design. Visa processes ~24,000 transactions per second. Lightning bridges that gap without sacrificing security.', analogy: '💡 Think of it like: a bar tab — you run up a tab all night (off-chain), then settle once at the end (on-chain). Efficient and final.' },
+        1: { stat: '⚡ Lightning payments settle in under 1 second with fees often less than 1 satoshi (~$0.0003). Cheaper than any payment processor on earth.', analogy: '💡 Think of it like: a private IOUs system between two people — quick and free between you — that\'s guaranteed by real Bitcoin on both ends.' },
+        2: { stat: '🌐 The Lightning Network has grown from zero to over 5,000 BTC in capacity since 2018. Millions of payments route daily.', analogy: '💡 Think of it like: flight connections — you don\'t need a direct flight from every city to every other city. Hubs route you there in milliseconds.' },
+        3: { stat: '☕ A Lightning transaction can send 1 satoshi (0.00000001 BTC, ~$0.001). You literally cannot do that with a credit card or bank transfer.', analogy: '💡 Think of it like: the internet for payments — just as you stream music in real time, you can now stream money, satoshi by satoshi.' }
+    },
+    'self-custody': {
+        0: { stat: '💀 Mt. Gox (2014): $460M lost. Bitfinex (2016): $72M. Celsius (2022): $4.7B. FTX (2022): $8B+. All exchanges. All custodial.', analogy: '💡 Think of it like: leaving your cash at a casino to "hold" — they use it, they can lose it, and good luck getting it back.' },
+        1: { stat: '🔑 A Bitcoin private key is a 256-bit number. There are more possible private keys than atoms in the observable universe. Yours is statistically unique forever.', analogy: '💡 Think of it like: a master key to a vault — anyone who copies it owns everything inside. Protect it like your life depends on it.' },
+        2: { stat: '📝 A 24-word seed phrase encodes your entire Bitcoin fortune. Written on paper, it survives any phone crash, hack, or hard drive failure.', analogy: '💡 Think of it like: the combination to a safe that exists outside of any building — if you know the combo, you can open it from anywhere.' },
+        3: { stat: '🔒 Hardware wallets have never had a remote exploit that drained funds. Your keys never touch an internet-connected device.', analogy: '💡 Think of it like: a safe deposit box you own entirely — except it\'s portable, invisible, and no government can seize it with a court order.' },
+        4: { stat: '🏦 When you self-custody, you become your own bank — with the same power JP Morgan has, in your pocket, without their permission.', analogy: '💡 Think of it like: the difference between renting and owning. The exchange is the landlord. Self-custody means you own the property outright.' }
+    },
+    'privacy': {
+        0: { stat: '🔍 Chainalysis, Elliptic, and CipherTrace have collectively raised hundreds of millions to trace Bitcoin transactions for governments and exchanges.', analogy: '💡 Think of it like: a public bulletin board — your name isn\'t on it, but your handwriting is. Patterns reveal identity over time.' },
+        1: { stat: '⚖️ In 2021, the EU proposed banning anonymous crypto transfers over €1,000. Financial privacy is being legislated away globally.', analogy: '💡 Think of it like: cash — the last private payment tool. Bitcoin with good privacy hygiene is the digital equivalent.' },
+        2: { stat: '🔐 CoinJoin pools multiple users\' transactions together. An observer can\'t tell which input paid which output — breaking the transaction graph.', analogy: '💡 Think of it like: putting multiple checks in a shared envelope — the recipient knows money arrived, but not who sent what.' },
+        3: { stat: '🌍 In Nigeria (2021), Lebanon, and Venezuela, governments have frozen bank accounts of protesters and dissidents. Bitcoin cannot be frozen.', analogy: '💡 Think of it like: speaking a private language only you and your recipient know — the message is public, but meaningless to observers.' }
+    },
+    'bitcoin-only': {
+        0: { stat: '📉 Of the top 10 cryptocurrencies by market cap in 2013, only Bitcoin remains in the top 10 today. Most others are gone entirely.', analogy: '💡 Think of it like: the internet vs. intranets — thousands of private networks existed before the internet won. One open protocol dominates.' },
+        1: { stat: '⚠️ Ethereum\'s founders pre-allocated ~72 million ETH to themselves before launch. Bitcoin\'s creator disappeared and never spent a single sat.', analogy: '💡 Think of it like: the difference between a public park (Bitcoin) and a privately-owned plaza that looks public (most altcoins).' },
+        2: { stat: '🔁 Every problem altcoins claim to solve — speed, privacy, smart contracts — is either being built on Bitcoin or isn\'t actually a blockchain problem.', analogy: '💡 Think of it like: adding a faster engine to a house — the problem was never the house\'s speed. Altcoins often solve the wrong problem.' }
+    }
+};
+
 // --- Per-slide real images (from archive graphics/charts/memes) ---
 var _LQ_SLIDE_IMAGES = {
     'what-is-bitcoin': {
@@ -634,7 +687,9 @@ window._lqOpenTopic = function(slug) {
             '<div style="' + animStyle + ';flex:1;">' +
             '<h2 style="font-size:1.3rem;font-weight:900;color:var(--text,#fff);margin:0 0 10px;line-height:1.3;">' + slide.headline + '</h2>' +
             '<p style="font-size:0.9rem;color:rgba(255,255,255,0.75);line-height:1.6;margin:0 0 16px;">' + slide.body + '</p>' +
+            ((_LQ_SLIDE_EXTRAS[slug] && _LQ_SLIDE_EXTRAS[slug][slideIdx] && _LQ_SLIDE_EXTRAS[slug][slideIdx].stat) ? '<div style="background:rgba(249,115,22,0.1);border-left:3px solid ' + topic.color + ';border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:16px;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.9);line-height:1.5;">' + _LQ_SLIDE_EXTRAS[slug][slideIdx].stat + '</div>' : '') +
             _lqGetIllustration(slug, slideIdx) +
+            ((_LQ_SLIDE_EXTRAS[slug] && _LQ_SLIDE_EXTRAS[slug][slideIdx] && _LQ_SLIDE_EXTRAS[slug][slideIdx].analogy) ? '<div style="margin-top:14px;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:0.8rem;color:rgba(255,255,255,0.55);line-height:1.5;font-style:italic;">' + _LQ_SLIDE_EXTRAS[slug][slideIdx].analogy + '</div>' : '') +
             '</div>' +
             '<div style="margin-top:16px;">' + bottomBar + '</div>' +
             '</div>';
