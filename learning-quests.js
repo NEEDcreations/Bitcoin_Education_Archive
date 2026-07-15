@@ -587,12 +587,16 @@ function _lqCloseAll() {
         var el = document.getElementById(id);
         if (el) el.remove();
     });
+    // If page is blank behind the overlay, restore home
+    if (typeof goHome === 'function' && document.getElementById('home') && document.getElementById('home').classList.contains('hidden')) {
+        goHome();
+    }
 }
 
 // --- Main Hub ---
 window.renderLearningQuestHub = function() {
     var existing = document.getElementById('lqHub');
-    if (existing) { existing.remove(); return; }
+    if (existing) return; // already open — don't toggle closed
 
     var progress = lqGetProgress();
     var passedCount = ALL_SLUGS.filter(function(s) { return progress[s] && progress[s].passed; }).length;
@@ -622,7 +626,7 @@ window.renderLearningQuestHub = function() {
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
         '<div><div style="font-size:1.4rem;font-weight:900;color:var(--text,#fff);">📖 Learning Quests</div>' +
         '<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin-top:2px;">' + passedCount + '/8 completed</div></div>' +
-        '<button onclick="document.getElementById(\'lqHub\').remove()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);border-radius:10px;padding:8px 14px;cursor:pointer;font-family:inherit;font-weight:700;">✕</button>' +
+        '<button onclick="document.getElementById(\'lqHub\').remove();if(typeof goHome===\'function\'&&document.getElementById(\'home\')&&document.getElementById(\'home\').classList.contains(\'hidden\'))goHome();" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);border-radius:10px;padding:8px 14px;cursor:pointer;font-family:inherit;font-weight:700;">✕</button>' +
         '</div>' +
         '<div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-bottom:20px;overflow:hidden;">' +
         '<div style="height:100%;width:' + Math.round(passedCount/8*100) + '%;background:#22c55e;border-radius:3px;transition:width 0.5s ease;"></div>' +

@@ -33705,7 +33705,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // immediately anyway and the skeleton flash looks like a ghost loading artifact.
         var _isAppRoute = (id === 'timechain-tv' || id === 'forum' || id === 'marketplace' ||
             id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' ||
-            id === 'chat' || id === 'first-purchase' || id === 'trails' || id === 'learning-quests');
+            id === 'chat' || id === 'first-purchase' || id === 'trails');
         if (!_isAppRoute) msgs.innerHTML = breadcrumbs + '<div style="padding:20px;">' +
             '<!-- Nacho Summary skeleton -->' +
             '<div style="background:var(--card-bg);border:1px dashed var(--border);border-radius:12px;padding:14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">' +
@@ -33743,9 +33743,26 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Forum and Marketplace are ALWAYS viewable — actions (post, list) require sign-in
         // No more page-level lockdown
 
+        // Learning Quests: fixed overlay — render on top of current page, don't wipe home
+        if (id === 'learning-quests') {
+            if (!fromPopState) history.pushState({ channel: 'learning-quests' }, '', _cleanUrl('learning-quests'));
+            if (typeof window._loadDeferred === 'function') window._loadDeferred();
+            if (isMobile()) document.getElementById('sidebar').classList.remove('open');
+            function _tryRenderLQ(tries) {
+                tries = tries || 0;
+                if (typeof renderLearningQuestHub === 'function') {
+                    if (!document.getElementById('lqHub')) renderLearningQuestHub();
+                } else if (tries < 100) {
+                    setTimeout(function() { _tryRenderLQ(tries + 1); }, 100);
+                }
+            }
+            _tryRenderLQ(0);
+            return;
+        }
+
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase' || id === 'timechain-tv' || id === 'trails' || id === 'learning-quests') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase' || id === 'timechain-tv' || id === 'trails') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -35028,7 +35045,7 @@ if (locked) {
                     if (typeof go === 'function') { go('first-purchase'); return; }
                     break;
                 case 'learning-quests':
-                    if (typeof renderLearningQuestHub === 'function') { renderLearningQuestHub(); return; }
+                    if (typeof go === 'function') { go('learning-quests'); return; }
                     break;
                 case 'trails':
                 case 'learn':
