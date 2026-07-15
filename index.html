@@ -976,7 +976,7 @@
                 <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 146 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
                 <!-- Intro/Tutorial Video -->
                 <div id="introVideoSection" style="width:100%;max-width:640px;margin:0 auto 24px auto;">
-                    <div style="position:relative;width:100%;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 4px 32px rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.25);">
+                    <div id="introVideoFull" style="position:relative;width:100%;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 4px 32px rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.25);">
                         <video id="introVideo" controls playsinline preload="metadata" style="display:block;width:100%;max-height:360px;object-fit:contain;" onplay="var o=document.getElementById('introVideoOverlay');if(o){o.style.opacity='0';o.style.pointerEvents='none';}">
                             <source src="https://assets.bitcoineducation.quest/videos/intro-tutorial.mp4" type="video/mp4">
                         </video>
@@ -984,8 +984,15 @@
                             <div style="font-size:1.9rem;font-weight:900;color:#fff;text-align:center;text-shadow:0 2px 20px rgba(0,0,0,0.9);letter-spacing:0.5px;line-height:1.25;padding:0 24px;">Introduction / Tutorial</div>
                             <div style="width:60px;height:60px;background:rgba(247,147,26,0.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;box-shadow:0 4px 24px rgba(247,147,26,0.55);padding-left:4px;">▶</div>
                         </div>
+                        <button onclick="var v=document.getElementById('introVideo');if(v)v.pause();document.getElementById('introVideoFull').style.display='none';document.getElementById('introVideoMini').style.display='flex';localStorage.setItem('btc_intro_video_collapsed','1')" style="position:absolute;top:8px;right:10px;background:rgba(0,0,0,0.55);border:none;color:rgba(255,255,255,0.75);font-size:0.7rem;font-weight:700;cursor:pointer;padding:5px 9px;border-radius:8px;font-family:inherit;letter-spacing:0.3px;line-height:1;touch-action:manipulation;" title="Minimize video">▲ hide</button>
+                    </div>
+                    <div id="introVideoMini" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;" onclick="document.getElementById('introVideoFull').style.display='';document.getElementById('introVideoMini').style.display='none';localStorage.removeItem('btc_intro_video_collapsed')">
+                        <span style="font-size:1rem;">🎬</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:600;flex:1;">Introduction / Tutorial</span>
+                        <span style="font-size:0.72rem;color:var(--accent);font-weight:700;">▼ show</span>
                     </div>
                 </div>
+                <script>if(localStorage.getItem('btc_intro_video_collapsed')==='1'){var _ivf=document.getElementById('introVideoFull');var _ivm=document.getElementById('introVideoMini');if(_ivf)_ivf.style.display='none';if(_ivm)_ivm.style.display='flex';}</script>
                 <!-- App Stats moved to bottom -->
                 
                 <div id="dailySpinBanner" style="display:none;margin-bottom:16px;"></div>
