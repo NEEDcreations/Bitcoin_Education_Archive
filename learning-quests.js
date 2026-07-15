@@ -288,10 +288,10 @@ function _lqGetIllustration(slug, idx) {
     // Show real archive image if one is mapped for this slide
     var slideImgs = _LQ_SLIDE_IMAGES[slug];
     if (slideImgs && slideImgs[idx]) {
-        return '<div style="display:flex;justify-content:center;align-items:center;min-height:140px;padding:4px 0;">' +
+        return '<div style="width:100%;margin-top:4px;">' +
             '<img src="' + slideImgs[idx] + '" alt="" loading="lazy" ' +
-            'style="max-width:100%;max-height:200px;object-fit:contain;border-radius:8px;" ' +
-            'onerror="this.style.display=\'none\'">' +
+            'style="width:100%;height:auto;max-height:340px;object-fit:contain;border-radius:12px;display:block;" ' +
+            'onerror="this.parentElement.style.display=\'none\'">' +
             '</div>';
     }
     // Fallback: animated illustration
@@ -632,13 +632,11 @@ window._lqOpenTopic = function(slug) {
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' + dots + '</div>' +
             '<div style="' + animStyle + ';flex:1;">' +
-            '<div style="background:rgba(255,255,255,0.04);border-radius:16px;overflow:hidden;margin-bottom:16px;">' +
+            '<h2 style="font-size:1.3rem;font-weight:900;color:var(--text,#fff);margin:0 0 10px;line-height:1.3;">' + slide.headline + '</h2>' +
+            '<p style="font-size:0.9rem;color:rgba(255,255,255,0.75);line-height:1.6;margin:0 0 16px;">' + slide.body + '</p>' +
             _lqGetIllustration(slug, slideIdx) +
             '</div>' +
-            '<h2 style="font-size:1.3rem;font-weight:900;color:var(--text,#fff);margin:0 0 12px;line-height:1.3;">' + slide.headline + '</h2>' +
-            '<p style="font-size:0.9rem;color:rgba(255,255,255,0.75);line-height:1.6;margin:0 0 20px;">' + slide.body + '</p>' +
-            '</div>' +
-            '<div style="margin-top:auto;">' + bottomBar + '</div>' +
+            '<div style="margin-top:16px;">' + bottomBar + '</div>' +
             '</div>';
 
         // Touch swipe support
