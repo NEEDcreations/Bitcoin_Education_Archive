@@ -4468,15 +4468,14 @@ window.nachoQuizAnswer = function(btn, correct) {
         var btnLocked = btnBase + 'opacity:0.45;filter:grayscale(0.8);cursor:help;';
 
         var _appTooltips = {
-            'Nacho Mode': 'Chat with our AI Bitcoin tutor',
-            'Proof of Play': 'Bitcoin gaming hub — Arcade + PVP',
-            'Pleb Talk': 'Community discussion board for Bitcoin topics',
-            'Lightning Mart': 'Buy and sell with Lightning sats',
-            'IRL Sync': 'Find or host local Bitcoin meetups',
-            'Bitcoin Beats': 'Community music player',
-            'Timechain TV': '21 channels of Bitcoin video content',
-            'Proof of Walk': 'Earn XP by walking — connect Strava',
-                'Proof of Play': 'Bitcoin gaming hub — Arcade + PVP'
+            'Nacho Mode': 'AI Bitcoin tutor — ask anything, take quizzes, learn by chatting',
+            'Proof of Play': 'Bitcoin gaming hub — Arcade, trivia & PVP battles',
+            'Pleb Talk': 'Community forum — discuss Bitcoin topics with fellow stackers',
+            'Lightning Mart': 'Peer-to-peer marketplace — buy & sell goods for sats',
+            'IRL Sync': 'Find or host local Bitcoin meetups near you',
+            'Bitcoin Beats': 'Community music player — Bitcoin-themed tracks & beats',
+            'Timechain TV': '21 channels of Bitcoin video — free-to-air, always on',
+            'Proof of Walk': 'Earn XP for real-world steps — connect Strava to stack sats'
         };
         function appBtn(emoji, label, action, locked, lockMsg) {
             var tip = _appTooltips[label] || label;
@@ -4485,7 +4484,7 @@ if (locked) {
                     '<span style="font-size:1.8rem;">' + emoji + '</span><span>🔒 ' + label + '</span></button>';
             }
             return '<button onclick="var _m=document.getElementById(\'appsMenu\');if(_m)_m.style.display=\'none\';' + action + '" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnBase + '" class="app-menu-item">' +
-                '<span style="font-size:1.8rem;">' + emoji + '</span><span>' + label + '</span></button>';
+                '<span style="font-size:1.8rem;">' + emoji + '</span><span style="text-align:center;">' + label + '</span><span style="font-size:0.67rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.3;text-align:center;white-space:normal;max-width:100%;">' + tip + '</span></button>';
         }
 
         var beatsLock = false;
