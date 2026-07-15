@@ -1870,30 +1870,36 @@ async function submitQuest() {
 
     const answers = window._questAnswers;
     const correct = window._questCorrect;
-    let score = 0;
-    let pts = 0;
 
-    // Grade server-side if registered.
-    // If startQuest hasn't resolved yet (fast user), await the pending promise first.
-    if (!window._currentQuestServerId && window._currentQuestServerIdPromise) {
-        try { await window._currentQuestServerIdPromise; } catch(e) {}
-    }
-    if (window._currentQuestServerId && typeof firebase !== 'undefined' && firebase.functions) {
-        try {
-            var gradeResult = await firebase.functions().httpsCallable('gradeQuest')({
-                questId: window._currentQuestServerId,
-                answers: answers,
-                isRetry: !!isRetry
-            });
-            score = gradeResult.data.score;
-            pts = gradeResult.data.pts;
-        } catch(e) {
-            console.error('Server quest grading failed, falling back:', e);
-            answers.forEach((a, i) => { if (a === correct[i]) score++; });
-        }
+    // --- INSTANT LOCAL GRADE (no network wait) ---
+    let score = 0;
+    answers.forEach((a, i) => { if (a === correct[i]) score++; });
+    const isPerfectLocal = score === 5;
+    const isTopicQuestLocal = !!(currentQuest && currentQuest.topicKey);
+    let pts = 0;
+    if (isRetry) {
+        if (score >= 3) pts = 25;
     } else {
-        // Fallback for offline
-        answers.forEach((a, i) => { if (a === correct[i]) score++; });
+        if (isPerfectLocal) pts = 100;
+        else if (score >= 3) pts = 50;
+    }
+
+    // Fire server grading in background — does not block UI
+    if (window._currentQuestServerIdPromise || window._currentQuestServerId) {
+        (async function() {
+            try {
+                if (!window._currentQuestServerId && window._currentQuestServerIdPromise) {
+                    await window._currentQuestServerIdPromise;
+                }
+                if (window._currentQuestServerId && typeof firebase !== 'undefined' && firebase.functions) {
+                    await firebase.functions().httpsCallable('gradeQuest')({
+                        questId: window._currentQuestServerId,
+                        answers: answers,
+                        isRetry: !!isRetry
+                    });
+                }
+            } catch(e) { console.warn('Background quest grading failed:', e); }
+        })();
     }
 
     // Highlight correct/wrong
