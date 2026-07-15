@@ -3563,7 +3563,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // immediately anyway and the skeleton flash looks like a ghost loading artifact.
         var _isAppRoute = (id === 'timechain-tv' || id === 'forum' || id === 'marketplace' ||
             id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' ||
-            id === 'chat' || id === 'first-purchase' || id === 'trails');
+            id === 'chat' || id === 'first-purchase' || id === 'trails' || id === 'learning-quests');
         if (!_isAppRoute) msgs.innerHTML = breadcrumbs + '<div style="padding:20px;">' +
             '<!-- Nacho Summary skeleton -->' +
             '<div style="background:var(--card-bg);border:1px dashed var(--border);border-radius:12px;padding:14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">' +
@@ -3603,7 +3603,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase' || id === 'timechain-tv' || id === 'trails') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase' || id === 'timechain-tv' || id === 'trails' || id === 'learning-quests') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -3614,6 +3614,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (fc) { fc.style.display = 'block'; }
             if (!fromPopState) history.pushState({ channel: id }, '', _cleanUrl(id));
             if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); }
+            
+            // Trigger deferred script loading immediately for lazy-loaded routes
+            if (typeof window._loadDeferred === 'function') window._loadDeferred();
             
             // Route to correct renderer (with retry for lazy-loaded scripts)
             function _routeApp(id, attempt) {
@@ -3641,7 +3644,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 else if (id === 'dms' && typeof showInbox === 'function') showInbox();
                 else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
                 else if (id === 'chat' && typeof renderChatHub === 'function') renderChatHub('global');
-                else if (id === 'learning-quests' && typeof renderLearningQuestHub === 'function') renderLearningQuestHub();
+                else if (id === 'learning-quests' && typeof renderLearningQuestHub === 'function') { renderLearningQuestHub(); document.getElementById('main').scrollTop = 0; }
                 else if (id === 'trails' && typeof renderModules === 'function') renderModules();
                 else if (id === 'forum' && typeof renderForum === 'function') renderForum();
                 else if (attempt < 150) {
