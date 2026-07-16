@@ -37069,137 +37069,140 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 })();
 
 // =====================================================================
-// EXPERIENCE MODE VISIBILITY — Phase 2
-// Reads btc_experience_mode and hides/shows elements accordingly.
-// Called on page load and whenever mode changes.
-// Existing users (no mode set) default to 'advanced' (nothing hidden).
+// EXPERIENCE MODE VISIBILITY — Phase 2 (v2 — robust timing)
+// Handles dynamically-injected widgets via render hooks + MutationObserver.
 // =====================================================================
 (function() {
-    // What to hide in each mode
-    // Format: CSS selector strings
-    var HIDE_RULES = {
+
+    // IDs to hide per mode
+    var HIDE_IDS = {
         beginner: [
-            // Floating buttons (all 4)
-            '#chatOverlayBtn', '#aiToolsBtn', '#dashboardFloatBtn', '#lbFloatBtn',
-            // Home widgets
-            '#dailySpinBanner',
-            '[onclick*="showSpinWheel"]',        // spin button in quick-actions row
-            '[onclick*="showPricePrediction"]',  // price prediction button
-            '#dailyChallengeCard',
-            '#raidBossHomeCard',
-            '#donateSection',
-            '#quoteOfDay',
-            '#dailyChannel',                     // channel of the day
-            '#hotTopicsSectionWrapper',          // hot topics
+            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'dailySpinBanner', 'em-quick-actions',
+            'dailyChallengeCard', 'raidBossHomeCard',
+            'donateSection', 'quoteOfDay', 'dailyChannel',
+            'hotTopicsSectionWrapper'
         ],
         intermediate: [
-            // Floating buttons (all 4)
-            '#chatOverlayBtn', '#aiToolsBtn', '#dashboardFloatBtn', '#lbFloatBtn',
-            // Home widgets
-            '#dailyChallengeCard',
-            '#raidBossHomeCard',
-            '#donateSection',
-            '#quoteOfDay',
-            '#dailyChannel',                     // channel of the day
-            // Nacho story button hidden for intermediate
-            '#nachoStoryBtn',
-            '#hotTopicsSectionWrapper',
+            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
+            'dailyChallengeCard', 'raidBossHomeCard',
+            'donateSection', 'quoteOfDay', 'dailyChannel',
+            'hotTopicsSectionWrapper'
         ],
-        advanced: []  // show everything
+        advanced: []
     };
 
-    // In beginner mode only: also hide Nacho story btn (keep Nacho Mode itself)
-    // nachoStoryBtn is dynamically injected by nacho.js — must handle via MutationObserver
+    function _getMode() {
+        try { return localStorage.getItem('btc_experience_mode') || null; } catch(e) { return null; }
+    }
 
-    function applyMode(mode) {
-        // Remove any previously applied mode markers
+    function _hideEl(el, mode) {
+        if (!el) return;
+        el.setAttribute('data-em-hidden', mode);
+        el.style.setProperty('display', 'none', 'important');
+    }
+
+    function _restoreAll() {
         document.querySelectorAll('[data-em-hidden]').forEach(function(el) {
-            el.style.display = '';
+            el.style.removeProperty('display');
             el.removeAttribute('data-em-hidden');
         });
+    }
 
-        if (mode === 'advanced' || !mode) return; // nothing to hide
-
-        var selectors = HIDE_RULES[mode] || [];
-        selectors.forEach(function(sel) {
-            document.querySelectorAll(sel).forEach(function(el) {
-                el.setAttribute('data-em-hidden', mode);
-                el.style.display = 'none';
-            });
-        });
-
-        // For beginner: also hide nacho story btn (dynamically rendered)
-        if (mode === 'beginner') {
-            var sb = document.getElementById('nachoStoryBtn');
-            if (sb) { sb.setAttribute('data-em-hidden', mode); sb.style.display = 'none'; }
+    // Hide dynamic elements that may not exist yet at page load
+    function applyDynamic(mode) {
+        if (!mode || mode === 'advanced') return;
+        var ids = HIDE_IDS[mode] || [];
+        ids.forEach(function(id) { _hideEl(document.getElementById(id), mode); });
+        // intermediate: also hide Nacho story button (beginner keeps it per spec)
+        if (mode === 'intermediate') {
+            _hideEl(document.getElementById('nachoStoryBtn'), mode);
         }
     }
 
+    function applyMode(mode) {
+        _restoreAll();
+        if (!mode || mode === 'advanced') return;
+        applyDynamic(mode);
+    }
+
     function run() {
-        var mode = null;
-        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
-        // Default existing users (no mode ever set) to 'advanced' — no change to their experience
+        var mode = _getMode();
         if (!mode) {
-            // Only default to advanced if onboarding is already done (existing user)
-            var onboardingDone = false;
-            try { onboardingDone = localStorage.getItem('btc_onboarding_done') === 'true'; } catch(e) {}
-            if (onboardingDone) {
-                mode = 'advanced';
-                try { localStorage.setItem('btc_experience_mode', 'advanced'); } catch(e) {}
-            } else {
-                return; // New user — wait for onboarding to set mode
-            }
+            var done = false;
+            try { done = localStorage.getItem('btc_onboarding_done') === 'true'; } catch(e) {}
+            if (done) { mode = 'advanced'; try { localStorage.setItem('btc_experience_mode','advanced'); } catch(e) {} }
+            else return;
         }
         applyMode(mode);
     }
 
-    // Expose for Settings and mode-change handler
     window.applyExperienceModeVisibility = run;
+    window._emApplyMode = applyMode;
 
-    // Run on DOMContentLoaded and after a short delay (waits for dynamic elements)
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() { setTimeout(run, 800); });
-    } else {
-        setTimeout(run, 800);
-    }
-
-    // Also run after goHome() since widgets are re-injected
-    setTimeout(function() {
-        var _origGH = window.goHome;
-        if (_origGH && !window._emGoHomeHooked) {
-            window._emGoHomeHooked = true;
-            window.goHome = function() {
-                var r = _origGH.apply(this, arguments);
-                setTimeout(run, 600);
+    // Hook render functions so widgets hide immediately after being painted
+    function hookRenders() {
+        ['renderDailyChallenge','renderRaidBossHome'].forEach(function(fn) {
+            var orig = window[fn];
+            var hookKey = '_em_' + fn + '_hooked';
+            if (!orig || window[hookKey]) return;
+            window[hookKey] = true;
+            window[fn] = function() {
+                var r = orig.apply(this, arguments);
+                var m = _getMode();
+                if (m && m !== 'advanced') setTimeout(function(){ applyDynamic(m); }, 50);
                 return r;
             };
-        }
-    }, 3000);
-
-    // MutationObserver for dynamically-injected elements (nachoStoryBtn, etc.)
-    var _emObserver = null;
-    function startObserver() {
-        if (_emObserver) return;
-        var mode = null;
-        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
-        if (mode === 'advanced' || !mode) return;
-        _emObserver = new MutationObserver(function() {
-            var m = null;
-            try { m = localStorage.getItem('btc_experience_mode'); } catch(e) {}
-            if (!m || m === 'advanced') return;
-            var selectors = HIDE_RULES[m] || [];
-            selectors.forEach(function(sel) {
-                document.querySelectorAll(sel).forEach(function(el) {
-                    if (!el.getAttribute('data-em-hidden')) {
-                        el.setAttribute('data-em-hidden', m);
-                        el.style.display = 'none';
-                    }
-                });
-            });
         });
-        _emObserver.observe(document.body, { childList: true, subtree: true });
     }
-    setTimeout(startObserver, 2000);
+
+    // Multi-pass timing: catches static elements fast, dynamic elements after render
+    function schedule() {
+        setTimeout(run, 200);   // floating buttons (static) — hide fast
+        setTimeout(run, 1200);
+        setTimeout(run, 3000);  // after mobile-ux.js 2500ms widget render
+        setTimeout(run, 6000);  // safety net
+        setTimeout(hookRenders, 400);
+        setTimeout(hookRenders, 2000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', schedule);
+    } else {
+        schedule();
+    }
+
+    // Hook goHome so widgets are re-hidden after navigation
+    setTimeout(function() {
+        if (window._emGoHomeHooked) return;
+        var orig = window.goHome;
+        if (!orig) return;
+        window._emGoHomeHooked = true;
+        window.goHome = function() {
+            var r = orig.apply(this, arguments);
+            setTimeout(run, 600);
+            setTimeout(run, 3200);
+            return r;
+        };
+    }, 3500);
+
+    // MutationObserver: catches dynamically injected nodes (hotTopics, nachoStoryBtn)
+    var _obs = null, _obsTimer = null;
+    function startObserver() {
+        if (_obs) return;
+        var mode = _getMode();
+        if (!mode || mode === 'advanced') return;
+        _obs = new MutationObserver(function() {
+            clearTimeout(_obsTimer);
+            _obsTimer = setTimeout(function() {
+                var m = _getMode();
+                if (m && m !== 'advanced') applyDynamic(m);
+            }, 200);
+        });
+        _obs.observe(document.body, { childList: true, subtree: true });
+    }
+    setTimeout(startObserver, 800);
+    setTimeout(startObserver, 3500);
 })();
 
 // =====================================================================
