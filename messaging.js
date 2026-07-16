@@ -591,13 +591,15 @@ window.showUserProfile = function(uid) {
         var _frameStyle = _hasProfileFrame ? 'box-shadow:0 0 0 2px #f7931a,0 0 20px rgba(247,147,26,0.35);border-color:#f7931a;' : '';
 
         // Profile picture or rank emoji avatar
-        var _picUrl = u.profilePic || '';
+        // Also fall back to in-memory currentUser.profilePic for own profile (guards stale Firestore cache)
+        var _picUrl = u.profilePic || (auth && auth.currentUser && auth.currentUser.uid === uid && typeof currentUser !== 'undefined' && currentUser ? (currentUser.profilePic || '') : '') || '';
         var _safePickUrl = _picUrl ? (typeof sanitizeUrl === 'function' ? sanitizeUrl(_picUrl) : _picUrl) : '';
         var _initials = (u.username || 'B').charAt(0).toUpperCase();
         var _isOwnProfile = auth && auth.currentUser && auth.currentUser.uid === uid;
+        var _isDataImg = _safePickUrl && _safePickUrl.substring(0,11) === 'data:image/';
         var avatarHtml = _safePickUrl
             ? '<div style="position:relative;display:inline-block;margin-bottom:8px;">' +
-                '<img src="' + (_safePickUrl && /^data:image\//.test(_safePickUrl) ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
+                '<img src="' + (_isDataImg ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
                 'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + 'display:block;" ' +
                 'onerror="this.style.display=\'none\'">' +
                 '</div>'
