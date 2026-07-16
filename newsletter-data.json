@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-15T20:00:51.418Z",
+  "updated": "2026-07-16T00:00:48.921Z",
   "news": [
+    {
+      "date": "Jul 15, 2026",
+      "title": "Bitcoin to $40,000? If History&#8217;s Anything to Go By, It&#8217;s Possible, Says Report",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/markets/bitcoin-to-40000-its-possible-report",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Jul 15, 2026",
       "title": "BREAKING: BlackRock JUST CONFIRMED Bitcoin is About To EXPLODE HIGHER!",
@@ -14,13 +21,6 @@
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/7gEv-KaDxgM",
       "source": "lukemikic"
-    },
-    {
-      "date": "Jul 15, 2026",
-      "title": "Traders Took $8.2 Million From Polymarket&#8217;s Five-Minute Bitcoin Bets, Study Found",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/traders-took-8-2-million-from-polymarkets",
-      "source": "bitcoin-magazine"
     }
   ]
 }
