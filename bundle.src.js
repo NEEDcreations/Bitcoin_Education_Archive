@@ -377,6 +377,10 @@ function initRanking() {
                     clearUserLocalStorage();
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
+                // Sync experienceMode from Firestore (cross-device continuity)
+                if (typeof window.syncExperienceModeFromFirestore === 'function') {
+                    window.syncExperienceModeFromFirestore();
+                }
             }
             if (firstAuthEvent) {
                 firstAuthEvent = false;
@@ -3321,6 +3325,7 @@ window._changeExperienceMode = function(mode) {
     // Apply visibility changes immediately on home
     setTimeout(function() {
         if (typeof window.applyExperienceModeVisibility === 'function') window.applyExperienceModeVisibility();
+        if (typeof window.applyDesktopMenuModes === 'function') window.applyDesktopMenuModes();
     }, 400);
 };
 
@@ -27840,13 +27845,43 @@ window.toggleMobileLearnMenu = function() {
         'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +
         'animation:fadeSlideIn 0.25s ease-out;';
 
+    
+    // Mode-aware Learn menu buttons
+    var _emMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
+
+    // Button definitions — tagged by which modes show them
+    var _learnBtns = [
+        { modes: ['beginner','intermediate','advanced'],
+          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid #3b82f6;color:#3b82f6;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🟢</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Brand New to Bitcoin?<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">⭐ Start here</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Zero jargon intro — start here if you\'ve never owned BTC</span></span></button>' },
+        { modes: ['beginner','intermediate','advanced'],
+          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'learning-quests\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06));border:1px solid #10b981;color:#10b981;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">📖</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Learning Quests<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">8 topics ▸</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Slideshow lessons with key stats, graphics &amp; a quiz. 8 topics.</span></span></button>' },
+        { modes: ['beginner','intermediate','advanced'],
+          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'trails\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🦌🗺️</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Nacho\'s Trails</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Guided learning paths — Meadow, Mountain &amp; Summit levels</span></span></button>' },
+        { modes: ['beginner','intermediate','advanced'],
+          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'first-purchase\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06));border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🛒</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Your First Bitcoin Purchase</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Step-by-step guide to buying BTC safely from a trusted exchange</span></span></button>' },
+        // Daily Quests — intermediate and advanced only
+        { modes: ['intermediate','advanced'],
+          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();setTimeout(function(){if(typeof showQuestHub===\'function\')showQuestHub()},200)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08));border:1px solid #8b5cf6;color:#a78bfa;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🎯</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Daily Quests</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Daily quizzes, trivia &amp; polls — earn XP and climb the leaderboard</span></span></button>' },
+        // Meetup Builder — intermediate and advanced only
+        { modes: ['intermediate','advanced'],
+          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();window._mbRouted=true;window._skipIRLRules=true;localStorage.setItem(\'btc_irl_rules_accepted\',\'true\');go(\'irl-sync\');setTimeout(function(){var ro=document.getElementById(\'irlRulesOverlay\');if(ro)ro.remove();var _t=0;var _i=setInterval(function(){var ro2=document.getElementById(\'irlRulesOverlay\');if(ro2)ro2.remove();var el=document.getElementById(\'meetupBuilderSection\');if(el){clearInterval(_i);el.scrollIntoView({behavior:\'smooth\',block:\'start\'});}if(++_t>30)clearInterval(_i);},300);},1500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06));border:1px solid #eab308;color:#eab308;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🔨</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Meetup Builder</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Create or find a local Bitcoin meetup in your city</span></span></button>' },
+        // Spend Bitcoin — intermediate and advanced only
+        { modes: ['intermediate','advanced'],
+          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'marketplace\');setTimeout(function(){renderMarketplace({section:\'merchants\'})},500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:1px solid #ef4444;color:#ef4444;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">₿</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Spend Bitcoin</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Find merchants who accept sats — Lightning, on-chain &amp; more</span></span></button>' }
+    ];
+
+    var _filteredBtns = _learnBtns.filter(function(b) {
+        return b.modes.indexOf(_emMode) !== -1;
+    }).map(function(b) { return b.html; }).join('');
+
     menu.innerHTML =
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
             '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0;">🎓 Learn</h3>' +
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px;">' +
-            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid #3b82f6;color:#3b82f6;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🟢</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Brand New to Bitcoin?<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">⭐ Start here</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Zero jargon intro — start here if you\'ve never owned BTC</span></span></button><button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'learning-quests\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06));border:1px solid #10b981;color:#10b981;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">📖</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Learning Quests<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">8 topics ▸</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Slideshow lessons with key stats, graphics &amp; a quiz. 8 topics.</span></span></button><button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'trails\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🦌🗺️</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Nacho\'s Trails</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Guided learning paths — Meadow, Mountain &amp; Summit levels</span></span></button><button onclick="document.getElementById(\'mobileLearnMenu\').remove();setTimeout(function(){if(typeof showQuestHub===\'function\')showQuestHub()},200)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08));border:1px solid #8b5cf6;color:#a78bfa;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🎯</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Daily Quests</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Daily quizzes, trivia &amp; polls — earn XP and climb the leaderboard</span></span></button><button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'first-purchase\')" style="padding:11px 14px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06));border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🛒</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Your First Bitcoin Purchase</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Step-by-step guide to buying BTC safely from a trusted exchange</span></span></button><button onclick="document.getElementById(\'mobileLearnMenu\').remove();window._mbRouted=true;window._skipIRLRules=true;localStorage.setItem(\'btc_irl_rules_accepted\',\'true\');go(\'irl-sync\');setTimeout(function(){var ro=document.getElementById(\'irlRulesOverlay\');if(ro)ro.remove();var _t=0;var _i=setInterval(function(){var ro2=document.getElementById(\'irlRulesOverlay\');if(ro2)ro2.remove();var el=document.getElementById(\'meetupBuilderSection\');if(el){clearInterval(_i);el.scrollIntoView({behavior:\'smooth\',block:\'start\'});}if(++_t>30)clearInterval(_i);},300);},1500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06));border:1px solid #eab308;color:#eab308;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🔨</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Meetup Builder</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Create or find a local Bitcoin meetup in your city</span></span></button><button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'marketplace\');setTimeout(function(){renderMarketplace({section:\'merchants\'})},500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:1px solid #ef4444;color:#ef4444;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">₿</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Spend Bitcoin</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Find merchants who accept sats — Lightning, on-chain &amp; more</span></span></button><button onclick="document.getElementById(\'mobileLearnMenu\').remove();toggleMenu()" style="padding:11px 14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">📚</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Browse All Topics <span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">146 ▸</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.7);line-height:1.4;">146 curated channels of Bitcoin education</span></span></button>' +
+            _filteredBtns +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();toggleMenu()" style="padding:11px 14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">📚</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Browse All Topics <span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">146 ▸</span></span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.7);line-height:1.4;">146 curated channels of Bitcoin education</span></span></button>' +
         '</div>';
 
     document.body.appendChild(menu);
@@ -34680,14 +34715,20 @@ if (locked) {
         var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-                appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false) +
-                appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20260609_pop';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) +
-                appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) +
-                appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) +
-                appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) +
-                appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) +
-                appBtn('📺', 'Timechain TV', "go('timechain-tv')", false) +
-                appBtn('👟', 'Proof of Walk', "showProofOfWalk()", false) +
+                (function() {
+                    var _em = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
+                    var _all = [
+                        appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false),
+                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20260609_pop';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
+                        _em !== 'beginner' ? appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) : '',
+                        _em !== 'beginner' ? appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) : '',
+                        _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
+                        _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
+                        appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
+                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "showProofOfWalk()", false) : ''
+                    ];
+                    return _all.join('');
+                })() +
             '</div></div>';
         document.body.insertAdjacentHTML('beforeend', html);
         var menu = document.getElementById('appsMenu');
@@ -37025,4 +37066,295 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     
     // Expose for manual refresh
     window.updateSidebarProgress = updateSidebarProgress;
+})();
+
+// =====================================================================
+// EXPERIENCE MODE VISIBILITY — Phase 2
+// Reads btc_experience_mode and hides/shows elements accordingly.
+// Called on page load and whenever mode changes.
+// Existing users (no mode set) default to 'advanced' (nothing hidden).
+// =====================================================================
+(function() {
+    // What to hide in each mode
+    // Format: CSS selector strings
+    var HIDE_RULES = {
+        beginner: [
+            // Floating buttons (all 4)
+            '#chatOverlayBtn', '#aiToolsBtn', '#dashboardFloatBtn', '#lbFloatBtn',
+            // Home widgets
+            '#dailySpinBanner',
+            '[onclick*="showSpinWheel"]',        // spin button in quick-actions row
+            '[onclick*="showPricePrediction"]',  // price prediction button
+            '#dailyChallengeCard',
+            '#raidBossHomeCard',
+            '#donateSection',
+            '#quoteOfDay',
+            '#dailyChannel',                     // channel of the day
+            '#hotTopicsSectionWrapper',          // hot topics
+        ],
+        intermediate: [
+            // Floating buttons (all 4)
+            '#chatOverlayBtn', '#aiToolsBtn', '#dashboardFloatBtn', '#lbFloatBtn',
+            // Home widgets
+            '#dailyChallengeCard',
+            '#raidBossHomeCard',
+            '#donateSection',
+            '#quoteOfDay',
+            '#dailyChannel',                     // channel of the day
+            // Nacho story button hidden for intermediate
+            '#nachoStoryBtn',
+            '#hotTopicsSectionWrapper',
+        ],
+        advanced: []  // show everything
+    };
+
+    // In beginner mode only: also hide Nacho story btn (keep Nacho Mode itself)
+    // nachoStoryBtn is dynamically injected by nacho.js — must handle via MutationObserver
+
+    function applyMode(mode) {
+        // Remove any previously applied mode markers
+        document.querySelectorAll('[data-em-hidden]').forEach(function(el) {
+            el.style.display = '';
+            el.removeAttribute('data-em-hidden');
+        });
+
+        if (mode === 'advanced' || !mode) return; // nothing to hide
+
+        var selectors = HIDE_RULES[mode] || [];
+        selectors.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+                el.setAttribute('data-em-hidden', mode);
+                el.style.display = 'none';
+            });
+        });
+
+        // For beginner: also hide nacho story btn (dynamically rendered)
+        if (mode === 'beginner') {
+            var sb = document.getElementById('nachoStoryBtn');
+            if (sb) { sb.setAttribute('data-em-hidden', mode); sb.style.display = 'none'; }
+        }
+    }
+
+    function run() {
+        var mode = null;
+        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+        // Default existing users (no mode ever set) to 'advanced' — no change to their experience
+        if (!mode) {
+            // Only default to advanced if onboarding is already done (existing user)
+            var onboardingDone = false;
+            try { onboardingDone = localStorage.getItem('btc_onboarding_done') === 'true'; } catch(e) {}
+            if (onboardingDone) {
+                mode = 'advanced';
+                try { localStorage.setItem('btc_experience_mode', 'advanced'); } catch(e) {}
+            } else {
+                return; // New user — wait for onboarding to set mode
+            }
+        }
+        applyMode(mode);
+    }
+
+    // Expose for Settings and mode-change handler
+    window.applyExperienceModeVisibility = run;
+
+    // Run on DOMContentLoaded and after a short delay (waits for dynamic elements)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(run, 800); });
+    } else {
+        setTimeout(run, 800);
+    }
+
+    // Also run after goHome() since widgets are re-injected
+    setTimeout(function() {
+        var _origGH = window.goHome;
+        if (_origGH && !window._emGoHomeHooked) {
+            window._emGoHomeHooked = true;
+            window.goHome = function() {
+                var r = _origGH.apply(this, arguments);
+                setTimeout(run, 600);
+                return r;
+            };
+        }
+    }, 3000);
+
+    // MutationObserver for dynamically-injected elements (nachoStoryBtn, etc.)
+    var _emObserver = null;
+    function startObserver() {
+        if (_emObserver) return;
+        var mode = null;
+        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+        if (mode === 'advanced' || !mode) return;
+        _emObserver = new MutationObserver(function() {
+            var m = null;
+            try { m = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+            if (!m || m === 'advanced') return;
+            var selectors = HIDE_RULES[m] || [];
+            selectors.forEach(function(sel) {
+                document.querySelectorAll(sel).forEach(function(el) {
+                    if (!el.getAttribute('data-em-hidden')) {
+                        el.setAttribute('data-em-hidden', m);
+                        el.style.display = 'none';
+                    }
+                });
+            });
+        });
+        _emObserver.observe(document.body, { childList: true, subtree: true });
+    }
+    setTimeout(startObserver, 2000);
+})();
+
+// =====================================================================
+// XP & BADGE TOAST SUPPRESSION — Phase 3
+// In beginner/intermediate modes: suppress XP gain and badge toasts.
+// XP and badges are still SILENTLY collected (awardPoints/checkBadges run normally).
+// Only the visible toast/celebration is suppressed.
+// =====================================================================
+(function() {
+    // Patterns that identify XP/badge toasts to suppress
+    var XP_PATTERNS = [
+        /^\+\d+ XP/i,           // "+25 XP - Reading: ..."
+        /streak.*XP/i,          // "Day 7 streak! +X XP"
+        /2X XP/i,               // "2X XP! Daily boost..."
+        /overflow pts/i,        // "overflow pts redeemed"
+        /daily cap/i,           // "Daily cap reached"
+        /XP will sync/i,        // offline sync
+        /XP - /i,               // generic "+N XP - reason"
+        /badge earned/i,        // badge earned toast (non-modal)
+        /🏅.*earned/i,
+        /earned.*🏅/i,
+        /\+\d+ pts.*badge/i,
+        /Nacho Quest.*pts/i,    // Nacho Quest XP toasts
+        /WAGMI.*topic/i,        // Nacho Quest step toasts
+        /First message sent/i,
+        /Spin complete/i,
+        /Smart question.*already/i,
+    ];
+
+    function shouldSuppress(msg) {
+        if (typeof msg !== 'string') return false;
+        for (var i = 0; i < XP_PATTERNS.length; i++) {
+            if (XP_PATTERNS[i].test(msg)) return true;
+        }
+        return false;
+    }
+
+    function isQuietMode() {
+        var m = null;
+        try { m = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+        return (m === 'beginner' || m === 'intermediate');
+    }
+
+    setTimeout(function() {
+        var _origToast = window.showToast;
+        if (!_origToast || window._emToastHooked) return;
+        window._emToastHooked = true;
+        window.showToast = function(msg) {
+            if (isQuietMode() && shouldSuppress(msg)) {
+                // Silently drop — XP has already been awarded to Firestore/localStorage
+                return;
+            }
+            return _origToast.apply(this, arguments);
+        };
+    }, 1500);
+
+    // Suppress badge celebration MODAL in quiet modes 
+    // (checkBadges still runs, badge is still stored — just no confetti/modal)
+    setTimeout(function() {
+        var _origCheck = window.checkBadges;
+        if (!_origCheck || window._emBadgeHooked) return;
+        window._emBadgeHooked = true;
+        window.checkBadges = function(data, silent) {
+            if (isQuietMode()) {
+                // Force silent=true so checkBadges records the badge but skips celebration
+                return _origCheck.call(this, data, true);
+            }
+            return _origCheck.apply(this, arguments);
+        };
+    }, 2000);
+})();
+
+// =====================================================================
+// DESKTOP SIDEBAR LEARN + APPS — mode filtering
+// Hides specific desktop buttons based on experience mode
+// =====================================================================
+(function() {
+    function applyDesktopMenuModes() {
+        var mode = null;
+        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+        if (!mode || mode === 'advanced') {
+            // Show everything — remove any previous hiding
+            document.querySelectorAll('[data-em-desk-hidden]').forEach(function(el) {
+                el.style.display = '';
+                el.removeAttribute('data-em-desk-hidden');
+            });
+            return;
+        }
+
+        // Desktop Learn menu: which buttons to HIDE per mode
+        // Beginner: hide Daily Quests, Meetup Builder, Spend Bitcoin
+        // Intermediate: nothing extra to hide in learn (has all)
+        var LEARN_HIDE_ONCLICK = {
+            beginner: ['showQuestHub', 'irl-sync', "section:'merchants'"],
+            intermediate: []
+        };
+
+        // Desktop Explore Apps: beginner sees only Nacho Mode and Timechain TV
+        var APPS_HIDE_ONCLICK = {
+            beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
+            intermediate: []
+        };
+
+        var learnHide = LEARN_HIDE_ONCLICK[mode] || [];
+        var appsHide = APPS_HIDE_ONCLICK[mode] || [];
+
+        // Apply to homeLearnMenu buttons
+        var learnMenu = document.getElementById('homeLearnMenu');
+        if (learnMenu) {
+            learnMenu.querySelectorAll('button').forEach(function(btn) {
+                var oc = btn.getAttribute('onclick') || '';
+                var shouldHide = learnHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                if (shouldHide) {
+                    btn.setAttribute('data-em-desk-hidden', mode);
+                    btn.style.display = 'none';
+                } else {
+                    btn.removeAttribute('data-em-desk-hidden');
+                    btn.style.display = '';
+                }
+            });
+        }
+
+        // Apply to homeAppsMenu buttons
+        var appsMenu = document.getElementById('homeAppsMenu');
+        if (appsMenu) {
+            appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
+                var oc = btn.getAttribute('onclick') || '';
+                var shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                if (shouldHide) {
+                    btn.setAttribute('data-em-desk-hidden', mode);
+                    btn.style.display = 'none';
+                } else {
+                    btn.removeAttribute('data-em-desk-hidden');
+                    btn.style.display = '';
+                }
+            });
+        }
+    }
+
+    // Run after menus are populated (toggleSidebarMenu populates them lazily)
+    setTimeout(applyDesktopMenuModes, 1000);
+
+    // Hook toggleSidebarMenu so filtering applies every time menu opens
+    setTimeout(function() {
+        var _orig = window.toggleSidebarMenu;
+        if (!_orig || window._emSidebarHooked) return;
+        window._emSidebarHooked = true;
+        window.toggleSidebarMenu = function(id) {
+            var r = _orig.apply(this, arguments);
+            if (id === 'homeLearnMenu' || id === 'homeAppsMenu') {
+                setTimeout(applyDesktopMenuModes, 50);
+            }
+            return r;
+        };
+    }, 2000);
+    
+    window.applyDesktopMenuModes = applyDesktopMenuModes;
 })();

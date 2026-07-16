@@ -4499,14 +4499,20 @@ if (locked) {
         var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-                appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false) +
-                appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20260609_pop';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) +
-                appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) +
-                appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) +
-                appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) +
-                appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) +
-                appBtn('📺', 'Timechain TV', "go('timechain-tv')", false) +
-                appBtn('👟', 'Proof of Walk', "showProofOfWalk()", false) +
+                (function() {
+                    var _em = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
+                    var _all = [
+                        appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false),
+                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20260609_pop';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
+                        _em !== 'beginner' ? appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) : '',
+                        _em !== 'beginner' ? appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) : '',
+                        _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
+                        _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
+                        appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
+                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "showProofOfWalk()", false) : ''
+                    ];
+                    return _all.join('');
+                })() +
             '</div></div>';
         document.body.insertAdjacentHTML('beforeend', html);
         var menu = document.getElementById('appsMenu');

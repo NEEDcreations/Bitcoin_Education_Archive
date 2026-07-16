@@ -208,6 +208,10 @@ function initRanking() {
                     clearUserLocalStorage();
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
+                // Sync experienceMode from Firestore (cross-device continuity)
+                if (typeof window.syncExperienceModeFromFirestore === 'function') {
+                    window.syncExperienceModeFromFirestore();
+                }
             }
             if (firstAuthEvent) {
                 firstAuthEvent = false;
@@ -3152,6 +3156,7 @@ window._changeExperienceMode = function(mode) {
     // Apply visibility changes immediately on home
     setTimeout(function() {
         if (typeof window.applyExperienceModeVisibility === 'function') window.applyExperienceModeVisibility();
+        if (typeof window.applyDesktopMenuModes === 'function') window.applyDesktopMenuModes();
     }, 400);
 };
 

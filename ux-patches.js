@@ -1584,3 +1584,294 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     // Expose for manual refresh
     window.updateSidebarProgress = updateSidebarProgress;
 })();
+
+// =====================================================================
+// EXPERIENCE MODE VISIBILITY — Phase 2
+// Reads btc_experience_mode and hides/shows elements accordingly.
+// Called on page load and whenever mode changes.
+// Existing users (no mode set) default to 'advanced' (nothing hidden).
+// =====================================================================
+(function() {
+    // What to hide in each mode
+    // Format: CSS selector strings
+    var HIDE_RULES = {
+        beginner: [
+            // Floating buttons (all 4)
+            '#chatOverlayBtn', '#aiToolsBtn', '#dashboardFloatBtn', '#lbFloatBtn',
+            // Home widgets
+            '#dailySpinBanner',
+            '[onclick*="showSpinWheel"]',        // spin button in quick-actions row
+            '[onclick*="showPricePrediction"]',  // price prediction button
+            '#dailyChallengeCard',
+            '#raidBossHomeCard',
+            '#donateSection',
+            '#quoteOfDay',
+            '#dailyChannel',                     // channel of the day
+            '#hotTopicsSectionWrapper',          // hot topics
+        ],
+        intermediate: [
+            // Floating buttons (all 4)
+            '#chatOverlayBtn', '#aiToolsBtn', '#dashboardFloatBtn', '#lbFloatBtn',
+            // Home widgets
+            '#dailyChallengeCard',
+            '#raidBossHomeCard',
+            '#donateSection',
+            '#quoteOfDay',
+            '#dailyChannel',                     // channel of the day
+            // Nacho story button hidden for intermediate
+            '#nachoStoryBtn',
+            '#hotTopicsSectionWrapper',
+        ],
+        advanced: []  // show everything
+    };
+
+    // In beginner mode only: also hide Nacho story btn (keep Nacho Mode itself)
+    // nachoStoryBtn is dynamically injected by nacho.js — must handle via MutationObserver
+
+    function applyMode(mode) {
+        // Remove any previously applied mode markers
+        document.querySelectorAll('[data-em-hidden]').forEach(function(el) {
+            el.style.display = '';
+            el.removeAttribute('data-em-hidden');
+        });
+
+        if (mode === 'advanced' || !mode) return; // nothing to hide
+
+        var selectors = HIDE_RULES[mode] || [];
+        selectors.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+                el.setAttribute('data-em-hidden', mode);
+                el.style.display = 'none';
+            });
+        });
+
+        // For beginner: also hide nacho story btn (dynamically rendered)
+        if (mode === 'beginner') {
+            var sb = document.getElementById('nachoStoryBtn');
+            if (sb) { sb.setAttribute('data-em-hidden', mode); sb.style.display = 'none'; }
+        }
+    }
+
+    function run() {
+        var mode = null;
+        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+        // Default existing users (no mode ever set) to 'advanced' — no change to their experience
+        if (!mode) {
+            // Only default to advanced if onboarding is already done (existing user)
+            var onboardingDone = false;
+            try { onboardingDone = localStorage.getItem('btc_onboarding_done') === 'true'; } catch(e) {}
+            if (onboardingDone) {
+                mode = 'advanced';
+                try { localStorage.setItem('btc_experience_mode', 'advanced'); } catch(e) {}
+            } else {
+                return; // New user — wait for onboarding to set mode
+            }
+        }
+        applyMode(mode);
+    }
+
+    // Expose for Settings and mode-change handler
+    window.applyExperienceModeVisibility = run;
+
+    // Run on DOMContentLoaded and after a short delay (waits for dynamic elements)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(run, 800); });
+    } else {
+        setTimeout(run, 800);
+    }
+
+    // Also run after goHome() since widgets are re-injected
+    setTimeout(function() {
+        var _origGH = window.goHome;
+        if (_origGH && !window._emGoHomeHooked) {
+            window._emGoHomeHooked = true;
+            window.goHome = function() {
+                var r = _origGH.apply(this, arguments);
+                setTimeout(run, 600);
+                return r;
+            };
+        }
+    }, 3000);
+
+    // MutationObserver for dynamically-injected elements (nachoStoryBtn, etc.)
+    var _emObserver = null;
+    function startObserver() {
+        if (_emObserver) return;
+        var mode = null;
+        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+        if (mode === 'advanced' || !mode) return;
+        _emObserver = new MutationObserver(function() {
+            var m = null;
+            try { m = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+            if (!m || m === 'advanced') return;
+            var selectors = HIDE_RULES[m] || [];
+            selectors.forEach(function(sel) {
+                document.querySelectorAll(sel).forEach(function(el) {
+                    if (!el.getAttribute('data-em-hidden')) {
+                        el.setAttribute('data-em-hidden', m);
+                        el.style.display = 'none';
+                    }
+                });
+            });
+        });
+        _emObserver.observe(document.body, { childList: true, subtree: true });
+    }
+    setTimeout(startObserver, 2000);
+})();
+
+// =====================================================================
+// XP & BADGE TOAST SUPPRESSION — Phase 3
+// In beginner/intermediate modes: suppress XP gain and badge toasts.
+// XP and badges are still SILENTLY collected (awardPoints/checkBadges run normally).
+// Only the visible toast/celebration is suppressed.
+// =====================================================================
+(function() {
+    // Patterns that identify XP/badge toasts to suppress
+    var XP_PATTERNS = [
+        /^\+\d+ XP/i,           // "+25 XP - Reading: ..."
+        /streak.*XP/i,          // "Day 7 streak! +X XP"
+        /2X XP/i,               // "2X XP! Daily boost..."
+        /overflow pts/i,        // "overflow pts redeemed"
+        /daily cap/i,           // "Daily cap reached"
+        /XP will sync/i,        // offline sync
+        /XP - /i,               // generic "+N XP - reason"
+        /badge earned/i,        // badge earned toast (non-modal)
+        /🏅.*earned/i,
+        /earned.*🏅/i,
+        /\+\d+ pts.*badge/i,
+        /Nacho Quest.*pts/i,    // Nacho Quest XP toasts
+        /WAGMI.*topic/i,        // Nacho Quest step toasts
+        /First message sent/i,
+        /Spin complete/i,
+        /Smart question.*already/i,
+    ];
+
+    function shouldSuppress(msg) {
+        if (typeof msg !== 'string') return false;
+        for (var i = 0; i < XP_PATTERNS.length; i++) {
+            if (XP_PATTERNS[i].test(msg)) return true;
+        }
+        return false;
+    }
+
+    function isQuietMode() {
+        var m = null;
+        try { m = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+        return (m === 'beginner' || m === 'intermediate');
+    }
+
+    setTimeout(function() {
+        var _origToast = window.showToast;
+        if (!_origToast || window._emToastHooked) return;
+        window._emToastHooked = true;
+        window.showToast = function(msg) {
+            if (isQuietMode() && shouldSuppress(msg)) {
+                // Silently drop — XP has already been awarded to Firestore/localStorage
+                return;
+            }
+            return _origToast.apply(this, arguments);
+        };
+    }, 1500);
+
+    // Suppress badge celebration MODAL in quiet modes 
+    // (checkBadges still runs, badge is still stored — just no confetti/modal)
+    setTimeout(function() {
+        var _origCheck = window.checkBadges;
+        if (!_origCheck || window._emBadgeHooked) return;
+        window._emBadgeHooked = true;
+        window.checkBadges = function(data, silent) {
+            if (isQuietMode()) {
+                // Force silent=true so checkBadges records the badge but skips celebration
+                return _origCheck.call(this, data, true);
+            }
+            return _origCheck.apply(this, arguments);
+        };
+    }, 2000);
+})();
+
+// =====================================================================
+// DESKTOP SIDEBAR LEARN + APPS — mode filtering
+// Hides specific desktop buttons based on experience mode
+// =====================================================================
+(function() {
+    function applyDesktopMenuModes() {
+        var mode = null;
+        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
+        if (!mode || mode === 'advanced') {
+            // Show everything — remove any previous hiding
+            document.querySelectorAll('[data-em-desk-hidden]').forEach(function(el) {
+                el.style.display = '';
+                el.removeAttribute('data-em-desk-hidden');
+            });
+            return;
+        }
+
+        // Desktop Learn menu: which buttons to HIDE per mode
+        // Beginner: hide Daily Quests, Meetup Builder, Spend Bitcoin
+        // Intermediate: nothing extra to hide in learn (has all)
+        var LEARN_HIDE_ONCLICK = {
+            beginner: ['showQuestHub', 'irl-sync', "section:'merchants'"],
+            intermediate: []
+        };
+
+        // Desktop Explore Apps: beginner sees only Nacho Mode and Timechain TV
+        var APPS_HIDE_ONCLICK = {
+            beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
+            intermediate: []
+        };
+
+        var learnHide = LEARN_HIDE_ONCLICK[mode] || [];
+        var appsHide = APPS_HIDE_ONCLICK[mode] || [];
+
+        // Apply to homeLearnMenu buttons
+        var learnMenu = document.getElementById('homeLearnMenu');
+        if (learnMenu) {
+            learnMenu.querySelectorAll('button').forEach(function(btn) {
+                var oc = btn.getAttribute('onclick') || '';
+                var shouldHide = learnHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                if (shouldHide) {
+                    btn.setAttribute('data-em-desk-hidden', mode);
+                    btn.style.display = 'none';
+                } else {
+                    btn.removeAttribute('data-em-desk-hidden');
+                    btn.style.display = '';
+                }
+            });
+        }
+
+        // Apply to homeAppsMenu buttons
+        var appsMenu = document.getElementById('homeAppsMenu');
+        if (appsMenu) {
+            appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
+                var oc = btn.getAttribute('onclick') || '';
+                var shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
+                if (shouldHide) {
+                    btn.setAttribute('data-em-desk-hidden', mode);
+                    btn.style.display = 'none';
+                } else {
+                    btn.removeAttribute('data-em-desk-hidden');
+                    btn.style.display = '';
+                }
+            });
+        }
+    }
+
+    // Run after menus are populated (toggleSidebarMenu populates them lazily)
+    setTimeout(applyDesktopMenuModes, 1000);
+
+    // Hook toggleSidebarMenu so filtering applies every time menu opens
+    setTimeout(function() {
+        var _orig = window.toggleSidebarMenu;
+        if (!_orig || window._emSidebarHooked) return;
+        window._emSidebarHooked = true;
+        window.toggleSidebarMenu = function(id) {
+            var r = _orig.apply(this, arguments);
+            if (id === 'homeLearnMenu' || id === 'homeAppsMenu') {
+                setTimeout(applyDesktopMenuModes, 50);
+            }
+            return r;
+        };
+    }, 2000);
+    
+    window.applyDesktopMenuModes = applyDesktopMenuModes;
+})();
