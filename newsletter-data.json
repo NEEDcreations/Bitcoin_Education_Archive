@@ -1,26 +1,26 @@
 {
-  "updated": "2026-07-16T16:00:49.510Z",
+  "updated": "2026-07-16T20:00:50.562Z",
   "news": [
     {
       "date": "Jul 16, 2026",
-      "title": "Breez Partners With Turnkey to Bring Non-Custodial Bitcoin to Backend-Run Apps",
+      "title": "JPMorgan says bitcoin outlook sees &#8216;encouraging sign&#8217; as Strategy boosts cash reserves",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/post/408712/jpmorgan-bitcoin-outlook-encouraging-sign-strategy-cash-reserves?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
+    {
+      "date": "Jul 16, 2026",
+      "title": "T. Rowe Price Debuts New ETF With Bitcoin and Crypto Exposure",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/breez-partners-with-turnkey-non",
+      "link": "https://bitcoinmagazine.com/news/t-rowe-price-debuts-new-bitcoin-etf",
       "source": "bitcoin-magazine"
     },
     {
       "date": "Jul 16, 2026",
-      "title": "Cloudflare x402 Integration Opens Door for Bitcoin in AI Agent Micropayments",
+      "title": "Bitcoin VC Veterans Launch $40 Million Holding Company Targeting Small Business Acquisitions",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/business/cloudflare-x402-integration-opens-door-for-bitcoin-in-ai-agent-micropayments",
+      "link": "https://bitcoinmagazine.com/news/bitcoin-vcs-launch-holding-company",
       "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 16, 2026",
-      "title": "Selling Bitcoin After a 50% Crash Is a Horrible Mistake",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/97i8TPRFEG0",
-      "source": "lukemikic"
     }
   ]
 }
