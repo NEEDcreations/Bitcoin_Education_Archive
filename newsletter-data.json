@@ -1,26 +1,26 @@
 {
-  "updated": "2026-07-16T12:00:50.279Z",
+  "updated": "2026-07-16T16:00:49.510Z",
   "news": [
+    {
+      "date": "Jul 16, 2026",
+      "title": "Breez Partners With Turnkey to Bring Non-Custodial Bitcoin to Backend-Run Apps",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/breez-partners-with-turnkey-non",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jul 16, 2026",
+      "title": "Cloudflare x402 Integration Opens Door for Bitcoin in AI Agent Micropayments",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/business/cloudflare-x402-integration-opens-door-for-bitcoin-in-ai-agent-micropayments",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Jul 16, 2026",
       "title": "Selling Bitcoin After a 50% Crash Is a Horrible Mistake",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/97i8TPRFEG0",
       "source": "lukemikic"
-    },
-    {
-      "date": "Jul 16, 2026",
-      "title": "BREAKING: BlackRock JUST CONFIRMED Bitcoin is About To EXPLODE HIGHER!",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/watch?v=Pq-jyXJ87a0",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 15, 2026",
-      "title": "Bitcoin to $40,000? If History&#8217;s Anything to Go By, It&#8217;s Possible, Says Report",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/markets/bitcoin-to-40000-its-possible-report",
-      "source": "bitcoin-magazine"
     }
   ]
 }
