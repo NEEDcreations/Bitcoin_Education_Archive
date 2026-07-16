@@ -3303,6 +3303,27 @@ function applyOLEDTheme() {
 // Initial apply
 document.addEventListener('DOMContentLoaded', applyOLEDTheme);
 
+// ---- Experience Mode Change Handler ----
+window._changeExperienceMode = function(mode) {
+    if (typeof window.setExperienceMode !== 'function') {
+        if (typeof showToast === 'function') showToast('⚠️ Mode change unavailable — reload and try again');
+        return;
+    }
+    window.setExperienceMode(mode);
+    if (typeof showToast === 'function') {
+        var labels = {beginner:'🌱 Guided Intro activated', intermediate:'📘 Quieter Experience activated', advanced:'🔥 Maximalist Mode activated'};
+        showToast(labels[mode] || 'Mode updated', 3000);
+    }
+    // Re-render settings to show new selection
+    setTimeout(function() {
+        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+    }, 300);
+    // Apply visibility changes immediately on home
+    setTimeout(function() {
+        if (typeof window.applyExperienceModeVisibility === 'function') window.applyExperienceModeVisibility();
+    }, 400);
+};
+
 // ---- Delete Account ----
 window.showDeleteAccountConfirm = function() {
     var overlay = document.createElement('div');
@@ -5444,6 +5465,26 @@ function showSettingsPage(tab) {
                 });
             }, 100);
         }
+
+        // Experience Mode Selector
+        var _expMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
+        var _expModes = [
+            {v:'beginner', e:'🌱', l:'Guided Intro', d:'Nacho Mode + Timechain TV. Core learning tools only. Clean and focused.'},
+            {v:'intermediate', e:'📘', l:'Quieter Experience', d:'All apps + all learning tools. Noisy widgets hidden.'},
+            {v:'advanced', e:'🔥', l:'Maximalist Mode', d:'Every feature, widget, and tool. Nothing hidden.'}
+        ];
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:20px;">' +
+            '<div style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:800;">🎛️ Experience Mode</div>' +
+            '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:12px;line-height:1.5;">Control how much of the app you see. You can change this anytime — your XP and badges are always saved regardless of mode.</div>';
+        _expModes.forEach(function(m) {
+            var sel = _expMode === m.v;
+            html += '<button onclick="window._changeExperienceMode(\''+m.v+'\')" style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;width:100%;text-align:left;background:'+(sel?'rgba(249,115,22,0.1)':'rgba(255,255,255,0.03)')+';border:2px solid '+(sel?'var(--accent)':'var(--border)')+';border-radius:10px;cursor:pointer;font-family:inherit;color:var(--text);margin-bottom:8px;transition:0.2s;">' +
+                '<span style="font-size:1.2rem;flex-shrink:0;margin-top:1px;">'+m.e+'</span>' +
+                '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.88rem;color:'+(sel?'var(--accent)':'var(--heading)')+';">'+m.l+(sel?' <span style="font-size:0.68rem;opacity:0.7;">(current)</span>':'')+'</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:3px;line-height:1.4;">'+m.d+'</div></div>' +
+                (sel?'<span style="color:var(--accent);font-size:1rem;flex-shrink:0;margin-top:2px;">✓</span>':'') +
+            '</button>';
+        });
+        html += '</div>';
 
         // Delete Account - Danger Zone
         if (!user.isAnonymous) {
