@@ -15281,6 +15281,25 @@ function _renderFavorTab(body) {
                 '<td style="text-align:right;padding:5px 6px;font-weight:600;color:' + luckColor + ';">' + luckTxt + '</td>' +
             '</tr>';
         });
+        // Totals row — static hashes for past periods; live cells for current-period contribution
+        var staticHashSum = 0;
+        var staticBlockSum = 0;
+        _dh.forEach(function(row, i) {
+            if (i < _dh.length - 1) {
+                if (row.hashes != null) staticHashSum += row.hashes;
+                // blocks for past periods come from winner query; use 0 as placeholder (updated live)
+            }
+        });
+        _dhHtml +=
+            '<tr id="sfDifficultyTotalsRow" style="color:var(--text-faint);border-top:1px solid var(--border);font-size:0.72rem;">' +
+                '<td style="padding:5px 6px;font-weight:700;color:var(--text-muted);">Total</td>' +
+                '<td style="padding:5px 6px;"></td>' +
+                '<td style="padding:5px 6px;"></td>' +
+                '<td style="padding:5px 6px;"></td>' +
+                '<td style="text-align:right;padding:5px 6px;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
+                '<td style="text-align:right;padding:5px 6px;font-weight:700;color:var(--text-muted);font-family:monospace;"><span id="sfTotalHashes">…</span></td>' +
+                '<td style="padding:5px 6px;"></td>' +
+            '</tr>';
         _dhHtml += '</tbody></table></div>';
         html += _dhHtml;
     })();
@@ -15530,6 +15549,14 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
             if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
 
+            // Update total hashes = sum of all past static hashes + current era
+            var pastHashSum = 0;
+            for (var _pi = 0; _pi < currentIdx; _pi++) {
+                if (_dh[_pi].hashes != null) pastHashSum += _dh[_pi].hashes;
+            }
+            var totalHashEl = document.getElementById('sfTotalHashes');
+            if (totalHashEl) totalHashEl.textContent = (pastHashSum + eraHashes).toLocaleString();
+
             var luckEl = document.getElementById('sfLuckRow' + currentIdx);
             if (!luckEl) return;
             if (eraHashes === 0 || blocksFoundForCurrentPeriod === 0) {
@@ -15584,12 +15611,16 @@ function _loadDifficultyHistoryBlocks() {
                 counts[t] = (counts[t] || 0) + 1;
             });
 
-            // Update Blocks cells for all rows
+            // Update Blocks cells for all rows + running total
+            var totalBlocks = 0;
             _dh.forEach(function(row, i) {
                 var el = document.getElementById('sfBlocksRow' + i);
-                if (!el) return;
-                el.textContent = (counts[row.target] || 0).toString();
+                var n = counts[row.target] || 0;
+                if (el) el.textContent = n.toString();
+                totalBlocks += n;
             });
+            var totalBlocksEl = document.getElementById('sfTotalBlocks');
+            if (totalBlocksEl) totalBlocksEl.textContent = totalBlocks.toString();
 
             // Start live listener on current doc for hashes + luck (uses eraHashes field)
             var curBlocksFound = currentIdx >= 0 ? (counts[_dh[currentIdx].target] || 0) : 0;
