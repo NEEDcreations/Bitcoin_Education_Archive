@@ -2511,11 +2511,11 @@ function _renderFavorTab(body) {
             '<thead><tr style="color:var(--text-faint);">' +
                 '<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);">Date</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Target</th>' +
+                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Change</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Odds</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Blocks</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Hashes</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Luck</th>' +
-                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Change</th>' +
             '</tr></thead>' +
             '<tbody id="sfDifficultyHistoryBody">';
         _dh.forEach(function(row, i) {
@@ -2544,11 +2544,11 @@ function _renderFavorTab(body) {
             _dhHtml += '<tr style="color:' + (isCurrent ? 'var(--heading)' : 'var(--text-muted)') + ';' + (isCurrent ? 'background:rgba(247,147,26,0.06);' : '') + '">' +
                 '<td style="padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + row.date + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
+                '<td style="text-align:right;padding:5px 6px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + '">' + changeTxt + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;">' + odds + '</td>' +
                 '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;font-family:monospace;font-size:0.72rem;">' + hashTxt + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;font-weight:600;color:' + luckColor + ';">' + luckTxt + '</td>' +
-                '<td style="text-align:right;padding:5px 6px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + '">' + changeTxt + '</td>' +
             '</tr>';
         });
         _dhHtml += '</tbody></table></div>';
