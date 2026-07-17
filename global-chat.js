@@ -1241,8 +1241,23 @@ window.sendGlobalChat = function() {
         if (socialOnly.test(t.trim())) return false;
         var pureGreetings = /^(how are you|how r u|how do you do|how you doing|how ya doing|how's it going|what'?s up|wassup|whats up|you good|you okay|how have you been|how'?s everyone doing|how'?s everybody)[.!?,\s]*$/i;
         if (pureGreetings.test(t.trim())) return false;
-        // Must have at least one Bitcoin-relevant keyword to trigger Nacho
-        var btcKeywords = /bitcoin|btc|satoshi|sats|lightning|lightning network|lnurl|wallet|seed|private key|public key|mining|miner|hash|blockchain|block|halving|node|mempool|utxo|segwit|taproot|schnorr|ordinals|inscription|nostr|defi|altcoin|ethereum|eth|crypto|hodl|dca|cold storage|hardware wallet|ledger|trezor|coldcard|nwc|invoice|channel|payment|fee|transaction|tx|address|receive|send|self.?custody|inflation|fiat|money|currency|dollar|euro|store of value|gold|silver|bank|finance|invest|etf|yield|price|market|exchange|coinbase|binance|kraken|bitfinex|layer 2|l2|lnbc|bolt|rgb|ark |dlc|coinjoin|whirlpool|wasabi|sparrow|phoenix|breez|bluewallet|umbrel|mynode|raspiblitz|electrum|green|muun|strike|cash app|alby|zeus|blink|fountain|podcast|bitcoin magazine|nakamoto|genesis block|white ?paper|proof of work|pow|consensus|decentraliz|censor|privacy|sovereign|freedom|shield|archive|quest|quiz|nacho|channel|article|forum|plebtalk|marketplace|leaderboard|badge|points|sats|ticket|spin|scholar|scholar cert|pvp|beats|irl|global chat|settings|profile|theme|sign in|log in|sign up|register|account/i;
+        // Block rhetorical/social messages that happen to contain BTC keywords
+        // e.g. "My seed phrase? Nice try!" or "Never share your seed phrase, right?"
+        var rhetoricalPatterns = [
+            /^(my|your|our|his|her|their)\s+(seed phrase|private key|wallet|keys)[?!,.\s]/i,  // "My seed phrase? ..."
+            /never\s+share.*seed|never\s+give.*key|not your keys/i,                            // PSAs about security
+            /nice\s+try|just\s+kidding|lol|lmao|haha|\bj\/k\b/i,                             // Obviously joking
+            /not\s+your\s+keys.*not\s+your/i,                                                 // Common motto
+            /ya'?ll\s+are|you\s+(all|guys|all)\s+are/i,                                       // Group exclamations
+        ];
+        for (var _rp = 0; _rp < rhetoricalPatterns.length; _rp++) {
+            if (rhetoricalPatterns[_rp].test(t)) return false;
+        }
+        // Must contain a question word or interrogative structure to be worth answering
+        var hasQuestionWord = /\b(what|why|how|when|where|who|which|can|could|should|would|is|are|does|do|will|explain|tell me|anyone know|does anyone|has anyone|what'?s|whats)\b/i.test(lower);
+        if (!hasQuestionWord) return false;
+        // Must have at least one substantive Bitcoin-relevant keyword (not just incidental mentions)
+        var btcKeywords = /bitcoin|btc|satoshi|sats|lightning network|lnurl|wallet|seed phrase|private key|public key|mining difficulty|miner|blockchain|halving|mempool|utxo|segwit|taproot|schnorr|ordinals|inscription|nostr|altcoin|hodl|dca|cold storage|hardware wallet|ledger|trezor|coldcard|nwc|coinjoin|proof of work|pow|consensus|decentraliz|store of value|hash rate|block reward|layer 2|timechain|self.?custody|bitcoin.*price|price.*bitcoin|bitcoin.*work|how.*mine|what.*bitcoin|explain.*bitcoin|satoshi.*favor|difficulty.*target|sf.*window|quest|scholar|plebtalk|nacho/i;
         return btcKeywords.test(lower);
     })(text);
     if (_nachoShouldAnswer && typeof nachoUnifiedAnswer === 'function') {
@@ -1278,20 +1293,13 @@ window.sendGlobalChat = function() {
             }
             // Nacho gets a longer limit than users (1000 vs 300)
             if (answer.length > 1000) answer = answer.substring(0, 997) + '...';
+            // Skip generic fallback answers — don't post "Ask me something about Bitcoin!" in group chat
+            if (result.type === 'fallback') return;
             setTimeout(function() {
-                // Check if current user is admin (can use nacho-bot uid)
-                var _nachoUid = 'nacho-bot';
-                var _nachoName = '🦌 Nacho';
-                var _isAdmin = auth && auth.currentUser && auth.currentUser.email &&
-                    (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com' || auth.currentUser.email === 'najemchris8@gmail.com');
-                if (!_isAdmin) {
-                    // Non-admin: write as the user's uid with nacho flag (Firestore rules allow uid == auth.uid)
-                    _nachoUid = auth && auth.currentUser ? auth.currentUser.uid : 'nacho-bot';
-                    _nachoName = '🦌 Nacho';
-                }
+                // Always post as nacho-bot regardless of who triggered the question
                 db.collection(CHAT_COLLECTION).add({
-                    uid: _nachoUid,
-                    name: _nachoName,
+                    uid: 'nacho-bot',
+                    name: '🦌 Nacho',
                     text: answer,
                     isNachoAuto: true,
                     ts: firebase.firestore.FieldValue.serverTimestamp()
