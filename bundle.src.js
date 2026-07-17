@@ -15506,26 +15506,88 @@ function _renderPBHTML(val) {
     '</div>';
 }
 
+// Unsub for the lastWindow listener that auto-refreshes the current difficulty row
+var _difficultyLastWindowUnsub = null;
+
 function _loadDifficultyHistoryBlocks() {
     if (typeof db === 'undefined') return;
-    // Query winners from satoshiFavor/current/hashes where isWinner == true
+    var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
+    var currentIdx = _dh.length - 1;
+
+    // Helper: resolve difficulty target for a legacy hash doc that lacks difficultyTarget field
+    function _difficultyAtTs(tsMs) {
+        var result = _dh.length ? _dh[0].target : 1000;
+        for (var _k = 0; _k < _dh.length; _k++) {
+            if (new Date(_dh[_k].date).getTime() <= tsMs) result = _dh[_k].target;
+            else break;
+        }
+        return result;
+    }
+
+    // Helper: update the current-period hashes + luck cells from an already-known block count
+    function _updateCurrentPeriodHashesAndLuck(blocksFound) {
+        if (currentIdx < 0) return;
+        var curRow = _dh[currentIdx];
+        var periodStartTs = firebase.firestore.Timestamp.fromDate(new Date(curRow.date));
+        var hashesRef = db.collection('satoshiFavor').doc('current').collection('hashes')
+            .where('timestamp', '>=', periodStartTs);
+
+        // Use count() aggregation (Firebase JS SDK >= 9.13) to avoid fetching 30k+ docs
+        Promise.resolve().then(function() {
+            return hashesRef.count().get();
+        }).then(function(countSnap) {
+            var totalHashes = countSnap.data().count;
+            var hashEl = document.getElementById('sfHashesRow' + currentIdx);
+            if (hashEl) hashEl.textContent = totalHashes.toLocaleString();
+
+            var luckEl = document.getElementById('sfLuckRow' + currentIdx);
+            if (luckEl) {
+                if (totalHashes === 0 || blocksFound === 0) {
+                    luckEl.textContent = '—';
+                    luckEl.style.color = 'var(--text-faint)';
+                } else {
+                    var expectedPerBlock = 100000000 / curRow.target;
+                    var lv = (blocksFound * expectedPerBlock / totalHashes * 100);
+                    var luckEmoji = lv >= 200 ? ' 🍀🍀' : lv >= 100 ? ' 🍀' : lv < 50 ? ' 💀' : '';
+                    luckEl.textContent = lv.toFixed(1) + '%' + luckEmoji;
+                    luckEl.style.color = lv >= 100 ? '#22c55e' : '#ef4444';
+                }
+            }
+        }).catch(function(e) {
+            console.warn('[SF] count() failed, falling back to full query', e);
+            // Fallback: full get() — slower but works if count() is unavailable
+            hashesRef.get().then(function(snap) {
+                var totalHashes = snap.size;
+                var hashEl = document.getElementById('sfHashesRow' + currentIdx);
+                if (hashEl) hashEl.textContent = totalHashes.toLocaleString();
+                var luckEl = document.getElementById('sfLuckRow' + currentIdx);
+                if (luckEl) {
+                    if (totalHashes === 0 || blocksFound === 0) {
+                        luckEl.textContent = '—';
+                        luckEl.style.color = 'var(--text-faint)';
+                    } else {
+                        var expectedPerBlock = 100000000 / curRow.target;
+                        var lv = (blocksFound * expectedPerBlock / totalHashes * 100);   
+                        var luckEmoji = lv >= 200 ? ' 🍀🍀' : lv >= 100 ? ' 🍀' : lv < 50 ? ' 💀' : '';
+                        luckEl.textContent = lv.toFixed(1) + '%' + luckEmoji;
+                        luckEl.style.color = lv >= 100 ? '#22c55e' : '#ef4444';
+                    }
+                }
+            }).catch(function() {
+                var hashEl = document.getElementById('sfHashesRow' + currentIdx);
+                var luckEl = document.getElementById('sfLuckRow' + currentIdx);
+                if (hashEl) hashEl.textContent = '?';
+                if (luckEl) luckEl.textContent = '?';
+            });
+        });
+    }
+
+    // Step 1: load all-time winner counts (all periods)
     db.collection('satoshiFavor').doc('current').collection('hashes')
         .where('isWinner', '==', true)
         .get()
         .then(function(snap) {
-            // Count wins per difficulty target
-            var counts = {}; // { target: count }
-            // Build a timestamp-based difficulty lookup for legacy hash docs missing difficultyTarget
-            var _dhRef = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
-            function _difficultyAtTs(tsMs) {
-                // Walk history oldest→newest; last one whose date <= tsMs wins
-                var result = _dhRef.length ? _dhRef[0].target : 1000;
-                for (var _k = 0; _k < _dhRef.length; _k++) {
-                    if (new Date(_dhRef[_k].date).getTime() <= tsMs) result = _dhRef[_k].target;
-                    else break;
-                }
-                return result;
-            }
+            var counts = {};
             snap.forEach(function(doc) {
                 var d = doc.data();
                 var t;
@@ -15534,54 +15596,38 @@ function _loadDifficultyHistoryBlocks() {
                 } else if (d.timestamp && d.timestamp.toMillis) {
                     t = _difficultyAtTs(d.timestamp.toMillis());
                 } else {
-                    t = 1000; // true legacy (pre-June-21) — Genesis era
+                    t = 1000;
                 }
                 counts[t] = (counts[t] || 0) + 1;
             });
-            // Update block counts; then load live hashes for current period + compute live luck
-            var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
+
+            // Update Blocks cells for all rows
             _dh.forEach(function(row, i) {
                 var el = document.getElementById('sfBlocksRow' + i);
                 if (!el) return;
                 el.textContent = (counts[row.target] || 0).toString();
             });
 
-            // Load live total hashes for current period (last entry) from satoshiFavor/current
-            var currentIdx = _dh.length - 1;
-            if (currentIdx >= 0) {
-                db.collection('satoshiFavor').doc('current').get().then(function(cdoc) {
-                    var liveHashes = (cdoc.exists && cdoc.data().totalHashes) ? cdoc.data().totalHashes : 0;
-                    var hashEl = document.getElementById('sfHashesRow' + currentIdx);
-                    if (hashEl) hashEl.textContent = liveHashes.toLocaleString();
+            // Step 2: count hashes for current period via aggregation, then compute luck
+            var curBlocksFound = currentIdx >= 0 ? (counts[_dh[currentIdx].target] || 0) : 0;
+            _updateCurrentPeriodHashesAndLuck(curBlocksFound);
 
-                    // Compute live luck for current period
-                    var luckEl = document.getElementById('sfLuckRow' + currentIdx);
-                    if (luckEl) {
-                        var curRow = _dh[currentIdx];
-                        var blocksFound = counts[curRow.target] || 0;
-                        if (liveHashes === 0 || blocksFound === 0) {
-                            luckEl.textContent = blocksFound === 0 ? '—' : '—';
-                            luckEl.style.color = 'var(--text-faint)';
-                        } else {
-                            var expectedPerBlock = 100000000 / curRow.target;
-                            var expectedTotal = blocksFound * expectedPerBlock;
-                            var lv = (expectedTotal / liveHashes * 100);
-                            var luckEmoji = lv >= 200 ? ' 🍀🍀' : lv >= 100 ? ' 🍀' : lv < 50 ? ' 💀' : '';
-                            luckEl.textContent = lv.toFixed(1) + '%' + luckEmoji;
-                            luckEl.style.color = lv >= 100 ? '#22c55e' : '#ef4444';
-                        }
+            // Step 3: attach lastWindow listener so the current row auto-refreshes after each win
+            if (_difficultyLastWindowUnsub) { _difficultyLastWindowUnsub(); _difficultyLastWindowUnsub = null; }
+            _difficultyLastWindowUnsub = db.collection('satoshiFavor').doc('lastWindow')
+                .onSnapshot(function() {
+                    // A window just closed (win or timeout) — re-run the whole load
+                    // so block counts and current-period hashes/luck stay accurate
+                    if (document.getElementById('sfDifficultyHistoryBody')) {
+                        _loadDifficultyHistoryBlocks();
+                    } else {
+                        // Table is gone (tab closed) — clean up listener
+                        if (_difficultyLastWindowUnsub) { _difficultyLastWindowUnsub(); _difficultyLastWindowUnsub = null; }
                     }
-                }).catch(function() {
-                    var hashEl = document.getElementById('sfHashesRow' + currentIdx);
-                    var luckEl = document.getElementById('sfLuckRow' + currentIdx);
-                    if (hashEl) hashEl.textContent = '?';
-                    if (luckEl) luckEl.textContent = '?';
                 });
-            }
         })
         .catch(function() {
-            var _dh2 = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
-            _dh2.forEach(function(_, i) {
+            _dh.forEach(function(_, i) {
                 var el = document.getElementById('sfBlocksRow' + i);
                 if (el) el.textContent = '?';
             });
@@ -15671,6 +15717,7 @@ function _loadLastSFWindow() {
 
 function _cleanupLastWindowListener() {
     if (_lastWindowUnsub) { _lastWindowUnsub(); _lastWindowUnsub = null; }
+    if (_difficultyLastWindowUnsub) { _difficultyLastWindowUnsub(); _difficultyLastWindowUnsub = null; }
 }
 
 function _loadFavorLeaderboards() {
