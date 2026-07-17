@@ -2513,6 +2513,8 @@ function _renderFavorTab(body) {
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Target</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Odds</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Blocks</th>' +
+                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Hashes</th>' +
+                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Luck</th>' +
                 '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Change</th>' +
             '</tr></thead>' +
             '<tbody id="sfDifficultyHistoryBody">';
@@ -2522,11 +2524,30 @@ function _renderFavorTab(body) {
             var odds = '1:' + Math.round(100000000 / row.target).toLocaleString();
             var changeColor = !prevTarget ? 'var(--text-faint)' : (row.target < prevTarget ? '#22c55e' : '#ef4444');
             var changeTxt = row.label || (!prevTarget ? 'Genesis' : (((row.target - prevTarget) / prevTarget * 100).toFixed(2) + '%'));
+            // Hashes: use static value from SF_DIFFICULTY_HISTORY for past periods; live cell for current
+            var hashTxt = isCurrent ? '<span id="sfHashesRow' + i + '">\u2026</span>' :
+                (row.hashes != null ? row.hashes.toLocaleString() : '—');
+            // Luck: null = current period (live) or genesis period (0 blocks)
+            var luckTxt, luckColor;
+            if (isCurrent) {
+                luckTxt = '<span id="sfLuckRow' + i + '">\u2026</span>';
+                luckColor = 'inherit';
+            } else if (row.luck == null) {
+                luckTxt = '—';  // genesis / 0 blocks
+                luckColor = 'var(--text-faint)';
+            } else {
+                var lv = parseFloat(row.luck);
+                luckColor = lv >= 100 ? '#22c55e' : '#ef4444';
+                var luckEmoji = lv >= 200 ? ' 🍀🍀' : lv >= 100 ? ' 🍀' : lv < 50 ? ' 💀' : '';
+                luckTxt = lv.toFixed(1) + '%' + luckEmoji;
+            }
             _dhHtml += '<tr style="color:' + (isCurrent ? 'var(--heading)' : 'var(--text-muted)') + ';' + (isCurrent ? 'background:rgba(247,147,26,0.06);' : '') + '">' +
                 '<td style="padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + row.date + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;">' + odds + '</td>' +
                 '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
+                '<td style="text-align:right;padding:5px 6px;font-family:monospace;font-size:0.72rem;">' + hashTxt + '</td>' +
+                '<td style="text-align:right;padding:5px 6px;font-weight:600;color:' + luckColor + ';">' + luckTxt + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + '">' + changeTxt + '</td>' +
             '</tr>';
         });
@@ -2787,13 +2808,46 @@ function _loadDifficultyHistoryBlocks() {
                 }
                 counts[t] = (counts[t] || 0) + 1;
             });
-            // Update each row's block count using SF_DIFFICULTY_HISTORY index
+            // Update block counts; then load live hashes for current period + compute live luck
             var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
             _dh.forEach(function(row, i) {
                 var el = document.getElementById('sfBlocksRow' + i);
                 if (!el) return;
                 el.textContent = (counts[row.target] || 0).toString();
             });
+
+            // Load live total hashes for current period (last entry) from satoshiFavor/current
+            var currentIdx = _dh.length - 1;
+            if (currentIdx >= 0) {
+                db.collection('satoshiFavor').doc('current').get().then(function(cdoc) {
+                    var liveHashes = (cdoc.exists && cdoc.data().totalHashes) ? cdoc.data().totalHashes : 0;
+                    var hashEl = document.getElementById('sfHashesRow' + currentIdx);
+                    if (hashEl) hashEl.textContent = liveHashes.toLocaleString();
+
+                    // Compute live luck for current period
+                    var luckEl = document.getElementById('sfLuckRow' + currentIdx);
+                    if (luckEl) {
+                        var curRow = _dh[currentIdx];
+                        var blocksFound = counts[curRow.target] || 0;
+                        if (liveHashes === 0 || blocksFound === 0) {
+                            luckEl.textContent = blocksFound === 0 ? '—' : '—';
+                            luckEl.style.color = 'var(--text-faint)';
+                        } else {
+                            var expectedPerBlock = 100000000 / curRow.target;
+                            var expectedTotal = blocksFound * expectedPerBlock;
+                            var lv = (expectedTotal / liveHashes * 100);
+                            var luckEmoji = lv >= 200 ? ' 🍀🍀' : lv >= 100 ? ' 🍀' : lv < 50 ? ' 💀' : '';
+                            luckEl.textContent = lv.toFixed(1) + '%' + luckEmoji;
+                            luckEl.style.color = lv >= 100 ? '#22c55e' : '#ef4444';
+                        }
+                    }
+                }).catch(function() {
+                    var hashEl = document.getElementById('sfHashesRow' + currentIdx);
+                    var luckEl = document.getElementById('sfLuckRow' + currentIdx);
+                    if (hashEl) hashEl.textContent = '?';
+                    if (luckEl) luckEl.textContent = '?';
+                });
+            }
         })
         .catch(function() {
             var _dh2 = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
