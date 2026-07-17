@@ -529,7 +529,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   try {
     const currentDoc = await stateRef.get();
     const currentLowest = currentDoc.exists ? (currentDoc.data().lowestHashThisWindow || Infinity) : Infinity;
-    const updatePayload = { totalHashes: admin.firestore.FieldValue.increment(1) };
+    const updatePayload = { totalHashes: admin.firestore.FieldValue.increment(1), eraHashes: admin.firestore.FieldValue.increment(1) };
     if (value < currentLowest) {
       updatePayload.lowestHashThisWindow = value;
       updatePayload.lowestHashThisWindowUid = uid;
