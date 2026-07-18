@@ -98,7 +98,7 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
       console.warn('[FAVOR] lastWindow archive failed:', e.message);
     }
 
-    // Favor has expired — reset
+    // Favor has expired — reset (preserve eraHashes — never wipe it)
     const resetData = {
       points: 0,
       favorActive: false,
@@ -109,6 +109,7 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
       lowestHashThisWindow: null,
       lastReset: admin.firestore.Timestamp.now(),
       currentCycleId: stateData.currentCycleId || null,
+      eraHashes: stateData.eraHashes || 0,
     };
     transaction.set(stateRef, resetData);
     return resetData;
@@ -334,6 +335,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
           totalHashes: 0,
           lastReset: stateData.lastReset || null,
           currentCycleId: newCycleId,
+          eraHashes: stateData.eraHashes || 0,
         };
         transaction.set(stateRef, activatedState);
         return activatedState;
@@ -678,7 +680,7 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
       } catch (e) {
         console.warn('[FAVOR] checkFavorState lastWindow archive failed:', e.message);
       }
-      // Reset
+      // Reset (preserve eraHashes — never wipe it)
       const resetData = {
         points: 0,
         favorActive: false,
@@ -689,6 +691,7 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
         lowestHashThisWindow: null,
         lastReset: admin.firestore.Timestamp.now(),
         currentCycleId: stateData.currentCycleId || null,
+        eraHashes: stateData.eraHashes || 0,
       };
       await stateRef.set(resetData);
       stateData = resetData;
