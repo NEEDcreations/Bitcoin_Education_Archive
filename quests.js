@@ -4350,7 +4350,7 @@ function _setTriviaState(state) {
     try { localStorage.setItem('btc_trivia_state', JSON.stringify(state)); } catch(e) {}
 }
 
-function _renderTriviaTab(body) {
+function _renderTriviaTab(body, optimisticVote) {
     var today = _getTriviaToday();
     if (!today || !today.trivia) {
         body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Trivia questions loading...</div>';
@@ -4414,7 +4414,12 @@ function _renderTriviaTab(body) {
         // Read from today's stats doc (daily totals only, resets each day)
         db.collection('trivia_stats').doc(todayKey).get().then(function(doc) {
             var stats = doc.exists ? doc.data() : {};
-            var total = stats.total || 0;
+            var total = (stats.total || 0);
+            // Optimistic: if we just voted, add +1 so the count is correct before Firestore write settles
+            if (optimisticVote && typeof optimisticVote.chosenIdx === 'number') {
+                total += 1;
+                stats['option_' + optimisticVote.chosenIdx] = (stats['option_' + optimisticVote.chosenIdx] || 0) + 1;
+            }
             if (total < 1) {
                 // No data yet — show minimal placeholder
                 for (var j = 0; j < t.options.length; j++) {
@@ -4511,21 +4516,18 @@ window.triviaAnswer = function(chosenIdx) {
         var _triviaIdx = today.index;
         var statsUpdate = { total: firebase.firestore.FieldValue.increment(1), triviaIndex: _triviaIdx };
         statsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-        // Write to cumulative doc (all-time totals for this question)
-        db.collection('trivia_cumulative').doc('t_' + _triviaIdx).set(statsUpdate, { merge: true }).then(function() {
-            // Write confirmed — now safe to fetch fresh stats
-            var body2 = document.getElementById('questHubBody');
-            if (body2) _renderTriviaTab(body2);
-        }).catch(function() {});
-        // Also write per-day doc for dedup ref (non-blocking)
+        // Write to cumulative doc (all-time totals for this question) — no re-render needed here
+        // because we already rendered optimistically below
+        db.collection('trivia_cumulative').doc('t_' + _triviaIdx).set(statsUpdate, { merge: true }).catch(function() {});
+        // Also write per-day doc
         var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
         dayStatsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
         db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true }).catch(function() {});
     }
 
-    // Re-render immediately to show correct/wrong answer state
+    // Re-render immediately with optimistic +1 so count is correct before Firestore write settles
     var body = document.getElementById('questHubBody');
-    if (body) _renderTriviaTab(body);
+    if (body) _renderTriviaTab(body, { chosenIdx: chosenIdx });
 
     if (typeof showToast === 'function') {
         showToast(isCorrect ? '✅ Correct! +50 XP 🧠' : '❌ Wrong - +10 XP for trying!', 3000);
