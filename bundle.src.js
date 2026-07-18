@@ -15545,11 +15545,13 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
                 return;
             }
             var data = doc.exists ? doc.data() : {};
-            var eraHashes = data.eraHashes || 0;
+            // Use difficultyTargetHashes (cumulative hashes at current difficulty, survives window resets)
+            // Fall back to eraHashes for backwards compat if field not yet populated
+            var eraHashes = data.difficultyTargetHashes || data.eraHashes || 0;
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
             if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
 
-            // Update total hashes = sum of all past static hashes + current era
+            // Update total hashes = sum of all past static hashes + current difficulty era
             var pastHashSum = 0;
             for (var _pi = 0; _pi < currentIdx; _pi++) {
                 if (_dh[_pi].hashes != null) pastHashSum += _dh[_pi].hashes;
