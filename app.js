@@ -4034,7 +4034,12 @@ window.nachoQuizAnswer = function(btn, correct) {
     ];
 
     function doSearch(q) {
-        const sr = document.getElementById('searchResults');
+        // Route results to whichever container is active
+        var _overlay = document.getElementById('searchOverlay');
+        var _overlayOpen = _overlay && (_overlay.getAttribute('data-open') === '1' || _overlay.style.display === 'flex');
+        const sr = _overlayOpen
+            ? document.getElementById('searchResults')
+            : (document.getElementById('sidebarSearchResults') || document.getElementById('searchResults'));
         const cl = document.getElementById('channelList');
 
         // Sync inputs if they exist
