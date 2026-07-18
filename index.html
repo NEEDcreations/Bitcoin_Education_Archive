@@ -260,7 +260,7 @@
         .back-to-top:hover { transform: translateY(-3px); box-shadow: 0 8px 25px var(--accent-glow); }
         .scroll-to-bottom { bottom: 240px; }
         #desktopSearchBtn { display: none !important; }
-        @media (max-width: 900px) { .desktop-only-apps { display: none !important; } }
+        @media (max-width: 900px) { .desktop-only-apps { display: none !important; } .desktop-only-learn { display: none !important; } }
 
         /* Reading progress bar */
 
@@ -1030,8 +1030,8 @@
                         <button id="authBtn" onclick="showUsernamePrompt()" style="display:none;padding:12px 30px;width:100%;max-width:340px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">Create Free Account / Sign In</button>
 
                         <!-- Learn (standalone, between Settings and Explore Apps) -->
-                        <button onclick="toggleSidebarMenu('homeLearnMenu')" class="desktop-only-apps" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🎓 Learn ▼</button>
-                        <div id="homeLearnMenu" class="desktop-only-apps" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:8px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
+                        <button id="homeLearnBtn" onclick="toggleSidebarMenu('homeLearnMenu')" class="desktop-only-learn" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🎓 Learn ▼</button>
+                        <div id="homeLearnMenu" class="desktop-only-learn" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:8px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
                             
                             
                             <button onclick="go('one-stop-shop')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid #3b82f6;color:#3b82f6;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🟢</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Brand New to Bitcoin?<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">⭐ Start here</span></span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Zero jargon intro — start here if you've never owned BTC</span></span></button>
@@ -1044,7 +1044,7 @@
                         </div>
 
                         <!-- Explore Apps -->
-                        <button onclick="toggleSidebarMenu('homeAppsMenu')" class="desktop-only-apps" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧭 Explore Apps ▼</button>
+                        <button id="homeAppsBtn" onclick="toggleSidebarMenu('homeAppsMenu')" class="desktop-only-apps" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧭 Explore Apps ▼</button>
                         <div id="homeAppsMenu" class="desktop-only-apps" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
                             <!-- Apps grid -->
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -1277,7 +1277,7 @@
     <!-- Critical: needed for initial page render -->
     <script src="bundle.js?v=20260718_2147" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
-    <script src="onboarding.js?v=20260716_0311" defer></script>
+    <script src="onboarding.js?v=20260718_2219" defer></script>
     <script src="learning-quests.js?v=20260715_fix2" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->

@@ -326,7 +326,8 @@
                 '#donateSection',            // Donate section
                 '[onclick*="showSpinWheel"]',    // Spin button
                 '[onclick*="showPricePrediction"]', // Predict button
-                '.desktop-only-apps',        // Explore Apps mega-menu
+                '#homeAppsBtn',             // Explore Apps button
+                '#homeAppsMenu',             // Explore Apps dropdown menu
                 '[onclick*="toggleSidebarMenu(\'homeSupportMenu\')"]', // Support dropdown
                 '#homeSupportMenu',
                 '#lbFloatBtn',               // Floating leaderboard
