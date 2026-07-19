@@ -38,7 +38,6 @@
 
     let favorState = null;
     let favorUnsub = null;
-    let diffStatsUnsub = null;
     let countdownInterval = null;
     let minerCountdownInterval = null;
     let hashListener = null;
@@ -204,15 +203,6 @@
     // ─── LISTENER ───
     function listenToFavorState() {
         console.log('[FAVOR] Starting listener...');
-        // Feature 4: difficultyStats listener — running grand-total per difficulty target
-        const DIFFICULTY_TARGET = window.SF_DIFFICULTY_TARGET || 8000;
-        const diffStatsRef = db.collection('satoshiFavor').doc('difficultyStats');
-        diffStatsUnsub = diffStatsRef.onSnapshot((snap) => {
-            if (snap.exists) {
-                _sfTotalHashes = snap.data()['target_' + DIFFICULTY_TARGET] || 0;
-            }
-        }, (e) => console.warn('[FAVOR] diffStats listener error:', e.message));
-
         const stateRef = db.collection('satoshiFavor').doc('current');
         favorUnsub = stateRef.onSnapshot((doc) => {
             console.log('[FAVOR] Got state update, exists:', doc.exists);
@@ -220,7 +210,8 @@
             favorState = doc.exists ? doc.data() : { points: 0, favorActive: false };
             console.log('[FAVOR] State:', favorState);
 
-            // Feature 4: totalHashes now tracked in difficultyStats doc (not window doc)
+            // Feature 4: community heat uses current-window hashes from the window doc (resets each window)
+            _sfTotalHashes = (favorState.totalHashes || 0);
 
             // Cache to localStorage
             try {
