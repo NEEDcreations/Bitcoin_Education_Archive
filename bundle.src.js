@@ -34553,34 +34553,67 @@ window.nachoQuizAnswer = function(btn, correct) {
         var query = target.query;
         window._searchScrollTarget = null;
 
-        // If the message is beyond the initial render batch, load more first
+        // Load all batches up to the target message synchronously
         var initialBatch = (typeof isMobile === 'function' && isMobile()) ? 20 : 50;
         if (idx >= initialBatch && typeof window.loadMoreMsgs === 'function') {
-            // Keep loading until we have the target message
             var safety = 0;
-            while (!document.getElementById('msg-' + idx) && document.getElementById('loadMoreBtn') && safety < 50) {
+            while (!document.getElementById('msg-' + idx) && document.getElementById('loadMoreBtn') && safety < 60) {
                 window.loadMoreMsgs();
                 safety++;
             }
         }
 
         var el = document.getElementById('msg-' + idx);
-        if (el) {
-            // Scroll to message
+        if (!el) return;
+
+        // Highlight the matching term in text content if possible
+        if (query) {
+            var textDiv = el.querySelector('.msg-text');
+            if (textDiv) {
+                try {
+                    var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+                    textDiv.innerHTML = textDiv.innerHTML.replace(re, '<mark style="background:rgba(249,115,22,0.35);color:inherit;border-radius:3px;padding:0 2px;">$1</mark>');
+                } catch(e) {}
+            }
+        }
+
+        // Apply highlight style immediately so it's visible
+        el.style.transition = 'background 0.3s, box-shadow 0.3s';
+        el.style.background = 'rgba(249,115,22,0.12)';
+        el.style.boxShadow = 'inset 3px 0 0 #f97316';
+        el.style.borderRadius = '8px';
+
+        // Scroll using explicit offsetTop calculation against the #main scroll container
+        // This is reliable regardless of lazy-loaded image heights
+        function _scrollToEl() {
+            var mainEl = document.getElementById('main');
+            if (!mainEl) { el.scrollIntoView({ block: 'center' }); return; }
+            // Walk offsetTop chain up to #main
+            var top = 0;
+            var node = el;
+            while (node && node !== mainEl) {
+                top += node.offsetTop;
+                node = node.offsetParent;
+            }
+            // Center the element in the viewport
+            var center = top - (mainEl.clientHeight / 2) + (el.offsetHeight / 2);
+            mainEl.scrollTop = Math.max(0, center);
+        }
+
+        // First attempt after a short delay for DOM layout
+        setTimeout(function() {
+            _scrollToEl();
+            // Second attempt after images may have shifted layout
             setTimeout(function() {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Highlight it briefly
-                el.style.transition = 'background 0.3s, box-shadow 0.3s';
-                el.style.background = 'rgba(249,115,22,0.12)';
-                el.style.boxShadow = 'inset 3px 0 0 #f97316';
-                el.style.borderRadius = '8px';
+                _scrollToEl();
+                // Remove highlight after 3s
                 setTimeout(function() {
                     el.style.background = '';
                     el.style.boxShadow = '';
                     el.style.borderRadius = '';
                 }, 3000);
-            }, 300);
-        }
+            }, 800);
+        }, 150);
     };
 
     // Unique visit counter via Firebase
