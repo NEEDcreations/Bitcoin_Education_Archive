@@ -97,8 +97,7 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
     } catch (e) {
       console.warn('[FAVOR] lastWindow archive failed:', e.message);
     }
-
-    // Favor has expired — reset (preserve eraHashes + difficultyTargetHashes — never wipe them)
+    // Favor has expired — reset (preserve eraHashes — never wipe it)
     const resetData = {
       points: 0,
       favorActive: false,
@@ -110,7 +109,6 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
       lastReset: admin.firestore.Timestamp.now(),
       currentCycleId: stateData.currentCycleId || null,
       eraHashes: stateData.eraHashes || 0,
-      difficultyTargetHashes: stateData.difficultyTargetHashes || 0,
     };
     transaction.set(stateRef, resetData);
     return resetData;
@@ -337,7 +335,6 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
           lastReset: stateData.lastReset || null,
           currentCycleId: newCycleId,
           eraHashes: stateData.eraHashes || 0,
-          difficultyTargetHashes: stateData.difficultyTargetHashes || 0,
         };
         transaction.set(stateRef, activatedState);
         return activatedState;
@@ -533,8 +530,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   try {
     const currentDoc = await stateRef.get();
     const currentLowest = currentDoc.exists ? (currentDoc.data().lowestHashThisWindow || Infinity) : Infinity;
-    // difficultyTargetHashes = cumulative hashes at current difficulty target (never resets on window close/reopen, only when difficulty changes)
-    const updatePayload = { totalHashes: admin.firestore.FieldValue.increment(1), eraHashes: admin.firestore.FieldValue.increment(1), difficultyTargetHashes: admin.firestore.FieldValue.increment(1) };
+    const updatePayload = { totalHashes: admin.firestore.FieldValue.increment(1), eraHashes: admin.firestore.FieldValue.increment(1) };
     if (value < currentLowest) {
       updatePayload.lowestHashThisWindow = value;
       updatePayload.lowestHashThisWindowUid = uid;
@@ -543,6 +539,18 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     await stateRef.update(updatePayload);
   } catch (e) {
     console.warn('[FAVOR] totalHashes/lowestHash update failed:', e.message);
+  }
+
+  // Feature 4A-ext: Increment cumulative hashes per difficulty in a SEPARATE doc that is
+  // never overwritten by transaction.set() — survives all window resets/activations safely
+  try {
+    const diffStatsRef = db.collection('satoshiFavor').doc('difficultyStats');
+    await diffStatsRef.set(
+      { ['target_' + DIFFICULTY_TARGET]: admin.firestore.FieldValue.increment(1) },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn('[FAVOR] difficultyStats increment failed:', e.message);
   }
 
   // Update personal best — per-user doc (avoids single-doc bloat)
@@ -683,7 +691,7 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
       } catch (e) {
         console.warn('[FAVOR] checkFavorState lastWindow archive failed:', e.message);
       }
-      // Reset (preserve eraHashes + difficultyTargetHashes — never wipe them)
+      // Reset (preserve eraHashes — never wipe it)
       const resetData = {
         points: 0,
         favorActive: false,
@@ -695,7 +703,6 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
         lastReset: admin.firestore.Timestamp.now(),
         currentCycleId: stateData.currentCycleId || null,
         eraHashes: stateData.eraHashes || 0,
-        difficultyTargetHashes: stateData.difficultyTargetHashes || 0,
       };
       await stateRef.set(resetData);
       stateData = resetData;

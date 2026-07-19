@@ -15534,7 +15534,9 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
     if (currentIdx < 0) return;
     var curRow = _dh[currentIdx];
 
-    _difficultyCurrentUnsub = db.collection('satoshiFavor').doc('current')
+    var curTarget = curRow.target;
+    // Listen to difficultyStats (separate doc that only ever receives merge+increment, never overwritten)
+    _difficultyCurrentUnsub = db.collection('satoshiFavor').doc('difficultyStats')
         .onSnapshot(function(doc) {
             if (!document.getElementById('sfDifficultyHistoryBody')) {
                 // Table gone — clean up
@@ -15542,9 +15544,8 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
                 return;
             }
             var data = doc.exists ? doc.data() : {};
-            // Use difficultyTargetHashes (cumulative hashes at current difficulty, survives window resets)
-            // Fall back to eraHashes for backwards compat if field not yet populated
-            var eraHashes = data.difficultyTargetHashes || data.eraHashes || 0;
+            // Read cumulative hashes for current difficulty target from the dedicated stats doc
+            var eraHashes = data['target_' + curTarget] || 0;
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
             if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
 
