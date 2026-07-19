@@ -1251,6 +1251,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Difficulty stats — cumulative hash counts per difficulty target, public read
+    match /satoshiFavor/difficultyStats {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Last window archive — public read, server writes only
     match /satoshiFavor/lastWindow {
       allow read: if true;
