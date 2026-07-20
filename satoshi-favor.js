@@ -1542,6 +1542,8 @@
 
             var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
             var scWinner = null, scCount = 0, scRateLimit = null;
+            var scValues = []; // collect all hash values for summary
+
             for (var si = 0; si < 10; si++) {
                 if (!favorState || !favorState.favorActive) break;
                 var scRes = await _minerSubmitOneHash(1, u.hashBoosterHashes || 0, (u.secondRigCharges || 0) > 0);
@@ -1549,19 +1551,48 @@
                 if (scRes.rateLimited) { scRateLimit = scRes; break; }
                 if (scRes.error) break;
                 scCount++;
+                scValues.push(scRes.value);
+
+                // Live-update the label with each hash value as it arrives,
+                // colour-coded: green = near target, yellow = mid, default = high
+                if (label) {
+                    var _lv = scRes.value;
+                    var _lc = _lv < DIFFICULTY_TARGET ? '#22c55e'
+                             : _lv < DIFFICULTY_TARGET * 5 ? '#facc15'
+                             : '#facc15';
+                    label.style.color = _lc;
+                    label.textContent = _lv.toLocaleString();
+                }
+
                 if (scRes.isWinner) { scWinner = scRes.value; break; }
             }
 
             if (btn) { btn.textContent = scWinner ? '🏆' : '⚡'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
 
             if (scWinner !== null) {
+                if (label) { label.style.color = '#22c55e'; label.textContent = '🏆'; }
                 if (typeof showToast === 'function') showToast('🏆 YOU WON! Hash: ' + scWinner.toLocaleString() + ' — 21,000 sats incoming!', 6000);
                 if (typeof window.launchConfetti === 'function') window.launchConfetti();
             } else if (scRateLimit) {
+                if (label) { label.style.color = '#facc15'; label.textContent = scCount + '×'; }
                 if (typeof showToast === 'function') showToast('⏳ Rate limit — wait ' + Math.ceil(scRateLimit.waitMs / 1000) + 's (got ' + scCount + ' hashes in)', 3000);
             } else {
-                if (label) { label.textContent = scCount + '×'; setTimeout(function() { _sfFloatTickCooldown(); }, 1500); }
-                if (typeof showToast === 'function') showToast('⚡ Supercharged! ' + scCount + ' hashes fired!', 2500);
+                // Summary toast: show all values in one line, best highlighted
+                if (scValues.length > 0) {
+                    var _best = Math.min.apply(null, scValues);
+                    var _valStr = scValues.map(function(v) {
+                        return v === _best
+                            ? '<strong style="color:#22c55e;">' + v.toLocaleString() + '</strong>'
+                            : v.toLocaleString();
+                    }).join(' · ');
+                    if (typeof showToast === 'function') showToast(
+                        '⚡ ' + scCount + ' hashes — best: <strong style="color:#22c55e;">' + _best.toLocaleString() + '</strong><br>' +
+                        '<span style="font-size:0.75em;opacity:0.85;">' + _valStr + '</span>',
+                        5000
+                    );
+                }
+                // Reset label to cooldown state after 2s
+                setTimeout(function() { _sfFloatTickCooldown(); }, 2000);
             }
             return;
         }
