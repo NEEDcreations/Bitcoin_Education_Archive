@@ -17134,46 +17134,34 @@ function _renderTriviaTab(body, optimisticVote) {
         html += '<div style="margin-top:14px;margin-bottom:6px;font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;text-align:center;">👥 Community Answers</div>';
     }
 
-    // Fetch and display community answer stats (fires after body.innerHTML = html below)
-    if (answered && typeof db !== 'undefined') {
-        // show loading dots first
-        for (var li = 0; li < t.options.length; li++) {
-            html = html.replace('id="triviaPct_' + li + '" style="', 'id="triviaPct_' + li + '" style="');
-        }
-        // Read from today's stats doc (daily totals only, resets each day)
-        db.collection('trivia_stats').doc(todayKey).get().then(function(doc) {
-            var stats = doc.exists ? doc.data() : {};
-            var total = (stats.total || 0);
-            // Optimistic: if we just voted, add +1 so the count is correct before Firestore write settles
-            if (optimisticVote && typeof optimisticVote.chosenIdx === 'number') {
-                total += 1;
-                stats['option_' + optimisticVote.chosenIdx] = (stats['option_' + optimisticVote.chosenIdx] || 0) + 1;
-            }
-            if (total < 1) {
-                // No data yet — show minimal placeholder
-                for (var j = 0; j < t.options.length; j++) {
-                    var pctEl = document.getElementById('triviaPct_' + j);
-                    if (pctEl) pctEl.textContent = '...';
-                }
-                return;
-            }
-            for (var j = 0; j < t.options.length; j++) {
-                var count = stats['option_' + j] || 0;
-                var pct = Math.round((count / total) * 100);
-                var barEl = document.getElementById('triviaBar_' + j);
-                var pctEl = document.getElementById('triviaPct_' + j);
-                if (barEl) barEl.style.width = pct + '%';
-                if (pctEl) pctEl.textContent = pct + '% (' + count + ')';
-            }
-            // Update total count — show today's total, not all-time
-            var totEl = document.getElementById('triviaTotalVotes');
-            if (totEl) totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' today';
-        }).catch(function() {});
+    // Community stats section — baked directly into HTML (no DOM patching race condition).
+    // When optimisticVote is present we already know the count locally, so we skip the
+    // Firestore read and render immediately.  On subsequent opens (no optimisticVote) we
+    // fire an async read and patch only the per-option bars + the total line.
+    var _triviaOptimisticStats = null; // set below when we can render without a round-trip
+
+    if (answered && optimisticVote && typeof optimisticVote.chosenIdx === 'number') {
+        // User just answered — we don't need Firestore; synthesise stats from scratch.
+        // The Firestore write is in-flight; the only guaranteed fact is that THIS user
+        // chose chosenIdx.  Build a minimal stats object with just that one vote so the
+        // bars render correctly right away.  Once Firestore settles the onSnapshot /
+        // next tab-open will show the real community totals.
+        _triviaOptimisticStats = { total: 1 };
+        _triviaOptimisticStats['option_' + optimisticVote.chosenIdx] = 1;
+    } else if (answered && typeof db !== 'undefined') {
+        // Normal re-open path: read real community stats from Firestore and patch DOM
+        // after body.innerHTML is set (deferred below).
     }
 
     // Show explanation if answered
     if (answered) {
-        html += '<div id="triviaTotalVotes" style="text-align:center;margin-top:4px;margin-bottom:14px;color:var(--text-faint);font-size:0.72rem;">Loading community results...</div>';
+        // Bake the total count into the HTML directly so it is correct even before
+        // any Firestore read completes.  _triviaOptimisticStats is non-null only on
+        // the immediate post-answer render.
+        var _initialTotalText = _triviaOptimisticStats
+            ? (_triviaOptimisticStats.total.toLocaleString() + ' answer' + (_triviaOptimisticStats.total !== 1 ? 's' : '') + ' today')
+            : 'Loading community results...';
+        html += '<div id="triviaTotalVotes" style="text-align:center;margin-top:4px;margin-bottom:14px;color:var(--text-faint);font-size:0.72rem;">' + _initialTotalText + '</div>';
         html += '<div style="margin-top:4px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
             '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
             '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.explanation) : t.explanation) + '</div>' +
@@ -17182,6 +17170,43 @@ function _renderTriviaTab(body, optimisticVote) {
     }
 
     body.innerHTML = html;
+
+    // After DOM is set: apply stats to bars + total line.
+    if (answered) {
+        if (_triviaOptimisticStats) {
+            // Optimistic path — no Firestore needed; bake in the single known vote.
+            var _ots = _triviaOptimisticStats;
+            var _otTotal = _ots.total || 1;
+            for (var oi = 0; oi < t.options.length; oi++) {
+                var _oCount = _ots['option_' + oi] || 0;
+                var _oPct = Math.round((_oCount / _otTotal) * 100);
+                var _oBar = document.getElementById('triviaBar_' + oi);
+                var _oPctEl = document.getElementById('triviaPct_' + oi);
+                if (_oBar) _oBar.style.width = _oPct + '%';
+                if (_oPctEl) _oPctEl.textContent = _oPct + '% (' + _oCount + ')';
+            }
+            // Total line already baked into HTML; nothing more to do.
+        } else if (typeof db !== 'undefined') {
+            // Normal re-open: fetch real community totals from Firestore and patch DOM.
+            var _capturedTodayKey = todayKey;
+            var _capturedOptions = t.options.length;
+            db.collection('trivia_stats').doc(_capturedTodayKey).get().then(function(doc) {
+                var stats = doc.exists ? doc.data() : {};
+                var total = stats.total || 0;
+                if (total < 1) return; // nothing to show yet
+                for (var j = 0; j < _capturedOptions; j++) {
+                    var count = stats['option_' + j] || 0;
+                    var pct = Math.round((count / total) * 100);
+                    var barEl = document.getElementById('triviaBar_' + j);
+                    var pctEl = document.getElementById('triviaPct_' + j);
+                    if (barEl) barEl.style.width = pct + '%';
+                    if (pctEl) pctEl.textContent = pct + '% (' + count + ')';
+                }
+                var totEl = document.getElementById('triviaTotalVotes');
+                if (totEl) totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' today';
+            }).catch(function() {});
+        }
+    }
 }
 
 window.triviaAnswer = function(chosenIdx) {
