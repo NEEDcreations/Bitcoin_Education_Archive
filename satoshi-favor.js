@@ -239,6 +239,8 @@
                     window._sfEasyWindowActive = true;
                     _sfSetEasyWindowPending(false);
                     console.log('[FAVOR] Supercharged Window activated! 1 click = 10 hashes this window.');
+                    // Update float widget styling immediately
+                    if (typeof _sfFloatApplySuperchargeStyle === 'function') _sfFloatApplySuperchargeStyle();
                 } else {
                     window._sfEasyWindowActive = false;
                 }
@@ -271,6 +273,8 @@
                     console.log('[FAVOR] Streak reset — no hashes submitted this window');
                 }
                 window._sfEasyWindowActive = false;
+                // Revert float widget to normal styling
+                if (typeof _sfFloatApplySuperchargeStyle === 'function') _sfFloatApplySuperchargeStyle();
                 sfState.myHashCount = 0;
 
                 // Clean up session leaderboard listener
@@ -1397,21 +1401,29 @@
                 'transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1)',
             ].join(';');
 
+            var _isEW = !!window._sfEasyWindowActive;
             w.innerHTML =
-                // Hash button
+                // Hash button — gold ring + ⚡ icon when Supercharged Window active
                 '<button id="sfFloatBtn" onclick="window._sfFloatHash()" style="' +
                     'width:54px;height:54px;border-radius:50%;' +
-                    'background:linear-gradient(135deg,#f7931a,#e8720c);' +
+                    (_isEW
+                        ? 'background:linear-gradient(135deg,#facc15,#f7931a);box-shadow:0 4px 20px rgba(250,204,21,0.7);'
+                        : 'background:linear-gradient(135deg,#f7931a,#e8720c);box-shadow:0 4px 16px rgba(247,147,26,0.5);') +
                     'border:none;color:#fff;font-size:1.4rem;cursor:pointer;' +
-                    'box-shadow:0 4px 16px rgba(247,147,26,0.5);' +
                     'display:flex;align-items:center;justify-content:center;' +
                     'font-family:inherit;transition:transform 0.15s,opacity 0.15s;' +
-                    'touch-action:manipulation;">⛏️</button>' +
+                    'touch-action:manipulation;">' + (_isEW ? '⚡' : '⛏️') + '</button>' +
+                // Supercharged badge (only when active)
+                (_isEW ? '<div id="sfFloatSCBadge" style="' +
+                    'font-size:0.52rem;font-weight:800;color:#facc15;' +
+                    'background:rgba(0,0,0,0.8);padding:2px 5px;border-radius:5px;' +
+                    'white-space:nowrap;pointer-events:none;letter-spacing:0.3px;' +
+                    'border:1px solid rgba(250,204,21,0.4);">⚡ ×10</div>' : '') +
                 // Cooldown label
                 '<div id="sfFloatLabel" style="' +
-                    'font-size:0.58rem;font-weight:800;color:#f7931a;' +
+                    'font-size:0.58rem;font-weight:800;color:' + (_isEW ? '#facc15' : '#f7931a') + ';' +
                     'background:rgba(0,0,0,0.7);padding:2px 6px;border-radius:6px;' +
-                    'white-space:nowrap;pointer-events:none;letter-spacing:0.3px;">HASH</div>' +
+                    'white-space:nowrap;pointer-events:none;letter-spacing:0.3px;">' + (_isEW ? 'SUPERCHARGED' : 'HASH') + '</div>' +
                 // TCTV link hint
                 '<a href="#timechain-tv" onclick="if(typeof go===\'function\'){go(\'timechain-tv\');} return false;" style="' +
                     'font-size:0.52rem;color:rgba(255,255,255,0.7);text-decoration:none;' +
@@ -1439,6 +1451,9 @@
             }
 
             _sfFloatShown = true;
+        } else {
+            // Widget already exists — update supercharge styling in place
+            _sfFloatApplySuperchargeStyle();
         }
 
         // Start cooldown ticker
@@ -1447,10 +1462,42 @@
         }
     }
 
+    // Apply/remove supercharge visual style on the existing float widget
+    function _sfFloatApplySuperchargeStyle() {
+        var btn = document.getElementById('sfFloatBtn');
+        var label = document.getElementById('sfFloatLabel');
+        var badge = document.getElementById('sfFloatSCBadge');
+        var w = document.getElementById('sfFloatWidget');
+        if (!btn || !w) return;
+        var isEW = !!window._sfEasyWindowActive;
+        if (isEW) {
+            btn.style.background = 'linear-gradient(135deg,#facc15,#f7931a)';
+            btn.style.boxShadow = '0 4px 20px rgba(250,204,21,0.7)';
+            btn.textContent = '⚡';
+            if (label) { label.style.color = '#facc15'; label.textContent = 'SUPERCHARGED'; }
+            if (!badge) {
+                var bd = document.createElement('div');
+                bd.id = 'sfFloatSCBadge';
+                bd.style.cssText = 'font-size:0.52rem;font-weight:800;color:#facc15;background:rgba(0,0,0,0.8);padding:2px 5px;border-radius:5px;white-space:nowrap;pointer-events:none;letter-spacing:0.3px;border:1px solid rgba(250,204,21,0.4);';
+                bd.textContent = '⚡ ×10';
+                // Insert between btn and label
+                if (label) w.insertBefore(bd, label); else w.appendChild(bd);
+            }
+        } else {
+            btn.style.background = 'linear-gradient(135deg,#f7931a,#e8720c)';
+            btn.style.boxShadow = '0 4px 16px rgba(247,147,26,0.5)';
+            btn.textContent = '⛏️';
+            if (label) { label.style.color = '#f7931a'; }
+            if (badge) badge.remove();
+        }
+    }
+
     function _sfFloatTickCooldown() {
         var label = document.getElementById('sfFloatLabel');
         var btn = document.getElementById('sfFloatBtn');
         if (!label || !btn) { clearInterval(_sfFloatCooldownTimer); _sfFloatCooldownTimer = null; return; }
+
+        var isEW = !!window._sfEasyWindowActive;
 
         // Calculate time until next hash is available
         var effectiveRate = _sfEffectiveRate();
@@ -1459,7 +1506,8 @@
         var canHash = recent.length < effectiveRate;
 
         if (canHash) {
-            label.textContent = 'HASH';
+            label.textContent = isEW ? 'SUPERCHARGED' : 'HASH';
+            label.style.color = isEW ? '#facc15' : '#f7931a';
             btn.style.opacity = '1';
             btn.style.transform = 'scale(1)';
         } else {
@@ -1468,6 +1516,7 @@
             var waitMs = HASH_WINDOW_MS - (now - oldest);
             var waitSec = Math.ceil(waitMs / 1000);
             label.textContent = waitSec + 's';
+            label.style.color = isEW ? '#facc15' : '#f7931a';
             btn.style.opacity = '0.55';
         }
     }
@@ -1486,6 +1535,38 @@
             return;
         }
 
+        // ── Supercharged Window path: 1 tap = 10 hashes ──
+        if (window._sfEasyWindowActive) {
+            if (btn) { btn.textContent = '⚡'; btn.style.transform = 'scale(0.88)'; btn.style.opacity = '0.7'; }
+            if (label) label.textContent = '...';
+
+            var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
+            var scWinner = null, scCount = 0, scRateLimit = null;
+            for (var si = 0; si < 10; si++) {
+                if (!favorState || !favorState.favorActive) break;
+                var scRes = await _minerSubmitOneHash(1, u.hashBoosterHashes || 0, (u.secondRigCharges || 0) > 0);
+                if (!scRes) break;
+                if (scRes.rateLimited) { scRateLimit = scRes; break; }
+                if (scRes.error) break;
+                scCount++;
+                if (scRes.isWinner) { scWinner = scRes.value; break; }
+            }
+
+            if (btn) { btn.textContent = scWinner ? '🏆' : '⚡'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
+
+            if (scWinner !== null) {
+                if (typeof showToast === 'function') showToast('🏆 YOU WON! Hash: ' + scWinner.toLocaleString() + ' — 21,000 sats incoming!', 6000);
+                if (typeof window.launchConfetti === 'function') window.launchConfetti();
+            } else if (scRateLimit) {
+                if (typeof showToast === 'function') showToast('⏳ Rate limit — wait ' + Math.ceil(scRateLimit.waitMs / 1000) + 's (got ' + scCount + ' hashes in)', 3000);
+            } else {
+                if (label) { label.textContent = scCount + '×'; setTimeout(function() { _sfFloatTickCooldown(); }, 1500); }
+                if (typeof showToast === 'function') showToast('⚡ Supercharged! ' + scCount + ' hashes fired!', 2500);
+            }
+            return;
+        }
+
+        // ── Normal hash path ──
         // Check client-side rate limit
         var effectiveRate = _sfEffectiveRate();
         var now = Date.now();
