@@ -4116,7 +4116,7 @@ function _renderCharityTabInner(body) {
         var inp = document.getElementById('charityAmtInput');
         var amt = parseInt(inp ? inp.value : '') || 0;
         if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
-        var avail = Math.max(0, (typeof currentUser !== 'undefined' && currentUser ? (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) : 0));
+        var avail = Math.max(0, (typeof currentUser !== 'undefined' && currentUser ? (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0) : 0));
         if (amt > avail) { if (typeof showToast === 'function') showToast('Not enough available XP. You have ' + avail.toLocaleString() + ' pts available.'); return; }
         var anon = document.getElementById('charityAnonToggle') ? document.getElementById('charityAnonToggle').checked : false;
         var btn = document.querySelector('[onclick="window._submitCharityDonation()"]');
@@ -4156,7 +4156,7 @@ function _renderCharityTabInner(body) {
             // Listeners are already live — no need to re-render the tab;
             // but patch the user's own available XP shown in the donate UI.
             var avEl = document.querySelector('#questHubBody [data-charity-avail]');
-            if (avEl) { var newAvail = Math.max(0,(typeof currentUser!=='undefined'&&currentUser?(currentUser.points||0)-(currentUser.pointsClaimed||0)-(currentUser.pointsDonated||0):0)); avEl.textContent = newAvail.toLocaleString() + ' XP'; }
+            if (avEl) { var newAvail = Math.max(0,(typeof currentUser!=='undefined'&&currentUser?(currentUser.points||0)-(currentUser.pointsClaimed||0)-(currentUser.pointsDonated||0)-(currentUser.pointsExchanged||0):0)); avEl.textContent = newAvail.toLocaleString() + ' XP'; }
         }).catch(function(e) {
             if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
             if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Donation failed. Try again.'), 4000);

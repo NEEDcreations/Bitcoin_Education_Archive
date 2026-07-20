@@ -4663,8 +4663,9 @@ function showSettingsPage(tab) {
         var userPts = currentUser ? currentUser.points || 0 : 0;
         var pointsClaimed = currentUser ? currentUser.pointsClaimed || 0 : 0;
         var pointsDonated = currentUser ? currentUser.pointsDonated || 0 : 0;
-        // [VULN-4 FIX] donated points can't also fund sats claims - subtract both offsets
-        var availableForClaim = userPts - pointsClaimed - pointsDonated;
+        var pointsExchanged = currentUser ? currentUser.pointsExchanged || 0 : 0;
+        // All three offset counters reduce the redeemable pool
+        var availableForClaim = userPts - pointsClaimed - pointsDonated - pointsExchanged;
         var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
         var satsBalance = Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
         var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
@@ -4726,7 +4727,7 @@ function showSettingsPage(tab) {
         var _displayAvail = Math.max(0, availableForClaim);
         var _availLabel = availableForClaim < 0
             ? '<span style="color:#ef4444;">' + _displayAvail.toLocaleString() + ' available XP</span> <span style="font-size:0.65rem;color:#ef4444;">(claims + donations exceed current total - keep earning!)</span>'
-            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated)';
+            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged)';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + _availLabel + '</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
@@ -4899,7 +4900,7 @@ function showSettingsPage(tab) {
 
         } else {
         // ===== DONATE XP SUB-TAB =====
-        var _donateAvail = Math.max(0, userPts - pointsClaimed - pointsDonated);
+        var _donateAvail = Math.max(0, userPts - pointsClaimed - pointsDonated - pointsExchanged);
         var _userFaction = currentUser ? (currentUser.faction || '') : '';
 
         html += '<div style="text-align:center;margin-bottom:20px;">';
@@ -4912,8 +4913,8 @@ function showSettingsPage(tab) {
         html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Available to Donate</div>';
         html += '<div data-sats-charity-avail style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
-        var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated;
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated</div>';
+        var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated - pointsExchanged;
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged</div>';
         if (_rawAvailForDonate < 0) {
             html += '<div style="margin-top:8px;font-size:0.75rem;color:#ef4444;font-weight:600;">⚠️ XP fully used - earn more to donate again</div>';
         }
@@ -5740,7 +5741,7 @@ function showSettingsPage(tab) {
             var inp = document.getElementById('satsCharityAmtInput');
             var amt = parseInt(inp ? inp.value : '') || 0;
             var avail = typeof currentUser !== 'undefined' && currentUser
-                ? Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0)) : 0;
+                ? Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0)) : 0;
             if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
             if (avail <= 0) {
                 if (typeof showToast === 'function') showToast('\u26a0\ufe0f No XP available to donate. Keep earning!', 5000);
@@ -5781,7 +5782,7 @@ function showSettingsPage(tab) {
                     // Update available XP display in-place
                     var _avEl = document.querySelector('#settingsModal [data-sats-charity-avail]');
                     if (_avEl) {
-                        var _newAvail = Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0));
+                        var _newAvail = Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0));
                         _avEl.textContent = '\u2764\ufe0f ' + _newAvail.toLocaleString() + ' XP';
                     }
                     // Patch donated total line
@@ -6701,8 +6702,8 @@ window.initSatsClaim = function() {
         showToast('Sign in to claim sats');
         return;
     }
-    // [VULN-4 FIX] donated points can't also fund sats claims
-    var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0) - (currentUser.pointsDonated || 0);
+    // All three offset counters (claimed, donated, exchanged) reduce the redeemable pool
+    var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0) - (currentUser.pointsDonated || 0) - (currentUser.pointsExchanged || 0);
     var satsBalance = Math.floor(Math.max(0, availPts) / 10);
     var satsWithdrawn = currentUser.satsWithdrawn || 0;
     var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;

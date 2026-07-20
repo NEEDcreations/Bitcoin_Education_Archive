@@ -1716,13 +1716,15 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
 
             // Check points balance.
             // Points are never deducted on earn; we track offset counters instead:
-            //   pointsClaimed  — sats already withdrawn against these points
-            //   pointsDonated  — points "spent" via donatePoints (same pool, can't overlap)
-            // [VULN-4 FIX] Subtract pointsDonated so donated points can't also fund sats claims.
+            //   pointsClaimed   — sats already withdrawn against these points
+            //   pointsDonated   — points spent via donatePoints
+            //   pointsExchanged — points spent via XP→OrangeTicket exchange
+            // All three draw from the same pool; subtract all to get true available.
             const userPoints = user.points || 0;
             const pointsClaimed = user.pointsClaimed || 0;
             const pointsDonated = user.pointsDonated || 0;
-            const availablePoints = userPoints - pointsClaimed - pointsDonated;
+            const pointsExchanged = user.pointsExchanged || 0;
+            const availablePoints = userPoints - pointsClaimed - pointsDonated - pointsExchanged;
             const satsBalance = Math.floor(availablePoints / FAUCET.POINTS_PER_SAT);
             if (satsBalance < amount) {
                 throw new Error('Insufficient unclaimed points. You have ' + satsBalance + ' sats worth of unclaimed points (' + availablePoints + ' pts).');
@@ -4916,7 +4918,8 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
         const points = u.points || 0;
         const pointsClaimed = u.pointsClaimed || 0;
         const pointsDonated = u.pointsDonated || 0;
-        const available = points - pointsClaimed - pointsDonated;
+        const pointsExchanged = u.pointsExchanged || 0;
+        const available = points - pointsClaimed - pointsDonated - pointsExchanged;
 
         // Faction required - donations must be attributed to a side
         if (!u.faction || (u.faction !== 'cyber_hornets' && u.faction !== 'honey_badgers')) {
@@ -4981,14 +4984,15 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
         const factionKey = u.faction === 'cyber_hornets' ? 'cyber_hornets'
                          : u.faction === 'honey_badgers' ? 'honey_badgers'
                          : 'no_faction';
-        // Use update() so dot-notation keys are treated as nested field paths,
-        // not literal string keys (which is what set+merge does).
+        // MUST use update() so dot-notation keys are treated as nested field paths.
+        // set+merge stores them as literal string keys like "factionTotals.cyber_hornets" instead
+        // of merging into the nested factionTotals map — causing the UI to show wrong totals.
         const statsUpdate = {
             totalDonated: admin.firestore.FieldValue.increment(amount),
             updatedAt: ts,
             [`factionTotals.${factionKey}`]: admin.firestore.FieldValue.increment(amount),
         };
-        tx.set(statsRef, statsUpdate, { merge: true });
+        tx.update(statsRef, statsUpdate);
     });
 
     return { success: true, newBadges, bonusPts, donationTicket };
@@ -5809,17 +5813,20 @@ exports.convertPointsToTickets = functions.https.onCall(async (data, context) =>
         const currentPoints = userData.points || 0;
         const _ptsClaimed = userData.pointsClaimed || 0;
         const _ptsDonated = userData.pointsDonated || 0;
-        // [VULN] Must check available (unspent) points, not just raw total.
-        // Raw points can exceed available once claims/donations are accounted for.
-        const availableForExchange = currentPoints - _ptsClaimed - _ptsDonated;
+        const _ptsExchanged = userData.pointsExchanged || 0;
+        // Available = total earned minus all three spend paths (sats claim, donation, ticket exchange).
+        // points (total earned) is NEVER decremented — only offset counters change.
+        const availableForExchange = currentPoints - _ptsClaimed - _ptsDonated - _ptsExchanged;
 
         if (availableForExchange < pointsCost) {
             throw new functions.https.HttpsError('failed-precondition',
-                `Need ${pointsCost.toLocaleString()} XP available, but only ${Math.max(0, availableForExchange).toLocaleString()} is unclaimed/undonated (total: ${currentPoints.toLocaleString()}).`);
+                `Need ${pointsCost.toLocaleString()} XP available, but only ${Math.max(0, availableForExchange).toLocaleString()} is available (total earned: ${currentPoints.toLocaleString()}).`);
         }
 
         tx.update(userRef, {
-            points: admin.firestore.FieldValue.increment(-pointsCost),
+            // DO NOT decrement `points` — it is total XP earned and drives the leaderboard.
+            // Track the exchange as an offset counter instead, matching pointsClaimed / pointsDonated.
+            pointsExchanged: admin.firestore.FieldValue.increment(pointsCost),
             orangeTickets: admin.firestore.FieldValue.increment(tickets),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
