@@ -2002,11 +2002,16 @@ async function awardVisitPoints() {
 async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
     if (!currentUser || !rankingReady) return;
 
-    // Anti-abuse: validate pts is a reasonable number
+    // Anti-abuse: validate pts is a reasonable number.
+    // badge_earned uses a higher ceiling because the CF catalog contains milestones
+    // up to 100,000 pts (hall_of_fame: 5000, the_archive: 10000, etc.).
+    // The client value is irrelevant — the CF always overrides pts from BADGE_VALUES —
+    // but we must not drop the call before it reaches the CF.
     pts = parseInt(pts);
-    if (isNaN(pts) || pts < 0 || pts > 2200) return;
+    var _isBadgeEarnedCall = !!(badgeId);
+    if (isNaN(pts) || pts < 0 || (!_isBadgeEarnedCall && pts > 2200)) return;
     // Allow 0 pts if tickets or streakFreezes are being awarded
-    if (pts === 0 && !tickets && !streakFreezes) return;
+    if (pts === 0 && !tickets && !streakFreezes && !_isBadgeEarnedCall) return;
 
     // Anti-abuse: rate limit - max 20 point awards per minute
     window._pointAwardTimes = window._pointAwardTimes || [];
@@ -2201,11 +2206,14 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         // [SECURITY] No local fallback - server is the only source of truth for points
         console.warn('[POINTS] Cloud Function failed:', e.message);
         if (typeof showToast === 'function') showToast('⏳ XP will sync when connection restores');
+        // Re-throw so callers (.then/.catch in badges.js) can roll back on network failure.
+        throw e;
     }
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
     refreshLeaderboardIfOpen();
     if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
+    return result; // Return CF result so callers can check success/failure
 }
 
 // Helper: smart toast throttling for point awards

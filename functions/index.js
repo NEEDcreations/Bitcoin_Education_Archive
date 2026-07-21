@@ -2081,6 +2081,123 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         set_miner_complete: 500, set_scholar_complete: 500, set_social_complete: 500,
         set_streak_complete: 1000, set_pvp_complete: 750, set_builder_complete: 500,
         set_explorer_complete: 500, set_fun_complete: 300,
+        // ── Previously missing badge IDs (added 2026-07-21 to prevent CF rejection + re-fire loop) ──
+        // Onboarding / profile
+        first_save: 50, ghost_mode: 0, nacho_quester: 50,
+        bio_author: 50, lightning_address_set: 75,
+        profile_curious: 25, profile_explorer_5: 50, profile_explorer_10: 75,
+        profile_explorer_25: 100, profile_explorer_50: 150, profile_explorer_100: 300,
+        nacho_dressed: 15,
+        // Exploration
+        explorer_5: 10, explorer_25: 30, explorer_50: 50, explorer_100: 100, explorer_all: 500,
+        foundation_builder: 75, experienced_pro: 150, librarian: 150,
+        bookmarks_10: 30, bookworm: 20, favs_10: 25, favs_25: 75,
+        early_bird: 15, night_owl: 15,
+        // Quests
+        quest_3: 25, quest_5: 50, quest_10: 100, quest_25: 200, quest_50: 400, quest_100: 750,
+        // Certs / scholar
+        cert_tech: 100, cert_double: 250, all_certs: 1500,
+        // Chat extras
+        chat_10: 15, chat_25: 20, chat_50: 25, chat_100: 50, chat_200: 100,
+        chat_500: 250, chat_1000: 750, chat_first: 10,
+        chat_lurker_5: 10, chat_lurker_10: 25, chat_lurker_50: 50, chat_lurker_100: 100, chat_lurker_500: 500,
+        chat_streak_7: 50, chat_streak_30: 300,
+        lb_lurker_5: 10, lb_lurker_10: 25, lb_lurker_50: 50, lb_lurker_100: 100, lb_lurker_500: 500,
+        // DJ / Beats
+        dj_first: 25, dj_5: 50, dj_25: 300, dj_50: 750,
+        dj_songs_10: 30, dj_songs_50: 75, dj_songs_100: 400,
+        dj_listener: 20, dj_listener_50: 150, dj_listener_100: 400,
+        beats_50_plays: 30, beats_100_plays: 50, beats_200_plays: 75, beats_500_plays: 200,
+        beats_liked_10: 20, beats_liked_50: 75, beats_comment_1: 15,
+        producer_10: 100,
+        // DMs
+        dm_first: 15, dm_10: 25, dm_25: 50, dm_100: 200, dm_buddy: 30,
+        // Forum / articles
+        forum_first: 15, forum_10: 40, forum_50: 150, forum_100: 400,
+        forum_reply_1: 10, forum_reply_10: 40,
+        article_1: 50, article_5: 150, article_10: 400,
+        // Daily / trifecta
+        daily_5: 50, daily_10: 100, daily_25: 250, daily_50: 500,
+        daily_triple_7: 100, daily_triple_30: 500, daily_triple_90: 1500, daily_triple_365: 5000,
+        // Combos
+        combo_mega: 100, combo_legend: 250,
+        // Reactions
+        react_10: 15, react_50: 50, react_100: 75, react_200: 150, react_500: 300,
+        // PVP extras
+        pvp_5: 50, pvp_25: 100, pvp_50: 200, pvp_100: 1000,
+        pvp_played_1: 10, pvp_played_10: 25, pvp_played_50: 75,
+        pvp_win_streak_3: 75, pvp_win_streak_5: 150,
+        // Raid extras
+        raid_5: 50, raid_10: 100, raid_25: 250, raid_50: 750, raid_100: 1500,
+        raid_boss_slayer_5: 150, raid_boss_slayer_10: 500, raid_winner: 250,
+        // Trivia extras
+        trivia_correct_1: 15, trivia_correct_10: 30, trivia_correct_100: 500,
+        trivia_streak_7: 50, trivia_streak_30: 300,
+        // Poll extras
+        poll_10: 25, poll_50: 100, poll_100: 400,
+        // Tips extras
+        tip_10: 75, tip_magnet: 100, tip_whale: 150,
+        tip_received_1: 20, tip_received_50: 500, tip_sats_10k: 300,
+        // Sats milestones
+        sats_first: 25, sats_1k: 100, sats_5k: 250, sats_10k: 500, sats_21k: 2100,
+        // Streaks extras
+        streak_3: 15, streak_14: 75, streak_21: 100, streak_30: 150, streak_60: 400,
+        streak_100: 1000, streak_200: 2100, streak_365: 5000,
+        // Trails extras
+        trail_started: 25, trail_meadow: 200, trail_mountain: 400, trail_summit: 750, trail_all: 500,
+        trail_double: 100, trail_speed_3: 150, trail_meadow_fast: 50,
+        trail_perfectionist: 75, trail_revisit: 30,
+        // TCTV extras
+        tctv_tuned_in: 10, tctv_couch_potato: 25, tctv_binge_watcher: 50,
+        tctv_couch_king: 100, tctv_satellite: 750,
+        tctv_channel_hopper: 5, tctv_remote_warrior: 10, tctv_dial_spinner: 15,
+        tctv_signal_seeker: 25, tctv_antenna_wizard: 50, tctv_timechain_surfer: 100,
+        // Spin wheel
+        spin_1: 10, spin_7: 20, spin_100: 250,
+        spin_closet_1: 50, spin_closet_5: 150,
+        spin_streak_7: 50, spin_streak_14: 75, spin_streak_30: 200,
+        // SF extras
+        sf_10_hashes: 25, sf_50_hashes: 75, sf_100_hashes: 150,
+        sf_1000_hashes: 1000, sf_10000_hashes: 2100,
+        sf_lucky_1: 25, sf_lucky_5: 75, sf_lucky_10: 150, sf_lucky_50: 400,
+        sf_lucky_100: 750, sf_lucky_1000: 2100,
+        sf_unlucky_1: 15, sf_unlucky_5: 40, sf_unlucky_10: 75, sf_unlucky_50: 200,
+        sf_unlucky_100: 400, sf_unlucky_1000: 1000,
+        sf_ultra_low: 200, sf_block_solver: 1000,
+        sf_first_hash: 10, sf_10_hashes: 25, sf_contributor_10: 200,
+        // Nacho story
+        story_begun: 15, story_halfway: 50, story_complete: 150,
+        // Nacho interaction extras
+        nacho_chatterbox: 30, nacho_bestie: 200, nacho_asked_10: 15, nacho_asked_100: 75,
+        nacho_eli5: 10, nacho_whisper: 500,
+        // Flex aggregate
+        flex_committed: 75, flex_athlete: 200, flex_legend: 1000, flex_all_once: 150,
+        // IRL extras
+        irl_attend_1: 25, irl_attend_5: 100, irl_host: 50, irl_host_5: 150, irl_host_10: 500,
+        // Marketplace extras
+        market_browse: 10, market_listed_1: 30, market_listed_5: 75, market_listed_10: 150,
+        market_saved_5: 15, market_message: 20,
+        // Referrals
+        referral_1: 50, referral_5: 100, referral_10: 200, referral_25: 500, referral_100: 2500,
+        referred: 25,
+        // Prediction
+        predict_1: 10, predict_10: 25, predict_50: 75,
+        predict_correct_25: 200, predict_correct_50: 400, predict_correct_100: 750,
+        predict_accuracy_70: 200, predict_streak_3: 50, predict_streak_10: 250,
+        // Fun / calendar
+        fun_friday: 10, fun_weekend: 10, fun_midnight: 15, fun_new_year: 50,
+        fun_bitcoin_birthday: 100, fun_halving_day: 100, fun_pi_day: 21, fun_whitepaper_day: 75,
+        // Badge sets (additional)
+        set_beats_complete: 500, set_daily_complete: 500, set_irl_complete: 500,
+        set_lightning_complete: 750, set_pow_complete: 750, set_profile_complete: 500,
+        set_spin_complete: 300, set_tctv_complete: 500, set_trails_complete: 500,
+        set_trifecta_complete: 1000,
+        // Special
+        jack_of_all: 3000,
+        // Learning Quests (check: () => false, server-only — keep at 0 so CF doesn't reject them)
+        lq_what_is_bitcoin: 100, lq_mining: 100, lq_nodes: 100, lq_self_custody: 100,
+        lq_lightning: 100, lq_scarcity: 100, lq_bitcoin_only: 100, lq_privacy: 100,
+        lq_graduate: 250,
     };
     // FLEX per-action badge catalog - 23 actions × 8 milestones
     // Pattern: flex_<actionId>_<milestone>  → always 5 pts each

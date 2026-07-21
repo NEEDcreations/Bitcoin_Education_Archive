@@ -680,9 +680,20 @@ window.markVisibleBadgesReady = function() {
     // These are used as check() conditions for combo/set/weekly_hero badges.
     // If localStorage was cleared, these keys are gone and badges would re-fire.
     // Restoring them here prevents re-award toasts (server-side dedup catches XP anyway).
-    var _sentinelPrefixes = ['combo_trio','combo_mega','combo_legend','weekly_hero',
+    // Restore ALL btc_badge_earned_* sentinel keys for every badge
+    // whose check() reads that sentinel (combo/set/weekly_hero).
+    // Extending to ALL badges that use the sentinel pattern prevents them
+    // from re-firing on cache clear (the rollback in checkBadges will catch
+    // truly unknown badges anyway, but this avoids the round-trip).
+    var _sentinelPrefixes = [
+        'combo_trio','combo_mega','combo_legend','weekly_hero',
         'set_miner_complete','set_scholar_complete','set_social_complete',
-        'set_streak_complete','set_pvp_complete','set_builder_complete'];
+        'set_streak_complete','set_pvp_complete','set_builder_complete',
+        'set_explorer_complete','set_fun_complete','set_beats_complete',
+        'set_daily_complete','set_irl_complete','set_lightning_complete',
+        'set_pow_complete','set_profile_complete','set_spin_complete',
+        'set_tctv_complete','set_trails_complete','set_trifecta_complete'
+    ];
     _sentinelPrefixes.forEach(function(id) {
         if (earnedBadges.has(id)) {
             try { localStorage.setItem('btc_badge_earned_' + id, '1'); } catch(e) {}
@@ -731,14 +742,6 @@ function checkBadges() {
                 // Raid Boss contribution
                 if (typeof window._raidOnBadgeEarned === 'function') window._raidOnBadgeEarned();
 
-                // Satoshi's Favor contribution (1 point per badge) — fire-and-forget
-                // Note: contributeSatoshiFavor sends its own richer GGs announcement
-                // ("earned a badge: X! +1 toward Satoshi's Favor! N more to go").
-                // The old generic badge announcement was removed to prevent duplicate GGs posts.
-                if (typeof window.contributeSatoshiFavor === 'function') {
-                    window.contributeSatoshiFavor('badge_earned', badge.emoji + ' ' + badge.name).catch(function() {});
-                }
-
                 // Queue badge popup if Nacho is busy or bubble is open
                 var bubble = document.getElementById('nacho-bubble');
                 if (window._nachoBusy || (bubble && bubble.classList.contains('show'))) {
@@ -748,10 +751,50 @@ function checkBadges() {
                     showBadgeToast(badge);
                 }
 
-                // Award points (toasts are already queued by _nachoBusy)
+                // Award points and gate Satoshi's Favor on server confirmation.
+                // If awardPoints returns success:false (unknown badge, already awarded, etc.)
+                // roll back earnedBadges so the badge can retry next session instead of
+                // silently persisting forever without a badge_awards dedup entry.
+                // This also prevents the SF daily re-award abuse: contributeSatoshiFavor
+                // only fires once the CF confirms the badge was genuinely first-awarded.
                 var badgePts = badge.pts || 20;
+                var _badgeRef = badge; // closure capture
                 if (typeof awardPoints === 'function') {
-                    awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji, null, null, null, badge.id);
+                    awardPoints(badgePts, 'Badge: ' + badge.name + ' ' + badge.emoji, null, null, null, badge.id)
+                        .then(function(result) {
+                            // awardPoints returns undefined for anon users (local path) — treat as success
+                            // 'Badge already awarded' = server dedup fired (badge is legit, just re-check)
+                            // 'Unknown badge' = badge not in CF catalog (stale deploy, etc.) — roll back
+                            var _alreadyAwarded = result && result.data &&
+                                (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
+                            var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
+                            if (serverRejected) {
+                                // CF rejected this badge (unknown id, internal error, etc.)
+                                // Roll back so it can be retried once the catalog is updated.
+                                earnedBadges.delete(_badgeRef.id);
+                                localStorage.setItem('btc_badges', JSON.stringify([...earnedBadges]));
+                                return;
+                            }
+                            // Server confirmed (or anon local path) — safe to count toward SF.
+                            // Satoshi's Favor contribution: 1 point per badge.
+                            // Gating this here prevents the daily re-award exploit where
+                            // badges whose conditions stay true (e.g. localStorage-based)
+                            // re-fire SF contributions every session because the SF dedup
+                            // key resets daily.
+                            if (typeof window.contributeSatoshiFavor === 'function') {
+                                window.contributeSatoshiFavor('badge_earned', _badgeRef.emoji + ' ' + _badgeRef.name).catch(function() {});
+                            }
+                        })
+                        .catch(function() {
+                            // Network/CF error — roll back so the badge can retry.
+                            earnedBadges.delete(_badgeRef.id);
+                            localStorage.setItem('btc_badges', JSON.stringify([...earnedBadges]));
+                        });
+                } else {
+                    // awardPoints not available yet — still contribute SF for local/anon path
+                    if (typeof window.contributeSatoshiFavor === 'function') {
+                        window.contributeSatoshiFavor('badge_earned', badge.emoji + ' ' + badge.name).catch(function() {});
+                    }
                 }
                 // visibleBadges is now written server-side by the awardPoints CF
                 // (blocked from client writes in firestore.rules — [AUDIT FIX H-2])
