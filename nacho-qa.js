@@ -5115,7 +5115,37 @@ const TOP_NOTCH_ENTRIES = [
 
 { keys: ['maze', 'rotary dial', 'flex puzzle', 'run your node maze', 'gratitude dial', 'quest puzzle', 'flex interaction'],
       answer: "FLEX has some fun mini-puzzles, {name}! \uD83E\uDDE9\uD83E\uDD8C 'Run Your Node' is a Z-shaped SVG maze — drag the dot from S to E without leaving the corridor or it stops you. 'Gratitude Practice' is a rotary dial — spin the \uD83D\uDE4F knob around the circle into the orange target zone. Both work on desktop and mobile. Other interactions: sliders (drag thumb all the way across), type-a-word (type the shown word — autocapitalizes), code sequences (tap keys in displayed order), triple tap, rapid mash buttons, and press-and-hold rings. Different every day — keeps it fresh! \u26A1",
-      channel: 'quest-hub', channelName: 'Quest Hub' }
+      channel: 'quest-hub', channelName: 'Quest Hub' },
+// === EXPERIENCE MODE (added 2026-07-21) ===
+{ keys: ['experience mode', 'beginner mode', 'intermediate mode', 'advanced mode', 'skill level', 'change mode', 'experience level', 'mode setting', 'change my level', 'what mode am i in'],
+  answer: "You can set your experience level and I'll tune the whole app for you, {name}! 🎯🦌 Choose from:\n\n🟢 <strong>Beginner</strong> — shows the Learn tab + simplified menus, hides advanced features\n🟡 <strong>Intermediate</strong> — balanced view, all core features visible\n🔴 <strong>Advanced</strong> — full power mode, everything unlocked\n\nChange it anytime: Settings → Account → Experience Mode. Syncs across all your devices! 📱",
+  channel: 'learn', channelName: 'Learn' },
+
+// === SUPERCHARGED SF WINDOW (added 2026-07-21) ===
+{ keys: ['supercharged window', 'supercharged mining', 'gold window', 'gold mining window', '10 hashes', 'window streak', '3 window streak', 'supercharged', 'gold float button', 'streak bonus mining'],
+  answer: "Supercharged Windows are a streak reward for consistent miners, {name}! ⚡🦌 Contribute to Satoshi's Favor in 3 consecutive windows and the NEXT one goes <strong>gold</strong> ✨ — one tap fires <strong>10 hashes at once</strong> instead of 1! The float button glows gold when active. Each hash shows its value live, and after a Supercharged round a summary toast highlights your best. Stack those windows! ⛏️",
+  channel: 'quest-hub', channelName: 'Quest Hub' },
+
+// === DIFFICULTY HISTORY TABLE (added 2026-07-21) ===
+{ keys: ['difficulty history', 'difficulty table', 'difficulty changes', 'difficulty stats', 'luck column', 'difficulty era', 'sf difficulty history', 'cumulative hashes', 'total hashes mined'],
+  answer: "Satoshi's Favor has a Difficulty History table that tracks every change since launch, {name}! 📊🦌 Each row shows the target, odds, blocks mined that era, total hashes submitted, and a Luck column (actual vs expected winners). Cumulative totals at the bottom. Current: <strong>difficulty 8,000 — odds 1:12,500 — prize 21,000 sats</strong>! ⛏️",
+  channel: 'quest-hub', channelName: 'Quest Hub' },
+
+// === RYRACER / PROOF OF PLAY (added 2026-07-21) ===
+{ keys: ['ryracer', 'ry racer', 'proof of play', 'bitcoin racing game', '3d racing', 'lightning racing', 'bitcoin combat racing', 'racing game bitcoin'],
+  answer: "RyRacer is a 3D Bitcoin combat racing game inside Proof of Play, {name}! 🏎️🦌 Race on the Timechain track, blast opponents, and pay entry fees via Lightning. Bitcoin-native gaming — real sats, real stakes. Open Proof of Play and hit the RyRacer tab! ⚡",
+  channel: 'quest-hub', channelName: 'Quest Hub' },
+
+// === LEARNING QUEST ENHANCEMENTS (added 2026-07-21) ===
+{ keys: ['learning quest features', 'key stat callout', 'analogy chip', 'quest slide', 'learn menu description', 'explore apps description'],
+  answer: "Learning Quests recently got a glow-up, {name}! 🎨🦌 Every slide now has a <strong>key stat callout</strong> (the most important number, front-and-center) and an <strong>analogy chip</strong> to make concepts actually stick. All Learn menu and Explore Apps buttons now have descriptions too, so you know exactly what you're clicking into. Education should be vivid! 📚",
+  channel: 'learn', channelName: 'Learn' },
+
+// === INSTANT QUIZ GRADING (added 2026-07-21) ===
+{ keys: ['instant quiz grading', 'quiz speed', 'quiz faster', 'quiz no wait', 'fast quiz results'],
+  answer: "Quiz results are instant now, {name}! ⚡🦌 Your score is calculated locally the moment you finish — no spinner, no waiting. The server still processes it in the background for XP and leaderboard accuracy, but you see your results immediately. Fast feedback = better learning! 🎯",
+  channel: 'learn', channelName: 'Learn' }
+
 
 ];
 
