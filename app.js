@@ -5250,7 +5250,7 @@ window.toggleAITools = function() {
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
             '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
             '</div>' +
-            '<iframe src="https://ppq.ai/invite/facab3d0" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
+            '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
         document.body.appendChild(panel);
 
         // Responsive style for desktop
