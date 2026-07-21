@@ -34917,7 +34917,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var tip = _appTooltips[label] || label;
 if (locked) {
                 return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/[\\'"]/g, "") + '\')" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnLocked + '" class="app-menu-item">' +
-                    '<span style="font-size:1.8rem;">' + emoji + '</span><span>🔒 ' + label + '</span></button>';
+                    '<span style="font-size:1.8rem;">' + emoji + '</span><span style="text-align:center;">🔒 ' + label + '</span><span style="font-size:0.67rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.3;text-align:center;white-space:normal;max-width:100%;">' + tip + '</span></button>';
             }
             return '<button onclick="var _m=document.getElementById(\'appsMenu\');if(_m)_m.style.display=\'none\';' + action + '" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnBase + '" class="app-menu-item">' +
                 '<span style="font-size:1.8rem;">' + emoji + '</span><span style="text-align:center;">' + label + '</span><span style="font-size:0.67rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.3;text-align:center;white-space:normal;max-width:100%;">' + tip + '</span></button>';
