@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-22T00:00:49.353Z",
+  "updated": "2026-07-22T04:00:49.305Z",
   "news": [
+    {
+      "date": "Jul 22, 2026",
+      "title": "How BlackRock 🇺🇸 Timing Market Lows EXPOSED The Bitcoin Bottom",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/o-Chfcc0yoA",
+      "source": "lukemikic"
+    },
     {
       "date": "Jul 21, 2026",
       "title": "First European Sovereign Wealth Fund REVEALED Massive 1% Bitcoin Allocation",
@@ -13,13 +20,6 @@
       "title": "Bitcoin is NOT Changed by Proof Of Node",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/technical/bitcoin-is-not-changed-by-proof-of-node",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 21, 2026",
-      "title": "Bitcoin Maxi Jack Dorsey Unveils New Open Source Group Chat App",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/jack-dorsey-debuts-chat-app-slack-rival",
       "source": "bitcoin-magazine"
     }
   ]
