@@ -1,26 +1,26 @@
 {
-  "updated": "2026-07-22T16:00:49.488Z",
+  "updated": "2026-07-22T20:00:50.355Z",
   "news": [
     {
       "date": "Jul 22, 2026",
-      "title": "Bitcoin ETFs Take in Nearly $1B in New Money — But What Will the Price Do?",
+      "title": "Why Dividend Bitcoin Sales Are Completely Inconsequential To Market Price",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/UNqkyTDwe-c",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Jul 22, 2026",
+      "title": "Winklevoss Twins Donated $10 Million From Bitcoin Sale to Trump Super PAC",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoin-etfs-take-in-nearly-1b",
+      "link": "https://bitcoinmagazine.com/news/winklevoss-twins-donated-bitcoin-to-trump",
       "source": "bitcoin-magazine"
     },
     {
       "date": "Jul 22, 2026",
-      "title": "&#8216;Optimistic signals&#8217; meet a $68,000 wall as bitcoin&#8217;s recovery faces its next test: analysts",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/post/409398/optimistic-signals-meet-68000-wall-bitcoin-recovery-faces-next-test-analysts?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
-    },
-    {
-      "date": "Jul 22, 2026",
-      "title": "VanEck: Bitcoin&#8217;s Summer Lull Masks a Tightening Supply Base",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/markets/vaneck-bitcoins-summer-lull-mask",
-      "source": "bitcoin-magazine"
+      "title": "EXPOSED: The Attack Vector Threatening To Alter Bitcoin Consensus",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/X5iOy-eo_c0",
+      "source": "lukemikic"
     }
   ]
 }
