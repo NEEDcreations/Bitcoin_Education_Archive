@@ -105,6 +105,30 @@ function _flagImg(country, size) {
     return '<img src="https://flagcdn.com/' + iso + '.svg" width="' + sz + '" height="' + Math.round(sz * 0.75) + '" alt="' + country + '" title="' + country + '" style="border-radius:2px;vertical-align:middle;display:inline-block;" onerror="this.outerHTML=\'<span style=font-size:0.65rem;font-weight:700>' + iso.toUpperCase() + '</span>\'">';
 }
 
+/* ───────────────── Flag tap tooltip ───────────────── */
+window._umShowFlagTip = function(el, text) {
+    // Remove any existing tip
+    var existing = document.getElementById('_umFlagTip');
+    if (existing) existing.remove();
+    var tip = document.createElement('div');
+    tip.id = '_umFlagTip';
+    tip.textContent = text;
+    tip.style.cssText = 'position:fixed;background:rgba(30,30,30,0.96);color:#fff;font-size:0.75rem;font-weight:600;padding:5px 10px;border-radius:8px;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid rgba(247,147,26,0.4);';
+    document.body.appendChild(tip);
+    // Position above the element
+    var rect = el.getBoundingClientRect();
+    var tw = tip.offsetWidth;
+    var left = Math.max(6, Math.min(rect.left + rect.width / 2 - tw / 2, window.innerWidth - tw - 6));
+    var top = rect.top - tip.offsetHeight - 8 + window.scrollY;
+    if (top < window.scrollY + 4) top = rect.bottom + 8 + window.scrollY;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    // Auto-dismiss after 1.8s or on next tap anywhere
+    var dismiss = function() { tip.remove(); document.removeEventListener('touchstart', dismiss); document.removeEventListener('click', dismiss); };
+    setTimeout(dismiss, 1800);
+    setTimeout(function() { document.addEventListener('touchstart', dismiss, {once:true}); document.addEventListener('click', dismiss, {once:true}); }, 50);
+};
+
 /* ───────────────── Cache ───────────────── */
 var _mapCache = null;
 var _mapCacheTs = 0;
@@ -230,7 +254,8 @@ function _renderMap(el, counts) {
         topN.forEach(function(c) {
             var n = counts[c] || 0;
             var barW = Math.max(8, Math.round((n / maxCount) * 40));
-            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default;" title="' + c + ': ' + n + ' user' + (n !== 1 ? 's' : '') + '">';
+            var label = c + ': ' + n + ' user' + (n !== 1 ? 's' : '');
+            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;position:relative;" title="' + label + '" onclick="window._umShowFlagTip(this,\'' + label.replace(/'/g,"\\'\'") + '\')">';
             html += _flagImg(c, 24);
             html += '<div style="width:' + barW + 'px;height:3px;background:var(--accent);border-radius:2px;opacity:0.7;min-width:8px;"></div>';
             html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + _fmt(n) + '</span>';
@@ -246,7 +271,9 @@ function _renderMap(el, counts) {
         html += '<div style="font-size:0.72rem;color:var(--text-faint);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Also representing</div>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
         remaining.forEach(function(c) {
-            html += '<span title="' + c + ': ' + _fmt(counts[c] || 0) + ' user' + ((counts[c] || 0) !== 1 ? 's' : '') + '" style="cursor:default;display:inline-block;">' + _flagImg(c, 20) + '</span>';
+            var n = counts[c] || 0;
+            var label = c + ': ' + _fmt(n) + ' user' + (n !== 1 ? 's' : '');
+            html += '<span title="' + label + '" style="cursor:pointer;display:inline-block;position:relative;" onclick="window._umShowFlagTip(this,\'' + label.replace(/'/g,"\\'\'") + '\')">' + _flagImg(c, 20) + '</span>';
         });
         html += '</div></div>';
         html += '<button onclick="var m=document.getElementById(\'umMoreCountries\');m.style.display=m.style.display===\'none\'?\'block\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ ' + remaining.length + ' more countries\':\'▲ hide\'" style="background:none;border:none;color:var(--text-faint);font-size:0.72rem;cursor:pointer;padding:0;font-family:inherit;margin-bottom:10px;">▼ ' + remaining.length + ' more countries</button>';
