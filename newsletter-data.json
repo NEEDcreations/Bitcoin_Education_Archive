@@ -1,26 +1,26 @@
 {
-  "updated": "2026-07-23T12:00:49.856Z",
+  "updated": "2026-07-23T16:00:49.463Z",
   "news": [
     {
       "date": "Jul 23, 2026",
-      "title": "Swiss Bank BancaStato Launches Bitcoin Trading Through Sygnum and Avaloq",
+      "title": "Why 10% Market Share Means Bitcoin FAILED Its Mission",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/w94GDxkKEes",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Jul 23, 2026",
+      "title": "Coinbase Builds Post-Quantum Custody System, Funds Bitcoin&#8217;s Crypto Upgrade",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/swiss-bank-bancastato-launches-bitcoin",
+      "link": "https://bitcoinmagazine.com/news/coinbase-building-post-quantum-solutions",
       "source": "bitcoin-magazine"
     },
     {
       "date": "Jul 23, 2026",
-      "title": "EXPOSED: Coinbase Launches 10X Leveraged Bitcoin Contracts for Europe 🇪🇺 Traders #shorts",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/cWq_XlbZD-Y",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 23, 2026",
-      "title": "CONFIRMED: Exchange Scammers Are LARPing as Bitcoin Supporters for Pure Profit",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/ntGNO9wngZc",
-      "source": "lukemikic"
+      "title": "Kazakhstan Moves to Build a National Crypto Reserve Funded by Bitcoin Miners",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/kazakhstan-to-build-a-national-crypto",
+      "source": "bitcoin-magazine"
     }
   ]
 }
