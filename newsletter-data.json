@@ -1,26 +1,26 @@
 {
-  "updated": "2026-07-23T16:00:49.463Z",
+  "updated": "2026-07-23T20:00:49.300Z",
   "news": [
     {
       "date": "Jul 23, 2026",
-      "title": "Why 10% Market Share Means Bitcoin FAILED Its Mission",
+      "title": "Smarter Web Company Sells Bitcoin to Clear $11.7 Million Debt Facility",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/smarter-web-company-sells-bitcoin",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jul 23, 2026",
+      "title": "Bitcoin Slumps But These Mining Stocks Are Up Thanks to AI Deals",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/bitcoin-is-down-but-mining-stocks-are-up",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jul 23, 2026",
+      "title": "EXPOSED: The Coinbase and BlackRock Plan to Centralize All Bitcoin Into ETFs",
       "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/w94GDxkKEes",
+      "link": "https://www.youtube.com/shorts/JLlKBo0K0zo",
       "source": "lukemikic"
-    },
-    {
-      "date": "Jul 23, 2026",
-      "title": "Coinbase Builds Post-Quantum Custody System, Funds Bitcoin&#8217;s Crypto Upgrade",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/coinbase-building-post-quantum-solutions",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 23, 2026",
-      "title": "Kazakhstan Moves to Build a National Crypto Reserve Funded by Bitcoin Miners",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/kazakhstan-to-build-a-national-crypto",
-      "source": "bitcoin-magazine"
     }
   ]
 }
