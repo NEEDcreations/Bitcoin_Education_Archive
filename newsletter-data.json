@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-23T04:00:50.704Z",
+  "updated": "2026-07-23T08:00:48.584Z",
   "news": [
+    {
+      "date": "Jul 23, 2026",
+      "title": "Swiss Bank BancaStato Launches Bitcoin Trading Through Sygnum and Avaloq",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/swiss-bank-bancastato-launches-bitcoin",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Jul 23, 2026",
       "title": "EXPOSED: Coinbase Launches 10X Leveraged Bitcoin Contracts for Europe 🇪🇺 Traders #shorts",
@@ -13,13 +20,6 @@
       "title": "CONFIRMED: Exchange Scammers Are LARPing as Bitcoin Supporters for Pure Profit",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/ntGNO9wngZc",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 22, 2026",
-      "title": "EXPOSED: How USDC and Wall Street BUIDL Collateral Are Replacing Bitcoin Derivatives",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/X4iVWHb8G2Y",
       "source": "lukemikic"
     }
   ]
