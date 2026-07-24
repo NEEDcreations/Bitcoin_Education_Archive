@@ -24,7 +24,7 @@ const METRIC_RULES = {
   quizCompletions:      { maxAmount: 1,    dailyUserCap: 3    },  // 3 quests/day server limit
   triviaCorrect:        { maxAmount: 1,    dailyUserCap: 1    },  // 1 trivia/day
   pollVotes:            { maxAmount: 1,    dailyUserCap: 1    },  // 1 poll/day
-  flashcardCompletions: { maxAmount: 1,    dailyUserCap: 50   },  // generous study cap
+  flashcardCompletions: { maxAmount: 1,    dailyUserCap: 17   },  // 17 decks total; per-boss per-deck dedup enforced below
   totalXP:              { maxAmount: 500,  dailyUserCap: 500  },  // matches daily XP cap
   chatMessages:         { maxAmount: 1,    dailyUserCap: 100  },  // 100 chat msgs/day max
   badgesEarned:         { maxAmount: 1,    dailyUserCap: 20   },  // realistic badge earn rate
@@ -114,6 +114,30 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
   // Per-user daily cap check (atomic via transaction on a rate-limit doc)
   const dailyCapRef = db.collection('raid_daily_caps').doc(`${uid}_${today}_${metric}`);
   const participantRef = activeBossRef.collection('participants').doc(uid);
+
+  // Per-boss per-deck dedup: flashcard sets can only count once per deck per boss lifetime
+  if (metric === 'flashcardCompletions' && detail) {
+    const safeDeck = detail.substring(0, 80).replace(/[^a-zA-Z0-9_\-\s]/g, '').replace(/\s+/g, '_');
+    const deckDedupRef = db.collection('raid_deck_completions')
+      .doc(`${activeBossRef.id}_${uid}_${safeDeck}`);
+    const deckDedupDoc = await deckDedupRef.get();
+    if (deckDedupDoc.exists) {
+      return {
+        success: false,
+        current: activeBoss.current,
+        target: activeBoss.target,
+        defeated: activeBoss.defeated,
+        message: `You already completed the "${detail}" deck for this boss!`,
+      };
+    }
+    // Mark it used (outside transaction — write after the main transaction completes)
+    await deckDedupRef.set({
+      uid,
+      deck: detail.substring(0, 80),
+      bossId: activeBossRef.id,
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
 
   const result = await db.runTransaction(async (tx) => {
     // Check daily user cap for this metric

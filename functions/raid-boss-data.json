@@ -1,17 +1,107 @@
 [
-  {"name":"Channel-Crawler","description":"100 different users must each visit at least 5 learning topics.","metric":"uniqueUsers5Topics","target":100,"image":"images/raid-bosses/channel-crawler.png"},
-  {"name":"Quiz-Crusader","description":"The community must complete 1,000 quiz quests.","metric":"quizCompletions","target":1000,"image":"images/raid-bosses/quiz-crusader.png"},
-  {"name":"TV-Titan","description":"The community must watch 200 hours of Timechain TV.","metric":"watchMinutes","target":12000,"image":"images/raid-bosses/tv-titan.png"},
-  {"name":"Beats-Baron","description":"The community must listen to 150 hours of Bitcoin Beats.","metric":"beatsMinutes","target":9000,"image":"images/raid-bosses/beats-baron.png"},
-  {"name":"Flash-Flash","description":"Complete 750 flashcard sets across the community.","metric":"flashcardCompletions","target":750,"image":"images/raid-bosses/flash-flash.png"},
-  {"name":"XP-Hoarder","description":"The community must earn 250,000 XP collectively.","metric":"totalXP","target":250000,"image":"images/raid-bosses/xp-hoarder.png"},
-  {"name":"Poll-Patroller","description":"Cast 500 poll votes in the Quest Hub.","metric":"pollVotes","target":500,"image":"images/raid-bosses/poll-patroller.png"},
-  {"name":"Chat-Charger","description":"Send 2,500 messages in Global Chat.","metric":"chatMessages","target":2500,"image":"images/raid-bosses/chat-charger.png"},
-  {"name":"Badge-Builder","description":"150 distinct badges must be earned across the community.","metric":"badgesEarned","target":150,"image":"images/raid-bosses/badge-builder.png"},
-  {"name":"Streak-Sage","description":"The community must collectively reach 25 seven-day visit streaks. Every time any user hits a 7-day streak, it deals 1 damage.","metric":"streakUsers","target":25,"image":"images/raid-bosses/streak-sage.png"},
-  {"name":"Topic-Explorer","description":"Every learning topic must be visited at least 3 times each (collectively).","metric":"uniqueTopicsVisited","target":250,"image":"images/raid-bosses/topic-explorer.png"},
-  {"name":"Lightning-Lancer","description":"100 Lightning tips sent across the community.","metric":"tipsSent","target":100,"image":"images/raid-bosses/lightning-lancer.png"},
-  {"name":"Forum-Forge","description":"150 new forum posts created.","metric":"forumPosts","target":150,"image":"images/raid-bosses/forum-forge.png"},
-  {"name":"Trivia-Tactician","description":"1,500 correct trivia answers across the community.","metric":"triviaCorrect","target":1500,"image":"images/raid-bosses/trivia-tactician.png"},
-  {"name":"Content-Conqueror","description":"The community must read 2,500 total learning topics.","metric":"totalTopicReads","target":2500,"image":"images/raid-bosses/content-conqueror.png"}
+  {
+    "name": "Channel-Crawler",
+    "description": "100 different users must each visit at least 5 learning topics.",
+    "metric": "uniqueUsers5Topics",
+    "target": 100,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/channel-crawler.png"
+  },
+  {
+    "name": "Quiz-Crusader",
+    "description": "The community must complete 1,000 quiz quests.",
+    "metric": "quizCompletions",
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/quiz-crusader.png"
+  },
+  {
+    "name": "TV-Titan",
+    "description": "The community must watch 200 hours of Timechain TV.",
+    "metric": "watchMinutes",
+    "target": 12000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/tv-titan.png"
+  },
+  {
+    "name": "Beats-Baron",
+    "description": "The community must listen to 150 hours of Bitcoin Beats.",
+    "metric": "beatsMinutes",
+    "target": 9000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/beats-baron.png"
+  },
+  {
+    "name": "Flash-Flash",
+    "description": "Complete 750 flashcard sets across the community.",
+    "metric": "flashcardCompletions",
+    "target": 750,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/flash-flash.png"
+  },
+  {
+    "name": "XP-Hoarder",
+    "description": "The community must earn 250,000 XP collectively.",
+    "metric": "totalXP",
+    "target": 250000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/xp-hoarder.png"
+  },
+  {
+    "name": "Poll-Patroller",
+    "description": "Cast 500 poll votes in the Quest Hub.",
+    "metric": "pollVotes",
+    "target": 500,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/poll-patroller.png"
+  },
+  {
+    "name": "Chat-Charger",
+    "description": "Send 2,500 messages in Global Chat.",
+    "metric": "chatMessages",
+    "target": 2500,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/chat-charger.png"
+  },
+  {
+    "name": "Badge-Builder",
+    "description": "150 distinct badges must be earned across the community.",
+    "metric": "badgesEarned",
+    "target": 150,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/badge-builder.png"
+  },
+  {
+    "name": "Streak-Sage",
+    "description": "The community must collectively reach 25 seven-day visit streaks. Every time any user hits a 7-day streak, it deals 1 damage.",
+    "metric": "streakUsers",
+    "target": 25,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/streak-sage.png"
+  },
+  {
+    "name": "Topic-Explorer",
+    "description": "Every learning topic must be visited at least 3 times each (collectively).",
+    "metric": "uniqueTopicsVisited",
+    "target": 250,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/topic-explorer.png"
+  },
+  {
+    "name": "Lightning-Lancer",
+    "description": "100 Lightning tips sent across the community.",
+    "metric": "tipsSent",
+    "target": 100,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/lightning-lancer.png"
+  },
+  {
+    "name": "Forum-Forge",
+    "description": "150 new forum posts created.",
+    "metric": "forumPosts",
+    "target": 150,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/forum-forge.png"
+  },
+  {
+    "name": "Trivia-Tactician",
+    "description": "1,500 correct trivia answers across the community.",
+    "metric": "triviaCorrect",
+    "target": 1500,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/trivia-tactician.png"
+  },
+  {
+    "name": "Content-Conqueror",
+    "description": "The community must read 2,500 total learning topics.",
+    "metric": "totalTopicReads",
+    "target": 2500,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/content-conqueror.png"
+  }
 ]

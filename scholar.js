@@ -4610,7 +4610,7 @@ window.startFlashcards = function(topic) {
                         if (typeof awardPoints === 'function') awardPoints(15, '📚 Completed ' + topic + ' deck');
                         if (typeof awardTickets === 'function') awardTickets(5, 'Flashcard deck complete');
                         // Raid Boss: flashcard completion
-                        if (typeof window._raidOnFlashcardComplete === 'function') window._raidOnFlashcardComplete();
+                        if (typeof window._raidOnFlashcardComplete === 'function') window._raidOnFlashcardComplete(topic);
                         if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(15);
                     } else {
                         if (typeof showToast === 'function') showToast('📚 Already completed this deck today!');

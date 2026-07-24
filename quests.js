@@ -5519,8 +5519,9 @@ window._raidOnPollVote = function() {
 };
 
 // Hook: flashcard set completion
-window._raidOnFlashcardComplete = function() {
-    window._raidContribute('flashcardCompletions', 1);
+window._raidOnFlashcardComplete = function(deckName) {
+    // detail = deck name for server-side per-boss per-deck dedup
+    window._raidContribute('flashcardCompletions', 1, deckName || 'unknown');
 };
 
 // Hook: XP earned (amount = XP gained)
