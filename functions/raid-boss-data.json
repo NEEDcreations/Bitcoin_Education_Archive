@@ -29,9 +29,9 @@
   },
   {
     "name": "Flash-Flash",
-    "description": "Complete 100 flashcard sets across the community.",
+    "description": "Complete 125 flashcard sets across the community.",
     "metric": "flashcardCompletions",
-    "target": 100,
+    "target": 125,
     "image": "https://assets.bitcoineducation.quest/images/raid-bosses/flash-flash.png"
   },
   {
