@@ -1,26 +1,26 @@
 {
-  "updated": "2026-07-23T20:00:49.300Z",
+  "updated": "2026-07-24T00:00:49.931Z",
   "news": [
     {
       "date": "Jul 23, 2026",
-      "title": "Smarter Web Company Sells Bitcoin to Clear $11.7 Million Debt Facility",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/smarter-web-company-sells-bitcoin",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 23, 2026",
-      "title": "Bitcoin Slumps But These Mining Stocks Are Up Thanks to AI Deals",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoin-is-down-but-mining-stocks-are-up",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 23, 2026",
-      "title": "EXPOSED: The Coinbase and BlackRock Plan to Centralize All Bitcoin Into ETFs",
+      "title": "EXPOSED: BlackRock SEC Amendment CONFIRMS Centralized Bitcoin Custody Trap",
       "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/JLlKBo0K0zo",
+      "link": "https://www.youtube.com/shorts/syTFgxoFhgE",
       "source": "lukemikic"
+    },
+    {
+      "date": "Jul 23, 2026",
+      "title": "EXPOSED: Coinbase Is Quietly Lobbying USA 🇺🇸 Govts to Kill Bitcoin Tax Exemption",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/XmhdTTqwngg",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Jul 23, 2026",
+      "title": "Bitcoinist.App Brings Private Mining Pools to iOS",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/press-releases/bitcoinist-app-brings-private-mining-pools-to-ios",
+      "source": "bitcoin-magazine"
     }
   ]
 }
