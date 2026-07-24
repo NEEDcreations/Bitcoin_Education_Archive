@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-24T08:00:50.672Z",
+  "updated": "2026-07-24T12:00:49.393Z",
   "news": [
+    {
+      "date": "Jul 24, 2026",
+      "title": "Former bitcoin miner Poolin files Chapter 11, sets $52 million floor bid for Texas operations",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/post/409587/former-bitcoin-miner-poolin-files-chapter-11-sets-52-million-floor-bid-for-texas-operations?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
     {
       "date": "Jul 24, 2026",
       "title": "Why Denominator Bias Is LYING to Bitcoin Holders",
@@ -13,13 +20,6 @@
       "title": "CONFIRMED: Only 210M People Can Own 0.1 Bitcoin",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/vvXLvKHz1dM",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 24, 2026",
-      "title": "Do NOT Trust Centralized Custodians With Your Bitcoin",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/0wOq3MvauNI",
       "source": "lukemikic"
     }
   ]
