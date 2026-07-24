@@ -802,6 +802,23 @@ function formatChatText(text, mentionUid) {
         if (_mentionHandled) return match; // already handled by uid branch above
         var safeName = name.trim().replace(/['"]/g, '');
         if (!safeName) return match;
+        // If regex captured multiple words, verify the name actually exists as a known user.
+        // Prevents greedy matching: "@Username extra words" would consume extra words as part of the name.
+        if (safeName.indexOf(' ') !== -1) {
+            var knownName = null;
+            var parts = safeName.split(' ');
+            while (parts.length > 1) {
+                var cand = parts.join(' ');
+                for (var _uid in _chatUsers) {
+                    if (_chatUsers[_uid] === cand) { knownName = cand; break; }
+                }
+                if (knownName) break;
+                parts.pop();
+            }
+            // Multi-word name not found in known users — return unchanged, let single-word fallback handle
+            if (!knownName) return match;
+            safeName = knownName;
+        }
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
         _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
         return placeholder;
