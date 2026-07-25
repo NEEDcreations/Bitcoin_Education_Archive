@@ -2240,7 +2240,7 @@ window.notifySelfPoints = function(pts, reason) {
     try {
         var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
         log.push(entry);
-        if (log.length > 100) log = log.slice(log.length - 100);
+        if (log.length > 500) log = log.slice(log.length - 500);
         localStorage.setItem('btc_points_log', JSON.stringify(log));
     } catch(e) {}
     // Badge update (if notifications.js has loaded)

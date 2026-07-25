@@ -1885,20 +1885,24 @@ async function submitQuest() {
     }
 
     // Fire server grading in background — does not block UI
+    // Store the promise so we can update the local XP log with the actual server-awarded amount
+    window._lastQuestGradingPromise = null;
     if (window._currentQuestServerIdPromise || window._currentQuestServerId) {
-        (async function() {
+        window._lastQuestGradingPromise = (async function() {
             try {
                 if (!window._currentQuestServerId && window._currentQuestServerIdPromise) {
                     await window._currentQuestServerIdPromise;
                 }
                 if (window._currentQuestServerId && typeof firebase !== 'undefined' && firebase.functions) {
-                    await firebase.functions().httpsCallable('gradeQuest')({
+                    var gradeResult = await firebase.functions().httpsCallable('gradeQuest')({
                         questId: window._currentQuestServerId,
                         answers: answers,
                         isRetry: !!isRetry
                     });
+                    return gradeResult && gradeResult.data ? gradeResult.data : null;
                 }
             } catch(e) { console.warn('Background quest grading failed:', e); }
+            return null;
         })();
     }
 
@@ -1964,10 +1968,35 @@ async function submitQuest() {
     localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
 
     if (pts > 0) {
-        // Points already awarded server-side by gradeQuest
+        // Points already awarded server-side by gradeQuest.
+        // Log optimistically now; correct the entry once the server responds.
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
-        // Log to local XP history for the Points notification tab
         if (typeof notifySelfPoints === 'function') notifySelfPoints(pts, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
+        // Correct local log entry if server actually awarded fewer (e.g. daily cap hit)
+        if (window._lastQuestGradingPromise) {
+            var _logReason = '🏆 Quest: ' + (currentQuest.title || 'Quest');
+            var _optimisticPts = pts;
+            window._lastQuestGradingPromise.then(function(serverData) {
+                if (!serverData) return;
+                var actualAwarded = typeof serverData.awarded === 'number' ? serverData.awarded : _optimisticPts;
+                if (actualAwarded !== _optimisticPts && typeof notifySelfPoints === 'function') {
+                    // Patch the most recent matching log entry to reflect actual award
+                    try {
+                        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
+                        for (var _i = log.length - 1; _i >= 0; _i--) {
+                            if (log[_i].reason === _logReason && log[_i].pts === _optimisticPts) {
+                                log[_i].pts = actualAwarded;
+                                log[_i].serverConfirmed = true;
+                                if (actualAwarded === 0) log.splice(_i, 1); // remove if 0 awarded
+                                localStorage.setItem('btc_points_log', JSON.stringify(log));
+                                if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
+                                break;
+                            }
+                        }
+                    } catch(e) {}
+                }
+            }).catch(function() {});
+        }
         // Raid Boss: quiz completion
         if (typeof window._raidOnQuizComplete === 'function') window._raidOnQuizComplete();
         if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(pts);
