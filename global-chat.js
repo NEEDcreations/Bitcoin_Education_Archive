@@ -3297,7 +3297,7 @@ window.showChatRules = function() {
     if (existing) { existing.remove(); return; }
     var overlay = document.createElement('div');
     overlay.id = 'chatRulesOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:260001;display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML =
         '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">' +

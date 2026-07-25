@@ -43,7 +43,7 @@ function _showExistingMatch(matchDoc, myUid) {
 
     var overlay = document.createElement('div');
     overlay.id = 'buddyFinderOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:260001;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var html = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:20px;max-width:440px;width:100%;padding:28px;animation:fadeSlideIn 0.3s;">';
@@ -123,7 +123,7 @@ function _showWaitingInPool(poolDoc) {
     var d = poolDoc.data();
     var overlay = document.createElement('div');
     overlay.id = 'buddyFinderOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:260001;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var joinedStr = d.joinedAt ? (d.joinedAt.toDate ? d.joinedAt.toDate() : new Date(d.joinedAt)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'recently';
@@ -164,7 +164,7 @@ window._leavePool = async function(poolDocId) {
 function _showFreshBuddyForm() {
     var overlay = document.createElement('div');
     overlay.id = 'buddyFinderOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:260001;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
