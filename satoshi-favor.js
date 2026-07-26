@@ -577,7 +577,9 @@
         var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
         // If this SF window's charge was already consumed (even if miner was closed+reopened), treat as no rig
         var _cycleNow = (favorState && favorState.currentCycleId) || 'unknown';
-        var hasSecondRig = (u.secondRigCharges || 0) > 0 && window._sfSecondRigConsumedCycle !== _cycleNow;
+        // Show Rig 2 button if user has charges unused, OR if they already consumed a charge this cycle
+        // (charge unlocks the rig for the entire SF window, not just one hash)
+        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleNow;
         var boosterHashes = u.hashBoosterHashes || 0;
 
         const overlay = document.createElement('div');
@@ -972,7 +974,9 @@
 
         var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
         var boosterHashes = u.hashBoosterHashes || 0;
-        var hasSecondRig = (u.secondRigCharges || 0) > 0;
+        var _cycleForHash = (favorState && favorState.currentCycleId) || 'unknown';
+        // Rig 2 is active for this window if: charges remain, OR the charge was already consumed this cycle
+        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleForHash;
 
         // Supercharged Window: 1 click = 10 hashes (only Rig 1, rate-limited naturally)
         if (window._sfEasyWindowActive && rig === 1) {

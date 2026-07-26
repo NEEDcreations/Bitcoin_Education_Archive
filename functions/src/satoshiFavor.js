@@ -441,16 +441,20 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   if (rigNum === 2) {
     const rigCharges = userDataForBooster.secondRigCharges || 0;
     const lastRigCycleId = userDataForBooster.lastSecondRigCycleId || null;
-    if (rigCharges <= 0) {
-      throw new functions.https.HttpsError('permission-denied', 'No Second Rig charges remaining.');
-    }
-    // Consume one charge the first time rig 2 is used in this cycle
-    if (lastRigCycleId !== currentCycleId) {
+    const alreadyUnlockedThisCycle = lastRigCycleId === currentCycleId;
+    // Allow hashing if: charge was already consumed this cycle (rig unlocked for whole window)
+    // OR they still have unused charges (consume one now to unlock this cycle)
+    if (!alreadyUnlockedThisCycle) {
+      if (rigCharges <= 0) {
+        throw new functions.https.HttpsError('permission-denied', 'No Second Rig charges remaining.');
+      }
+      // Consume one charge to unlock rig 2 for this SF window
       await userRef2.update({
         secondRigCharges: admin.firestore.FieldValue.increment(-1),
         lastSecondRigCycleId: currentCycleId,
       });
     }
+    // If alreadyUnlockedThisCycle: charge was already paid, allow unlimited hashing this window
   }
 
   const { value, isWinner } = await db.runTransaction(async (transaction) => {
