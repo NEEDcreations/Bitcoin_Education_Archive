@@ -1832,7 +1832,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         transactionPassed = true;
     } catch (e) {
         console.error('[FAUCET] Transaction failed:', e.message);
-        return { success: false, error: e.message || 'Claim validation failed.' };
+        return { success: false, error: 'Claim validation failed. Please try again.' };
     }
 
     if (!transactionPassed) {
@@ -4198,7 +4198,8 @@ exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
             suspicious
         });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        console.error('[dailyActiveUsers] error:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -4348,7 +4349,8 @@ exports.investigateUsers = functions.https.onRequest(async (req, res) => {
 
         res.json({ users: out, crossref });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        console.error('[investigateUsers] error:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -4471,7 +4473,8 @@ exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
 
         res.json(out);
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        console.error('[watchlistCheck] error:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -4585,7 +4588,8 @@ exports.auditWithdrawals = functions.https.onRequest(async (req, res) => {
 
         res.json(out);
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        console.error('[auditWithdrawals] error:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -4838,7 +4842,7 @@ exports.adminLookupUser = functions.https.onRequest(async (req, res) => {
         snap1.forEach(d => out.push({uid: d.id, ...d.data()}));
         snap2.forEach(d => { if (!out.find(x => x.uid === d.id)) out.push({uid: d.id, ...d.data()}); });
         res.json(out);
-    } catch(e) { res.status(500).json({error: e.toString()}); }
+    } catch(e) { console.error('[adminLookupUser] error:', e); res.status(500).json({error: 'Internal server error'}); }
 });
 exports.adminQueryUsers = functions.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
@@ -4855,7 +4859,7 @@ exports.adminQueryUsers = functions.https.onRequest(async (req, res) => {
             }
         });
         res.json(matches);
-    } catch(e) { res.status(500).json({error:e.toString()});}
+    } catch(e) { console.error('[adminQueryUsers] error:', e); res.status(500).json({error: 'Internal server error'});}
 });
 // [VULN-7 FIX] adminBanUser — sets ban flags in BOTH user doc and faucet_ledger atomically.
 // The ledger ban survives user-doc deletion (faucet_ledger is write:false for clients).
@@ -4881,7 +4885,7 @@ exports.adminBanUser = functions.https.onRequest(async (req, res) => {
         await batch.commit();
         console.log('[adminBanUser] Banned uid:', uid, 'reason:', reason);
         res.json({success: true, uid});
-    } catch(e) { res.status(500).json({error:e.toString()});}
+    } catch(e) { console.error('[adminBanUser] error:', e); res.status(500).json({error: 'Internal server error'});}
 });
 
 exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
@@ -4908,7 +4912,7 @@ exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
         }, { merge: true });
         await batch.commit();
         res.json({success: true, uid});
-    } catch(e) { res.status(500).json({error:e.toString()});}
+    } catch(e) { console.error('[adminUnbanUser] error:', e); res.status(500).json({error: 'Internal server error'});}
 });
 
 // ===== RAID BOSS =====

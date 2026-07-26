@@ -153,6 +153,29 @@ function renderAppPage(page, origin) {
 </html>`;
 }
 
+// Security headers to attach to all HTML responses passing through this worker
+const SECURITY_HEADERS = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+};
+
+// Apply security headers to any Response, preserving existing headers
+function applySecurityHeaders(response) {
+    const newHeaders = new Headers(response.headers);
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+        if (!newHeaders.has(k)) newHeaders.set(k, v);
+    }
+    return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders,
+    });
+}
+
 export default {
     async fetch(request) {
         const url = new URL(request.url);
@@ -169,7 +192,7 @@ export default {
                 const channels = await getChannelIndex();
                 if (channels && channels[id]) {
                     return new Response(renderChannelPage(id, channels[id], origin), {
-                        headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400' }
+                        headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400', ...SECURITY_HEADERS }
                     });
                 }
             }
@@ -184,7 +207,7 @@ export default {
 
             if (isBot(ua)) {
                 return new Response(renderAppPage(page, origin), {
-                    headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400' }
+                    headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400', ...SECURITY_HEADERS }
                 });
             }
 
@@ -203,13 +226,18 @@ export default {
         if (aliasPage) {
             if (isBot(ua)) {
                 return new Response(renderAppPage(aliasPage, origin), {
-                    headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400' }
+                    headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400', ...SECURITY_HEADERS }
                 });
             }
             return Response.redirect(PRIMARY_ORIGIN + '/#' + aliasPage, 302);
         }
 
-        // Everything else: pass through to origin
-        return fetch(request);
+        // Everything else: pass through to origin, adding security headers to HTML responses
+        const resp = await fetch(request);
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('text/html')) {
+            return applySecurityHeaders(resp);
+        }
+        return resp;
     }
 };
