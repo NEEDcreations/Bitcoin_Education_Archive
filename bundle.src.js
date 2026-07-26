@@ -6564,6 +6564,18 @@ window.submitUsername = async function() {
 
     // INITIAL SIGNUP (usernameInput exists = signup modal)
     if (document.getElementById('usernameInput')) {
+        // Turnstile verification
+        var tsToken = '';
+        var tsEl = document.querySelector('#turnstileWidget [name="cf-turnstile-response"]');
+        if (tsEl) tsToken = tsEl.value || '';
+        if (!tsToken) {
+            // Widget may not have rendered yet (slow connection) - check window.turnstile
+            showToast('⏳ Security check pending, please try again in a moment.');
+            if (window.turnstile) window.turnstile.reset('#turnstileWidget');
+            return;
+        }
+        window._signupTurnstileToken = tsToken;
+
         var emailInput = document.getElementById('emailInput');
         var email = emailInput ? emailInput.value.trim() : '';
         var signupCountryEl = document.getElementById('signupCountryInput');
@@ -6946,12 +6958,22 @@ window.initSatsClaim = function() {
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
 
+    html += '<div id="satsClaimTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
+
     html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
     html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
     html += '</div>';
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+    // Re-render Turnstile widget now that the element is in the DOM
+    if (window.turnstile) {
+        window.turnstile.render('#satsClaimTurnstile', {
+            sitekey: '0x4AAAAAAD-ivgpRkbXpgz86',
+            theme: 'dark',
+            size: 'flexible',
+        });
+    }
 };
 
 // Device fingerprint for multi-account detection (Fix #3)
@@ -7052,7 +7074,17 @@ window.submitSatsClaim = async function() {
         var claimSats = firebase.functions().httpsCallable('claimSats');
         // Generate device fingerprint for multi-account detection
         var _fp = _generateDeviceFingerprint();
-        var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp }));
+        // Grab Turnstile token from faucet widget
+        var _tsEl = document.querySelector('#satsClaimTurnstile [name="cf-turnstile-response"]');
+        var _tsToken = _tsEl ? (_tsEl.value || '') : '';
+        if (!_tsToken) {
+            if (errorEl) { errorEl.textContent = 'Security check pending — please wait a moment and try again.'; errorEl.style.display = 'block'; }
+            btn.disabled = false; btn.textContent = isLnMode ? '⚡ Send to Lightning Address' : '⚡ Send Sats to My Wallet'; btn.style.opacity = '1';
+            window._satsClaimInProgress = false;
+            if (window.turnstile) window.turnstile.reset('#satsClaimTurnstile');
+            return;
+        }
+        var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
             currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);

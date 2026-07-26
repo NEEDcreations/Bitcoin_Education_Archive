@@ -21,8 +21,35 @@ function _escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;
 
 // ── Admin auth helper ────────────────────────────────────────────
 // Reads ADMIN_TOKEN from env; constant-time compare; accepts header OR query param.
-// Returns true and sets CORS header if valid; sends 403 and returns false if not.
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+    'https://bitcoineducation.quest',
+    'https://btcedu.app',
+    'https://btcedu.quest',
+];
+
+// Set CORS headers, allowing only known origins.
+// Returns true if origin is allowed (or if request is non-browser/direct).
+function setCorsHeaders(req, res) {
+    const origin = req.headers.origin;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        res.set('Access-Control-Allow-Origin', origin);
+        res.set('Vary', 'Origin');
+    }
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
+    res.set('Access-Control-Max-Age', '86400');
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return false; // caller should return after this
+    }
+    return true;
+}
+
+// Returns true and sets CORS + auth header if valid; sends 403 and returns false if not.
 function requireAdmin(req, res) {
+    if (!setCorsHeaders(req, res)) return false;
     const expected = process.env.ADMIN_TOKEN;
     if (!expected) {
         console.error('[requireAdmin] ADMIN_TOKEN env var not set');
@@ -44,6 +71,31 @@ function requireAdmin(req, res) {
 }
 
 const { NWCClient } = require('@getalby/sdk');
+
+// ── Cloudflare Turnstile verification ───────────────────────────────────────
+async function verifyTurnstile(token, remoteip) {
+    if (!token) return false;
+    const secret = process.env.TURNSTILE_SECRET_KEY;
+    if (!secret) {
+        console.warn('[Turnstile] TURNSTILE_SECRET_KEY not set — skipping verification');
+        return true; // fail-open only if secret is missing (config issue)
+    }
+    try {
+        const params = new URLSearchParams({ secret, response: token });
+        if (remoteip) params.append('remoteip', remoteip);
+        const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString(),
+        });
+        const result = await res.json();
+        console.log('[Turnstile] verify result:', result.success, result['error-codes']);
+        return result.success === true;
+    } catch (e) {
+        console.error('[Turnstile] verify error:', e.message);
+        return false;
+    }
+}
 const bolt11 = require('bolt11');
 
 // ===== SATS FAUCET CONFIG =====
@@ -1475,7 +1527,15 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Verified email required. Link and verify your email in Account settings.' };
     }
 
-    // 3. NWC configuration check
+    // 3. Turnstile CAPTCHA verification (bot protection)
+    const tsToken = data.turnstileToken || '';
+    const tsValid = await verifyTurnstile(tsToken, null);
+    if (!tsValid) {
+        console.warn('[FAUCET] Turnstile verification failed for uid:', uid);
+        return { success: false, error: 'Security check failed. Please refresh and try again.' };
+    }
+
+    // 4. NWC configuration check
     if (!FAUCET.NWC_URL) {
         console.error('[FAUCET] NWC_URL not configured');
         return { success: false, error: 'Faucet not configured. Contact admin.' };
