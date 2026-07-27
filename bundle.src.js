@@ -15398,7 +15398,7 @@ function _renderFavorTab(body) {
             _dhHtml += '<tr style="' + currentRowStyle + '">' +
                 '<td style="padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
                 '<td style="text-align:right;padding:4px 4px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + changeTxt + '</td>' +
+                '<td style="text-align:right;padding:4px 4px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;">' + changeTxt + '</td>' +
                 '<td style="text-align:right;padding:4px 4px;white-space:nowrap;">' + odds + '</td>' +
                 '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
                 '<td style="text-align:right;padding:4px 4px;font-family:monospace;">' + hashTxt + '</td>' +
