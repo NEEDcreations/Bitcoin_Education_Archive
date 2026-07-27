@@ -15347,15 +15347,24 @@ function _renderFavorTab(body) {
         ];
         var _dhHtml = '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
             '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\uD83D\uDCCA Difficulty History</div>' +
-            '<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">' +
+            '<table style="width:100%;border-collapse:collapse;font-size:0.68rem;table-layout:fixed;">' +
+            '<colgroup>' +
+                '<col style="width:22%">' +
+                '<col style="width:13%">' +
+                '<col style="width:14%">' +
+                '<col style="width:17%">' +
+                '<col style="width:8%">' +
+                '<col style="width:14%">' +
+                '<col style="width:12%">' +
+            '</colgroup>' +
             '<thead><tr style="color:var(--text-faint);">' +
-                '<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);">Date</th>' +
-                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Target</th>' +
-                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Change</th>' +
-                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Odds</th>' +
-                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Blocks</th>' +
-                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Hashes</th>' +
-                '<th style="text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);">Luck</th>' +
+                '<th style="text-align:left;padding:3px 4px;border-bottom:1px solid var(--border);">Date</th>' +
+                '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Target</th>' +
+                '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Chg</th>' +
+                '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Odds</th>' +
+                '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Blk</th>' +
+                '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Hashes</th>' +
+                '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Luck</th>' +
             '</tr></thead>' +
             '<tbody id="sfDifficultyHistoryBody">';
         _dh.forEach(function(row, i) {
@@ -15385,16 +15394,16 @@ function _renderFavorTab(body) {
                 ? 'color:var(--heading);background:rgba(247,147,26,0.08);outline:2px solid #f7931a;outline-offset:-2px;'
                 : 'color:var(--text-muted);';
             var currentDateCell = isCurrent
-                ? row.date + '<span style="display:inline-block;margin-left:5px;font-size:0.6rem;font-weight:800;background:#f7931a;color:#000;border-radius:4px;padding:1px 5px;vertical-align:middle;letter-spacing:0.02em;">CURRENT</span>'
+                ? '<span style="display:block;font-weight:700;">' + row.date + '</span><span style="display:inline-block;margin-top:2px;font-size:0.58rem;font-weight:800;background:#f7931a;color:#000;border-radius:3px;padding:0px 4px;letter-spacing:0.03em;">CURRENT</span>'
                 : row.date;
             _dhHtml += '<tr style="' + currentRowStyle + '">' +
-                '<td style="padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
-                '<td style="text-align:right;padding:5px 6px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
-                '<td style="text-align:right;padding:5px 6px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + '">' + changeTxt + '</td>' +
-                '<td style="text-align:right;padding:5px 6px;">' + odds + '</td>' +
-                '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
-                '<td style="text-align:right;padding:5px 6px;font-family:monospace;font-size:0.72rem;">' + hashTxt + '</td>' +
-                '<td style="text-align:right;padding:5px 6px;font-weight:600;color:' + luckColor + ';">' + luckTxt + '</td>' +
+                '<td style="padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
+                '<td style="text-align:right;padding:4px 4px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
+                '<td style="text-align:right;padding:4px 4px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + changeTxt + '</td>' +
+                '<td style="text-align:right;padding:4px 4px;white-space:nowrap;">' + odds + '</td>' +
+                '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
+                '<td style="text-align:right;padding:4px 4px;font-family:monospace;">' + hashTxt + '</td>' +
+                '<td style="text-align:right;padding:4px 4px;font-weight:600;color:' + luckColor + ';white-space:nowrap;">' + luckTxt + '</td>' +
             '</tr>';
         });
         // Totals row — static hashes for past periods; live cells for current-period contribution
@@ -15407,14 +15416,14 @@ function _renderFavorTab(body) {
             }
         });
         _dhHtml +=
-            '<tr id="sfDifficultyTotalsRow" style="color:var(--text-faint);border-top:1px solid var(--border);font-size:0.72rem;">' +
-                '<td style="padding:5px 6px;font-weight:700;color:var(--text-muted);">Total</td>' +
-                '<td style="padding:5px 6px;"></td>' +
-                '<td style="padding:5px 6px;"></td>' +
-                '<td style="padding:5px 6px;"></td>' +
-                '<td style="text-align:right;padding:5px 6px;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
-                '<td style="text-align:right;padding:5px 6px;font-weight:700;color:var(--text-muted);font-family:monospace;"><span id="sfTotalHashes">…</span></td>' +
-                '<td style="padding:5px 6px;"></td>' +
+            '<tr id="sfDifficultyTotalsRow" style="color:var(--text-faint);border-top:1px solid var(--border);font-size:0.68rem;">' +
+                '<td style="padding:4px 4px;font-weight:700;color:var(--text-muted);">Total</td>' +
+                '<td style="padding:4px 4px;"></td>' +
+                '<td style="padding:4px 4px;"></td>' +
+                '<td style="padding:4px 4px;"></td>' +
+                '<td style="text-align:right;padding:4px 4px;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
+                '<td style="text-align:right;padding:4px 4px;font-weight:700;color:var(--text-muted);font-family:monospace;"><span id="sfTotalHashes">…</span></td>' +
+                '<td style="padding:4px 4px;"></td>' +
             '</tr>';
         _dhHtml += '</tbody></table></div>';
         html += _dhHtml;
