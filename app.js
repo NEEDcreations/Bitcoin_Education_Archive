@@ -4503,7 +4503,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _isExplorer = _isCommunity || (_vis >= 3 || _exploredN >= 3);
 
         var btnBase = 'padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;';
-        var btnLocked = btnBase + 'opacity:0.45;filter:grayscale(0.8);cursor:help;';
+        var btnLocked = btnBase + 'opacity:0.65;filter:grayscale(0.8);cursor:help;';
 
         var _appTooltips = {
             'Nacho Mode': 'AI Bitcoin tutor — ask anything, take quizzes, learn by chatting',
@@ -4519,7 +4519,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var tip = _appTooltips[label] || label;
 if (locked) {
                 return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/[\\'"]/g, "") + '\')" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnLocked + '" class="app-menu-item">' +
-                    '<span style="font-size:1.8rem;">' + emoji + '</span><span style="text-align:center;">🔒 ' + label + '</span><span style="font-size:0.67rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.3;text-align:center;white-space:normal;max-width:100%;">' + tip + '</span></button>';
+                    '<span style="font-size:1.8rem;">' + emoji + '</span><span style="text-align:center;">🔒 ' + label + '</span><span style="font-size:0.67rem;font-weight:500;color:rgba(255,255,255,0.65);line-height:1.3;text-align:center;white-space:normal;max-width:100%;">' + tip + '</span></button>';
             }
             return '<button onclick="var _m=document.getElementById(\'appsMenu\');if(_m)_m.style.display=\'none\';' + action + '" title="' + tip + '" data-tooltip="' + tip + '" style="' + btnBase + '" class="app-menu-item">' +
                 '<span style="font-size:1.8rem;">' + emoji + '</span><span style="text-align:center;">' + label + '</span><span style="font-size:0.67rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.3;text-align:center;white-space:normal;max-width:100%;">' + tip + '</span></button>';
