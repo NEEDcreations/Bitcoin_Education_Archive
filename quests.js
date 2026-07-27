@@ -2576,8 +2576,7 @@ function _renderFavorTab(body) {
             } else {
                 var lv = parseFloat(row.luck);
                 luckColor = lv >= 100 ? '#22c55e' : '#ef4444';
-                var luckEmoji = lv >= 200 ? ' 🍀🍀' : lv >= 100 ? ' 🍀' : lv < 50 ? ' 💀' : '';
-                luckTxt = lv.toFixed(1) + '%' + luckEmoji;
+                luckTxt = lv.toFixed(1) + '%';
             }
             var currentRowStyle = isCurrent
                 ? 'color:var(--heading);background:rgba(247,147,26,0.08);outline:2px solid #f7931a;outline-offset:-2px;'
@@ -2882,8 +2881,7 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
             } else {
                 var expectedPerBlock = 100000000 / curRow.target;
                 var lv = (blocksFoundForCurrentPeriod * expectedPerBlock / eraHashes * 100);
-                var luckEmoji = lv >= 200 ? ' 🍀🍀' : lv >= 100 ? ' 🍀' : lv < 50 ? ' 💀' : '';
-                luckEl.textContent = lv.toFixed(1) + '%' + luckEmoji;
+                luckEl.textContent = lv.toFixed(1) + '%';
                 luckEl.style.color = lv >= 100 ? '#22c55e' : '#ef4444';
             }
         }, function() {
