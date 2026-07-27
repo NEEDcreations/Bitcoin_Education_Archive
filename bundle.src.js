@@ -15381,8 +15381,14 @@ function _renderFavorTab(body) {
                 var luckEmoji = lv >= 200 ? ' 🍀🍀' : lv >= 100 ? ' 🍀' : lv < 50 ? ' 💀' : '';
                 luckTxt = lv.toFixed(1) + '%' + luckEmoji;
             }
-            _dhHtml += '<tr style="color:' + (isCurrent ? 'var(--heading)' : 'var(--text-muted)') + ';' + (isCurrent ? 'background:rgba(247,147,26,0.06);' : '') + '">' +
-                '<td style="padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + row.date + '</td>' +
+            var currentRowStyle = isCurrent
+                ? 'color:var(--heading);background:rgba(247,147,26,0.08);outline:2px solid #f7931a;outline-offset:-2px;'
+                : 'color:var(--text-muted);';
+            var currentDateCell = isCurrent
+                ? row.date + '<span style="display:inline-block;margin-left:5px;font-size:0.6rem;font-weight:800;background:#f7931a;color:#000;border-radius:4px;padding:1px 5px;vertical-align:middle;letter-spacing:0.02em;">CURRENT</span>'
+                : row.date;
+            _dhHtml += '<tr style="' + currentRowStyle + '">' +
+                '<td style="padding:5px 6px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + '">' + changeTxt + '</td>' +
                 '<td style="text-align:right;padding:5px 6px;">' + odds + '</td>' +
