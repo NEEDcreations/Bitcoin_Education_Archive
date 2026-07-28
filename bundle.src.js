@@ -16975,11 +16975,11 @@ function _renderCharityTabInner(body) {
             '<button onclick="window._onSettingsClose=function(){if(typeof showQuestHub===\'function\'){showQuestHub();window._questHubTab=\'charity\';setTimeout(function(){if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},50);}};document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){if(typeof showSettings===\'function\')showSettings();setTimeout(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')},100)},100)" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">🐝🦡 Choose Your Faction</button>' +
         '</div>';
     } else {
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
+        html += '<div id="charityDonateSection" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">🎡 Your Donation</div>' +
             '<div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">' +
                 'Available to donate: <strong data-charity-avail style="color:var(--heading);">' + available.toLocaleString() + ' XP</strong>' +
-                (donated > 0 ? ' <span style="color:var(--text-faint);font-size:0.75rem;">(' + donated.toLocaleString() + ' already donated)</span>' : '') +
+                ' <span data-charity-donated-sub style="color:var(--text-faint);font-size:0.75rem;">' + (donated > 0 ? '(' + donated.toLocaleString() + ' already donated)' : '') + '</span>' +
             '</div>';
 
         // Quick-pick buttons
@@ -16987,7 +16987,7 @@ function _renderCharityTabInner(body) {
         html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
         quickPcts.forEach(function(pct) {
             var amt = Math.floor(available * pct / 100);
-            html += '<button onclick="window._charitySetAmount(' + amt + ')" style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
+            html += '<button data-charity-pct="' + pct + '" onclick="window._charitySetAmount(' + amt + ')" style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
         });
         html += '</div>';
 
@@ -17061,7 +17061,36 @@ function _renderCharityTabInner(body) {
     // Populate recent donations from current in-memory state (listeners will keep it live)
     _patchCharityRecent();
 
-    // Wire up amount setter
+    // Refresh the donate section (quick-pick, available XP, already-donated) after a donation
+    function _patchCharityDonateSection() {
+        var donateSection = document.getElementById('charityDonateSection');
+        if (!donateSection) return;
+        var pts = typeof currentUser !== 'undefined' && currentUser ? (currentUser.points || 0) : 0;
+        var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
+        var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
+        var exchanged = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsExchanged || 0) : 0;
+        var available = Math.max(0, pts - claimed - donated - exchanged);
+        // Available XP line
+        var avEl = donateSection.querySelector('[data-charity-avail]');
+        if (avEl) avEl.textContent = available.toLocaleString() + ' XP';
+        // Already donated sub-label
+        var avSub = donateSection.querySelector('[data-charity-donated-sub]');
+        if (avSub) avSub.textContent = donated > 0 ? '(' + donated.toLocaleString() + ' already donated)' : '';
+        // Quick-pick buttons: rebuild amounts
+        var quickBtns = donateSection.querySelectorAll('[data-charity-pct]');
+        quickBtns.forEach(function(btn) {
+            var pct = parseInt(btn.getAttribute('data-charity-pct')) || 0;
+            var newAmt = Math.floor(available * pct / 100);
+            btn.setAttribute('onclick', 'window._charitySetAmount(' + newAmt + ')');
+            var sub = btn.querySelector('span');
+            if (sub) sub.textContent = newAmt.toLocaleString();
+        });
+        // Also update max on the input
+        var inp = document.getElementById('charityAmtInput');
+        if (inp) inp.max = available;
+    }
+
+// Wire up amount setter
     window._charitySetAmount = function(amt) {
         var inp = document.getElementById('charityAmtInput');
         if (inp) { inp.value = amt > 0 ? amt : ''; }
@@ -17109,10 +17138,10 @@ function _renderCharityTabInner(body) {
                     }
                 });
             }
-            // Listeners are already live — no need to re-render the tab;
-            // but patch the user's own available XP shown in the donate UI.
-            var avEl = document.querySelector('#questHubBody [data-charity-avail]');
-            if (avEl) { var newAvail = Math.max(0,(typeof currentUser!=='undefined'&&currentUser?(currentUser.points||0)-(currentUser.pointsClaimed||0)-(currentUser.pointsDonated||0)-(currentUser.pointsExchanged||0):0)); avEl.textContent = newAvail.toLocaleString() + ' XP'; }
+            // Listeners are live for community totals; also refresh the donate
+            // section so quick-pick amounts, available XP, and already-donated tally
+            // all reflect the just-made donation immediately.
+            _patchCharityDonateSection();
         }).catch(function(e) {
             if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
             if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Donation failed. Try again.'), 4000);
