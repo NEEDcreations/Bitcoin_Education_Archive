@@ -15587,12 +15587,12 @@ function _renderHasherRanksHTML(users) {
         }
         var blocks = u.sfBlocksFound || 0;
         var blocksHtml = blocks > 0
-            ? '<span style="font-size:0.7rem;padding:1px 6px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.35);border-radius:4px;color:#22c55e;font-weight:800;white-space:nowrap;" title="Satoshi\u2019s Favor wins">\uD83C\uDFC6 ' + blocks + '</span>'
+            ? '<span style="font-size:0.7rem;padding:1px 6px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.35);border-radius:4px;color:#22c55e;font-weight:800;white-space:nowrap;" title="Blocks found">\uD83C\uDFC6 ' + blocks + '</span>'
             : '';
         var bestHashHtml = u.sfBestHash != null
             ? '<span style="font-family:monospace;font-size:0.72rem;color:var(--text-faint);white-space:nowrap;" title="Personal best hash">\uD83D\uDD20 ' + Number(u.sfBestHash).toLocaleString() + '</span>'
             : '';
-        html += '<div style="padding:6px 10px;margin-bottom:3px;' +
+        var rowHtml = '<div style="padding:6px 10px;margin-bottom:3px;' +
             'background:' + (isMe ? 'rgba(247,147,26,0.1)' : 'transparent') + ';' +
             'border:1px solid ' + (isMe ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;">' +
             // Row 1: rank + username | blocks + hashes
@@ -15614,10 +15614,20 @@ function _renderHasherRanksHTML(users) {
                 '<span style="font-size:0.68rem;color:var(--text-faint);">since ' + firstDate + '</span>' +
             '</div>' +
         '</div>';
+        if (i < 10) {
+            html += rowHtml;
+        } else if (i === 10) {
+            html += '<div id="hasherRanksMore" style="display:none;">' + rowHtml;
+        } else {
+            html += rowHtml;
+        }
+    }
+    if (users.length > 10) {
+        html += '</div>'; // close hasherRanksMore
+        html += '<button onclick="(function(){var m=document.getElementById(\'hasherRanksMore\');var b=document.getElementById(\'hasherRanksMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()" id="hasherRanksMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
     }
     return html || '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
 }
-
 // Tap handler for hash difficulty tooltip — works on both mobile (tap) and desktop (click)
 window._sfHashTap = function(rowId, diffTarget) {
     var tip = document.getElementById(rowId + '_tip');
