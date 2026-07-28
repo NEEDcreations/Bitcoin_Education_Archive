@@ -194,6 +194,7 @@ const BADGE_DEFS = [
     { id: 'sf_500_hashes', name: 'ASIC Mode', emoji: '🖥️', desc: 'Generated 500 hashes during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 500, pts: 500 },
     { id: 'sf_1000_hashes', name: 'Mining Rig', emoji: '🏭', desc: 'Generated 1,000 hashes during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 1000, pts: 1000 },
     { id: 'sf_10000_hashes', name: 'Hash Lord', emoji: '☄️', desc: 'Generated 10,000 hashes during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 10000, pts: 2100 },
+    { id: 'sf_100000_hashes', name: 'Hash God', emoji: '⚡', desc: 'Generated 100,000 hashes during Satoshi\'s Favor', check: () => parseInt(localStorage.getItem('btc_sf_hashes') || '0') >= 100000, pts: 10000 },
     { id: 'sf_low_hash', name: 'Lucky Strike', emoji: '⭐', desc: 'Mined a hash under 1,000,000', check: () => parseInt(localStorage.getItem('btc_sf_best_hash') || '999999999') < 1000000, pts: 50 },
     { id: 'sf_ultra_low', name: 'Golden Nonce', emoji: '✨', desc: 'Mined a hash under 100,000', check: () => parseInt(localStorage.getItem('btc_sf_best_hash') || '999999999') < 100000, pts: 200 },
     { id: 'sf_block_solver', name: 'Block Solver', emoji: '🌞', desc: 'Solved a block! Hash under the difficulty target', check: () => localStorage.getItem('btc_sf_solved_block') === 'true', pts: 1000 },
@@ -317,7 +318,7 @@ const BADGE_DEFS = [
             && has(['chat_first','chat_10','chat_50','chat_100','chat_500'])
             && has(['pvp_first','pvp_5','pvp_25','pvp_50','pvp_100'])
             && has(['tctv_tuned_in','tctv_couch_potato','tctv_binge_watcher','tctv_couch_king','tctv_satellite'])
-            && has(['sf_first_hash','sf_10_hashes','sf_50_hashes','sf_100_hashes','sf_500_hashes','sf_1000_hashes','sf_10000_hashes'])
+            && has(['sf_first_hash','sf_10_hashes','sf_50_hashes','sf_100_hashes','sf_500_hashes','sf_1000_hashes','sf_10000_hashes','sf_100000_hashes'])
             && has(['raid_first','raid_5','raid_10','raid_25','raid_50','raid_100'])
             && has(['tip_first','tip_10','tip_whale'])
             && has(['streak_7','streak_30','streak_100']);
@@ -486,6 +487,7 @@ const TITLE_DEFS = [
     { id: 'the_completionist',    title: 'The Completionist',   emoji: '🗺️', requiredBadge: 'explorer_all',          flavor: 'Mapped every corner of the Archive' },
     { id: 'quest_legend',        title: 'Quest Legend',         emoji: '⚔️', requiredBadge: 'quest_100',             flavor: 'A hundred quests. Countless battles won.' },
     { id: 'hash_lord',           title: 'Hash Lord',            emoji: '☄️', requiredBadge: 'sf_10000_hashes',       flavor: '10,000 nonces ground into dust' },
+    { id: 'hash_god',            title: 'Hash God',             emoji: '⚡', requiredBadge: 'sf_100000_hashes',      flavor: '100,000 hashes. You ARE the network.' },
     { id: 'satoshis_chosen',     title: "Satoshi's Chosen",    emoji: '💎', requiredBadge: 'sf_lucky_1000',         flavor: 'Fortune favors the relentless' },
     { id: 'block_solver',        title: 'Block Solver',         emoji: '🌞', requiredBadge: 'sf_block_solver',        flavor: 'Cracked the code. Won the sats.' },
     { id: 'hodler_supreme',      title: 'HODLer Supreme',       emoji: '🪩', requiredBadge: 'streak_365',             flavor: '365 days. No days off.' },
