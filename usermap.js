@@ -131,8 +131,10 @@ window._umShowFlagTip = function(el, text) {
 
 /* ───────────────── Cache ───────────────── */
 var _mapCache = null;
+var _mapFirstSeen = {}; // country -> ms timestamp
 var _mapCacheTs = 0;
 var _MAP_CACHE_TTL = 5 * 60 * 1000; // 5 min
+var _NEW_COUNTRY_MS = 10 * 24 * 60 * 60 * 1000; // 10 days
 
 /* ───────────────── Public entry point ───────────────── */
 window.renderUserWorldMap = function() {
@@ -144,7 +146,7 @@ window.renderUserWorldMap = function() {
 
     // Use cache if fresh
     if (_mapCache && (Date.now() - _mapCacheTs < _MAP_CACHE_TTL)) {
-        _renderMap(el, _mapCache);
+        _renderMap(el, _mapCache, _mapFirstSeen);
         return;
     }
 
@@ -155,8 +157,14 @@ window.renderUserWorldMap = function() {
         var data = doc.exists ? doc.data() : null;
         if (data && data.counts && Object.keys(data.counts).length > 0) {
             _mapCache = data.counts;
+            var rawFs = data.firstSeen || {};
+            _mapFirstSeen = {};
+            Object.keys(rawFs).forEach(function(c) {
+                var v = rawFs[c];
+                _mapFirstSeen[c] = v && typeof v.toMillis === 'function' ? v.toMillis() : (v && v.seconds ? v.seconds * 1000 : Date.now());
+            });
             _mapCacheTs = Date.now();
-            _renderMap(el, data.counts);
+            _renderMap(el, data.counts, _mapFirstSeen);
         } else {
             // Fallback: lightweight aggregate (query users with country set, limit 500)
             _fetchCountsFromUsers(el);
@@ -179,15 +187,17 @@ function _fetchCountsFromUsers(el) {
               if (c) counts[c] = (counts[c] || 0) + 1;
           });
           _mapCache = counts;
+          _mapFirstSeen = {};
           _mapCacheTs = Date.now();
-          _renderMap(el, counts);
+          _renderMap(el, counts, {});
       }).catch(function() {
           el.innerHTML = '';
       });
 }
 
 /* ───────────────── Renderer ───────────────── */
-function _renderMap(el, counts) {
+function _renderMap(el, counts, firstSeen) {
+    firstSeen = firstSeen || {};
     var totalUsers     = Object.keys(counts).reduce(function(s, k) { return s + (counts[k] || 0); }, 0);
     var countriesReached = Object.keys(counts).filter(function(c) { return counts[c] > 0; }).length;
     if (totalUsers === 0 && countriesReached === 0) { el.innerHTML = ''; return; }
@@ -255,9 +265,11 @@ function _renderMap(el, counts) {
             var n = counts[c] || 0;
             var barW = Math.max(8, Math.round((n / maxCount) * 40));
             var label = c + ': ' + n + ' user' + (n !== 1 ? 's' : '');
-            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;position:relative;" title="' + label + '" onclick="window._umShowFlagTip(this,\'' + label.replace(/'/g,"\\'\'") + '\')">';
+            var isNew = firstSeen[c] && (Date.now() - firstSeen[c]) < _NEW_COUNTRY_MS;
+            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;position:relative;" title="' + label + '" onclick="window._umShowFlagTip(this,\'' + label.replace(/'/g,"\\'\\'")+'\'\')">';
             html += _flagImg(c, 24);
-            html += '<div style="width:' + barW + 'px;height:3px;background:var(--accent);border-radius:2px;opacity:0.7;min-width:8px;"></div>';
+            if (isNew) html += '<span style="font-size:0.55rem;font-weight:900;color:#f97316;text-transform:uppercase;letter-spacing:0.03em;line-height:1;">NEW</span>';
+            html += '<div style="width:' + barW + 'px;height:3px;background:' + (isNew ? '#f97316' : 'var(--accent)') + ';border-radius:2px;opacity:0.7;min-width:8px;"></div>';
             html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + _fmt(n) + '</span>';
             html += '</div>';
         });
@@ -273,7 +285,8 @@ function _renderMap(el, counts) {
         remaining.forEach(function(c) {
             var n = counts[c] || 0;
             var label = c + ': ' + _fmt(n) + ' user' + (n !== 1 ? 's' : '');
-            html += '<span title="' + label + '" style="cursor:pointer;display:inline-block;position:relative;" onclick="window._umShowFlagTip(this,\'' + label.replace(/'/g,"\\'\'") + '\')">' + _flagImg(c, 20) + '</span>';
+            var isNew = firstSeen[c] && (Date.now() - firstSeen[c]) < _NEW_COUNTRY_MS;
+            html += '<span title="' + label + '" style="cursor:pointer;display:inline-block;position:relative;text-align:center;" onclick="window._umShowFlagTip(this,\'' + label.replace(/'/g,"\\'\\'")+'\'\')">' + _flagImg(c, 20) + (isNew ? '<span style="display:block;font-size:0.5rem;font-weight:900;color:#f97316;text-transform:uppercase;leading-trim:both;">NEW</span>' : '') + '</span>';
         });
         html += '</div></div>';
         html += '<button onclick="var m=document.getElementById(\'umMoreCountries\');m.style.display=m.style.display===\'none\'?\'block\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ ' + remaining.length + ' more countries\':\'▲ hide\'" style="background:none;border:none;color:var(--text-faint);font-size:0.72rem;cursor:pointer;padding:0;font-family:inherit;margin-bottom:10px;">▼ ' + remaining.length + ' more countries</button>';

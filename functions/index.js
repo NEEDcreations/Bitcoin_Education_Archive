@@ -6960,6 +6960,16 @@ exports.updateCountryStats = functions.firestore
         }
         if (newCountry) {
             updates['counts.' + newCountry] = admin.firestore.FieldValue.increment(1);
+            // Stamp firstSeen only if this country has never appeared before
+            try {
+                const snap = await statsRef.get();
+                const existing = snap.exists ? (snap.data().firstSeen || {}) : {};
+                if (!existing[newCountry]) {
+                    updates['firstSeen.' + newCountry] = admin.firestore.FieldValue.serverTimestamp();
+                }
+            } catch(e) {
+                console.warn('[COUNTRY STATS] firstSeen check failed:', e.message);
+            }
         }
 
         if (Object.keys(updates).length === 0) return null;
@@ -7005,7 +7015,14 @@ exports.recountCountryStats = functions.pubsub
         }
 
         const countryCount = Object.keys(counts).length;
-        await db.collection('stats').doc('countries').set({ counts, lastRecount: admin.firestore.FieldValue.serverTimestamp(), totalUsersWithCountry: processed }, { merge: false });
+        // Preserve existing firstSeen timestamps — only add new ones, never overwrite
+        const existingDoc = await db.collection('stats').doc('countries').get();
+        const existingFirstSeen = existingDoc.exists ? (existingDoc.data().firstSeen || {}) : {};
+        const firstSeenUpdate = {};
+        Object.keys(counts).forEach(c => {
+            firstSeenUpdate[c] = existingFirstSeen[c] || admin.firestore.Timestamp.now();
+        });
+        await db.collection('stats').doc('countries').set({ counts, firstSeen: firstSeenUpdate, lastRecount: admin.firestore.FieldValue.serverTimestamp(), totalUsersWithCountry: processed }, { merge: false });
         console.log('[COUNTRY RECOUNT] Done. Countries: ' + countryCount + ', Users: ' + processed);
         return null;
     });
