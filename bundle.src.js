@@ -34009,27 +34009,40 @@ window.nachoQuizAnswer = function(btn, correct) {
                 reqMsg = '🔒 Explore ' + Math.max(0, 10 - exploredCount) + ' more channel' + (10 - exploredCount === 1 ? '' : 's') + ' or sign in to unlock ' + name + '!';
             }
 
+            // Save original HTML on first pass so we can restore it on unlock
+            if (!btn.getAttribute('data-orig-html')) btn.setAttribute('data-orig-html', btn.innerHTML);
+            var origHtml = btn.getAttribute('data-orig-html');
+
             if (!unlocked) {
-                btn.innerHTML = '🔒 ' + name;
-                btn.style.opacity = '0.45';
-                btn.style.filter = 'grayscale(0.8)';
+                // Show lock state: keep description span but prefix label with 🔒
+                var _lockHtml = origHtml
+                    .replace(/(<span[^>]*>)([^<]*)(<\/span>)/, function(m, open, content, close) {
+                        // Find the first (title) span and add lock prefix
+                        return open + '🔒 ' + content.replace(/^[🐍🗣️⚡🤝🎵📺👟🎮🦌]+\s*/, '') + close;
+                    });
+                btn.innerHTML = _lockHtml;
+                btn.style.opacity = '0.55';
+                btn.style.filter = 'grayscale(0.7)';
                 btn.style.cursor = 'help';
                 btn.title = reqMsg;
                 btn.setAttribute('data-tooltip', reqMsg);
+                // Make description text visible even when locked
+                var _descSpan = btn.querySelectorAll('span')[1];
+                if (_descSpan) _descSpan.style.color = 'rgba(255,255,255,0.55)';
                 btn.onclick = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     if (typeof showToast === 'function') showToast(reqMsg);
                 };
             } else {
-                btn.innerHTML = name;
+                // Restore original HTML (has emoji + title span + description span)
+                btn.innerHTML = origHtml;
                 btn.style.opacity = '1';
                 btn.style.filter = 'none';
-                var origTip = btn.getAttribute('data-orig-tooltip') || btn.getAttribute('data-tooltip');
-                if (origTip) { btn.title = origTip; btn.setAttribute('data-tooltip', origTip); }
-                else btn.title = name;
                 btn.style.cursor = 'pointer';
-                btn.title = '';
+                var origTip = btn.getAttribute('data-orig-tooltip') || btn.getAttribute('data-tooltip');
+                btn.title = origTip || '';
+                if (origTip) btn.setAttribute('data-tooltip', origTip);
                 var action = btn.getAttribute('data-onclick');
                 if (action) {
                     btn.onclick = _safeAction(action);
