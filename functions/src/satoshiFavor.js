@@ -557,7 +557,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     console.warn('[FAVOR] difficultyStats increment failed:', e.message);
   }
 
-  // Increment per-user lifetime hash counter + stamp firstHashAt on first ever hash
+  // Increment per-user lifetime hash counter + stamp firstHashAt on first ever hash + track wins
   try {
     const userRef = db.collection('users').doc(uid);
     const userSnap = await userRef.get();
@@ -565,9 +565,12 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     if (userSnap.exists && !userSnap.data().firstHashAt) {
       updatePayloadUser.firstHashAt = admin.firestore.FieldValue.serverTimestamp();
     }
+    if (isWinner) {
+      updatePayloadUser.sfBlocksFound = admin.firestore.FieldValue.increment(1);
+    }
     await userRef.update(updatePayloadUser);
   } catch (e) {
-    console.warn('[FAVOR] sfTotalHashes/firstHashAt update failed:', e.message);
+    console.warn('[FAVOR] sfTotalHashes/firstHashAt/sfBlocksFound update failed:', e.message);
   }
 
   // Update personal best — per-user doc (avoids single-doc bloat)

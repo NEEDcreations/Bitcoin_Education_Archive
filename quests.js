@@ -2772,21 +2772,28 @@ function _renderHasherRanksHTML(users) {
                 firstDate = fhTs.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
             } catch(e) {}
         }
+        var blocks = u.sfBlocksFound || 0;
+        var blocksHtml = blocks > 0
+            ? '<span style="font-size:0.7rem;padding:1px 6px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.35);border-radius:4px;color:#22c55e;font-weight:800;white-space:nowrap;" title="Satoshi\u2019s Favor wins">\uD83C\uDFC6 ' + blocks + '</span>'
+            : '';
         html += '<div style="padding:6px 10px;margin-bottom:3px;' +
             'background:' + (isMe ? 'rgba(247,147,26,0.1)' : 'transparent') + ';' +
             'border:1px solid ' + (isMe ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;">' +
+            // Row 1: rank + username
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
-                '<div style="display:flex;align-items:center;gap:6px;min-width:0;">' +
+                '<div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;overflow:hidden;">' +
                     '<span style="font-size:0.78rem;min-width:22px;flex-shrink:0;">' + rankIcon + '</span>' +
                     '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + safeU + '\')" ' +
                         'style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" ' +
                         'title="View @' + name + '\'s profile">' + name + (isMe ? ' (you)' : '') + '</span>' +
                 '</div>' +
-                '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
-                    '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;">since ' + firstDate + '</span>' +
+                '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+                    blocksHtml +
                     '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:var(--heading);white-space:nowrap;">\u26CF\uFE0F ' + (u.sfTotalHashes || 0).toLocaleString() + '</span>' +
                 '</div>' +
             '</div>' +
+            // Row 2: first hash date
+            '<div style="font-size:0.68rem;color:var(--text-faint);padding-left:28px;margin-top:1px;">since ' + firstDate + '</div>' +
         '</div>';
     }
     return html || '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
@@ -3154,6 +3161,7 @@ function _loadFavorLeaderboards() {
                     id: doc.id,
                     username: d.username || d.displayName || 'Anon',
                     sfTotalHashes: d.sfTotalHashes || 0,
+                    sfBlocksFound: d.sfBlocksFound || 0,
                     firstHashAt: d.firstHashAt || null,
                 });
             });
