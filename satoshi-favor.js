@@ -1312,12 +1312,23 @@
                 if (ptsRem > 0 && typeof window.nachoGlobalAnnounce === 'function') {
                     var ptLabel = earnedPoints > 1 ? ('+' + earnedPoints) : '+1';
                     window.nachoGlobalAnnounce('🦌 ' + howEarned + ' ' + ptLabel + ' toward Satoshi\'s Favor! ' + ptsRem + ' more to go ⛏️ ➡️ [Satoshi\'s Favor](#favor)', (auth && auth.currentUser) ? auth.currentUser.uid : '');
+                } else if (ptsRem <= 0 && howEarned && typeof window.nachoGlobalAnnounce === 'function') {
+                    // Edge case: SF just hit exactly 21 pts — favor should be active next window
+                    // Still announce the badge so it always shows in GGs
+                    window.nachoGlobalAnnounce('🦌 ' + howEarned + ' ➡️ [Satoshi\'s Favor](#favor)', (auth && auth.currentUser) ? auth.currentUser.uid : '');
                 }
             }
 
             return data;
         } catch (err) {
-            console.error('[FAVOR] Contribution error:', err);
+            // If SF contribution was deduped (already-exists = badge already counted today),
+            // still post the GGs badge announcement — the badge earn itself is worth showing.
+            var _isDedup = err && err.code === 'already-exists';
+            if (_isDedup && source === 'badge_earned' && howEarned && typeof window.nachoGlobalAnnounce === 'function') {
+                window.nachoGlobalAnnounce('🦌 ' + howEarned + ' ➡️ [Satoshi\'s Favor](#favor)', (auth && auth.currentUser) ? auth.currentUser.uid : '');
+            } else {
+                console.error('[FAVOR] Contribution error:', err);
+            }
             throw err;
         }
     };
