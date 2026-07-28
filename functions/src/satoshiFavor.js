@@ -588,6 +588,12 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     }
     if (!prev || value < prev.value) {
       await pbRef.set({ value, username, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+      // Also denormalize onto user doc so the hasher leaderboard can show it without extra fetches
+      try {
+        await db.collection('users').doc(uid).update({ sfBestHash: value });
+      } catch (e2) {
+        console.warn('[FAVOR] sfBestHash denorm failed:', e2.message);
+      }
     }
   } catch (e) {
     console.warn('[FAVOR] Personal best update failed:', e.message);
