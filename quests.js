@@ -2774,10 +2774,10 @@ function _renderHasherRanksHTML(users) {
         }
         var blocks = u.sfBlocksFound || 0;
         var blocksHtml = blocks > 0
-            ? '<span style="font-size:0.7rem;padding:1px 6px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.35);border-radius:4px;color:#22c55e;font-weight:800;white-space:nowrap;" title="Blocks found">\uD83C\uDFC6 ' + blocks + '</span>'
+            ? '<span style="font-size:0.7rem;padding:1px 6px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.35);border-radius:4px;color:#22c55e;font-weight:800;white-space:nowrap;">\uD83C\uDFC6 ' + blocks + ' blocks</span>'
             : '';
         var bestHashHtml = u.sfBestHash != null
-            ? '<span style="font-family:monospace;font-size:0.72rem;color:var(--text-faint);white-space:nowrap;" title="Personal best hash">\uD83D\uDD20 ' + Number(u.sfBestHash).toLocaleString() + '</span>'
+            ? '<span style="font-family:monospace;font-size:0.72rem;color:var(--text-faint);white-space:nowrap;">low: ' + Number(u.sfBestHash).toLocaleString() + '</span>'
             : '';
         var rowHtml = '<div style="padding:6px 10px;margin-bottom:3px;' +
             'background:' + (isMe ? 'rgba(247,147,26,0.1)' : 'transparent') + ';' +
