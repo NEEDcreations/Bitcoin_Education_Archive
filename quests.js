@@ -2527,6 +2527,12 @@ function _renderFavorTab(body) {
         '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\u2B50 Your Personal Best</div>' +
         '<div id="favorPersonalBest" style="font-size:0.8rem;color:var(--text-muted);">Loading...</div>' +
     '</div>';
+
+    // Top 50 hashers by total hashes mined
+    html += '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+        '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:10px;">\u26CF\uFE0F Top 50 Hashers \u2014 All Time</div>' +
+        '<div id="favorHasherRanks" style="font-size:0.8rem;color:var(--text-muted);">Loading...</div>' +
+    '</div>';
     // Difficulty History — rendered dynamically from window.SF_DIFFICULTY_HISTORY
     (function() {
         var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [
@@ -2742,9 +2748,49 @@ function _startFactionScoreboardListener() {
     });
 }
 
-// Detach handle for real-time topHashes listener
+// Detach handles for real-time SF listeners
 var _favorTopHashesUnsub = null;
 var _favorPBUnsub = null;
+var _favorHasherRanksUnsub = null;
+
+// Render Top 50 Hashers leaderboard
+function _renderHasherRanksHTML(users) {
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    var html = '';
+    for (var i = 0; i < users.length; i++) {
+        var u = users[i];
+        var rank = i + 1;
+        var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
+        var isMe = myUid && u.id === myUid;
+        var name = typeof escapeHtml === 'function' ? escapeHtml(u.username || 'Anon') : (u.username || 'Anon');
+        var safeU = (u.username || '').replace(/'/g, '');
+        // Format first hash date
+        var firstDate = '\u2014';
+        if (u.firstHashAt) {
+            try {
+                var fhTs = u.firstHashAt.toDate ? u.firstHashAt.toDate() : new Date(u.firstHashAt.seconds * 1000);
+                firstDate = fhTs.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+            } catch(e) {}
+        }
+        html += '<div style="padding:6px 10px;margin-bottom:3px;' +
+            'background:' + (isMe ? 'rgba(247,147,26,0.1)' : 'transparent') + ';' +
+            'border:1px solid ' + (isMe ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
+                '<div style="display:flex;align-items:center;gap:6px;min-width:0;">' +
+                    '<span style="font-size:0.78rem;min-width:22px;flex-shrink:0;">' + rankIcon + '</span>' +
+                    '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + safeU + '\')" ' +
+                        'style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" ' +
+                        'title="View @' + name + '\'s profile">' + name + (isMe ? ' (you)' : '') + '</span>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
+                    '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;">since ' + firstDate + '</span>' +
+                    '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:var(--heading);white-space:nowrap;">\u26CF\uFE0F ' + (u.sfTotalHashes || 0).toLocaleString() + '</span>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+    return html || '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
+}
 
 // Tap handler for hash difficulty tooltip — works on both mobile (tap) and desktop (click)
 window._sfHashTap = function(rowId, diffTarget) {
@@ -3041,6 +3087,7 @@ function _loadFavorLeaderboards() {
     // Detach previous real-time listeners
     if (_favorTopHashesUnsub) { _favorTopHashesUnsub(); _favorTopHashesUnsub = null; }
     if (_favorPBUnsub) { _favorPBUnsub(); _favorPBUnsub = null; }
+    if (_favorHasherRanksUnsub) { _favorHasherRanksUnsub(); _favorHasherRanksUnsub = null; }
 
     // Top 10 lowest hashes - REAL-TIME listener
     _favorTopHashesUnsub = db.collection('satoshiFavor').doc('topHashes').onSnapshot(function(doc) {
@@ -3087,6 +3134,35 @@ function _loadFavorLeaderboards() {
         var pbEl = document.getElementById('favorPersonalBest');
         if (pbEl) pbEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load personal best</div>';
     });
+
+    // Top 50 hashers by total hashes - REAL-TIME listener
+    _favorHasherRanksUnsub = db.collection('users')
+        .where('sfTotalHashes', '>', 0)
+        .orderBy('sfTotalHashes', 'desc')
+        .limit(50)
+        .onSnapshot(function(snap) {
+            var el = document.getElementById('favorHasherRanks');
+            if (!el) return;
+            if (snap.empty) {
+                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
+                return;
+            }
+            var users = [];
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                users.push({
+                    id: doc.id,
+                    username: d.username || d.displayName || 'Anon',
+                    sfTotalHashes: d.sfTotalHashes || 0,
+                    firstHashAt: d.firstHashAt || null,
+                });
+            });
+            el.innerHTML = _renderHasherRanksHTML(users);
+        }, function(err) {
+            var el = document.getElementById('favorHasherRanks');
+            if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load hasher ranks</div>';
+            console.warn('[SF] favorHasherRanks error:', err);
+        });
 }
 // ---- OPENCLAW EXPORTS ----
 if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;
