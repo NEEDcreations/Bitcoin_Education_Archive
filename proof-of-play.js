@@ -280,6 +280,34 @@ function _injectPOPStyles() {
     document.head.appendChild(s);
 }
 
+// ---- Render Sat Arcade tab ----
+// ck121212195.github.io/SAT-ARCADE — no X-Frame-Options, embeds fine
+function _renderSatArcadeTab(wrap) {
+    wrap.style.padding = '0';
+    wrap.style.overflow = 'hidden';
+    wrap.style.display = 'flex';
+    wrap.style.flexDirection = 'column';
+
+    // Small info banner above the iframe
+    var banner = document.createElement('div');
+    banner.style.cssText = 'padding:8px 14px;background:#0a0a0f;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.07);';
+    banner.innerHTML =
+        '<div style="font-size:0.75rem;color:rgba(255,255,255,0.5);">\uD83E\uDE99 <strong style="color:#f7931a;">Sat Arcade</strong> — Bitcoin arcade games</div>' +
+        '<a href="https://ck121212195.github.io/SAT-ARCADE/" target="_blank" rel="noopener noreferrer" style="flex-shrink:0;padding:5px 10px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.35);border-radius:7px;color:#f7931a;font-size:0.7rem;font-weight:700;text-decoration:none;">⧉ Full Tab</a>';
+
+    // Full-height iframe
+    var iframe = document.createElement('iframe');
+    iframe.src = 'https://ck121212195.github.io/SAT-ARCADE/';
+    iframe.style.cssText = 'flex:1;width:100%;border:none;display:block;background:#000;';
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('allow', 'fullscreen; autoplay; payment');
+    iframe.setAttribute('loading', 'eager');
+
+    wrap.appendChild(banner);
+    wrap.appendChild(iframe);
+    if (typeof awardPoints === 'function') awardPoints(5, '\uD83E\uDE99 Proof of Play: Sat Arcade');
+}
+
 // ---- Render RyRacer tab ----
 function _renderRyRacerTab(wrap) {
     wrap.style.padding = '0';
@@ -299,7 +327,7 @@ function _renderRyRacerTab(wrap) {
 
     // Play button
     html += '<div style="padding:16px 16px 8px;">' +
-        '<button onclick="window._popLaunchGame(\'https://ryracer.com/\',\'RyRacer\')" style="width:100%;padding:16px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:14px;color:#fff;font-size:1.05rem;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:0.05em;touch-action:manipulation;box-shadow:0 4px 20px rgba(247,147,26,0.4);">🏎️ RACE NOW — 1 FREE RUN</button>' +
+        '<button onclick="window.open(\'https://ryracer.com\',\'_blank\')" style="width:100%;padding:16px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:14px;color:#fff;font-size:1.05rem;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:0.05em;touch-action:manipulation;box-shadow:0 4px 20px rgba(247,147,26,0.4);">🏎️ RACE NOW — 1 FREE RUN</button>' +
         '<div style="text-align:center;margin-top:8px;font-size:0.68rem;color:rgba(255,255,255,0.35);">1 free race included · leaderboard runs pay sats via ⚡ Lightning</div>' +
     '</div>';
 
@@ -489,6 +517,7 @@ window.enterProofOfPlay = function(startTab) {
             '<div class="pop-tabs">' +
                 '<button id="popTabPVP" class="pop-tab ' + (startTab === 'pvp' ? 'active' : '') + '" onclick="window._popSwitchTab(\'pvp\')">⚔️ PVP</button>' +
                 '<button id="popTabArcade" class="pop-tab ' + (startTab === 'arcade' ? 'active' : '') + '" onclick="window._popSwitchTab(\'arcade\')">🎮 Arcade</button>' +
+                '<button id="popTabSatArcade" class="pop-tab ' + (startTab === 'sat_arcade' ? 'active' : '') + '" onclick="window._popSwitchTab(\'sat_arcade\')">🪙 Sat Arcade</button>' +
                 '<button id="popTabGalaxy" class="pop-tab ' + (startTab === 'galaxy' ? 'active' : '') + '" onclick="window._popSwitchTab(\'galaxy\')">🌌 Galaxy Mind</button>' +
                 '<button id="popTabRyRacer" class="pop-tab ' + (startTab === 'ryracer' ? 'active' : '') + '" onclick="window._popSwitchTab(\'ryracer\')">🏎️ RyRacer</button>' +
             '</div>' +
@@ -500,6 +529,8 @@ window.enterProofOfPlay = function(startTab) {
     var body = document.getElementById('popBody');
     if (startTab === 'pvp') {
         _renderPVPTab(body);
+    } else if (startTab === 'sat_arcade') {
+        _renderSatArcadeTab(body);
     } else if (startTab === 'galaxy') {
         _renderGalaxyMindTab(body);
     } else if (startTab === 'ryracer') {
@@ -527,6 +558,8 @@ window._popSwitchTab = function(tab) {
     if (!body) return;
     document.getElementById('popTabArcade').classList.toggle('active', tab === 'arcade');
     document.getElementById('popTabPVP').classList.toggle('active', tab === 'pvp');
+    var saTab = document.getElementById('popTabSatArcade');
+    if (saTab) saTab.classList.toggle('active', tab === 'sat_arcade');
     var gTab = document.getElementById('popTabGalaxy');
     if (gTab) gTab.classList.toggle('active', tab === 'galaxy');
     var rTab = document.getElementById('popTabRyRacer');
@@ -536,6 +569,8 @@ window._popSwitchTab = function(tab) {
     setTimeout(function() {
         if (tab === 'pvp') {
             _renderPVPTab(body);
+        } else if (tab === 'sat_arcade') {
+            _renderSatArcadeTab(body);
         } else if (tab === 'galaxy') {
             _renderGalaxyMindTab(body);
         } else if (tab === 'ryracer') {
