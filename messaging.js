@@ -659,6 +659,11 @@ window.showUserProfile = function(uid) {
                 profileStat('🔥', u.streak || 0, 'Streak' + ((u.bestStreak && u.bestStreak > (u.streak||0)) ? ' (best: ' + u.bestStreak + ')' : '')) +
                 profileStat('📅', joinDate || '—', 'Joined') +
             '</div>' +
+            // SF Total Hashes (only show if they've mined at least once)
+            (u.sfTotalHashes > 0 ? '<div style="padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">' +
+                '<span style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">⛏️ Total Hashes Mined</span>' +
+                '<span style="font-size:1rem;font-weight:800;color:var(--heading);">' + (u.sfTotalHashes || 0).toLocaleString() + '</span>' +
+            '</div>' : '') +
             // PVP Stats (only show if they've played)
             ((u.pvpWins || u.pvpLosses) ? '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('⚔️', (u.pvpWins || 0) + 'W', 'PVP Wins') +

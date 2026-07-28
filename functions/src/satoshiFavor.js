@@ -557,6 +557,15 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     console.warn('[FAVOR] difficultyStats increment failed:', e.message);
   }
 
+  // Increment per-user lifetime hash counter (displayed on profile)
+  try {
+    await db.collection('users').doc(uid).update({
+      sfTotalHashes: admin.firestore.FieldValue.increment(1),
+    });
+  } catch (e) {
+    console.warn('[FAVOR] sfTotalHashes increment failed:', e.message);
+  }
+
   // Update personal best — per-user doc (avoids single-doc bloat)
   const pbRef = db.collection('satoshiFavor').doc('personalBests').collection('users').doc(uid);
   try {
