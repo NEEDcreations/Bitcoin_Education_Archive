@@ -3643,6 +3643,20 @@ function _renderAnnouncementItem(doc, context) {
             (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : []),
             (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : [])
         );
+        // Also include dynamically generated Flex per-action badges
+        if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
+            FLEX_ACTIONS.forEach(function(a) {
+                FLEX_BADGE_MILESTONES.forEach(function(m) {
+                    _allBadgeDefs.push({
+                        id: 'flex_' + a.id + '_' + m,
+                        name: a.name + ' \u00d7' + m,
+                        emoji: a.emoji,
+                        desc: 'Completed \u201c' + a.name + '\u201d ' + m + ' time' + (m === 1 ? '' : 's'),
+                        pts: Math.round(m * 2)
+                    });
+                });
+            });
+        }
         // Find badge by matching emoji+name (decoded — text was already HTML-escaped so compare decoded)
         var decoded = badgeRef.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
         var foundBadge = null;

@@ -8808,10 +8808,23 @@ window._badgeSearch = function(query) {
     // Track badge search use for Search Sleuth badge
     try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('badge') === -1) { _ss.push('badge'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
 
-    // Search across BADGE_DEFS + HIDDEN_BADGES
+    // Search across BADGE_DEFS + HIDDEN_BADGES + dynamically generated Flex per-action badges
     var allBadges = [];
     if (typeof BADGE_DEFS !== 'undefined') allBadges = allBadges.concat(BADGE_DEFS);
     if (typeof HIDDEN_BADGES !== 'undefined') HIDDEN_BADGES.forEach(function(b) { if (!b.hidden) allBadges.push(b); });
+    if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
+        FLEX_ACTIONS.forEach(function(a) {
+            FLEX_BADGE_MILESTONES.forEach(function(m) {
+                allBadges.push({
+                    id: 'flex_' + a.id + '_' + m,
+                    name: a.name + ' \u00d7' + m,
+                    emoji: a.emoji,
+                    desc: 'Completed \u201c' + a.name + '\u201d ' + m + ' time' + (m === 1 ? '' : 's'),
+                    pts: Math.round(m * 2)
+                });
+            });
+        });
+    }
 
     var matches = allBadges.filter(function(b) {
         return b.name.toLowerCase().includes(q) || (b.desc || '').toLowerCase().includes(q);
