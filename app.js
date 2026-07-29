@@ -3338,13 +3338,21 @@ window.nachoQuizAnswer = function(btn, correct) {
         });
 
         // Gate tiered app buttons on home page
+        // Pure CSS-class approach — never mutate innerHTML so span styles stay intact
         const tieredBtns = document.querySelectorAll('[data-tier]');
         tieredBtns.forEach(btn => {
             const tier = btn.getAttribute('data-tier');
-            const name = btn.getAttribute('data-unlock-name') || btn.textContent.trim();
-            const origOnclick = btn.getAttribute('data-onclick') || btn.getAttribute('onclick');
-            if (!btn.getAttribute('data-onclick') && origOnclick) btn.setAttribute('data-onclick', typeof origOnclick === 'string' ? origOnclick : origOnclick.toString());
-            if (!btn.getAttribute('data-orig-tooltip') && btn.getAttribute('data-tooltip')) btn.setAttribute('data-orig-tooltip', btn.getAttribute('data-tooltip'));
+            const name = btn.getAttribute('data-unlock-name') || (btn.querySelector('.app-title') || btn).textContent.trim();
+            // Save original onclick string once
+            if (!btn.getAttribute('data-onclick')) {
+                var _oc = btn.getAttribute('onclick');
+                if (_oc) btn.setAttribute('data-onclick', _oc);
+            }
+            // Save original title-span text once (so we can restore 🔒 prefix removal)
+            var _titleSpan = btn.querySelector('.app-title');
+            if (_titleSpan && !btn.getAttribute('data-orig-title')) {
+                btn.setAttribute('data-orig-title', _titleSpan.textContent);
+            }
 
             let unlocked = false;
             let reqMsg = '';
@@ -3359,44 +3367,32 @@ window.nachoQuizAnswer = function(btn, correct) {
                 reqMsg = '🔒 Explore ' + Math.max(0, 10 - exploredCount) + ' more channel' + (10 - exploredCount === 1 ? '' : 's') + ' or sign in to unlock ' + name + '!';
             }
 
-            // Save original HTML on first pass so we can restore it on unlock
-            if (!btn.getAttribute('data-orig-html')) btn.setAttribute('data-orig-html', btn.innerHTML);
-            var origHtml = btn.getAttribute('data-orig-html');
-
             if (!unlocked) {
-                // Show lock state: keep description span but prefix label with 🔒
-                var _lockHtml = origHtml
-                    .replace(/(<span[^>]*>)([^<]*)(<\/span>)/, function(m, open, content, close) {
-                        // Find the first (title) span and add lock prefix
-                        return open + '🔒 ' + content.replace(/^[🐍🗣️⚡🤝🎵📺👟🎮🦌]+\s*/, '') + close;
-                    });
-                btn.innerHTML = _lockHtml;
-                btn.style.opacity = '0.55';
-                btn.style.filter = 'grayscale(0.7)';
-                btn.style.cursor = 'help';
+                btn.classList.add('tier-locked');
                 btn.title = reqMsg;
                 btn.setAttribute('data-tooltip', reqMsg);
-                // Make description text visible even when locked
-                var _descSpan = btn.querySelectorAll('span')[1];
-                if (_descSpan) _descSpan.style.color = 'rgba(255,255,255,0.55)';
+                // Prefix title span with lock icon (text only, no HTML change)
+                if (_titleSpan) {
+                    var _orig = btn.getAttribute('data-orig-title') || _titleSpan.textContent;
+                    _titleSpan.textContent = '🔒 ' + _orig.replace(/^🔒\s*/, '');
+                }
                 btn.onclick = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     if (typeof showToast === 'function') showToast(reqMsg);
                 };
             } else {
-                // Restore original HTML (has emoji + title span + description span)
-                btn.innerHTML = origHtml;
-                btn.style.opacity = '1';
-                btn.style.filter = 'none';
-                btn.style.cursor = 'pointer';
-                var origTip = btn.getAttribute('data-orig-tooltip') || btn.getAttribute('data-tooltip');
-                btn.title = origTip || '';
-                if (origTip) btn.setAttribute('data-tooltip', origTip);
-                var action = btn.getAttribute('data-onclick');
-                if (action) {
-                    btn.onclick = _safeAction(action);
+                btn.classList.remove('tier-locked');
+                btn.title = '';
+                btn.style.opacity = '';
+                btn.style.filter = '';
+                btn.style.cursor = '';
+                // Restore original title text (remove lock prefix)
+                if (_titleSpan && btn.getAttribute('data-orig-title')) {
+                    _titleSpan.textContent = btn.getAttribute('data-orig-title');
                 }
+                var action = btn.getAttribute('data-onclick');
+                if (action) btn.onclick = _safeAction(action);
             }
         });
 
