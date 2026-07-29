@@ -2505,7 +2505,7 @@ function _renderFavorTab(body) {
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
         '• Level up to Maxi ranks = 5 points each<br>' +
         '• Level up to Papa John or higher = 10 points<br>' +
-        '• At 21 points, a mining competition opens for 60 minutes<br>' +
+        '• At 21 points, a mining (simulation) competition opens for 60 minutes<br>' +
         '• Extra points beyond 21 add +3 min each (even while active!)<br>' +
         '• 10 hashes max per minute per user (60 second cooldown)<br>' +
         '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' = win 21,000 sats!'
@@ -6264,7 +6264,7 @@ function _renderFlexInteraction(action) {
             '<div style="width:2px;height:14px;background:#555;border-radius:1px;"></div>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;gap:5px;">' +
-            '<div style="font-size:0.7rem;color:#ef4444;font-weight:700;font-family:monospace;letter-spacing:1px;">BTC / USD</div>' +
+            '<div style="font-size:0.7rem;color:#ef4444;font-weight:700;font-family:monospace;letter-spacing:1px;">Shitcoin / USD</div>' +
             '<div id="redcandle-price-' + action.id + '" style="font-size:1.15rem;font-weight:900;color:#ef4444;font-family:monospace;">$———</div>' +
             '<div style="font-size:0.72rem;color:#ef4444;font-weight:800;">↓∞%</div>' +
             '<div id="redcandle-hint-' + action.id + '" style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;line-height:1.5;">Watch it bleed.<br>Press &amp; hold.</div>' +
