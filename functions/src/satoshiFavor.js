@@ -92,6 +92,7 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
           uid: stateData.lowestHashThisWindowUid,
           username: stateData.lowestHashThisWindowUsername || null,
         } : null,
+        winners: stateData.winnersThisWindow || [],
         archivedAt: admin.firestore.Timestamp.now(),
       }, { merge: false });
     } catch (e) {
@@ -106,6 +107,7 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
       bonusMinutes: 0,
       totalHashes: 0,
       lowestHashThisWindow: null,
+      winnersThisWindow: [],
       lastReset: admin.firestore.Timestamp.now(),
       currentCycleId: stateData.currentCycleId || null,
       eraHashes: stateData.eraHashes || 0,
@@ -573,6 +575,21 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     console.warn('[FAVOR] sfTotalHashes/firstHashAt/sfBlocksFound update failed:', e.message);
   }
 
+  // Track all winners this window in an array on the state doc
+  if (isWinner) {
+    try {
+      await stateRef.update({
+        winnersThisWindow: admin.firestore.FieldValue.arrayUnion({
+          uid,
+          username: username || null,
+          value,
+        }),
+      });
+    } catch (e) {
+      console.warn('[FAVOR] winnersThisWindow update failed:', e.message);
+    }
+  }
+
   // Update personal best — per-user doc (avoids single-doc bloat)
   const pbRef = db.collection('satoshiFavor').doc('personalBests').collection('users').doc(uid);
   try {
@@ -712,6 +729,7 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
             uid: stateData.lowestHashThisWindowUid,
             username: stateData.lowestHashThisWindowUsername || null,
           } : null,
+          winners: stateData.winnersThisWindow || [],
           archivedAt: admin.firestore.Timestamp.now(),
         }, { merge: false });
       } catch (e) {
@@ -726,6 +744,7 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
         bonusMinutes: 0,
         totalHashes: 0,
         lowestHashThisWindow: null,
+        winnersThisWindow: [],
         lastReset: admin.firestore.Timestamp.now(),
         currentCycleId: stateData.currentCycleId || null,
         eraHashes: stateData.eraHashes || 0,
