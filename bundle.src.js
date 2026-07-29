@@ -35618,6 +35618,18 @@ if (locked) {
                 case 'buy':
                     if (typeof go === 'function') { go('first-purchase'); return; }
                     break;
+                case 'proof-of-play':
+                case 'proof-of-play-pvp':
+                    if (typeof enterProofOfPlay === 'function') { enterProofOfPlay(hash === 'proof-of-play-pvp' ? 'pvp' : undefined); return; }
+                    // Script not loaded yet — load it then retry
+                    if (!window._popScriptLoading) {
+                        window._popScriptLoading = true;
+                        var _popS = document.createElement('script');
+                        _popS.src = 'proof-of-play.js?v=20260609_pop';
+                        _popS.onload = function() { window._popScriptLoading = false; };
+                        document.head.appendChild(_popS);
+                    }
+                    break;
                 case 'learning-quests':
                     if (typeof go === 'function') { go('learning-quests'); return; }
                     break;
