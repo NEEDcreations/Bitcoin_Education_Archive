@@ -1,26 +1,26 @@
 {
-  "updated": "2026-07-29T16:00:50.782Z",
+  "updated": "2026-07-29T20:00:48.244Z",
   "news": [
     {
       "date": "Jul 29, 2026",
-      "title": "BlackRock Controls 5% Of Bitcoin: What Happens In The Next 6 Years?",
+      "title": "Bitcoin Barely Budges as Fed Keeps Interest Rates Unchanged",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/markets/bitcoin-stays-still-on-fed-decision",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jul 29, 2026",
+      "title": "EXPOSED: The UK 🇬🇧 Treasury 90% Pension Tax Trap",
       "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/ojTpm823ATc",
+      "link": "https://www.youtube.com/shorts/c-fvNA0MuIQ",
       "source": "lukemikic"
     },
     {
       "date": "Jul 29, 2026",
-      "title": "CONFIRMED: Bitcoin Is Chasing A $90 Quadrillion Global Wealth Transition",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/Q9n9dPV9o64",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 29, 2026",
-      "title": "Why 1,000X For Bitcoin Is Conservative: NEVER Sell Your Coins",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/PDqyqfZ0wmc",
-      "source": "lukemikic"
+      "title": "Bitcoin price wedged into ‘most divided’ FOMC as Iran war spikes oil prices 8%",
+      "snippet": "Cointelegraph",
+      "link": "https://cointelegraph.com/markets/bitcoin-price-wedged-into-most-divided-fomc-as-iran-war-spikes-oil-prices?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
+      "source": "cointelegraph"
     }
   ]
 }
