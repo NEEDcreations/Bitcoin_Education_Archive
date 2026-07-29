@@ -1,13 +1,6 @@
 {
-  "updated": "2026-07-29T00:00:50.408Z",
+  "updated": "2026-07-29T04:00:53.951Z",
   "news": [
-    {
-      "date": "Jul 28, 2026",
-      "title": "These 3 Bitcoin Exchanges Just Collapsed - Here's What Comes Next...",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/watch?v=TzTSfwYQk0U",
-      "source": "lukemikic"
-    },
     {
       "date": "Jul 28, 2026",
       "title": "Dubai-Based Emirates Airline Adds Bitcoin and Crypto Payments",
@@ -17,10 +10,17 @@
     },
     {
       "date": "Jul 28, 2026",
-      "title": "Save Bitcoin NOW To Break Free From The Govt Rat Wheel",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/rIVTb0j5YMM",
-      "source": "lukemikic"
+      "title": "Bitcoin Dips As Crypto Clarity Act Hopes Fade",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/bitcoin-mining/bitcoin-price-dips-clarity-act",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jul 28, 2026",
+      "title": "I Scanned the Entire Bitcoin Blockchain for Images. What I Found Will Shock You",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/guides/i-scanned-the-entire-bitcoin-blockchain-for-images-what-i-found-will-shock-you",
+      "source": "bitcoin-magazine"
     }
   ]
 }
