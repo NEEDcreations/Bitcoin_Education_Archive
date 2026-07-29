@@ -943,7 +943,11 @@
 
             if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
 
-            var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0'); localStorage.setItem('btc_spin_count', String(_sc + 1));
+            var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0') + 1; localStorage.setItem('btc_spin_count', String(_sc));
+            // Persist spinCount to Firestore so badge dedup survives cache clears / new devices
+            if (typeof firebase !== 'undefined' && firebase.firestore && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                try { firebase.firestore().collection('users').doc(auth.currentUser.uid).update({ spinCount: _sc }).catch(function(){}); } catch(e) {}
+            }
             var _lastSpinDay = localStorage.getItem('btc_spin_last_day') || '';
             var _dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
             var _yesterday = new Date(Date.now() - (5 + 24) * 3600000).toISOString().split('T')[0]; // yesterday in offset-day space

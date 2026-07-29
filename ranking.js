@@ -1385,6 +1385,16 @@ async function loadUser(uid, prefetchedDoc) {
             restoreVisitedUI();
         }
 
+        // Sync spinCount: take the max of Firebase and localStorage so badge dedup
+        // survives cache clears, new devices, and early-fire race conditions.
+        if (isRealUser && currentUser.spinCount) {
+            var _lsSpinCount = parseInt(localStorage.getItem('btc_spin_count') || '0');
+            var _mergedSpinCount = Math.max(_lsSpinCount, currentUser.spinCount);
+            if (_mergedSpinCount !== _lsSpinCount) {
+                localStorage.setItem('btc_spin_count', String(_mergedSpinCount));
+            }
+        }
+
         // Sync favorites: for real users, use Firebase as source of truth
         if (currentUser.favorites) {
             if (isRealUser) {
