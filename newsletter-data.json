@@ -1,25 +1,25 @@
 {
-  "updated": "2026-07-30T04:00:50.060Z",
+  "updated": "2026-07-30T08:00:50.696Z",
   "news": [
     {
-      "date": "Jul 29, 2026",
-      "title": "Bitcoin Barely Budges as Fed Keeps Interest Rates Unchanged",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/markets/bitcoin-stays-still-on-fed-decision",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Jul 29, 2026",
-      "title": "Bitcoin price wedged into ‘most divided’ FOMC as Iran war spikes oil prices 8%",
+      "date": "Jul 30, 2026",
+      "title": "Chinese newspaper warns of Bitcoin extortion scam using its name",
       "snippet": "Cointelegraph",
-      "link": "https://cointelegraph.com/markets/bitcoin-price-wedged-into-most-divided-fomc-as-iran-war-spikes-oil-prices?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
+      "link": "https://cointelegraph.com/news/chinese-newspaper-bitcoin-extortion-scam-name?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
       "source": "cointelegraph"
     },
     {
-      "date": "Jul 29, 2026",
-      "title": "Bitcoin ETFs extend outflow streak as BTC fails to hold $65K",
+      "date": "Jul 30, 2026",
+      "title": "Bitcoin ETF inflows return as Ether funds slip into outflows",
       "snippet": "Cointelegraph",
-      "link": "https://cointelegraph.com/markets/bitcoin-etf-extend-outflow-streak-btc-slips-below-65k?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
+      "link": "https://cointelegraph.com/markets/bitcoin-etf-inflows-return-ether-funds-outflows?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
+      "source": "cointelegraph"
+    },
+    {
+      "date": "Jul 30, 2026",
+      "title": "US sanctions Iranian maritime firm, says it accepted Bitcoin to evade restrictions",
+      "snippet": "Cointelegraph",
+      "link": "https://cointelegraph.com/news/us-sanctions-iran-hormuzsafe-bitcoin?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
       "source": "cointelegraph"
     }
   ]
