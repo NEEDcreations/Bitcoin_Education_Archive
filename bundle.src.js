@@ -15260,7 +15260,7 @@ function _renderFavorTab(body) {
     var html = '<div style="text-align:center;padding:16px 0;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">✨⛏️</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Satoshi\'s Favor</div>' +
-        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Community mining when the community earns 21 points.<br><span style="color:#f7931a;font-weight:600;">Chance to win 21,000 sats! ⚡</span></div>';
+        '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Community mining when the community earns 21 points.<br><span style="color:#f7931a;font-weight:600;">Solve a block and earn a share of the sats reward! ⚡</span></div>';
 
 
     if (isActive) {
@@ -15273,7 +15273,7 @@ function _renderFavorTab(body) {
         html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:16px;animation:favorPulse 2s ease-in-out infinite;">' +
             '<div style="font-size:1.2rem;font-weight:800;color:var(--accent);margin-bottom:8px;">🎉 SATOSHI\'S FAVOR IS ACTIVE!</div>' +
             '<div style="font-size:2rem;font-weight:900;color:#fff;font-family:monospace;" id="favorTabTimer">' + remainingMin + 'm ' + remainingSec + 's</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Mine below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' to win 21,000 sats!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Mine below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' to solve a block and earn a share of the reward!</div>' +
             '</div>' +
             '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
 
@@ -15344,7 +15344,12 @@ function _renderFavorTab(body) {
         '• At 21 points, a mining (simulation) competition opens for 60 minutes<br>' +
         '• Extra points beyond 21 add +3 min each (even while active!)<br>' +
         '• 10 hashes max per minute per user (60 second cooldown)<br>' +
-        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' = win 21,000 sats!'
+        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' = you solved a block!<br><br>' +
+        '<strong style="color:var(--accent);">Pool mining rewards:</strong><br>' +
+        '• Every 5 blocks found triggers a <strong>21,000 sat distribution</strong><br>' +
+        '• If 5 different people each find a block — each earns <strong>4,200 sats</strong><br>' +
+        '• If the same person finds all 5 blocks — they win all <strong>21,000 sats</strong><br>' +
+        '• This simulates real pool mining: more blocks = bigger share!'
     '</div>';
 
     // Last SF Window Stats card

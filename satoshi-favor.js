@@ -104,7 +104,7 @@
             (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com' || auth.currentUser.email === 'najemchris8@gmail.com');
         var nachoUid = isAdmin ? 'nacho-bot' : uid;
         var msg = type === 'start'
-            ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to win 21,000 sats! ⚡🦌\nhttps://bitcoineducation.quest/#sf"
+            ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to solve a block! ⚡🦌\nhttps://bitcoineducation.quest/#sf"
             : "⏱️ **Satoshi's Favor has ended.** The mining window is now closed — great effort everyone! Keep earning points to trigger the next one. Completing daily activities, earning badges and ranking up all get us closer to mining again. 🦌";
 
         // Dedup key: cycle-scoped so a stale tab reconnecting after >4h can't re-fire
@@ -615,7 +615,7 @@
             '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.5rem;">✨⛏️</span>' +
             '<div><div style="font-weight:800;color:var(--heading);">Satoshi\'s Favor Mining</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ' + DIFFICULTY_TARGET + ' · Win 21,000 sats!</div></div>' +
+            '<div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ' + DIFFICULTY_TARGET + ' · Solve a block!</div></div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><button onclick="window.closeSatoshiFavorMiner()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">← Back</button><button onclick="window._qhReopenOnMinerClose=false;window.closeSatoshiFavorMiner()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">✕</button></div>' +
             '</div>' +
@@ -627,7 +627,7 @@
             // Feature 4: Heat meter
             _buildHeatMeterHTML() +
             '<div id="sfRateInfoBox" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
-            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you win <strong style="color:var(--accent);">21,000 sats!</strong> That\'s a 1 in 14,286 chance per hash (~0.007%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
+            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you solve a block! That\'s a 1 in 14,286 chance per hash (~0.007%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
@@ -875,7 +875,7 @@
             '<div style="font-size:1.1rem;font-weight:800;color:#22c55e;margin-bottom:16px;">A winner is you!</div>' +
             '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Winning hash:</div>' +
             '<div style="font-family:monospace;font-size:1.3rem;font-weight:900;color:#22c55e;margin-bottom:16px;">' + value.toLocaleString() + '</div>' +
-            '<div style="font-size:0.95rem;color:#eab308;font-weight:800;margin-bottom:20px;">🎉 21,000 sats incoming!</div>' +
+            '<div style="font-size:0.95rem;color:#eab308;font-weight:800;margin-bottom:20px;">⛏️ You solved a block!</div>' +
             '<div style="font-size:0.72rem;color:var(--text-faint);">Auto-dismisses in 8 seconds · Tap to close</div>' +
             '</div>';
 
@@ -1002,7 +1002,7 @@
             if (btnEW) { btnEW.disabled = false; btnEW.textContent = '⚡ SUPERCHARGED'; btnEW.style.opacity = '1'; }
             var msgEW = document.getElementById('hashMessage');
             if (easyWinFound !== null) {
-                if (msgEW) msgEW.innerHTML = '<strong style="color:#22c55e;font-size:1.1rem;">🏆 WINNER! (Supercharged Window!) You solved a block!</strong><br>21,000 sats incoming! Check your DMs.';
+                if (msgEW) msgEW.innerHTML = '<strong style="color:#22c55e;font-size:1.1rem;">🏆 WINNER! (Supercharged Window!) You solved a block!</strong><br>Congrats — check your hash below!';
                 _showWinnerCelebration(easyWinFound);
                 announceWinner(easyWinFound);
             } else if (easyRateLimit) {
@@ -1104,7 +1104,7 @@
             }
 
             if (isWinner) {
-                if (msg) msg.innerHTML = '<strong style="color:#22c55e;font-size:1.1rem;">🏆 WINNER! You solved a block!</strong><br>21,000 sats incoming! Check your DMs.';
+                if (msg) msg.innerHTML = '<strong style="color:#22c55e;font-size:1.1rem;">🏆 WINNER! You solved a block!</strong><br>Congrats — check your hash below!';
                 if (visual) visual.textContent = '🎉';
                 // Feature 7A: Winner ceremony
                 _showWinnerCelebration(value);
@@ -1252,7 +1252,7 @@
     function announceWinner(value) {
         if (typeof window.nachoGlobalAnnounce !== 'function') return;
         const name = typeof currentUser !== 'undefined' && currentUser && currentUser.username ? currentUser.username : 'Someone';
-        window.nachoGlobalAnnounce(`\uD83C\uDFC6 @${name} SOLVED A BLOCK with hash ${value.toLocaleString()}! 21,000 sats earned! \u26CF\uFE0F \u27A1\uFE0F [Satoshi's Favor](#favor)`, auth.currentUser ? auth.currentUser.uid : '');
+        window.nachoGlobalAnnounce(`\uD83C\uDFC6 @${name} SOLVED A BLOCK! Hash: ${value.toLocaleString()} \u26CF\uFE0F Congrats! \u27A1\uFE0F [Satoshi's Favor](#favor)`, auth.currentUser ? auth.currentUser.uid : '');
     }
 
     // ─── CONTRIBUTION HOOKS ───
@@ -1588,7 +1588,7 @@
 
             if (scWinner !== null) {
                 if (label) { label.style.color = '#22c55e'; label.textContent = '🏆'; }
-                if (typeof showToast === 'function') showToast('🏆 YOU WON! Hash: ' + scWinner.toLocaleString() + ' — 21,000 sats incoming!', 6000);
+                if (typeof showToast === 'function') showToast('🏆 YOU SOLVED A BLOCK! Hash: ' + scWinner.toLocaleString() + ' 🎉', 6000);
                 if (typeof window.launchConfetti === 'function') window.launchConfetti();
             } else if (scRateLimit) {
                 if (label) { label.style.color = '#facc15'; label.textContent = scCount + '×'; }
@@ -1648,7 +1648,7 @@
             if (btn) { btn.textContent = isWinner ? '🏆' : '⛏️'; btn.style.transform = 'scale(1)'; btn.style.opacity = '1'; }
 
             if (isWinner) {
-                if (typeof showToast === 'function') showToast('🏆 YOU WON! Hash: ' + value.toLocaleString() + ' — 21,000 sats incoming!', 6000);
+                if (typeof showToast === 'function') showToast('🏆 YOU SOLVED A BLOCK! Hash: ' + value.toLocaleString() + ' 🎉', 6000);
                 if (typeof window.launchConfetti === 'function') window.launchConfetti();
             } else {
                 // Brief flash of the hash value in the label
