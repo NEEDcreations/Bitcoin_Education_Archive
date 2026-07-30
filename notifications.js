@@ -388,7 +388,7 @@ window.renderNotifList = async function() {
         }
 
         var html = '';
-        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', buddy: '🤝' };
+        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', buddy: '🤝', leaderboard_reward: '🏆' };
         snap.forEach(function(doc) {
             var n = doc.data();
             var e = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };
