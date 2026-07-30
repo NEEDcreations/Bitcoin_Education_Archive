@@ -15358,6 +15358,13 @@ function _renderFavorTab(body) {
         '<div id="lastSFWindowInner" style="font-size:0.8rem;color:var(--text-muted);">Loading...</div>' +
     '</div>';
 
+    // Pool Epoch tracker
+    html += '<div id="sfPoolEpochCard" style="margin-top:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+        '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:4px;">\u26CF\uFE0F Pool Block Epochs</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:10px;">Every 5 blocks triggers a 21,000 sat distribution.</div>' +
+        '<div id="sfPoolEpochInner" style="font-size:0.8rem;color:var(--text-muted);">Loading...</div>' +
+    '</div>';
+
     // Top 10 lowest hashes + personal best sections
     html += '<div style="margin-top:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
         '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:10px;">\uD83C\uDFC6 All-Time Lowest Hashes</div>' +
@@ -15475,6 +15482,7 @@ function _renderFavorTab(body) {
     _loadFavorLeaderboards();
     _loadDifficultyHistoryBlocks();
     _loadLastSFWindow();
+    _loadPoolEpoch();
 
     // Start timer if active
     if (isActive) {
@@ -15960,6 +15968,94 @@ function _loadLastSFWindow() {
 function _cleanupLastWindowListener() {
     if (_lastWindowUnsub) { _lastWindowUnsub(); _lastWindowUnsub = null; }
     if (_difficultyCurrentUnsub) { _difficultyCurrentUnsub(); _difficultyCurrentUnsub = null; }
+}
+
+var _poolEpochUnsub = null;
+function _loadPoolEpoch() {
+    var el = document.getElementById('sfPoolEpochInner');
+    if (!el || typeof db === 'undefined') return;
+    if (_poolEpochUnsub) { _poolEpochUnsub(); _poolEpochUnsub = null; }
+
+    function _renderEpochBlocks(blocks, epochNum, isComplete) {
+        var rows = '';
+        var slots = isComplete ? blocks.length : 5;
+        for (var i = 0; i < slots; i++) {
+            var b = blocks[i];
+            if (b) {
+                var uname = b.username ? '@' + (typeof escapeHtml === 'function' ? escapeHtml(b.username) : b.username) : '\u2014';
+                var ts = b.foundAt ? (b.foundAt.toDate ? b.foundAt.toDate() : new Date(b.foundAt.seconds * 1000)) : null;
+                var tsStr = ts ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                rows += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(247,147,26,0.08);">' +
+                    '<span style="font-size:0.72rem;font-weight:800;color:var(--accent);width:18px;flex-shrink:0;">' + (i + 1) + '.</span>' +
+                    '<span style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;">' + uname + '</span>' +
+                    '<span style="font-size:0.72rem;font-family:monospace;color:#f7931a;">' + (b.value || 0).toLocaleString() + '</span>' +
+                    (tsStr ? '<span style="font-size:0.65rem;color:var(--text-faint);margin-left:6px;white-space:nowrap;">' + tsStr + '</span>' : '') +
+                '</div>';
+            } else {
+                rows += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+                    '<span style="font-size:0.72rem;font-weight:800;color:var(--text-faint);width:18px;flex-shrink:0;">' + (i + 1) + '.</span>' +
+                    '<span style="font-size:0.75rem;color:var(--text-faint);font-style:italic;">waiting for block...</span>' +
+                '</div>';
+            }
+        }
+        return rows;
+    }
+
+    // Load current epoch (live) + most recent completed epoch in parallel
+    _poolEpochUnsub = db.collection('satoshiFavor').doc('poolEpoch').onSnapshot(function(epochDoc) {
+        var el = document.getElementById('sfPoolEpochInner');
+        if (!el) { if (_poolEpochUnsub) { _poolEpochUnsub(); _poolEpochUnsub = null; } return; }
+
+        var currentBlocks = [];
+        var currentEpochNum = 1;
+        if (epochDoc.exists) {
+            var ed = epochDoc.data();
+            currentBlocks = ed.blocks || [];
+            currentEpochNum = ed.epochNumber || 1;
+        }
+
+        var found = currentBlocks.length;
+        var progress = Math.round((found / 5) * 100);
+
+        // Build current epoch HTML
+        var currentHtml =
+            '<div style="margin-bottom:12px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+                '<div style="font-size:0.75rem;font-weight:700;color:var(--heading);">\u26CF\uFE0F Current Epoch #' + currentEpochNum + '</div>' +
+                '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;">' + found + '/5 blocks</div>' +
+            '</div>' +
+            '<div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:10px;">' +
+                '<div style="height:100%;background:linear-gradient(90deg,var(--accent),#eab308);width:' + progress + '%;border-radius:3px;transition:width 0.4s;"></div>' +
+            '</div>' +
+            _renderEpochBlocks(currentBlocks, currentEpochNum, false) +
+            '</div>';
+
+        // Fetch previous epoch from sfPoolHistory
+        db.collection('sfPoolHistory').orderBy('completedAt', 'desc').limit(1).get().then(function(snap) {
+            var prevHtml = '<div>' +
+                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">\u2705 Previous Epoch' + (!snap.empty ? ' #' + (snap.docs[0].data().epochNumber || '\u2014') : '') + '</div>';
+            if (snap.empty) {
+                prevHtml += '<div style="font-size:0.75rem;color:var(--text-faint);font-style:italic;padding:4px 0;">No completed epochs yet.</div>';
+            } else {
+                var ph = snap.docs[0].data();
+                var prevBlocks = ph.blocks || [];
+                var compAt = ph.completedAt ? (ph.completedAt.toDate ? ph.completedAt.toDate() : new Date(ph.completedAt.seconds * 1000)) : null;
+                var compStr = compAt ? compAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats distributed</div>';
+                prevHtml += _renderEpochBlocks(prevBlocks, ph.epochNumber, true);
+            }
+            prevHtml += '</div>';
+
+            var el2 = document.getElementById('sfPoolEpochInner');
+            if (el2) el2.innerHTML = currentHtml + prevHtml;
+        }).catch(function() {
+            var el2 = document.getElementById('sfPoolEpochInner');
+            if (el2) el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>';
+        });
+    }, function() {
+        var el2 = document.getElementById('sfPoolEpochInner');
+        if (el2) el2.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">Epoch data unavailable.</span>';
+    });
 }
 
 function _loadFavorLeaderboards() {

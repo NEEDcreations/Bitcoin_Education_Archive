@@ -591,6 +591,53 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     }
   }
 
+  // Pool epoch tracking — accumulate 5 blocks, then archive and reset
+  if (isWinner) {
+    try {
+      const epochRef = db.collection('satoshiFavor').doc('poolEpoch');
+      await db.runTransaction(async (tx) => {
+        const epochDoc = await tx.get(epochRef);
+        const epochData = epochDoc.exists ? epochDoc.data() : {};
+        const blocks = epochData.blocks || [];
+        const epochNum = epochData.epochNumber || 1;
+
+        const newBlock = {
+          uid,
+          username: username || null,
+          value,
+          foundAt: admin.firestore.Timestamp.now(),
+        };
+        const updatedBlocks = [...blocks, newBlock];
+
+        if (updatedBlocks.length >= 5) {
+          // Epoch complete — archive it
+          const histRef = db.collection('sfPoolHistory').doc();
+          tx.set(histRef, {
+            epochNumber: epochNum,
+            blocks: updatedBlocks,
+            completedAt: admin.firestore.Timestamp.now(),
+            totalSats: 21000,
+          });
+          // Reset poolEpoch for next epoch
+          tx.set(epochRef, {
+            epochNumber: epochNum + 1,
+            blocks: [],
+            startedAt: admin.firestore.Timestamp.now(),
+          });
+        } else {
+          // Still accumulating
+          tx.set(epochRef, {
+            epochNumber: epochNum,
+            blocks: updatedBlocks,
+            startedAt: epochData.startedAt || admin.firestore.Timestamp.now(),
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('[FAVOR] poolEpoch update failed:', e.message);
+    }
+  }
+
   // Update personal best — per-user doc (avoids single-doc bloat)
   const pbRef = db.collection('satoshiFavor').doc('personalBests').collection('users').doc(uid);
   try {
@@ -648,7 +695,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   // Feature 7B/C: Win announcement — post to Global Chat and GGs/Announcements
   if (isWinner) {
     const safeUsername = (username || 'Anonymous').replace(/[<>"'&]/g, '').substring(0, 50);
-    const winMsg = `🏆 SATOSHI'S FAVOR AWARDED! ⚡\n\n@${safeUsername} just mined a winning hash and claimed 21,000 sats! 🎉\n\nHash: ${value.toLocaleString()} (target: < ${DIFFICULTY_TARGET.toLocaleString()})\n\n👑 Congratulations! Will you be next? ⛏️`;
+    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n@${safeUsername} solved a block with hash ${value.toLocaleString()} (target: < ${DIFFICULTY_TARGET.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
     const nachoUid = 'nacho-bot';
     const winTs = admin.firestore.FieldValue.serverTimestamp();
 
