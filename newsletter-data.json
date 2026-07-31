@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-31T00:00:50.891Z",
+  "updated": "2026-07-31T04:07:44.583Z",
   "news": [
     {
       "date": "Jul 30, 2026",
@@ -10,16 +10,16 @@
     },
     {
       "date": "Jul 30, 2026",
-      "title": "High Debt Forces Western Govts into Authoritarian Controls",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/Rp4M8eIHZHM",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 30, 2026",
       "title": "Bitcoin Treasury Strategy Posts $8.2B Loss As BTC Price Suffered",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/bitcoin-treasury-strategy-posts-loss",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Jul 30, 2026",
+      "title": "Legendary Investor Ray Dalio Still Holds Bitcoin — But Only 1% of His Portfolio",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/ray-dalio-prefers-gold-over-bitcoin",
       "source": "bitcoin-magazine"
     }
   ]
