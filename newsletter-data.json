@@ -1,6 +1,13 @@
 {
-  "updated": "2026-07-31T12:00:49.847Z",
+  "updated": "2026-07-31T16:00:49.718Z",
   "news": [
+    {
+      "date": "Jul 31, 2026",
+      "title": "Coldcard Wallet Flaw Exposes Years of Bitcoin Seeds After $70M in BTC Stolen",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/coldcard-wallet-exposed-after-bitcoin-hack",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Jul 31, 2026",
       "title": "Self-Custody Your Bitcoin NOW to Beat Wall Street Manipulation",
@@ -13,13 +20,6 @@
       "title": "The Corrupt Market Manipulation That CRASHED Bitcoin in 2022",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/Rf8OD7tv-8I",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Jul 31, 2026",
-      "title": "What Happens to Mortgages and Banks If Gold Hits $20,000?",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/F1pSBUdA9AY",
       "source": "lukemikic"
     }
   ]
