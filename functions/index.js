@@ -1728,6 +1728,43 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         }
     }
 
+    // 7a. LN ADDRESS DEDUP CHECK — block multi-account farming ring (same LN address across accounts)
+    //     Applies when user passes a lightningAddress (not a raw invoice).
+    //     Rate-limit: max 2 successful withdrawals per unique LN destination within 24h across ALL uids.
+    if (lnAddrRaw) {
+        const lnNorm = lnAddrRaw.toLowerCase().trim();
+        // (i) Shared LN address across accounts — block if any OTHER uid has this LN address set
+        //     in their profile. One address = one person; two accounts = farming.
+        //     Query both field names (lightningAddress and lnAddress) for full coverage.
+        const [lnAddrSnap1, lnAddrSnap2] = await Promise.all([
+            db.collection('users').where('lightningAddress', '==', lnNorm).limit(5).get(),
+            db.collection('users').where('lnAddress', '==', lnNorm).limit(5).get()
+        ]);
+        const allSharedDocs = [...lnAddrSnap1.docs, ...lnAddrSnap2.docs];
+        const sharedUids = [...new Set(allSharedDocs.map(d => d.id))].filter(id => id !== uid);
+        if (sharedUids.length > 0) {
+            console.error('[FAUCET] LN_ADDR_SHARED: ' + lnNorm + ' already used by uid(s): ' + sharedUids.join(',') + ' — blocked uid=' + uid);
+            return { success: false, error: 'This Lightning Address is registered to another account. Each person may only use one account.' };
+        }
+        // Persist the LN address on the user doc (normalized) so future dedup queries work
+        // even if the user hasn't explicitly saved it in their profile.
+        await db.collection('users').doc(uid).set({ lightningAddress: lnNorm }, { merge: true });
+        // (ii) Per-destination daily rate limit — max 2 withdrawals to same LN address within 24h
+        //      regardless of which account makes the request.
+        const lnRateLimitRef = db.collection('faucet_ln_ratelimit').doc(lnNorm.replace(/[^a-z0-9@._-]/g, '_').substring(0, 80));
+        const lnRateLimitDoc = await lnRateLimitRef.get();
+        if (lnRateLimitDoc.exists) {
+            const rl = lnRateLimitDoc.data();
+            const windowStart = Date.now() - 86400000; // 24h window
+            const recentClaims = (rl.claims || []).filter(c => c.ts > windowStart);
+            if (recentClaims.length >= 2) {
+                const hoursLeft = Math.ceil((recentClaims[0].ts + 86400000 - Date.now()) / 3600000);
+                console.error('[FAUCET] LN_RATELIMIT: ' + lnNorm + ' hit 2-claim/24h limit. uids: ' + recentClaims.map(c=>c.uid).join(',') + ' — blocked uid=' + uid);
+                return { success: false, error: 'Too many withdrawals to this Lightning Address in the last 24 hours. Try again in ~' + hoursLeft + ' hour(s).' };
+            }
+        }
+    }
+
     // 7. ATOMIC TRANSACTION - All balance/limit checks + point deduction in one transaction
     //    This prevents race conditions from concurrent requests
     const today = new Date().toISOString().split('T')[0];
@@ -1966,6 +2003,18 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 lastUid: uid,
                 uids: admin.firestore.FieldValue.arrayUnion(uid),
                 claimCount: admin.firestore.FieldValue.increment(1)
+            }, { merge: true });
+        }
+        // Log LN destination for per-address rate limiting (LN_RATELIMIT fix)
+        if (lnAddrRaw) {
+            const lnNorm = lnAddrRaw.toLowerCase().trim();
+            const lnRateLimitRef = db.collection('faucet_ln_ratelimit').doc(lnNorm.replace(/[^a-z0-9@._-]/g, '_').substring(0, 80));
+            const windowStart = Date.now() - 86400000;
+            // Prune claims older than 24h and append this one
+            batch.set(lnRateLimitRef, {
+                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                lastUid: uid,
+                claims: admin.firestore.FieldValue.arrayUnion({ uid, ts: Date.now(), amount })
             }, { merge: true });
         }
         await batch.commit();
