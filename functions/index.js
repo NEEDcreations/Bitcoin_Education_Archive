@@ -5731,21 +5731,115 @@ exports.resetMonthlyXP = functions.pubsub.schedule('0 0 1 * *').timeZone('UTC').
     const result = await _resetPeriodXP('monthlyXP', monthKey, 100, `Month ${monthKey}`);
     console.log('[MONTHLY RESET COMPLETE]', result);
 
-    // Reset raffleEntries to 0 for all users so August draw starts fresh
-    try {
-        const usersWithEntries = await db.collection('users').where('raffleEntries', '>', 0).get();
-        if (!usersWithEntries.empty) {
-            const BATCH_SIZE = 400;
-            const docs = usersWithEntries.docs;
-            for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-                const batch = db.batch();
-                docs.slice(i, i + BATCH_SIZE).forEach(doc => batch.update(doc.ref, { raffleEntries: 0 }));
-                await batch.commit();
-            }
-            console.log(`[MONTHLY RESET] Reset raffleEntries for ${docs.length} users`);
+    return null;
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// 🎟️ MONTHLY RAFFLE DRAW — runs 1pm ET (18:00 UTC) on the 1st of each month
+// Draws a winner from raffleEntries, posts as Nacho in global_chat,
+// archives snapshot, then resets all raffleEntries to 0 for the new month.
+// ══════════════════════════════════════════════════════════════════════
+exports.monthlyRaffleDraw = functions.pubsub.schedule('0 18 1 * *').timeZone('UTC').onRun(async (ctx) => {
+    const crypto = require('crypto');
+    const now = new Date();
+    // monthKey for the month that just ended (previous month)
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const monthKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+    const monthLabel = prevMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+    console.log(`[RAFFLE DRAW] Running for month: ${monthKey} (${monthLabel})`);
+
+    // 1. Fetch all users with raffleEntries > 0
+    const snap = await db.collection('users').where('raffleEntries', '>', 0).get();
+    if (snap.empty) {
+        console.log('[RAFFLE DRAW] No entries found — skipping draw.');
+        return null;
+    }
+
+    // 2. Build pool — no exclusions at draw time (multi-account enforcement is done upstream)
+    const pool = [];
+    snap.forEach(doc => {
+        const d = doc.data();
+        if (d.withdrawalsDisabled) return; // exclude accounts with disabled withdrawals
+        pool.push({ uid: doc.id, username: d.username || 'Unknown', entries: d.raffleEntries || 0 });
+    });
+
+    if (pool.length === 0) {
+        console.log('[RAFFLE DRAW] No eligible entries after filtering — skipping.');
+        return null;
+    }
+
+    const total = pool.reduce((s, e) => s + e.entries, 0);
+
+    // 3. CSPRNG draw with rejection sampling (no modulo bias)
+    function secureRandInt(max) {
+        const bytesNeeded = Math.ceil(Math.log2(max) / 8) + 1;
+        const maxUnbiased = Math.floor(Math.pow(256, bytesNeeded) / max) * max;
+        for (let i = 0; i < 1000; i++) {
+            const buf = crypto.randomBytes(bytesNeeded);
+            let val = 0;
+            for (let b = 0; b < bytesNeeded; b++) val = val * 256 + buf[b];
+            if (val < maxUnbiased) return val % max;
         }
-    } catch (e) {
-        console.error('[MONTHLY RESET] raffleEntries reset failed:', e.message);
+        return crypto.randomBytes(4).readUInt32BE(0) % max; // fallback
+    }
+
+    const pick = secureRandInt(total);
+    let cumulative = 0;
+    let winner = null;
+    for (const entry of pool) {
+        cumulative += entry.entries;
+        if (pick < cumulative) { winner = entry; break; }
+    }
+
+    if (!winner) {
+        console.error('[RAFFLE DRAW] Winner selection failed — pool:', pool.length, 'total:', total);
+        return null;
+    }
+
+    console.log(`[RAFFLE DRAW] Winner: ${winner.username} (${winner.entries} entries, pick #${pick + 1} of ${total})`);
+
+    // 4. Archive snapshot
+    const archiveData = {};
+    snap.forEach(doc => {
+        const d = doc.data();
+        archiveData[doc.id] = { username: d.username, entries: d.raffleEntries, excluded: !!d.withdrawalsDisabled };
+    });
+    await db.collection('stats').doc(`raffle_${monthKey}_snapshot`).set({
+        month: monthKey,
+        drawnAt: admin.firestore.FieldValue.serverTimestamp(),
+        winner: winner.username,
+        winnerUid: winner.uid,
+        winningPick: pick + 1,
+        totalEligibleEntries: total,
+        eligibleEntrants: pool.length,
+        allEntrants: archiveData,
+    });
+
+    // 5. Post winner announcement to global_chat as Nacho
+    const msg = `🎉🦌 ORANGE TICKET RAFFLE — ${monthLabel.toUpperCase()} RESULTS!\n\nThe draw has been made! 🍊\n\n🏆 THIS MONTH'S WINNER IS...\n\n✨ ${winner.username} ✨\n\nCongratulations! Pick #${pick + 1} out of ${total} — your ${winner.entries} entries delivered! ⚡🎫\n\nPhil will be in touch to arrange your 21,000 sats prize. Make sure your Lightning Address is set in your profile settings!\n\n—\n📊 Draw stats:\n• ${pool.length} eligible entrants · ${total} entries\n• Drawn using cryptographically secure randomness 🔐\n\nKeep stacking those orange tickets — every quest, trivia, spin and daily streak earns you entries next month! 🦌🍊⚡`;
+
+    await db.collection('global_chat').add({
+        uid: 'nacho-bot',
+        name: '🦌 Nacho',
+        text: msg,
+        isNachoAuto: false,
+        ts: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log('[RAFFLE DRAW] Announcement posted to global_chat.');
+
+    // 6. Reset all raffleEntries to 0 — new month starts clean
+    const allWithEntries = await db.collection('users').where('raffleEntries', '>', 0).get();
+    if (!allWithEntries.empty) {
+        const BATCH_SIZE = 400;
+        const docs = allWithEntries.docs;
+        for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+            const batch = db.batch();
+            docs.slice(i, i + BATCH_SIZE).forEach(doc => batch.update(doc.ref, { raffleEntries: 0 }));
+            await batch.commit();
+        }
+        console.log(`[RAFFLE DRAW] Reset raffleEntries for ${docs.length} users — ${monthKey + 1} raffle is open.`);
     }
 
     return null;

@@ -689,11 +689,11 @@ window._lqOpenTopic = function(slug) {
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' + dots + '</div>' +
             '<div style="' + animStyle + ';flex:1;">' +
-            '<h2 style="font-size:1.3rem;font-weight:900;color:var(--text,#fff);margin:0 0 10px;line-height:1.3;">' + slide.headline + '</h2>' +
-            '<p style="font-size:0.9rem;color:rgba(255,255,255,0.75);line-height:1.6;margin:0 0 16px;">' + slide.body + '</p>' +
-            ((_LQ_SLIDE_EXTRAS[slug] && _LQ_SLIDE_EXTRAS[slug][slideIdx] && _LQ_SLIDE_EXTRAS[slug][slideIdx].stat) ? '<div style="background:rgba(249,115,22,0.1);border-left:3px solid ' + topic.color + ';border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:16px;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.9);line-height:1.5;">' + _LQ_SLIDE_EXTRAS[slug][slideIdx].stat + '</div>' : '') +
+            '<h2 style="font-size:1.45rem;font-weight:900;color:var(--text,#fff);margin:0 0 10px;line-height:1.3;">' + slide.headline + '</h2>' +
+            '<p style="font-size:1.0rem;color:rgba(255,255,255,0.85);line-height:1.65;margin:0 0 16px;">' + slide.body + '</p>' +
+            ((_LQ_SLIDE_EXTRAS[slug] && _LQ_SLIDE_EXTRAS[slug][slideIdx] && _LQ_SLIDE_EXTRAS[slug][slideIdx].stat) ? '<div style="background:rgba(249,115,22,0.1);border-left:3px solid ' + topic.color + ';border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:16px;font-size:0.88rem;font-weight:700;color:rgba(255,255,255,0.95);line-height:1.5;">' + _LQ_SLIDE_EXTRAS[slug][slideIdx].stat + '</div>' : '') +
             _lqGetIllustration(slug, slideIdx) +
-            ((_LQ_SLIDE_EXTRAS[slug] && _LQ_SLIDE_EXTRAS[slug][slideIdx] && _LQ_SLIDE_EXTRAS[slug][slideIdx].analogy) ? '<div style="margin-top:14px;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:0.8rem;color:rgba(255,255,255,0.55);line-height:1.5;font-style:italic;">' + _LQ_SLIDE_EXTRAS[slug][slideIdx].analogy + '</div>' : '') +
+            ((_LQ_SLIDE_EXTRAS[slug] && _LQ_SLIDE_EXTRAS[slug][slideIdx] && _LQ_SLIDE_EXTRAS[slug][slideIdx].analogy) ? '<div style="margin-top:14px;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:0.86rem;color:rgba(255,255,255,0.65);line-height:1.5;font-style:italic;">' + _LQ_SLIDE_EXTRAS[slug][slideIdx].analogy + '</div>' : '') +
             '</div>' +
             '<div style="margin-top:16px;">' + bottomBar + '</div>' +
             '</div>';
@@ -739,7 +739,7 @@ window._lqOpenTopic = function(slug) {
 };
 
 // --- Quiz ---
-function _lqDoStartQuiz(slug) {
+window._lqDoStartQuiz = function _lqDoStartQuiz(slug) {
     var topic = LQ_TOPICS.find(function(t) { return t.slug === slug; });
     if (!topic) return;
 
@@ -750,7 +750,7 @@ function _lqDoStartQuiz(slug) {
     _lqQuizState = { slug: slug, topic: topic, questions: questions, qIdx: 0, score: 0, answered: false };
 
     _lqShowQuestion();
-}
+};
 
 window._lqStartQuiz = function(slug) {
     var topic = LQ_TOPICS.find(function(t) { return t.slug === slug; });
@@ -822,12 +822,15 @@ window._lqSelectAnswer = function(chosen, correct, btnIdx) {
 
     var feedback = document.getElementById('lqFeedback');
     if (feedback) {
-        feedback.innerHTML = '<div style="padding:10px 14px;border-radius:10px;font-size:0.85rem;font-weight:700;background:' + (isCorrect ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.10)') + ';color:' + (isCorrect ? '#22c55e' : '#ef4444') + ';">' +
-            (isCorrect ? '✅ Correct!' : '❌ The answer was: ' + correct) +
-            '</div>';
+        var feedbackColor = isCorrect ? '#22c55e' : '#ef4444';
+        var feedbackBg = isCorrect ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.10)';
+        var feedbackMsg = isCorrect ? '✅ Correct!' : '❌ The answer was: ' + correct;
+        feedback.innerHTML = '<div style="padding:10px 14px;border-radius:10px;font-size:0.88rem;font-weight:700;background:' + feedbackBg + ';color:' + feedbackColor + ';margin-bottom:10px;">' + feedbackMsg + '</div>' +
+            '<button onclick="window._lqAdvance()" style="width:100%;padding:12px;border-radius:10px;border:none;background:' + (isCorrect ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)') + ';color:#fff;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;">Continue →</button>';
     }
 
-    setTimeout(function() {
+    window._lqAdvance = function() {
+        window._lqAdvance = null;
         state.qIdx++;
         state.answered = false;
         if (state.qIdx < 5) {
@@ -835,7 +838,7 @@ window._lqSelectAnswer = function(chosen, correct, btnIdx) {
         } else {
             _lqShowScore();
         }
-    }, 800);
+    };
 };
 
 function _lqShowScore() {
