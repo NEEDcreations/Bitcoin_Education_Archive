@@ -8940,7 +8940,7 @@ window._showBadgeDistTooltip = function(e, el) {
     if (_bdTip && _bdTip.parentNode) _bdTip.parentNode.removeChild(_bdTip);
     var tip = document.createElement('div');
     tip.innerHTML = desc;
-    tip.style.cssText = 'position:fixed;z-index:99999;max-width:240px;padding:9px 13px;background:var(--card-bg,#1a1a2e);border:1px solid var(--accent,#f7931a);border-radius:10px;font-size:0.75rem;color:var(--text,#e0e0e0);line-height:1.5;box-shadow:0 4px 24px rgba(0,0,0,0.55);pointer-events:none;';
+    tip.style.cssText = 'position:fixed;z-index:999999;max-width:240px;padding:9px 13px;background:var(--card-bg,#1a1a2e);border:1px solid var(--accent,#f7931a);border-radius:10px;font-size:0.75rem;color:var(--text,#e0e0e0);line-height:1.5;box-shadow:0 4px 24px rgba(0,0,0,0.55);pointer-events:none;';
     document.body.appendChild(tip);
     _bdTip = tip;
     var rect = el.getBoundingClientRect();
