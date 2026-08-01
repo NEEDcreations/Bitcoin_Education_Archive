@@ -8770,10 +8770,21 @@ window._getBadgeRarity = function(pct) {
 };
 
 window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
-    // Build a lookup from BADGE_DEFS for display info
+    // Build a lookup from all badge/title/set sources
     var badgeMeta = {};
     if (typeof BADGE_DEFS !== 'undefined') {
-        BADGE_DEFS.forEach(function(b) { badgeMeta[b.id] = { emoji: b.emoji, name: b.name, desc: b.desc || '' }; });
+        BADGE_DEFS.forEach(function(b) { badgeMeta[b.id] = { emoji: b.emoji, name: b.name, desc: b.desc || b.hint || '' }; });
+    }
+    // TITLE_DEFS: use flavor as desc, title as name
+    if (typeof TITLE_DEFS !== 'undefined') {
+        TITLE_DEFS.forEach(function(t) { badgeMeta[t.id] = { emoji: t.emoji || '🏅', name: t.title || t.name || t.id, desc: t.flavor || '' }; });
+    }
+    // BADGE_SETS bonus completion badges
+    if (typeof BADGE_SETS !== 'undefined') {
+        BADGE_SETS.forEach(function(s) {
+            if (!s || !s.bonusId) return;
+            badgeMeta[s.bonusId] = { emoji: s.bonusEmoji || '🏅', name: s.bonusName || s.name, desc: s.bonusDesc || ('Completed ' + s.name) };
+        });
     }
     // Also add FLEX badge names by pattern
     function getBadgeDisplay(id) {
