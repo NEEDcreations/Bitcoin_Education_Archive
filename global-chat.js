@@ -3643,6 +3643,19 @@ function _renderAnnouncementItem(doc, context) {
             (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : []),
             (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : [])
         );
+        // TITLE_DEFS — user titles awarded as badges; use title+flavor
+        if (typeof TITLE_DEFS !== 'undefined') {
+            TITLE_DEFS.forEach(function(t) {
+                _allBadgeDefs.push({ id: t.id, name: t.title || t.name || t.id, emoji: t.emoji || '🏅', desc: t.flavor || '', pts: 0 });
+            });
+        }
+        // BADGE_SETS bonus completion badges
+        if (typeof BADGE_SETS !== 'undefined') {
+            BADGE_SETS.forEach(function(s) {
+                if (!s || !s.bonusId) return;
+                _allBadgeDefs.push({ id: s.bonusId, name: s.bonusName || s.name, emoji: s.bonusEmoji || '🏅', desc: s.bonusDesc || ('Completed ' + s.name), pts: s.bonusPts || 0 });
+            });
+        }
         // Also include dynamically generated Flex per-action badges
         if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
             FLEX_ACTIONS.forEach(function(a) {
