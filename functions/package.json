@@ -14,7 +14,7 @@
     "@noble/secp256k1": "^1.7.1",
     "bolt11": "^1.4.1",
     "dotenv": "^17.4.2",
-    "firebase-admin": "^11.11.1",
+    "firebase-admin": "^14.2.0",
     "firebase-functions": "^4.9.0",
     "node-fetch": "^2.7.0",
     "nodemailer": "^8.0.1",
