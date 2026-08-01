@@ -8805,7 +8805,7 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
             var pct = (e[1] / totalUsers) * 100;
             var rarity = window._getBadgeRarity(pct);
             var meta = getBadgeDisplay(e[0]);
-            return { id: e[0], count: e[1], pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name };
+            return { id: e[0], count: e[1], pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name, desc: meta.desc || '' };
         })
         .sort(function(a, b) { return a.pct - b.pct; }); // rarest first
 
