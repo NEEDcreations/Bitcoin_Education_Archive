@@ -337,14 +337,36 @@ var _LQ_SLIDE_IMAGES = {
     }
 };
 
+window._lqOpenLightbox = function(src) {
+    var lb = document.createElement('div');
+    lb.id = 'lqLightbox';
+    lb.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.97);display:flex;align-items:center;justify-content:center;cursor:zoom-out;overflow:auto;-webkit-overflow-scrolling:touch;';
+    lb.onclick = function() { lb.remove(); };
+    var img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'max-width:100%;height:auto;border-radius:8px;touch-action:pinch-zoom;display:block;';
+    img.onclick = function(e) { e.stopPropagation(); };
+    lb.appendChild(img);
+    // Close button
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'position:fixed;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.2rem;font-weight:700;border-radius:50%;width:40px;height:40px;cursor:pointer;z-index:100000;font-family:inherit;';
+    closeBtn.onclick = function() { lb.remove(); };
+    lb.appendChild(closeBtn);
+    document.body.appendChild(lb);
+};
+
 function _lqGetIllustration(slug, idx) {
     // Show real archive image if one is mapped for this slide
     var slideImgs = _LQ_SLIDE_IMAGES[slug];
     if (slideImgs && slideImgs[idx]) {
-        return '<div style="width:100%;margin-top:4px;">' +
-            '<img src="' + slideImgs[idx] + '" alt="" loading="lazy" ' +
-            'style="width:100%;height:auto;max-height:340px;object-fit:contain;border-radius:12px;display:block;" ' +
+        var src = slideImgs[idx];
+        return '<div style="width:100%;margin-top:8px;">' +
+            '<img src="' + src + '" alt="" loading="lazy" ' +
+            'onclick="window._lqOpenLightbox(this.src)" ' +
+            'style="width:100%;height:auto;object-fit:contain;border-radius:12px;display:block;cursor:zoom-in;" ' +
             'onerror="this.parentElement.style.display=\'none\'">' +
+            '<div style="text-align:center;font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:4px;">Tap to enlarge</div>' +
             '</div>';
     }
     // Fallback: animated illustration
