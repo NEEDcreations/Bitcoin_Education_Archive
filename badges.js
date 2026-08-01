@@ -1436,7 +1436,8 @@ window._loadBadgeDist = function() {
         var data = doc.data();
         var totalUsers = data.totalUsers || 1;
         var counts = data.counts || {};
-        var updatedAt = data.updatedAt ? new Date(data.updatedAt._seconds * 1000) : null;
+        var _uTs = data.updatedAt;
+        var updatedAt = _uTs ? (_uTs._seconds ? new Date(_uTs._seconds * 1000) : (_uTs.toDate ? _uTs.toDate() : new Date(_uTs))) : null;
         window._renderBadgeDist(counts, totalUsers, updatedAt, container);
     }).catch(function() {
         container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Could not load distribution.</div>';
