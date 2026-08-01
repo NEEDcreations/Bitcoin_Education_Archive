@@ -7077,3 +7077,67 @@ exports.recountCountryStats = functions.pubsub
         console.log('[COUNTRY RECOUNT] Done. Countries: ' + countryCount + ', Users: ' + processed);
         return null;
     });
+
+// ── Badge Distribution Cache Refresh ─────────────────────────────────────────
+// Scans all users' badge_awards subcollections and caches counts to
+// stats/badge_distribution. Runs nightly, also callable via HTTP.
+
+async function _refreshBadgeDistribution() {
+    let cursor = null;
+    const badgeCounts = {};
+    let totalUsers = 0;
+    const PAGE = 200;
+
+    while (true) {
+        let q = db.collection('users').orderBy(admin.firestore.FieldPath.documentId()).limit(PAGE);
+        if (cursor) q = q.startAfter(cursor);
+        const snap = await q.get();
+        if (snap.empty) break;
+
+        await Promise.all(snap.docs.map(async doc => {
+            try {
+                const bs = await doc.ref.collection('badge_awards').get();
+                bs.forEach(b => {
+                    let bid = b.id;
+                    // Random auto-generated IDs are 20+ alphanum chars; use badge field instead
+                    if (/^[A-Za-z0-9]{20,}$/.test(bid)) {
+                        const d = b.data();
+                        bid = d.badge || d.badgeId || null;
+                        if (!bid) return;
+                    }
+                    badgeCounts[bid] = (badgeCounts[bid] || 0) + 1;
+                });
+            } catch (e) { /* skip users with permission issues */ }
+        }));
+
+        totalUsers += snap.size;
+        cursor = snap.docs[snap.docs.length - 1];
+        if (snap.size < PAGE) break;
+    }
+
+    await db.collection('stats').doc('badge_distribution').set({
+        totalUsers,
+        counts: badgeCounts,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    console.log('[BADGE DIST] Done. Users: ' + totalUsers + ', Badges: ' + Object.keys(badgeCounts).length);
+    return { totalUsers, badgeCount: Object.keys(badgeCounts).length };
+}
+
+exports.refreshBadgeDistribution = onScheduleV2({
+    schedule: 'every 24 hours',
+    timeZone: 'America/New_York',
+    memory: '512MiB',
+    timeoutSeconds: 540,
+}, async () => { await _refreshBadgeDistribution(); });
+
+exports.refreshBadgeDistributionHttp = functions.https.onRequest(async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+        const result = await _refreshBadgeDistribution();
+        res.json({ ok: true, ...result });
+    } catch (e) {
+        console.error('[BADGE DIST HTTP]', e);
+        res.status(500).json({ error: e.message });
+    }
+});

@@ -8667,6 +8667,17 @@ function _renderBadgeSets(earnedBadges) {
         html += '</div>';
     });
     html += '</div>'; // close collapsible panel
+
+    // ---- Community Badge Distribution (collapsed by default) ----
+    html += '<div style="margin-top:12px;">';
+    html += '<button onclick="window._toggleBadgeDist(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:0 2px 10px;cursor:pointer;font-family:inherit;">';
+    html += '<div style="font-size:0.8rem;font-weight:900;color:var(--heading);letter-spacing:1px;text-transform:uppercase;">📊 Community Badge Distribution</div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.68rem;color:var(--text-muted);">How rare is yours?</span><span class="bcd-arrow" style="font-size:0.7rem;color:var(--text-faint);">▼</span></div>';
+    html += '</button>';
+    html += '<div id="badgeDistPanel" style="display:none;">';
+    html += '<div id="badgeDistContent"><div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.82rem;">Loading distribution...</div></div>';
+    html += '</div></div>';
+
     html += '</div>'; // close outer wrapper
     return html;
 }
@@ -8704,6 +8715,191 @@ window._checkBadgeSets = function() {
         var allEarned = set.badgeIds.every(function(bid) { return window.earnedBadges.has(bid); });
         if (allEarned) {
             window._claimSetBonus(set.id);
+        }
+    });
+};
+
+// ============================================================
+// Community Badge Distribution
+// ============================================================
+window._badgeDistLoaded = false;
+
+window._toggleBadgeDist = function(btn) {
+    var panel = document.getElementById('badgeDistPanel');
+    if (!panel) return;
+    var isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'block';
+    var arrow = btn.querySelector('.bcd-arrow');
+    if (arrow) arrow.textContent = isOpen ? '▼' : '▲';
+    if (!isOpen && !window._badgeDistLoaded) {
+        window._badgeDistLoaded = true;
+        window._loadBadgeDist();
+    }
+};
+
+window._loadBadgeDist = function() {
+    var container = document.getElementById('badgeDistContent');
+    if (!container) return;
+    if (typeof db === 'undefined' || !db) {
+        container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Sign in to view distribution data.</div>';
+        return;
+    }
+    db.collection('stats').doc('badge_distribution').get().then(function(doc) {
+        if (!doc.exists) {
+            container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Distribution data not available yet.</div>';
+            return;
+        }
+        var data = doc.data();
+        var totalUsers = data.totalUsers || 1;
+        var counts = data.counts || {};
+        var updatedAt = data.updatedAt ? new Date(data.updatedAt._seconds * 1000) : null;
+        window._renderBadgeDist(counts, totalUsers, updatedAt, container);
+    }).catch(function() {
+        container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Could not load distribution.</div>';
+    });
+};
+
+window._getBadgeRarity = function(pct) {
+    // Rarity tiers based on % of userbase that has earned it
+    if (pct <= 0.5)  return { label: 'Mythic',    color: '#f0abfc', glow: 'rgba(240,171,252,0.35)', icon: '✨', border: '#d946ef' };
+    if (pct <= 1.5)  return { label: 'Legendary', color: '#fbbf24', glow: 'rgba(251,191,36,0.3)',  icon: '👑', border: '#f59e0b' };
+    if (pct <= 4.0)  return { label: 'Epic',      color: '#a78bfa', glow: 'rgba(167,139,250,0.25)', icon: '🔮', border: '#7c3aed' };
+    if (pct <= 10.0) return { label: 'Rare',      color: '#38bdf8', glow: 'rgba(56,189,248,0.2)',  icon: '💧', border: '#0284c7' };
+    if (pct <= 25.0) return { label: 'Uncommon',  color: '#4ade80', glow: 'none',                  icon: '🟢', border: '#16a34a' };
+    return                   { label: 'Common',   color: '#94a3b8', glow: 'none',                  icon: '○', border: '#475569' };
+};
+
+window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
+    // Build a lookup from BADGE_DEFS for display info
+    var badgeMeta = {};
+    if (typeof BADGE_DEFS !== 'undefined') {
+        BADGE_DEFS.forEach(function(b) { badgeMeta[b.id] = { emoji: b.emoji, name: b.name }; });
+    }
+    // Also add FLEX badge names by pattern
+    function getBadgeDisplay(id) {
+        if (badgeMeta[id]) return badgeMeta[id];
+        // Try normalised match (underscores vs spaces, case)
+        var norm = id.replace(/_/g,' ').toLowerCase();
+        for (var k in badgeMeta) {
+            if (k.replace(/_/g,' ').toLowerCase() === norm) return badgeMeta[k];
+        }
+        // Fallback: humanise the ID
+        var name = id.replace(/_/g,' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+        return { emoji: '🏅', name: name };
+    }
+
+    // Sort all entries by count desc, build rarity groups
+    var entries = Object.entries(counts)
+        .map(function(e) {
+            var pct = (e[1] / totalUsers) * 100;
+            var rarity = window._getBadgeRarity(pct);
+            var meta = getBadgeDisplay(e[0]);
+            return { id: e[0], count: e[1], pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name };
+        })
+        .sort(function(a, b) { return a.pct - b.pct; }); // rarest first
+
+    var rarityOrder = ['Mythic','Legendary','Epic','Rare','Uncommon','Common'];
+    var groups = {};
+    rarityOrder.forEach(function(r) { groups[r] = []; });
+    entries.forEach(function(e) { groups[e.rarity.label].push(e); });
+
+    var userEarned = new Set();
+    try { userEarned = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
+    if (typeof window.earnedBadges !== 'undefined') userEarned = window.earnedBadges;
+
+    var html = '';
+    // Summary strip
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">';
+    var tierColors = { Mythic:'#f0abfc', Legendary:'#fbbf24', Epic:'#a78bfa', Rare:'#38bdf8', Uncommon:'#4ade80', Common:'#94a3b8' };
+    var tierIcons = { Mythic:'✨', Legendary:'👑', Epic:'🔮', Rare:'💧', Uncommon:'🟢', Common:'○' };
+    rarityOrder.forEach(function(r) {
+        var cnt = groups[r].length;
+        if (!cnt) return;
+        html += '<div style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(0,0,0,0.2);border:1px solid ' + tierColors[r] + '44;border-radius:20px;">';
+        html += '<span style="font-size:0.75rem;">' + tierIcons[r] + '</span>';
+        html += '<span style="font-size:0.7rem;font-weight:700;color:' + tierColors[r] + ';">' + r + '</span>';
+        html += '<span style="font-size:0.65rem;color:var(--text-faint);">' + cnt + '</span>';
+        html += '</div>';
+    });
+    html += '</div>';
+    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">' + totalUsers.toLocaleString() + ' total users' + (updatedAt ? ' · Updated ' + updatedAt.toLocaleDateString() : '') + '</div>';
+
+    // Filter buttons
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
+    html += '<button onclick="window._filterBadgeDist(\'all\')" id="bdf-all" style="padding:4px 12px;border-radius:20px;border:1px solid var(--accent);background:var(--accent);color:#000;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">All</button>';
+    html += '<button onclick="window._filterBadgeDist(\'mine\')" id="bdf-mine" style="padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mine only</button>';
+    rarityOrder.forEach(function(r) {
+        if (!groups[r].length) return;
+        html += '<button onclick="window._filterBadgeDist(\'' + r + '\')" id="bdf-' + r + '" style="padding:4px 10px;border-radius:20px;border:1px solid ' + tierColors[r] + '66;background:none;color:' + tierColors[r] + ';font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">' + tierIcons[r] + ' ' + r + '</button>';
+    });
+    html += '</div>';
+
+    // Badge rows by rarity group
+    html += '<div id="bdgRows">';
+    rarityOrder.forEach(function(r) {
+        if (!groups[r].length) return;
+        html += '<div class="bdr-group" data-rarity="' + r + '" style="margin-bottom:14px;">';
+        html += '<div style="font-size:0.65rem;font-weight:900;color:' + tierColors[r] + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">';
+        html += tierIcons[r] + ' ' + r;
+        var rarityDesc = { Mythic:'< 0.5% of users', Legendary:'0.5 – 1.5%', Epic:'1.5 – 4%', Rare:'4 – 10%', Uncommon:'10 – 25%', Common:'> 25%' };
+        html += '<span style="color:var(--text-faint);font-weight:400;normal;text-transform:none;letter-spacing:0;">' + rarityDesc[r] + '</span>';
+        html += '</div>';
+        groups[r].forEach(function(badge) {
+            var isEarned = userEarned.has(badge.id);
+            var barWidth = Math.min(100, (badge.pct / 50) * 100); // scale: 50% = full bar
+            html += '<div class="bdr-row" data-earned="' + (isEarned?'1':'0') + '" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:10px;background:' + (isEarned ? 'rgba('+_hexToRgb(badge.rarity.color)+',0.07)' : 'rgba(0,0,0,0.15)') + ';border:1px solid ' + (isEarned ? badge.rarity.border + '55' : 'var(--border)') + ';' + (isEarned && badge.rarity.glow !== 'none' ? 'box-shadow:0 0 8px ' + badge.rarity.glow + ';' : '') + '">';
+            html += '<span style="font-size:1rem;width:24px;text-align:center;flex-shrink:0;' + (isEarned?'':'filter:grayscale(1);opacity:0.4;') + '">' + badge.emoji + '</span>';
+            html += '<div style="flex:1;min-width:0;">';
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">';
+            html += '<span style="font-size:0.78rem;font-weight:' + (isEarned?'700':'500') + ';color:' + (isEarned?'var(--heading)':'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">' + (typeof escapeHtml==='function'?escapeHtml(badge.name):badge.name) + '</span>';
+            html += '<span style="font-size:0.68rem;color:' + badge.rarity.color + ';font-weight:700;flex-shrink:0;">' + badge.pct.toFixed(1) + '%</span>';
+            html += '</div>';
+            html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;">';
+            html += '<div style="height:100%;width:' + barWidth + '%;background:' + badge.rarity.color + ';border-radius:2px;transition:width 0.4s;"></div>';
+            html += '</div>';
+            html += '</div>';
+            if (isEarned) html += '<span style="font-size:0.7rem;flex-shrink:0;" title="You earned this!">✅</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+    });
+    html += '</div>'; // bdgRows
+
+    container.innerHTML = html;
+};
+
+// Helper: hex color to rgb components for rgba()
+function _hexToRgb(hex) {
+    var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return r + ',' + g + ',' + b;
+}
+
+window._filterBadgeDist = function(filter) {
+    // Update active button
+    ['all','mine','Mythic','Legendary','Epic','Rare','Uncommon','Common'].forEach(function(f) {
+        var btn = document.getElementById('bdf-' + f);
+        if (!btn) return;
+        var isActive = f === filter;
+        btn.style.background = isActive ? 'var(--accent)' : 'none';
+        btn.style.color = isActive ? '#000' : (f === 'all' || f === 'mine' ? 'var(--text-muted)' : btn.style.color);
+        btn.style.borderColor = isActive ? 'var(--accent)' : (f === 'all' || f === 'mine' ? 'var(--border)' : btn.style.borderColor);
+    });
+    var userEarned = new Set();
+    try { userEarned = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
+    if (typeof window.earnedBadges !== 'undefined') userEarned = window.earnedBadges;
+
+    document.querySelectorAll('.bdr-group').forEach(function(g) {
+        var rarity = g.getAttribute('data-rarity');
+        if (filter === 'all') { g.style.display = ''; return; }
+        if (filter === 'mine') { g.style.display = ''; } else {
+            g.style.display = (filter === rarity) ? '' : 'none';
+        }
+    });
+    document.querySelectorAll('.bdr-row').forEach(function(row) {
+        if (filter === 'mine') {
+            row.style.display = row.getAttribute('data-earned') === '1' ? '' : 'none';
+        } else {
+            row.style.display = '';
         }
     });
 };
