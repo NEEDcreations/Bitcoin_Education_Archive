@@ -1421,9 +1421,23 @@ window._toggleBadgeDist = function(btn) {
     }
 };
 
+var _BADGE_DIST_TTL = 48 * 60 * 60 * 1000; // 48 hours
+var _BADGE_DIST_LS_KEY = 'btc_badge_dist_cache';
+
 window._loadBadgeDist = function() {
     var container = document.getElementById('badgeDistContent');
     if (!container) return;
+
+    // Check localStorage cache first (TTL: 48h)
+    try {
+        var cached = JSON.parse(localStorage.getItem(_BADGE_DIST_LS_KEY) || 'null');
+        if (cached && cached.ts && (Date.now() - cached.ts) < _BADGE_DIST_TTL) {
+            var updatedAt = cached.updatedAt ? new Date(cached.updatedAt) : null;
+            window._renderBadgeDist(cached.counts, cached.totalUsers, updatedAt, container);
+            return; // served from cache, 0 Firestore reads
+        }
+    } catch(e) { /* bad cache, fall through */ }
+
     if (typeof db === 'undefined' || !db) {
         container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Sign in to view distribution data.</div>';
         return;
@@ -1438,6 +1452,15 @@ window._loadBadgeDist = function() {
         var counts = data.counts || {};
         var _uTs = data.updatedAt;
         var updatedAt = _uTs ? (_uTs._seconds ? new Date(_uTs._seconds * 1000) : (_uTs.toDate ? _uTs.toDate() : new Date(_uTs))) : null;
+        // Save to localStorage cache
+        try {
+            localStorage.setItem(_BADGE_DIST_LS_KEY, JSON.stringify({
+                ts: Date.now(),
+                totalUsers: totalUsers,
+                counts: counts,
+                updatedAt: updatedAt ? updatedAt.getTime() : null
+            }));
+        } catch(e) { /* storage full, skip cache */ }
         window._renderBadgeDist(counts, totalUsers, updatedAt, container);
     }).catch(function() {
         container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Could not load distribution.</div>';

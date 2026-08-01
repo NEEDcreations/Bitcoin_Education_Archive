@@ -7125,7 +7125,7 @@ async function _refreshBadgeDistribution() {
 }
 
 exports.refreshBadgeDistribution = onScheduleV2({
-    schedule: 'every 24 hours',
+    schedule: 'every 48 hours',
     timeZone: 'America/New_York',
     memory: '512MiB',
     timeoutSeconds: 540,
