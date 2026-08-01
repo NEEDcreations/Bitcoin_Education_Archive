@@ -1358,8 +1358,11 @@
         return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    function showToast(msg) {
-        if (typeof window.showToast === 'function') window.showToast(msg);
+    function showToast(msg, duration) {
+        // Hash results are immediate user feedback — bypass _nachoBusy/_directLinkMode gates
+        // Use _showToastNow directly if available, else fall through to window.showToast
+        if (typeof window._showToastNow === 'function') window._showToastNow(msg, duration);
+        else if (typeof window.showToast === 'function') window.showToast(msg, duration);
         else console.log('[FAVOR]', msg);
     }
 

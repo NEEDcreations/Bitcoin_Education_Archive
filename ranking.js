@@ -3701,7 +3701,7 @@ function showToast(msg, duration) {
     }
     _showToastNow(msg, duration);
 }
-function _showToastNow(msg, duration) {
+window._showToastNow = function _showToastNow(msg, duration) {
     var ms = duration || 2500;
     const t = document.createElement('div');
     t.className = 'rank-toast';
