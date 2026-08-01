@@ -1472,15 +1472,28 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
         });
     }
     // Also add FLEX badge names by pattern
+    // Pre-build a normalised lookup: strip trailing underscores, collapse spaces, lowercase
+    var _normMeta = {};
+    Object.keys(badgeMeta).forEach(function(k) {
+        var n = k.replace(/_+$/,'').replace(/[_ ]+/g,' ').toLowerCase().trim();
+        _normMeta[n] = badgeMeta[k];
+    });
+    // Also index by badge name (for old records stored as display name e.g. "Lightning_Rod__")
+    Object.keys(badgeMeta).forEach(function(k) {
+        var m = badgeMeta[k];
+        if (m.name) {
+            var n = m.name.replace(/[_ ]+/g,' ').toLowerCase().trim();
+            if (!_normMeta[n]) _normMeta[n] = m;
+        }
+    });
+
     function getBadgeDisplay(id) {
         if (badgeMeta[id]) return badgeMeta[id];
-        // Try normalised match (underscores vs spaces, case)
-        var norm = id.replace(/_/g,' ').toLowerCase();
-        for (var k in badgeMeta) {
-            if (k.replace(/_/g,' ').toLowerCase() === norm) return badgeMeta[k];
-        }
+        // Normalise: strip trailing underscores, collapse separators, lowercase
+        var norm = id.replace(/_+$/,'').replace(/[_ ]+/g,' ').toLowerCase().trim();
+        if (_normMeta[norm]) return _normMeta[norm];
         // Fallback: humanise the ID
-        var name = id.replace(/_/g,' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+        var name = id.replace(/_+$/,'').replace(/_/g,' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
         return { emoji: '🏅', name: name, desc: '' };
     }
 
