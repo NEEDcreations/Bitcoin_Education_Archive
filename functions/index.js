@@ -5730,6 +5730,24 @@ exports.resetMonthlyXP = functions.pubsub.schedule('0 0 1 * *').timeZone('UTC').
     }
     const result = await _resetPeriodXP('monthlyXP', monthKey, 100, `Month ${monthKey}`);
     console.log('[MONTHLY RESET COMPLETE]', result);
+
+    // Reset raffleEntries to 0 for all users so August draw starts fresh
+    try {
+        const usersWithEntries = await db.collection('users').where('raffleEntries', '>', 0).get();
+        if (!usersWithEntries.empty) {
+            const BATCH_SIZE = 400;
+            const docs = usersWithEntries.docs;
+            for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+                const batch = db.batch();
+                docs.slice(i, i + BATCH_SIZE).forEach(doc => batch.update(doc.ref, { raffleEntries: 0 }));
+                await batch.commit();
+            }
+            console.log(`[MONTHLY RESET] Reset raffleEntries for ${docs.length} users`);
+        }
+    } catch (e) {
+        console.error('[MONTHLY RESET] raffleEntries reset failed:', e.message);
+    }
+
     return null;
 });
 
