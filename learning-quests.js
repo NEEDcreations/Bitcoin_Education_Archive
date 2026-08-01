@@ -359,7 +359,7 @@ function _lqGetIllustration(slug, idx) {
         'privacy': _lqIllustration_privacy
     };
     var fn = map[slug];
-    return fn ? fn(idx) : '<div style="height:140px;display:flex;align-items:center;justify-content:center;font-size:3rem;">₿</div>';
+    return fn ? fn(idx) : '<div style="height:200px;display:flex;align-items:center;justify-content:center;font-size:5rem;">₿</div>';
 }
 
 // --- Topic Data ---
