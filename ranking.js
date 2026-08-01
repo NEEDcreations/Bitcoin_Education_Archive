@@ -5280,43 +5280,50 @@ function showSettingsPage(tab) {
         html += '<button onclick="var p=document.getElementById(\'advSecPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Security <span>▼</span></button>';
         html += '<div id="advSecPanel" style="display:none;">';
 
-        // Blocked Users
-        var blockedList = typeof getBlockedUsers === 'function' ? getBlockedUsers() : [];
+        // Blocked Users — load from Firestore for cross-device accuracy
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🚫 Blocked Users</div>';
-        if (blockedList.length === 0) {
-            html += '<div style="color:var(--text-muted);font-size:0.85rem;">No blocked users. 🎉</div>';
-        } else {
-            html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">' + blockedList.length + ' blocked user' + (blockedList.length > 1 ? 's' : '') + '</div>';
-            html += '<div id="blockedUsersList"><div style="color:var(--text-faint);font-size:0.8rem;">Loading...</div></div>';
-        }
-        html += '</div>';
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🚫 Blocked Users</div>' +
+            '<div id="blockedUsersList"><div style="color:var(--text-faint);font-size:0.8rem;">Loading...</div></div>' +
+            '</div>';
 
-        // Load blocked user names after render
-        if (blockedList.length > 0) {
-            setTimeout(function() {
-                var container = document.getElementById('blockedUsersList');
-                if (!container) return;
+        // Load blocked list from Firestore (source of truth, cross-device)
+        setTimeout(function() {
+            var container = document.getElementById('blockedUsersList');
+            if (!container || !auth || !auth.currentUser || !db) return;
+            db.collection('users').doc(auth.currentUser.uid).get().then(function(userDoc) {
+                var fsBlocked = (userDoc.exists && userDoc.data().blockedUsers) ? userDoc.data().blockedUsers : [];
+                var localBlocked = typeof getBlockedUsers === 'function' ? getBlockedUsers() : [];
+                var merged = Array.from(new Set(fsBlocked.concat(localBlocked)));
+                if (merged.length === 0) {
+                    container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">No blocked users. 🎉</div>';
+                    return;
+                }
+                container.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">' + merged.length + ' blocked user' + (merged.length > 1 ? 's' : '') + '</div><div id="blockedUsersRows"></div>';
+                var rowsEl = document.getElementById('blockedUsersRows');
                 var loaded = 0;
                 var listHtml = '';
-                blockedList.forEach(function(uid) {
+                merged.forEach(function(uid) {
                     db.collection('users').doc(uid).get().then(function(doc) {
                         var name = doc.exists ? (doc.data().username || 'Unknown') : 'Deleted User';
+                        var safeName = name.replace(/[\'"]/g, '');
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;' + (loaded > 0 ? 'border-top:1px solid var(--border);' : '') + '">' +
-                            '<span style="color:var(--text);font-size:0.85rem;">' + name + '</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + name.replace(/[\\'"]/g, "") + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<span style="color:var(--text);font-size:0.85rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + safeName + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
-                        if (loaded === blockedList.length) container.innerHTML = listHtml;
+                        if (loaded === merged.length && rowsEl) rowsEl.innerHTML = listHtml;
                     }).catch(function() {
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);">' +
                             '<span style="color:var(--text-faint);font-size:0.85rem;">Unknown User</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
-                        if (loaded === blockedList.length) container.innerHTML = listHtml;
+                        if (loaded === merged.length && rowsEl) rowsEl.innerHTML = listHtml;
                     });
                 });
-            }, 100);
-        }
+            }).catch(function() {
+                var container = document.getElementById('blockedUsersList');
+                if (container) container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load blocked list.</div>';
+            });
+        }, 100);
 
         // Experience Mode Selector
         var _expMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';

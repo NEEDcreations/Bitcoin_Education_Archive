@@ -803,7 +803,22 @@ window.openDM = function(recipientUid, recipientName) {
 
     // Block check
     if (isUserBlocked(recipientUid)) {
-        if (typeof showToast === 'function') showToast('🚫 This user is blocked. Unblock them to message.');
+        var _oldPrompt = document.getElementById('dmUnblockPrompt');
+        if (_oldPrompt) _oldPrompt.remove();
+        var _safeRecipName = (typeof escapeHtml === 'function' ? escapeHtml(recipientName) : recipientName).replace(/[\"']/g, '');
+        var _promptEl = document.createElement('div');
+        _promptEl.id = 'dmUnblockPrompt';
+        _promptEl.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:600000;display:flex;align-items:center;justify-content:center;padding:20px;';
+        _promptEl.onclick = function(e) { if (e.target === _promptEl) _promptEl.remove(); };
+        _promptEl.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;max-width:340px;width:100%;padding:24px;text-align:center;">' +
+            '<div style="font-size:2rem;margin-bottom:12px;">🚫</div>' +
+            '<div style="font-weight:800;font-size:1rem;color:var(--heading);margin-bottom:8px;">User Blocked</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin-bottom:20px;">You\'ve blocked <strong>' + _safeRecipName + '</strong>. Unblock them to send and receive messages.</div>' +
+            '<div style="display:flex;gap:10px;">' +
+            '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove();if(typeof unblockUser===\'function\')unblockUser(\'' + recipientUid + '\',\'' + _safeRecipName + '\');setTimeout(function(){openDM(\'' + recipientUid + '\',\'' + _safeRecipName + '\')},400)" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
+            '</div></div>';
+        document.body.appendChild(_promptEl);
         return;
     }
 
