@@ -56,7 +56,9 @@ function requireAdmin(req, res) {
         res.status(500).json({ error: 'server misconfiguration' });
         return false;
     }
-    const provided = req.headers['x-admin-token'] || req.query.t || '';
+    // req.query.t can be an array if attacker sends ?t=a&t=b — always coerce to string
+    const rawQueryToken = req.query.t;
+    const provided = String(req.headers['x-admin-token'] || (Array.isArray(rawQueryToken) ? rawQueryToken[0] : rawQueryToken) || '');
     // Constant-time comparison to prevent timing attacks
     const expectedBuf = Buffer.from(expected);
     const providedBuf = Buffer.alloc(expectedBuf.length);

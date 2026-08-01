@@ -127,9 +127,15 @@ function detectInjection(text) {
 
 // Layer 2: Sanitize user input
 function sanitizeInput(text) {
-  return text
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control chars
-    .replace(/<[^>]*>/g, '')  // Strip HTML
+  // Iteratively strip tags to handle nested/broken patterns like <<script>script>
+  // A single pass of /<[^>]*>/g misses these — loop until stable
+  let prev;
+  let stripped = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ''); // Remove control chars first
+  do {
+    prev = stripped;
+    stripped = stripped.replace(/<[^>]*>/g, ''); // Strip HTML tags
+  } while (stripped !== prev);
+  return stripped
     .replace(/```[\s\S]*?```/g, '') // Strip code blocks
     .trim()
     .substring(0, 500); // Hard limit

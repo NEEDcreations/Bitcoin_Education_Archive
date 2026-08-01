@@ -79,8 +79,12 @@ async function proxyToNodeRunners(request, url, event) {
   if (contentType.indexOf('text/html') !== -1) {
     var body = await upstreamResp.text();
 
-    // Strip antiClickjack hiding style
-    body = body.replace(/<style\s+id\s*=\s*["']antiClickjack["'][^>]*>[\s\S]*?<\/style>/gi, '');
+    // Strip antiClickjack hiding style — iterative to handle any nested/malformed tags
+    // (single-pass /<[^>]*>/ can miss <<tag>tag> patterns; here we're matching a specific
+    // known element so the full pattern is safe, but we apply it up to 3x for safety)
+    for (let _i = 0; _i < 3; _i++) {
+      body = body.replace(/<style\s+id\s*=\s*["']antiClickjack["'][^>]*>[\s\S]*?<\/style>/gi, '');
+    }
 
     // Strip the specific frame-buster script
     body = body.replace(/<script\s+type\s*=\s*["']text\/javascript["']\s*>[\s\S]{0,500}?top\.location\s*=\s*self\.location;[\s\S]{0,200}?<\/script>/gi, '');
