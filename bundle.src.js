@@ -8863,7 +8863,7 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
             html += '<div style="flex:1;min-width:0;">';
             html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">';
             var safeDesc = badge.desc ? (typeof escapeHtml==='function'?escapeHtml(badge.desc):badge.desc.replace(/"/g,'&quot;')) : '';
-            html += '<span class="bdr-badge-title" data-desc="' + safeDesc + '" onclick="window._showBadgeDistTooltip(event,this)" style="font-size:0.78rem;font-weight:' + (isEarned?'700':'500') + ';color:' + (isEarned?'var(--heading)':'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;cursor:' + (safeDesc?'help':'default') + ';border-bottom:' + (safeDesc?'1px dashed var(--text-faint)':'none') + ';">' + (typeof escapeHtml==='function'?escapeHtml(badge.name):badge.name) + '</span>';
+            html += '<span class="bdr-badge-title" data-desc="' + safeDesc + '"' + (safeDesc ? ' onmouseenter="window._showBadgeDistTooltip(event,this)" onmouseleave="window._hideBadgeDistTooltip()" onclick="window._showBadgeDistTooltip(event,this)"' : '') + ' style="font-size:0.78rem;font-weight:' + (isEarned?'700':'500') + ';color:' + (isEarned?'var(--heading)':'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;cursor:' + (safeDesc?'help':'default') + ';border-bottom:' + (safeDesc?'1px dashed var(--text-faint)':'none') + ';">' + (typeof escapeHtml==='function'?escapeHtml(badge.name):badge.name) + '</span>';
             html += '<span style="font-size:0.68rem;color:' + badge.rarity.color + ';font-weight:700;flex-shrink:0;">' + badge.pct.toFixed(1) + '%</span>';
             html += '</div>';
             html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;">';
@@ -8916,61 +8916,32 @@ window._filterBadgeDist = function(filter) {
     });
 };
 
-// Badge Distribution tooltip (hover + tap)
-(function() {
-    var _tip = null;
-    function removeTip() {
-        if (_tip && _tip.parentNode) _tip.parentNode.removeChild(_tip);
-        _tip = null;
-    }
-    window._showBadgeDistTooltip = function(e, el) {
-        e.stopPropagation();
-        var desc = el.getAttribute('data-desc');
-        if (!desc) return;
-        removeTip();
-        var tip = document.createElement('div');
-        tip.className = 'bdr-tooltip';
-        tip.innerHTML = desc;
-        tip.style.cssText = 'position:fixed;z-index:9999;max-width:220px;padding:8px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--accent,#f7931a);border-radius:10px;font-size:0.75rem;color:var(--text,#e0e0e0);line-height:1.4;box-shadow:0 4px 20px rgba(0,0,0,0.5);pointer-events:none;';
-        document.body.appendChild(tip);
-        _tip = tip;
-        // Position near the element
-        var rect = el.getBoundingClientRect();
-        var tw = tip.offsetWidth || 220;
-        var th = tip.offsetHeight || 50;
-        var left = Math.min(rect.left, window.innerWidth - tw - 12);
-        var top = rect.bottom + 6;
-        if (top + th > window.innerHeight - 12) top = rect.top - th - 6;
-        tip.style.left = Math.max(8, left) + 'px';
-        tip.style.top = top + 'px';
-        // Auto-dismiss
-        var dismiss = function() { removeTip(); document.removeEventListener('click', dismiss); document.removeEventListener('scroll', dismiss, true); };
-        setTimeout(function() { document.addEventListener('click', dismiss); document.addEventListener('scroll', dismiss, true); }, 0);
-    };
-    // Desktop hover
-    document.addEventListener('mouseover', function(e) {
-        var el = e.target.closest ? e.target.closest('.bdr-badge-title') : null;
-        if (!el) return;
-        var desc = el.getAttribute('data-desc');
-        if (!desc) return;
-        if (_tip) return; // already showing from tap
-        var tip = document.createElement('div');
-        tip.className = 'bdr-tooltip bdr-hover-tip';
-        tip.innerHTML = desc;
-        tip.style.cssText = 'position:fixed;z-index:9999;max-width:220px;padding:8px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--accent,#f7931a);border-radius:10px;font-size:0.75rem;color:var(--text,#e0e0e0);line-height:1.4;box-shadow:0 4px 20px rgba(0,0,0,0.5);pointer-events:none;';
-        document.body.appendChild(tip);
-        _tip = tip;
-        var rect = el.getBoundingClientRect();
-        var tw = tip.offsetWidth || 220;
-        var th = tip.offsetHeight || 50;
-        var left = Math.min(rect.left, window.innerWidth - tw - 12);
-        var top = rect.bottom + 6;
-        if (top + th > window.innerHeight - 12) top = rect.top - th - 6;
-        tip.style.left = Math.max(8, left) + 'px';
-        tip.style.top = top + 'px';
-        el.addEventListener('mouseleave', function onLeave() { removeTip(); el.removeEventListener('mouseleave', onLeave); }, { once: true });
-    });
-}());
+// Badge Distribution tooltip — inline onmouseenter/onmouseleave/onclick handlers
+var _bdTip = null;
+window._showBadgeDistTooltip = function(e, el) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    var desc = el.getAttribute('data-desc');
+    if (!desc) return;
+    // Remove any existing tip
+    if (_bdTip && _bdTip.parentNode) _bdTip.parentNode.removeChild(_bdTip);
+    var tip = document.createElement('div');
+    tip.innerHTML = desc;
+    tip.style.cssText = 'position:fixed;z-index:99999;max-width:240px;padding:9px 13px;background:var(--card-bg,#1a1a2e);border:1px solid var(--accent,#f7931a);border-radius:10px;font-size:0.75rem;color:var(--text,#e0e0e0);line-height:1.5;box-shadow:0 4px 24px rgba(0,0,0,0.55);pointer-events:none;';
+    document.body.appendChild(tip);
+    _bdTip = tip;
+    var rect = el.getBoundingClientRect();
+    var tw = tip.offsetWidth || 240;
+    var th = tip.offsetHeight || 50;
+    var left = Math.min(rect.left, window.innerWidth - tw - 12);
+    var top = rect.bottom + 8;
+    if (top + th > window.innerHeight - 12) top = rect.top - th - 8;
+    tip.style.left = Math.max(8, left) + 'px';
+    tip.style.top = top + 'px';
+};
+window._hideBadgeDistTooltip = function() {
+    if (_bdTip && _bdTip.parentNode) _bdTip.parentNode.removeChild(_bdTip);
+    _bdTip = null;
+};
 
 // ---- Tooltip for badge SET grid items (The Trifecta Set etc.) ----
 // Reuses #badgeFloatTip so it's always position:fixed, opaque, correct z-index
