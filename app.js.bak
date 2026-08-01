@@ -286,7 +286,7 @@
                         t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + eu + '</a>'; });
                         // Restore YouTube embeds
                         t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
-                            return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" referrerpolicy="no-referrer"></iframe></div>';
+                            return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';
                         });
                         // Restore Twitter embeds as click-to-load cards
                         t = t.replace(/%%TW(\d+)%%/g, function(match, idx) {
@@ -582,7 +582,7 @@
             showToast('📋 Note copied! Paste it in Primal to post.');
         }).catch(() => {});
         // Open Primal home where they can paste
-        window.open('https://primal.net/home', '_blank', 'noopener,noreferrer');
+        window.open('https://primal.net/home', '_blank');
     }
 
     window.showSpinWheel = function() {
@@ -5275,7 +5275,7 @@ window.toggleAITools = function() {
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
             '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
             '</div>' +
-            '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+            '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
         document.body.appendChild(panel);
 
         // Responsive style for desktop

@@ -24048,7 +24048,7 @@ function _preloadMarketIframes() {
         var gmWrap = document.createElement('div');
         gmWrap.id = 'gmIframeWrap';
         gmWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen"></iframe>';
+        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
         document.body.appendChild(gmWrap);
     }
 
@@ -24057,7 +24057,7 @@ function _preloadMarketIframes() {
         var nrWrap = document.createElement('div');
         nrWrap.id = 'nrIframeWrap';
         nrWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen"></iframe>';
+        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
         document.body.appendChild(nrWrap);
     }
 }
@@ -25052,7 +25052,7 @@ window._togglePlebShop = function() {
         embed.style.height = 'calc(100vh - 280px)';
         embed.style.minHeight = '500px';
         if (!embed.querySelector('iframe')) {
-            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment"></iframe>';
+            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="no-referrer"></iframe>';
         }
         if (btn) { btn.textContent = 'Close Shop'; btn.style.background = 'var(--border)'; }
     } else {
@@ -31371,7 +31371,7 @@ document.addEventListener('btcProfileSaved', function() {
                         t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + eu + '</a>'; });
                         // Restore YouTube embeds
                         t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
-                            return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';
+                            return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" referrerpolicy="no-referrer"></iframe></div>';
                         });
                         // Restore Twitter embeds as click-to-load cards
                         t = t.replace(/%%TW(\d+)%%/g, function(match, idx) {
@@ -31667,7 +31667,7 @@ document.addEventListener('btcProfileSaved', function() {
             showToast('📋 Note copied! Paste it in Primal to post.');
         }).catch(() => {});
         // Open Primal home where they can paste
-        window.open('https://primal.net/home', '_blank');
+        window.open('https://primal.net/home', '_blank', 'noopener,noreferrer');
     }
 
     window.showSpinWheel = function() {
@@ -36360,7 +36360,7 @@ window.toggleAITools = function() {
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
             '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
             '</div>' +
-            '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
+            '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
         document.body.appendChild(panel);
 
         // Responsive style for desktop
