@@ -394,7 +394,7 @@ window.beatsLoadTracks = function(tab) {
                     '<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
                     '<div onclick="event.stopPropagation();beatsShowTrackDetail(' + idx + ')" style="flex:1;min-width:0;cursor:pointer;">' +
                         '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                        '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(t.artist || t.authorName || 'Unknown') + '</span>' : escapeHtml(t.artist || t.authorName || 'Unknown')) + (t.genre ? ' · ' + t.genre : '') + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(t.artist || t.authorName || 'Unknown') + '</span>' : escapeHtml(t.artist || t.authorName || 'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
                     '</div>' +
                     '<div style="flex-shrink:0;text-align:right;">' +
                         '<div style="color:var(--text-faint);font-size:0.7rem;">' + duration + '</div>' +
@@ -1505,7 +1505,7 @@ window.beatsCreateAlbumFromSingles = function() {
                 '<input type="checkbox" value="' + t.id + '" class="beatsGroupCheck" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;">' +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                    '<div style="color:var(--text-faint);font-size:0.6rem;">' + (t.genre || '') + (t.duration ? ' · ' + beatsFormatTime(t.duration) : '') + '</div>' +
+                    '<div style="color:var(--text-faint);font-size:0.6rem;">' + escapeHtml(t.genre || '') + (t.duration ? ' · ' + beatsFormatTime(t.duration) : '') + '</div>' +
                 '</div>' +
             '</label>';
         });
@@ -2480,7 +2480,7 @@ window.beatsSetGenre = function(genre) {
                         '<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
                         '<div onclick="event.stopPropagation();beatsShowTrackDetail(' + idx + ')" style="flex:1;min-width:0;cursor:pointer;">' +
                             '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                            '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">'+escapeHtml(t.artist || t.authorName || 'Unknown')+'</span>' : escapeHtml(t.artist||t.authorName||'Unknown')) + (t.genre ? ' · ' + t.genre : '') + '</div>' +
+                            '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">'+escapeHtml(t.artist || t.authorName || 'Unknown')+'</span>' : escapeHtml(t.artist||t.authorName||'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
                         '</div>' +
                         '<div style="flex-shrink:0;text-align:right;">' +
                             '<div style="color:var(--text-faint);font-size:0.7rem;">' + duration + '</div>' +
@@ -2611,7 +2611,7 @@ window.beatsSetGenre = function(genre) {
                     if (!genreData[g]) return;
                     var active = window._beatsGenreFilter === g;
                     var label = GENRE_META[g] || g;
-                    chipHtml += '<button class="beats-genre-btn" data-genre="' + g + '" onclick="beatsSetGenre(\'' + g + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + label + ' <span style="font-size:0.6rem;opacity:0.65;">(' + genreData[g] + ')</span></button>';
+                    chipHtml += '<button class="beats-genre-btn" data-genre="' + escapeHtml(g) + '" onclick="beatsSetGenre(\'' + g + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + label + ' <span style="font-size:0.6rem;opacity:0.65;">(' + genreData[g] + ')</span></button>';
                 });
                 genreChips.innerHTML = chipHtml;
             }
@@ -2807,7 +2807,7 @@ window.beatsShowArtistPage = function(uid) {
                             '<div style="width:22px;color:var(--text-faint);font-size:0.7rem;text-align:center;flex-shrink:0;">' + (t.trackNumber || '') + '</div>' +
                             '<div style="flex:1;min-width:0;">' +
                                 '<div style="color:var(--heading);font-weight:600;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                                '<div style="color:var(--text-faint);font-size:0.6rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.releaseDate ? ' · ' + t.releaseDate : '') + '</div>' +
+                                '<div style="color:var(--text-faint);font-size:0.6rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.releaseDate ? ' · ' + escapeHtml(t.releaseDate) : '') + '</div>' +
                             '</div>' +
                             '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.68rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
                         '</div>' +
@@ -2829,7 +2829,7 @@ window.beatsShowArtistPage = function(uid) {
                         '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
                         '<div style="flex:1;min-width:0;">' +
                             '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                            '<div style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.genre ? ' · ' + t.genre : '') + (t.releaseDate ? ' · ' + t.releaseDate : '') + '</div>' +
+                            '<div style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + (t.releaseDate ? ' · ' + escapeHtml(t.releaseDate) : '') + '</div>' +
                         '</div>' +
                         '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.7rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
                     '</div>' +
@@ -3192,7 +3192,7 @@ window.beatsRenderTrackList = function(el, tracks, showTip) {
             '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
             '<div style="flex:1;min-width:0;">' +
                 '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                '<div style="color:var(--text-faint);font-size:0.68rem;">' + escapeHtml(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
+                '<div style="color:var(--text-faint);font-size:0.68rem;">' + escapeHtml(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">' +
                 '<span style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + '</span>' +
