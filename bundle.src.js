@@ -17334,7 +17334,8 @@ function _renderCharityTabInner(body) {
     var pts = typeof currentUser !== 'undefined' && currentUser ? (currentUser.points || 0) : 0;
     var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
     var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
-    var available = Math.max(0, pts - claimed - donated);
+    var exchanged = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsExchanged || 0) : 0;
+    var available = Math.max(0, pts - claimed - donated - exchanged);
 
     var stats = _charityStats || { totalDonated: 0, factionTotals: {} };
     var totalDonated = stats.totalDonated || 0;
