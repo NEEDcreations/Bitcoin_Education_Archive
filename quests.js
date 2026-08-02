@@ -7495,6 +7495,8 @@ function _chessWireBoard(id) {
     var board = document.getElementById('chess-board-' + id);
     var wrap = document.getElementById('chess-wrap-' + id);
     if (!board || !wrap) return;
+    if (wrap._chessBoardWired) return; // only wire once — prevent stacked duplicate listeners
+    wrap._chessBoardWired = true;
     var puzzle = _chessDailyPuzzle(id);
     if (!wrap._chessPieces) wrap._chessPieces = Object.assign({}, puzzle.pieces);
 
@@ -7517,7 +7519,7 @@ function _chessWireBoard(id) {
         dragGhost = document.createElement('div');
         dragGhost.style.cssText = [
             'position:fixed',
-            'z-index:99999',
+            'z-index:200001',
             'pointer-events:none',
             'width:52px',
             'height:52px',
