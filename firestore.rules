@@ -8,19 +8,20 @@ service cloud.firestore {
     // =============================================
     match /users/{userId} {
       // Reads:
-      //   - Own profile: always allowed for the authenticated owner
-      //   - Leaderboard LIST queries: authenticated, limit <= 200
-      //   - Individual profile VIEW (tapping a user in the leaderboard,
-      //     chat, forum, etc.): allowed for any authenticated non-anonymous user
-      //     so we can render other users' public profile data.
-      //   The client-writable field list is still locked down by the update rule,
-      //   and server-only fields (sats, points, etc.) can't be modified by clients.
-      allow read: if request.auth != null && (
+      //   - Own profile: always allowed for the authenticated owner (get or list)
+      //   - Leaderboard LIST queries: non-anonymous authenticated, limit <= 200
+      //   - Individual profile GET (tapping a user in the leaderboard,
+      //     chat, forum, etc.): non-anonymous authenticated only
+      //   Anonymous sessions can only read their own document.
+      //   [BUG-5 FIX] Removed || true which allowed ANY visitor (incl. anonymous) to
+      //   dump the entire users collection including email, IP history, payment identifiers.
+      allow get: if request.auth != null && (
                     request.auth.uid == userId
-                    || request.query.limit <= 200  // Leaderboard list queries
-                    || true  // Any authenticated user (incl. anonymous) can view other profiles;
-                             // write rules below still block anonymous from modifying profiles.
+                    || !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                   );
+      allow list: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.query.limit <= 200;
       // Create: allowlist the fields a client is permitted to set on initial doc creation.
       // Server-managed economy fields (points, streak, sats, tickets, etc.) default to 0 / empty
       // and must never be supplied by the client.
@@ -907,16 +908,12 @@ service cloud.firestore {
     // =============================================
     match /announcements/{msgId} {
       allow read: if true;
-      // Only Nacho auto-messages are allowed here (written by authenticated users via nachoGlobalAnnounce)
-      allow create: if request.auth != null
-                    && request.resource.data.isNachoAuto == true
-                    && request.resource.data.text is string
-                    && request.resource.data.text.size() >= 1
-                    && request.resource.data.text.size() <= 2000
-                    && request.resource.data.ts == request.time
-                    && (request.resource.data.uid == request.auth.uid
-                        || ((request.resource.data.uid == 'nacho-bot')
-                            && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')));
+      // [BUG-6 FIX] Client writes to announcements are permanently disabled.
+      // Any authenticated user (including anonymous) could set isNachoAuto=true
+      // and inject fake "official Nacho" announcements with arbitrary markdown links.
+      // All announcements must now go through the nachoAnnounce Cloud Function
+      // (Admin SDK write, non-anonymous auth required, link allowlist enforced).
+      allow create: if false;
       // Any signed-in user can toggle their own emoji reaction (only the reactions map is touched)
       allow update: if request.auth != null
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);

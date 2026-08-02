@@ -5331,6 +5331,32 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
 // Returns: { invoices: [{name, split, amountSats, invoice, qr}], totalSats }
 // ================================================================
 exports.v4vSplitRelay = functions.https.onCall(async (data, context) => {
+    // SECURITY: auth required — unauthenticated callers could use this as a free SSRF oracle
+    // via fetchLnurlInvoice and read internal service responses from the reflected pr field.
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Account required.');
+    }
+    const uid = context.auth.uid;
+
+    // Rate limit: 10 requests per 60s per user (prevents SSRF enumeration + invoice spam)
+    const _v4vRlRef = admin.firestore().collection('rate_limits').doc('v4v_' + uid);
+    await admin.firestore().runTransaction(async (tx) => {
+        const _rlDoc = await tx.get(_v4vRlRef);
+        if (_rlDoc.exists) {
+            const { count, windowStart } = _rlDoc.data();
+            const age = Date.now() - (windowStart && windowStart.toDate ? windowStart.toDate().getTime() : 0);
+            if (age < 60000 && count >= 10) {
+                throw new functions.https.HttpsError('resource-exhausted', 'Too many requests. Try again shortly.');
+            }
+            tx.set(_v4vRlRef, age >= 60000
+                ? { count: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }
+                : { count: count + 1, windowStart: _rlDoc.data().windowStart });
+        } else {
+            tx.set(_v4vRlRef, { count: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+        }
+    });
+
     const { trackId, amountSats } = data || {};
     if (!trackId) throw new functions.https.HttpsError('invalid-argument', 'trackId required');
     if (!amountSats || amountSats < 10) throw new functions.https.HttpsError('invalid-argument', 'amountSats must be >= 10');
@@ -5420,10 +5446,42 @@ async function fetchLnurlInvoice(lightningAddress, msats, comment) {
     const [user, host] = lightningAddress.split('@');
     if (!user || !host) throw new Error(`Invalid lightning address: ${lightningAddress}`);
 
-    const lnurlRes   = await nodeFetch(`https://${host}/.well-known/lnurlp/${user}`, { timeout: 10000 });
+    // SECURITY: SSRF prevention — validate host before making any outbound request.
+    // Blocks loopback, RFC-1918, link-local (169.254.x — AWS/GCP metadata), ULA IPv6, bare IPs.
+    // Mirrors the identical check in claimSats.
+    const _lnHost = host.split(':')[0].toLowerCase(); // strip optional port
+    const _isPrivateHost = (
+        _lnHost === 'localhost' ||
+        /^127\./.test(_lnHost) ||
+        /^10\./.test(_lnHost) ||
+        /^192\.168\./.test(_lnHost) ||
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(_lnHost) ||
+        /^169\.254\./.test(_lnHost) ||
+        /^::1$/.test(_lnHost) ||
+        /^fd[0-9a-f]{2}:/i.test(_lnHost) ||
+        /^\d+\.\d+\.\d+\.\d+$/.test(_lnHost)  // bare IPs rejected entirely
+    );
+    if (_isPrivateHost || !_lnHost || _lnHost.length < 3 || !_lnHost.includes('.')) {
+        console.error('[fetchLnurlInvoice] SSRF BLOCKED: host=' + host);
+        throw new Error(`Invalid Lightning Address domain: ${host}`);
+    }
+
+    const lnurlRes   = await nodeFetch(`https://${host}/.well-known/lnurlp/${encodeURIComponent(user)}`, { timeout: 10000, size: 65536 });
     if (!lnurlRes.ok) throw new Error(`LNURL-pay lookup failed for ${lightningAddress}`);
     const lnurlData  = await lnurlRes.json();
     if (lnurlData.status === 'ERROR') throw new Error(lnurlData.reason);
+
+    // SECURITY: validate the callback URL returned by the LNURL server.
+    // A malicious server could return callback='http://169.254.169.254/...' to pivot to
+    // internal GCP metadata or other services, with the pr field reflecting the response.
+    if (!lnurlData.callback) throw new Error('No callback in LNURL-pay metadata');
+    let _cbParsed;
+    try { _cbParsed = new URL(lnurlData.callback); } catch (_) { throw new Error('Invalid callback URL in LNURL-pay response'); }
+    if (_cbParsed.protocol !== 'https:') throw new Error('Callback URL must use HTTPS');
+    if (_cbParsed.hostname.toLowerCase() !== _lnHost) {
+        console.error('[fetchLnurlInvoice] Callback domain mismatch: expected=' + _lnHost + ' got=' + _cbParsed.hostname);
+        throw new Error(`Callback domain mismatch (expected ${_lnHost}, got ${_cbParsed.hostname})`);
+    }
 
     // Clamp to provider min/max
     const clampedMsats = Math.min(Math.max(msats, lnurlData.minSendable || 1000), lnurlData.maxSendable || 1000000000);
@@ -5433,7 +5491,7 @@ async function fetchLnurlInvoice(lightningAddress, msats, comment) {
         cbUrl += `&comment=${encodeURIComponent(comment.slice(0, lnurlData.commentAllowed))}`;
     }
 
-    const invRes  = await nodeFetch(cbUrl, { timeout: 15000 });
+    const invRes  = await nodeFetch(cbUrl, { timeout: 15000, size: 65536 });
     if (!invRes.ok) throw new Error(`Invoice request failed for ${lightningAddress}`);
     const invData = await invRes.json();
     if (invData.status === 'ERROR') throw new Error(invData.reason);
@@ -7252,4 +7310,81 @@ exports.refreshBadgeDistributionHttp = functions.https.onRequest(async (req, res
         console.error('[BADGE DIST HTTP]', e);
         res.status(500).json({ error: e.message });
     }
+});
+
+// ── Nacho Announce (Bug #6 Fix) ──────────────────────────────────────────────
+// Replaces direct client writes to /announcements which allowed any authenticated
+// user (including anonymous) to inject fake "official Nacho" messages with
+// arbitrary markdown links (e.g. phishing "claim your airdrop" links).
+// Rules now set allow create: if false; this function is the only write path.
+exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
+    // 1. Auth: must be signed in and not anonymous
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Sign in required');
+    }
+
+    // 2. Rate limit: 5 announcements per 60s per UID (client-side rate limit is
+    //    bypassable; this is the server-side enforcement)
+    const uid = context.auth.uid;
+    const rateLimitRef = db.collection('rate_limits').doc('announce_' + uid);
+    await db.runTransaction(async (tx) => {
+        const doc = await tx.get(rateLimitRef);
+        const now = Date.now();
+        const windowMs = 60000;
+        const maxCount = 5;
+        if (doc.exists) {
+            const d = doc.data();
+            const windowStart = d.windowStart && d.windowStart.toDate ? d.windowStart.toDate().getTime() : 0;
+            if (now - windowStart < windowMs) {
+                if ((d.count || 0) >= maxCount) {
+                    throw new functions.https.HttpsError('resource-exhausted', 'Too many announcements');
+                }
+                tx.update(rateLimitRef, { count: (d.count || 0) + 1 });
+            } else {
+                tx.set(rateLimitRef, { windowStart: admin.firestore.FieldValue.serverTimestamp(), count: 1 });
+            }
+        } else {
+            tx.set(rateLimitRef, { windowStart: admin.firestore.FieldValue.serverTimestamp(), count: 1 });
+        }
+    });
+
+    // 3. Validate text
+    const text = (data.text || '').trim();
+    if (!text || text.length < 1 || text.length > 2000) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid text');
+    }
+
+    // 4. Link allowlist: only bitcoineducation.quest links allowed in markdown
+    //    Pattern: [label](url) — reject any URL not on the allowlist
+    const ALLOWED_LINK_HOSTS = ['bitcoineducation.quest'];
+    const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^\)]+)\)/g;
+    let match;
+    while ((match = linkRegex.exec(text)) !== null) {
+        try {
+            const linkHost = new URL(match[2]).hostname;
+            if (!ALLOWED_LINK_HOSTS.some(h => linkHost === h || linkHost.endsWith('.' + h))) {
+                throw new functions.https.HttpsError('invalid-argument', 'Links must point to bitcoineducation.quest');
+            }
+        } catch (e) {
+            if (e instanceof functions.https.HttpsError) throw e;
+            throw new functions.https.HttpsError('invalid-argument', 'Invalid link URL');
+        }
+    }
+
+    // 5. Write via Admin SDK (bypasses allow create: if false rule)
+    const mentionUid = data.mentionUid || uid;
+    const msgData = {
+        uid: uid,
+        name: '🦌 Nacho',
+        text: text,
+        isNachoAuto: true,
+        ts: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (mentionUid) msgData.mentionUid = mentionUid;
+
+    await db.collection('announcements').add(msgData);
+    return { ok: true };
 });

@@ -3840,31 +3840,29 @@ window.nachoPostToGlobalChat = function(text, mentionUid) {
 // Announcements go to the ANNOUNCEMENTS_COLLECTION (separate from global chat)
 // so they don\'t spam the conversation.
 window.nachoGlobalAnnounce = function(text, mentionUid) {
-    if (!text || typeof db === 'undefined' || !db) return;
-    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'nacho-bot';
-    // Rate limit: max 1 announcement per 30s per unique message.
-    // Key uses 100 chars so different badge names / point counts don't collide.
+    // [BUG-6 FIX] Direct Firestore writes to /announcements are disabled (allow create: if false).
+    // All announcements now go through the nachoAnnounce Cloud Function which enforces:
+    //   - non-anonymous auth
+    //   - server-side rate limit (5/60s per UID)
+    //   - link allowlist (bitcoineducation.quest only)
+    //   - Admin SDK write (bypasses Firestore rules safely)
+    if (!text || typeof firebase === 'undefined' || !firebase.functions) return;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    // Client-side dedup: max 1 announcement per 30s per unique message text
     var now = Date.now();
     var key = '_nachoAnnounce_' + text.substring(0, 100);
     if (window[key] && now - window[key] < 30000) return;
     window[key] = now;
-    var msgData = {
-        uid: uid,
-        name: '\uD83E\uDD8C Nacho',
+    var effectiveMentionUid = mentionUid || auth.currentUser.uid || '';
+    firebase.functions().httpsCallable('nachoAnnounce')({
         text: text,
-        isNachoAuto: true,
-        ts: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    // If no mentionUid passed, fall back to the current user's uid —
-    // system announcements are always about the currently signed-in user
-    var effectiveMentionUid = mentionUid || (uid !== 'nacho-bot' ? uid : '');
-    if (effectiveMentionUid) msgData.mentionUid = effectiveMentionUid;
-    // Write to announcements collection (keeps global chat human-only)
-    db.collection(ANNOUNCEMENTS_COLLECTION).add(msgData).catch(function(e) {
+        mentionUid: effectiveMentionUid
+    }).then(function() {
+        // Still bridge to Telegram for visibility
+        bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
+    }).catch(function(e) {
         console.error('[CHAT] Nacho announce failed:', e);
     });
-    // Still bridge to Telegram for visibility
-    bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
 };
 
 console.log('[CHAT] Global chat module loaded');
