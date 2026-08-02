@@ -15,7 +15,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 DATA_FILE="data/etf-holdings.json"
-TEMP_FILE="/tmp/etf-holdings-tmp.json"
+TEMP_FILE="$(mktemp -t etf-holdings-XXXXXX.json)"
+trap 'rm -f "$TEMP_FILE"' EXIT
 
 echo "[ETF Update] $(date -u '+%Y-%m-%d %H:%M UTC')"
 

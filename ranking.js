@@ -772,6 +772,8 @@ window.nostrSignInWithNpub = async function() {
                 await new Promise(function(resolve, reject) {
                     var script = document.createElement('script');
                     script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js';
+                    script.integrity = 'sha384-GwmNxV/GnZt+zRBR/Hhtu5D4MKfbxeJSApW44ARryGYtj3MFheHMFgiEZ7tVnrln';
+                    script.crossOrigin = 'anonymous';
                     script.onload = resolve;
                     script.onerror = function() { reject(new Error('Failed to load nostr-tools')); };
                     document.head.appendChild(script);

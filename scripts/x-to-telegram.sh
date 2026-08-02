@@ -10,6 +10,9 @@ if [ -f "/root/simple-archive/.env" ]; then
   set +o allexport
 fi
 
+X_POSTS_TMP="$(mktemp -t x_posts-XXXXXX.json)"
+trap 'rm -f "$X_POSTS_TMP"' EXIT
+
 FEED_URL="https://rss.app/feeds/8jCjlT8E16kCeBrO.xml"
 BOT_TOKEN="$X_BRIDGE_BOT_TOKEN"
 CHAT_ID="$X_BRIDGE_CHAT_ID"
@@ -76,10 +79,10 @@ if (newGuids.length > 0) {
 // Output items to post (oldest first)
 toPost.reverse();
 console.log(JSON.stringify(toPost));
-" <<< "$FEED" > /tmp/x_posts.json
+" <<< "$FEED" > "$X_POSTS_TMP"
 
 # Post each new tweet
-POSTS=$(cat /tmp/x_posts.json)
+POSTS=$(cat "$X_POSTS_TMP")
 COUNT=$(echo "$POSTS" | node -e "console.log(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).length)")
 
 if [ "$COUNT" = "0" ]; then
