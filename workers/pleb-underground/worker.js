@@ -281,6 +281,13 @@ async function handleRequest(request, env) {
   }
 
   if (url.pathname === '/force-check' && request.method === 'POST') {
+    // Admin endpoint — requires bearer token
+    const auth = request.headers.get('Authorization') || '';
+    if (!env.WORKER_SECRET || auth !== 'Bearer ' + env.WORKER_SECRET) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+      });
+    }
     const apiKey = env.YT_API_KEY;
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'YT_API_KEY not configured' }), {
@@ -295,6 +302,13 @@ async function handleRequest(request, env) {
   }
 
   if (url.pathname === '/clear-pending' && request.method === 'POST') {
+    // Admin endpoint — requires bearer token
+    const auth = request.headers.get('Authorization') || '';
+    if (!env.WORKER_SECRET || auth !== 'Bearer ' + env.WORKER_SECRET) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+      });
+    }
     if (kv) await kvSet(kv, 'pending_videos', []);
     return new Response(JSON.stringify({ cleared: true }), {
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }

@@ -282,9 +282,9 @@ export default {
     try {
       if (url.pathname === '/webhook/telegram' && request.method === 'POST') {
         // Validate Telegram webhook secret token (set via setWebhook secret_token parameter)
-        // Only enforce if TG_WEBHOOK_SECRET is configured — allows operation without a secret too.
+        // Fail CLOSED — secret must be configured and must match; no secret = reject everything.
         var tgSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
-        if (env.TG_WEBHOOK_SECRET && tgSecret !== env.TG_WEBHOOK_SECRET) {
+        if (!env.TG_WEBHOOK_SECRET || tgSecret !== env.TG_WEBHOOK_SECRET) {
           return corsResponse({ error: 'unauthorized' }, 401);
         }
         return handleTelegramWebhook(request, env);
@@ -293,6 +293,11 @@ export default {
         return handleFirestoreWebhook(request, env);
       }
       if (url.pathname === '/nacho-dj') {
+        // Admin endpoint — reuse existing BRIDGE_SECRET; fail closed if unset
+        var djAuth = request.headers.get('Authorization') || '';
+        if (!env.BRIDGE_SECRET || djAuth !== 'Bearer ' + env.BRIDGE_SECRET) {
+          return corsResponse({ error: 'unauthorized' }, 401);
+        }
         var result = await nachoDJCheck(env);
         return corsResponse(result);
       }

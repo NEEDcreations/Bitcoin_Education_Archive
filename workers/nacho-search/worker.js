@@ -5,6 +5,43 @@
 // + Prompt injection protection
 // =============================================
 
+// ── Rate limiting (sliding window, per-IP, in-memory per isolate) ──
+// Limits are enforced within each CF isolate. Not cross-instance coordinated,
+// but still prevents runaway abuse from a single IP on a given edge node.
+// TODO: bind a KV namespace (RATE_LIMIT) to make this globally coordinated.
+const _rateLimits = new Map(); // ip -> { ai: [timestamps], search: [timestamps] }
+const RL_WINDOW_MS = 60 * 1000; // 1-minute sliding window
+const RL_LIMITS = { ai: 10, search: 30 }; // max requests per window per route
+
+function _checkRateLimit(ip, route) {
+  const now = Date.now();
+  const cutoff = now - RL_WINDOW_MS;
+  let entry = _rateLimits.get(ip);
+  if (!entry) {
+    entry = { ai: [], search: [] };
+    _rateLimits.set(ip, entry);
+  }
+  // Evict timestamps outside the window
+  entry[route] = entry[route].filter(t => t > cutoff);
+  if (entry[route].length >= RL_LIMITS[route]) {
+    const retryAfter = Math.ceil((entry[route][0] + RL_WINDOW_MS - now) / 1000);
+    return { limited: true, retryAfter };
+  }
+  entry[route].push(now);
+  // Evict stale IPs to bound memory growth (cap at 5000 entries)
+  if (_rateLimits.size > 5000) {
+    const oldest = _rateLimits.keys().next().value;
+    _rateLimits.delete(oldest);
+  }
+  return { limited: false };
+}
+
+function _getIP(request) {
+  return request.headers.get('CF-Connecting-IP') ||
+         request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+         'unknown';
+}
+
 export default {
   async fetch(request, env) {
     const corsHeaders = {
@@ -39,6 +76,15 @@ export default {
 
 // ---- Brave Search Handler (existing) ----
 async function handleSearch(request, env, corsHeaders, url) {
+  // Rate limit: 30 /search requests per IP per minute
+  const rl = _checkRateLimit(_getIP(request), 'search');
+  if (rl.limited) {
+    return new Response(JSON.stringify({ error: 'Too many requests', retryAfter: rl.retryAfter }), {
+      status: 429,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) },
+    });
+  }
+
   const query = url.searchParams.get('q');
   if (!query) {
     return new Response(JSON.stringify({ error: 'Missing query' }), {
@@ -173,6 +219,15 @@ function validateOutput(text) {
 
 // ---- Nacho AI Handler ----
 async function handleAI(request, env, corsHeaders) {
+  // Rate limit: 10 /ai requests per IP per minute (metered Workers AI endpoint)
+  const rl = _checkRateLimit(_getIP(request), 'ai');
+  if (rl.limited) {
+    return new Response(JSON.stringify({ error: 'Too many requests', retryAfter: rl.retryAfter }), {
+      status: 429,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) },
+    });
+  }
+
   try {
     const body = await request.json();
     let question = (body.question || '').trim();
@@ -200,9 +255,6 @@ async function handleAI(request, env, corsHeaders) {
 
     // PROTECTION Layer 2: Sanitize input
     question = sanitizeInput(question);
-
-    // PROTECTION Layer 3: Rate limit per IP (simple in-memory, resets on worker restart)
-    // For production, use Cloudflare's built-in rate limiting rules
 
     const systemPrompt = `You are Nacho, a friendly deer mascot on the Bitcoin Education Archive website (bitcoineducation.quest). You are a 5-year-old buck from New Hampshire.
 

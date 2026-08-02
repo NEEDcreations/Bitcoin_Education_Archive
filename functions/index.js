@@ -4771,13 +4771,48 @@ exports.tctvAggregatePresence = onSchedule({
 // PROOF OF WALK (STRAVA INTEGRATION)
 // ==========================================
 
+// Step 1: generate a server-side CSRF nonce tied to the authenticated uid.
+// Frontend calls this BEFORE redirecting to Strava; uses the returned nonce
+// as `state=` instead of the raw uid so the callback can't be forged.
+exports.stravaInitAuth = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    const provider = (context.auth.token.firebase || {}).sign_in_provider || '';
+    if (provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot connect Strava');
+    }
+    const crypto = require('crypto');
+    const nonce = crypto.randomBytes(32).toString('hex'); // 256-bit unguessable
+    const expiresAt = Date.now() + 10 * 60 * 1000;       // 10-minute TTL
+    await db.collection('strava_nonces').doc(nonce).set({
+        uid: context.auth.uid,
+        expiresAt,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return { nonce };
+});
+
+// Step 2: Strava redirects here with ?code=...&state=<nonce>.
+// We look up the nonce server-side, extract the real uid, delete it
+// (one-time use), then proceed with the token exchange.
 exports.stravaAuth = functions.https.onRequest(async (req, res) => {
     try {
-        const code = req.query.code;
-        const uid = req.query.state; // Passed from frontend via state param
+        const code  = req.query.code;
+        const nonce = req.query.state; // server-issued nonce, NOT a raw uid
 
-        if (!code || !uid) {
+        if (!code || !nonce) {
             return res.redirect('https://bitcoineducation.quest/#explore?strava=error-missing-params');
+        }
+
+        // Validate nonce: fetch, delete immediately (replay-safe), then verify TTL
+        const nonceRef = db.collection('strava_nonces').doc(nonce);
+        const nonceDoc = await nonceRef.get();
+        if (!nonceDoc.exists) {
+            return res.redirect('https://bitcoineducation.quest/#explore?strava=error-invalid-state');
+        }
+        const { uid, expiresAt } = nonceDoc.data();
+        await nonceRef.delete(); // consume before any network I/O — prevents replay on timeout
+        if (!uid || Date.now() > expiresAt) {
+            return res.redirect('https://bitcoineducation.quest/#explore?strava=error-expired-state');
         }
 
         const client_id = process.env.STRAVA_CLIENT_ID;

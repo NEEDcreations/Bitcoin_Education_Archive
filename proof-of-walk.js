@@ -81,17 +81,43 @@ window.renderProofOfWalk = function() {
 };
 
 function renderPOWConnect() {
-    const stateUrl = encodeURIComponent(auth.currentUser.uid);
-    // Standard OAuth URL — must link to strava.com/oauth/authorize per Brand Guidelines
-    const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${STRAVA_REDIRECT_URI}&approval_prompt=force&scope=read,activity:read_all&state=${stateUrl}`;
-    
-    document.getElementById('pow-ui-state').innerHTML = `
-        <a href="${authUrl}" style="display:inline-block;margin-bottom:12px;"><img src="https://assets.bitcoineducation.quest/images/strava/btn_connect_orange.svg" alt="Connect with Strava" style="height:48px;"></a>
+    const el = document.getElementById('pow-ui-state');
+    if (!el) return;
+
+    // Show connect button — clicking it fetches a server-side nonce first (CSRF protection)
+    // so that `state=` is never a raw uid that an attacker can forge.
+    el.innerHTML = `
+        <button id="pow-connect-btn" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;padding:0;box-shadow:none;">
+            <img src="https://assets.bitcoineducation.quest/images/strava/btn_connect_orange.svg" alt="Connect with Strava" style="height:48px;display:block;">
+        </button>
         <br>
         <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;margin-top:4px;display:inline-block;box-shadow:none;">Download Strava</a>
         <div style="font-size:0.7rem;color:#666;margin-top:16px;">We only read your activity distances to award points. No GPS, routes, or personal data is stored. <a href="#pow-support" style="color:#fc4c02;">Learn more</a></div>
         <div style="margin-top:12px;"><a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="https://assets.bitcoineducation.quest/images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:24px;opacity:0.7;"></a></div>
     `;
+
+    document.getElementById('pow-connect-btn').addEventListener('click', async function() {
+        this.disabled = true;
+        this.style.opacity = '0.6';
+        try {
+            // Fetch a server-issued nonce — binds this OAuth flow to the current uid server-side
+            const stravaInitAuth = firebase.functions().httpsCallable('stravaInitAuth');
+            const result = await stravaInitAuth();
+            const nonce = result.data && result.data.nonce;
+            if (!nonce) throw new Error('No nonce returned');
+            // Build OAuth URL with nonce as state — NOT the raw uid
+            const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(STRAVA_REDIRECT_URI)}&approval_prompt=force&scope=read,activity:read_all&state=${encodeURIComponent(nonce)}`;
+            window.location.href = authUrl;
+        } catch (err) {
+            console.error('[POW] stravaInitAuth failed:', err);
+            this.disabled = false;
+            this.style.opacity = '1';
+            if (document.getElementById('pow-ui-state')) {
+                document.getElementById('pow-ui-state').insertAdjacentHTML('beforeend',
+                    '<p style="color:red;font-size:0.8rem;margin-top:8px;">Failed to start Strava connect. Try again.</p>');
+            }
+        }
+    });
 }
 
 function renderPOWDashboard(stravaData) {
