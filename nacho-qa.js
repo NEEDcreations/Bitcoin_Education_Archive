@@ -4872,7 +4872,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
                         callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
                     } else {
                         nachoRemember(q, aiAnswer);
-                        callback({ type: 'ai+kb', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
+                        callback({ type: 'ai+kb', answer: escapeHtml(aiAnswer) + disclaimer, channel: ch, channelName: chName });
                     }
                 } else {
                     nachoRemember(q, kbMatch.answer);
@@ -4897,7 +4897,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
                 if (!isDeflection) {
                     // Maxi AI answered fine — use it
                     nachoRemember(q, aiAnswer);
-                    callback({ type: 'ai', answer: aiAnswer + disclaimer });
+                    callback({ type: 'ai', answer: escapeHtml(aiAnswer) + disclaimer });
                     return;
                 }
             }
@@ -4911,7 +4911,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
                         var convoDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|i don.t think i should/i.test(convoLower);
                         if (!convoDeflection) {
                             nachoRemember(q, convoAnswer);
-                            callback({ type: 'ai', answer: convoAnswer });
+                            callback({ type: 'ai', answer: escapeHtml(convoAnswer) });
                             return;
                         }
                     }
