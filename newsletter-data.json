@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-01T20:00:50.142Z",
+  "updated": "2026-08-02T00:01:02.578Z",
   "news": [
+    {
+      "date": "Aug 1, 2026",
+      "title": "REVEALED: The Reversal Signal That Always Precedes Bitcoin Pumps",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/jxpfXKFLLa4",
+      "source": "lukemikic"
+    },
     {
       "date": "Aug 1, 2026",
       "title": "BREAKING: Michael Saylor Just Quietly CONFIRMED Their Bitcoin Strategy Has CHANGED! (PREPARE NOW)",
@@ -10,17 +17,10 @@
     },
     {
       "date": "Aug 1, 2026",
-      "title": "Stanley Druckenmiller CONFIRMED: 'I Don't Own Bitcoin But I Should'",
+      "title": "Self-Custody Your Bitcoin: Corporate Miners Are Capitulating",
       "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/yWfxpY-4uiM",
+      "link": "https://www.youtube.com/shorts/Gn7CE43vhuo",
       "source": "lukemikic"
-    },
-    {
-      "date": "Aug 1, 2026",
-      "title": "Russian decree bans crypto mining across Moscow region through 2032",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/post/410345/russian-decree-bans-crypto-mining-across-moscow-region-through-2032?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
     }
   ]
 }
