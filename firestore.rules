@@ -632,16 +632,37 @@ service cloud.firestore {
       // Scores and correct counts are derived from answers client-side; the score fields
       // are written by the resolveRound logic which runs in the snapshot listener.
       // Forfeit fields (forfeitedBy, forfeitReason) are written on manual leave.
+      // Scores and correct counts are owned by the pvpResolveRound CF trigger.
+      // Clients may only write: own answers, flow fields (advance), heartbeats, self-forfeit.
+      // Clients may NOT set status=finished/question_result or touch opponent answers.
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
+                    // Field set is still bounded
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly([
-                         'player1', 'player2',
-                         'status', 'currentQ', 'questionWinner', 'questionStartedAt', 'questions',
-                         'player1LastSeen', 'player2LastSeen',
-                         'forfeitedBy', 'forfeitReason'
-                       ]);
+                       .hasOnly(['player1', 'player2',
+                                 'status', 'currentQ', 'questionWinner', 'questionStartedAt',
+                                 'questions',
+                                 'player1LastSeen', 'player2LastSeen',
+                                 'forfeitedBy', 'forfeitReason'])
+                    // Scores/correct are immutable from clients — CF (admin) owns them
+                    && request.resource.data.player1.score   == resource.data.player1.score
+                    && request.resource.data.player1.correct == resource.data.player1.correct
+                    && request.resource.data.player2.score   == resource.data.player2.score
+                    && request.resource.data.player2.correct == resource.data.player2.correct
+                    // Clients can only set status to 'active' or 'forfeit'
+                    // 'finished' and 'question_result' are written exclusively by CF
+                    && (request.resource.data.status == resource.data.status
+                        || request.resource.data.status == 'active'
+                        || request.resource.data.status == 'forfeit')
+                    // Forfeit: forfeitedBy must be the requesting player
+                    && (!request.resource.data.keys().hasAny(['forfeitedBy'])
+                        || request.resource.data.forfeitedBy == request.auth.uid)
+                    // Each player can only write their own answers array
+                    && (resource.data.player1.uid == request.auth.uid
+                        || request.resource.data.player1.answers == resource.data.player1.answers)
+                    && (resource.data.player2.uid == request.auth.uid
+                        || request.resource.data.player2.answers == resource.data.player2.answers);
     }
 
     // =============================================
@@ -1178,18 +1199,46 @@ service cloud.firestore {
     // Poll Quest votes — anyone can read, signed-in users can write
     match /poll_votes/{pollId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      // pollId must be alphanumeric/safe; field schema locked; voters[0] must be self
+      allow create: if request.auth != null
+                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
+                    && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
+                    && request.resource.data.votes is list
+                    && request.resource.data.votes.size() == 4
+                    && request.resource.data.voters is list
+                    && request.resource.data.voters.size() == 1
+                    && request.resource.data.voters[0] == request.auth.uid;
+      // votes can only increment (no overwrite); voters grows by exactly 1 = self
       allow update: if request.auth != null
-        && request.resource.data.keys().hasAll(['votes', 'lastUpdated'])
-        && request.resource.data.votes is list;
+                    && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
+                    && request.resource.data.votes is list
+                    && request.resource.data.votes.size() == 4
+                    && request.resource.data.votes[0] >= resource.data.votes[0]
+                    && request.resource.data.votes[1] >= resource.data.votes[1]
+                    && request.resource.data.votes[2] >= resource.data.votes[2]
+                    && request.resource.data.votes[3] >= resource.data.votes[3]
+                    && request.resource.data.voters is list
+                    && request.resource.data.voters.size() == resource.data.voters.size() + 1
+                    && request.resource.data.voters.hasAll([request.auth.uid])
+                    && request.resource.data.question == resource.data.question
+                    && request.resource.data.pollId   == resource.data.pollId;
     }
 
     // Poll cumulative stats (all-time per question) — read public, increment only
     match /poll_cumulative/{pollId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
+                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question']);
+      // All numeric fields are monotonically increasing — can never write fake high counts
       allow update: if request.auth != null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question']);
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
+                    && request.resource.data.total >= resource.data.get('total', 0)
+                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
+                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
+                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
+                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0);
     }
 
     // Trivia cumulative stats (all-time per question) — read public, increment only

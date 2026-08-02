@@ -40,6 +40,88 @@ const BONUS_MINUTES_PER_POINT = 3;
 const POINTS_TO_ACTIVATE = 21;
 
 // Point values by source
+// Server-side badge catalog — must mirror badges.js BADGE_DEFS ids
+const VALID_BADGE_IDS = new Set([
+  'all_certs','archive_builder_t','arena_champion_t','article_1','article_10','article_5',
+  'asic_mode_t','audiophile_t','beats_100_plays','beats_200_plays','beats_500_plays',
+  'beats_50_plays','beats_comment_1','beats_first_listen','beats_liked_10','beats_liked_50',
+  'beats_maestro_t','bio_author','bitcoin_cal_hero_t','block_250','block_solver',
+  'bookmarks_1','bookmarks_10','bookworm','century_spinner_t','cert_double','cert_scholar',
+  'cert_tech','challenge_master_t','chancellor','chat_10','chat_100','chat_1000','chat_200',
+  'chat_25','chat_50','chat_500','chat_first','chat_immortal_t','chat_legend',
+  'chat_lurker_10','chat_lurker_100','chat_lurker_5','chat_lurker_50','chat_lurker_500',
+  'chat_streak_3','chat_streak_30','chat_streak_7','combo_legend','combo_mega','combo_trio',
+  'community_darling','community_hero_t','community_pillar_t','daily_1','daily_10',
+  'daily_100','daily_25','daily_5','daily_50','daily_triple_1','daily_triple_30',
+  'daily_triple_365','daily_triple_7','daily_triple_90','democracy_maxi',
+  'diamond_hands_100_t','diamond_hands_set_t','dj_25','dj_5','dj_50','dj_first',
+  'dj_legend_t','dj_listener','dj_listener_100','dj_listener_50','dj_songs_10',
+  'dj_songs_100','dj_songs_50','dm_10','dm_100','dm_25','dm_buddy','dm_first',
+  'double_scholar','dragon_slayer','early_bird','experienced_pro','explorer_10',
+  'explorer_100','explorer_25','explorer_5','explorer_50','explorer_all','favor_champion_t',
+  'favs_10','favs_25','first_channel','first_purchase','first_save','flex_all_once',
+  'flex_athlete','flex_committed','flex_legend','flex_legend_t','flex_rookie','forum_10',
+  'forum_100','forum_25','forum_5','forum_50','forum_first','forum_legend_t','forum_reply_1',
+  'forum_reply_10','foundation_builder','full_stack_human_t','fun_bitcoin_birthday',
+  'fun_friday','fun_halving_day','fun_midnight','fun_new_year','fun_pi_day','fun_weekend',
+  'fun_whitepaper_day','genesis_block','ghost_mode','global_citizen','golden_nonce_t',
+  'grand_scholar','hall_of_fame','hall_of_fame_t','hash_god','hash_lord','hodler_supreme',
+  'irl_attend_1','irl_attend_5','irl_host','irl_host_10','irl_host_5','irl_set_t',
+  'jack_of_all','jack_of_all_t','lb_lurker_10','lb_lurker_100','lb_lurker_5','lb_lurker_50',
+  'lb_lurker_500','legend_mode_t','librarian','lightning_address_set','lightning_lord_t',
+  'lightning_setup','lq_bitcoin_only','lq_graduate','lq_lightning','lq_mining','lq_nodes',
+  'lq_privacy','lq_scarcity','lq_self_custody','lq_what_is_bitcoin','market_browse',
+  'market_listed_1','market_listed_10','market_listed_5','market_message','market_saved_5',
+  'master_miner_t','nacho_asked_10','nacho_asked_100','nacho_bestie','nacho_chatterbox',
+  'nacho_dressed','nacho_eli5','nacho_quester','nacho_whisper','nachos_bestie_t',
+  'nachos_confidant','night_owl','nostradamus_t','poll_10','poll_100','poll_50','poll_first',
+  'pow_first_step','pow_marathoner','pow_streak_3','pow_streak_7','pow_streak_30',
+  'pow_km_10','pow_km_50','pow_km_100','pow_km_500','pow_km_1000','pow_km_5000',
+  'pow_set_t','pow_titan_t','precision_forecaster_t','predict_1','predict_10','predict_50',
+  'predict_accuracy_70','predict_correct_100','predict_correct_25','predict_correct_5',
+  'predict_correct_50','predict_streak_10','predict_streak_3','producer_1','producer_10',
+  'profile_curious','profile_explorer_10','profile_explorer_100','profile_explorer_25',
+  'profile_explorer_5','profile_explorer_50','proof_of_pain','pvp_100','pvp_25','pvp_5',
+  'pvp_50','pvp_first','pvp_legend','pvp_played_1','pvp_played_10','pvp_played_50',
+  'pvp_win_streak_3','pvp_win_streak_5','quest_1','quest_10','quest_100','quest_25',
+  'quest_3','quest_5','quest_50','quest_legend','raid_10','raid_100','raid_25','raid_5',
+  'raid_50','raid_boss_slayer','raid_boss_slayer_10','raid_boss_slayer_5','raid_first',
+  'raid_warlord','raid_winner','react_10','react_100','react_200','react_5','react_50',
+  'react_500','reaction_god_t','referral_1','referral_10','referral_100','referral_25',
+  'referral_5','referral_50','referred','regional_leader','sat_hoarder_t','sat_slinger',
+  'satoshi_scholar_t','satoshis_chosen','satoshis_cipher','satoshis_cipher_t',
+  'satoshis_covenant','satoshis_covenant_t','satoshis_disciple','satoshis_ghost',
+  'satoshis_ghost_t','satoshis_revenge_t','satoshis_vendetta_t','sats_10k','sats_1k',
+  'sats_21k','sats_5k','sats_first','scene_regular_t','set_beats_complete',
+  'set_builder_complete','set_daily_complete','set_explorer_complete','set_fun_complete',
+  'set_irl_complete','set_lightning_complete','set_miner_complete','set_pow_complete',
+  'set_profile_complete','set_pvp_complete','set_scholar_complete','set_social_complete',
+  'set_spin_complete','set_streak_complete','set_tctv_complete','set_trails_complete',
+  'set_trifecta_complete','sf_100000_hashes','sf_10000_hashes','sf_1000_hashes',
+  'sf_100_hashes','sf_10_hashes','sf_500_hashes','sf_50_hashes','sf_block_solver',
+  'sf_contributor','sf_contributor_10','sf_first_hash','sf_low_hash','sf_lucky_1',
+  'sf_lucky_10','sf_lucky_100','sf_lucky_1000','sf_lucky_5','sf_lucky_50','sf_ultra_low',
+  'sf_unlucky_1','sf_unlucky_10','sf_unlucky_100','sf_unlucky_1000','sf_unlucky_5',
+  'sf_unlucky_50','sovereign_individual','spin_1','spin_100','spin_30','spin_7',
+  'spin_closet_1','spin_closet_5','spin_jackpot','spin_set_t','spin_streak_14',
+  'spin_streak_30','spin_streak_7','staff_writer_t','story_begun','story_complete',
+  'story_halfway','story_master_t','streak_100','streak_14','streak_200','streak_21',
+  'streak_3','streak_30','streak_365','streak_60','streak_7','summit_conqueror_t',
+  'super_fan_t','super_spreader_t','tctv_antenna_wizard','tctv_binge_watcher',
+  'tctv_channel_hopper','tctv_couch_king','tctv_couch_potato','tctv_dial_spinner',
+  'tctv_remote_warrior','tctv_satellite','tctv_signal_seeker','tctv_timechain_surfer',
+  'tctv_tuned_in','the_archive','the_archivist_t','the_completionist','the_devoted',
+  'the_devotee','the_hodler','the_long_walker','the_satellite','the_viral_plebian',
+  'time_traveler','timechain_surfer','timechain_veteran_t','tip_10','tip_first',
+  'tip_magnet','tip_magnet_t','tip_received_1','tip_received_50','tip_sats_10k',
+  'tip_whale','to_the_moon','trail_all','trail_blazer_t','trail_double','trail_master',
+  'trail_meadow','trail_meadow_fast','trail_mountain','trail_perfectionist','trail_revisit',
+  'trail_speed_3','trail_started','trail_summit','trifecta_god_t','trifecta_legend',
+  'trivia_correct_1','trivia_correct_10','trivia_correct_100','trivia_correct_30',
+  'trivia_first','trivia_streak_30','trivia_streak_7','trivia_titan','twenty_one_million',
+  'unstoppable_pvp_t','vinyl_master','weekly_hero','wheel_addict_t','world_traveler_t',
+]);
+
 const POINT_VALUES = {
   'daily_all_three': 1,
   'level_up': 1,
@@ -235,9 +317,15 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
 
   // Server-side validation for badge_earned
   if (source === 'badge_earned') {
-    // detail should be a badge identifier — just sanitize length
-    if (!detail || typeof detail !== 'string' || detail.length > 100) {
+    if (!detail || typeof detail !== 'string') {
       throw new functions.https.HttpsError('invalid-argument', 'Invalid badge detail.');
+    }
+    const sanitizedBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
+    if (!VALID_BADGE_IDS.has(sanitizedBadge)) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `Unknown badge id: ${sanitizedBadge}`
+      );
     }
   }
 

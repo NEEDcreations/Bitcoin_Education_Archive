@@ -7423,3 +7423,8 @@ exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
     await db.collection('announcements').add(msgData);
     return { ok: true };
 });
+
+
+// ── PVP Round Resolution (server-side, tamper-proof) ────────────
+const { pvpResolveRound } = require('./src/pvpResolve');
+exports.pvpResolveRound = pvpResolveRound;
