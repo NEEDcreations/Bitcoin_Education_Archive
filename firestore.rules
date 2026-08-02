@@ -97,7 +97,14 @@ service cloud.firestore {
                         || request.resource.data.equippedBadge == ''
                         || (request.resource.data.equippedBadge is string
                             && request.resource.data.equippedBadge.size() <= 50
-                            && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')));
+                            && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')))
+                    // XSS prevention: country must be valid country-name chars
+                    && (!('country' in request.resource.data)
+                        || request.resource.data.country == ''
+                        || (request.resource.data.country is string
+                            && request.resource.data.country.size() >= 2
+                            && request.resource.data.country.size() <= 60
+                            && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")));
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
       // create after delete could re-seed with anything). Server (Admin SDK) can still delete.

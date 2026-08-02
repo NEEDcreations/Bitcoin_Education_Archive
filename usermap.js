@@ -102,7 +102,7 @@ function _flagImg(country, size) {
         var abbr = country.substring(0, 2).toUpperCase();
         return '<span style="font-size:0.65rem;font-weight:700;color:var(--text-faint);display:inline-block;width:' + sz + 'px;text-align:center;">' + abbr + '</span>';
     }
-    return '<img src="https://flagcdn.com/' + iso + '.svg" width="' + sz + '" height="' + Math.round(sz * 0.75) + '" alt="' + country + '" title="' + country + '" style="border-radius:2px;vertical-align:middle;display:inline-block;" onerror="this.outerHTML=\'<span style=font-size:0.65rem;font-weight:700>' + iso.toUpperCase() + '</span>\'">';
+    return '<img src="https://flagcdn.com/' + iso + '.svg" width="' + sz + '" height="' + Math.round(sz * 0.75) + '" alt="' + escapeHtml(country) + '" title="' + escapeHtml(country) + '" style="border-radius:2px;vertical-align:middle;display:inline-block;" onerror="this.outerHTML=\'<span style=font-size:0.65rem;font-weight:700>' + iso.toUpperCase() + '</span>\'">';
 }
 
 /* ───────────────── Flag tap tooltip ───────────────── */
@@ -264,9 +264,9 @@ function _renderMap(el, counts, firstSeen) {
         topN.forEach(function(c) {
             var n = counts[c] || 0;
             var barW = Math.max(8, Math.round((n / maxCount) * 40));
-            var label = c + ': ' + n + ' user' + (n !== 1 ? 's' : '');
+            var label = escapeHtml(c) + ': ' + n + ' user' + (n !== 1 ? 's' : '');
             var isNew = firstSeen[c] && (Date.now() - firstSeen[c]) < _NEW_COUNTRY_MS;
-            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;position:relative;" title="' + label + '" onclick="window._umShowFlagTip(this,\'' + label.replace(/'/g,"\\'\\'")+'\'\')">';
+            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;position:relative;" title="' + label + '" data-tip="' + label + '" onclick="window._umShowFlagTip(this,this.getAttribute(\'data-tip\'))">';
             html += _flagImg(c, 24);
             if (isNew) html += '<span style="font-size:0.55rem;font-weight:900;color:#f97316;text-transform:uppercase;letter-spacing:0.03em;line-height:1;">NEW</span>';
             html += '<div style="width:' + barW + 'px;height:3px;background:' + (isNew ? '#f97316' : 'var(--accent)') + ';border-radius:2px;opacity:0.7;min-width:8px;"></div>';
@@ -284,9 +284,9 @@ function _renderMap(el, counts, firstSeen) {
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
         remaining.forEach(function(c) {
             var n = counts[c] || 0;
-            var label = c + ': ' + _fmt(n) + ' user' + (n !== 1 ? 's' : '');
+            var label = escapeHtml(c) + ': ' + _fmt(n) + ' user' + (n !== 1 ? 's' : '');
             var isNew = firstSeen[c] && (Date.now() - firstSeen[c]) < _NEW_COUNTRY_MS;
-            html += '<span title="' + label + '" style="cursor:pointer;display:inline-block;position:relative;text-align:center;" onclick="window._umShowFlagTip(this,\'' + label.replace(/'/g,"\\'\\'")+'\'\')">' + _flagImg(c, 20) + (isNew ? '<span style="display:block;font-size:0.5rem;font-weight:900;color:#f97316;text-transform:uppercase;leading-trim:both;">NEW</span>' : '') + '</span>';
+            html += '<span title="' + label + '" data-tip="' + label + '" style="cursor:pointer;display:inline-block;position:relative;text-align:center;" onclick="window._umShowFlagTip(this,this.getAttribute(\'data-tip\'))">' + _flagImg(c, 20) + (isNew ? '<span style="display:block;font-size:0.5rem;font-weight:900;color:#f97316;text-transform:uppercase;leading-trim:both;">NEW</span>' : '') + '</span>';
         });
         html += '</div></div>';
         html += '<button onclick="var m=document.getElementById(\'umMoreCountries\');m.style.display=m.style.display===\'none\'?\'block\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ ' + remaining.length + ' more countries\':\'▲ hide\'" style="background:none;border:none;color:var(--text-faint);font-size:0.72rem;cursor:pointer;padding:0;font-family:inherit;margin-bottom:10px;">▼ ' + remaining.length + ' more countries</button>';
