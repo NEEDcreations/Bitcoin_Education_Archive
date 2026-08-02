@@ -147,7 +147,6 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "🌐 Purging Cloudflare cache..."
 
-    # Use env vars, fall back to hardcoded (for backward compat)
     if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
         echo "⚠️ CF_API_TOKEN or CF_ZONE_ID not set. Skipping cache purge."
         echo "   Set them with: export CF_API_TOKEN=... && export CF_ZONE_ID=..."

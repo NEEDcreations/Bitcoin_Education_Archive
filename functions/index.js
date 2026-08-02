@@ -56,9 +56,7 @@ function requireAdmin(req, res) {
         res.status(500).json({ error: 'server misconfiguration' });
         return false;
     }
-    // req.query.t can be an array if attacker sends ?t=a&t=b — always coerce to string
-    const rawQueryToken = req.query.t;
-    const provided = String(req.headers['x-admin-token'] || (Array.isArray(rawQueryToken) ? rawQueryToken[0] : rawQueryToken) || '');
+    const provided = String(req.headers['x-admin-token'] || '');
     // Constant-time comparison to prevent timing attacks
     const expectedBuf = Buffer.from(expected);
     const providedBuf = Buffer.alloc(expectedBuf.length);
@@ -79,8 +77,8 @@ async function verifyTurnstile(token, remoteip) {
     if (!token) return false;
     const secret = process.env.TURNSTILE_SECRET_KEY;
     if (!secret) {
-        console.warn('[Turnstile] TURNSTILE_SECRET_KEY not set — skipping verification');
-        return true; // fail-open only if secret is missing (config issue)
+        console.error('[Turnstile] TURNSTILE_SECRET_KEY not set — failing closed');
+        return false;
     }
     try {
         const params = new URLSearchParams({ secret, response: token });
@@ -116,7 +114,7 @@ const FAUCET = {
 };
 
 // Generate TOTP secret and QR code for user
-exports.totpSetup = functions.https.onCall(async (data, context) => {
+exports.totpSetup = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -139,7 +137,7 @@ exports.totpSetup = functions.https.onCall(async (data, context) => {
 });
 
 // Verify TOTP code and enable it
-exports.totpVerify = functions.https.onCall(async (data, context) => {
+exports.totpVerify = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
 
@@ -190,7 +188,7 @@ exports.totpVerify = functions.https.onCall(async (data, context) => {
 });
 
 // Validate TOTP code on sign-in
-exports.totpCheck = functions.https.onCall(async (data, context) => {
+exports.totpCheck = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
 
@@ -238,7 +236,7 @@ exports.totpCheck = functions.https.onCall(async (data, context) => {
 });
 
 // Disable TOTP
-exports.totpDisable = functions.https.onCall(async (data, context) => {
+exports.totpDisable = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Enter your current code to disable');
 
@@ -277,7 +275,7 @@ exports.totpDisable = functions.https.onCall(async (data, context) => {
 });
 
 // Check if user has TOTP enabled
-exports.totpStatus = functions.https.onCall(async (data, context) => {
+exports.totpStatus = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -454,7 +452,7 @@ exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' },
 // Nostr Sign-In (NIP-07)
 // Verify Schnorr signature and issue Firebase custom token
 // =============================================
-exports.nostrAuth = functions.https.onCall(async (data, context) => {
+exports.nostrAuth = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     const { pubkey, sig, event } = data;
 
     if (!pubkey || !sig || !event) {
@@ -609,7 +607,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 // =============================================
 
 // Step 1: Generate a challenge (k1) and return LNURL
-exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
+exports.lnAuthChallenge = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     // Rate limiting: max 10 challenges per IP per hour (atomic transaction)
     const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (lnIP !== 'unknown') {
@@ -773,7 +771,7 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
 });
 
 // Step 3: Client polls this to check if wallet completed auth
-exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
+exports.lnAuthVerify = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     const { k1 } = data;
     if (!k1) throw new functions.https.HttpsError('invalid-argument', 'Missing k1');
 
@@ -1145,7 +1143,7 @@ exports.nachoFeedbackReport = onSchedule({
 // Runs when a referred user meets qualifications
 // Uses admin SDK to update the referrer's document
 // =============================================
-exports.verifyReferral = functions.https.onCall(async (data, context) => {
+exports.verifyReferral = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const referredUid = context.auth.uid;
@@ -1294,7 +1292,7 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
 // AUDIT FIX: Server-Side Daily Limit Check
 // Spin wheel, scholar exam, quest attempts
 // =============================================
-exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
+exports.checkDailyLimit = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -1355,7 +1353,7 @@ exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
 // AUDIT FIX: Forum Content Moderation
 // Server-side profanity filter with leetspeak detection
 // =============================================
-exports.moderateContent = functions.https.onCall(async (data, context) => {
+exports.moderateContent = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const text = (data.text || '').trim();
@@ -1410,7 +1408,7 @@ exports.moderateContent = functions.https.onCall(async (data, context) => {
 // [C1] SECURE TELEGRAM BRIDGE
 // Bridge secret lives here, NOT in client code
 // =============================================
-exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
+exports.bridgeToTelegram = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing content');
@@ -1497,10 +1495,16 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
             try {
                 // The caller should pass the Firestore message ID as data.messageId
                 if (data.messageId) {
-                    await db.collection('global_chat').doc(data.messageId).update({
-                        telegramMsgId: json.telegramMsgId.toString(),
-                        telegramChatId: json.chatId.toString()
-                    });
+                    const msgRef = db.collection('global_chat').doc(data.messageId);
+                    const msgDoc = await msgRef.get();
+                    if (!msgDoc.exists || msgDoc.data().uid !== uid) {
+                        console.warn('[BRIDGE] telegramMsgId stamp rejected: caller does not own message', data.messageId);
+                    } else {
+                        await msgRef.update({
+                            telegramMsgId: json.telegramMsgId.toString(),
+                            telegramChatId: json.chatId.toString()
+                        });
+                    }
                 }
             } catch (e) {
                 console.log('[BRIDGE] Could not store telegramMsgId:', e.message);
@@ -1515,7 +1519,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
 });
 
 // ===== SATS FAUCET - claimSats Cloud Function =====
-exports.claimSats = functions.https.onCall(async (data, context) => {
+exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     // 1. Must be authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
@@ -1622,7 +1626,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             console.log('[FAUCET] Resolved Lightning Address ' + lnAddrRaw + ' → invoice for ' + lnAddrAmount + ' sats (callback domain: ' + cbUrl.hostname + ')');
         } catch (e) {
             console.error('[FAUCET] Lightning Address resolution failed:', e.message);
-            return { success: false, error: 'Could not resolve Lightning Address: ' + (e.message || 'unknown error') };
+            return { success: false, error: 'Could not resolve Lightning Address. Check the address and try again.' };
         }
     }
 
@@ -1639,7 +1643,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
     try {
         decoded = bolt11.decode(invoice);
     } catch(e) {
-        return { success: false, error: 'Invalid Lightning invoice format: ' + (e.message || 'decode failed') };
+        return { success: false, error: 'Invalid Lightning invoice format.' };
     }
     const amount = Math.floor((decoded.millisatoshis || 0) / 1000);
     if (!amount || amount <= 0) {
@@ -2033,7 +2037,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         console.error('[FAUCET] Payment error:', e.message);
         // Payment failed - rollback the points deduction
         await _rollbackClaim(uid, amount, today);
-        return { success: false, error: 'Payment failed: ' + (e.message || 'Unknown error') };
+        return { success: false, error: 'Payment failed. Please try again.' };
     }
 });
 
@@ -2069,7 +2073,7 @@ async function _rollbackClaim(uid, amount, today) {
 // ===== SERVER-SIDE POINTS AWARD (Fix #1, #2, #5) =====
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
-exports.awardPoints = functions.https.onCall(async (data, context) => {
+exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -2857,15 +2861,15 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             return { success: false, error: 'Daily tickets already claimed today.', dailyActionCapped: true };
         }
         console.error('[AWARD_POINTS_TRANS_ERR]', e);
-        return { success: false, error: e.message || 'Internal error' };
+        return { success: false, error: 'Internal error' };
     }
 
     // (dead-code block below removed 2026-04-16 - was a leftover from a pre-refactor commit that prevented Cloud Functions deploys)
 });
 
 // ===== FAUCET ADMIN - getFaucetStats =====
-exports.getFaucetStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(context.auth.token.email) === -1) {
+exports.getFaucetStats = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const today = new Date().toISOString().split('T')[0];
@@ -2879,17 +2883,18 @@ exports.getFaucetStats = functions.https.onCall(async (data, context) => {
         walletBalance = Math.floor(bal.balance / 1000);
     } catch(e) { walletBalance = -1; }
 
+    const { NWC_URL: _redacted, ...safeLimits } = FAUCET;
     return {
         today: statsDoc.exists ? statsDoc.data() : { totalPaid: 0, claimCount: 0 },
         paused: configDoc.exists ? !!configDoc.data().paused : false,
         walletBalance: walletBalance,
-        limits: FAUCET
+        limits: safeLimits
     };
 });
 
 // ===== FAUCET ADMIN - toggleFaucet =====
-exports.toggleFaucet = functions.https.onCall(async (data, context) => {
-    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(context.auth.token.email) === -1) {
+exports.toggleFaucet = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const paused = !!data.paused;
@@ -2898,8 +2903,8 @@ exports.toggleFaucet = functions.https.onCall(async (data, context) => {
 });
 
 // ===== ONE-TIME: Backfill bestStreak for all users =====
-exports.backfillBestStreak = functions.https.onCall(async (data, context) => {
-    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(context.auth.token.email) === -1) {
+exports.backfillBestStreak = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const usersSnap = await db.collection('users').get();
@@ -2986,9 +2991,9 @@ exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: '
 });
 
 // ---- One-time backfill global community stats ----
-exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
+exports.backfillGlobalStats = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     // Admin only
-    if (!context.auth || (['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(context.auth.token.email) === -1)) {
+    if (!context.auth || (!context.auth.token.admin)) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
 
@@ -3082,7 +3087,7 @@ exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
 // ===== SERVER-SIDE DAILY VISIT TRACKING =====
 // Handles streak, totalVisits, bestStreak, orangeTickets, streakFreezes
 // All these fields are blocked from client writes in Firestore rules
-exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
+exports.recordDailyVisit = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -3187,12 +3192,12 @@ exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
         return { success: true, ...result };
     } catch (e) {
         console.error('[VISIT] recordDailyVisit failed for ' + uid + ':', e.message);
-        return { success: false, error: e.message || 'Visit recording failed' };
+        return { success: false, error: 'Visit recording failed' };
     }
 });
 
 // ---- Poll Vote (server-side with IP + fingerprint rate limiting) ----
-exports.pollVote = functions.https.onCall(async (data, context) => {
+exports.pollVote = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     const { side, fingerprint, satsCount, bitsCount } = data || {};
 
     // Support batched votes: satsCount + bitsCount, or single side vote (backward compat)
@@ -3257,7 +3262,7 @@ exports.pollVote = functions.https.onCall(async (data, context) => {
 });
 
 // ---- PVP Answer Submission (server-side validation) ----
-exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
+exports.pvpSubmitAnswer = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { matchId, questionIndex, answerIndex } = data || {};
@@ -3400,7 +3405,7 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
 });
 
 // ---- Daily Spin (server-side validation + reward) ----
-exports.dailySpin = functions.https.onCall(async (data, context) => {
+exports.dailySpin = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
@@ -3508,7 +3513,7 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
 
 // ── PVP Store Answer Key (called by player-2 matchmaker after client-side match creation) ──
 // Validates that the caller is a player in the match before accepting keys.
-exports.pvpStoreAnswerKey = functions.https.onCall(async (data, context) => {
+exports.pvpStoreAnswerKey = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     const { matchId, keys, keyIndex } = data || {};
     // keys: array of correct-answer integers
@@ -3560,7 +3565,7 @@ exports.pvpStoreAnswerKey = functions.https.onCall(async (data, context) => {
 });
 
 // ── PVP Match Creation (server-side, hides answer keys) ──
-exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
+exports.pvpCreateMatch = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { lobbyDocId, player1, player2, questions } = data || {};
@@ -3659,7 +3664,7 @@ function _pickScholarQuestions(type) {
     return indices; // array of 25 ints into SCHOLAR_BANK[type]
 }
 
-exports.startScholarExam = functions.https.onCall(async (data, context) => {
+exports.startScholarExam = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
@@ -3697,7 +3702,7 @@ exports.startScholarExam = functions.https.onCall(async (data, context) => {
     return { examId, indices };
 });
 
-exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
+exports.gradeScholarExam = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { examId, answers } = data || {};
@@ -3775,7 +3780,7 @@ exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
 });
 
 // ── Quest: Server-Side Grading ──
-exports.startQuest = functions.https.onCall(async (data, context) => {
+exports.startQuest = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { questions, topicKey } = data || {};
@@ -3813,7 +3818,7 @@ exports.startQuest = functions.https.onCall(async (data, context) => {
     return { questId };
 });
 
-exports.gradeQuest = functions.https.onCall(async (data, context) => {
+exports.gradeQuest = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { questId, answers, isRetry } = data || {};
@@ -3936,7 +3941,7 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
 // AUDIT FIX: Secure Certificate Issuance (M-NEW-15)
 // Only issues certificates if user has passed the exam server-side
 // =============================================
-exports.issueCertificate = functions.https.onCall(async (data, context) => {
+exports.issueCertificate = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -4102,10 +4107,10 @@ exports.onUserQuestCompleted = functions.firestore
 // No server trigger needed - would double-count.
 
 // ---- One-shot admin reset for community stats (remove after running) ----
-exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
+exports.resetCommunityStats = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     const email = (context.auth.token.email || '').toLowerCase();
-    if (['needcreations@gmail.com','info.603btc@gmail.com','najemchris8@gmail.com'].indexOf(email) === -1) {
+    if (!context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
 
@@ -4774,7 +4779,7 @@ exports.tctvAggregatePresence = onSchedule({
 // Step 1: generate a server-side CSRF nonce tied to the authenticated uid.
 // Frontend calls this BEFORE redirecting to Strava; uses the returned nonce
 // as `state=` instead of the raw uid so the callback can't be forged.
-exports.stravaInitAuth = functions.https.onCall(async (data, context) => {
+exports.stravaInitAuth = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     const provider = (context.auth.token.firebase || {}).sign_in_provider || '';
     if (provider === 'anonymous') {
@@ -4857,7 +4862,7 @@ exports.stravaAuth = functions.https.onRequest(async (req, res) => {
     }
 });
 
-exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
+exports.syncStravaWalks = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     console.log('[POW] syncStravaWalks called');
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
     const uid = context.auth.uid;
@@ -5144,7 +5149,7 @@ exports.handleTelegramWebhook = handleTelegramReaction;
 exports.setTelegramWebhook = setTelegramWebhook;
 
 // ===== DONATE XP FOR CHARITY =====
-exports.donatePoints = functions.https.onCall(async (data, context) => {
+exports.donatePoints = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in to donate.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Create an account to donate.');
@@ -5268,7 +5273,7 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
 // ===== LEADERBOARD USER SEARCH =====
 // Fetches top users ordered by points, filters by substring match (case-insensitive),
 // returns matched users with their true rank. Supports cursor-based pagination.
-exports.searchUsers = functions.https.onCall(async (data, context) => {
+exports.searchUsers = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const query = ((data.query || '').trim()).toLowerCase();
@@ -5365,7 +5370,7 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
 // POST body: { trackId, amountSats }
 // Returns: { invoices: [{name, split, amountSats, invoice, qr}], totalSats }
 // ================================================================
-exports.v4vSplitRelay = functions.https.onCall(async (data, context) => {
+exports.v4vSplitRelay = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     // SECURITY: auth required — unauthenticated callers could use this as a free SSRF oracle
     // via fetchLnurlInvoice and read internal service responses from the reflected pr field.
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
@@ -5538,7 +5543,7 @@ async function fetchLnurlInvoice(lightningAddress, msats, comment) {
 // ===== BACKFILL DONATION FACTION =====
 // When a user picks their faction for the first time, attribute any charity
 // donations they made under 'no_faction' (or with null faction) to their new faction.
-exports.backfillDonationFaction = functions.https.onCall(async (data, context) => {
+exports.backfillDonationFaction = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Account required.');
@@ -5942,7 +5947,7 @@ exports.monthlyRaffleDraw = functions.pubsub.schedule('0 18 1 * *').timeZone('UT
 // 🧊 FEATURE 5: Spend Orange Tickets for Streak Freezes
 // ══════════════════════════════════════════════════════════════════════
 
-exports.spendTicketsForFreeze = functions.https.onCall(async (data, context) => {
+exports.spendTicketsForFreeze = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot purchase freezes');
@@ -5997,8 +6002,8 @@ function _getCurrentWeekKey() {
 }
 
 // Seed the first community challenge
-exports.seedWeeklyChallenge = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'].includes(context.auth.token.email)) {
+exports.seedWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const weekKey = data.weekKey || _getCurrentWeekKey();
@@ -6020,7 +6025,7 @@ exports.seedWeeklyChallenge = functions.https.onCall(async (data, context) => {
 });
 
 // Increment community challenge progress (called from client - quiz completion, trivia correct)
-exports.incrementWeeklyChallenge = functions.https.onCall(async (data, context) => {
+exports.incrementWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     const uid = context.auth.uid;
 
@@ -6102,7 +6107,7 @@ const NOOK_SHOP_ITEMS = {
     'second_rig':       { cost: 25, type: 'consumable', name: 'Second Mining Rig',       gives: { secondRigCharges: 1 } },
 };
 
-exports.spendTickets = functions.https.onCall(async (data, context) => {
+exports.spendTickets = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use the shop');
@@ -6218,7 +6223,7 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
     });
 });
 
-exports.convertPointsToTickets = functions.https.onCall(async (data, context) => {
+exports.convertPointsToTickets = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot convert XP');
@@ -6304,7 +6309,7 @@ exports.convertPointsToTickets = functions.https.onCall(async (data, context) =>
     });
 });
 
-exports.activateHashBooster = functions.https.onCall(async (data, context) => {
+exports.activateHashBooster = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
@@ -6341,7 +6346,7 @@ exports.activateHashBooster = functions.https.onCall(async (data, context) => {
     });
 });
 
-exports.useHintToken = functions.https.onCall(async (data, context) => {
+exports.useHintToken = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use hint tokens');
@@ -6370,7 +6375,7 @@ exports.useHintToken = functions.https.onCall(async (data, context) => {
     });
 });
 
-exports.activateDoubleXP = functions.https.onCall(async (data, context) => {
+exports.activateDoubleXP = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot activate Double XP');
@@ -6414,7 +6419,7 @@ exports.activateDoubleXP = functions.https.onCall(async (data, context) => {
     });
 });
 
-exports.useBonusSpin = functions.https.onCall(async (data, context) => {
+exports.useBonusSpin = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use bonus spins');
@@ -7059,7 +7064,7 @@ exports.tweetSatoshisFavor = tweetSatoshisFavor;
 // ── GIF Search Proxy (Tenor v2) ───────────────────────────────────────────────
 // Proxies Tenor v2 requests server-side so the API key never leaks to the client
 // and no browser-side API activation is required.
-exports.searchGifs = functions.https.onCall(async (data, context) => {
+exports.searchGifs = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     const query = (data.query || '').trim().slice(0, 100);
     const limit = Math.min(Math.max(parseInt(data.limit) || 20, 1), 50);
     if (!query) return { results: [] };
@@ -7343,7 +7348,7 @@ exports.refreshBadgeDistributionHttp = functions.https.onRequest(async (req, res
         res.json({ ok: true, ...result });
     } catch (e) {
         console.error('[BADGE DIST HTTP]', e);
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -7352,7 +7357,7 @@ exports.refreshBadgeDistributionHttp = functions.https.onRequest(async (req, res
 // user (including anonymous) to inject fake "official Nacho" messages with
 // arbitrary markdown links (e.g. phishing "claim your airdrop" links).
 // Rules now set allow create: if false; this function is the only write path.
-exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
+exports.nachoAnnounce = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     // 1. Auth: must be signed in and not anonymous
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');

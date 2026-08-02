@@ -2,6 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Admin helper — uses custom claim, never hardcoded emails ────────────
+    function isAdmin() {
+      return request.auth != null && request.auth.token.get('admin', false) == true;
+    }
+
     // =============================================
     // USERS COLLECTION
     // [AUDIT FIX M-NEW-23] Prevent full profile enumeration and PII exposure
@@ -172,7 +177,7 @@ service cloud.firestore {
     // VISITS COLLECTION
     // =============================================
     match /visits/{visitorId} {
-      allow read: if true;
+      allow read: if request.auth != null && request.auth.uid == visitorId;
       allow create: if request.auth != null
                     && request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
                     && request.resource.data.lastVisit is string
@@ -242,8 +247,7 @@ service cloud.firestore {
       // Mirrors the stats/predictions pattern above.
       allow update, create: if statId == 'global'
                              && request.auth != null
-                             && (request.auth.token.email == 'needcreations@gmail.com'
-                                 || request.auth.token.email == 'info.603btc@gmail.com');
+                             && isAdmin();
       // Per-field +1 increments for non-admin authenticated users.
       // Writes must touch exactly ONE whitelisted field; the value must equal
       // the previous value + 1 (or +1..+5 for watchTimeMinutes — allows small batched TCTV ticks).
@@ -343,8 +347,7 @@ service cloud.firestore {
                     ]));
       // Admin override (your personal email + ops email)
       allow update: if request.auth != null
-                    && (request.auth.token.email == 'needcreations@gmail.com'
-                        || request.auth.token.email == 'info.603btc@gmail.com');
+                    && isAdmin();
     }
 
     // =============================================
@@ -413,11 +416,11 @@ service cloud.firestore {
                        && !(request.auth.uid in request.resource.data.voters)
                       )
                       || resource.data.authorId == request.auth.uid
-                      || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
+                      || isAdmin()
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
     }
 
     // =============================================
@@ -439,11 +442,11 @@ service cloud.firestore {
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters)
                       || resource.data.authorId == request.auth.uid
-                      || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
+                      || isAdmin()
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
     }
 
     // =============================================
@@ -460,7 +463,7 @@ service cloud.firestore {
                         || request.resource.data.imageUrl.matches('^data:image/.*'));
       allow update: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
+                        || isAdmin()
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'saves', 'savedBy'])
                             && request.resource.data.views == resource.data.get('views', 0) + 1
                             && (
@@ -478,7 +481,7 @@ service cloud.firestore {
                         ));
       allow delete: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
     }
 
     // =============================================
@@ -526,7 +529,7 @@ service cloud.firestore {
     // =============================================
     match /reports/{reportId} {
       allow read: if request.auth != null
-                  && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
+                  && isAdmin();
       allow create: if request.auth != null
                     && request.resource.data.reporterUid == request.auth.uid;
     }
@@ -549,7 +552,7 @@ service cloud.firestore {
                             && request.resource.data.link.matches('https://.*')));
       allow update: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
+                        || isAdmin()
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees'])
                             && request.resource.data.attendees.size() == resource.data.get('attendees', []).size() + 1
                             && request.auth.uid in request.resource.data.attendees))
@@ -560,7 +563,7 @@ service cloud.firestore {
                             && request.resource.data.link.matches('https://.*')));
       allow delete: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
     }
 
     // =============================================
@@ -727,7 +730,7 @@ service cloud.firestore {
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
 
       match /comments/{commentId} {
         allow read: if true;
@@ -748,8 +751,7 @@ service cloud.firestore {
       allow read: if true;
       // Only admin can create/update (import script uses Admin SDK)
       allow write: if request.auth != null
-                   && (request.auth.token.email == 'needcreations@gmail.com'
-                       || request.auth.token.email == 'info.603btc@gmail.com');
+                   && isAdmin();
     }
 
     // =============================================
@@ -757,8 +759,7 @@ service cloud.firestore {
     // =============================================
     match /beats_v4v_events/{eventId} {
       allow read: if request.auth != null
-                  && (request.auth.token.email == 'needcreations@gmail.com'
-                      || request.auth.token.email == 'info.603btc@gmail.com');
+                  && isAdmin();
       allow write: if false; // written by Cloud Function only
     }
 
@@ -818,11 +819,11 @@ service cloud.firestore {
                           )
                       )
                       // Admin
-                      || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
+                      || isAdmin()
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
     }
 
     // =============================================
@@ -843,10 +844,10 @@ service cloud.firestore {
                             && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
                             && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                             && request.auth.uid in request.resource.data.voters)
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
     }
 
     // =============================================
@@ -908,8 +909,7 @@ service cloud.firestore {
                        && request.resource.data.djName.size() <= 40)
                       ||
                       // Path 3: admin
-                      (request.auth.token.email == 'needcreations@gmail.com'
-                       || request.auth.token.email == 'info.603btc@gmail.com')
+                      isAdmin()
                     );
 
       // DJ Queue subcollection
@@ -929,7 +929,7 @@ service cloud.firestore {
                       && request.resource.data.uid == request.auth.uid;
         allow delete: if request.auth != null
                       && (request.auth.uid == queueId
-                          || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                          || isAdmin());
       }
     }
 
@@ -949,7 +949,7 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
       // Admin-only delete and full update
       allow delete: if request.auth != null
-                    && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
+                    && isAdmin();
     }
 
     // =============================================
@@ -958,10 +958,12 @@ service cloud.firestore {
     match /global_chat/{msgId} {
       allow read: if true;
       allow create: if (
-                    // Authenticated user messages (including anon with username)
+                    // Authenticated non-anonymous user messages only
                     request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
+                    && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
                     && request.resource.data.text is string
                     && request.resource.data.text.size() >= 1
                     && (request.resource.data.text.size() <= 300
@@ -976,7 +978,7 @@ service cloud.firestore {
                     && request.resource.data.ts == request.time
                     && (request.resource.data.uid == request.auth.uid
                         || ((request.resource.data.uid == 'nacho-bot' || request.resource.data.uid == 'system')
-                            && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')))
+                            && isAdmin()))
                     ) || (
                     // Telegram bridge messages — admin/service account only
                     request.auth != null
@@ -985,7 +987,7 @@ service cloud.firestore {
                     && request.resource.data.text.size() <= 500
                     && request.resource.data.name is string
                     && request.resource.data.uid is string
-                    && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
+                    && isAdmin()
                     );
       // Allow reactions update by any authenticated user (must be a map)
       allow update: if request.auth != null
@@ -994,7 +996,7 @@ service cloud.firestore {
       // Own messages or admin can delete
       allow delete: if request.auth != null
                     && (resource.data.uid == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || isAdmin());
     }
 
     // =============================================
@@ -1015,7 +1017,7 @@ service cloud.firestore {
                     && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy']
                     && (request.resource.data.senderId == request.auth.uid
                         || (request.resource.data.senderId == 'system'
-                            && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')));
+                            && isAdmin()));
       allow update: if request.auth != null
                     && request.auth.uid == resource.data.recipientId;
       allow delete: if request.auth != null
@@ -1044,7 +1046,7 @@ service cloud.firestore {
                     && docId == request.auth.uid
                     && request.resource.data.uid == request.auth.uid;
       allow delete: if request.auth != null
-                    && (docId == request.auth.uid || resource.data.uid == request.auth.uid || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                    && (docId == request.auth.uid || resource.data.uid == request.auth.uid || isAdmin());
     }
 
     // Faucet invoice dedup (Cloud Function only)
@@ -1055,14 +1057,14 @@ service cloud.firestore {
     // Faucet stats (Cloud Function only, admin can read)
     match /faucet_stats/{docId} {
       allow read: if request.auth != null
-                  && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
+                  && isAdmin();
       allow write: if false;
     }
 
     // Faucet config (Cloud Function only, admin can read)
     match /faucet_config/{docId} {
       allow read: if request.auth != null
-                  && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
+                  && isAdmin();
       allow write: if false;
     }
 

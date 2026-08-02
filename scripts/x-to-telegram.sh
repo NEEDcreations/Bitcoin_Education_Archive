@@ -119,10 +119,19 @@ function postToTelegram(text, mediaUrl) {
   });
 }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 (async function() {
   for (var i = 0; i < posts.length; i++) {
     var p = posts[i];
-    var text = '🐦 <b>' + p.creator + '</b>\n\n' + p.title + '\n\n' + p.link;
+    var safeLink = /^https?:\/\//.test(p.link) ? p.link : '';
+    var text = '🐦 <b>' + escapeHtml(p.creator) + '</b>\n\n' + escapeHtml(p.title) + (safeLink ? '\n\n' + safeLink : '');
     var result = await postToTelegram(text, p.mediaUrl);
     console.log('Posted:', p.title.substring(0, 50), '→', JSON.parse(result).ok ? 'OK' : 'FAIL');
     // Rate limit: wait 2s between posts
