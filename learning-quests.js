@@ -623,6 +623,18 @@ window.renderLearningQuestHub = function() {
     var progress = lqGetProgress();
     var passedCount = ALL_SLUGS.filter(function(s) { return progress[s] && progress[s].passed; }).length;
 
+    var _lqFlashTopics = [
+        {name:'Bitcoin Basics',emoji:'₿'},{name:'Security & Storage',emoji:'🔑'},{name:'Lightning Network',emoji:'⚡'},
+        {name:'Mining & Energy',emoji:'⛏️'},{name:'Economics & Money',emoji:'💰'},{name:'History & Culture',emoji:'📜'},
+        {name:'Privacy & Sovereignty',emoji:'🕵️'},{name:'Nodes & P2P',emoji:'📡'},{name:'Wallets & Tools',emoji:'💼'},
+        {name:'Common Myths',emoji:'🚫'},{name:'Austrian Economics',emoji:'🇦🇹'},{name:'Cypherpunk History',emoji:'🔐'},
+        {name:'Bitcoin Governance',emoji:'🏛️'},{name:'Satoshi Nakamoto',emoji:'🦸'},{name:'Global Impact',emoji:'🌍'},
+        {name:'El Salvador & Adoption',emoji:'🇸🇻'},{name:'Technical Deep Dives',emoji:'🔬'}
+    ];
+    var flashChipsHtml = _lqFlashTopics.map(function(t) {
+        return '<button onclick="window._lqLaunchFlashcards(\'' + t.name.replace(/'/g,"\\''") + '\')" style="padding:7px 11px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:20px;color:rgba(255,255,255,0.85);font-size:0.78rem;cursor:pointer;font-family:inherit;font-weight:600;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' + t.emoji + ' ' + t.name + '</button>';
+    }).join('');
+
     var cardsHtml = LQ_TOPICS.map(function(topic) {
         var t = lqGetTopic(topic.slug);
         var statusHtml;
@@ -653,7 +665,14 @@ window.renderLearningQuestHub = function() {
         '<div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-bottom:20px;overflow:hidden;">' +
         '<div style="height:100%;width:' + Math.round(passedCount/8*100) + '%;background:#22c55e;border-radius:3px;transition:width 0.5s ease;"></div>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">' + cardsHtml + '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">' + cardsHtml + '</div>' +
+        '<div style="margin-bottom:12px;">' +
+        '<button onclick="var p=document.getElementById(\'lqFlashPanel\');var open=p.style.display===\'none\';p.style.display=open?\'block\':\'none\';this.querySelector(\'.lqfa\').textContent=open?\'▲\':\'▼\'" style="width:100%;padding:13px 16px;background:rgba(247,147,26,0.08);border:1.5px solid rgba(247,147,26,0.3);border-radius:14px;color:#f7931a;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;">📚 Study Flashcards <span class="lqfa" style="font-size:0.75rem;opacity:0.8;">▼</span></button>' +
+        '<div id="lqFlashPanel" style="display:none;margin-top:8px;padding:14px;background:rgba(247,147,26,0.05);border:1px solid rgba(247,147,26,0.15);border-radius:12px;">' +
+        '<p style="font-size:0.78rem;color:rgba(255,255,255,0.4);margin:0 0 10px 0;">Pick a deck — closes this screen and opens the flashcard study mode:</p>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + flashChipsHtml + '</div>' +
+        '</div>' +
+        '</div>' +
         '<div style="text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.4);padding:12px;background:rgba(255,255,255,0.04);border-radius:12px;">' +
         '🎓 Complete all 8 to earn the 📖 Learning Quest Graduate badge' +
         '</div>' +
@@ -1019,5 +1038,24 @@ if (typeof auth !== 'undefined' && auth) {
         }
     });
 }
+
+// Launch flashcards from the LQ hub — lazy-loads scholar.js if not yet available
+window._lqLaunchFlashcards = function(topicName) {
+    // Close the hub
+    var hub = document.getElementById('lqHub');
+    if (hub) hub.remove();
+
+    function _doLaunch() {
+        if (typeof window.startFlashcards === 'function') {
+            window.startFlashcards(topicName);
+        } else {
+            var s = document.createElement('script');
+            s.src = 'scholar.js?v=20260724_2136';
+            s.onload = function() { if (typeof window.startFlashcards === 'function') window.startFlashcards(topicName); };
+            document.head.appendChild(s);
+        }
+    }
+    setTimeout(_doLaunch, 80);
+};
 
 })();

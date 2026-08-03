@@ -4486,6 +4486,7 @@ const WATCHLIST_UIDS = [
     'VqLiZRbN0LM6bWeYPcjF6zTZJAk2'       // big account B (11k pts)
 ];
 const BLACKLISTED_LN = [
+    'piquantpony23@walletofsatoshi.com',
     'seedyroute27@walletofsatoshi.com'
 ];
 
@@ -4572,18 +4573,19 @@ exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
             });
         } catch (e) {}
 
-        // 3. Scan active users for new uses of blacklisted LN addresses
+        // 3. Scan users for blacklisted LN addresses
         try {
-            const blSnap = await db.collection('giveaway_entries').get();
-            blSnap.forEach(g => {
-                const gd = g.data();
-                const ln = ((gd.lightningAddress || gd.lnAddress || '') + '').toLowerCase().trim();
-                if (ln && BLACKLISTED_LN.includes(ln)) {
-                    out.blacklistedLnHits.push({ uid: g.id.substring(0,8), ln });
-                }
-            });
-            if (out.blacklistedLnHits.length > BLACKLISTED_LN.length) {
-                out.alerts.push(`\ud83d\udea8 ${out.blacklistedLnHits.length} giveaway entries with blacklisted LN addresses`);
+            for (const ln of BLACKLISTED_LN) {
+                const blSnap = await db.collection('users').where('lightningAddress', '==', ln).get();
+                blSnap.forEach(g => {
+                    if (!out.blacklistedLnHits.find(h => h.uid === g.id.substring(0,8))) {
+                        out.blacklistedLnHits.push({ uid: g.id.substring(0,8), username: (g.data().username||''), ln, withdrawalsDisabled: !!g.data().withdrawalsDisabled });
+                    }
+                });
+            }
+            const active = out.blacklistedLnHits.filter(h => !h.withdrawalsDisabled);
+            if (active.length > 0) {
+                out.alerts.push(`\ud83d\udea8 ${active.length} active accounts with blacklisted LN address (${out.blacklistedLnHits.length} total)`);
             }
         } catch (e) {}
 
@@ -7433,3 +7435,33 @@ exports.nachoAnnounce = functions.runWith({ enforceAppCheck: true }).https.onCal
 // ── PVP Round Resolution (server-side, tamper-proof) ────────────
 const { pvpResolveRound } = require('./src/pvpResolve');
 exports.pvpResolveRound = pvpResolveRound;
+
+
+// ── Daily Firestore Backup ────────────────────────────────────────────────────
+// Exports all collections to gs://bitcoin-education-archive-firestore-backups/
+// Runs daily at 2 AM UTC. Bucket lifecycle deletes exports older than 30 days.
+exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
+    const projectId = 'bitcoin-education-archive';
+    const bucket = `gs://${projectId}-firestore-backups`;
+    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const exportPath = `${bucket}/${timestamp}`;
+
+    const token = await admin.app().options.credential.getAccessToken();
+    const res = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default):exportDocuments`,
+        {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ outputUriPrefix: exportPath })
+        }
+    );
+    const result = await res.json();
+    if (result.error) {
+        console.error('[BACKUP] Export failed:', JSON.stringify(result.error));
+        throw new Error(result.error.message);
+    }
+    console.log(`[BACKUP] Export started → ${exportPath}`, result.name);
+});
