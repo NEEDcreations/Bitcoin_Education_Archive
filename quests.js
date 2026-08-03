@@ -5608,7 +5608,7 @@ var RAID_GUIDANCE = {
     'quizCompletions': { action: 'Complete quiz quests to deal damage!', nav: 'quests' },
     'watchMinutes': { action: 'Watch Timechain TV to deal damage!', nav: 'tctv' },
     'beatsMinutes': { action: 'Listen to Bitcoin Beats to deal damage!', nav: 'beats' },
-    'flashcardCompletions': { action: 'Complete flashcard sets to deal damage!', nav: 'quests' },
+    'flashcardCompletions': { action: 'Complete flashcard sets to deal damage!', nav: 'learning-quests' },
     'totalXP': { action: 'Earn XP from any activity to deal damage!', nav: 'home' },
     'pollVotes': { action: 'Vote in Quest Hub polls to deal damage!', nav: 'quests' },
     'chatMessages': { action: 'Send messages in Global Chat to deal damage!', nav: 'chat' },
@@ -5640,7 +5640,7 @@ window._contributeRaid = function() {
     }
 
     var guidance = RAID_GUIDANCE[boss.metric] || { action: 'Complete activities on the site to deal damage!', nav: 'home' };
-    var navLabels = { home: '🏠 Home', quests: '📜 Quest Hub', tctv: '📺 Timechain TV', beats: '🎵 Bitcoin Beats', forum: '💬 Forum', chat: '💬 Global Chat', badges: '🏆 Leaderboard' };
+    var navLabels = { home: '🏠 Home', quests: '📜 Quest Hub', 'learning-quests': '📖 Learning Quests', tctv: '📺 Timechain TV', beats: '🎵 Bitcoin Beats', forum: '💬 Forum', chat: '💬 Global Chat', badges: '🏆 Leaderboard' };
     var navLabel = navLabels[guidance.nav] || '🏠 Home';
     panel.innerHTML =
         '<div style="font-size:0.78rem;font-weight:800;color:#8b5cf6;margin-bottom:8px;">⚔️ Current Boss: ' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name) : boss.name) + '</div>' +
@@ -5699,6 +5699,8 @@ window._contributeRaidNav = function() {
         if (typeof go === 'function') go('bitcoin-beats');
     } else if (guidance.nav === 'forum') {
         if (typeof go === 'function') go('forum');
+    } else if (guidance.nav === 'learning-quests') {
+        if (typeof go === 'function') go('learning-quests');
     } else if (guidance.nav === 'quests') {
         // Re-open quest hub on the quests tab
         setTimeout(function() {
