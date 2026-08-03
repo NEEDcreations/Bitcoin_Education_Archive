@@ -4441,7 +4441,7 @@ window.startFlashcards = function(topic) {
         { q: "What is the 'Nakamoto Consensus'?", a: "The combination of Proof-of-Work and the 'Longest Chain Rule' to achieve global agreement on history." }
     ],
     'Wallets & Tools': [
-        { q: "What is a Coldcard?", a: "A security-focused, air-gapped hardware signer that uses a microSD card to sign transactions." },
+        { q: "What is a Coldcard?", a: "A security-focused, air-gapped hardware signer that uses a microSD card to sign transactions. ⚠️ Note: In August 2026, a critical bug in Coldcard's code led to the loss of thousands of Bitcoin. Always verify firmware and be cautious with closed-source products from Coinkite. Don't trust — verify." },
         { q: "What is Sparrow Wallet?", a: "A professional-grade Bitcoin desktop wallet optimized for UTXO management and node connectivity." },
         { q: "What is a Block Explorer?", a: "A website (like Mempool.space) that allows you to view transactions, blocks, and network statistics." },
         { q: "What is a seed plate?", a: "A piece of stainless steel or titanium used to engrave your seed phrase for permanent, fireproof backup." },
