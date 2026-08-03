@@ -1960,8 +1960,8 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
     }
 
     // FINAL SAFETY CHECK - absolute hard cap before touching the wallet
-    if (amount > 500) {
-        console.error('[FAUCET] BLOCKED: amount ' + amount + ' exceeds hard cap of 500 sats for uid=' + uid);
+    if (amount > 200) {
+        console.error('[FAUCET] BLOCKED: amount ' + amount + ' exceeds hard cap of 200 sats for uid=' + uid);
         await _rollbackClaim(uid, amount, today);
         return { success: false, error: 'Claim exceeds maximum. Contact support.' };
     }
