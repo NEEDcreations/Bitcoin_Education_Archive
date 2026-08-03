@@ -499,8 +499,8 @@
         <tr><th>Data</th><th>Purpose</th></tr>
         <tr><td>Withdrawal history (amounts, timestamps)</td><td>Track claim activity and enforce daily/lifetime limits</td></tr>
         <tr><td>Truncated Lightning invoice (first 50 characters + "...")</td><td>Audit trail for payouts — we do NOT store full invoices</td></tr>
-        <tr><td>Daily claim tracking</td><td>Enforce 1-claim-per-24-hours cooldown and 500 sats/day cap</td></tr>
-        <tr><td>Lifetime total claimed</td><td>Enforce 10,000 sats lifetime cap per user</td></tr>
+        <tr><td>Daily claim tracking</td><td>Enforce 1-claim-per-24-hours cooldown and 200 sats/day cap</td></tr>
+        <tr><td>Lifetime total claimed</td><td>Enforce 15,000 sats lifetime cap per user</td></tr>
         <tr><td>Device fingerprint hash</td><td>Anti-abuse: detect multi-accounting (hashed, not personally identifiable)</td></tr>
         <tr><td>IP address (at claim time only)</td><td>Anti-abuse: detect multiple accounts claiming from the same network</td></tr>
         <tr><td>Server-side daily points tracking</td><td>Enforce 500 pts/day cap per user — tracked in Firebase, not browser</td></tr>

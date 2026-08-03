@@ -40,7 +40,7 @@ const HIDDEN_BADGES = [
     { id: 'nacho_50q', name: 'Nacho Sage', emoji: '🧙', pts: 500, desc: 'Ask Nacho 50 questions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 50; } },
     { id: 'bookmark_collector', name: 'Bookmark Hoarder', emoji: '📚', pts: 100, desc: 'Bookmarked 20+ messages', hidden: true, check: function() { return safeJSON('btc_bookmarks', []).length >= 20; } },
     { id: 'pvp_streak', name: 'Undefeated', emoji: '🔱', pts: 250, desc: 'Won 5 PVP battles in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 5; } },
-    { id: 'sats_maxed', name: 'Faucet King', emoji: '👑', pts: 1000, desc: 'Claimed all 10,000 sats from the faucet', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 10000; } },
+    { id: 'sats_maxed', name: 'Faucet King', emoji: '👑', pts: 1000, desc: 'Claimed all 15,000 sats from the faucet', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 15000; } },
     { id: 'streak_freeze', name: 'Ice Shield', emoji: '🧊', pts: 50, desc: 'Used a streak freeze to save your streak', hidden: true, check: function() { return localStorage.getItem('btc_freeze_used') === 'true'; } },
     { id: 'nacho_closet_full', name: 'Fashionista', emoji: '👗', pts: 200, desc: 'Unlocked all Nacho closet items from the spin wheel', hidden: true, check: function() { var items = safeJSON('btc_spin_closet_items', []); return items.length >= 10; } },
     // === 10 NEW SECRET BADGES (hard / obscure) ===

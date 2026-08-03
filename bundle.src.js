@@ -138,7 +138,7 @@ function isPremium() {
 
 /** Get sat redemption cap based on tier */
 function getSatCap() {
-    return isPremium() ? 21000 : 10000;
+    return isPremium() ? 21000 : 15000;
 }
 
 /** Premium tier constants */
@@ -158,7 +158,7 @@ window._factionNameStyle = function(faction) {
 };
 
 var PREMIUM_CONFIG = {
-    FREE_SAT_CAP: 10000,
+    FREE_SAT_CAP: 15000,
     PREMIUM_SAT_CAP: 21000,
     FREE_SPINS: 1,
     PREMIUM_SPINS: 3,
@@ -4856,7 +4856,7 @@ function showSettingsPage(tab) {
         var satsBalance = Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
         var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
         var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
-        var claimable = Math.min(satsBalance, 500, lifetimeLeft);
+        var claimable = Math.min(satsBalance, 200, lifetimeLeft);
         var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
         var canClaimTime = lastClaim ? new Date(lastClaim.seconds ? lastClaim.seconds * 1000 : lastClaim).getTime() + (24 * 60 * 60 * 1000) : 0;
         var now = Date.now();
@@ -4915,12 +4915,12 @@ function showSettingsPage(tab) {
             ? '<span style="color:#ef4444;">' + _displayAvail.toLocaleString() + ' available XP</span> <span style="font-size:0.65rem;color:#ef4444;">(claims + donations exceed current total - keep earning!)</span>'
             : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged)';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + _availLabel + '</div>';
-        html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
+        html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 15,000 sats</div>';
         html += '</div>';
 
         // Claim button area
         if (!isAnon && eligible && meetsMin && !onCooldown && claimable >= 100) {
-            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Up to ' + Math.min(claimable, 500) + ' Sats</button>';
+            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Up to ' + Math.min(claimable, 200) + ' Sats</button>';
         } else if (onCooldown) {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
         } else if (!meetsMin && eligible) {
@@ -4958,9 +4958,9 @@ function showSettingsPage(tab) {
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
         html += '• <strong>1,000 XP = 100 sats</strong> - earn XP by reading, quests, and daily visits<br>';
         html += '• <strong>Min claim: 100 sats</strong> (1,000 XP)<br>';
-        html += '• <strong>Max claim: 500 sats/day</strong><br>';
+        html += '• <strong>Max claim: 200 sats/day</strong><br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
-        html += '• <strong>Lifetime max: 10,000 sats</strong> per account<br>';
+        html += '• <strong>Lifetime max: 15,000 sats</strong> per account<br>';
         html += '• <strong>Daily XP cap: 500 XP</strong> (50 sats worth) to prevent abuse<br>';
         html += '• Unclaimed sats roll over - no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
@@ -6913,7 +6913,7 @@ window.initSatsClaim = function() {
     var satsWithdrawn = currentUser.satsWithdrawn || 0;
     var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
     var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
-    var maxClaim = Math.min(satsBalance, 500, lifetimeLeft);
+    var maxClaim = Math.min(satsBalance, 200, lifetimeLeft);
     console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
     if (maxClaim < 100) {
         console.log('[SATS] BLOCKED: maxClaim < 100');
@@ -7061,7 +7061,7 @@ window.submitSatsClaim = async function() {
             if (errorEl) { errorEl.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)'; errorEl.style.display = 'block'; }
             return;
         }
-        var _maxCl = window._satsClaimMaxClaim || 500;
+        var _maxCl = window._satsClaimMaxClaim || 200;
         if (!lnAmt || lnAmt < 100 || lnAmt > _maxCl) {
             if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
             return;
@@ -7140,7 +7140,7 @@ window.submitSatsClaim = async function() {
                 '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡<br>Check your wallet to confirm!</div>' +
                 '<div style="padding:10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;margin-bottom:12px;">' +
                     '<div style="font-size:0.85rem;color:#f7931a;font-weight:800;">⚡ ' + _remaining.toLocaleString() + ' sats remaining to claim!</div>' +
-                    '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:3px;">' + _totalClaimed.toLocaleString() + ' / 10,000 lifetime total claimed</div>' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:3px;">' + _totalClaimed.toLocaleString() + ' / 15,000 lifetime total claimed</div>' +
                 '</div>' +
                 '<div style="padding:10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:10px;margin-bottom:16px;">' +
                     '<div style="font-size:0.75rem;color:#22c55e;font-weight:700;">🧡 Thank you for learning Bitcoin with us!</div>' +
@@ -26764,7 +26764,7 @@ const HIDDEN_BADGES = [
     { id: 'nacho_50q', name: 'Nacho Sage', emoji: '🧙', pts: 500, desc: 'Ask Nacho 50 questions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 50; } },
     { id: 'bookmark_collector', name: 'Bookmark Hoarder', emoji: '📚', pts: 100, desc: 'Bookmarked 20+ messages', hidden: true, check: function() { return safeJSON('btc_bookmarks', []).length >= 20; } },
     { id: 'pvp_streak', name: 'Undefeated', emoji: '🔱', pts: 250, desc: 'Won 5 PVP battles in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 5; } },
-    { id: 'sats_maxed', name: 'Faucet King', emoji: '👑', pts: 1000, desc: 'Claimed all 10,000 sats from the faucet', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 10000; } },
+    { id: 'sats_maxed', name: 'Faucet King', emoji: '👑', pts: 1000, desc: 'Claimed all 15,000 sats from the faucet', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 15000; } },
     { id: 'streak_freeze', name: 'Ice Shield', emoji: '🧊', pts: 50, desc: 'Used a streak freeze to save your streak', hidden: true, check: function() { return localStorage.getItem('btc_freeze_used') === 'true'; } },
     { id: 'nacho_closet_full', name: 'Fashionista', emoji: '👗', pts: 200, desc: 'Unlocked all Nacho closet items from the spin wheel', hidden: true, check: function() { var items = safeJSON('btc_spin_closet_items', []); return items.length >= 10; } },
     // === 10 NEW SECRET BADGES (hard / obscure) ===

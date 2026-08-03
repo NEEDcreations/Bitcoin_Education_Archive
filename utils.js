@@ -138,7 +138,7 @@ function isPremium() {
 
 /** Get sat redemption cap based on tier */
 function getSatCap() {
-    return isPremium() ? 21000 : 10000;
+    return isPremium() ? 21000 : 15000;
 }
 
 /** Premium tier constants */
@@ -158,7 +158,7 @@ window._factionNameStyle = function(faction) {
 };
 
 var PREMIUM_CONFIG = {
-    FREE_SAT_CAP: 10000,
+    FREE_SAT_CAP: 15000,
     PREMIUM_SAT_CAP: 21000,
     FREE_SPINS: 1,
     PREMIUM_SPINS: 3,
