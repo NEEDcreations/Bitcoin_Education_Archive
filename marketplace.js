@@ -599,9 +599,9 @@ function renderListingDetail(container, listingId) {
         // Action buttons
         if (!isOwner) {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button onclick="contactSeller(\'' + l.id + '\',\'' + escapeHtml(l.sellerName || '') + '\')"  style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
+                '<button data-listing-id="' + escapeHtml(l.id) + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" onclick="contactSeller(this.dataset.listingId,this.dataset.sellerName)"  style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
                 '<button onclick="toggleMarketSave(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
-                '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/[\\'"]/g, "") + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
+                '<button data-seller-uid="' + escapeHtml(l.sellerUid || '') + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" onclick="if(typeof reportUser===\'function\')reportUser(this.dataset.sellerUid,this.dataset.sellerName)"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
                 (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
             '</div>';
             // Safety notice

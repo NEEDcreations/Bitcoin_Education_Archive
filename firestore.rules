@@ -516,7 +516,12 @@ service cloud.firestore {
                   && request.auth.uid in resource.data.participants;
       allow create: if request.auth != null
                     && request.auth.uid in request.resource.data.participants
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
+                    && (!('participantNames' in request.resource.data)
+                        || (request.resource.data.participantNames is map
+                            && request.resource.data.participantNames.keys().hasOnly(request.resource.data.participants)
+                            && request.resource.data.participantNames.values().toSet().size() <= 2));
       allow update: if request.auth != null
                     && request.auth.uid in resource.data.participants
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt']);
@@ -973,6 +978,11 @@ service cloud.firestore {
                     // Authenticated non-anonymous user messages only
                     request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    // Field allowlist: no arbitrary keys that could carry attacker payload
+                    && request.resource.data.keys().hasOnly(['uid','name','text','ts','isNachoAuto','faction',
+                        'replyTo','replyToName','replyToText',
+                        'hasChatFlair','chatFlairEmoji','hasNachoSkin',
+                        'isGif','caption','imageUrl','gifUrl'])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
@@ -988,6 +998,10 @@ service cloud.firestore {
                             && request.resource.data.text.size() <= 2000))
                     && request.resource.data.name is string
                     && request.resource.data.ts == request.time
+                    // Reply fields: length-cap so they can't carry large payloads
+                    && (!('replyToName' in request.resource.data) || (request.resource.data.replyToName is string && request.resource.data.replyToName.size() <= 60))
+                    && (!('replyToText' in request.resource.data) || (request.resource.data.replyToText is string && request.resource.data.replyToText.size() <= 300))
+                    && (!('replyTo'     in request.resource.data) || request.resource.data.replyTo is string)
                     && (request.resource.data.uid == request.auth.uid
                         || ((request.resource.data.uid == 'nacho-bot' || request.resource.data.uid == 'system')
                             && isAdmin()))

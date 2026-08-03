@@ -605,7 +605,7 @@ function renderChatMessages(msgs) {
         html += '<span style="font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
         if (myUid) {
-            html += '<span onclick="setChatReply(\'' + m._id + '\',\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',\'' + esc((m.text||'').substring(0,50)).replace(/[\\'"]/g,'') + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
+            html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
         if (isMe || isAdmin) {
             html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
@@ -613,7 +613,7 @@ function renderChatMessages(msgs) {
         html += '</div>';
         if (m.replyToName) {
             var _replyId = m.replyTo || '';
-            html += '<div onclick="window._scrollToChatMsg(\'' + _replyId + '\')" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
+            html += '<div data-msg-id="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.msgId)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
             html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
             html += '<span style="color:var(--text-muted);">' + esc((m.replyToText||'').substring(0,80)) + (m.replyToText && m.replyToText.length > 80 ? '…' : '') + '</span>';
             html += '</div>';
@@ -793,7 +793,7 @@ function formatChatText(text, mentionUid) {
             _mentionHandled = true;
             var safeName = name.trim();
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-            _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + mentionUid + '\')" title="View profile — tap to tip!">@' + safeName + '</span>');
+            _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-profile-uid="' + esc(mentionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.profileUid)" title="View profile — tap to tip!">@' + safeName + '</span>');
             return placeholder;
         });
     }
