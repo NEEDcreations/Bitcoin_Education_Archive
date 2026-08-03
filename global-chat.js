@@ -3455,7 +3455,7 @@ window.lookupUserByName = function(username) {
     }
     // Fallback: query Firestore by username field
     // Fetch up to 10 matches and pick the most active account (highest totalVisits)
-    db.collection('users').where('username', '==', username).limit(10).get()
+    db.collection('public_profiles').where('username', '==', username).limit(10).get()
         .then(function(snap) {
             if (!snap.empty) {
                 var best = snap.docs.reduce(function(a, b) {
@@ -3464,7 +3464,7 @@ window.lookupUserByName = function(username) {
                 if (typeof showUserProfile === 'function') showUserProfile(best.id);
             } else {
                 // Try case-insensitive (username_lower)
-                db.collection('users').where('username_lower', '==', username.toLowerCase()).limit(10).get()
+                db.collection('public_profiles').where('username_lower', '==', username.toLowerCase()).limit(10).get()
                     .then(function(snap2) {
                         if (!snap2.empty) {
                             var best2 = snap2.docs.reduce(function(a, b) {
@@ -3473,7 +3473,7 @@ window.lookupUserByName = function(username) {
                             if (typeof showUserProfile === 'function') showUserProfile(best2.id);
                         } else {
                             // Try displayName for multi-word names (e.g. 'Sipho Ashley')
-                            db.collection('users').where('displayName', '==', username).limit(10).get()
+                            db.collection('public_profiles').where('displayName', '==', username).limit(10).get()
                                 .then(function(snap3) {
                                     if (!snap3.empty) {
                                         var best3 = snap3.docs.reduce(function(a, b) {

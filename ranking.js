@@ -3492,7 +3492,7 @@ async function toggleLeaderboard() {
             if (useWeekCache) {
                 allUsers = window._lbWeekCache;
             } else {
-                const snap = await db.collection('users').orderBy('weeklyXP', 'desc').limit(150).get();
+                const snap = await db.collection('public_profiles').orderBy('weeklyXP', 'desc').limit(150).get();
                 snap.forEach(doc => {
                     const d = doc.data();
                     const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
@@ -3508,7 +3508,7 @@ async function toggleLeaderboard() {
             if (useMonthCache) {
                 allUsers = window._lbMonthCache;
             } else {
-                const snap = await db.collection('users').orderBy('monthlyXP', 'desc').limit(150).get();
+                const snap = await db.collection('public_profiles').orderBy('monthlyXP', 'desc').limit(150).get();
                 snap.forEach(doc => {
                     const d = doc.data();
                     const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
@@ -3524,7 +3524,7 @@ async function toggleLeaderboard() {
             if (useCache) {
                 allUsers = window._lbCache;
             } else {
-                const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
+                const snap = await db.collection('public_profiles').orderBy('points', 'desc').limit(150).get();
                 snap.forEach(doc => {
                     const d = doc.data();
                     const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
@@ -3636,8 +3636,8 @@ async function _loadPVPLeaderboard() {
             lossSnap = window._pvpLbCache.losses;
         } else {
             [winsSnap, lossSnap] = await Promise.all([
-                db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(50).get(),
-                db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(50).get()
+                db.collection('public_profiles').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(50).get(),
+                db.collection('public_profiles').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(50).get()
             ]);
             window._pvpLbCache = { wins: winsSnap, losses: lossSnap };
             window._pvpLbCacheTime = _pvpNow;
@@ -6362,13 +6362,13 @@ async function isUsernameTaken(username, excludeUid) {
     try {
         var lowerName = username.toLowerCase();
         // Primary check: username_lower field (indexed, fast)
-        var snap = await db.collection('users')
+        var snap = await db.collection('public_profiles')
             .where('username_lower', '==', lowerName)
             .limit(5)
             .get();
         // Also check case-insensitive against the username field for legacy users
         // who were created before username_lower was added
-        var snapOrig = await db.collection('users')
+        var snapOrig = await db.collection('public_profiles')
             .where('username', '==', username)
             .limit(5)
             .get();

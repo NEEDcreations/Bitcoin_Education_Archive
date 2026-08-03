@@ -507,7 +507,7 @@ window.showUserProfile = function(uid) {
     d.innerHTML = loadingHtml;
     document.body.appendChild(d.firstChild);
 
-    db.collection('users').doc(uid).get().then(function(doc) {
+    db.collection('public_profiles').doc(uid).get().then(function(doc) {
         if (!doc.exists) {
             var modal = document.getElementById('userProfileModal');
             if (modal) modal.remove();
@@ -734,7 +734,7 @@ window.showUserProfile = function(uid) {
 // Look up a user profile by username (for leaderboards that store username but not uid)
 window.showUserProfileByUsername = function(username) {
     if (!username || typeof db === 'undefined') return;
-    db.collection('users').where('username', '==', username).limit(1).get().then(function(snap) {
+    db.collection('public_profiles').where('username', '==', username).limit(1).get().then(function(snap) {
         if (snap.empty) {
             if (typeof showToast === 'function') showToast('Profile not found for @' + username);
             return;

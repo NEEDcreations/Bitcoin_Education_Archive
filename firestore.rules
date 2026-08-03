@@ -18,15 +18,12 @@ service cloud.firestore {
       //   - Individual profile GET (tapping a user in the leaderboard,
       //     chat, forum, etc.): non-anonymous authenticated only
       //   Anonymous sessions can only read their own document.
-      //   [BUG-5 FIX] Removed || true which allowed ANY visitor (incl. anonymous) to
-      //   dump the entire users collection including email, IP history, payment identifiers.
-      allow get: if request.auth != null && (
-                    request.auth.uid == userId
-                    || !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                  );
-      allow list: if request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.query.limit <= 200;
+      //   [PII-FIX 2026-08-03] users collection is now owner-only.
+      //   All leaderboard / profile lookups go through public_profiles (sanitized mirror).
+      //   This closes the full-PII-dump vector: email, known_ips, fingerprint, etc.
+      //   never leave the server-side CF functions or the owner's own session.
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow list: if false; // no client-side enumeration — use public_profiles
       // Create: allowlist the fields a client is permitted to set on initial doc creation.
       // Server-managed economy fields (points, streak, sats, tickets, etc.) default to 0 / empty
       // and must never be supplied by the client.
@@ -63,7 +60,8 @@ service cloud.firestore {
                         'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
                         'readChannels', 'visitedChannelsList',
                         // Claim / withdrawal state
-                        'pointsClaimed', 'lastSatsClaim', 'lastAwards', '_pendingClaim',
+                        'pointsClaimed', 'pointsExchanged',
+                        'lastSatsClaim', 'lastAwards', '_pendingClaim',
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
                         // Shop inventory (spendTickets CF manages these)
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
@@ -79,6 +77,8 @@ service cloud.firestore {
                         'marketListings', 'marketMessages',
                         'referralTicketsEarned', 'referralCode',
                         'pointsDonated', 'donationBadges',
+                        // Premium — must never be client-writable (self-grant exploit)
+                        'premium',
                         // Daily quest gating (CF)
                         'dailyAllThreeDate', 'dailyQuizDone', 'dailyTriviaDone', 'dailyPollDone',
                         // Admin / anti-fraud fields — NEVER writable by clients
@@ -171,6 +171,18 @@ service cloud.firestore {
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
         allow create, delete: if false; // Cloud Function (Admin SDK) only
       }
+    }
+
+    // =============================================
+    // PUBLIC PROFILES — sanitized mirror of users
+    // Synced server-side by syncPublicProfile CF trigger.
+    // Never contains email, known_ips, fingerprint, or financial fields.
+    // =============================================
+    match /public_profiles/{uid} {
+      // Any authenticated user (incl. anonymous) can read any public profile.
+      // Writes are admin-SDK only (syncPublicProfile trigger).
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     // =============================================

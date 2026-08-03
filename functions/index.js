@@ -2081,8 +2081,8 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
     const actionKey = (data.actionKey || '').substring(0, 50);
     const action = (data.action || data.reason || '').substring(0, 100);
     const channelId = (data.channelId || '').substring(0, 100);
-    const tickets = parseInt(data.tickets) || 0;
-    const streakFreezes = parseInt(data.streakFreezes) || 0;
+    const tickets = Math.max(0, Math.min(50, parseInt(data.tickets) || 0));       // clamp: 0–50 (raid_damage_ticket max is 50)
+    const streakFreezes = Math.max(0, Math.min(5, parseInt(data.streakFreezes) || 0)); // clamp: 0–5 (shop max is 3)
     // Badge ID for server-side dedup (optional - only sent for badge_earned actions)
     const badgeId = (data.badgeId || '').replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 60);
 
@@ -4060,6 +4060,78 @@ exports.onUserDocCreated = functions.firestore
             await userDocRef.set({ plebNumber: plebNumber }, { merge: true });
         } catch (e) { console.error('[onUserDocCreated] failed:', e); }
         return null;
+    });
+
+// ============================================================
+// PUBLIC PROFILES — sanitized mirror of users collection
+// Synced by trigger on every user doc write.
+// Contains ONLY fields safe to expose to any signed-in user.
+// PII (email, known_ips, fingerprint, lightningAddress, nostr, etc.) is never copied.
+// ============================================================
+const PUBLIC_PROFILE_FIELDS = [
+    'username', 'username_lower', 'displayName', 'profilePic', 'faction',
+    'country', 'bio', 'twitter', 'website',
+    'points', 'weeklyXP', 'monthlyXP', 'level',
+    'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
+    'visitedChannelsList', 'readChannels',
+    'orangeTickets', 'badges', 'visibleBadges', 'hiddenBadges',
+    'displayBadge', 'equippedBadge', 'activeTitle',
+    'ownedCosmetics', 'spinClosetItems',
+    'forumPosts', 'forumReplies',
+    'pvpWins', 'pvpLosses',
+    'sfTotalHashes', 'sfBlocksFound', 'sfBestHash', 'firstHashAt',
+    'raidDamageAllTime', 'raidDamageThisMonth',
+    'predictions', 'plebNumber',
+    'lastSeen', 'isOnline', 'ghostMode',
+    'lightningAddress',   // display-only; tip button uses this
+    'created', 'createdAt',
+    'earnedHidden',
+];
+
+exports.syncPublicProfile = functions.firestore
+    .document('users/{uid}')
+    .onWrite(async (change, context) => {
+        const uid = context.params.uid;
+        const pubRef = db.collection('public_profiles').doc(uid);
+        // Deleted user → remove public profile
+        if (!change.after.exists) {
+            try { await pubRef.delete(); } catch(e) { console.error('[syncPublicProfile] delete failed:', e); }
+            return null;
+        }
+        const data = change.after.data() || {};
+        const pub = {};
+        PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
+        try {
+            await pubRef.set(pub, { merge: false });
+        } catch(e) { console.error('[syncPublicProfile] write failed:', e); }
+        return null;
+    });
+
+// Admin-only backfill: copies all existing user docs → public_profiles.
+// Call once after deploy: firebase functions:call backfillPublicProfiles (with admin auth)
+exports.backfillPublicProfiles = functions.runWith({ timeoutSeconds: 540, memory: '1GB' })
+    .https.onCall(async (data, context) => {
+        if (!context.auth || !context.auth.token.get('admin', false)) {
+            throw new functions.https.HttpsError('permission-denied', 'Admin only');
+        }
+        const snap = await db.collection('users').get();
+        const batch_size = 400;
+        let count = 0;
+        let batch = db.batch();
+        snap.forEach(doc => {
+            const d = doc.data();
+            const pub = {};
+            PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in d) pub[f] = d[f]; });
+            batch.set(db.collection('public_profiles').doc(doc.id), pub, { merge: false });
+            count++;
+            if (count % batch_size === 0) {
+                batch.commit().catch(e => console.error('[backfill] batch commit failed:', e));
+                batch = db.batch();
+            }
+        });
+        if (count % batch_size !== 0) await batch.commit();
+        console.log('[backfillPublicProfiles] done:', count, 'docs');
+        return { success: true, count };
     });
 
 // ---- Live triggers for community stats: channelVisits, questsCompleted, watchTimeMinutes ----

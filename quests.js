@@ -3277,7 +3277,7 @@ function _loadFavorLeaderboards() {
     });
 
     // Top 50 hashers by total hashes - REAL-TIME listener
-    _favorHasherRanksUnsub = db.collection('users')
+    _favorHasherRanksUnsub = db.collection('public_profiles')
         .where('sfTotalHashes', '>', 0)
         .orderBy('sfTotalHashes', 'desc')
         .limit(50)
@@ -5563,7 +5563,7 @@ function _listenAllTimeRaiders() {
     if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
     if (typeof db === 'undefined') return;
 
-    window._raidAllTimeUnsub = db.collection('users')
+    window._raidAllTimeUnsub = db.collection('public_profiles')
         .where('raidDamageAllTime', '>', 0)
         .orderBy('raidDamageAllTime', 'desc')
         .limit(20)

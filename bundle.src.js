@@ -3661,7 +3661,7 @@ async function toggleLeaderboard() {
             if (useWeekCache) {
                 allUsers = window._lbWeekCache;
             } else {
-                const snap = await db.collection('users').orderBy('weeklyXP', 'desc').limit(150).get();
+                const snap = await db.collection('public_profiles').orderBy('weeklyXP', 'desc').limit(150).get();
                 snap.forEach(doc => {
                     const d = doc.data();
                     const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
@@ -3677,7 +3677,7 @@ async function toggleLeaderboard() {
             if (useMonthCache) {
                 allUsers = window._lbMonthCache;
             } else {
-                const snap = await db.collection('users').orderBy('monthlyXP', 'desc').limit(150).get();
+                const snap = await db.collection('public_profiles').orderBy('monthlyXP', 'desc').limit(150).get();
                 snap.forEach(doc => {
                     const d = doc.data();
                     const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
@@ -3693,7 +3693,7 @@ async function toggleLeaderboard() {
             if (useCache) {
                 allUsers = window._lbCache;
             } else {
-                const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
+                const snap = await db.collection('public_profiles').orderBy('points', 'desc').limit(150).get();
                 snap.forEach(doc => {
                     const d = doc.data();
                     const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
@@ -3805,8 +3805,8 @@ async function _loadPVPLeaderboard() {
             lossSnap = window._pvpLbCache.losses;
         } else {
             [winsSnap, lossSnap] = await Promise.all([
-                db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(50).get(),
-                db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(50).get()
+                db.collection('public_profiles').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(50).get(),
+                db.collection('public_profiles').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(50).get()
             ]);
             window._pvpLbCache = { wins: winsSnap, losses: lossSnap };
             window._pvpLbCacheTime = _pvpNow;
@@ -6531,13 +6531,13 @@ async function isUsernameTaken(username, excludeUid) {
     try {
         var lowerName = username.toLowerCase();
         // Primary check: username_lower field (indexed, fast)
-        var snap = await db.collection('users')
+        var snap = await db.collection('public_profiles')
             .where('username_lower', '==', lowerName)
             .limit(5)
             .get();
         // Also check case-insensitive against the username field for legacy users
         // who were created before username_lower was added
-        var snapOrig = await db.collection('users')
+        var snapOrig = await db.collection('public_profiles')
             .where('username', '==', username)
             .limit(5)
             .get();
@@ -16391,7 +16391,7 @@ function _loadFavorLeaderboards() {
     });
 
     // Top 50 hashers by total hashes - REAL-TIME listener
-    _favorHasherRanksUnsub = db.collection('users')
+    _favorHasherRanksUnsub = db.collection('public_profiles')
         .where('sfTotalHashes', '>', 0)
         .orderBy('sfTotalHashes', 'desc')
         .limit(50)
@@ -18677,7 +18677,7 @@ function _listenAllTimeRaiders() {
     if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
     if (typeof db === 'undefined') return;
 
-    window._raidAllTimeUnsub = db.collection('users')
+    window._raidAllTimeUnsub = db.collection('public_profiles')
         .where('raidDamageAllTime', '>', 0)
         .orderBy('raidDamageAllTime', 'desc')
         .limit(20)
@@ -23590,13 +23590,13 @@ function forumRenderMentions(html) {
 window.forumMentionClick = function(username) {
     if (!username || typeof db === 'undefined') return;
     // Try exact match first
-    db.collection('users').where('username', '==', username).limit(1).get()
+    db.collection('public_profiles').where('username', '==', username).limit(1).get()
         .then(function(snap) {
             if (!snap.empty) {
                 if (typeof showUserProfile === 'function') showUserProfile(snap.docs[0].id);
             } else {
                 // Fallback: case-insensitive
-                db.collection('users').where('username_lower', '==', username.toLowerCase()).limit(1).get()
+                db.collection('public_profiles').where('username_lower', '==', username.toLowerCase()).limit(1).get()
                     .then(function(snap2) {
                         if (!snap2.empty) {
                             if (typeof showUserProfile === 'function') showUserProfile(snap2.docs[0].id);
@@ -23626,9 +23626,9 @@ window.forumNotifyMentions = async function(body, contextType, contextId, contex
     var titleSnip = (contextTitle || '').substring(0, 40);
     for (var i = 0; i < unique.length; i++) {
         try {
-            var snap = await db.collection('users').where('username', '==', unique[i]).limit(1).get();
+            var snap = await db.collection('public_profiles').where('username', '==', unique[i]).limit(1).get();
             if (snap.empty) {
-                snap = await db.collection('users').where('username_lower', '==', unique[i].toLowerCase()).limit(1).get();
+                snap = await db.collection('public_profiles').where('username_lower', '==', unique[i].toLowerCase()).limit(1).get();
             }
             if (!snap.empty) {
                 var uid = snap.docs[0].id;
@@ -23760,7 +23760,7 @@ function mentionQueryUsers(prefix) {
     var done = 0;
 
     variants.forEach(function(v) {
-        db.collection('users')
+        db.collection('public_profiles')
             .where('username', '>=', v)
             .where('username', '<=', v + '\uf8ff')
             .limit(5)
@@ -25592,7 +25592,7 @@ window.showUserProfile = function(uid) {
     d.innerHTML = loadingHtml;
     document.body.appendChild(d.firstChild);
 
-    db.collection('users').doc(uid).get().then(function(doc) {
+    db.collection('public_profiles').doc(uid).get().then(function(doc) {
         if (!doc.exists) {
             var modal = document.getElementById('userProfileModal');
             if (modal) modal.remove();
@@ -25819,7 +25819,7 @@ window.showUserProfile = function(uid) {
 // Look up a user profile by username (for leaderboards that store username but not uid)
 window.showUserProfileByUsername = function(username) {
     if (!username || typeof db === 'undefined') return;
-    db.collection('users').where('username', '==', username).limit(1).get().then(function(snap) {
+    db.collection('public_profiles').where('username', '==', username).limit(1).get().then(function(snap) {
         if (snap.empty) {
             if (typeof showToast === 'function') showToast('Profile not found for @' + username);
             return;
@@ -26876,7 +26876,7 @@ const HIDDEN_BADGES = [
 
             // Recent top leaderboard movers
             try {
-                var lbSnap = await db.collection('users').orderBy('points', 'desc').limit(10).get();
+                var lbSnap = await db.collection('public_profiles').orderBy('points', 'desc').limit(10).get();
                 var topUsers = [];
                 lbSnap.forEach(function(doc) { var d = doc.data(); if (d.username) topUsers.push(d.username); });
                 if (topUsers.length >= 3) {

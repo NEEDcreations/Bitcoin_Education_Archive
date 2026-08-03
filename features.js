@@ -152,7 +152,7 @@ const HIDDEN_BADGES = [
 
             // Recent top leaderboard movers
             try {
-                var lbSnap = await db.collection('users').orderBy('points', 'desc').limit(10).get();
+                var lbSnap = await db.collection('public_profiles').orderBy('points', 'desc').limit(10).get();
                 var topUsers = [];
                 lbSnap.forEach(function(doc) { var d = doc.data(); if (d.username) topUsers.push(d.username); });
                 if (topUsers.length >= 3) {

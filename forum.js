@@ -2065,13 +2065,13 @@ function forumRenderMentions(html) {
 window.forumMentionClick = function(username) {
     if (!username || typeof db === 'undefined') return;
     // Try exact match first
-    db.collection('users').where('username', '==', username).limit(1).get()
+    db.collection('public_profiles').where('username', '==', username).limit(1).get()
         .then(function(snap) {
             if (!snap.empty) {
                 if (typeof showUserProfile === 'function') showUserProfile(snap.docs[0].id);
             } else {
                 // Fallback: case-insensitive
-                db.collection('users').where('username_lower', '==', username.toLowerCase()).limit(1).get()
+                db.collection('public_profiles').where('username_lower', '==', username.toLowerCase()).limit(1).get()
                     .then(function(snap2) {
                         if (!snap2.empty) {
                             if (typeof showUserProfile === 'function') showUserProfile(snap2.docs[0].id);
@@ -2101,9 +2101,9 @@ window.forumNotifyMentions = async function(body, contextType, contextId, contex
     var titleSnip = (contextTitle || '').substring(0, 40);
     for (var i = 0; i < unique.length; i++) {
         try {
-            var snap = await db.collection('users').where('username', '==', unique[i]).limit(1).get();
+            var snap = await db.collection('public_profiles').where('username', '==', unique[i]).limit(1).get();
             if (snap.empty) {
-                snap = await db.collection('users').where('username_lower', '==', unique[i].toLowerCase()).limit(1).get();
+                snap = await db.collection('public_profiles').where('username_lower', '==', unique[i].toLowerCase()).limit(1).get();
             }
             if (!snap.empty) {
                 var uid = snap.docs[0].id;
@@ -2235,7 +2235,7 @@ function mentionQueryUsers(prefix) {
     var done = 0;
 
     variants.forEach(function(v) {
-        db.collection('users')
+        db.collection('public_profiles')
             .where('username', '>=', v)
             .where('username', '<=', v + '\uf8ff')
             .limit(5)
