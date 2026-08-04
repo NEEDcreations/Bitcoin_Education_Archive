@@ -80,11 +80,14 @@ function buildCSP(nonce) {
     return [
         "default-src 'self'",
 
-        // PHASE 1: 'unsafe-inline' retained — bundle.js generates onclick= attrs dynamically
-        // via innerHTML; removing unsafe-inline blocks all of them. Full Phase 2 requires
-        // auditing every innerHTML string in bundle.js and converting to addEventListener.
-        // Reverted from Phase 2 (ae9222d2) which broke all UI interactions.
-        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline'` +
+        // PHASE 1: nonce is NOT listed in script-src while onclick= attrs remain in the page.
+        // Per CSP Level 2+ spec, when a nonce is present in script-src, browsers DROP
+        // 'unsafe-inline' entirely — it is not a fallback. Including the nonce here while
+        // onclick= handlers exist silently breaks all UI interactions.
+        // The nonce is still injected into <script> tags by HTMLRewriter (ready for Phase 2)
+        // but must not appear in the header until the onclick= → addEventListener migration
+        // is complete across all inline HTML and bundle.js innerHTML strings.
+        `script-src 'self' 'unsafe-inline'` +
             " https://www.gstatic.com" +
             " https://challenges.cloudflare.com" +
             " https://accounts.google.com" +
