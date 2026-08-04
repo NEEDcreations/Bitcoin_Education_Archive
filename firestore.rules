@@ -813,27 +813,30 @@ service cloud.firestore {
                       // Author can edit their own article
                       resource.data.authorId == request.auth.uid
                       // Upvotes/tips/saves: anyone authenticated
-                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'tipTotal', 'saves', 'savedBy'])
-                          && (
-                              // Upvote: must append own UID, increment total by 1
-                              (
-                                (!(request.auth.uid in resource.data.get('voters', [])))
-                                && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
-                                && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
-                                && request.auth.uid in request.resource.data.voters
-                              )
-                              ||
-                              // Save: must append own UID, increment saves by 1
-                              (
-                                (!(request.auth.uid in resource.data.get('savedBy', [])))
-                                && request.resource.data.saves == resource.data.get('saves', 0) + 1
-                                && request.resource.data.savedBy.size() == resource.data.get('savedBy', []).size() + 1
-                                && request.auth.uid in request.resource.data.savedBy
-                              )
-                              || 
-                              // Tip: just track the total
-                              (request.resource.data.tipTotal > resource.data.get('tipTotal', 0))
-                          )
+                      // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
+                      // Previously the OR logic let any branch pass while the caller freely
+                      // wrote the other fields: e.g. tip branch only checked tipTotal > current,
+                      // so an attacker could include tipTotal+1 AND zero out upvotes/voters/saves.
+                      || (
+                          // Upvote: only upvotes + voters change
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                          && !(request.auth.uid in resource.data.get('voters', []))
+                          && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                          && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
+                          && request.auth.uid in request.resource.data.voters
+                      )
+                      || (
+                          // Save: only saves + savedBy change
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['saves', 'savedBy'])
+                          && !(request.auth.uid in resource.data.get('savedBy', []))
+                          && request.resource.data.saves == resource.data.get('saves', 0) + 1
+                          && request.resource.data.savedBy.size() == resource.data.get('savedBy', []).size() + 1
+                          && request.auth.uid in request.resource.data.savedBy
+                      )
+                      || (
+                          // Tip: only tipTotal changes, must strictly increase
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tipTotal'])
+                          && request.resource.data.tipTotal > resource.data.get('tipTotal', 0)
                       )
                       // Admin
                       || isAdmin()
