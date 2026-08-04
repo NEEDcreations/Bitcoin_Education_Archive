@@ -802,12 +802,14 @@ exports.lnAuthVerify = functions.runWith({ enforceAppCheck: true }).https.onCall
         });
     }
 
-    // [SECURITY FIX] Atomic consume: read + delete in a single transaction to prevent
-    // TOCTOU race where two concurrent calls both pass the status check and both get tokens.
+    // [SECURITY FIX] Atomic consume: claim challenge in a transaction to prevent TOCTOU
+    // (two concurrent calls both minting tokens). Soft-consume BEFORE createCustomToken so a
+    // mint failure does not permanently destroy a wallet-signed k1.
     let challenge;
+    const challengeRef = db.collection('lnauth_challenges').doc(k1);
     try {
         await db.runTransaction(async (tx) => {
-            const doc = await tx.get(db.collection('lnauth_challenges').doc(k1));
+            const doc = await tx.get(challengeRef);
             if (!doc.exists) throw new functions.https.HttpsError('not-found', 'Challenge not found');
             const data = doc.data();
             if (data.expiresAt) {
@@ -817,12 +819,21 @@ exports.lnAuthVerify = functions.runWith({ enforceAppCheck: true }).https.onCall
                     throw new functions.https.HttpsError('deadline-exceeded', 'Challenge expired');
                 }
             }
-            if (data.status !== 'completed') {
+            if (data.status === 'completed') {
+                // First claim — flip to consumed so only one caller proceeds
+                tx.update(doc.ref, {
+                    status: 'consumed',
+                    consumedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    mintPending: true,
+                });
+                challenge = data;
+            } else if (data.status === 'consumed' && data.mintPending === true) {
+                // Prior mint failed — allow a single remint attempt by clearing mintPending claim
+                tx.update(doc.ref, { mintPending: false, remintAt: admin.firestore.FieldValue.serverTimestamp() });
+                challenge = data;
+            } else {
                 throw new functions.https.HttpsError('not-found', 'Not yet authenticated');
             }
-            // Atomically consume — only one concurrent caller can delete and proceed
-            tx.delete(doc.ref);
-            challenge = data;
         });
     } catch (e) {
         if (e instanceof functions.https.HttpsError) throw e;
@@ -837,8 +848,13 @@ exports.lnAuthVerify = functions.runWith({ enforceAppCheck: true }).https.onCall
     try {
         token = await admin.auth().createCustomToken(uid, { lnPubkey: linkingKey || '' });
     } catch(e) {
+        // Restore mintPending so a later poll can remint
+        try { await challengeRef.update({ mintPending: true }); } catch (_) {}
         throw new functions.https.HttpsError('internal', 'Token generation failed');
     }
+
+    // Hard-delete after successful mint (one-time use)
+    try { await challengeRef.delete(); } catch (_) { /* best-effort cleanup */ }
 
     return { token: token, uid: uid };
 });
@@ -5625,7 +5641,11 @@ exports.v4vSplitRelay = functions.runWith({ enforceAppCheck: true }).https.onCal
             invoice:          paymentRequest,
             keysend:          keysendData,
             qr:               paymentRequest
-                ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=1a1a2e&color=ffffff&data=${encodeURIComponent('lightning:' + paymentRequest)}`
+                ? await QRCode.toDataURL('lightning:' + paymentRequest, {
+                    width: 200,
+                    margin: 2,
+                    color: { dark: '#ffffff', light: '#1a1a2e' },
+                  }).catch(() => null)
                 : null,
             canPayLnurl:      !!paymentRequest,
             canKeysend:       !!keysendData,
@@ -7564,7 +7584,7 @@ exports.nachoAnnounce = functions.runWith({ enforceAppCheck: true }).https.onCal
         throw new functions.https.HttpsError('permission-denied', 'Sign in required');
     }
     // NOTE: nachoAnnounce is called by regular users for badge/trifecta/quiz announcements.
-    // Protection is: non-anonymous auth + rate limiting (5/60s) + link allowlist (bitcoineducation.quest only).
+    // Protection is: non-anonymous auth + rate limiting + link/hash allowlists.
     // Admin-only gate was a mistake — broke all user-triggered GGs announcements (2026-08-04).
 
     // 2. Rate limit: 5 announcements per 60s per UID (client-side rate limit is
@@ -7598,14 +7618,13 @@ exports.nachoAnnounce = functions.runWith({ enforceAppCheck: true }).https.onCal
         throw new functions.https.HttpsError('invalid-argument', 'Invalid text');
     }
 
-    // 4. Link allowlist: only bitcoineducation.quest links allowed in markdown
-    //    Pattern: [label](url) — reject any URL not on the allowlist
+    // 4a. HTTPS markdown links: only bitcoineducation.quest
     const ALLOWED_LINK_HOSTS = ['bitcoineducation.quest'];
     const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^\)]+)\)/g;
     let match;
     while ((match = linkRegex.exec(text)) !== null) {
         try {
-            const linkHost = new URL(match[2]).hostname;
+            const linkHost = new URL(match[2]).hostname.toLowerCase();
             if (!ALLOWED_LINK_HOSTS.some(h => linkHost === h || linkHost.endsWith('.' + h))) {
                 throw new functions.https.HttpsError('invalid-argument', 'Links must point to bitcoineducation.quest');
             }
@@ -7615,16 +7634,35 @@ exports.nachoAnnounce = functions.runWith({ enforceAppCheck: true }).https.onCal
         }
     }
 
+    // 4b. Hash markdown links: only [a-zA-Z0-9_-] — blocks stored XSS via onclick injection
+    //     (any other #link form is rejected entirely)
+    const hashLinkRegex = /\[([^\]]*)\]\(#([^)]+)\)/g;
+    while ((match = hashLinkRegex.exec(text)) !== null) {
+        if (!/^[a-zA-Z0-9_-]+$/.test(match[2])) {
+            throw new functions.https.HttpsError('invalid-argument', 'Invalid hash link');
+        }
+    }
+
+    // 4c. Reject other URL schemes that could become links in future renderers
+    if (/\[[^\]]*\]\(\s*(javascript|data|vbscript):/i.test(text)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Disallowed link scheme');
+    }
+
     // 5. Write via Admin SDK (bypasses allow create: if false rule)
-    const mentionUid = data.mentionUid || uid;
+    // mentionUid must be the caller (or omitted) — prevents hijacking another user's profile chip
+    let mentionUid = data.mentionUid || uid;
+    if (typeof mentionUid !== 'string' || mentionUid.length > 128 || mentionUid !== uid) {
+        mentionUid = uid;
+    }
     const msgData = {
         uid: uid,
         name: '🦌 Nacho',
         text: text,
         isNachoAuto: true,
         ts: admin.firestore.FieldValue.serverTimestamp(),
+        mentionUid: mentionUid,
+        postedByUid: uid, // audit trail — who triggered this Nacho post
     };
-    if (mentionUid) msgData.mentionUid = mentionUid;
 
     await db.collection('announcements').add(msgData);
     return { ok: true };

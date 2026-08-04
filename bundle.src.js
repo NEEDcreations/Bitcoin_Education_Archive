@@ -203,15 +203,20 @@ const LEVELS = [
     { name: 'Satoshi',        emoji: '👑', min: 210000 },
 ];
 
-// Client-side QR code generation (avoids leaking data to external API)
+// Client-side QR code generation (avoids leaking payment data to third-party APIs)
 function _renderQRCode(container, data, size) {
+    if (!container) return;
     if (window.qrcode && typeof window.qrcode === 'function') { _drawQR(container, data, size); return; }
     var script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
     script.integrity = 'sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1';
     script.crossOrigin = 'anonymous';
     script.onload = function() { _drawQR(container, data, size); };
-    script.onerror = function() { container.innerHTML = '<div style="word-break:break-all;font-size:0.6rem;max-width:' + size + 'px;">' + data + '</div>'; };
+    script.onerror = function() {
+        container.innerHTML = '<div style="word-break:break-all;font-size:0.6rem;max-width:' + size + 'px;padding:8px;">' +
+            String(data).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }) +
+            '</div>';
+    };
     document.head.appendChild(script);
 }
 function _drawQR(container, data, size) {
@@ -223,6 +228,16 @@ function _drawQR(container, data, size) {
         container.innerHTML = ''; container.appendChild(img);
     } catch(e) { container.innerHTML = '<div style="color:#ef4444;font-size:0.8rem;">QR generation failed</div>'; }
 }
+/** Sync data-URL helper when qrcode-generator is already loaded; otherwise returns null. */
+function _localQRDataUrl(data) {
+    try {
+        if (!window.qrcode || typeof window.qrcode !== 'function') return null;
+        var qr = qrcode(0, 'M'); qr.addData(data); qr.make();
+        return qr.createDataURL(6, 4);
+    } catch (e) { return null; }
+}
+window._renderQRCode = _renderQRCode;
+window._localQRDataUrl = _localQRDataUrl;
 
 // Points config
 const POINTS = {
@@ -1047,11 +1062,8 @@ window.signInWithLightning = async function() {
             if (typeof _renderQRCode === 'function') {
                 _renderQRCode(qrContainer, 'lightning:' + lnurlEncoded, 220);
             } else {
-                var qrImg = document.createElement('img');
-                qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent('lightning:' + lnurlEncoded);
-                qrImg.width = 220; qrImg.height = 220; qrImg.alt = 'Lightning Auth QR';
-                qrImg.style.cssText = 'border-radius:8px;';
-                qrContainer.appendChild(qrImg);
+                qrContainer.textContent = lnurlEncoded;
+                qrContainer.style.cssText = 'word-break:break-all;font-size:0.6rem;max-width:220px;';
             }
         }
 
@@ -32053,20 +32065,22 @@ document.addEventListener('btcProfileSaved', function() {
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
     };
 
-    // Preload QR code as data URI so it appears instantly in the modal
+    // Preload local QR lib so donate modal can render instantly
     var _donateQRDataUri = null;
+    var _donateLnAddr = 'spontaneousleopard54@zeuspay.com';
     setTimeout(function() {
-        var img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=lightning:spontaneousleopard54@zeuspay.com';
-        img.onload = function() {
-            try {
-                var c = document.createElement('canvas');
-                c.width = img.width; c.height = img.height;
-                c.getContext('2d').drawImage(img, 0, 0);
-                _donateQRDataUri = c.toDataURL('image/png');
-            } catch(e) { _donateQRDataUri = img.src; }
-        };
+        function _cacheDonateQR() {
+            if (typeof _localQRDataUrl === 'function') {
+                _donateQRDataUri = _localQRDataUrl('lightning:' + _donateLnAddr);
+            }
+        }
+        if (window.qrcode) { _cacheDonateQR(); return; }
+        var script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+        script.integrity = 'sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1';
+        script.crossOrigin = 'anonymous';
+        script.onload = _cacheDonateQR;
+        document.head.appendChild(script);
     }, 3000);
 
     function _donateMethodHtml(label, copyVal, displayVal, linkUrl, qrImg) {
@@ -32090,8 +32104,8 @@ document.addEventListener('btcProfileSaved', function() {
         var modal = document.createElement('div');
         modal.id = 'donateModal';
         modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:260000;display:flex;align-items:flex-start;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-        var lnAddr = 'spontaneousleopard54@zeuspay.com';
-        var qrUrl = _donateQRDataUri || 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=lightning:' + lnAddr;
+        var lnAddr = _donateLnAddr;
+        var qrUrl = _donateQRDataUri || (typeof _localQRDataUrl === 'function' ? _localQRDataUrl('lightning:' + lnAddr) : null);
         
         modal.innerHTML =
             '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:24px;padding:30px 20px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6);animation:fadeSlideIn 0.3s;margin:40px auto;">' +
@@ -32100,7 +32114,9 @@ document.addEventListener('btcProfileSaved', function() {
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:6px;">Support the Archive</div>' +
                 '<p style="color:var(--text-muted,#aaa);font-size:0.9rem;margin-bottom:20px;line-height:1.5;">Your sats help keep this archive free and open for the next billion Bitcoiners! 🦌⚡</p>' +
                 '<div style="background:#fff;padding:12px;display:inline-block;border-radius:16px;margin-bottom:20px;box-shadow:0 10px 25px rgba(247,147,26,0.2);">' +
-                    '<img src="' + qrUrl + '" alt="Lightning QR Code" style="width:180px;height:180px;display:block;">' +
+                    (qrUrl
+                        ? '<img src="' + qrUrl + '" alt="Lightning QR Code" style="width:180px;height:180px;display:block;">'
+                        : '<div id="donateQRBox" style="width:180px;height:180px;"></div>') +
                 '</div>' +
                 '<div style="margin-bottom:15px;">' +
                     '<div style="color:var(--accent,#f7931a);font-weight:700;font-size:0.85rem;word-break:break-all;margin-bottom:10px;padding:10px;background:rgba(247,147,26,0.1);border-radius:8px;">' + lnAddr + '</div>' +
@@ -32118,6 +32134,11 @@ document.addEventListener('btcProfileSaved', function() {
                 '</div>' +
             '</div>';
         document.body.appendChild(modal);
+        // Local QR fallback when preload hasn't finished yet
+        var donateBox = document.getElementById('donateQRBox');
+        if (donateBox && typeof _renderQRCode === 'function') {
+            _renderQRCode(donateBox, 'lightning:' + lnAddr, 180);
+        }
         // Copy button handler (avoids inline this-binding issues on mobile)
         var copyBtn = document.getElementById('donateCopyBtn');
         if (copyBtn) {

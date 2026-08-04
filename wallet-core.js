@@ -521,15 +521,23 @@ async function decryptSeed(encryptedObj, password) {
 // ─── QR CODE GENERATION (Minimal) ────────────────────────
 
 /**
- * Generate a QR code SVG for an address
- * Uses a simple QR encoding (delegates to external lib if available)
+ * Generate a QR code for an address using local qrcode-generator (no third-party API).
+ * Returns a placeholder container; fills asynchronously via window._renderQRCode.
  */
 function generateAddressQR(address, size) {
     size = size || 200;
-    // Use a data URI approach with a QR API fallback
-    return '<img src="https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + 
-           '&data=bitcoin:' + encodeURIComponent(address) + 
-           '&bgcolor=020617&color=f97316" alt="QR Code" style="border-radius:12px;border:2px solid var(--border);" width="' + size + '" height="' + size + '">';
+    var id = 'wcqr_' + Math.random().toString(36).slice(2, 10);
+    setTimeout(function() {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (typeof window._renderQRCode === 'function') {
+            window._renderQRCode(el, 'bitcoin:' + address, size);
+        } else {
+            el.textContent = address;
+            el.style.cssText = 'word-break:break-all;font-size:0.65rem;max-width:' + size + 'px;';
+        }
+    }, 0);
+    return '<div id="' + id + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:12px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;background:#fff;"></div>';
 }
 
 // ─── PUBLIC API ──────────────────────────────────────────

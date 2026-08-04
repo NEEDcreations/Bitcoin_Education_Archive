@@ -3536,7 +3536,23 @@ window._showBadgeTooltip = function(el, name, desc) {
     }, 50);
 };
 
+// Safe hash navigation — never put untrusted strings into onclick handlers.
+// Links use data-ann-hash + this delegated listener (XSS hardening 2026-08-04).
+if (!window._annHashClickBound) {
+    window._annHashClickBound = true;
+    document.addEventListener('click', function(e) {
+        var a = e.target && e.target.closest ? e.target.closest('a.ann-hash-link[data-ann-hash]') : null;
+        if (!a) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var hash = a.getAttribute('data-ann-hash') || '';
+        if (!/^[a-zA-Z0-9_-]+$/.test(hash)) return;
+        if (typeof window._annNavToHash === 'function') window._annNavToHash(hash);
+    }, true);
+}
+
 window._annNavToHash = function(hash) {
+    if (!hash || !/^[a-zA-Z0-9_-]+$/.test(hash)) return;
     var wasOverlayOpen = !!window._chatOverlayOpen;
     // Close overlay if open
     if (wasOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
@@ -3600,15 +3616,25 @@ function _renderAnnouncementItem(doc, context) {
     // Process text: escape first, then linkify in order
     var text = esc(m.text || '');
 
-    // 1a. [text](https://...) markdown links — full URLs open in new tab
+    // 1a. [text](https://...) markdown links — only bitcoineducation.quest (defense in depth)
     text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, function(_, label, url) {
-        var safeUrl = url.replace(/"/g, '&quot;');
-        return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
+        try {
+            var u = new URL(url.replace(/&amp;/g, '&'));
+            var host = (u.hostname || '').toLowerCase();
+            if (host !== 'bitcoineducation.quest' && !host.endsWith('.bitcoineducation.quest')) {
+                return label; // strip unsafe links — show label only
+            }
+            var safeUrl = u.href.replace(/"/g, '&quot;');
+            return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
+        } catch (e) {
+            return label;
+        }
     });
 
-    // 1b. [text](#hash) markdown links — use _annNavToHash which closes chat then routes
-    text = text.replace(/\[([^\]]+)\]\(#([^)]+)\)/g, function(_, label, hash) {
-        return '<a href="#' + hash + '" onclick="event.preventDefault();event.stopPropagation();if(typeof _annNavToHash===\'function\')_annNavToHash(\''+hash+'\')" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
+    // 1b. [text](#hash) — ONLY allow [a-zA-Z0-9_-] hashes; never interpolate into onclick
+    // (HTML-escaped quotes decode inside attributes and enable stored XSS).
+    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(_, label, hash) {
+        return '<a href="#' + hash + '" data-ann-hash="' + hash + '" class="ann-hash-link" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
     });
 
     // 2. @username mentions — link to user profile using stored mentionUid
