@@ -80,9 +80,8 @@ function buildCSP(nonce) {
     return [
         "default-src 'self'",
 
-        // PHASE 1: unsafe-inline kept for onclick= event handlers
-        // PHASE 2: remove 'unsafe-inline' once onclick= → addEventListener migration lands
-        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline'` +
+        // PHASE 2: 'unsafe-inline' removed — all inline scripts authenticated by nonce
+        `script-src 'self' 'nonce-${nonce}'` +
             " https://www.gstatic.com" +
             " https://challenges.cloudflare.com" +
             " https://accounts.google.com" +
