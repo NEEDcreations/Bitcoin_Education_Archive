@@ -316,11 +316,13 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
   }
 
   // Server-side validation for badge_earned
+  // [SECURITY] sanitizedBadge hoisted so it's accessible after the block for proof-of-earning check
+  let sanitizedBadge = null;
   if (source === 'badge_earned') {
     if (!detail || typeof detail !== 'string') {
       throw new functions.https.HttpsError('invalid-argument', 'Invalid badge detail.');
     }
-    const sanitizedBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
+    sanitizedBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
     if (!VALID_BADGE_IDS.has(sanitizedBadge)) {
       throw new functions.https.HttpsError(
         'invalid-argument',
@@ -328,6 +330,13 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
       );
     }
   }
+
+  // [SECURITY FIX] Proof-of-earning ref.
+  // badge_awards is written atomically by awardPoints CF when a badge is legitimately earned.
+  // We read this inside the transaction to block SF contributions for unearned badges.
+  const badgeProofRef = sanitizedBadge
+    ? db.collection('users').doc(uid).collection('badge_awards').doc(sanitizedBadge)
+    : null;
 
   // Build contributor key for dedup — server-controlled, NOT from client detail
   // Level-up and badge keys use today's date so they reset daily (not permanently blocked)
@@ -339,9 +348,10 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
     const validatedLevel = detail; // already validated above against whitelist
     contributorKey = `${uid}_level_${validatedLevel}`;
   } else if (source === 'badge_earned') {
-    // Dedup by uid + sanitized badge name + date — resets each SF cycle so new cycles announce correctly
-    const safeBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
-    contributorKey = `${uid}_${today}_badge_${safeBadge}`;
+    // [SECURITY FIX] Dedup by uid + badge id only — no date reset.
+    // Each badge can contribute to SF at most once per user ever.
+    // Combined with the badge_awards proof check below, this closes the activation exploit.
+    contributorKey = `${uid}_badge_${sanitizedBadge}`;
   } else {
     contributorKey = `${uid}_${source}_${today}`;
   }
@@ -350,8 +360,14 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
 
   // Run in a transaction for atomicity
   const result = await db.runTransaction(async (transaction) => {
+    // Batch all reads before any writes (Firestore best practice for transactions)
+    const [contributorDoc, stateDoc, badgeProofDoc] = await Promise.all([
+      transaction.get(contributorRef),
+      transaction.get(stateRef),
+      badgeProofRef ? transaction.get(badgeProofRef) : Promise.resolve(null),
+    ]);
+
     // Check dedup
-    const contributorDoc = await transaction.get(contributorRef);
     if (contributorDoc.exists) {
       throw new functions.https.HttpsError(
         'already-exists',
@@ -359,8 +375,19 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
       );
     }
 
-    // Get current state
-    const stateDoc = await transaction.get(stateRef);
+    // [SECURITY FIX] Verify badge ownership: badge_awards record must exist.
+    // This was written atomically by awardPoints when the badge was legitimately earned.
+    // Blocks activating SF mining windows with catalog badges the user never actually earned.
+    if (badgeProofRef) {
+      if (!badgeProofDoc || !badgeProofDoc.exists) {
+        console.warn(`[SF] badge_earned rejected — no badge_awards proof uid=${uid} badge=${sanitizedBadge}`);
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'Badge has not been earned. Complete the badge challenge first.'
+        );
+      }
+    }
+
     let stateData = stateDoc.exists ? stateDoc.data() : {
       points: 0,
       favorActive: false,

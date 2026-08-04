@@ -6,6 +6,76 @@ window._notifCount = 0;
 window._notifUnsub = null;
 window._dmUnreadCount = 0;
 
+// ---- NWC Security Alert (2026-08-04) ----
+// Fires on sign-in if the user has an active NWC wallet in localStorage.
+// NWC state is client-only — server cannot target these users by UID.
+// Shows a 60-second sticky banner + writes a deduped Firestore notification.
+window._checkNWCSecurityAlert = function() {
+    var DEDUP_KEY = 'btc_nwc_sec_alert_v1';
+    if (localStorage.getItem(DEDUP_KEY)) return;
+    var lnState = null;
+    try { lnState = JSON.parse(localStorage.getItem('btc_ln_state') || 'null'); } catch(e) {}
+    if (!lnState || lnState.method !== 'nwc') return;
+    localStorage.setItem(DEDUP_KEY, '1');
+    // Write persistent in-app notification (deduped doc ID — safe to re-call)
+    if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous && typeof db !== 'undefined') {
+        var uid = auth.currentUser.uid;
+        db.collection('notifications').doc('nwc_sec_alert_v1_' + uid.replace(/[^a-zA-Z0-9]/g,'_')).set({
+            recipientId: uid,
+            senderId: 'system',
+            senderName: 'Bitcoin Quest Team',
+            type: 'security',
+            message: '\ud83d\udd10 Security Notice (NWC Wallet): A vulnerability was patched where your NWC connection string secret was visible to relay operators. Please generate a new NWC URI from your wallet app as a precaution. Your funds are NOT at risk. Questions? info.603btc@gmail.com',
+            targetType: null,
+            targetId: null,
+            read: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function() {});
+    }
+    // 60-second sticky dismissible banner
+    if (document.getElementById('nwcSecAlert')) return;
+    var timeLeft = 60;
+    var banner = document.createElement('div');
+    banner.id = 'nwcSecAlert';
+    banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999999;' +
+        'background:linear-gradient(135deg,#4338ca,#7c3aed);color:#fff;padding:14px 16px 16px;' +
+        'box-shadow:0 -4px 32px rgba(0,0,0,0.55);font-family:inherit;';
+    banner.innerHTML =
+        '<style>@keyframes _nwcUp{from{transform:translateY(100%)}to{transform:translateY(0)}}' +
+        '#nwcSecAlert{animation:_nwcUp 0.4s ease-out}</style>' +
+        '<div style="max-width:720px;margin:0 auto;display:flex;align-items:flex-start;gap:12px;">' +
+            '<div style="font-size:1.5rem;flex-shrink:0;padding-top:2px;">\ud83d\udd10</div>' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="font-weight:800;font-size:0.9rem;margin-bottom:4px;">Security Notice — Action Required (NWC Wallet Users)</div>' +
+                '<div style="font-size:0.78rem;line-height:1.55;opacity:0.93;">' +
+                    'A vulnerability has been patched (caught via Kimi K3 code audit) where your NWC connection string secret was visible to whoever operates the relay endpoint in your NWC URI. ' +
+                    '<strong>Please generate a new NWC URI</strong> from your wallet app (Alby Hub, Umbrel, Zeus, LNbits, etc.) and reconnect. ' +
+                    'This is precautionary — your funds are NOT at risk and we do not hold user funds. ' +
+                    'We are always working to keep Bitcoin Quest secure and apologise this occurred. ' +
+                    'Questions? <strong>info.603btc@gmail.com</strong> — Phil' +
+                '</div>' +
+            '</div>' +
+            '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;">' +
+                '<span id="_nwcAlertTimer" style="font-size:0.65rem;opacity:0.65;">' + timeLeft + 's</span>' +
+                '<button id="_nwcAlertDismiss" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);' +
+                    'color:#fff;padding:5px 14px;border-radius:7px;font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">\u2715 Dismiss</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(banner);
+    var _dismiss = function() {
+        var b = document.getElementById('nwcSecAlert');
+        if (b) { b.style.opacity = '0'; b.style.transition = 'opacity 0.4s'; setTimeout(function() { b.remove(); }, 400); }
+        clearInterval(_cd);
+    };
+    document.getElementById('_nwcAlertDismiss').addEventListener('click', _dismiss);
+    var _cd = setInterval(function() {
+        timeLeft--;
+        var el = document.getElementById('_nwcAlertTimer');
+        if (el) el.textContent = timeLeft + 's';
+        if (timeLeft <= 0) { _dismiss(); }
+    }, 1000);
+};
+
 // Start listening for notifications
 window.initNotifications = function() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
@@ -13,6 +83,9 @@ window.initNotifications = function() {
 
     // Cleanup previous listener
     if (window._notifUnsub) { window._notifUnsub(); window._notifUnsub = null; }
+
+    // NWC security alert — fires once per device if NWC wallet is connected
+    setTimeout(window._checkNWCSecurityAlert, 3000);
 
     // Listen for unread notifications
     window._notifUnsub = db.collection('notifications')
@@ -166,7 +239,7 @@ window.showNotifications = async function() {
             var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
             var timeStr = n.createdAt && n.createdAt.toDate ? (typeof timeAgo === 'function' ? timeAgo(n.createdAt.toDate()) : n.createdAt.toDate().toLocaleDateString()) : '';
             var isUnread = !n.read;
-            var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️' };
+            var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', security: '🔐' };
             var icon = icons[n.type] || '🔔';
 
             html += '<div style="padding:10px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\')">' +
@@ -388,7 +461,7 @@ window.renderNotifList = async function() {
         }
 
         var html = '';
-        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', buddy: '🤝', leaderboard_reward: '🏆' };
+        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', buddy: '🤝', leaderboard_reward: '🏆', security: '🔐' };
         snap.forEach(function(doc) {
             var n = doc.data();
             var e = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };

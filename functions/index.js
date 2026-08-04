@@ -2553,9 +2553,11 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
         : null;
 
     // DAILY ACTION COUNT LIMIT: Cap certain actions per UTC day independent of point cap.
-    // (Empty by default - beats_upload abuse is addressed by the 15s minimum duration
-    // gate in Firestore rules + client, not here, so albums of many short tracks work.)
-    const ACTION_DAILY_LIMITS = {};
+    // badge_earned: max 10 per UTC day — limits blast radius of catalog farming even if
+    // a badge ID is guessed. Honest users earn far fewer badges per day than 10.
+    const ACTION_DAILY_LIMITS = {
+        'badge_earned': 10,
+    };
     const dailyActionRef = (matchedAction && ACTION_DAILY_LIMITS[matchedAction])
         ? userRef.collection('daily_action_counts').doc(today + '_' + matchedAction)
         : null;
@@ -2677,6 +2679,55 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
 
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
+
+            // [SECURITY FIX] Badge proof-of-earning: server-side condition checks.
+            //
+            // The badge catalog is public (client JS). Without this check, any valid badge
+            // ID can be submitted to awardPoints and immediately claim XP + write a
+            // badge_awards record — no conditions verified. This was worth ~382k XP total.
+            //
+            // Approach: for badges whose conditions map to server-authoritative fields,
+            // verify those fields here inside the transaction before writing anything.
+            //
+            // Milestone badges (hall_of_fame → satoshis_cipher): conditions are based on
+            // number of distinct badges owned. visibleBadges is an array maintained
+            // atomically by awardPoints CF — clients cannot write it (Firestore rules block it).
+            //
+            // Stat badges (streak_365, sats_21k): conditions are on bestStreak /
+            // satsWithdrawn which are also CF-only writes.
+            if (matchedAction === 'badge_earned' && badgeKnown) {
+                const MILESTONE_BADGE_THRESHOLDS = {
+                    'hall_of_fame':       50,
+                    'the_archive':       100,
+                    'genesis_block':     150,
+                    'satoshis_ghost':    200,
+                    'block_250':         250,
+                    'the_hodler':        300,
+                    'satoshis_covenant': 350,
+                    'satoshis_cipher':   400,
+                };
+                if (MILESTONE_BADGE_THRESHOLDS[badgeId] !== undefined) {
+                    const required = MILESTONE_BADGE_THRESHOLDS[badgeId];
+                    const owned = Array.isArray(userData.visibleBadges) ? userData.visibleBadges.length : 0;
+                    if (owned < required) {
+                        console.warn(`[awardPoints] milestone badge rejected: ${badgeId} needs ${required} badges, user has ${owned} uid=${uid}`);
+                        throw new Error('BADGE_CONDITION_NOT_MET:' + badgeId);
+                    }
+                }
+                // Stat-based high-value badges
+                if (badgeId === 'streak_365') {
+                    if ((userData.bestStreak || 0) < 365) {
+                        console.warn(`[awardPoints] streak_365 rejected: bestStreak=${userData.bestStreak} uid=${uid}`);
+                        throw new Error('BADGE_CONDITION_NOT_MET:streak_365');
+                    }
+                }
+                if (badgeId === 'sats_21k') {
+                    if ((userData.satsWithdrawn || 0) < 21000) {
+                        console.warn(`[awardPoints] sats_21k rejected: satsWithdrawn=${userData.satsWithdrawn} uid=${uid}`);
+                        throw new Error('BADGE_CONDITION_NOT_MET:sats_21k');
+                    }
+                }
+            }
 
             // 2. Throttle for Daily Tickets
             if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
@@ -2851,6 +2902,9 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
         }
         if (e.message && e.message.startsWith('BADGE_ALREADY_AWARDED:')) {
             return { success: false, error: 'Badge already awarded', badgeDuplicate: true };
+        }
+        if (e.message && e.message.startsWith('BADGE_CONDITION_NOT_MET:')) {
+            return { success: false, error: 'Badge condition not met', badgeConditionFailed: true };
         }
         if (e.message && e.message.startsWith('DAILY_ACTION_LIMIT:')) {
             const parts = e.message.split(':');
