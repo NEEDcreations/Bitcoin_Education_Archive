@@ -98,6 +98,12 @@ async function verifyTurnstile(token, remoteip) {
 }
 const bolt11 = require('bolt11');
 
+// ===== VALID CHANNEL CATALOG (server-authoritative) =====
+// Extracted from channel_index.js — used to reject fake channelId values
+// that would otherwise inflate visitedChannelsList and forge faucet eligibility.
+// Update this Set whenever channel_index.js gains new channels.
+const VALID_CHANNEL_IDS = new Set(["0_mining__hashing","100_sats","1_first_principles","2__solved_technical_problems","analogies","apps-tools","art-inspiration","articles-threads","austrian_school_of_economics","bip119","bitcoin_exam","bitcoin_vs_real_estate","bitvm","block_time-block-size","blockchain-timechain","books","burn_bitcoin","byzantine_generals__problem","charts","chaumian-mints","chaumian_e-cash_and_blind_signatures","coin_mixing_coinjoin_coin_control_utxo","consensus","core-source-code","cryptography","ctv-covenants","curriculum","cyles","decentralized","derivation_path","developers","difficulty-adjustment","discrete_log_contracts__dlcs","dollar-bitcoin_milkshake_theory","dominant","dust","elevator_pitches","energy","environment___energy","evidence-against-alts","extension-blocks","faith___religion","faq-glossary","fedi-ark","fedimints","feedback_loops","free_and_open_source_software__foss","fun-facts","game_theory","games","geopolitics___macroeconomics","giga-chad","governance","graphics","ham_radio","hardware","health","history","human_rights__social_justice_and_freedo","improved_incentive_structure","informational-sites","international","investment-strategy","jobs-earn","laws_of_thermodynamics","layer-2-lightning","layer-3-sidechains","lightning_node","lindy_effect","market_cap","math","mathematics","maximalism","memes-funny","mev","mining","misconceptions-fud","money","movies-tv","music","network_effects","news-adoption","nodes","nostr","one-stop-shop","op-codes","open_source","oracle","orange-pilling","ordinals","ordinals__nfts_on_bitcoin__and_block_spa","organic","peace_and_anti-war","peaceful","philosophy","podcasts","poems-stories","politics","pow-vs-pos","predictions","privacy-nonkyc","problems-of-money","programmable","projects-diy","public_key_vs_private_key","rbf","referral-links","regulation","research-theses","risks__threats__attack_vectors__weaknes","rollups","satoshi-nakamoto","sats__or__bits","scalability","scarce","secure","self-custody","sidechains","simplified_payment_verification__spv","smart-contracts","social-media","soft_vs_hard_forks","softwar","stablecoins","stratum_v2","submarine_swap","supranational","swag-merch","swaps","ta_tips","tail_emission","taproot","taro","the_future","time","time_preference","toxicity","transaction_fees","unpopular_opinions","use-cases","utxos","vbyte","videos","web5","whitepaper"]);
+
 // ===== SATS FAUCET CONFIG =====
 const FAUCET = {
     POINTS_PER_SAT: 10,
@@ -1806,8 +1812,15 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
             if (visitedList.length < FAUCET.MIN_CHANNELS_READ) {
                 const legacyRead = Array.isArray(user.readChannels) ? user.readChannels : [];
                 if (legacyRead.length > visitedList.length) {
-                    // Merge legacy client-tracked list into server-tracked list (dedup)
-                    const merged = Array.from(new Set([].concat(visitedList, legacyRead.filter(function(c){ return typeof c === 'string' && c.length > 0 && c.length <= 100; }))));
+                    // Merge legacy client-tracked list into server-tracked list (dedup).
+                    // [SECURITY FIX] Also filter legacy entries through VALID_CHANNEL_IDS —
+                    // readChannels was client-writable so it may contain forged values.
+                    const merged = Array.from(new Set([].concat(
+                        visitedList,
+                        legacyRead.filter(function(c) {
+                            return typeof c === 'string' && VALID_CHANNEL_IDS.has(c);
+                        })
+                    )));
                     t.update(userRef, { visitedChannelsList: merged });
                     visitedList = merged;
                 }
@@ -2796,7 +2809,11 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
             // MUST run even when capped, otherwise users who hit the cap before
             // reading 10 channels can never become faucet-eligible.
             let channelTracked = false;
-            if (channelId && channelId.length > 0 && channelId.length <= 100) {
+            // [SECURITY FIX] Validate channelId against the server-side catalog before
+            // writing to visitedChannelsList. Previously any string ≤100 chars was accepted,
+            // letting a client send 10 arbitrary channelId values to forge faucet eligibility
+            // (MIN_CHANNELS_READ = 10) without ever visiting a real channel.
+            if (channelId && VALID_CHANNEL_IDS.has(channelId)) {
                 userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
                 // channelsVisited is a display counter - only bump on first read of this channel
                 const currentList = Array.isArray(userData.visitedChannelsList) ? userData.visitedChannelsList : [];
@@ -2804,6 +2821,8 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
                     userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
                 }
                 channelTracked = true;
+            } else if (channelId) {
+                console.warn('[awardPoints] channelId rejected — not in catalog:', channelId, 'uid:', uid);
             }
 
             // Points/tickets/freezes - award today's legitimate portion PLUS any
@@ -3622,8 +3641,14 @@ exports.pvpStoreAnswerKey = functions.runWith({ enforceAppCheck: true }).https.o
 exports.pvpCreateMatch = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
-    const { lobbyDocId, player1, player2, questions } = data || {};
-    if (!lobbyDocId || !player1 || !player2 || !questions || !Array.isArray(questions)) {
+    // [SECURITY FIX] Caller is always player2 (the matchmaker who found an opponent).
+    // Pin player2.uid to context.auth.uid — never trust client-supplied uid.
+    // player1 identity is pulled from the lobby doc (server-authoritative), not from
+    // client-supplied player1 object, preventing player impersonation + rigged matches.
+    const callerUid = context.auth.uid;
+
+    const { lobbyDocId, player2, questions } = data || {};
+    if (!lobbyDocId || !player2 || !questions || !Array.isArray(questions)) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
     }
     if (questions.length < 1 || questions.length > 10) {
@@ -3634,7 +3659,7 @@ exports.pvpCreateMatch = functions.runWith({ enforceAppCheck: true }).https.onCa
     const answerKeys = questions.map((q, i) => ({ questionIndex: i, correct: q.correct }));
 
     // Strip correct answer — clients must NOT receive the answer key in the match doc.
-    // Server validates answers via pvpSubmitAnswer / pvpAnswer CF only.
+    // Server validates answers via pvpSubmitAnswer CF only.
     const clientQuestions = questions.map(q => ({
         q: q.q,
         options: q.options
@@ -3657,16 +3682,29 @@ exports.pvpCreateMatch = functions.runWith({ enforceAppCheck: true }).https.onCa
             throw new functions.https.HttpsError('already-exists', 'Opponent already matched');
         }
 
+        // [SECURITY FIX] Pull player1 identity from the lobby doc (server-authoritative).
+        // The lobby doc was written by player1 with their own uid (rules enforce uid==docId),
+        // so this is tamper-proof. Client-supplied player1 object is ignored entirely.
+        const p1Uid = lobbyData.uid;
+        if (!p1Uid) {
+            throw new functions.https.HttpsError('internal', 'Lobby doc missing uid');
+        }
+        // Caller (player2) must not be the same person as player1
+        if (p1Uid === callerUid) {
+            throw new functions.https.HttpsError('permission-denied', 'Cannot match against yourself');
+        }
+
         // Create the match document
         tx.set(matchRef, {
             player1: {
-                uid: player1.uid,
-                name: (player1.name || 'Anonymous').substring(0, 30),
-                profilePic: player1.profilePic || '',
+                uid: p1Uid,
+                name: (lobbyData.name || 'Anonymous').substring(0, 30),
+                profilePic: lobbyData.profilePic || '',
                 score: 0, correct: 0, answers: []
             },
             player2: {
-                uid: player2.uid,
+                // uid pinned to verified caller — never from client payload
+                uid: callerUid,
                 name: (player2.name || 'Anonymous').substring(0, 30),
                 profilePic: player2.profilePic || '',
                 score: 0, correct: 0, answers: []
@@ -3690,7 +3728,7 @@ exports.pvpCreateMatch = functions.runWith({ enforceAppCheck: true }).https.onCa
             status: 'matched',
             matchId: matchRef.id,
             opponentName: (player2.name || 'Anonymous').substring(0, 30),
-            opponentUid: player2.uid,
+            opponentUid: callerUid,
             opponentProfilePic: player2.profilePic || ''
         });
     });
@@ -6155,6 +6193,12 @@ exports.seedWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).https
 // Increment community challenge progress (called from client - quiz completion, trivia correct)
 exports.incrementWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    // [SECURITY FIX] Block anonymous users — previously only checked context.auth exists.
+    // Anonymous accounts are free to create; an attacker could spam N anonymous UIDs
+    // and solo-complete the community challenge, triggering the SF boost and badge awards.
+    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to weekly challenges');
+    }
     const uid = context.auth.uid;
 
     const goalType = (data.goalType || '').replace(/[^a-z_]/g, '').substring(0, 30);
@@ -6162,6 +6206,9 @@ exports.incrementWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).
 
     const weekKey = _getCurrentWeekKey();
     const challengeRef = db.collection('weekly_challenges').doc(weekKey);
+    // Per-user per-goalType contribution cap for this week
+    // Stored in a subcollection so the cap check is atomic with the increment.
+    const userContribRef = challengeRef.collection('user_contribs').doc(`${uid}_${goalType}`);
 
     const snap = await challengeRef.get();
     if (!snap.exists) return { success: false, reason: 'No active challenge' };
@@ -6173,11 +6220,27 @@ exports.incrementWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).
     const validGoal = (data2.goals || []).find(g => g.type === goalType);
     if (!validGoal) return { success: false, reason: 'Invalid goal type' };
 
-    // Increment progress
-    await challengeRef.update({
-        [`progress.${goalType}`]: admin.firestore.FieldValue.increment(1),
-        [`participants.${uid}`]: true,
+    // [SECURITY FIX] Per-user cap: no single user can contribute more than 10% of the
+    // goal target (min 1, max 50). Previously there was no cap at all — one authenticated
+    // user could call in a loop and solo-complete the entire community challenge.
+    const userCap = validGoal.userCap || Math.min(50, Math.max(1, Math.ceil(validGoal.target / 10)));
+
+    // Atomic: read user contrib count, enforce cap, increment both in one transaction
+    const { alreadyCapped, newContrib } = await db.runTransaction(async (tx) => {
+        const contribDoc = await tx.get(userContribRef);
+        const currentContrib = contribDoc.exists ? (contribDoc.data().count || 0) : 0;
+        if (currentContrib >= userCap) {
+            return { alreadyCapped: true, newContrib: currentContrib };
+        }
+        tx.set(userContribRef, { count: admin.firestore.FieldValue.increment(1) }, { merge: true });
+        tx.update(challengeRef, {
+            [`progress.${goalType}`]: admin.firestore.FieldValue.increment(1),
+            [`participants.${uid}`]: true,
+        });
+        return { alreadyCapped: false, newContrib: currentContrib + 1 };
     });
+
+    if (alreadyCapped) return { success: false, reason: 'Weekly contribution cap reached for this goal' };
 
     // Check if all goals completed (re-read)
     const updated = (await challengeRef.get()).data();

@@ -231,11 +231,17 @@ async function handleAI(request, env, corsHeaders) {
   try {
     const body = await request.json();
     let question = (body.question || '').trim();
-    const lang = (body.lang || '').trim();
-    const userName = (body.userName || '').trim().slice(0, 30);
+    // [SECURITY FIX] userName/lang/kbContext were interpolated raw into the system prompt,
+    // bypassing detectInjection (which only ran on `question`). An attacker could send
+    // userName: "Alice. IGNORE ALL PREVIOUS INSTRUCTIONS..." to inject arbitrary prompts.
+    // Fix: allowlist-strip lang/userName; detect+drop kbContext if it contains injection.
+    const lang = (body.lang || '').trim().slice(0, 30).replace(/[^a-zA-Z \-]/g, '');
+    const userName = (body.userName || '').trim().slice(0, 30).replace(/[^a-zA-Z0-9 '\-\.]/g, '');
     const eli5 = !!body.eli5;
     const history = Array.isArray(body.history) ? body.history.slice(-5) : [];
-    const kbContext = (body.kbContext || '').trim().slice(0, 400);
+    let kbContext = (body.kbContext || '').trim().slice(0, 400);
+    if (detectInjection(kbContext)) kbContext = '';
+    else kbContext = sanitizeInput(kbContext);
 
     if (!question || question.length < 2) {
       return new Response(JSON.stringify({ error: 'Invalid question' }), {

@@ -540,45 +540,35 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   const communityHeatBonus = Math.min(10, Math.floor((stateData.totalHashes || 0) / 1000));
   const effectiveRateLimit = HASHES_PER_MINUTE + communityHeatBonus;
 
-  // Check if user has booster hashes (bypass cooldown)
+  // [SECURITY FIX] Booster and rig2 charge check+consume moved INSIDE the transaction.
+  // Previously: user doc read outside tx, booster/rig2 consumed outside tx, THEN cooldown tx ran.
+  // TOCTOU: two concurrent requests both read hashBoosterHashes:1 outside the tx, both saw
+  // usingBooster=true, both consumed (-1 each), both skipped rate limiting → 1 charge, N hashes.
+  // Same for rig2: two requests both read secondRigCharges:1, both consumed, went to -1.
+  // Fix: read user doc + consume booster/rig2 atomically inside the same tx as cooldown check.
   const userRef2 = db.collection('users').doc(uid);
-  const userDocForBooster = await userRef2.get();
-  const userDataForBooster = userDocForBooster.exists ? userDocForBooster.data() : {};
-  const boosterHashesAvail = userDataForBooster.hashBoosterHashes || 0;
-  const usingBooster = boosterHashesAvail > 0;
-
-  // If booster active, consume one booster hash (no rate limit check)
-  if (usingBooster) {
-    await userRef2.update({
-      hashBoosterHashes: admin.firestore.FieldValue.increment(-1),
-    });
-  }
-
-  // Rig 2: validate charge exists and consume one per cycle (server-enforced)
   const currentCycleId = stateData.currentCycleId || 'unknown';
-  if (rigNum === 2) {
-    const rigCharges = userDataForBooster.secondRigCharges || 0;
-    const lastRigCycleId = userDataForBooster.lastSecondRigCycleId || null;
-    const alreadyUnlockedThisCycle = lastRigCycleId === currentCycleId;
-    // Allow hashing if: charge was already consumed this cycle (rig unlocked for whole window)
-    // OR they still have unused charges (consume one now to unlock this cycle)
-    if (!alreadyUnlockedThisCycle) {
-      if (rigCharges <= 0) {
-        throw new functions.https.HttpsError('permission-denied', 'No Second Rig charges remaining.');
-      }
-      // Consume one charge to unlock rig 2 for this SF window
-      await userRef2.update({
-        secondRigCharges: admin.firestore.FieldValue.increment(-1),
-        lastSecondRigCycleId: currentCycleId,
-      });
-    }
-    // If alreadyUnlockedThisCycle: charge was already paid, allow unlimited hashing this window
-  }
 
   const { value, isWinner } = await db.runTransaction(async (transaction) => {
     const cooldownDoc = await transaction.get(cooldownRef);
-    let timestamps = [];
+    const userDoc = await transaction.get(userRef2);
 
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const boosterHashesAvail = userData.hashBoosterHashes || 0;
+    const usingBooster = boosterHashesAvail > 0;
+
+    // Rig 2: validate charge atomically (inside tx — no TOCTOU)
+    let rig2AlreadyUnlocked = false;
+    if (rigNum === 2) {
+      const rigCharges = userData.secondRigCharges || 0;
+      const lastRigCycleId = userData.lastSecondRigCycleId || null;
+      rig2AlreadyUnlocked = lastRigCycleId === currentCycleId;
+      if (!rig2AlreadyUnlocked && rigCharges <= 0) {
+        throw new functions.https.HttpsError('permission-denied', 'No Second Rig charges remaining.');
+      }
+    }
+
+    let timestamps = [];
     if (cooldownDoc.exists) {
       const cdData = cooldownDoc.data();
       timestamps = (cdData.timestamps || []).filter(t => {
@@ -600,6 +590,19 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     // Generate random value 0 to 100,000,000
     const val = crypto.randomInt(0, 100000001);
     const winner = val < DIFFICULTY_TARGET;
+
+    // Consume booster / rig2 charge atomically — single update object to avoid double-write
+    const userUpdate = {};
+    if (usingBooster) {
+      userUpdate.hashBoosterHashes = admin.firestore.FieldValue.increment(-1);
+    }
+    if (rigNum === 2 && !rig2AlreadyUnlocked) {
+      userUpdate.secondRigCharges = admin.firestore.FieldValue.increment(-1);
+      userUpdate.lastSecondRigCycleId = currentCycleId;
+    }
+    if (Object.keys(userUpdate).length > 0) {
+      transaction.update(userRef2, userUpdate);
+    }
 
     // Always append timestamp (so cooldown tracks correctly after booster runs out)
     timestamps.push(admin.firestore.Timestamp.now());

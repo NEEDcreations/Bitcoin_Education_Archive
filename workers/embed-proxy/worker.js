@@ -136,8 +136,15 @@ async function proxyToGalaxyMind(request, url) {
 // Stacker News API
 // =============================================
 async function handleSNFeed(url) {
-  var sort = url.searchParams.get('sort') || 'top';
-  var when = url.searchParams.get('when') || 'day';
+  // [SECURITY FIX] sort and when were interpolated raw into the GraphQL query string,
+  // allowing injection (e.g. sort='top") { items { id } } mutation { ...'). 
+  // Use strict allowlists — reject anything not in the set.
+  var VALID_SORTS = ['top', 'hot', 'recent', 'comments', 'zaprank'];
+  var VALID_WHENS = ['day', 'week', 'month', 'year', 'forever', 'custom'];
+  var sortRaw = url.searchParams.get('sort') || 'top';
+  var whenRaw = url.searchParams.get('when') || 'day';
+  var sort = VALID_SORTS.includes(sortRaw) ? sortRaw : 'top';
+  var when = VALID_WHENS.includes(whenRaw) ? whenRaw : 'day';
   var limit = Math.min(parseInt(url.searchParams.get('limit') || '21'), 42);
   var sub = url.searchParams.get('sub') || '';
 

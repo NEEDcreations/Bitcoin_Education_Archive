@@ -80,8 +80,11 @@ function buildCSP(nonce) {
     return [
         "default-src 'self'",
 
-        // PHASE 2: 'unsafe-inline' removed — all inline scripts authenticated by nonce
-        `script-src 'self' 'nonce-${nonce}'` +
+        // PHASE 1: 'unsafe-inline' retained — bundle.js generates onclick= attrs dynamically
+        // via innerHTML; removing unsafe-inline blocks all of them. Full Phase 2 requires
+        // auditing every innerHTML string in bundle.js and converting to addEventListener.
+        // Reverted from Phase 2 (ae9222d2) which broke all UI interactions.
+        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline'` +
             " https://www.gstatic.com" +
             " https://challenges.cloudflare.com" +
             " https://accounts.google.com" +

@@ -54,6 +54,13 @@ export default {
 
 // ---- Brave Search Handler (existing) ----
 async function handleSearch(request, env, corsHeaders, url) {
+  const rl = _checkRateLimit(_getIP(request), 'search');
+  if (rl.limited) {
+    return new Response(JSON.stringify({ error: 'Too many requests', retryAfter: rl.retryAfter }), {
+      status: 429,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) },
+    });
+  }
   const query = url.searchParams.get('q');
   if (!query) {
     return new Response(JSON.stringify({ error: 'Missing query' }), {
@@ -88,6 +95,41 @@ async function handleSearch(request, env, corsHeaders, url) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+}
+
+// ── Rate limiting (sliding window, per-IP, in-memory per isolate) ──
+// Limits are enforced within each CF isolate; not cross-instance coordinated,
+// but still prevents runaway abuse from a single IP on a given edge node.
+const _rateLimits = new Map(); // ip -> { ai: [timestamps], search: [timestamps] }
+const RL_WINDOW_MS = 60 * 1000; // 1-minute sliding window
+const RL_LIMITS = { ai: 10, search: 30 }; // max requests per window per route
+
+function _checkRateLimit(ip, route) {
+  const now = Date.now();
+  const cutoff = now - RL_WINDOW_MS;
+  let entry = _rateLimits.get(ip);
+  if (!entry) {
+    entry = { ai: [], search: [] };
+    _rateLimits.set(ip, entry);
+  }
+  entry[route] = entry[route].filter(t => t > cutoff);
+  if (entry[route].length >= RL_LIMITS[route]) {
+    const retryAfter = Math.ceil((entry[route][0] + RL_WINDOW_MS - now) / 1000);
+    return { limited: true, retryAfter };
+  }
+  entry[route].push(now);
+  // Evict stale IPs to bound memory growth (cap at 5000 entries)
+  if (_rateLimits.size > 5000) {
+    const oldest = _rateLimits.keys().next().value;
+    _rateLimits.delete(oldest);
+  }
+  return { limited: false };
+}
+
+function _getIP(request) {
+  return request.headers.get('CF-Connecting-IP') ||
+         request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+         'unknown';
 }
 
 // =============================================
@@ -182,11 +224,17 @@ async function handleAI(request, env, corsHeaders) {
   try {
     const body = await request.json();
     let question = (body.question || '').trim();
-    const lang = (body.lang || '').trim();
-    const userName = (body.userName || '').trim().slice(0, 30);
+    // [SECURITY FIX] userName/lang/kbContext were interpolated raw into the system prompt,
+    // bypassing detectInjection (which only ran on `question`). An attacker could send
+    // userName: "Alice. IGNORE ALL PREVIOUS INSTRUCTIONS..." to inject arbitrary prompts.
+    // Fix: allowlist-strip lang/userName; detect+drop kbContext if it contains injection.
+    const lang = (body.lang || '').trim().slice(0, 30).replace(/[^a-zA-Z \-]/g, '');
+    const userName = (body.userName || '').trim().slice(0, 30).replace(/[^a-zA-Z0-9 '\-\.]/g, '');
     const eli5 = !!body.eli5;
     const history = Array.isArray(body.history) ? body.history.slice(-5) : [];
-    const kbContext = (body.kbContext || '').trim().slice(0, 400);
+    let kbContext = (body.kbContext || '').trim().slice(0, 400);
+    if (detectInjection(kbContext)) kbContext = '';
+    else kbContext = sanitizeInput(kbContext);
 
     if (!question || question.length < 2) {
       return new Response(JSON.stringify({ error: 'Invalid question' }), {
@@ -207,8 +255,15 @@ async function handleAI(request, env, corsHeaders) {
     // PROTECTION Layer 2: Sanitize input
     question = sanitizeInput(question);
 
-    // PROTECTION Layer 3: Rate limit per IP (simple in-memory, resets on worker restart)
-    // For production, use Cloudflare's built-in rate limiting rules
+    // PROTECTION Layer 3: Rate limit per IP (sliding window, in-memory per isolate)
+    // [SECURITY FIX] Previously a comment-only no-op — _checkRateLimit was never called.
+    const rl = _checkRateLimit(_getIP(request), 'ai');
+    if (rl.limited) {
+      return new Response(JSON.stringify({ error: 'Too many requests', retryAfter: rl.retryAfter }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) },
+      });
+    }
 
     const systemPrompt = `You are Nacho, a friendly deer mascot on the Bitcoin Education Archive website (bitcoineducation.quest). You are a 5-year-old buck from New Hampshire.
 

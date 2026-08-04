@@ -211,20 +211,52 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     totalCurrent += (pDoc.data().contributed || 0);
   });
 
-  const updateBoss = { current: totalCurrent };
+  // [SECURITY FIX] Defeat detection moved into a transaction.
+  // Previously: activeBoss.defeated was read from a stale snapshot before the contribution tx.
+  // Two concurrent requests both saw defeated=false, both crossed the target threshold,
+  // both wrote winners → duplicate 1000-sat payouts.
+  // Fix: read boss doc fresh inside a transaction and atomically flip defeated=true
+  // only if it's currently false. Only one concurrent writer can win the CAS.
   let defeated = false;
+  let finalTotal = totalCurrent;
 
-  if (totalCurrent >= activeBoss.target && !activeBoss.defeated) {
-    updateBoss.defeated = true;
+  await db.runTransaction(async (tx) => {
+    const freshBossSnap = await tx.get(activeBossRef);
+    if (!freshBossSnap.exists) return;
+    const freshBoss = freshBossSnap.data();
+
+    // Re-read participants inside tx so totalCurrent is consistent with the lock
+    // Note: subcollection reads in transactions are supported but expensive at scale.
+    // Using the already-computed totalCurrent is safe here — the participant tx above
+    // already committed atomically, and we only need defeat detection to be idempotent.
+    finalTotal = totalCurrent;
+
+    if (freshBoss.defeated) {
+      // Another concurrent request already won the race — skip
+      return;
+    }
+
+    if (finalTotal < freshBoss.target) {
+      // Not yet defeated — just update current count
+      tx.update(activeBossRef, { current: finalTotal });
+      return;
+    }
+
+    // Target reached and boss not yet defeated — this request wins the race
     defeated = true;
+    tx.update(activeBossRef, { current: finalTotal, defeated: true });
+  });
 
-    // Random winner selection from all participants
+  // If we won the defeat race, pick winners and write payout docs
+  // (outside the transaction — subcollection batch writes can't go inside a tx easily,
+  //  and the defeated=true flag set above is the idempotency guard)
+  if (defeated) {
     const participantUIDs = [];
     participantsSnap.forEach((pDoc) => {
       participantUIDs.push({ uid: pDoc.id, username: pDoc.data().username || 'Anonymous' });
     });
 
-    // Fisher-Yates shuffle using crypto-safe method
+    // Fisher-Yates shuffle
     const shuffled = [...participantUIDs];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -235,6 +267,8 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     const batch = db.batch();
     for (const winner of winners) {
       const winnerRef = activeBossRef.collection('winners').doc(winner.uid);
+      // set (not update) with merge:false — idempotent: second write of same doc is a no-op
+      // if a concurrent CF somehow also reached here (extremely unlikely given the tx above)
       batch.set(winnerRef, {
         uid: winner.uid,
         username: winner.username,
@@ -243,15 +277,15 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
       });
     }
     await batch.commit();
-
     console.log(`[RAID] Boss "${activeBoss.name}" DEFEATED! Winners: ${winners.map(w => w.uid).join(', ')}`);
+  } else {
+    // Not defeated — update current count if we didn't already do so in the tx
+    // (the tx handles this; this branch is a no-op safety fallback)
   }
-
-  await activeBossRef.update(updateBoss);
 
   return {
     success: true,
-    current: totalCurrent,
+    current: finalTotal,
     target: activeBoss.target,
     defeated: defeated,
   };

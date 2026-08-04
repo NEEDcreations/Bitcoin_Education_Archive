@@ -691,40 +691,40 @@
     <div id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:rgba(0,0,0,0.85);padding:16px;flex-direction:column;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div style="font-size:1.1rem;font-weight:800;color:var(--heading);">🔍 Search Archive</div>
-            <button data-idx-click="112" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
+            <button onclick="var _so=document.getElementById('searchOverlay');_so.style.display='none';_so.removeAttribute('data-open');" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
         </div>
         <input type="text" class="search-input" id="searchOverlayInput" placeholder="What are you looking for?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:14px;background:#0f172a;border:2px solid var(--accent);border-radius:12px;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;" oninput="doSearch(this.value)">
         <div id="searchResults" class="search-results" style="flex:1;overflow-y:auto;background:none;padding:0;"></div>
     </div>
     
     <div class="mobile-bar">
-        <div data-idx-click="111" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
+        <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
             <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><g transform="rotate(14,32,32)"><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></g></svg>
             <h2 style="margin:0;line-height:1.2;">BITCOIN<br>EDUCATION ARCHIVE</h2>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:1;min-width:0;">
             <span id="mobileUserInfo" style="font-size:0.65rem;color:var(--text-muted);cursor:pointer;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;"></span>
             <div style="display:flex;align-items:center;gap:4px;">
-                <button data-idx-click="110" style="background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">☰ Topics</button>
-                <button data-idx-click="109" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;flex-shrink:0;">🔍</button>
-                <button data-idx-click="108" id="mobileThemeBtn" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;flex-shrink:0;" title="Light/Dark mode">🌙</button>
+                <button onclick="toggleMenu()" style="background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">☰ Topics</button>
+                <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;flex-shrink:0;">🔍</button>
+                <button onclick="toggleTheme()" id="mobileThemeBtn" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;flex-shrink:0;" title="Light/Dark mode"><script>document.write(localStorage.getItem('theme')==='light'?'☀️':'🌙')</script></button>
             </div>
         </div>
     </div>
 
     <aside id="sidebar">
-        <button data-idx-click="107" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
-        <button class="mobile-close" data-idx-click="106">✕</button>
+        <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
+        <button class="mobile-close" onclick="toggleMenu()">✕</button>
         <div class="sidebar-header">
-            <div data-idx-click="105" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
+            <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
                 <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><g transform="rotate(14,32,32)"><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></g></svg>
                 <h2 style="margin:0;line-height:1.2;">BITCOIN<br>EDUCATION ARCHIVE</h2>
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
-                <button class="theme-toggle" data-idx-click="104" title="Toggle sound" id="audioBtn" style="font-size:1rem;background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;border-radius:8px;cursor:pointer;">🔊</button>
+                <button class="theme-toggle" onclick="toggleAudio()" title="Toggle sound" id="audioBtn" style="font-size:1rem;background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;border-radius:8px;cursor:pointer;">🔊</button>
                 <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)" style="width:50px;height:4px;accent-color:#f7931a;cursor:pointer;" title="Volume">
-                <button class="theme-toggle" data-idx-click="103" title="Toggle light/dark mode" id="themeBtn">🌙</button>
-                <button class="sidebar-collapse-btn" data-idx-click="102" title="Collapse sidebar">◀</button>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn">🌙</button>
+                <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar">◀</button>
             </div>
         </div>
         <div class="search-box">
@@ -744,7 +744,7 @@
             </div>
 
             <div style="padding:8px 12px;margin-bottom:4px;">
-                <button data-idx-click="101" style="padding:6px 12px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;width:100%;text-align:left;">📌 A note about the content in these topics ▼</button>
+                <button onclick="var msg=document.getElementById('contentNote');if(msg.style.display==='none'){msg.style.display='block';this.textContent='📌 A note about the content in these topics ▲'}else{msg.style.display='none';this.textContent='📌 A note about the content in these topics ▼'}" style="padding:6px 12px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;width:100%;text-align:left;">📌 A note about the content in these topics ▼</button>
                 <div id="contentNote" style="display:none;margin-top:8px;padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;line-height:1.6;">
                     <p style="margin:0 0 12px;">You can Favorite any topic by clicking the <span style="display:inline-flex;align-items:center;gap:4px;"><span style="font-size:1rem;">☆</span> <strong>Save</strong></span> star at the top of the topic. You can also Bookmark any message by clicking the <span style="display:inline-flex;align-items:center;gap:4px;"><span style="font-size:1rem;">🔖</span> <strong>bookmark</strong></span> icon under each message.</p>
                     <p style="margin:0 0 12px;">All YouTube links are embedded for you and contain videos that supplement the information in each topic. Additionally, topics are filled with tweets that were posted on Twitter over the last few years (as well as some that are much older), and you can expand these tweets to view them in each topic. Furthermore, there are links that open websites, articles, podcasts and more that will lead you further down each rabbit hole of knowledge pertaining to Bitcoin.</p>
@@ -752,180 +752,180 @@
                     <p style="margin:0;">All the education in these topics will remain free and open source forever. Enjoy learning about the peaceful revolution that is Bitcoin! And we hope you share this app with your family and friends who may be curious about Bitcoin but don't know where to start!</p>
                 </div>
             </div>
-            <div class="cat-label cat-toggle" data-expanded="false">Properties Layer 1 <span class="cat-arrow">▶</span></div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Properties Layer 1 <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" data-ch="whitepaper">📄 whitepaper</button>
-            <button class="ch-btn" data-ch="decentralized">👪 decentralized-censorship-resistant</button>
-            <button class="ch-btn" data-ch="scarce">🍀 scarce-unforgeable</button>
-            <button class="ch-btn" data-ch="secure">™ secure-fungible</button>
-            <button class="ch-btn" data-ch="money">💰 money-deflationary</button>
-            <button class="ch-btn" data-ch="peaceful">☮ peaceful-neutral</button>
-            <button class="ch-btn" data-ch="dominant">🏆 dominant-recognizable</button>
-            <button class="ch-btn" data-ch="organic">🌳 organic-empowering</button>
-            <button class="ch-btn" data-ch="supranational">🕊 supranational-lindy</button>
-            <button class="ch-btn" data-ch="programmable">🤖 programable-interoperable</button>
-            <button class="ch-btn" data-ch="use-cases">✔ use-cases</button>
+            <button class="ch-btn" onclick="go('whitepaper',this)">📄 whitepaper</button>
+            <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant</button>
+            <button class="ch-btn" onclick="go('scarce',this)">🍀 scarce-unforgeable</button>
+            <button class="ch-btn" onclick="go('secure',this)">™ secure-fungible</button>
+            <button class="ch-btn" onclick="go('money',this)">💰 money-deflationary</button>
+            <button class="ch-btn" onclick="go('peaceful',this)">☮ peaceful-neutral</button>
+            <button class="ch-btn" onclick="go('dominant',this)">🏆 dominant-recognizable</button>
+            <button class="ch-btn" onclick="go('organic',this)">🌳 organic-empowering</button>
+            <button class="ch-btn" onclick="go('supranational',this)">🕊 supranational-lindy</button>
+            <button class="ch-btn" onclick="go('programmable',this)">🤖 programable-interoperable</button>
+            <button class="ch-btn" onclick="go('use-cases',this)">✔ use-cases</button>
 
             </div>
-            <div class="cat-label cat-toggle" data-expanded="false">Experienced Topics <span class="cat-arrow">▶</span></div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Experienced Topics <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" data-ch="maximalism">💯 maximalism</button>
-            <button class="ch-btn" data-ch="problems-of-money">📉 problems-of-money</button>
-            <button class="ch-btn" data-ch="self-custody">🔑 self-custody-security</button>
-            <button class="ch-btn" data-ch="privacy-nonkyc">🤫 privacy-nonkyc</button>
-            <button class="ch-btn" data-ch="nodes">💻 nodes</button>
-            <button class="ch-btn" data-ch="mining">🌋 mining</button>
-            <button class="ch-btn" data-ch="pow-vs-pos">💪 pow-vs-pos</button>
-            <button class="ch-btn" data-ch="energy">💡 energy</button>
-            <button class="ch-btn" data-ch="difficulty-adjustment">😤 difficulty-adjustment</button>
-            <button class="ch-btn" data-ch="layer-2-lightning">⚡ layer-2-lightning</button>
-            <button class="ch-btn" data-ch="fedi-ark">🛡 fedi-ark</button>
-            <button class="ch-btn" data-ch="chaumian-mints">💸 chaumian-mints-ecash</button>
-            <button class="ch-btn" data-ch="ctv-covenants">📜 ctv-bip119-covenants</button>
-            <button class="ch-btn" data-ch="extension-blocks">🚧 extension-blocks</button>
-            <button class="ch-btn" data-ch="op-codes">👨‍💻 op-codes-simplicity</button>
-            <button class="ch-btn" data-ch="bitvm">🖥 bitvm</button>
-            <button class="ch-btn" data-ch="layer-3-sidechains">📱 layer-3-sidechains</button>
-            <button class="ch-btn" data-ch="stablecoins">🪙 stablecoins</button>
-            <button class="ch-btn" data-ch="smart-contracts">📱 smart-contracts</button>
-            <button class="ch-btn" data-ch="blockchain-timechain">⛓ blockchain-timechain</button>
-            <button class="ch-btn" data-ch="regulation">🏛 regulation-policy</button>
-            <button class="ch-btn" data-ch="cryptography">🔒 cryptography-cypherpunks</button>
-            <button class="ch-btn" data-ch="core-source-code">💾 core-source-code</button>
-            <button class="ch-btn" data-ch="developers">🖥 developers</button>
-            <button class="ch-btn" data-ch="investment-strategy">🤑 investment-strategy</button>
-            <button class="ch-btn" data-ch="evidence-against-alts">⚠ evidence-against-alts</button>
-            <button class="ch-btn" data-ch="consensus">🌐 consensus</button>
+            <button class="ch-btn" onclick="go('maximalism',this)">💯 maximalism</button>
+            <button class="ch-btn" onclick="go('problems-of-money',this)">📉 problems-of-money</button>
+            <button class="ch-btn" onclick="go('self-custody',this)">🔑 self-custody-security</button>
+            <button class="ch-btn" onclick="go('privacy-nonkyc',this)">🤫 privacy-nonkyc</button>
+            <button class="ch-btn" onclick="go('nodes',this)">💻 nodes</button>
+            <button class="ch-btn" onclick="go('mining',this)">🌋 mining</button>
+            <button class="ch-btn" onclick="go('pow-vs-pos',this)">💪 pow-vs-pos</button>
+            <button class="ch-btn" onclick="go('energy',this)">💡 energy</button>
+            <button class="ch-btn" onclick="go('difficulty-adjustment',this)">😤 difficulty-adjustment</button>
+            <button class="ch-btn" onclick="go('layer-2-lightning',this)">⚡ layer-2-lightning</button>
+            <button class="ch-btn" onclick="go('fedi-ark',this)">🛡 fedi-ark</button>
+            <button class="ch-btn" onclick="go('chaumian-mints',this)">💸 chaumian-mints-ecash</button>
+            <button class="ch-btn" onclick="go('ctv-covenants',this)">📜 ctv-bip119-covenants</button>
+            <button class="ch-btn" onclick="go('extension-blocks',this)">🚧 extension-blocks</button>
+            <button class="ch-btn" onclick="go('op-codes',this)">👨‍💻 op-codes-simplicity</button>
+            <button class="ch-btn" onclick="go('bitvm',this)">🖥 bitvm</button>
+            <button class="ch-btn" onclick="go('layer-3-sidechains',this)">📱 layer-3-sidechains</button>
+            <button class="ch-btn" onclick="go('stablecoins',this)">🪙 stablecoins</button>
+            <button class="ch-btn" onclick="go('smart-contracts',this)">📱 smart-contracts</button>
+            <button class="ch-btn" onclick="go('blockchain-timechain',this)">⛓ blockchain-timechain</button>
+            <button class="ch-btn" onclick="go('regulation',this)">🏛 regulation-policy</button>
+            <button class="ch-btn" onclick="go('cryptography',this)">🔒 cryptography-cypherpunks</button>
+            <button class="ch-btn" onclick="go('core-source-code',this)">💾 core-source-code</button>
+            <button class="ch-btn" onclick="go('developers',this)">🖥 developers</button>
+            <button class="ch-btn" onclick="go('investment-strategy',this)">🤑 investment-strategy</button>
+            <button class="ch-btn" onclick="go('evidence-against-alts',this)">⚠ evidence-against-alts</button>
+            <button class="ch-btn" onclick="go('consensus',this)">🌐 consensus</button>
 
             </div>
-            <div class="cat-label cat-toggle" data-expanded="false">Resources <span class="cat-arrow">▶</span></div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Resources <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" data-ch="one-stop-shop">🛑 one-stop-shop</button>
-            <button class="ch-btn" data-ch="faq-glossary">❓ faq-glossary</button>
-            <button class="ch-btn" data-ch="nostr">💜 nostr</button>
-            <button class="ch-btn" data-ch="misconceptions-fud">🤡 misconceptions-fud</button>
-            <button class="ch-btn" data-ch="books">📚 books</button>
-            <button class="ch-btn" data-ch="videos">📺 videos</button>
-            <button class="ch-btn" data-ch="podcasts">🔊 podcasts</button>
-            <button class="ch-btn" data-ch="articles-threads">📃 articles-threads</button>
-            <button class="ch-btn" data-ch="informational-sites">📃 informational-sites</button>
-            <button class="ch-btn" data-ch="curriculum">🎓 curriculum</button>
-            <button class="ch-btn" data-ch="research-theses">✍ research-theses</button>
-            <button class="ch-btn" data-ch="games">🎮 games</button>
-            <button class="ch-btn" data-ch="music">🎵 music</button>
-            <button class="ch-btn" data-ch="movies-tv">🎬 movies-tv</button>
-            <button class="ch-btn" data-ch="hardware">💻 hardware</button>
-            <button class="ch-btn" data-ch="poems-stories">📒 poems-stories</button>
-            <button class="ch-btn" data-ch="apps-tools">🍎 apps-tools</button>
-            <button class="ch-btn" data-ch="projects-diy">🔧 projects-diy</button>
-            <button class="ch-btn" data-ch="art-inspiration">🤩 art-inspiration</button>
-            <button class="ch-btn" data-ch="graphics">🎨 graphics</button>
-            <button class="ch-btn" data-ch="charts">📊 charts</button>
-            <button class="ch-btn" data-ch="swag-merch">👕 swag-merch</button>
-            <button class="ch-btn" data-ch="jobs-earn">👷 jobs-earn</button>
-            <button class="ch-btn" data-ch="social-media">👍 social-media</button>
-            <button class="ch-btn" data-ch="fun-facts">🎉 fun-facts</button>
-            <button class="ch-btn" data-ch="news-adoption">📰 news-adoption</button>
-            <button class="ch-btn" data-ch="history">📆 history</button>
-            <button class="ch-btn" data-ch="international">🌍 international</button>
-            <button class="ch-btn" data-ch="satoshi-nakamoto">🦸 satoshi-nakamoto</button>
-            <button class="ch-btn" data-ch="giga-chad">👑 giga-chad</button>
-            <button class="ch-btn" data-ch="health">🥩 health</button>
-            <button class="ch-btn" data-ch="web5">5⃣ web5</button>
-            <button class="ch-btn" data-ch="memes-funny">😂 memes-funny</button>
+            <button class="ch-btn" onclick="go('one-stop-shop',this)">🛑 one-stop-shop</button>
+            <button class="ch-btn" onclick="go('faq-glossary',this)">❓ faq-glossary</button>
+            <button class="ch-btn" onclick="go('nostr',this)">💜 nostr</button>
+            <button class="ch-btn" onclick="go('misconceptions-fud',this)">🤡 misconceptions-fud</button>
+            <button class="ch-btn" onclick="go('books',this)">📚 books</button>
+            <button class="ch-btn" onclick="go('videos',this)">📺 videos</button>
+            <button class="ch-btn" onclick="go('podcasts',this)">🔊 podcasts</button>
+            <button class="ch-btn" onclick="go('articles-threads',this)">📃 articles-threads</button>
+            <button class="ch-btn" onclick="go('informational-sites',this)">📃 informational-sites</button>
+            <button class="ch-btn" onclick="go('curriculum',this)">🎓 curriculum</button>
+            <button class="ch-btn" onclick="go('research-theses',this)">✍ research-theses</button>
+            <button class="ch-btn" onclick="go('games',this)">🎮 games</button>
+            <button class="ch-btn" onclick="go('music',this)">🎵 music</button>
+            <button class="ch-btn" onclick="go('movies-tv',this)">🎬 movies-tv</button>
+            <button class="ch-btn" onclick="go('hardware',this)">💻 hardware</button>
+            <button class="ch-btn" onclick="go('poems-stories',this)">📒 poems-stories</button>
+            <button class="ch-btn" onclick="go('apps-tools',this)">🍎 apps-tools</button>
+            <button class="ch-btn" onclick="go('projects-diy',this)">🔧 projects-diy</button>
+            <button class="ch-btn" onclick="go('art-inspiration',this)">🤩 art-inspiration</button>
+            <button class="ch-btn" onclick="go('graphics',this)">🎨 graphics</button>
+            <button class="ch-btn" onclick="go('charts',this)">📊 charts</button>
+            <button class="ch-btn" onclick="go('swag-merch',this)">👕 swag-merch</button>
+            <button class="ch-btn" onclick="go('jobs-earn',this)">👷 jobs-earn</button>
+            <button class="ch-btn" onclick="go('social-media',this)">👍 social-media</button>
+            <button class="ch-btn" onclick="go('fun-facts',this)">🎉 fun-facts</button>
+            <button class="ch-btn" onclick="go('news-adoption',this)">📰 news-adoption</button>
+            <button class="ch-btn" onclick="go('history',this)">📆 history</button>
+            <button class="ch-btn" onclick="go('international',this)">🌍 international</button>
+            <button class="ch-btn" onclick="go('satoshi-nakamoto',this)">🦸 satoshi-nakamoto</button>
+            <button class="ch-btn" onclick="go('giga-chad',this)">👑 giga-chad</button>
+            <button class="ch-btn" onclick="go('health',this)">🥩 health</button>
+            <button class="ch-btn" onclick="go('web5',this)">5⃣ web5</button>
+            <button class="ch-btn" onclick="go('memes-funny',this)">😂 memes-funny</button>
 
             </div>
-            <div class="cat-label cat-toggle" data-expanded="false">Additional Info <span class="cat-arrow">▶</span></div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Additional Info <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" data-ch="100_sats">💯 100 Sats</button>
-            <button class="ch-btn" data-ch="analogies">🔋 Analogies</button>
-            <button class="ch-btn" data-ch="austrian_school_of_economics">🇦🇹 Austrian School</button>
-            <button class="ch-btn" data-ch="bip119">🚧 BIP119</button>
-            <button class="ch-btn" data-ch="bitcoin_exam">🎓 Bitcoin Exam</button>
-            <button class="ch-btn" data-ch="bitcoin_vs_real_estate">🏠 Bitcoin vs Real Estate</button>
-            <button class="ch-btn" data-ch="block_time-block-size">⏰ Block Time-Block-Size</button>
-            <button class="ch-btn" data-ch="burn_bitcoin">🔥 Burn Bitcoin</button>
-            <button class="ch-btn" data-ch="byzantine_generals__problem">⚔ Byzantine Generals</button>
-            <button class="ch-btn" data-ch="chaumian_e-cash_and_blind_signatures">💲 Chaumian E-cash</button>
-            <button class="ch-btn" data-ch="coin_mixing_coinjoin_coin_control_utxo">🌀 Coin Mixing/Coinjoin</button>
-            <button class="ch-btn" data-ch="consensus">🤝 Consensus</button>
-            <button class="ch-btn" data-ch="cyles">🚲 Cycles</button>
-            <button class="ch-btn" data-ch="derivation_path">↕ Derivation Path</button>
-            <button class="ch-btn" data-ch="discrete_log_contracts__dlcs">📝 DLCs</button>
-            <button class="ch-btn" data-ch="dollar-bitcoin_milkshake_theory">🥤 Dollar-Bitcoin Milkshake Theory</button>
-            <button class="ch-btn" data-ch="dust">⏳ Dust</button>
-            <button class="ch-btn" data-ch="elevator_pitches">↕ Elevator Pitches</button>
-            <button class="ch-btn" data-ch="environment___energy">🌳 Environment & Energy</button>
-            <button class="ch-btn" data-ch="faith___religion">🙏 Faith & Religion</button>
-            <button class="ch-btn" data-ch="fedimints">💚 Fedimints</button>
-            <button class="ch-btn" data-ch="feedback_loops">➰ Feedback Loops</button>
-            <button class="ch-btn" data-ch="1_first_principles">1⃣ First Principles</button>
-            <button class="ch-btn" data-ch="free_and_open_source_software__foss">💿 FOSS</button>
-            <button class="ch-btn" data-ch="game_theory">🏈 Game Theory</button>
-            <button class="ch-btn" data-ch="geopolitics___macroeconomics">💰 Geopolitics</button>
-            <button class="ch-btn" data-ch="governance">🏛 Governance</button>
-            <button class="ch-btn" data-ch="ham_radio">📻 Ham Radio</button>
-            <button class="ch-btn" data-ch="human_rights__social_justice_and_freedo">🗽 Human Rights</button>
-            <button class="ch-btn" data-ch="improved_incentive_structure">✅ Incentive Structure</button>
-            <button class="ch-btn" data-ch="laws_of_thermodynamics">🔥 Laws of Thermodynamics</button>
-            <button class="ch-btn" data-ch="lightning_node">⚡ Lightning Node</button>
-            <button class="ch-btn" data-ch="lindy_effect">👴 Lindy Effect</button>
-            <button class="ch-btn" data-ch="market_cap">🧢 Market Cap</button>
-            <button class="ch-btn" data-ch="math">➕ Math</button>
-            <button class="ch-btn" data-ch="mathematics">➕ Mathematics</button>
-            <button class="ch-btn" data-ch="mev">⛏ MEV</button>
-            <button class="ch-btn" data-ch="0_mining__hashing">0⃣ Mining (Hashing)</button>
-            <button class="ch-btn" data-ch="network_effects">🌐 Network Effects</button>
-            <button class="ch-btn" data-ch="open_source">⭕ Open Source</button>
-            <button class="ch-btn" data-ch="oracle">🔮 Oracle</button>
-            <button class="ch-btn" data-ch="orange-pilling">🟠 Orange-Pilling</button>
-            <button class="ch-btn" data-ch="ordinals">🔢 Ordinals</button>
-            <button class="ch-btn" data-ch="ordinals__nfts_on_bitcoin__and_block_spa">🔢 Ordinals & Block Space</button>
-            <button class="ch-btn" data-ch="peace_and_anti-war">☮ Peace and Anti-War</button>
-            <button class="ch-btn" data-ch="philosophy">🍎 Philosophy</button>
-            <button class="ch-btn" data-ch="politics">🏛 Politics</button>
-            <button class="ch-btn" data-ch="predictions">🔮 Predictions</button>
-            <button class="ch-btn" data-ch="public_key_vs_private_key">🗝 Public vs Private Key</button>
-            <button class="ch-btn" data-ch="rbf">↔ RBF</button>
-            <button class="ch-btn" data-ch="risks__threats__attack_vectors__weaknes">⚔ Risks & Threats</button>
-            <button class="ch-btn" data-ch="rollups">🥐 Rollups</button>
-            <button class="ch-btn" data-ch="sats__or__bits">💬 Sats or Bits?</button>
-            <button class="ch-btn" data-ch="scalability">🌐 Scalability</button>
-            <button class="ch-btn" data-ch="sidechains">♻ Sidechains</button>
-            <button class="ch-btn" data-ch="soft_vs_hard_forks">🍴 Soft vs Hard Forks</button>
-            <button class="ch-btn" data-ch="softwar">📖 Softwar</button>
-            <button class="ch-btn" data-ch="2__solved_technical_problems">2⃣ Solved Problems</button>
-            <button class="ch-btn" data-ch="simplified_payment_verification__spv">✔ SPV</button>
-            <button class="ch-btn" data-ch="stablecoins">🪙 Stablecoins</button>
-            <button class="ch-btn" data-ch="stratum_v2">🟩 Stratum V2</button>
-            <button class="ch-btn" data-ch="submarine_swap">⛵ Submarine Swap</button>
-            <button class="ch-btn" data-ch="swaps">↔ Swaps</button>
-            <button class="ch-btn" data-ch="ta_tips">📈 TA Tips</button>
-            <button class="ch-btn" data-ch="tail_emission">🐈 Tail Emission</button>
-            <button class="ch-btn" data-ch="taproot">🧰 Taproot</button>
-            <button class="ch-btn" data-ch="taro">🥕 Taro</button>
-            <button class="ch-btn" data-ch="the_future">🔮 The Future</button>
-            <button class="ch-btn" data-ch="time">⏰ Time</button>
-            <button class="ch-btn" data-ch="time_preference">🕑 Time Preference</button>
-            <button class="ch-btn" data-ch="toxicity">☣ Toxicity</button>
-            <button class="ch-btn" data-ch="transaction_fees">💲 Transaction Fees</button>
-            <button class="ch-btn" data-ch="unpopular_opinions">💀 Unpopular Opinions</button>
-            <button class="ch-btn" data-ch="utxos">🕳 UTXOs</button>
-            <button class="ch-btn" data-ch="vbyte">🏋 vByte</button>
+            <button class="ch-btn" onclick="go('100_sats',this)">💯 100 Sats</button>
+            <button class="ch-btn" onclick="go('analogies',this)">🔋 Analogies</button>
+            <button class="ch-btn" onclick="go('austrian_school_of_economics',this)">🇦🇹 Austrian School</button>
+            <button class="ch-btn" onclick="go('bip119',this)">🚧 BIP119</button>
+            <button class="ch-btn" onclick="go('bitcoin_exam',this)">🎓 Bitcoin Exam</button>
+            <button class="ch-btn" onclick="go('bitcoin_vs_real_estate',this)">🏠 Bitcoin vs Real Estate</button>
+            <button class="ch-btn" onclick="go('block_time-block-size',this)">⏰ Block Time-Block-Size</button>
+            <button class="ch-btn" onclick="go('burn_bitcoin',this)">🔥 Burn Bitcoin</button>
+            <button class="ch-btn" onclick="go('byzantine_generals__problem',this)">⚔ Byzantine Generals</button>
+            <button class="ch-btn" onclick="go('chaumian_e-cash_and_blind_signatures',this)">💲 Chaumian E-cash</button>
+            <button class="ch-btn" onclick="go('coin_mixing_coinjoin_coin_control_utxo',this)">🌀 Coin Mixing/Coinjoin</button>
+            <button class="ch-btn" onclick="go('consensus',this)">🤝 Consensus</button>
+            <button class="ch-btn" onclick="go('cyles',this)">🚲 Cycles</button>
+            <button class="ch-btn" onclick="go('derivation_path',this)">↕ Derivation Path</button>
+            <button class="ch-btn" onclick="go('discrete_log_contracts__dlcs',this)">📝 DLCs</button>
+            <button class="ch-btn" onclick="go('dollar-bitcoin_milkshake_theory',this)">🥤 Dollar-Bitcoin Milkshake Theory</button>
+            <button class="ch-btn" onclick="go('dust',this)">⏳ Dust</button>
+            <button class="ch-btn" onclick="go('elevator_pitches',this)">↕ Elevator Pitches</button>
+            <button class="ch-btn" onclick="go('environment___energy',this)">🌳 Environment & Energy</button>
+            <button class="ch-btn" onclick="go('faith___religion',this)">🙏 Faith & Religion</button>
+            <button class="ch-btn" onclick="go('fedimints',this)">💚 Fedimints</button>
+            <button class="ch-btn" onclick="go('feedback_loops',this)">➰ Feedback Loops</button>
+            <button class="ch-btn" onclick="go('1_first_principles',this)">1⃣ First Principles</button>
+            <button class="ch-btn" onclick="go('free_and_open_source_software__foss',this)">💿 FOSS</button>
+            <button class="ch-btn" onclick="go('game_theory',this)">🏈 Game Theory</button>
+            <button class="ch-btn" onclick="go('geopolitics___macroeconomics',this)">💰 Geopolitics</button>
+            <button class="ch-btn" onclick="go('governance',this)">🏛 Governance</button>
+            <button class="ch-btn" onclick="go('ham_radio',this)">📻 Ham Radio</button>
+            <button class="ch-btn" onclick="go('human_rights__social_justice_and_freedo',this)">🗽 Human Rights</button>
+            <button class="ch-btn" onclick="go('improved_incentive_structure',this)">✅ Incentive Structure</button>
+            <button class="ch-btn" onclick="go('laws_of_thermodynamics',this)">🔥 Laws of Thermodynamics</button>
+            <button class="ch-btn" onclick="go('lightning_node',this)">⚡ Lightning Node</button>
+            <button class="ch-btn" onclick="go('lindy_effect',this)">👴 Lindy Effect</button>
+            <button class="ch-btn" onclick="go('market_cap',this)">🧢 Market Cap</button>
+            <button class="ch-btn" onclick="go('math',this)">➕ Math</button>
+            <button class="ch-btn" onclick="go('mathematics',this)">➕ Mathematics</button>
+            <button class="ch-btn" onclick="go('mev',this)">⛏ MEV</button>
+            <button class="ch-btn" onclick="go('0_mining__hashing',this)">0⃣ Mining (Hashing)</button>
+            <button class="ch-btn" onclick="go('network_effects',this)">🌐 Network Effects</button>
+            <button class="ch-btn" onclick="go('open_source',this)">⭕ Open Source</button>
+            <button class="ch-btn" onclick="go('oracle',this)">🔮 Oracle</button>
+            <button class="ch-btn" onclick="go('orange-pilling',this)">🟠 Orange-Pilling</button>
+            <button class="ch-btn" onclick="go('ordinals',this)">🔢 Ordinals</button>
+            <button class="ch-btn" onclick="go('ordinals__nfts_on_bitcoin__and_block_spa',this)">🔢 Ordinals & Block Space</button>
+            <button class="ch-btn" onclick="go('peace_and_anti-war',this)">☮ Peace and Anti-War</button>
+            <button class="ch-btn" onclick="go('philosophy',this)">🍎 Philosophy</button>
+            <button class="ch-btn" onclick="go('politics',this)">🏛 Politics</button>
+            <button class="ch-btn" onclick="go('predictions',this)">🔮 Predictions</button>
+            <button class="ch-btn" onclick="go('public_key_vs_private_key',this)">🗝 Public vs Private Key</button>
+            <button class="ch-btn" onclick="go('rbf',this)">↔ RBF</button>
+            <button class="ch-btn" onclick="go('risks__threats__attack_vectors__weaknes',this)">⚔ Risks & Threats</button>
+            <button class="ch-btn" onclick="go('rollups',this)">🥐 Rollups</button>
+            <button class="ch-btn" onclick="go('sats__or__bits',this)">💬 Sats or Bits?</button>
+            <button class="ch-btn" onclick="go('scalability',this)">🌐 Scalability</button>
+            <button class="ch-btn" onclick="go('sidechains',this)">♻ Sidechains</button>
+            <button class="ch-btn" onclick="go('soft_vs_hard_forks',this)">🍴 Soft vs Hard Forks</button>
+            <button class="ch-btn" onclick="go('softwar',this)">📖 Softwar</button>
+            <button class="ch-btn" onclick="go('2__solved_technical_problems',this)">2⃣ Solved Problems</button>
+            <button class="ch-btn" onclick="go('simplified_payment_verification__spv',this)">✔ SPV</button>
+            <button class="ch-btn" onclick="go('stablecoins',this)">🪙 Stablecoins</button>
+            <button class="ch-btn" onclick="go('stratum_v2',this)">🟩 Stratum V2</button>
+            <button class="ch-btn" onclick="go('submarine_swap',this)">⛵ Submarine Swap</button>
+            <button class="ch-btn" onclick="go('swaps',this)">↔ Swaps</button>
+            <button class="ch-btn" onclick="go('ta_tips',this)">📈 TA Tips</button>
+            <button class="ch-btn" onclick="go('tail_emission',this)">🐈 Tail Emission</button>
+            <button class="ch-btn" onclick="go('taproot',this)">🧰 Taproot</button>
+            <button class="ch-btn" onclick="go('taro',this)">🥕 Taro</button>
+            <button class="ch-btn" onclick="go('the_future',this)">🔮 The Future</button>
+            <button class="ch-btn" onclick="go('time',this)">⏰ Time</button>
+            <button class="ch-btn" onclick="go('time_preference',this)">🕑 Time Preference</button>
+            <button class="ch-btn" onclick="go('toxicity',this)">☣ Toxicity</button>
+            <button class="ch-btn" onclick="go('transaction_fees',this)">💲 Transaction Fees</button>
+            <button class="ch-btn" onclick="go('unpopular_opinions',this)">💀 Unpopular Opinions</button>
+            <button class="ch-btn" onclick="go('utxos',this)">🕳 UTXOs</button>
+            <button class="ch-btn" onclick="go('vbyte',this)">🏋 vByte</button>
 
             </div>
-            <div class="cat-label cat-toggle" data-expanded="false">Referral Links <span class="cat-arrow">▶</span></div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Referral Links <span class="cat-arrow">▶</span></div>
             <div class="cat-group" style="display:none;">
-            <button class="ch-btn" data-ch="referral-links">🔗 free-btc-referral-links</button>
+            <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
             </div>
             <div style="margin:14px 8px 12px;text-align:center;">
-                <button id="randomToggleBtn" data-idx-click="100" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" data-idx-over="99" data-idx-out="98">🎲 Random <span id="randomToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
+                <button id="randomToggleBtn" onclick="toggleRandomPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">🎲 Random <span id="randomToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
                 <div id="randomPanel" style="display:none;margin-top:8px;">
                     <div style="display:flex;gap:8px;justify-content:center;">
-                        <button class="random-btn" data-idx-click="97" title="Random Channel"><span>🎲</span><span class="random-label">Channel</span></button>
-                        <button class="random-btn" data-idx-click="96" title="Random Art"><span>🎨</span><span class="random-label">Art</span></button>
-                        <button class="random-btn" data-idx-click="95" title="Random Graphic"><span>📊</span><span class="random-label">Graphic</span></button>
-                        <button class="random-btn" data-idx-click="94" title="Random Meme"><span>😂</span><span class="random-label">Meme</span></button>
+                        <button class="random-btn" onclick="goRandom()" title="Random Channel"><span>🎲</span><span class="random-label">Channel</span></button>
+                        <button class="random-btn" onclick="goRandomArt()" title="Random Art"><span>🎨</span><span class="random-label">Art</span></button>
+                        <button class="random-btn" onclick="goRandomGraphic()" title="Random Graphic"><span>📊</span><span class="random-label">Graphic</span></button>
+                        <button class="random-btn" onclick="goRandomMeme()" title="Random Meme"><span>😂</span><span class="random-label">Meme</span></button>
                     </div>
                 </div>
             </div>
@@ -942,7 +942,7 @@
                 };
             </script>
             <div style="margin:12px 8px 12px;text-align:center;">
-                <button id="communityStatsToggle" data-idx-click="93" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" data-idx-over="92" data-idx-out="91">🌍 Community Stats <span id="csToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
+                <button id="communityStatsToggle" onclick="toggleCommunityStatsPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='#22c55e';this.style.color='#22c55e'" onmouseout="var o=document.getElementById('communityStatsPanel2');this.style.borderColor=o&&o.style.display!=='none'?'#22c55e':'var(--border)';this.style.color=o&&o.style.display!=='none'?'#22c55e':'var(--text-muted)'">🌍 Community Stats <span id="csToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
                 <div id="communityStatsPanel2" style="display:none;margin-top:10px;padding:10px;text-align:center;">
                     <div id="communityStatsInner" style="font-size:0.82rem;color:var(--text-muted);line-height:2;">Loading...</div>
                 </div>
@@ -964,18 +964,18 @@
         <a href="https://603btc.com" target="_blank" rel="noopener noreferrer" class="sidebar-promo">⚡ Powered by 603btc.com</a>
         <div id="rankBar"></div>
     </aside>
-    <button class="sidebar-expand-btn" data-idx-click="90" title="Show sidebar">▶</button>
+    <button class="sidebar-expand-btn" onclick="toggleSidebarCollapse()" title="Show sidebar">▶</button>
 
-    <button class="back-to-top" id="backToTop" data-idx-click="89">↑</button>
-    <button class="back-to-top scroll-to-bottom" id="scrollToBottom" data-idx-click="88">↓</button>
-    <button id="desktopSearchBtn" data-idx-click="87" title="Search Archive">🔍</button>
+    <button class="back-to-top" id="backToTop" onclick="document.getElementById('main').scrollTo({top:0,behavior:'smooth'})">↑</button>
+    <button class="back-to-top scroll-to-bottom" id="scrollToBottom" onclick="var m=document.getElementById('main');m.scrollTo({top:m.scrollHeight,behavior:'smooth'})">↓</button>
+    <button id="desktopSearchBtn" onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" title="Search Archive">🔍</button>
     <main id="main">
         <!-- Home / Landing -->
         <div id="home" class="home-page">
             <div class="home-inner">
                 <div class="home-logos">
-                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" data-idx-click="86" title="Home — Long-press for Nacho Mode 🦌">
-                    <span class="donate-circle" data-idx-click="85"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
+                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
+                    <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">Bitcoin Quest</h1>
                 <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 146 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
@@ -985,13 +985,13 @@
                         <video id="introVideo" controls playsinline preload="metadata" style="display:block;width:100%;max-height:360px;object-fit:contain;" onplay="var o=document.getElementById('introVideoOverlay');if(o){o.style.opacity='0';o.style.pointerEvents='none';}">
                             <source src="https://assets.bitcoineducation.quest/videos/intro-tutorial.mp4" type="video/mp4">
                         </video>
-                        <div id="introVideoOverlay" data-idx-click="84" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,0.52);cursor:pointer;transition:opacity 0.4s ease;">
+                        <div id="introVideoOverlay" onclick="var v=document.getElementById('introVideo');if(v){v.play();} this.style.opacity='0';this.style.pointerEvents='none';" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,0.52);cursor:pointer;transition:opacity 0.4s ease;">
                             <div style="font-size:1.9rem;font-weight:900;color:#fff;text-align:center;text-shadow:0 2px 20px rgba(0,0,0,0.9);letter-spacing:0.5px;line-height:1.25;padding:0 24px;">Introduction / Tutorial</div>
                             <div style="width:60px;height:60px;background:rgba(247,147,26,0.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;box-shadow:0 4px 24px rgba(247,147,26,0.55);padding-left:4px;">▶</div>
                         </div>
-                        <button data-idx-click="83" style="position:absolute;top:8px;right:10px;background:rgba(0,0,0,0.55);border:none;color:rgba(255,255,255,0.75);font-size:0.7rem;font-weight:700;cursor:pointer;padding:5px 9px;border-radius:8px;font-family:inherit;letter-spacing:0.3px;line-height:1;touch-action:manipulation;" title="Minimize video">▲ hide</button>
+                        <button onclick="var v=document.getElementById('introVideo');if(v)v.pause();document.getElementById('introVideoFull').style.display='none';document.getElementById('introVideoMini').style.display='flex';localStorage.setItem('btc_intro_video_collapsed','1')" style="position:absolute;top:8px;right:10px;background:rgba(0,0,0,0.55);border:none;color:rgba(255,255,255,0.75);font-size:0.7rem;font-weight:700;cursor:pointer;padding:5px 9px;border-radius:8px;font-family:inherit;letter-spacing:0.3px;line-height:1;touch-action:manipulation;" title="Minimize video">▲ hide</button>
                     </div>
-                    <div id="introVideoMini" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;" data-idx-click="82">
+                    <div id="introVideoMini" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;" onclick="document.getElementById('introVideoFull').style.display='';document.getElementById('introVideoMini').style.display='none';localStorage.removeItem('btc_intro_video_collapsed')">
                         <span style="font-size:1rem;">🎬</span>
                         <span style="font-size:0.8rem;color:var(--text-muted);font-weight:600;flex:1;">Introduction / Tutorial</span>
                         <span style="font-size:0.72rem;color:var(--accent);font-weight:700;">▼ show</span>
@@ -1001,12 +1001,12 @@
                 <!-- App Stats moved to bottom -->
                 
                 <div id="dailySpinBanner" style="display:none;margin-bottom:16px;"></div>
-                <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" data-idx-click="81"></div>
+                <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" onclick="showUsernamePrompt()"></div>
                 <!-- Quest Guide Banner — always visible, collapsible -->
                 <div id="questGuideBanner" style="margin-bottom:16px;max-width:500px;margin-left:auto;margin-right:auto;">
                     <div id="questGuideFull" style="display:flex;gap:8px;align-items:stretch;">
-                        <div data-idx-click="80" style="flex:1;padding:16px 18px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(168,85,247,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:16px;cursor:pointer;transition:all 0.2s;position:relative;" data-idx-over="79" data-idx-out="78">
-                            <button data-idx-click="77" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;opacity:0.6;">▲ hide</button>
+                        <div onclick="if(typeof showGuide==='function')showGuide()" style="flex:1;padding:16px 18px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(168,85,247,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:16px;cursor:pointer;transition:all 0.2s;position:relative;" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)';this.style.boxShadow='0 4px 20px rgba(99,102,241,0.15)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.25)';this.style.boxShadow='none'">
+                            <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='none';document.getElementById('questGuideMini').style.display='flex';localStorage.setItem('btc_guide_collapsed','1')" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;opacity:0.6;">▲ hide</button>
                             <div style="display:flex;align-items:center;gap:14px;">
                                 <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(168,85,247,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📜</div>
                                 <div style="flex:1;min-width:0;">
@@ -1016,15 +1016,15 @@
                                 <div style="color:var(--accent);font-size:1.2rem;flex-shrink:0;">→</div>
                             </div>
                         </div>
-                        <button data-idx-click="76" style="flex-shrink:0;width:56px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,179,8,0.06));border:1px solid rgba(247,147,26,0.3);border-radius:16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s;touch-action:manipulation;" data-idx-over="75" data-idx-out="74" title="FAQ — Frequently Asked Questions">
+                        <button onclick="if(typeof showFAQ==='function')showFAQ()" style="flex-shrink:0;width:56px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,179,8,0.06));border:1px solid rgba(247,147,26,0.3);border-radius:16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='rgba(247,147,26,0.6)';this.style.boxShadow='0 4px 16px rgba(247,147,26,0.15)'" onmouseout="this.style.borderColor='rgba(247,147,26,0.3)';this.style.boxShadow='none'" title="FAQ — Frequently Asked Questions">
                             <span style="font-size:1.3rem;">❓</span>
                             <span style="font-size:0.6rem;font-weight:800;color:var(--accent);letter-spacing:0.5px;">FAQ</span>
                         </button>
                     </div>
-                    <div id="questGuideMini" data-idx-click="73" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;cursor:pointer;transition:0.2s;" data-idx-over="72" data-idx-out="71">
+                    <div id="questGuideMini" onclick="if(typeof showGuide==='function')showGuide()" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor='rgba(99,102,241,0.4)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.15)'">
                         <span style="font-size:1.1rem;">📜</span>
                         <span style="font-size:0.82rem;font-weight:700;color:var(--heading);flex:1;">Quest Guide</span>
-                        <button data-idx-click="70" style="background:none;border:none;color:var(--text-faint);font-size:0.65rem;cursor:pointer;padding:4px;">▼ expand</button>
+                        <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='block';document.getElementById('questGuideMini').style.display='none';localStorage.removeItem('btc_guide_collapsed')" style="background:none;border:none;color:var(--text-faint);font-size:0.65rem;cursor:pointer;padding:4px;">▼ expand</button>
                         <span style="color:var(--accent);font-size:0.9rem;">→</span>
                     </div>
                 </div>
@@ -1032,44 +1032,44 @@
                 <div id="progressRings" style="margin-bottom:16px;"></div>
                 <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:16px;margin-bottom:10px;">
                         <!-- Create Account / Sign In -->
-                        <button id="authBtn" data-idx-click="69" style="display:none;padding:12px 30px;width:100%;max-width:340px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" data-idx-over="68" data-idx-out="67">Create Free Account / Sign In</button>
+                        <button id="authBtn" onclick="showUsernamePrompt()" style="display:none;padding:12px 30px;width:100%;max-width:340px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">Create Free Account / Sign In</button>
 
                         <!-- Learn (standalone, between Settings and Explore Apps) -->
-                        <button id="homeLearnBtn" data-idx-click="66" class="desktop-only-learn" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" data-idx-over="65" data-idx-out="64">🎓 Learn ▼</button>
+                        <button id="homeLearnBtn" onclick="toggleSidebarMenu('homeLearnMenu')" class="desktop-only-learn" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🎓 Learn ▼</button>
                         <div id="homeLearnMenu" class="desktop-only-learn" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:8px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
                             
                             
-                            <button data-idx-click="63" style="padding:11px 12px;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid #3b82f6;color:#3b82f6;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🟢</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Brand New to Bitcoin?<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">⭐ Start here</span></span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Zero jargon intro — start here if you've never owned BTC</span></span></button>
-                            <button data-idx-click="62" style="padding:11px 12px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06));border:1px solid #10b981;color:#10b981;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">📖</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Learning Quests<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">8 topics ▸</span></span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Slideshow lessons with key stats, visuals &amp; a quiz — 8 topics</span></span></button>
-                            <button data-idx-click="61" style="padding:11px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🦌🗺️</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Nacho's Trails: Guided Learning</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Structured paths through Bitcoin education — Meadow, Mountain &amp; Summit</span></span></button>
-                            <button data-idx-click="60" style="padding:11px 12px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08));border:1px solid #8b5cf6;color:#a78bfa;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🎯</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Daily Quests</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Daily quizzes, trivia &amp; polls — earn XP and climb the leaderboard</span></span></button>
-                            <button data-idx-click="59" style="padding:11px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06));border:1px solid #22c55e;color:#22c55e;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🛒</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Your First Bitcoin Purchase</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Step-by-step guide to buying BTC safely from a trusted exchange</span></span></button>
-                            <button data-idx-click="58" style="padding:11px 12px;background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06));border:1px solid #eab308;color:#eab308;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🔨</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Meetup Builder</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Create or find local Bitcoin meetups and events in your city</span></span></button>
-                            <button data-idx-click="57" style="padding:11px 12px;background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:1px solid #ef4444;color:#ef4444;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">₿</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Spend Bitcoin</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Find merchants who accept sats — Lightning, on-chain &amp; more</span></span></button>
+                            <button onclick="go('one-stop-shop')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid #3b82f6;color:#3b82f6;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🟢</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Brand New to Bitcoin?<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">⭐ Start here</span></span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Zero jargon intro — start here if you've never owned BTC</span></span></button>
+                            <button onclick="go('learning-quests')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06));border:1px solid #10b981;color:#10b981;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">📖</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Learning Quests<span style="margin-left:auto;font-size:0.65rem;opacity:0.75;flex-shrink:0;">8 topics ▸</span></span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Slideshow lessons with key stats, visuals &amp; a quiz — 8 topics</span></span></button>
+                            <button onclick="go('trails')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🦌🗺️</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Nacho's Trails: Guided Learning</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Structured paths through Bitcoin education — Meadow, Mountain &amp; Summit</span></span></button>
+                            <button onclick="if(typeof showQuestHub==='function')showQuestHub()" style="padding:11px 12px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08));border:1px solid #8b5cf6;color:#a78bfa;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🎯</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Daily Quests</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Daily quizzes, trivia &amp; polls — earn XP and climb the leaderboard</span></span></button>
+                            <button onclick="go('first-purchase')" style="padding:11px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06));border:1px solid #22c55e;color:#22c55e;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🛒</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Your First Bitcoin Purchase</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Step-by-step guide to buying BTC safely from a trusted exchange</span></span></button>
+                            <button onclick="window._mbRouted=true;window._skipIRLRules=true;localStorage.setItem('btc_irl_rules_accepted','true');go('irl-sync');setTimeout(function(){var ro=document.getElementById('irlRulesOverlay');if(ro)ro.remove();var _t=0;var _i=setInterval(function(){var ro2=document.getElementById('irlRulesOverlay');if(ro2)ro2.remove();var el=document.getElementById('meetupBuilderSection');if(el){clearInterval(_i);el.scrollIntoView({behavior:'smooth',block:'start'});}if(++_t>30)clearInterval(_i);},300);},1500)" style="padding:11px 12px;background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06));border:1px solid #eab308;color:#eab308;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">🔨</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Meetup Builder</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Create or find local Bitcoin meetups and events in your city</span></span></button>
+                            <button onclick="go('marketplace');setTimeout(function(){renderMarketplace({section:'merchants'})},500)" style="padding:11px 12px;background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:1px solid #ef4444;color:#ef4444;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:1rem;flex-shrink:0;line-height:1.5;">₿</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Spend Bitcoin</span><span style="font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.4);line-height:1.4;">Find merchants who accept sats — Lightning, on-chain &amp; more</span></span></button>
                         </div>
 
                         <!-- Explore Apps -->
-                        <button id="homeAppsBtn" data-idx-click="56" class="desktop-only-apps" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" data-idx-over="55" data-idx-out="54">🧭 Explore Apps ▼</button>
+                        <button id="homeAppsBtn" onclick="toggleSidebarMenu('homeAppsMenu')" class="desktop-only-apps" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧭 Explore Apps ▼</button>
                         <div id="homeAppsMenu" class="desktop-only-apps" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
                             <!-- Apps grid -->
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                <button data-idx-click="53" class="apps-grid-btn"><span class="app-title">🦌 Nacho Mode</span><span class="app-desc">AI Bitcoin tutor — ask anything, take quizzes, learn by chatting</span></button>
-                                <button data-idx-click="52" class="apps-grid-btn"><span class="app-title">🕹️ Proof of Play</span><span class="app-desc">Bitcoin gaming hub — Arcade, trivia &amp; PVP battles</span></button>
-                                <button data-idx-click="51" data-tier="explorer" data-unlock-name="🗣️ Pleb Talk" class="apps-grid-btn"><span class="app-title">🗣️ Pleb Talk</span><span class="app-desc">Community forum — discuss Bitcoin topics with fellow stackers</span></button>
-                                <button data-idx-click="50" data-tier="full" data-unlock-name="⚡ Lightning Mart" class="apps-grid-btn"><span class="app-title">⚡ Lightning Mart</span><span class="app-desc">Peer-to-peer marketplace — buy &amp; sell goods for sats</span></button>
-                                <button data-idx-click="49" data-tier="community" data-unlock-name="🤝 IRL Sync" class="apps-grid-btn"><span class="app-title">🤝 IRL Sync</span><span class="app-desc">Find or host local Bitcoin meetups near you</span></button>
-                                <button data-idx-click="48" class="apps-grid-btn"><span class="app-title">🎵 Bitcoin Beats</span><span class="app-desc">Community music player — Bitcoin-themed tracks &amp; beats</span></button>
-                                <button data-idx-click="47" class="apps-grid-btn"><span class="app-title">📺 Timechain TV</span><span class="app-desc">21 channels of Bitcoin video — free-to-air, always on</span></button>
-                                <button data-idx-click="46" class="apps-grid-btn"><span class="app-title">👟 Proof of Walk</span><span class="app-desc">Earn XP for real-world steps — connect Strava to stack sats</span></button>
+                                <button onclick="enterNachoMode()" class="apps-grid-btn"><span class="app-title">🦌 Nacho Mode</span><span class="app-desc">AI Bitcoin tutor — ask anything, take quizzes, learn by chatting</span></button>
+                                <button onclick="if(typeof enterProofOfPlay==='function')enterProofOfPlay()" class="apps-grid-btn"><span class="app-title">🕹️ Proof of Play</span><span class="app-desc">Bitcoin gaming hub — Arcade, trivia &amp; PVP battles</span></button>
+                                <button onclick="go('forum')" data-tier="explorer" data-unlock-name="🗣️ Pleb Talk" class="apps-grid-btn"><span class="app-title">🗣️ Pleb Talk</span><span class="app-desc">Community forum — discuss Bitcoin topics with fellow stackers</span></button>
+                                <button onclick="go('marketplace')" data-tier="full" data-unlock-name="⚡ Lightning Mart" class="apps-grid-btn"><span class="app-title">⚡ Lightning Mart</span><span class="app-desc">Peer-to-peer marketplace — buy &amp; sell goods for sats</span></button>
+                                <button onclick="go('irl-sync')" data-tier="community" data-unlock-name="🤝 IRL Sync" class="apps-grid-btn"><span class="app-title">🤝 IRL Sync</span><span class="app-desc">Find or host local Bitcoin meetups near you</span></button>
+                                <button onclick="go('bitcoin-beats')" class="apps-grid-btn"><span class="app-title">🎵 Bitcoin Beats</span><span class="app-desc">Community music player — Bitcoin-themed tracks &amp; beats</span></button>
+                                <button onclick="go('timechain-tv')" class="apps-grid-btn"><span class="app-title">📺 Timechain TV</span><span class="app-desc">21 channels of Bitcoin video — free-to-air, always on</span></button>
+                                <button onclick="showProofOfWalk()" class="apps-grid-btn"><span class="app-title">👟 Proof of Walk</span><span class="app-desc">Earn XP for real-world steps — connect Strava to stack sats</span></button>
                             </div>
                         </div>
 
                         <!-- Support moved to bottom -->
                 </div>
                 <div id="em-quick-actions" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px;margin-bottom:16px;">
-                    <button data-idx-click="45" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
-                    <button data-idx-click="44" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
-                    <button data-idx-click="43" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho's Story</button>
+                    <button onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
+                    <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
+                    <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho's Story</button>
                 </div>
                 <div id="continueReading" style="display:none;margin-bottom:16px;"></div>
                 <div id="dailyChallengeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;"></div>
@@ -1082,12 +1082,12 @@
                 <div style="margin-top:20px;max-width:500px;margin-left:auto;margin-right:auto;">
                     <!-- 3x2 Grid -->
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-                        <button data-idx-click="42" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📣 Sponsor <span>▼</span></button>
-                        <button data-idx-click="41" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">👥 Contributors <span>▼</span></button>
-                        <button data-idx-click="40" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">❤️ Donate ▼</button>
-                        <button data-idx-click="39" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📊 App Stats <span>▼</span></button>
-                        <button data-idx-click="38" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">⚙️ Support &amp; Feedback <span id="homeSupportArrow">▼</span></button>
-                        <button data-idx-click="37" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">🔔 Follow Us! <span id="homeFollowArrow">▼</span></button>
+                        <button onclick="var s=document.getElementById('sponsorPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📣 Sponsor <span>▼</span></button>
+                        <button onclick="var s=document.getElementById('creditsPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">👥 Contributors <span>▼</span></button>
+                        <button onclick="if(typeof showDonateModal==='function')showDonateModal()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">❤️ Donate ▼</button>
+                        <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'flex':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📊 App Stats <span>▼</span></button>
+                        <button onclick="toggleSidebarMenu('homeSupportMenu');document.getElementById('homeFollowMenu').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">⚙️ Support &amp; Feedback <span id="homeSupportArrow">▼</span></button>
+                        <button onclick="toggleSidebarMenu('homeFollowMenu');document.getElementById('homeSupportMenu').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">🔔 Follow Us! <span id="homeFollowArrow">▼</span></button>
                     </div>
                     <!-- Expanded panels below grid -->
                     <div id="sponsorPanel" style="display:none;margin-top:10px;padding:20px;background:linear-gradient(135deg,rgba(247,147,26,0.05),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.3);border-radius:12px;text-align:center;">
@@ -1099,34 +1099,34 @@
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Donations are greatly appreciated and go towards site upkeep. Thank you for your support!</p>
                     <img src="donation-qr.jpg" loading="lazy" alt="Bitcoin Donation QR Code" style="width:200px;height:auto;margin-bottom:12px;border:2px solid var(--border);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.1);">
                     <div style="color:var(--accent);font-weight:600;font-size:0.95rem;margin-bottom:8px;">spontaneousleopard54@zeuspay.com</div>
-                    <button data-idx-click="36" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;">📋 Copy Lightning Address</button>
+                    <button onclick="navigator.clipboard.writeText('spontaneousleopard54@zeuspay.com');if(typeof showToast==='function')showToast('📋 Lightning Address copied!')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;">📋 Copy Lightning Address</button>
                     <br>
-                    <button data-idx-click="35" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;">💳 More Ways to Donate ▼</button>
+                    <button onclick="var el=document.getElementById('homeDonateMore');el.style.display=el.style.display==='none'?'block':'none';this.textContent=el.style.display==='none'?'💳 More Ways to Donate ▼':'💳 Hide Other Methods ▲'" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;">💳 More Ways to Donate ▼</button>
                     <div id="homeDonateMore" style="display:none;text-align:left;max-width:340px;margin:10px auto 0;">
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">₿ On-Chain Bitcoin</div>
                             <div style="text-align:center;margin-bottom:8px;"><img src="https://assets.bitcoineducation.quest/images/donate/onchain-qr.jpg" loading="lazy" alt="On-Chain QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
-                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;line-height:1.3;cursor:pointer;" data-idx-click="34">bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf</div><button data-idx-click="33" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button></div>
+                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;line-height:1.3;cursor:pointer;" onclick="navigator.clipboard.writeText('bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf');if(typeof showToast==='function')showToast('📋 Copied!')">bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf</div><button onclick="navigator.clipboard.writeText('bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">🔒 BIP47 Payment Code</div>
                             <div style="text-align:center;margin-bottom:8px;"><img src="https://assets.bitcoineducation.quest/images/donate/bip47-qr.jpg" loading="lazy" alt="BIP47 Payment Code QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
-                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.55rem;color:var(--text);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" data-idx-click="32">PM8TJWpq8Hq...Tg89</div><button data-idx-click="31" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button></div>
+                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.55rem;color:var(--text);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText('PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89');if(typeof showToast==='function')showToast('📋 Copied!')">PM8TJWpq8Hq...Tg89</div><button onclick="navigator.clipboard.writeText('PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">💵 Cash App</div>
                             <div style="text-align:center;margin-bottom:8px;"><img src="https://assets.bitcoineducation.quest/images/donate/cashapp-qr.jpg" loading="lazy" alt="Cash App QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
-                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" data-idx-click="30">$NEEDcreations</div><button data-idx-click="29" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://cash.app/$NEEDcreations" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
+                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" onclick="navigator.clipboard.writeText('$NEEDcreations');if(typeof showToast==='function')showToast('📋 Copied!')">$NEEDcreations</div><button onclick="navigator.clipboard.writeText('$NEEDcreations');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://cash.app/$NEEDcreations" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">💜 Venmo</div>
                             <div style="text-align:center;margin-bottom:8px;"><img src="https://assets.bitcoineducation.quest/images/donate/venmo-qr.jpg" loading="lazy" alt="Venmo QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
-                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" data-idx-click="28">@Phil2140</div><button data-idx-click="27" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://venmo.com/code?user_id=1358236213051392692&created=1773155307" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
+                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" onclick="navigator.clipboard.writeText('@Phil2140');if(typeof showToast==='function')showToast('📋 Copied!')">@Phil2140</div><button onclick="navigator.clipboard.writeText('@Phil2140');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://venmo.com/code?user_id=1358236213051392692&created=1773155307" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">💙 PayPal</div>
                             <div style="text-align:center;margin-bottom:8px;"><img src="https://assets.bitcoineducation.quest/images/donate/paypal-qr.jpg" loading="lazy" alt="PayPal QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
-                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" data-idx-click="26">paypal.me/PhilipFazioli</div><button data-idx-click="25" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://paypal.me/PhilipFazioli" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
+                            <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" onclick="navigator.clipboard.writeText('paypal.me/PhilipFazioli');if(typeof showToast==='function')showToast('📋 Copied!')">paypal.me/PhilipFazioli</div><button onclick="navigator.clipboard.writeText('paypal.me/PhilipFazioli');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://paypal.me/PhilipFazioli" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">💚 Zelle</div>
@@ -1157,15 +1157,15 @@
                     <div id="homeSupportMenu" style="display:none;margin-top:8px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;">
                         <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
                             <span style="color:var(--text-muted);font-size:0.85rem;flex:1;">info.603btc@gmail.com</span>
-                            <button data-idx-click="24" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">Copy</button>
+                            <button onclick="navigator.clipboard.writeText('info.603btc@gmail.com');if(typeof showToast==='function')showToast('📋 Email copied!')" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">Copy</button>
                         </div>
                         <div class="suggest-box" id="suggestBox" style="padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
                             <div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:4px;">💡 Suggest a Topic or Leave Feedback</div>
                             <div style="color:var(--text-muted);font-size:0.8rem;">Want to see something added? Let us know!</div>
                             <div id="suggestFields" style="display:block;margin-top:12px;">
-                                <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" data-idx-click="23" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
-                                <input type="email" id="suggestEmail" placeholder="📧 Email for follow-up (optional)" data-idx-click="22" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
-                                <button class="suggest-submit" data-idx-click="21" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Submit</button>
+                                <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
+                                <input type="email" id="suggestEmail" placeholder="📧 Email for follow-up (optional)" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
+                                <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Submit</button>
                                 <div id="suggestStatus"></div>
                             </div>
                         </div>
@@ -1191,17 +1191,17 @@
         <div class="messages" id="msgs"></div>
         <div id="forumContainer" style="display:none;"></div>
     </main>
-    <div class="lightbox" id="lb" data-idx-click="20"><img id="lb-img"></div>
-    <div id="questModal" data-idx-click="19"><div id="questInner"></div></div>
+    <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
+    <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
     <!-- FAB row: Chat | AI Tools | Metrics | Leaderboard -->
-    <button id="chatOverlayBtn" class="fab-btn" data-idx-click="18" title="Global Chat" aria-label="Open Chat">💬</button>
-    <button id="aiToolsBtn"     class="fab-btn" data-idx-click="17" title="AI Tools" aria-label="Open AI Tools">🤖</button>
-    <div    id="dashboardFloatBtn" class="fab-btn" data-idx-click="16" title="Bitcoin Metrics" aria-label="Bitcoin Metrics" role="button" tabindex="0">📊</div>
-    <button id="lbFloatBtn"     class="fab-btn" data-idx-click="15" title="Leaderboard" aria-label="Open Leaderboard">🏆</button>
+    <button id="chatOverlayBtn" class="fab-btn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else{window._pendingChatOpen=true;if(typeof window._loadDeferred==='function')window._loadDeferred();}" title="Global Chat" aria-label="Open Chat">💬</button>
+    <button id="aiToolsBtn"     class="fab-btn" onclick="if(typeof toggleAITools==='function')toggleAITools();else showToast('AI Tools loading...')" title="AI Tools" aria-label="Open AI Tools">🤖</button>
+    <div    id="dashboardFloatBtn" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics" role="button" tabindex="0">📊</div>
+    <button id="lbFloatBtn"     class="fab-btn" onclick="toggleLeaderboard()" title="Leaderboard" aria-label="Open Leaderboard">🏆</button>
     <div id="leaderboard"></div>
     <div id="badgeFloatTip"></div>
 
-    <div id="usernameModal" data-idx-click="14">
+    <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
             <p>Pick a username to start earning XP as you explore the archive!</p>
@@ -1215,18 +1215,18 @@
             <div id="signupLnSection" style="margin-bottom:16px;">
                 <input type="text" id="signupLnAddress" placeholder="⚡ Lightning address (recommended)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="200" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="this.style.borderColor='var(--border)'">
                 <p style="color:var(--text-faint);font-size:0.72rem;margin:6px 0 0;line-height:1.5;">⚠️ <strong style="color:var(--text-muted);">You need a Lightning address to withdraw sats from this app.</strong> Other users can also tip you sats directly to your Lightning address! It's so easy once you're set up.</p>
-                <button type="button" data-idx-click="13" style="margin-top:8px;width:100%;padding:10px;background:none;border:1px dashed rgba(247,147,26,0.5);border-radius:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;touch-action:manipulation;" data-idx-over="12" data-idx-out="11">⚡ Here's how to get one →</button>
+                <button type="button" onclick="window._signupGoGetLnAddress()" style="margin-top:8px;width:100%;padding:10px;background:none;border:1px dashed rgba(247,147,26,0.5);border-radius:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='rgba(247,147,26,0.08)'" onmouseout="this.style.background='none'">⚡ Here's how to get one →</button>
             </div>
             <div id="factionPickerSignup" style="margin-bottom:16px;text-align:left;">
                 <div style="color:#94a3b8;font-size:0.8rem;font-weight:700;margin-bottom:4px;text-align:center;">⚔️ Choose Your Faction</div>
                 <div style="color:#475569;font-size:0.68rem;margin-bottom:10px;text-align:center;">New faction features coming soon — no competitive advantage to either choice.</div>
                 <div style="display:flex;gap:8px;">
-                    <div id="factionBtnHornets" data-idx-click="10" style="flex:1;padding:12px 6px;border-radius:12px;border:2px solid var(--border,#1e293b);background:none;cursor:pointer;text-align:center;transition:all 0.2s;">
+                    <div id="factionBtnHornets" onclick="window._signupFaction='cyber_hornets';document.getElementById('factionBtnHornets').style.borderColor='#f7931a';document.getElementById('factionBtnHornets').style.background='rgba(247,147,26,0.1)';document.getElementById('factionBtnBadgers').style.borderColor='var(--border,#1e293b)';document.getElementById('factionBtnBadgers').style.background='none';" style="flex:1;padding:12px 6px;border-radius:12px;border:2px solid var(--border,#1e293b);background:none;cursor:pointer;text-align:center;transition:all 0.2s;">
                         <div style="font-size:1.6rem;">🐝</div>
                         <div style="color:#e2e8f0;font-weight:700;font-size:0.8rem;margin-top:4px;">Cyber Hornets</div>
                         <div style="color:#64748b;font-size:0.6rem;margin-top:2px;">The swarm protects the network</div>
                     </div>
-                    <div id="factionBtnBadgers" data-idx-click="9" style="flex:1;padding:12px 6px;border-radius:12px;border:2px solid var(--border,#1e293b);background:none;cursor:pointer;text-align:center;transition:all 0.2s;">
+                    <div id="factionBtnBadgers" onclick="window._signupFaction='honey_badgers';document.getElementById('factionBtnBadgers').style.borderColor='#a855f7';document.getElementById('factionBtnBadgers').style.background='rgba(168,85,247,0.1)';document.getElementById('factionBtnHornets').style.borderColor='var(--border,#1e293b)';document.getElementById('factionBtnHornets').style.background='none';" style="flex:1;padding:12px 6px;border-radius:12px;border:2px solid var(--border,#1e293b);background:none;cursor:pointer;text-align:center;transition:all 0.2s;">
                         <div style="font-size:1.6rem;">🦡</div>
                         <div style="color:#e2e8f0;font-weight:700;font-size:0.8rem;margin-top:4px;">Honey Badgers</div>
                         <div style="color:#64748b;font-size:0.6rem;margin-top:2px;">Honey badger don't care</div>
@@ -1234,39 +1234,39 @@
                 </div>
             </div>
             <div id="turnstileWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
-            <button data-idx-click="8">Start Learning →</button>
+            <button onclick="submitUsername()">Start Learning →</button>
             <div id="emailSignInSection" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Already have an account? Sign in with your email:</p>
                 <input type="email" id="returningEmailInput" placeholder="📧 Your email address" maxlength="100" onkeydown="if(event.key==='Enter')sendReturningMagicLink()" style="font-size:16px;padding:14px 18px;width:100%;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:var(--text,#fff);font-family:inherit;outline:none;box-sizing:border-box;">
-                <button data-idx-click="7" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">📧 Send Magic Link</button>
+                <button onclick="sendReturningMagicLink()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">📧 Send Magic Link</button>
                 <p style="color:var(--text-faint);font-size:0.7rem;margin:-6px 0 12px;">We'll email you a magic link — no password needed! ✨</p>
             </div>
             <div style="padding-top:8px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or sign in with a provider:</p>
-                <button data-idx-click="6" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
+                <button onclick="this.innerHTML='⏳ Opening Google...';this.style.opacity='0.6';signInWithGoogle()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18"> Sign in with Google
                 </button>
-                <button data-idx-click="5" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
+                <button onclick="signInWithFacebook()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/facebook.svg" width="18" height="18"> Sign in with Facebook
                 </button>
-                <button data-idx-click="4" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
+                <button onclick="signInWithTwitter()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
                     𝕏 Sign in with Twitter/X
                 </button>
-                <button data-idx-click="3" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
+                <button onclick="signInWithGithub()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/github.svg" width="18" height="18"> Sign in with GitHub
                 </button>
 <!-- Apple sign-in removed -->
                 <div style="border-top:1px solid var(--border);margin:10px 0 6px;padding-top:10px;">
                     <p style="color:var(--text-faint);font-size:0.7rem;margin-bottom:8px;">Bitcoin-native sign in:</p>
-                    <button data-idx-click="2" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
+                    <button onclick="signInWithNostr()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
                         🟣 Sign in with Nostr
                     </button>
-                    <button data-idx-click="1" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
+                    <button onclick="signInWithLightning()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
                         ⚡ Sign in with Lightning
                     </button>
                 </div>
             </div>
-            <span class="skip" data-idx-click="0">Skip for now</span>
+            <span class="skip" onclick="hideUsernamePrompt()">Skip for now</span>
         </div>
     </div>
 
@@ -1294,7 +1294,7 @@
             'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260803_1628',
             'scholar.js?v=20260803_2212','beats.js?v=20260802_0227',
             'global-chat.js?v=20260803_2302','lightning.js?v=20260803_2007','lightning-tips.js?v=20260711_1346',
-            'notifications.js?v=20260804_0118','guide.js?v=20260716_1628','modules.js?v=20260331',
+            'notifications.js?v=20260730_0723','guide.js?v=20260716_1628','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20260802_1121',
@@ -1415,478 +1415,6 @@ if ('serviceWorker' in navigator) {
         }).catch(function() {});
     });
 }
-</script>
-<script id="idx-events">
-(function(){
-  var _th = localStorage.getItem('theme') === 'light' ? '☀️' : '🌙';
-  var mtb = document.getElementById('mobileThemeBtn');
-  if (mtb) mtb.textContent = _th;
-  var dtb = document.getElementById('themeBtn');
-  if (dtb) dtb.textContent = _th;
-  var chList = document.getElementById('channelList');
-  if (chList) {
-    chList.addEventListener('click', function(e) {
-      var btn = e.target.closest('.ch-btn');
-      if (btn && btn.dataset.ch) { go(btn.dataset.ch, btn); }
-    });
-  }
-  document.addEventListener('click', function(e) {
-    var t = e.target.closest('.cat-toggle');
-    if (t && chList && chList.contains(t)) toggleCat(t);
-  });
-  (function(){
-    var el = document.querySelector('[data-idx-click="0"]');
-    if (el) el.addEventListener('click', function() { hideUsernamePrompt() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="1"]');
-    if (el) el.addEventListener('click', function() { signInWithLightning() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="2"]');
-    if (el) el.addEventListener('click', function() { signInWithNostr() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="3"]');
-    if (el) el.addEventListener('click', function() { signInWithGithub() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="4"]');
-    if (el) el.addEventListener('click', function() { signInWithTwitter() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="5"]');
-    if (el) el.addEventListener('click', function() { signInWithFacebook() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="6"]');
-    if (el) el.addEventListener('click', function() { this.innerHTML='⏳ Opening Google...';this.style.opacity='0.6';signInWithGoogle() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="7"]');
-    if (el) el.addEventListener('click', function() { sendReturningMagicLink() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="8"]');
-    if (el) el.addEventListener('click', function() { submitUsername() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="9"]');
-    if (el) el.addEventListener('click', function() { window._signupFaction='honey_badgers';document.getElementById('factionBtnBadgers').style.borderColor='#a855f7';document.getElementById('factionBtnBadgers').style.background='rgba(168,85,247,0.1)';document.getElementById('factionBtnHornets').style.borderColor='var(--border,#1e293b)';document.getElementById('factionBtnHornets').style.background='none'; });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="10"]');
-    if (el) el.addEventListener('click', function() { window._signupFaction='cyber_hornets';document.getElementById('factionBtnHornets').style.borderColor='#f7931a';document.getElementById('factionBtnHornets').style.background='rgba(247,147,26,0.1)';document.getElementById('factionBtnBadgers').style.borderColor='var(--border,#1e293b)';document.getElementById('factionBtnBadgers').style.background='none'; });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="13"]');
-    if (el) el.addEventListener('click', function() { window._signupGoGetLnAddress() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="14"]');
-    if (el) el.addEventListener('click', function() { if(event.target===this)hideUsernamePrompt() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="15"]');
-    if (el) el.addEventListener('click', function() { toggleLeaderboard() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="16"]');
-    if (el) el.addEventListener('click', function() { if(typeof toggleDashboard==='function')toggleDashboard() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="17"]');
-    if (el) el.addEventListener('click', function() { if(typeof toggleAITools==='function')toggleAITools();else showToast('AI Tools loading...') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="18"]');
-    if (el) el.addEventListener('click', function() { if(typeof toggleChatOverlay==='function')toggleChatOverlay();else{window._pendingChatOpen=true;if(typeof window._loadDeferred==='function')window._loadDeferred();} });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="19"]');
-    if (el) el.addEventListener('click', function() { if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } } });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="20"]');
-    if (el) el.addEventListener('click', function() { this.classList.remove('open') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="21"]');
-    if (el) el.addEventListener('click', function() { event.stopPropagation();submitSuggestion() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="22"]');
-    if (el) el.addEventListener('click', function() { event.stopPropagation() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="23"]');
-    if (el) el.addEventListener('click', function() { event.stopPropagation() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="24"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('info.603btc@gmail.com');if(typeof showToast==='function')showToast('📋 Email copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="25"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('paypal.me/PhilipFazioli');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="26"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('paypal.me/PhilipFazioli');if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="27"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('@Phil2140');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="28"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('@Phil2140');if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="29"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('$NEEDcreations');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="30"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('$NEEDcreations');if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="31"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="32"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89');if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="33"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="34"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf');if(typeof showToast==='function')showToast('📋 Copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="35"]');
-    if (el) el.addEventListener('click', function() { var el=document.getElementById('homeDonateMore');el.style.display=el.style.display==='none'?'block':'none';this.textContent=el.style.display==='none'?'💳 More Ways to Donate ▼':'💳 Hide Other Methods ▲' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="36"]');
-    if (el) el.addEventListener('click', function() { navigator.clipboard.writeText('spontaneousleopard54@zeuspay.com');if(typeof showToast==='function')showToast('📋 Lightning Address copied!') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="37"]');
-    if (el) el.addEventListener('click', function() { toggleSidebarMenu('homeFollowMenu');document.getElementById('homeSupportMenu').style.display='none'; });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="38"]');
-    if (el) el.addEventListener('click', function() { toggleSidebarMenu('homeSupportMenu');document.getElementById('homeFollowMenu').style.display='none'; });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="39"]');
-    if (el) el.addEventListener('click', function() { var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'flex':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="40"]');
-    if (el) el.addEventListener('click', function() { if(typeof showDonateModal==='function')showDonateModal() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="41"]');
-    if (el) el.addEventListener('click', function() { var s=document.getElementById('creditsPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="42"]');
-    if (el) el.addEventListener('click', function() { var s=document.getElementById('sponsorPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="43"]');
-    if (el) el.addEventListener('click', function() { if(typeof showNachoStory==='function')showNachoStory() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="44"]');
-    if (el) el.addEventListener('click', function() { if(typeof showPricePrediction==='function')showPricePrediction() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="45"]');
-    if (el) el.addEventListener('click', function() { if(typeof showSpinWheel==='function')showSpinWheel() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="46"]');
-    if (el) el.addEventListener('click', function() { showProofOfWalk() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="47"]');
-    if (el) el.addEventListener('click', function() { go('timechain-tv') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="48"]');
-    if (el) el.addEventListener('click', function() { go('bitcoin-beats') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="49"]');
-    if (el) el.addEventListener('click', function() { go('irl-sync') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="50"]');
-    if (el) el.addEventListener('click', function() { go('marketplace') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="51"]');
-    if (el) el.addEventListener('click', function() { go('forum') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="52"]');
-    if (el) el.addEventListener('click', function() { if(typeof enterProofOfPlay==='function')enterProofOfPlay() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="53"]');
-    if (el) el.addEventListener('click', function() { enterNachoMode() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="56"]');
-    if (el) el.addEventListener('click', function() { toggleSidebarMenu('homeAppsMenu') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="57"]');
-    if (el) el.addEventListener('click', function() { go('marketplace');setTimeout(function(){renderMarketplace({section:'merchants'})},500) });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="58"]');
-    if (el) el.addEventListener('click', function() { window._mbRouted=true;window._skipIRLRules=true;localStorage.setItem('btc_irl_rules_accepted','true');go('irl-sync');setTimeout(function(){var ro=document.getElementById('irlRulesOverlay');if(ro)ro.remove();var _t=0;var _i=setInterval(function(){var ro2=document.getElementById('irlRulesOverlay');if(ro2)ro2.remove();var el=document.getElementById('meetupBuilderSection');if(el){clearInterval(_i);el.scrollIntoView({behavior:'smooth',block:'start'});}if(++_t>30)clearInterval(_i);},300);},1500) });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="59"]');
-    if (el) el.addEventListener('click', function() { go('first-purchase') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="60"]');
-    if (el) el.addEventListener('click', function() { if(typeof showQuestHub==='function')showQuestHub() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="61"]');
-    if (el) el.addEventListener('click', function() { go('trails') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="62"]');
-    if (el) el.addEventListener('click', function() { go('learning-quests') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="63"]');
-    if (el) el.addEventListener('click', function() { go('one-stop-shop') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="66"]');
-    if (el) el.addEventListener('click', function() { toggleSidebarMenu('homeLearnMenu') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="69"]');
-    if (el) el.addEventListener('click', function() { showUsernamePrompt() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="70"]');
-    if (el) el.addEventListener('click', function() { event.stopPropagation();document.getElementById('questGuideFull').style.display='block';document.getElementById('questGuideMini').style.display='none';localStorage.removeItem('btc_guide_collapsed') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="73"]');
-    if (el) el.addEventListener('click', function() { if(typeof showGuide==='function')showGuide() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="76"]');
-    if (el) el.addEventListener('click', function() { if(typeof showFAQ==='function')showFAQ() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="77"]');
-    if (el) el.addEventListener('click', function() { event.stopPropagation();document.getElementById('questGuideFull').style.display='none';document.getElementById('questGuideMini').style.display='flex';localStorage.setItem('btc_guide_collapsed','1') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="80"]');
-    if (el) el.addEventListener('click', function() { if(typeof showGuide==='function')showGuide() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="81"]');
-    if (el) el.addEventListener('click', function() { showUsernamePrompt() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="82"]');
-    if (el) el.addEventListener('click', function() { document.getElementById('introVideoFull').style.display='';document.getElementById('introVideoMini').style.display='none';localStorage.removeItem('btc_intro_video_collapsed') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="83"]');
-    if (el) el.addEventListener('click', function() { var v=document.getElementById('introVideo');if(v)v.pause();document.getElementById('introVideoFull').style.display='none';document.getElementById('introVideoMini').style.display='flex';localStorage.setItem('btc_intro_video_collapsed','1') });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="84"]');
-    if (el) el.addEventListener('click', function() { var v=document.getElementById('introVideo');if(v){v.play();} this.style.opacity='0';this.style.pointerEvents='none'; });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="85"]');
-    if (el) el.addEventListener('click', function() { showDonateModal() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="86"]');
-    if (el) el.addEventListener('click', function() { goHome() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="87"]');
-    if (el) el.addEventListener('click', function() { var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus(); });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="88"]');
-    if (el) el.addEventListener('click', function() { var m=document.getElementById('main');m.scrollTo({top:m.scrollHeight,behavior:'smooth'}) });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="89"]');
-    if (el) el.addEventListener('click', function() { document.getElementById('main').scrollTo({top:0,behavior:'smooth'}) });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="90"]');
-    if (el) el.addEventListener('click', function() { toggleSidebarCollapse() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="93"]');
-    if (el) el.addEventListener('click', function() { toggleCommunityStatsPanel() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="94"]');
-    if (el) el.addEventListener('click', function() { goRandomMeme() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="95"]');
-    if (el) el.addEventListener('click', function() { goRandomGraphic() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="96"]');
-    if (el) el.addEventListener('click', function() { goRandomArt() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="97"]');
-    if (el) el.addEventListener('click', function() { goRandom() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="100"]');
-    if (el) el.addEventListener('click', function() { toggleRandomPanel() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="101"]');
-    if (el) el.addEventListener('click', function() { var msg=document.getElementById('contentNote');if(msg.style.display==='none'){msg.style.display='block';this.textContent='📌 A note about the content in these topics ▲'}else{msg.style.display='none';this.textContent='📌 A note about the content in these topics ▼'} });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="102"]');
-    if (el) el.addEventListener('click', function() { toggleSidebarCollapse() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="103"]');
-    if (el) el.addEventListener('click', function() { toggleTheme() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="104"]');
-    if (el) el.addEventListener('click', function() { toggleAudio() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="105"]');
-    if (el) el.addEventListener('click', function() { goHome() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="106"]');
-    if (el) el.addEventListener('click', function() { toggleMenu() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="107"]');
-    if (el) el.addEventListener('click', function() { var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus(); });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="108"]');
-    if (el) el.addEventListener('click', function() { toggleTheme() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="109"]');
-    if (el) el.addEventListener('click', function() { var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus(); });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="110"]');
-    if (el) el.addEventListener('click', function() { toggleMenu() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="111"]');
-    if (el) el.addEventListener('click', function() { goHome() });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-click="112"]');
-    if (el) el.addEventListener('click', function() { var _so=document.getElementById('searchOverlay');_so.style.display='none';_so.removeAttribute('data-open'); });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="12"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.background='rgba(247,147,26,0.08)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="55"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.background='var(--accent)';this.style.color='#fff' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="65"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.background='#22c55e';this.style.color='#fff' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="68"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.transform='scale(1.02)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="72"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.borderColor='rgba(99,102,241,0.4)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="75"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.borderColor='rgba(247,147,26,0.6)';this.style.boxShadow='0 4px 16px rgba(247,147,26,0.15)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="79"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.borderColor='rgba(99,102,241,0.5)';this.style.boxShadow='0 4px 20px rgba(99,102,241,0.15)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="92"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.borderColor='#22c55e';this.style.color='#22c55e' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-over="99"]');
-    if (el) el.addEventListener('mouseover', function() { this.style.borderColor='var(--accent)';this.style.color='var(--accent)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="11"]');
-    if (el) el.addEventListener('mouseout', function() { this.style.background='none' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="54"]');
-    if (el) el.addEventListener('mouseout', function() { this.style.background='none';this.style.color='var(--accent)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="64"]');
-    if (el) el.addEventListener('mouseout', function() { this.style.background='none';this.style.color='#22c55e' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="67"]');
-    if (el) el.addEventListener('mouseout', function() { this.style.transform='scale(1)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="71"]');
-    if (el) el.addEventListener('mouseout', function() { this.style.borderColor='rgba(99,102,241,0.15)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="74"]');
-    if (el) el.addEventListener('mouseout', function() { this.style.borderColor='rgba(247,147,26,0.3)';this.style.boxShadow='none' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="78"]');
-    if (el) el.addEventListener('mouseout', function() { this.style.borderColor='rgba(99,102,241,0.25)';this.style.boxShadow='none' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="91"]');
-    if (el) el.addEventListener('mouseout', function() { var o=document.getElementById('communityStatsPanel2');this.style.borderColor=o&&o.style.display!=='none'?'#22c55e':'var(--border)';this.style.color=o&&o.style.display!=='none'?'#22c55e':'var(--text-muted)' });
-  })();
-  (function(){
-    var el = document.querySelector('[data-idx-out="98"]');
-    if (el) el.addEventListener('mouseout', function() { this.style.borderColor='var(--border)';this.style.color='var(--text-muted)' });
-  })();
-})();
 </script>
 </body>
 </html>

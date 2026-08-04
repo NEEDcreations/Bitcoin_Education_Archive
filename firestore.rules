@@ -190,13 +190,18 @@ service cloud.firestore {
     // =============================================
     match /visits/{visitorId} {
       allow read: if request.auth != null && request.auth.uid == visitorId;
+      // [SECURITY FIX] create/update: enforce uid == visitorId so users can only write
+      // their own visit doc. Previously any auth'd user could overwrite any visitor's
+      // fingerprint field, enabling ban evasion by poisoning anti-fraud telemetry.
       allow create: if request.auth != null
+                    && request.auth.uid == visitorId
                     && request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
                     && request.resource.data.lastVisit is string
                     && request.resource.data.lastVisit.size() == 10
                     && request.resource.data.fp is string
                     && request.resource.data.fp.size() <= 64;
       allow update: if request.auth != null
+                    && request.auth.uid == visitorId
                     && request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
                     && request.resource.data.lastVisit is string
                     && request.resource.data.lastVisit.size() == 10
@@ -645,24 +650,19 @@ service cloud.firestore {
                     && (request.resource.data.player1.uid == request.auth.uid
                         || request.resource.data.player2.uid == request.auth.uid)
                     && request.resource.data.player1.uid != request.resource.data.player2.uid;
-      // PVP is fully client-side. Allow players to write:
-      //   - their own answers array (player1.answers / player2.answers)
-      //   - match flow fields (status, currentQ, questionWinner, questionStartedAt)
-      //   - presence heartbeats (player1LastSeen, player2LastSeen)
-      // Scores and correct counts are derived from answers client-side; the score fields
-      // are written by the resolveRound logic which runs in the snapshot listener.
-      // Forfeit fields (forfeitedBy, forfeitReason) are written on manual leave.
-      // Scores and correct counts are owned by the pvpResolveRound CF trigger.
       // Clients may only write: own answers, flow fields (advance), heartbeats, self-forfeit.
-      // Clients may NOT set status=finished/question_result or touch opponent answers.
+      // Clients may NOT set status=finished/question_result, touch opponent answers,
+      // or modify questions[]. The questions array is immutable after match creation —
+      // only the pvpResolveRound CF (admin SDK) may write it (e.g. reroll new questions).
+      // [SECURITY FIX] Removed 'questions' from hasOnly — clients could swap in
+      // questions they knew the answers to, rigging pvpResolveRound grading.
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
-                    // Field set is still bounded
+                    // Field set is still bounded — 'questions' intentionally excluded
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['player1', 'player2',
                                  'status', 'currentQ', 'questionWinner', 'questionStartedAt',
-                                 'questions',
                                  'player1LastSeen', 'player2LastSeen',
                                  'forfeitedBy', 'forfeitReason'])
                     // Scores/correct are immutable from clients — CF (admin) owns them
@@ -1236,15 +1236,26 @@ service cloud.firestore {
                     && request.resource.data.voters is list
                     && request.resource.data.voters.size() == 1
                     && request.resource.data.voters[0] == request.auth.uid;
-      // votes can only increment (no overwrite); voters grows by exactly 1 = self
+      // [SECURITY FIX] votes: each slot can only increase by at most 1; total must increase
+      // by exactly 1 (one vote per update). Previously >= allowed unbounded inflation.
       allow update: if request.auth != null
                     && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
                     && request.resource.data.votes is list
                     && request.resource.data.votes.size() == 4
+                    // each slot: non-decreasing AND at most +1
                     && request.resource.data.votes[0] >= resource.data.votes[0]
+                    && request.resource.data.votes[0] <= resource.data.votes[0] + 1
                     && request.resource.data.votes[1] >= resource.data.votes[1]
+                    && request.resource.data.votes[1] <= resource.data.votes[1] + 1
                     && request.resource.data.votes[2] >= resource.data.votes[2]
+                    && request.resource.data.votes[2] <= resource.data.votes[2] + 1
                     && request.resource.data.votes[3] >= resource.data.votes[3]
+                    && request.resource.data.votes[3] <= resource.data.votes[3] + 1
+                    // total must increase by exactly 1 (exactly one option chosen)
+                    && (request.resource.data.votes[0] + request.resource.data.votes[1]
+                        + request.resource.data.votes[2] + request.resource.data.votes[3])
+                       == (resource.data.votes[0] + resource.data.votes[1]
+                           + resource.data.votes[2] + resource.data.votes[3]) + 1
                     && request.resource.data.voters is list
                     && request.resource.data.voters.size() == resource.data.voters.size() + 1
                     && request.resource.data.voters.hasAll([request.auth.uid])
@@ -1258,23 +1269,59 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
                     && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question']);
-      // All numeric fields are monotonically increasing — can never write fake high counts
+      // [SECURITY FIX] create: values must be 0 or 1; total must equal 1 (first vote).
+      // Previously unconstrained — any value could be set on create.
+      allow create: if request.auth != null
+                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
+                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
+                    && request.resource.data.total == 1
+                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
+                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
+                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
+                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
+      // All numeric fields are monotonically increasing AND bounded to +1 per update.
       allow update: if request.auth != null
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
+                    // total: monotone increasing, at most +1
                     && request.resource.data.total >= resource.data.get('total', 0)
+                    && request.resource.data.total <= resource.data.get('total', 0) + 1
+                    // each option: monotone increasing, at most +1
                     && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
+                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
                     && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
+                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
                     && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0);
+                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
+                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
+                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
     }
 
     // Trivia cumulative stats (all-time per question) — read public, increment only
     match /trivia_cumulative/{triviaId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      // [SECURITY FIX] create: schema locked + values bounded (was completely unconstrained)
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
+                    && request.resource.data.total == 1
+                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
+                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
+                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
+                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
+      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
       allow update: if request.auth != null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex']);
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
+                    && request.resource.data.total >= resource.data.get('total', 0)
+                    && request.resource.data.total <= resource.data.get('total', 0) + 1
+                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
+                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
+                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
+                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
+                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
+                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
+                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
+                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
     }
 
     // ===== RAID BOSS =====
@@ -1392,8 +1439,20 @@ service cloud.firestore {
       allow create: if request.auth != null
                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
                    && request.resource.data.total == 1;
+      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
       allow update: if request.auth != null
-                   && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3']);
+                   && request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
+                   && request.resource.data.total >= resource.data.get('total', 0)
+                   && request.resource.data.total <= resource.data.get('total', 0) + 1
+                   && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
+                   && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
+                   && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
+                   && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
+                   && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
+                   && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
+                   && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
+                   && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
     }
 
     // Charity donations — public read (for leaderboard/feed), CF-only write

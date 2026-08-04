@@ -426,7 +426,24 @@ async function handleTelegramWebhook(request, env) {
       text = '(sticker: ' + (msg.sticker.emoji || '🎭') + ')';
     } else {
       var fi = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: msg.sticker.file_id });
-      if (fi.ok) imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fi.result.file_path;
+      // [SECURITY FIX] Download sticker server-side → upload to Storage.
+      // Previously stored api.telegram.org/file/bot<TOKEN>/... in Firestore,
+      // exposing the bot token to every global-chat reader.
+      if (fi.ok) {
+        try {
+          var stickerResp = await fetch('https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fi.result.file_path);
+          if (stickerResp.ok) {
+            var stickerBuf = await stickerResp.arrayBuffer();
+            var stickerExt = (fi.result.file_path || '').split('.').pop().toLowerCase() || 'webp';
+            var stickerMime = stickerExt === 'png' ? 'image/png' : 'image/webp';
+            var stickerName = Date.now() + '_sticker_' + msg.sticker.file_id.slice(-8) + '.' + stickerExt;
+            var stickerStorageUrl = await uploadImageToStorage(env, stickerBuf, stickerMime, stickerName);
+            if (stickerStorageUrl) imageUrl = stickerStorageUrl;
+          }
+        } catch(e) {
+          console.error('[Bridge] Sticker upload error:', e.message);
+        }
+      }
       if (!text) text = msg.sticker.emoji || '';
     }
   }
@@ -494,7 +511,23 @@ async function handleBroadcastPost(post, env) {
   if (post.photo && post.photo.length > 0) {
     var photo = post.photo[post.photo.length - 1];
     var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: photo.file_id });
-    if (fileInfo.ok) imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
+    // [SECURITY FIX] Download broadcast photo server-side → upload to Storage.
+    // Previously stored api.telegram.org/file/bot<TOKEN>/... in Firestore,
+    // exposing the bot token to every global-chat reader.
+    if (fileInfo.ok) {
+      try {
+        var bcResp = await fetch('https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path);
+        if (bcResp.ok) {
+          var bcBuf = await bcResp.arrayBuffer();
+          var bcExt = (fileInfo.result.file_path || '').split('.').pop().toLowerCase() || 'jpg';
+          var bcName = Date.now() + '_bc_' + photo.file_id.slice(-8) + '.' + bcExt;
+          var bcStorageUrl = await uploadImageToStorage(env, bcBuf, 'image/jpeg', bcName);
+          if (bcStorageUrl) imageUrl = bcStorageUrl;
+        }
+      } catch(e) {
+        console.error('[Bridge] Broadcast photo upload error:', e.message);
+      }
+    }
   }
 
   if (!text && !imageUrl) return new Response('OK');
