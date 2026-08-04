@@ -7563,15 +7563,9 @@ exports.nachoAnnounce = functions.runWith({ enforceAppCheck: true }).https.onCal
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Sign in required');
     }
-    // [SECURITY FIX] Admin-only gate: nachoAnnounce posts as '🦌 Nacho' (isNachoAuto: true).
-    // Without this check, any non-anonymous signed-in user could post official-looking
-    // Nacho announcements — phishing bait, fake events, misinformation.
-    const callerEmail = (context.auth.token.email || '').toLowerCase();
-    const callerVerified = context.auth.token.email_verified === true;
-    const adminEmail = (process.env.ADMIN_EMAIL || 'needcreations@gmail.com').toLowerCase();
-    if (!callerVerified || callerEmail !== adminEmail) {
-        throw new functions.https.HttpsError('permission-denied', 'Admin only');
-    }
+    // NOTE: nachoAnnounce is called by regular users for badge/trifecta/quiz announcements.
+    // Protection is: non-anonymous auth + rate limiting (5/60s) + link allowlist (bitcoineducation.quest only).
+    // Admin-only gate was a mistake — broke all user-triggered GGs announcements (2026-08-04).
 
     // 2. Rate limit: 5 announcements per 60s per UID (client-side rate limit is
     //    bypassable; this is the server-side enforcement)
