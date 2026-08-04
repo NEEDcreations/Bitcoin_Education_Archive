@@ -96,6 +96,7 @@ function buildCSP(nonce) {
             " https://cdn.jsdelivr.net" +
             " https://cdnjs.cloudflare.com" +
             " https://translate.google.com" +
+            " https://www.google.com" +          // reCAPTCHA v3 (App Check token generation)
             " https://www.youtube.com",
 
         // connect-src: every outbound fetch / WebSocket the app makes
@@ -129,7 +130,8 @@ function buildCSP(nonce) {
             " https://challenges.cloudflare.com" +   // Turnstile
             " https://ck121212195.github.io" +       // SAT-ARCADE game
             " https://bitcoin-education-archive.firebaseapp.com" + // Firebase Auth iframe
-            " https://accounts.google.com",          // Google Sign-In popup
+            " https://accounts.google.com" +          // Google Sign-In popup
+            " https://www.google.com",          // reCAPTCHA v3 hidden iframe (App Check)
 
         "font-src 'self' https://fonts.gstatic.com",
 
