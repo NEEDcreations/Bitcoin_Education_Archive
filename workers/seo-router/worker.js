@@ -101,6 +101,7 @@ function buildCSP(nonce) {
         // connect-src: every outbound fetch / WebSocket the app makes
         "connect-src 'self'" +
             " https://*.googleapis.com" +           // Firestore, Auth, FCM, Storage
+            " wss://*.googleapis.com" +            // Firestore real-time WebSocket (mobile)
             " https://*.google.com" +               // Google Sign-In
             " https://*.firebaseapp.com" +           // Firebase hosting / Auth redirect
             " https://fcm.googleapis.com" +          // Push notifications
