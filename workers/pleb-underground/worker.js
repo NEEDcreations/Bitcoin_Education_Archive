@@ -283,7 +283,7 @@ async function handleRequest(request, env) {
   if (url.pathname === '/force-check' && request.method === 'POST') {
     // Admin endpoint — requires bearer token
     const auth = request.headers.get('Authorization') || '';
-    if (!env.WORKER_SECRET || auth !== 'Bearer ' + env.WORKER_SECRET) {
+    if (!env.WORKER_SECRET || !timingSafeEqual(auth, 'Bearer ' + env.WORKER_SECRET)) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
       });
@@ -304,7 +304,7 @@ async function handleRequest(request, env) {
   if (url.pathname === '/clear-pending' && request.method === 'POST') {
     // Admin endpoint — requires bearer token
     const auth = request.headers.get('Authorization') || '';
-    if (!env.WORKER_SECRET || auth !== 'Bearer ' + env.WORKER_SECRET) {
+    if (!env.WORKER_SECRET || !timingSafeEqual(auth, 'Bearer ' + env.WORKER_SECRET)) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
       });
@@ -325,6 +325,16 @@ async function handleRequest(request, env) {
     'POST /clear-pending — Clear pending queue\n',
     { headers: { 'Content-Type': 'text/plain', ...CORS_HEADERS } }
   );
+}
+
+// [SECURITY FIX] Constant-time string comparison — prevents timing oracle attacks on secrets.
+function timingSafeEqual(a, b) {
+    const ea = new TextEncoder().encode(a);
+    const eb = new TextEncoder().encode(b);
+    if (ea.length !== eb.length) return false;
+    let diff = 0;
+    for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
+    return diff === 0;
 }
 
 // ── Entry Points ──

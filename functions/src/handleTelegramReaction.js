@@ -199,7 +199,9 @@ exports.setTelegramWebhook = functions.runWith({
 }).https.onRequest(async (req, res) => {
     // [VULN-6 FIX] Require admin token to prevent anyone from re-pointing the webhook
     const adminToken = req.headers['x-admin-token'] || req.query.token || '';
-    if (!ADMIN_TOKEN || adminToken !== ADMIN_TOKEN) {
+    // [SECURITY FIX] Timing-safe comparison — prevents timing oracle on admin token
+    const _tse = (a, b) => { const ea = Buffer.from(String(a)); const eb = Buffer.from(String(b)); if (ea.length !== eb.length) return false; return require('crypto').timingSafeEqual(ea, eb); };
+    if (!ADMIN_TOKEN || !_tse(adminToken, ADMIN_TOKEN)) {
         res.status(403).json({ error: 'Forbidden' });
         return;
     }

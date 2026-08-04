@@ -802,32 +802,36 @@ exports.lnAuthVerify = functions.runWith({ enforceAppCheck: true }).https.onCall
         });
     }
 
-    const doc = await db.collection('lnauth_challenges').doc(k1).get();
-    if (!doc.exists) {
-        throw new functions.https.HttpsError('not-found', 'Challenge not found');
+    // [SECURITY FIX] Atomic consume: read + delete in a single transaction to prevent
+    // TOCTOU race where two concurrent calls both pass the status check and both get tokens.
+    let challenge;
+    try {
+        await db.runTransaction(async (tx) => {
+            const doc = await tx.get(db.collection('lnauth_challenges').doc(k1));
+            if (!doc.exists) throw new functions.https.HttpsError('not-found', 'Challenge not found');
+            const data = doc.data();
+            if (data.expiresAt) {
+                const expires = data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
+                if (Date.now() > expires.getTime()) {
+                    tx.delete(doc.ref);
+                    throw new functions.https.HttpsError('deadline-exceeded', 'Challenge expired');
+                }
+            }
+            if (data.status !== 'completed') {
+                throw new functions.https.HttpsError('not-found', 'Not yet authenticated');
+            }
+            // Atomically consume — only one concurrent caller can delete and proceed
+            tx.delete(doc.ref);
+            challenge = data;
+        });
+    } catch (e) {
+        if (e instanceof functions.https.HttpsError) throw e;
+        throw new functions.https.HttpsError('internal', 'Transaction failed');
     }
 
-    const challenge = doc.data();
-
-    // Check expiry (5 minutes from creation)
-    if (challenge.expiresAt) {
-        const expires = challenge.expiresAt.toDate ? challenge.expiresAt.toDate() : new Date(challenge.expiresAt);
-        if (Date.now() > expires.getTime()) {
-            await db.collection('lnauth_challenges').doc(k1).delete();
-            throw new functions.https.HttpsError('deadline-exceeded', 'Challenge expired');
-        }
-    }
-
-    if (challenge.status !== 'completed') {
-        throw new functions.https.HttpsError('not-found', 'Not yet authenticated');
-    }
-
-    // Generate token fresh instead of reading stored one (never persist tokens in Firestore)
     const uid = challenge.uid;
     const linkingKey = challenge.linkingKey;
-    if (!uid) {
-        throw new functions.https.HttpsError('internal', 'Invalid challenge state');
-    }
+    if (!uid) throw new functions.https.HttpsError('internal', 'Invalid challenge state');
 
     let token;
     try {
@@ -835,9 +839,6 @@ exports.lnAuthVerify = functions.runWith({ enforceAppCheck: true }).https.onCall
     } catch(e) {
         throw new functions.https.HttpsError('internal', 'Token generation failed');
     }
-
-    // Delete challenge immediately (one-time use)
-    await db.collection('lnauth_challenges').doc(k1).delete();
 
     return { token: token, uid: uid };
 });
@@ -7256,6 +7257,12 @@ exports.tweetSatoshisFavor = tweetSatoshisFavor;
 // Proxies Tenor v2 requests server-side so the API key never leaks to the client
 // and no browser-side API activation is required.
 exports.searchGifs = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    // [SECURITY FIX] Require authenticated non-anonymous user — prevents Giphy quota drain
+    // by unauthenticated callers (AppCheck alone doesn't guarantee a real signed-in user).
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Sign in required');
+    }
     const query = (data.query || '').trim().slice(0, 100);
     const limit = Math.min(Math.max(parseInt(data.limit) || 20, 1), 50);
     if (!query) return { results: [] };
@@ -7555,6 +7562,15 @@ exports.nachoAnnounce = functions.runWith({ enforceAppCheck: true }).https.onCal
     }
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Sign in required');
+    }
+    // [SECURITY FIX] Admin-only gate: nachoAnnounce posts as '🦌 Nacho' (isNachoAuto: true).
+    // Without this check, any non-anonymous signed-in user could post official-looking
+    // Nacho announcements — phishing bait, fake events, misinformation.
+    const callerEmail = (context.auth.token.email || '').toLowerCase();
+    const callerVerified = context.auth.token.email_verified === true;
+    const adminEmail = (process.env.ADMIN_EMAIL || 'needcreations@gmail.com').toLowerCase();
+    if (!callerVerified || callerEmail !== adminEmail) {
+        throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
 
     // 2. Rate limit: 5 announcements per 60s per UID (client-side rate limit is

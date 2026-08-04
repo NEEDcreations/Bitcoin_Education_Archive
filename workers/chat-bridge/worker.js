@@ -270,6 +270,16 @@ async function nachoDJCheck(env) {
   return { status: 'nacho_new_track', track: track.title, artist: track.artist || track.authorName };
 }
 
+// [SECURITY FIX] Constant-time string comparison — prevents timing oracle attacks on secrets.
+function timingSafeEqual(a, b) {
+    const ea = new TextEncoder().encode(a);
+    const eb = new TextEncoder().encode(b);
+    if (ea.length !== eb.length) return false;
+    let diff = 0;
+    for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
+    return diff === 0;
+}
+
 // ---- Main Router ----
 export default {
   async fetch(request, env) {
@@ -284,7 +294,7 @@ export default {
         // Validate Telegram webhook secret token (set via setWebhook secret_token parameter)
         // Fail CLOSED — secret must be configured and must match; no secret = reject everything.
         var tgSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
-        if (!env.TG_WEBHOOK_SECRET || tgSecret !== env.TG_WEBHOOK_SECRET) {
+        if (!env.TG_WEBHOOK_SECRET || !timingSafeEqual(tgSecret, env.TG_WEBHOOK_SECRET)) {
           return corsResponse({ error: 'unauthorized' }, 401);
         }
         return handleTelegramWebhook(request, env);
@@ -295,7 +305,7 @@ export default {
       if (url.pathname === '/nacho-dj') {
         // Admin endpoint — reuse existing BRIDGE_SECRET; fail closed if unset
         var djAuth = request.headers.get('Authorization') || '';
-        if (!env.BRIDGE_SECRET || djAuth !== 'Bearer ' + env.BRIDGE_SECRET) {
+        if (!env.BRIDGE_SECRET || !timingSafeEqual(djAuth, 'Bearer ' + env.BRIDGE_SECRET)) {
           return corsResponse({ error: 'unauthorized' }, 401);
         }
         var result = await nachoDJCheck(env);
@@ -553,7 +563,7 @@ async function handleBroadcastPost(post, env) {
 // ---- Firestore → Telegram (called from app) ----
 async function handleFirestoreWebhook(request, env) {
   var authHeader = request.headers.get('Authorization') || '';
-  if (authHeader !== 'Bearer ' + env.BRIDGE_SECRET) {
+  if (!env.BRIDGE_SECRET || !timingSafeEqual(authHeader, 'Bearer ' + env.BRIDGE_SECRET)) {
     return corsResponse({ error: 'unauthorized' }, 401);
   }
 

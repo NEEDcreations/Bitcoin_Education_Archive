@@ -261,6 +261,17 @@ async function cronBroadcast(botToken) {
     return posted;
 }
 
+// [SECURITY FIX] Constant-time string comparison — prevents timing oracle attacks on secrets.
+// CF Workers lack Node crypto.timingSafeEqual; implement via XOR over equal-length buffers.
+function timingSafeEqual(a, b) {
+    const ea = new TextEncoder().encode(a);
+    const eb = new TextEncoder().encode(b);
+    if (ea.length !== eb.length) return false;
+    let diff = 0;
+    for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
+    return diff === 0;
+}
+
 // ── Worker entry ──
 
 export default {
@@ -304,7 +315,8 @@ export default {
             const authHeader = request.headers.get('Authorization') || '';
 
             const adminKey = env.ADMIN_KEY;
-            if (!adminKey || authHeader !== 'Bearer ' + adminKey) {
+            // [SECURITY FIX] Timing-safe comparison prevents timing oracle attacks
+            if (!adminKey || !timingSafeEqual('Bearer ' + adminKey, authHeader)) {
                 return new Response('Unauthorized', { status: 401 });
             }
             try {
