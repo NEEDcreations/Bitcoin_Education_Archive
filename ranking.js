@@ -1045,17 +1045,14 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
         if (anonData) {
             var existData = existingDoc.data();
             var _mergedPts = Math.min(anonData.points || 0, 500);
-            if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
-                await existingDoc.ref.update({
-                    points: Math.max(_mergedPts, existData.points || 0),
-                    channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
-                    totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
-                    mergedAnon: true,
-                });
+            // NOTE: points/channelsVisited/totalVisits are server-only fields (Firestore rules denylist).
+            // Client cannot update them — skip silently. mergedAnon flag is allowed.
+            if (!existData.mergedAnon) {
+                try { await existingDoc.ref.update({ mergedAnon: true }); } catch(e) {}
             }
         }
         if (!existingDoc.data().email && user.email) {
-            await existingDoc.ref.update({ email: user.email });
+            try { await existingDoc.ref.update({ email: user.email }); } catch(e) {}
         }
     }
     if (anonUid && anonUid !== user.uid) {
