@@ -124,7 +124,7 @@ function buildCSP(nonce) {
         "media-src 'self' blob: https:",             // Audio (Beats), image uploads
 
         // frame-src: iframes the app legitimately embeds
-        "frame-src" +
+        "frame-src 'self'" +
             " https://www.youtube.com" +
             " https://www.youtube-nocookie.com" +
             " https://challenges.cloudflare.com" +   // Turnstile
