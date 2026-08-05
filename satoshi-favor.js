@@ -1263,6 +1263,24 @@
         // Don't post anonymous badge announcements — skip if user has no username yet
         if (!username && source === 'badge_earned') return;
 
+        // Hoist howEarned BEFORE the try so catch can reference it for dedup announcements.
+        // For badge_earned, detail is now the badge id — look up display name from BADGE_DEFS.
+        var howEarned = '';
+        if (source === 'level_up') {
+            howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
+        } else if (source === 'level_up_5') {
+            howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+5 points)';
+        } else if (source === 'level_up_10') {
+            howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
+        } else if (source === 'badge_earned') {
+            // detail is the badge id — look up emoji + name for the announcement text
+            var _badgeDef = (typeof window.BADGE_DEFS !== 'undefined' && window.BADGE_DEFS)
+                ? window.BADGE_DEFS.find(function(b) { return b.id === detail; })
+                : null;
+            var _badgeDisplay = _badgeDef ? (_badgeDef.emoji + ' ' + _badgeDef.name) : (detail || '🏅');
+            howEarned = '@' + username + ' earned a badge: ' + _badgeDisplay + '!';
+        }
+
         try {
             const fn = firebase.functions().httpsCallable('contributeFavor');
             const result = await fn({ source, detail });
@@ -1274,17 +1292,6 @@
                 favorState.points = data.points;
                 if (typeof data.favorActive === 'boolean') favorState.favorActive = data.favorActive;
                 updateAllUIs();
-            }
-
-            var howEarned = '';
-            if (source === 'level_up') {
-                howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '!';
-            } else if (source === 'level_up_5') {
-                howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+5 points)';
-            } else if (source === 'level_up_10') {
-                howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
-            } else if (source === 'badge_earned') {
-                howEarned = '@' + username + ' earned a badge: ' + (detail || '🏅') + '!';
             }
 
             var SF_BONUS_PER_POINT = 3;

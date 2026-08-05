@@ -784,7 +784,7 @@ function checkBadges() {
                             // re-fire SF contributions every session because the SF dedup
                             // key resets daily.
                             if (typeof window.contributeSatoshiFavor === 'function') {
-                                window.contributeSatoshiFavor('badge_earned', _badgeRef.emoji + ' ' + _badgeRef.name).catch(function() {});
+                                window.contributeSatoshiFavor('badge_earned', _badgeRef.id).catch(function() {});
                             }
                         })
                         .catch(function() {
@@ -795,7 +795,7 @@ function checkBadges() {
                 } else {
                     // awardPoints not available yet — still contribute SF for local/anon path
                     if (typeof window.contributeSatoshiFavor === 'function') {
-                        window.contributeSatoshiFavor('badge_earned', badge.emoji + ' ' + badge.name).catch(function() {});
+                        window.contributeSatoshiFavor('badge_earned', badge.id).catch(function() {});
                     }
                 }
                 // visibleBadges is now written server-side by the awardPoints CF
@@ -1878,6 +1878,9 @@ window._badgeSearchJump = function(badgeId) {
         setTimeout(function() { target.classList.remove('badge-search-highlight'); }, 2500);
     }, 100);
 };
+
+// Expose BADGE_DEFS globally so other modules (e.g. satoshi-favor.js) can look up badge display names
+window.BADGE_DEFS = BADGE_DEFS;
 
 // Init
 setTimeout(initBadges, 2000);
