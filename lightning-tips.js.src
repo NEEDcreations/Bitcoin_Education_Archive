@@ -225,7 +225,7 @@ window.executeTip = async function() {
                                 if (method && typeof window.lnSendPaymentDirect === 'function') {
                                     try {
                                         var payResult = await window.lnSendPaymentDirect(cbData.pr);
-                                        showTipSuccess(amount, opts, payResult && payResult.preimage || null);
+                                        showTipSuccess(amount, opts);
                                         return;
                                     } catch(walletErr) {
                                         console.warn('[TIP] Direct wallet payment failed, falling back to QR:', walletErr);

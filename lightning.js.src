@@ -284,17 +284,24 @@ function disconnectLn() {
     _ln.nwcSecret = null;
     _ln.error = null;
     localStorage.removeItem('btc_ln_state');
+    sessionStorage.removeItem('btc_ln_secret');
 }
 
 // ─── Persistence ─────────────────────────────────────────
 function saveLnState() {
+    // Store non-secret connection info in localStorage (survives refresh)
     var save = { method: _ln.method, walletName: _ln.walletName };
     if (_ln.method === 'nwc') {
         save.nwcRelay = _ln.nwcRelay;
         save.nwcPubkey = _ln.nwcPubkey;
-        save.nwcSecret = _ln.nwcSecret;
+        // nwcSecret intentionally NOT stored in localStorage (F-002 security fix)
+        // It goes to sessionStorage only — cleared when the tab/browser closes
     }
     localStorage.setItem('btc_ln_state', JSON.stringify(save));
+    // Secret stored separately in sessionStorage only
+    if (_ln.method === 'nwc' && _ln.nwcSecret) {
+        sessionStorage.setItem('btc_ln_secret', _ln.nwcSecret);
+    }
 }
 
 function restoreLnState() {
@@ -302,12 +309,15 @@ function restoreLnState() {
         var raw = localStorage.getItem('btc_ln_state');
         if (!raw) return false;
         var s = JSON.parse(raw);
-        if (s.method === 'nwc' && s.nwcRelay && s.nwcPubkey && s.nwcSecret) {
+        if (s.method === 'nwc' && s.nwcRelay && s.nwcPubkey) {
+            // Secret lives in sessionStorage only (F-002: not persisted to localStorage)
+            var secret = sessionStorage.getItem('btc_ln_secret');
+            if (!secret) return false; // session expired — require re-entry
             _ln.method = 'nwc';
             _ln.walletName = s.walletName || 'NWC Wallet';
             _ln.nwcRelay = s.nwcRelay;
             _ln.nwcPubkey = s.nwcPubkey;
-            _ln.nwcSecret = s.nwcSecret;
+            _ln.nwcSecret = secret;
             _ln.connected = true;
             return true;
         }
