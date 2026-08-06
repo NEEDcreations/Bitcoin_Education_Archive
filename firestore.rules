@@ -1188,7 +1188,9 @@ service cloud.firestore {
                     && request.resource.data.count is int
                     && request.resource.data.count == resource.data.get('count', 0) + 1;
       // peak
+      // F-006: require auth to prevent anonymous cosmetic inflation
       allow create: if docId == 'peak'
+                    && request.auth != null
                     && request.resource.data.keys().hasOnly(['peak', 'ts'])
                     && request.resource.data.peak is int
                     && request.resource.data.peak >= 0
