@@ -100,11 +100,8 @@
         if (typeof db === 'undefined' || !db) return;
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
         var uid = auth.currentUser.uid;
-        var isAdmin = auth.currentUser.email &&
-            (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com' || auth.currentUser.email === 'najemchris8@gmail.com');
-        var nachoUid = isAdmin ? 'nacho-bot' : uid;
         var msg = type === 'start'
-            ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to solve a block! ⚡🦌\nhttps://bitcoineducation.quest/#sf"
+            ? "⛏️ **Satoshi's Favor has begun!** The community earned enough points — the mining window is now OPEN! Head to the Quest Hub and start hashing. Every hash is a chance to solve a block! ⚡🦌 ➡️ [Satoshi's Favor](#favor)"
             : "⏱️ **Satoshi's Favor has ended.** The mining window is now closed — great effort everyone! Keep earning points to trigger the next one. Completing daily activities, earning badges and ranking up all get us closer to mining again. 🦌";
 
         // Dedup key: cycle-scoped so a stale tab reconnecting after >4h can't re-fire
@@ -138,23 +135,14 @@
                 }
             });
         }).then(function() {
-            var ts = firebase.firestore.FieldValue.serverTimestamp();
-            db.collection('global_chat').add({
-                uid: nachoUid,
-                name: '🦌 Nacho',
-                text: msg,
-                isNachoAuto: false,
-                ts: ts
-            }).then(function() {
-                if (typeof bridgeToTelegram === 'function') bridgeToTelegram({ user: '🦌 Nacho', text: msg });
-            }).catch(function(e) { console.warn('[SF] GC announce failed:', e); });
-            db.collection('announcements').add({
-                uid: nachoUid,
-                name: '🦌 Nacho',
-                text: msg,
-                isNachoAuto: true,
-                ts: ts
-            }).catch(function(e) { console.warn('[SF] News announce failed:', e); });
+            // [BUG-6 FIX] Client writes to /announcements are disabled (allow create: if false).
+            // Route through nachoGlobalAnnounce → nachoAnnounce Cloud Function.
+            // Direct global_chat writes as "🦌 Nacho" also fail the username==profile rule.
+            if (typeof window.nachoGlobalAnnounce === 'function') {
+                window.nachoGlobalAnnounce(msg, uid);
+            } else if (typeof bridgeToTelegram === 'function') {
+                bridgeToTelegram({ user: '🦌 Nacho', text: msg });
+            }
         }).catch(function(err) {
             if (!err._dedupSkip) console.warn('[SF] announce txn failed:', err);
         });

@@ -34,15 +34,20 @@ const LEVELS = [
     { name: 'Satoshi',        emoji: '👑', min: 210000 },
 ];
 
-// Client-side QR code generation (avoids leaking data to external API)
+// Client-side QR code generation (avoids leaking payment data to third-party APIs)
 function _renderQRCode(container, data, size) {
+    if (!container) return;
     if (window.qrcode && typeof window.qrcode === 'function') { _drawQR(container, data, size); return; }
     var script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
     script.integrity = 'sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1';
     script.crossOrigin = 'anonymous';
     script.onload = function() { _drawQR(container, data, size); };
-    script.onerror = function() { container.innerHTML = '<div style="word-break:break-all;font-size:0.6rem;max-width:' + size + 'px;">' + data + '</div>'; };
+    script.onerror = function() {
+        container.innerHTML = '<div style="word-break:break-all;font-size:0.6rem;max-width:' + size + 'px;padding:8px;">' +
+            String(data).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }) +
+            '</div>';
+    };
     document.head.appendChild(script);
 }
 function _drawQR(container, data, size) {
@@ -54,6 +59,16 @@ function _drawQR(container, data, size) {
         container.innerHTML = ''; container.appendChild(img);
     } catch(e) { container.innerHTML = '<div style="color:#ef4444;font-size:0.8rem;">QR generation failed</div>'; }
 }
+/** Sync data-URL helper when qrcode-generator is already loaded; otherwise returns null. */
+function _localQRDataUrl(data) {
+    try {
+        if (!window.qrcode || typeof window.qrcode !== 'function') return null;
+        var qr = qrcode(0, 'M'); qr.addData(data); qr.make();
+        return qr.createDataURL(6, 4);
+    } catch (e) { return null; }
+}
+window._renderQRCode = _renderQRCode;
+window._localQRDataUrl = _localQRDataUrl;
 
 // Points config
 const POINTS = {
@@ -878,11 +893,8 @@ window.signInWithLightning = async function() {
             if (typeof _renderQRCode === 'function') {
                 _renderQRCode(qrContainer, 'lightning:' + lnurlEncoded, 220);
             } else {
-                var qrImg = document.createElement('img');
-                qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent('lightning:' + lnurlEncoded);
-                qrImg.width = 220; qrImg.height = 220; qrImg.alt = 'Lightning Auth QR';
-                qrImg.style.cssText = 'border-radius:8px;';
-                qrContainer.appendChild(qrImg);
+                qrContainer.textContent = lnurlEncoded;
+                qrContainer.style.cssText = 'word-break:break-all;font-size:0.6rem;max-width:220px;';
             }
         }
 

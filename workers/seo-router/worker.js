@@ -116,7 +116,6 @@ function buildCSP(nonce) {
             " https://colintalkscrypto.com" +        // CBBI data
             " https://raw.githubusercontent.com" +   // Channel data files
             " https://*.needcreations.workers.dev" + // CF Workers (search, embed-proxy, pleb-sync)
-            " https://api.qrserver.com" +            // QR code generation
             " https://us-central1-bitcoin-education-archive.cloudfunctions.net", // Cloud Functions
 
         "img-src 'self' data: blob: https:",         // Broad: GIF picker, user avatars, YouTube thumbs
