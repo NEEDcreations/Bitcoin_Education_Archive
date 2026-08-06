@@ -473,6 +473,8 @@ service cloud.firestore {
       allow read: if true;
       allow create: if request.auth != null
                     && request.resource.data.sellerUid == request.auth.uid
+                    // F-003: field allowlist prevents inflating views/saves at creation time
+                    && request.resource.data.keys().hasOnly(['sellerUid','title','price','description','imageUrl','createdAt','category'])
                     && (!('imageUrl' in request.resource.data)
                         || request.resource.data.imageUrl == ''
                         || request.resource.data.imageUrl == null
@@ -889,7 +891,10 @@ service cloud.firestore {
     // Typing indicators doc: any signed-in user (including anonymous) can read/write
     match /global_chat_meta/typing {
       allow read: if true;
-      allow write: if request.auth != null;
+      // F-005: restrict to expected shape only — prevents arbitrary data/cost inflation
+      allow write: if request.auth != null
+                   && request.resource.data.keys().hasOnly(['typing'])
+                   && request.resource.data.typing is map;
     }
 
     match /global_chat_meta/{docId} {
@@ -986,6 +991,9 @@ service cloud.firestore {
                         'replyTo','replyToName','replyToText',
                         'hasChatFlair','chatFlairEmoji','hasNachoSkin',
                         'isGif','caption','imageUrl','gifUrl'])
+                    // F-004: protocol validation for imageUrl/gifUrl (defense-in-depth)
+                    && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://.*'))
+                    && (!('gifUrl'   in request.resource.data) || request.resource.data.gifUrl.matches('^https://.*'))
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
