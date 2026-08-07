@@ -154,86 +154,6 @@ window.showTipOverlay = function(opts) {
 
 // ─── Execute Tip / Payment ───────────────────────────────
 
-
-// SECURITY: BOLT11 charset validator — real invoices never contain HTML metacharacters
-var _BOLT11_RE = /^ln(bc|tb|bcrt)[02-9ac-hj-np-z]+$/i;
-
-// CRIT-1 FIX: Minimal BOLT11 amount decoder.
-// BOLT11 HRP: ln<network>[<amount><multiplier>]1...
-// multiplier: m=0.001 BTC, u=1e-6, n=1e-9, p=1e-12; none = BTC
-// Returns sats (integer) or null if undecidable (we fail open for no-amount invoices).
-function _decodeBolt11Amount(invoice) {
-    try {
-        var m = invoice.toLowerCase().match(/^ln(?:bc|tb|bcrt)([0-9]*)([munp]?)1/);
-        if (!m || !m[1]) return null;
-        var num = parseFloat(m[1]);
-        if (isNaN(num) || num === 0) return null;
-        var mult = m[2];
-        var btc = mult === 'm' ? num * 0.001
-                : mult === 'u' ? num * 0.000001
-                : mult === 'n' ? num * 0.000000001
-                : mult === 'p' ? num * 0.000000000001
-                : num;
-        return Math.round(btc * 1e8);
-    } catch(e) { return null; }
-}
-
-// HIGH-3 FIX: Confirmation dialog before any wallet payment.
-// Returns Promise<bool>: true = proceed, false = cancelled.
-function _confirmPayment(amountSats, recipientName) {
-    return new Promise(function(resolve) {
-        var existing = document.getElementById('tipConfirmDialog');
-        if (existing) existing.remove();
-
-        var overlay = document.createElement('div');
-        overlay.id = 'tipConfirmDialog';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeSlideIn 0.2s;';
-
-        var box = document.createElement('div');
-        box.style.cssText = 'background:var(--bg-side);border:1px solid var(--border);border-radius:18px;padding:24px;max-width:320px;width:100%;text-align:center;animation:fadeSlideIn 0.25s;';
-
-        var icon = document.createElement('div');
-        icon.style.cssText = 'font-size:2rem;margin-bottom:8px;';
-        icon.textContent = '\u26a1';
-        box.appendChild(icon);
-
-        var title = document.createElement('div');
-        title.style.cssText = 'font-size:1.1rem;font-weight:900;color:var(--heading);margin-bottom:4px;';
-        title.textContent = 'Confirm Payment';
-        box.appendChild(title);
-
-        var amtEl = document.createElement('div');
-        amtEl.style.cssText = 'font-size:1.6rem;font-weight:900;color:var(--accent);margin:10px 0 4px;';
-        amtEl.textContent = amountSats.toLocaleString() + ' sats';
-        box.appendChild(amtEl);
-
-        var toEl = document.createElement('div');
-        toEl.style.cssText = 'font-size:0.82rem;color:var(--text-muted);margin-bottom:18px;';
-        toEl.textContent = 'to ' + (typeof escapeHtml === 'function' ? escapeHtml(recipientName) : recipientName);
-        box.appendChild(toEl);
-
-        var btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;gap:10px;';
-
-        var cancelBtn = document.createElement('button');
-        cancelBtn.style.cssText = 'flex:1;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;';
-        cancelBtn.textContent = 'Cancel';
-        cancelBtn.addEventListener('click', function() { overlay.remove(); resolve(false); });
-
-        var confirmBtn = document.createElement('button');
-        confirmBtn.style.cssText = 'flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;';
-        confirmBtn.textContent = '\u26a1 Pay';
-        confirmBtn.addEventListener('click', function() { overlay.remove(); resolve(true); });
-
-        btnRow.appendChild(cancelBtn);
-        btnRow.appendChild(confirmBtn);
-        box.appendChild(btnRow);
-        overlay.appendChild(box);
-        document.body.appendChild(overlay);
-    });
-}
-
-
 window.executeTip = async function() {
     var opts = window._tipOpts || {};
     var btn = document.getElementById('tipPayBtn');
@@ -259,19 +179,7 @@ window.executeTip = async function() {
     try {
         // If we have a pre-made invoice, pay it directly
         if (opts.bolt11) {
-            if (!_BOLT11_RE.test(opts.bolt11)) {
-                res.innerHTML = '<span style="color:#ef4444;">\u26a0\ufe0f Invalid invoice format. Payment blocked.</span>';
-                btn.textContent = '\u26a1 ' + escapeHtml(opts.label || 'Send Tip');
-                btn.disabled = false;
-                return;
-            }
             if (method && typeof window.lnSendPaymentDirect === 'function') {
-                var directConfirmed = await _confirmPayment(amount, opts.recipientName || 'user');
-                if (!directConfirmed) {
-                    btn.textContent = '\u26a1 ' + escapeHtml(opts.label || 'Send Tip');
-                    btn.disabled = false;
-                    return;
-                }
                 await window.lnSendPaymentDirect(opts.bolt11);
                 showTipSuccess(amount, opts);
                 return;
@@ -313,31 +221,9 @@ window.executeTip = async function() {
                             var cbResp = await fetch(cbUrl);
                             var cbData = await cbResp.json();
                             if (cbData.pr) {
-                                // SECURITY: Validate bolt11 charset before any use.
-                                if (!_BOLT11_RE.test(cbData.pr)) {
-                                    res.innerHTML = '<span style="color:#ef4444;">\u26a0\ufe0f Invalid invoice received from recipient server. Payment blocked.</span>';
-                                    btn.textContent = '\u26a1 ' + escapeHtml(opts.label || 'Send Tip');
-                                    btn.disabled = false;
-                                    return;
-                                }
-                                // CRIT-1: Verify decoded invoice amount matches user-chosen amount.
-                                var invoiceAmountSats = _decodeBolt11Amount(cbData.pr);
-                                if (invoiceAmountSats !== null && Math.abs(invoiceAmountSats - amount) > 1) {
-                                    res.innerHTML = '<span style="color:#ef4444;">\u26a0\ufe0f Invoice amount mismatch: server returned ' + invoiceAmountSats.toLocaleString() + '\u202fsats, you chose ' + amount.toLocaleString() + '\u202fsats. Payment blocked.</span>';
-                                    btn.textContent = '\u26a1 ' + escapeHtml(opts.label || 'Send Tip');
-                                    btn.disabled = false;
-                                    return;
-                                }
                                 window._tipVerifyUrl = cbData.verify || null;
                                 if (method && typeof window.lnSendPaymentDirect === 'function') {
                                     try {
-                                        // HIGH-3: Confirm before paying.
-                                        var lnurlConfirmed = await _confirmPayment(amount, opts.recipientName || 'user');
-                                        if (!lnurlConfirmed) {
-                                            btn.textContent = '\u26a1 ' + escapeHtml(opts.label || 'Send Tip');
-                                            btn.disabled = false;
-                                            return;
-                                        }
                                         var payResult = await window.lnSendPaymentDirect(cbData.pr);
                                         showTipSuccess(amount, opts);
                                         return;
@@ -413,53 +299,32 @@ function showInvoiceCopy(bolt11, amount, opts) {
     var res = document.getElementById('tipResult');
     btn.style.display = 'none';
 
-    // CRIT-2 FIX: Never interpolate remote bolt11 into innerHTML.
-    // Build entirely with createElement/textContent — immune to XSS by construction.
-    var wrapper = document.createElement('div');
-    wrapper.style.cssText = 'padding:14px;background:var(--card-bg);border:1px solid var(--accent);border-radius:12px;margin-top:8px;';
-
-    var labelEl = document.createElement('div');
-    labelEl.style.cssText = 'font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;';
-    labelEl.textContent = 'Invoice for ' + amount.toLocaleString() + ' sats';
-    wrapper.appendChild(labelEl);
-
-    var qrEl = document.createElement('div');
-    qrEl.id = 'tipInvQR';
-    qrEl.style.cssText = 'width:180px;height:180px;margin:0 auto 10px;';
-    wrapper.appendChild(qrEl);
-
-    var invoiceEl = document.createElement('div');
-    invoiceEl.style.cssText = 'padding:8px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;max-height:70px;overflow-y:auto;line-height:1.4;cursor:pointer;margin-bottom:8px;';
-    invoiceEl.textContent = bolt11.substring(0, 120) + '\u2026'; // textContent: safe by construction
-    invoiceEl.addEventListener('click', function() {
-        navigator.clipboard.writeText(bolt11);
-        if (typeof showToast === 'function') showToast('\ud83d\udccb Invoice copied!');
-    });
-    wrapper.appendChild(invoiceEl);
-
-    var copyBtn = document.createElement('button');
-    copyBtn.id = 'tipCopyInvBtn';
-    copyBtn.style.cssText = 'width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;';
-    copyBtn.textContent = '\ud83d\udccb Copy Invoice';
-    copyBtn.addEventListener('click', function() {
-        navigator.clipboard.writeText(bolt11).then(function() {
-            if (typeof showToast === 'function') showToast('\ud83d\udccb Invoice copied!');
-        });
-        setTimeout(function() { _showInvoicePending(amount, opts); }, 800);
-    });
-    wrapper.appendChild(copyBtn);
-
-    var hintEl = document.createElement('div');
-    hintEl.style.cssText = 'color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;';
-    hintEl.textContent = 'Scan QR or paste invoice into your Lightning wallet';
-    wrapper.appendChild(hintEl);
-
-    res.innerHTML = '';
-    res.appendChild(wrapper);
-
+    res.innerHTML = '<div style="padding:14px;background:var(--card-bg);border:1px solid var(--accent);border-radius:12px;margin-top:8px;">' +
+        '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">Invoice for ' + amount.toLocaleString() + ' sats</div>' +
+        '<div id="tipInvQR" style="width:180px;height:180px;margin:0 auto 10px;"></div>' +
+        '<div style="padding:8px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;max-height:70px;overflow-y:auto;line-height:1.4;cursor:pointer;margin-bottom:8px;" onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')">' + bolt11.substr(0, 120) + '…</div>' +
+        '<button id="tipCopyInvBtn" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 Copy Invoice</button>' +
+        '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">Scan QR or paste invoice into your Lightning wallet</div>' +
+    '</div>';
     if (typeof window._renderQRCode === 'function') {
         window._renderQRCode(document.getElementById('tipInvQR'), 'lightning:' + bolt11, 180);
     }
+
+    // Attach copy handler that transitions to "payment sent" screen
+    setTimeout(function() {
+        var copyBtn = document.getElementById('tipCopyInvBtn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(bolt11).then(function() {
+                    if (typeof showToast === 'function') showToast('📋 Invoice copied!');
+                });
+                // After copying, show pending confirmation after brief delay
+                setTimeout(function() {
+                    _showInvoicePending(amount, opts);
+                }, 800);
+            });
+        }
+    }, 50);
 }
 
 function _showInvoicePending(amount, opts) {

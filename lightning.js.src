@@ -136,6 +136,9 @@ async function nwcRequest(method, params) {
         await new Promise(function(resolve, reject) {
             var script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js';
+            // MED-5 FIX: SRI hash prevents CDN-compromise wallet theft
+            script.integrity = 'sha384-GwmNxV/GnZt+zRBR/Hhtu5D4MKfbxeJSApW44ARryGYtj3MFheHMFgiEZ7tVnrln';
+            script.crossOrigin = 'anonymous';
             script.onload = resolve;
             script.onerror = reject;
             document.head.appendChild(script);
