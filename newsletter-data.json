@@ -1,13 +1,6 @@
 {
-  "updated": "2026-08-07T00:00:54.776Z",
+  "updated": "2026-08-07T04:08:05.894Z",
   "news": [
-    {
-      "date": "Aug 6, 2026",
-      "title": "Holding 0% Bitcoin Will Leave You Defeated by Real Inflation",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/NYDoTvciNJI",
-      "source": "lukemikic"
-    },
     {
       "date": "Aug 6, 2026",
       "title": "Bitcoin miners MARA and CleanSpark post double-digital revenue drops as AI infrastructure pivot continues",
@@ -17,10 +10,17 @@
     },
     {
       "date": "Aug 6, 2026",
-      "title": "BREAKING: Michael Saylor Just Made A SHOCKING NEW Bitcoin Prediction!",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/watch?v=U7HH0v4tbaI",
-      "source": "lukemikic"
+      "title": "Breez Announces Glow, an Open Source Bitcoin to Stablecoins Progressive Web App",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/business/breez-announces-glow-an-open-source-bitcoin-to-stablecoins-progressive-web-app",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Aug 6, 2026",
+      "title": "Bitcoin ETF inflows surge after Coldcard hack, but link is unclear: Bloomberg analyst",
+      "snippet": "Cointelegraph",
+      "link": "https://cointelegraph.com/news/bitcoin-etf-inflows-coldcard-hack-bloomberg-analyst?utm_source=rss_feed&utm_medium=rss_tag_bitcoin&utm_campaign=rss_partner_inbound",
+      "source": "cointelegraph"
     }
   ]
 }
