@@ -511,7 +511,7 @@ window.tipButtonHtml = function(p) {
         suggestedAmount: p.amount || null,
         fixedAmount: !!p.amount,
         label: p.label || 'Send Tip',
-    }).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }).replace(/"/g, '&quot;'); // LOW-7 FIX: removed /'/ backslash-escape — invalid JSON, breaks JSON.parse on names with apostrophes
 
     return '<button onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip\').replace(/&quot;/g,\'\\&quot;\')))" data-tip="' + argsJson + '" style="' + pad + 'background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;color:#eab308;font-weight:700;cursor:pointer;font-family:inherit;transition:0.15s;touch-action:manipulation;display:inline-flex;align-items:center;gap:4px;" onmouseover="this.style.background=\'rgba(234,179,8,0.15)\';this.style.borderColor=\'#eab308\'" onmouseout="this.style.background=\'rgba(234,179,8,0.06)\';this.style.borderColor=\'rgba(234,179,8,0.2)\'">' + label + '</button>';
 };

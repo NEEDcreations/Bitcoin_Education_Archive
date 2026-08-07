@@ -481,7 +481,10 @@ service cloud.firestore {
                         || request.resource.data.imageUrl.matches('^https://.*')
                         || request.resource.data.imageUrl.matches('^data:image/.*'));
       allow update: if request.auth != null
-                    && (resource.data.sellerUid == request.auth.uid
+                    && (// LOW-8 FIX: seller updates — field allowlist prevents adding arbitrary fields
+                        (resource.data.sellerUid == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['title','price','description','imageUrl','category','lightningAddress','status']))
                         || isAdmin()
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'saves', 'savedBy'])
                             && request.resource.data.views == resource.data.get('views', 0) + 1

@@ -570,12 +570,42 @@ window.lnCreateInvoice = async function() {
     btn.disabled = true; btn.textContent = '⏳ Creating…';
     try {
         var invoice = await lnMakeInvoice(amt, memo);
-        res.innerHTML = '<div style="padding:10px;background:var(--input-bg);border:1px solid var(--accent);border-radius:10px;margin-top:6px;">' +
-            '<div style="font-size:0.68rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:6px;">BOLT11 Invoice</div>' +
-            '<div id="lnRecvQR" style="width:180px;height:180px;margin:0 auto 8px;"></div>' +
-            '<div onclick="navigator.clipboard.writeText(\'' + invoice + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')" style="font-family:monospace;font-size:0.62rem;color:var(--text);word-break:break-all;line-height:1.4;cursor:pointer;max-height:80px;overflow-y:auto;">' + escapeHtml(invoice) + '</div>' +
-            '<button onclick="navigator.clipboard.writeText(\'' + invoice + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;">📋 Copy Invoice</button>' +
-        '</div>';
+        // LOW-6 FIX: Build receive-invoice UI with createElement/textContent.
+        // Raw invoice strings must never be interpolated into innerHTML or onclick handlers.
+        var invWrap = document.createElement('div');
+        invWrap.style.cssText = 'padding:10px;background:var(--input-bg);border:1px solid var(--accent);border-radius:10px;margin-top:6px;';
+
+        var invLabel = document.createElement('div');
+        invLabel.style.cssText = 'font-size:0.68rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:6px;';
+        invLabel.textContent = 'BOLT11 Invoice';
+        invWrap.appendChild(invLabel);
+
+        var qrDiv = document.createElement('div');
+        qrDiv.id = 'lnRecvQR';
+        qrDiv.style.cssText = 'width:180px;height:180px;margin:0 auto 8px;';
+        invWrap.appendChild(qrDiv);
+
+        var invText = document.createElement('div');
+        invText.style.cssText = 'font-family:monospace;font-size:0.62rem;color:var(--text);word-break:break-all;line-height:1.4;cursor:pointer;max-height:80px;overflow-y:auto;';
+        invText.textContent = invoice; // textContent: safe by construction
+        invText.addEventListener('click', function() {
+            navigator.clipboard.writeText(invoice);
+            if (typeof showToast === 'function') showToast('📋 Invoice copied!');
+        });
+        invWrap.appendChild(invText);
+
+        var recvCopyBtn = document.createElement('button');
+        recvCopyBtn.style.cssText = 'width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;';
+        recvCopyBtn.textContent = '📋 Copy Invoice';
+        recvCopyBtn.addEventListener('click', function() {
+            navigator.clipboard.writeText(invoice);
+            if (typeof showToast === 'function') showToast('📋 Invoice copied!');
+        });
+        invWrap.appendChild(recvCopyBtn);
+
+        res.innerHTML = '';
+        res.appendChild(invWrap);
+
         if (typeof window._renderQRCode === 'function') {
             window._renderQRCode(document.getElementById('lnRecvQR'), 'lightning:' + invoice, 180);
         }
