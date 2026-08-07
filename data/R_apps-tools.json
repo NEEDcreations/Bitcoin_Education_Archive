@@ -519,6 +519,71 @@
     {
       "text": "Really great Bitcoin block / network explorer",
       "link": "https://btc.bitaps.com/"
+    },
+    {
+      "text": "Self hosted VPN (tools)",
+      "imgs": [
+        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_002_0.png"
+      ],
+      "link": "https://mynymbox.io/"
+    },
+    {
+      "text": "dashboard of network stats, hardware (mining) stats, simulations and stock data https://elektronics.dev/\nmade by https://x.com/alphazeta",
+      "link": "https://elektronics.dev/"
+    },
+    {
+      "text": "TimechainIndex REST API (tools)\nhttps://api.timechainindex.com/",
+      "link": "https://api.timechainindex.com/"
+    },
+    {
+      "text": "Agora (donating/charity)\n\nConnecting activists to\nunstoppable funding.\n\nRaise Bitcoin directly from supporters around the world. Every donation settles straight to your wallet, with no middlemen, no chargebacks, and no platform holding your funds.\n\nhttps://agora.spot/",
+      "link": "https://agora.spot/"
+    },
+    {
+      "text": "Rizful bitcoin and lightning service",
+      "imgs": [
+        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_020_0.png"
+      ],
+      "link": "https://rizful.com/"
+    },
+    {
+      "text": "URL scanner to see where a URL ends up (tool) https://urlscan.io",
+      "link": "https://urlscan.io"
+    },
+    {
+      "text": "Bitcoin collection /collectors website",
+      "imgs": [
+        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_037_0.png"
+      ],
+      "link": "https://www.bitcoinforcollectors.com/homepage"
+    },
+    {
+      "text": "Bitcoin Price war simulations \nhttps://bitcoin-battlefield.pages.dev/\nhttps://bitcoin-warfront.vercel.app/\nhttps://btcbattle.netlify.app/\n\nSource of people creating them \nhttps://x.com/i/status/2075399122316558693",
+      "link": "https://bitcoin-battlefield.pages.dev/"
+    },
+    {
+      "text": "BTC vs ETH price chart war simulator https://ethusd-war.surge.sh",
+      "link": "https://ethusd-war.surge.sh"
+    },
+    {
+      "text": "Bitcoin microfunding website https://fundmoi.com/",
+      "link": "https://fundmoi.com/"
+    },
+    {
+      "text": "Zap Bitcoiners Anywhere\nhttps://geozap.cluborange.org/",
+      "link": "https://geozap.cluborange.org/"
+    },
+    {
+      "text": "Send faxes over Lightning \nhttps://bitcoinfax.net/",
+      "link": "https://bitcoinfax.net/"
+    },
+    {
+      "text": "Floor model (price)\nhttps://floor.bitview.space/",
+      "link": "https://floor.bitview.space/"
+    },
+    {
+      "text": "Bitcoin Guide . app\nhttps://bitcoinguide.app/",
+      "link": "https://bitcoinguide.app/"
     }
   ]
 }

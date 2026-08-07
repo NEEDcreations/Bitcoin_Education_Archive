@@ -299,6 +299,10 @@
       "imgs": [
         "https://assets.bitcoineducation.quest/images/discord-may2026/discord_021_0.jpg"
       ]
+    },
+    {
+      "text": "Bitcoin Puzzles\n\nAlthough the purpose of this puzzle is known as \"fun\" by its creator, it is actually proof of how reliable Bitcoin is today. While any ordinary Bitcoin private key is 256 bits, no one has found the easiest puzzle, a 66-bit private key, for years. You can also think like this. Even when you move on to the next puzzle, the 67-bit puzzle, you can see that it is x2 times more difficult than the previous puzzle.\nhttps://btcpuzzle.info/puzzle",
+      "link": "https://btcpuzzle.info/puzzle"
     }
   ]
 }
