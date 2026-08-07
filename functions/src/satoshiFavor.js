@@ -710,6 +710,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   }
 
   // Pool epoch tracking — accumulate 5 blocks, then archive and reset
+  let epochComplete = null; // set inside tx if this block completes an epoch
   if (isWinner) {
     try {
       const epochRef = db.collection('satoshiFavor').doc('poolEpoch');
@@ -742,6 +743,8 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
             blocks: [],
             startedAt: admin.firestore.Timestamp.now(),
           });
+          // Flag for post-transaction epoch completion announcement
+          epochComplete = { epochNum, blocks: updatedBlocks };
         } else {
           // Still accumulating
           tx.set(epochRef, {
@@ -753,6 +756,36 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
       });
     } catch (e) {
       console.warn('[FAVOR] poolEpoch update failed:', e.message);
+    }
+
+    // Post epoch completion announcement AFTER transaction commits
+    if (epochComplete) {
+      try {
+        const { epochNum, blocks } = epochComplete;
+        const winnerList = blocks
+          .map((b, i) => `${i + 1}. @${(b.username || 'Anonymous').replace(/[<>"'&]/g, '').substring(0, 30)} (${(b.value || 0).toLocaleString()})`)
+          .join('\n');
+        const epochMsg = `⛏️ EPOCH #${epochNum} COMPLETE! 🎉\n\n5 blocks have been mined — 21,000 sats will be split among the winners:\n\n${winnerList}\n\n💰 Each winner receives ~${Math.floor(21000 / 5).toLocaleString()} sats. Congrats to all 5 miners! Keep hashing for the next epoch! ⚡`;
+        const nachoUid = 'nacho-bot';
+        const epochTs = admin.firestore.FieldValue.serverTimestamp();
+        await db.collection('global_chat').add({
+          uid: nachoUid,
+          name: '🦌 Nacho',
+          text: epochMsg,
+          isNachoAuto: false,
+          ts: epochTs,
+        }).catch(e => console.warn('[FAVOR] Epoch announce global_chat failed:', e.message));
+        await db.collection('announcements').add({
+          uid: nachoUid,
+          name: '🦌 Nacho',
+          text: epochMsg,
+          isNachoAuto: true,
+          ts: epochTs,
+        }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
+        console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
+      } catch (e) {
+        console.warn('[FAVOR] Epoch completion announcement failed:', e.message);
+      }
     }
   }
 

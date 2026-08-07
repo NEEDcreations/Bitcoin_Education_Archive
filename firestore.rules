@@ -1433,6 +1433,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Pool epoch tracker — public read, server writes only
+    match /satoshiFavor/poolEpoch {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // SF Pool history — completed epochs, public read, server writes only
+    match /sfPoolHistory/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Personal bests — public read, server writes
     // Personal bests — legacy parent doc (read-only, server writes)
     match /satoshiFavor/personalBests {
