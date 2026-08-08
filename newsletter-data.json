@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-08T12:00:48.070Z",
+  "updated": "2026-08-08T16:00:49.271Z",
   "news": [
+    {
+      "date": "Aug 8, 2026",
+      "title": "Bitcoin, ether ETFs draw $1.1 billion in best inflow week since April, despite low volume",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/news/markets/2026-08-08-bitcoin-ether-etfs-draw-1-1-billion-in-best-inflow-week-since-april-despite-low-volume-411204?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
     {
       "date": "Aug 8, 2026",
       "title": "Self-Custody Your Bitcoin NOW, This Is Serious",
@@ -13,13 +20,6 @@
       "title": "CONFIRMED: What 9,000 Bitcoin Being Dumped Actually Means",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/GteGhZS61FE",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 7, 2026",
-      "title": "BUSTED: The Fake Bitcoin Voting Narrative EXPOSED",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/95AgE40Hq7g",
       "source": "lukemikic"
     }
   ]
