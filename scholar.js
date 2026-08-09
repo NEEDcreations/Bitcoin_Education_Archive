@@ -4157,11 +4157,15 @@ async function submitScholarQuest() {
         localStorage.setItem('btc_scholar_' + keyPrefix + '_passed', 'true');
         scholarPassed[scholarType] = true;
         
-        // Points already awarded server-side by gradeScholarExam
-        // Badge still awarded client-side (cosmetic)
-        if (typeof awardHiddenBadge === 'function') {
-            awardHiddenBadge(scholarType === 'technical' ? 'cert_tech' : 'cert_scholar', (scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar') + '! 🎓');
+        // Points already awarded server-side by gradeScholarExam (2100 XP)
+        // Notify the XP panel manually since gradeScholarExam bypasses awardPoints()
+        if (typeof notifySelfPoints === 'function') {
+            notifySelfPoints(2100, (scholarType === 'technical' ? '🛠️ Protocol Expert' : '🎓 Bitcoin Scholar') + ' Certification Passed!');
         }
+        // Badge still awarded client-side via checkBadges() — cert_scholar/cert_tech are
+        // in BADGE_DEFS and will fire on next checkBadges() cycle now that localStorage is set.
+        // awardHiddenBadge is intentionally NOT called here — it goes to hiddenBadges, not
+        // the main badge flow. checkBadges() handles SF + GG chat announce automatically.
     }
 
     const inner = document.getElementById('questInner');

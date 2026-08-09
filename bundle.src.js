@@ -8192,7 +8192,7 @@ window._checkAndAwardTitles = function(earnedBadgeIds) {
 };
 
 // Major badges that deserve a share prompt
-const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100'];
+const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100', 'cert_scholar', 'cert_tech', 'cert_double', 'all_certs'];
 
 function showBadgeToast(badge) {
     // Notify
@@ -8264,6 +8264,13 @@ function showBadgeToast(badge) {
 
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    // Announce major badge earns in GG chat
+    if (typeof window.nachoGlobalAnnounce === 'function') {
+        var _gcBadgeUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+        if (_gcBadgeUser) {
+            window.nachoGlobalAnnounce('🏅 @' + _gcBadgeUser + ' just earned the ' + badge.emoji + ' ' + badge.name + ' badge! 🎉');
+        }
+    }
 }
 
 function copyBadgeLink(emoji, name) {
