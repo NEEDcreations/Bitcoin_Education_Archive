@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-08T20:00:48.293Z",
+  "updated": "2026-08-09T00:00:48.517Z",
   "news": [
+    {
+      "date": "Aug 8, 2026",
+      "title": "Bitcoin’s BIP-110 supporters split onto minority chain as main network pulls ahead",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/news/ecosystems/2026-08-08-bitcoins-bip-110-supporters-split-onto-minority-chain-as-main-network-pulls-ahead-411213?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
+    },
     {
       "date": "Aug 8, 2026",
       "title": "The 47-Day Strategy Bitcoin Buying Hiatus CONFIRMED",
@@ -14,13 +21,6 @@
       "snippet": "The Block",
       "link": "https://www.theblock.co/news/markets/2026-08-08-bitcoin-ether-etfs-draw-1-1-billion-in-best-inflow-week-since-april-despite-low-volume-411204?utm_source=rss&amp;utm_medium=rss",
       "source": "the-block"
-    },
-    {
-      "date": "Aug 8, 2026",
-      "title": "Self-Custody Your Bitcoin NOW, This Is Serious",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/YVHoyjLywNY",
-      "source": "lukemikic"
     }
   ]
 }
