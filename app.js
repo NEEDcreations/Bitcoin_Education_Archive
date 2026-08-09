@@ -5184,19 +5184,30 @@ window._tctvStartTracker = function() {
             }
         } catch(e) {}
 
-        // Every 10 minutes (cumulative) award 10 points + 1 ticket
+        // Every 10 minutes (cumulative) award 1 ticket + up to 10 XP
+        // Daily TCTV XP cap: max 50 XP/day (5 x 10-min blocks) to prevent idle farming
         if (total % 10 === 0) {
-            if (typeof awardPoints === 'function') {
-                awardPoints(10, 'tctv_watch_10m'); // Use server-side action name
-            }
             if (typeof awardTickets === 'function') {
                 awardTickets(1, 'TCTV watch');
             }
             if (typeof checkBadges === 'function') {
                 checkBadges();
             }
-            if (typeof showToast === 'function') {
-                showToast('📺 +10 XP & 🎟️ +1 Ticket — Thanks for watching Timechain TV!');
+            var _tctvDay = new Date().toISOString().split('T')[0];
+            var _tctvXpKey = 'btc_tctv_xp_' + _tctvDay;
+            var _tctvXpToday = parseInt(localStorage.getItem(_tctvXpKey) || '0', 10);
+            if (_tctvXpToday < 50) {
+                if (typeof awardPoints === 'function') {
+                    awardPoints(10, 'tctv_watch_10m');
+                }
+                localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
+                if (typeof showToast === 'function') {
+                    showToast('📺 +10 XP & 🎟️ +1 Ticket — Thanks for watching Timechain TV!');
+                }
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast('📺 🎟️ +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
+                }
             }
         } else if (total === 1) {
             // First minute toast

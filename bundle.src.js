@@ -2221,7 +2221,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         }
         // Track points in localStorage. Daily cap 500. Server-side validation happens
         // later if they ever sign in (via anon_merge), so this is purely UX reward.
-        var DAILY_CAP = 500;
+        var DAILY_CAP = 1000;
         var _today = new Date().toISOString().split('T')[0];
         var _capKey = 'btc_daily_pts_' + _today;
         var _dailyUsed = parseInt(localStorage.getItem(_capKey) || '0', 10);
@@ -2293,7 +2293,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var _overflowNotifKey = 'btc_overflow_notified_' + _today;
             if (!localStorage.getItem(_overflowNotifKey)) {
                 try { localStorage.setItem(_overflowNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (1,000)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow. Sign in to convert to sats.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         } else if (_dailyUsed + awarded >= DAILY_CAP) {
@@ -2301,7 +2301,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (500)! Further XP today rolls over to tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (1,000)! Further XP today rolls over to tomorrow. Sign in to convert to sats.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -2355,6 +2355,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var awarded = result.data.awarded || 0;
             var overflowRedeemed = result.data.overflowRedeemed || 0;
             var overflowAdded = result.data.overflowAdded || 0;
+            if (typeof result.data.pendingOverflow !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) currentUser.pendingOverflow = result.data.pendingOverflow;
             var pendingOverflow = result.data.pendingOverflow || 0;
             var totalAdded = awarded + overflowRedeemed;
             // For badge_earned: notify here (deferred from eager path above) - server confirmed it's real
@@ -2375,7 +2376,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 var _overflowKey = 'btc_overflow_notified_' + new Date().toISOString().split('T')[0];
                 if (!localStorage.getItem(_overflowKey)) {
                     localStorage.setItem(_overflowKey, '1');
-                    showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow.', 8000);
+                    showToast('🎯 Daily cap reached (1,000)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow.', 8000);
                     _updateCapIndicator(true);
                 }
                 // Cache pendingOverflow locally for the CAP indicator tooltip
@@ -2384,7 +2385,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('🎯 Daily cap hit (500)! Further XP today rolls over to tomorrow.', 8000);
+                    showToast('🎯 Daily cap hit (1,000)! Further XP today rolls over to tomorrow.', 8000);
                     _updateCapIndicator(true);
                 }
             }
@@ -2725,10 +2726,10 @@ function _updateCapIndicator(atCap) {
     var _dailyKey = 'btc_daily_pts_' + _today;
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
     var _overflow = parseInt(localStorage.getItem('btc_pts_overflow') || '0');
-    if (atCap || _dailyPts >= 500) {
+    if (atCap || _dailyPts >= 1000) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = '🎯 Daily XP cap reached (500/500)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
+        el.title = '🎯 Daily XP cap reached (1,000/1,000)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -2751,7 +2752,7 @@ function _checkCapOnLoad() {
     var _today = new Date().toISOString().split('T')[0];
     var _dailyKey = 'btc_daily_pts_' + _today;
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-    if (_dailyPts >= 500) {
+    if (_dailyPts >= 1000) {
         setTimeout(function() { _updateCapIndicator(true); }, 2000);
     }
 }
@@ -3057,6 +3058,17 @@ function updateUserDisplay(lv) {
                     s += '<span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' XP</span>';
                     return s + '</div>';
                 })() +
+               (function() {
+                    var _pof = (typeof currentUser !== 'undefined' && currentUser) ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;
+                    if (_pof <= 0) return '';
+                    var _dLeft = Math.ceil(_pof / 1000);
+                    return '<div onclick="event.stopPropagation();if(typeof showSettingsPage===\'function\')showSettingsPage(\'sats\')" style="display:flex;align-items:center;gap:5px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:4px 7px;margin-top:4px;cursor:pointer;" title="Queued overflow XP — drips 1,000 XP/day on your next visits">' +
+                        '<span style="font-size:0.65rem;">⏳</span>' +
+                        '<span style="font-size:0.6rem;font-weight:700;color:#a5b4fc;">Queued:</span>' +
+                        '<span style="font-size:0.6rem;font-weight:900;font-family:monospace;color:#c7d2fe;">+' + _pof.toLocaleString() + ' XP</span>' +
+                        '<span style="font-size:0.55rem;color:#6366f1;font-weight:700;margin-left:auto;">~' + _dLeft + 'd</span>' +
+                    '</div>';
+                })() +
             '</div>' +
             (!_isMob ? '<div id="notifBellPlaceholder" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;"></div>' : '');
     }
@@ -3080,6 +3092,8 @@ function updateUserDisplay(lv) {
         if (_cp) s += ' <span style="color:#f7931a;font-weight:900;">₿</span> <span style="font-family:monospace;">$' + Math.round(_cp).toLocaleString() + '</span>';
         if (_ch) s += ' <span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + _ch.toLocaleString() + '</span>';
         s += ' <span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' XP</span>';
+        var _mobOf = (typeof currentUser !== 'undefined' && currentUser) ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;
+        if (_mobOf > 0) s += ' <span onclick="event.stopPropagation();if(typeof showSettingsPage===\'function\')showSettingsPage(\'sats\')" style="display:inline-flex;align-items:center;gap:2px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:4px;padding:1px 5px;cursor:pointer;" title="Queued overflow XP"><span style="font-size:0.55rem;">⏳</span><span style="font-size:0.58rem;font-weight:800;font-family:monospace;color:#a5b4fc;">+' + _mobOf.toLocaleString() + '</span></span>';
         mobileInfo.innerHTML = s;
         mobileInfo.style.display = 'inline';
         mobileInfo.style.maxWidth = 'none';
@@ -4926,6 +4940,22 @@ function showSettingsPage(tab) {
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + _availLabel + '</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 15,000 sats</div>';
         html += '</div>';
+        // ── Overflow queue section ──
+        var _pendingOf = currentUser ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;
+        if (_pendingOf > 0) {
+            var _ofDL = Math.ceil(_pendingOf / 1000);
+            html += '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:14px;padding:16px;margin-bottom:16px;">';
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div style="font-weight:700;font-size:0.85rem;color:#a5b4fc;">⏳ Queued Overflow XP</div><div style="font-size:0.6rem;font-weight:800;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 8px;border-radius:20px;">~' + _ofDL + ' day' + (_ofDL !== 1 ? 's' : '') + '</div></div>';
+            html += '<div style="font-size:1.3rem;font-weight:900;font-family:monospace;color:#c7d2fe;margin-bottom:8px;">+' + _pendingOf.toLocaleString() + ' XP</div>';
+            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">You hit the daily cap before all XP could be awarded. This queued XP drips <strong style="color:#a5b4fc;">1,000 XP per day</strong> automatically on future visits — counts toward your sats balance once redeemed.</div>';
+            html += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:10px;">';
+            var _tileCap = Math.min(_ofDL, 10);
+            for (var _td = 0; _td < _tileCap; _td++) {
+                html += '<div style="width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.5rem;font-weight:800;font-family:monospace;' + (_td === 0 ? 'background:#6366f1;color:#fff;' : 'background:var(--border);color:var(--text-muted);') + '">' + (_td === 0 ? '▶' : String(_td + 1)) + '</div>';
+            }
+            if (_ofDL > 10) html += '<div style="width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#6366f1;font-weight:800;">…</div>';
+            html += '</div></div>';
+        }
 
         // Claim button area
         if (!isAnon && eligible && meetsMin && !onCooldown && claimable >= 100) {
@@ -4970,7 +5000,7 @@ function showSettingsPage(tab) {
         html += '• <strong>Max claim: 200 sats/day</strong><br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
         html += '• <strong>Lifetime max: 15,000 sats</strong> per account<br>';
-        html += '• <strong>Daily XP cap: 500 XP</strong> (50 sats worth) to prevent abuse<br>';
+        html += '• <strong>Daily XP cap: 1,000 XP</strong> (100 sats worth) to prevent abuse<br>';
         html += '• Unclaimed sats roll over - no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
         html += '</div>';
@@ -36280,19 +36310,30 @@ window._tctvStartTracker = function() {
             }
         } catch(e) {}
 
-        // Every 10 minutes (cumulative) award 10 points + 1 ticket
+        // Every 10 minutes (cumulative) award 1 ticket + up to 10 XP
+        // Daily TCTV XP cap: max 50 XP/day (5 x 10-min blocks) to prevent idle farming
         if (total % 10 === 0) {
-            if (typeof awardPoints === 'function') {
-                awardPoints(10, 'tctv_watch_10m'); // Use server-side action name
-            }
             if (typeof awardTickets === 'function') {
                 awardTickets(1, 'TCTV watch');
             }
             if (typeof checkBadges === 'function') {
                 checkBadges();
             }
-            if (typeof showToast === 'function') {
-                showToast('📺 +10 XP & 🎟️ +1 Ticket — Thanks for watching Timechain TV!');
+            var _tctvDay = new Date().toISOString().split('T')[0];
+            var _tctvXpKey = 'btc_tctv_xp_' + _tctvDay;
+            var _tctvXpToday = parseInt(localStorage.getItem(_tctvXpKey) || '0', 10);
+            if (_tctvXpToday < 50) {
+                if (typeof awardPoints === 'function') {
+                    awardPoints(10, 'tctv_watch_10m');
+                }
+                localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
+                if (typeof showToast === 'function') {
+                    showToast('📺 +10 XP & 🎟️ +1 Ticket — Thanks for watching Timechain TV!');
+                }
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast('📺 🎟️ +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
+                }
             }
         } else if (total === 1) {
             // First minute toast

@@ -2563,7 +2563,7 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
     const reason = action;
 
     // ── ATOMIC UPDATES ──
-    const DAILY_CAP = 500;
+    const DAILY_CAP = 1000;
     const today = new Date().toISOString().split('T')[0]; // UTC midnight — kept for raw audit logs only
     const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
     const userRef = db.collection('users').doc(uid);
@@ -2775,7 +2775,7 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
             //   - stops silently dropping points that honest users earned
             //   - still respects the anti-abuse daily cap (max 500 redeemed per day)
             //   - is server-authoritative (field is blocked from client writes)
-            const OVERFLOW_REDEEM_CAP = DAILY_CAP; // max overflow that can hit the balance on a single day
+            const OVERFLOW_REDEEM_CAP = DAILY_CAP; // max overflow redeemed per day — matches the daily cap
             const pendingOverflow = userData.pendingOverflow || 0;
             const lastOverflowDate = userData.lastOverflowDate || null;
 

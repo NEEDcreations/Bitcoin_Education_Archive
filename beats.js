@@ -2289,10 +2289,12 @@ window.beatsPostComment = function(trackId) {
         try { var _bcc = parseInt(localStorage.getItem('btc_beats_comments') || '0') + 1; localStorage.setItem('btc_beats_comments', _bcc.toString()); } catch(e) {}
         // Award points for commenting
         if (typeof awardPoints === 'function') {
-            if (!window._beatsCommentPointsCount) window._beatsCommentPointsCount = 0;
-            // Cap at 5 comment rewards per session to prevent farming
-            if (window._beatsCommentPointsCount < 5) {
-                window._beatsCommentPointsCount++;
+            var _bcDay = new Date().toISOString().split('T')[0];
+            var _bcCapKey = 'btc_beats_comment_xp_' + _bcDay;
+            var _bcCount = parseInt(localStorage.getItem(_bcCapKey) || '0', 10);
+            // Cap at 3 comment XP rewards per day to prevent farming
+            if (_bcCount < 3) {
+                localStorage.setItem(_bcCapKey, String(_bcCount + 1));
                 awardPoints(10, 'Left a comment on Bitcoin Beats 💬');
                 sessionStorage.setItem('_ch_beats_comment', '1');
             }
