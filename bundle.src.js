@@ -34571,9 +34571,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Close any stale apps menu so next open reflects new tier
             var _staleMenu = document.getElementById('appsMenu');
             if (_staleMenu) _staleMenu.remove();
-            if (curTier === 'explorer' && typeof showToast === 'function') showToast('🎉 🗣️ Pleb Talk unlocked! Join the community!');
-            if (curTier === 'community' && typeof showToast === 'function') showToast('🎉 🤝 IRL Sync unlocked! Check Explore Apps!');
-            if (curTier === 'full' && typeof showToast === 'function') showToast('🚀 ⚡ Lightning Mart unlocked! You have full access!');
+            // Tier unlock toasts removed — all apps are open to all users
         }
         
         // Remove any leftover milestone banner
