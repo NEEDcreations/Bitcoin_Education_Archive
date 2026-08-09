@@ -91,6 +91,7 @@ function buildCSP(nonce) {
             " https://www.gstatic.com" +
             " https://challenges.cloudflare.com" +
             " https://accounts.google.com" +
+            " https://apis.google.com" +           // Google Sign-In auth library (api.js)
             " https://connect.facebook.net" +
             " https://platform.twitter.com" +
             " https://cdn.jsdelivr.net" +

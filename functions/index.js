@@ -2799,11 +2799,10 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
             let capped = false;
             let overflowAdded = 0;
             if (pts > 0) {
-                if (badgeKnown) {
-                    // Known badges bypass the daily cap entirely - one-time lifetime award
-                    // (badgeKnown is only true when badgeId is in BADGE_VALUES catalog)
-                    awarded = pts;
-                } else if (dailyUsed < DAILY_CAP) {
+                // All XP — including badge awards — goes through the daily cap.
+                // Excess is banked in pendingOverflow and redeemed on future days.
+                // (Previously badgeKnown bypassed the cap entirely, awarding 21k+ in one shot.)
+                if (dailyUsed < DAILY_CAP) {
                     awarded = pts;
                     if (dailyUsed + pts > DAILY_CAP) {
                         awarded = DAILY_CAP - dailyUsed;
@@ -2814,7 +2813,7 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
                     // Already at cap - entire award goes to overflow
                     overflowAdded = pts;
                 }
-                capped = !badgeKnown && (dailyUsed + awarded >= DAILY_CAP);
+                capped = (dailyUsed + awarded >= DAILY_CAP);
             }
 
             // 4. Build Atomic Update - channel tracking is a visit record (not a reward),
