@@ -536,7 +536,16 @@ function renderTrailExamResults() {
             savePassed(passedList);
 
             // Award points & tickets
-            if (typeof awardPoints === 'function') awardPoints(mod.pointsReward, mod.emoji + ' ' + mod.name + ' Trail Complete!');
+            // Pass badgeId so CF writes badge_awards proof (required for SF ownership check)
+            if (typeof awardPoints === 'function') {
+                var _modBadgeId = mod.badgeId;
+                awardPoints(mod.pointsReward, 'Badge: ' + _modBadgeId, null, null, null, _modBadgeId)
+                    .then(function(r) {
+                        var dup = r && r.data && r.data.badgeDuplicate;
+                        if (!dup && typeof window.contributeSatoshiFavor === 'function')
+                            window.contributeSatoshiFavor('badge_earned', _modBadgeId).catch(function(){});
+                    }).catch(function(){});
+            }
             if (typeof awardOrangeTickets === 'function') awardOrangeTickets(mod.ticketReward, mod.emoji + ' ' + mod.name + ' Trail');
 
             // Award badge

@@ -27864,15 +27864,41 @@ setInterval(function() { if (typeof checkHiddenBadges === 'function') checkHidde
 setTimeout(function() { if (!window._hiddenBadgesReady) window._hiddenBadgesReady = true; }, 20000);
 
 // awardHiddenBadge — award a specific hidden badge by ID
-window.awardHiddenBadge = function(badgeId, toastMsg) {
+window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
     var earned = safeJSON('btc_hidden_badges', []);
     if (earned.indexOf(badgeId) !== -1) return; // Already earned
     earned.push(badgeId);
     localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
     if (toastMsg && typeof showToast === 'function') showToast('🏅 ' + toastMsg);
+    // Notification panel
+    if (typeof notifySelfBadge === 'function') notifySelfBadge(toastMsg || badgeId, '🏅');
     // Sync to Firebase
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
         try { db.collection('users').doc(auth.currentUser.uid).update({ hiddenBadges: earned }); } catch(e) {}
+        // Award XP + write badge_awards proof + fire SF (when pts provided)
+        // Passing badgeId routes via badge_earned in CF which writes badge_awards
+        // atomically — required for SF's ownership verification check.
+        if (pts > 0 && typeof awardPoints === 'function') {
+            var _hidBadgeId = badgeId;
+            awardPoints(pts, 'Badge: ' + badgeId, null, null, null, badgeId)
+                .then(function(result) {
+                    var _alreadyAwarded = result && result.data && result.data.badgeDuplicate === true;
+                    var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
+                    if (!serverRejected && typeof window.contributeSatoshiFavor === 'function') {
+                        window.contributeSatoshiFavor('badge_earned', _hidBadgeId).catch(function() {});
+                    }
+                })
+                .catch(function() {});
+            // GG chat for significant hidden badge milestones
+            var _gcMajorHidden = ['trail_meadow', 'trail_mountain', 'trail_summit', 'lq_graduate'];
+            if (_gcMajorHidden.indexOf(badgeId) !== -1 && typeof window.nachoGlobalAnnounce === 'function') {
+                var _gcUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+                if (_gcUser) {
+                    var _gcBadgeEmoji = badgeId === 'trail_meadow' ? '🌿' : badgeId === 'trail_mountain' ? '⛰️' : badgeId === 'trail_summit' ? '🏔️' : '📖';
+                    window.nachoGlobalAnnounce('🏅 @' + _gcUser + ' just completed ' + (toastMsg || badgeId) + '! ' + _gcBadgeEmoji + '🎉');
+                }
+            }
+        }
     }
 };
 

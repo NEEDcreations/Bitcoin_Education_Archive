@@ -902,7 +902,16 @@ function _lqShowScore() {
     var isFirstPass = passed && !t.passed;
     if (isFirstPass) {
         lqSaveTopic(slug, { passed: true, passedAt: Date.now() });
-        if (typeof awardPoints === 'function') awardPoints(100, '📖 Learning Quest: ' + topic.title + ' quiz', null, null, null, null, { actionKey: 'lq_quiz' });
+        // Pass badgeId so CF writes badge_awards proof (required for SF ownership check)
+        if (typeof awardPoints === 'function') {
+            var _lqBadgeId = topic.badgeId;
+            awardPoints(100, 'Badge: ' + _lqBadgeId, null, null, null, _lqBadgeId)
+                .then(function(r) {
+                    var dup = r && r.data && r.data.badgeDuplicate;
+                    if (!dup && typeof window.contributeSatoshiFavor === 'function')
+                        window.contributeSatoshiFavor('badge_earned', _lqBadgeId).catch(function(){});
+                }).catch(function(){});
+        }
         if (typeof awardHiddenBadge === 'function') awardHiddenBadge(topic.badgeId, topic.badgeName);
     }
 
@@ -958,7 +967,15 @@ function _lqShowGraduate() {
     if (existing) return;
 
     localStorage.setItem(LQ_GRADUATE_KEY, '1');
-    if (typeof awardPoints === 'function') awardPoints(250, '📖 Learning Quest Graduate', null, null, null, null, { actionKey: 'lq_graduate' });
+    // Pass badgeId so CF writes badge_awards proof (required for SF ownership check)
+    if (typeof awardPoints === 'function') {
+        awardPoints(250, 'Badge: lq_graduate', null, null, null, 'lq_graduate')
+            .then(function(r) {
+                var dup = r && r.data && r.data.badgeDuplicate;
+                if (!dup && typeof window.contributeSatoshiFavor === 'function')
+                    window.contributeSatoshiFavor('badge_earned', 'lq_graduate').catch(function(){});
+            }).catch(function(){});
+    }
     if (typeof awardOrangeTickets === 'function') awardOrangeTickets(10, '📖 Graduate');
     if (typeof awardHiddenBadge === 'function') awardHiddenBadge('lq_graduate', '📖 Learning Quest Graduate');
     _lqPlayPass();
