@@ -4110,11 +4110,13 @@ exports.issueCertificate = functions.runWith({ enforceAppCheck: true }).https.on
     let score = null;
 
     if (type === 'scholar') {
-        passed = userData.scholar_exam_passed === true;
+        // gradeScholarExam writes certPassed_prop; support legacy scholar_exam_passed too
+        passed = userData.certPassed_prop === true || userData.scholar_exam_passed === true;
         title = 'Bitcoin Scholar';
         score = userData.scholar_exam_score || 'Passed';
     } else if (type === 'technical') {
-        passed = userData.scholar_tech_passed === true;
+        // gradeScholarExam writes certPassed_tech; support legacy scholar_tech_passed too
+        passed = userData.certPassed_tech === true || userData.scholar_tech_passed === true;
         title = 'Bitcoin Protocol Expert';
         score = userData.scholar_tech_score || 'Passed';
     } else if (type.startsWith('trail_')) {
