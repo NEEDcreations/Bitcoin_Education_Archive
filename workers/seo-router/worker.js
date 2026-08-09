@@ -255,8 +255,8 @@ function renderAppPage(page, origin) {
         'lightning':      { title: 'Lightning Wallet', desc: 'Connect your Lightning wallet for instant Bitcoin payments and tips.' },
         'first-purchase': { title: 'How to Buy Bitcoin', desc: 'Step-by-step guide to buying your first Bitcoin safely and securely.' },
         'dms':            { title: 'Direct Messages', desc: 'Private messaging between Bitcoiners on the Bitcoin Education Archive.' },
-        'timechain-tv':   { title: 'Timechain TV — 24/7 Bitcoin Streaming', desc: '21 channels of 24/7 Bitcoin content. 1,400+ videos curated for maximum orange pill exposure. ⚡📺', image: '/images/tctv-preview.png' },
-        'tv':             { title: 'Timechain TV — 24/7 Bitcoin Streaming', desc: '21 channels of 24/7 Bitcoin content.', image: '/images/tctv-preview.png' },
+        'timechain-tv':   { title: 'Timechain TV — 24/7 Bitcoin Streaming', desc: '21 channels of 24/7 Bitcoin content. 1,400+ videos curated for maximum orange pill exposure. ⚡📺', image: '/tctv-preview.png' },
+        'tv':             { title: 'Timechain TV — 24/7 Bitcoin Streaming', desc: '21 channels of 24/7 Bitcoin content.', image: '/tctv-preview.png' },
     };
     const info  = pages[page] || { title: page, desc: 'Bitcoin Education Archive' };
     const title = escapeHtml(info.title);
