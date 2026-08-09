@@ -1384,7 +1384,16 @@ window._claimSetBonus = function(setId) {
     }
     localStorage.setItem(badgeKey, '1');
     if (typeof awardPoints === 'function') {
-        awardPoints(set.bonusPts, '🏅 Badge: ' + set.bonusName, null, null, null, set.bonusId);
+        var _setRef = set; // closure capture
+        awardPoints(set.bonusPts, '🎖️ Badge: ' + set.bonusName, null, null, null, set.bonusId)
+            .then(function(result) {
+                var _alreadyAwarded = result && result.data &&
+                    (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
+                var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
+                if (!serverRejected && typeof window.contributeSatoshiFavor === 'function') {
+                    window.contributeSatoshiFavor('badge_earned', _setRef.bonusId).catch(function() {});
+                }
+            }).catch(function() {});
     }
     if (typeof showBadgeToast === 'function') showBadgeToast({ id: set.bonusId, emoji: set.bonusEmoji, name: set.bonusName, pts: set.bonusPts });
     else if (typeof showToast === 'function') showToast('🎉 SET COMPLETE! ' + set.bonusEmoji + ' ' + set.bonusName + ' earned! +' + set.bonusPts + ' XP');

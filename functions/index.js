@@ -2207,6 +2207,42 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
         lq_graduate: 250,
         // FLEX aggregate badges
         flex_rookie: 25, flex_committed: 75, flex_athlete: 200, flex_legend: 1000, flex_all_once: 150,
+        // FLEX per-action milestone badges (action_id × milestone)
+        flex_steak_1: 2, flex_steak_5: 10, flex_steak_50: 100, flex_steak_500: 1000,
+        flex_sunlight_1: 2, flex_sunlight_5: 10, flex_sunlight_50: 100, flex_sunlight_500: 1000,
+        flex_dca_1: 2, flex_dca_5: 10, flex_dca_50: 100, flex_dca_500: 1000,
+        flex_custody_1: 2, flex_custody_5: 10, flex_custody_50: 100, flex_custody_500: 1000,
+        flex_lift_1: 2, flex_lift_5: 10, flex_lift_50: 100, flex_lift_500: 1000,
+        flex_meetup_1: 2, flex_meetup_5: 10, flex_meetup_50: 100, flex_meetup_500: 1000,
+        flex_lightning_1: 2, flex_lightning_5: 10, flex_lightning_50: 100, flex_lightning_500: 1000,
+        flex_read_1: 2, flex_read_5: 10, flex_read_50: 100, flex_read_500: 1000,
+        flex_sleep_1: 2, flex_sleep_5: 10, flex_sleep_50: 100, flex_sleep_500: 1000,
+        flex_nokyc_1: 2, flex_nokyc_5: 10, flex_nokyc_50: 100, flex_nokyc_500: 1000,
+        flex_node_1: 2, flex_node_5: 10, flex_node_50: 100, flex_node_500: 1000,
+        flex_cold_1: 2, flex_cold_5: 10, flex_cold_50: 100, flex_cold_500: 1000,
+        flex_fast_1: 2, flex_fast_5: 10, flex_fast_50: 100, flex_fast_500: 1000,
+        flex_walk_1: 2, flex_walk_5: 10, flex_walk_50: 100, flex_walk_500: 1000,
+        flex_journal_1: 2, flex_journal_5: 10, flex_journal_50: 100, flex_journal_500: 1000,
+        flex_meditate_1: 2, flex_meditate_5: 10, flex_meditate_50: 100, flex_meditate_500: 1000,
+        flex_teach_1: 2, flex_teach_5: 10, flex_teach_50: 100, flex_teach_500: 1000,
+        flex_water_1: 2, flex_water_5: 10, flex_water_50: 100, flex_water_500: 1000,
+        flex_gratitude_1: 2, flex_gratitude_5: 10, flex_gratitude_50: 100, flex_gratitude_500: 1000,
+        flex_verify_1: 2, flex_verify_5: 10, flex_verify_50: 100, flex_verify_500: 1000,
+        flex_focus_1: 2, flex_focus_5: 10, flex_focus_50: 100, flex_focus_500: 1000,
+        flex_risk_1: 2, flex_risk_5: 10, flex_risk_50: 100, flex_risk_500: 1000,
+        flex_pattern_1: 2, flex_pattern_5: 10, flex_pattern_50: 100, flex_pattern_500: 1000,
+        flex_findq_1: 2, flex_findq_5: 10, flex_findq_50: 100, flex_findq_500: 1000,
+        flex_noleverage_1: 2, flex_noleverage_5: 10, flex_noleverage_50: 100, flex_noleverage_500: 1000,
+        flex_gunrange_1: 2, flex_gunrange_5: 10, flex_gunrange_50: 100, flex_gunrange_500: 1000,
+        flex_sellchairs_1: 2, flex_sellchairs_5: 10, flex_sellchairs_50: 100, flex_sellchairs_500: 1000,
+        flex_starebtc_1: 2, flex_starebtc_5: 10, flex_starebtc_50: 100, flex_starebtc_500: 1000,
+        flex_itoldyou_1: 2, flex_itoldyou_5: 10, flex_itoldyou_50: 100, flex_itoldyou_500: 1000,
+        flex_pumpndump_1: 2, flex_pumpndump_5: 10, flex_pumpndump_50: 100, flex_pumpndump_500: 1000,
+        // FLEX all-daily milestone badges
+        flex_all_1: 25, flex_all_5: 100, flex_all_50: 500, flex_all_500: 5000,
+        // Donation (charity) badges
+        donor_100: 50, donor_500: 150, donor_1000: 300, donor_5000: 1000,
+        donor_10000: 2000, donor_25000: 4000, donor_50000: 7500, donor_100000: 15000,
         // Proof of Walk
         pow_first_step: 50, pow_marathoner: 200,
         pow_streak_3: 100, pow_streak_7: 300, pow_streak_30: 1000,
@@ -2317,6 +2353,9 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
         nacho_eli5: 10, nacho_whisper: 500,
         // Flex aggregate
         flex_committed: 75, flex_athlete: 200, flex_legend: 1000, flex_all_once: 150,
+        flex_all_1: 25, flex_all_5: 100, flex_all_50: 500, flex_all_500: 5000,
+        donor_100: 50, donor_500: 150, donor_1000: 300, donor_5000: 1000,
+        donor_10000: 2000, donor_25000: 4000, donor_50000: 7500, donor_100000: 15000,
         // IRL extras
         irl_attend_1: 25, irl_attend_5: 100, irl_host: 50, irl_host_5: 150, irl_host_10: 500,
         // Marketplace extras
@@ -5418,6 +5457,12 @@ exports.donatePoints = functions.runWith({ enforceAppCheck: true }).https.onCall
         if (newBadges.length > 0) {
             userUpdate.donationBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
             userUpdate.points = admin.firestore.FieldValue.increment(bonusPts);
+            userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
+            // Write badge_awards proof docs so contributeFavor SF proof-check passes
+            for (const badgeId of newBadges) {
+                const badgeAwardRef = userRef.collection('badge_awards').doc(badgeId);
+                tx.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'donation' });
+            }
         }
         if (donationTicket > 0) {
             userUpdate.orangeTickets = admin.firestore.FieldValue.increment(donationTicket);

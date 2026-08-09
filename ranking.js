@@ -5837,8 +5837,8 @@ function showSettingsPage(tab) {
                     // Announce earned badges to Global Chat via Satoshi's Favor
                     var _satsBadges = result.data && result.data.newBadges || [];
                     if (_satsBadges.length > 0 && typeof window.contributeSatoshiFavor === 'function') {
-                        var _satsDonorMap = { donor_100:'\ud83e\udd37 Giving Pleb', donor_500:'\ud83d\udc9b Stack Sharer', donor_1000:'\ud83e\udde1 Community Builder', donor_5000:'\u2764\ufe0f Archive Patron', donor_10000:'\ud83d\udd25 Sats Saint', donor_25000:'\u26a1 Lightning Philanthropist', donor_50000:'\ud83c\udfc6 Satoshi\'s Steward', donor_100000:'\ud83d\udc51 Legend of the Archive' };
-                        _satsBadges.forEach(function(bid) { if (_satsDonorMap[bid]) window.contributeSatoshiFavor('badge_earned', _satsDonorMap[bid]).catch(function(){}); });
+                        var _satsDonorMap = { donor_100:1, donor_500:1, donor_1000:1, donor_5000:1, donor_10000:1, donor_25000:1, donor_50000:1, donor_100000:1 };
+                        _satsBadges.forEach(function(bid) { if (_satsDonorMap[bid]) window.contributeSatoshiFavor('badge_earned', bid).catch(function(){}); });
                     }
                     // Reset charity stats cache so Quest Hub picks up fresh totals
                     if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;

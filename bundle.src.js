@@ -6006,8 +6006,8 @@ function showSettingsPage(tab) {
                     // Announce earned badges to Global Chat via Satoshi's Favor
                     var _satsBadges = result.data && result.data.newBadges || [];
                     if (_satsBadges.length > 0 && typeof window.contributeSatoshiFavor === 'function') {
-                        var _satsDonorMap = { donor_100:'\ud83e\udd37 Giving Pleb', donor_500:'\ud83d\udc9b Stack Sharer', donor_1000:'\ud83e\udde1 Community Builder', donor_5000:'\u2764\ufe0f Archive Patron', donor_10000:'\ud83d\udd25 Sats Saint', donor_25000:'\u26a1 Lightning Philanthropist', donor_50000:'\ud83c\udfc6 Satoshi\'s Steward', donor_100000:'\ud83d\udc51 Legend of the Archive' };
-                        _satsBadges.forEach(function(bid) { if (_satsDonorMap[bid]) window.contributeSatoshiFavor('badge_earned', _satsDonorMap[bid]).catch(function(){}); });
+                        var _satsDonorMap = { donor_100:1, donor_500:1, donor_1000:1, donor_5000:1, donor_10000:1, donor_25000:1, donor_50000:1, donor_100000:1 };
+                        _satsBadges.forEach(function(bid) { if (_satsDonorMap[bid]) window.contributeSatoshiFavor('badge_earned', bid).catch(function(){}); });
                     }
                     // Reset charity stats cache so Quest Hub picks up fresh totals
                     if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;
@@ -8738,7 +8738,16 @@ window._claimSetBonus = function(setId) {
     }
     localStorage.setItem(badgeKey, '1');
     if (typeof awardPoints === 'function') {
-        awardPoints(set.bonusPts, '🏅 Badge: ' + set.bonusName, null, null, null, set.bonusId);
+        var _setRef = set; // closure capture
+        awardPoints(set.bonusPts, '🎖️ Badge: ' + set.bonusName, null, null, null, set.bonusId)
+            .then(function(result) {
+                var _alreadyAwarded = result && result.data &&
+                    (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
+                var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
+                if (!serverRejected && typeof window.contributeSatoshiFavor === 'function') {
+                    window.contributeSatoshiFavor('badge_earned', _setRef.bonusId).catch(function() {});
+                }
+            }).catch(function() {});
     }
     if (typeof showBadgeToast === 'function') showBadgeToast({ id: set.bonusId, emoji: set.bonusEmoji, name: set.bonusName, pts: set.bonusPts });
     else if (typeof showToast === 'function') showToast('🎉 SET COMPLETE! ' + set.bonusEmoji + ' ' + set.bonusName + ' earned! +' + set.bonusPts + ' XP');
@@ -17589,9 +17598,8 @@ function _renderCharityTabInner(body) {
                     donor_100000: { emoji: '👑', name: 'Legend of the Archive' },
                 };
                 newBadges.forEach(function(badgeId) {
-                    var bdef = _donorBadgeMap[badgeId];
-                    if (bdef) {
-                        window.contributeSatoshiFavor('badge_earned', bdef.emoji + ' ' + bdef.name).catch(function() {});
+                    if (_donorBadgeMap[badgeId]) {
+                        window.contributeSatoshiFavor('badge_earned', badgeId).catch(function() {});
                     }
                 });
             }
@@ -19189,11 +19197,16 @@ function _flexCheckAllDoneBadge(s) {
                 earnedBadges.add(def.id);
                 allCur.push(def.id); localStorage.setItem('btc_badges', JSON.stringify(allCur));
                 // Only fire SF on the exact completion that hit the milestone
-                if (total === def.m && typeof window.contributeSatoshiFavor === 'function') {
-                    window.contributeSatoshiFavor('badge_earned', def.emoji + ' ' + def.name).catch(function(){});
-                }
                 if (typeof showBadgeToast === 'function') showBadgeToast(def);
-                if (typeof awardPoints === 'function') awardPoints(def.pts, 'Badge: ' + def.name + ' ' + def.emoji, null, null, null, def.id);
+                if (typeof awardPoints === 'function') awardPoints(def.pts, 'Badge: ' + def.name + ' ' + def.emoji, null, null, null, def.id)
+                    .then(function(result) {
+                        var _alreadyAwarded = result && result.data &&
+                            (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
+                        var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
+                        if (!serverRejected && total === def.m && typeof window.contributeSatoshiFavor === 'function') {
+                            window.contributeSatoshiFavor('badge_earned', def.id).catch(function(){});
+                        }
+                    }).catch(function() {});
             } else if (allAlreadyEarned && typeof earnedBadges !== 'undefined') {
                 earnedBadges.add(def.id);
             }
@@ -19223,11 +19236,16 @@ function _flexCheckBadges(actionId, total) {
                 // Only award SF point if this completion EXACTLY hit the milestone
                 // (total === m). If total > m it means the badge was already earned in a
                 // prior session but earnedBadges was empty — do NOT re-fire SF.
-                if (total === m && typeof window.contributeSatoshiFavor === 'function') {
-                    window.contributeSatoshiFavor('badge_earned', fakeBadge.emoji + ' ' + fakeBadge.name).catch(function(){});
-                }
                 if (typeof showBadgeToast === 'function') showBadgeToast(fakeBadge);
-                if (typeof awardPoints === 'function') awardPoints(fakeBadge.pts, 'Badge: ' + fakeBadge.name + ' ' + fakeBadge.emoji, null, null, null, badgeId);
+                if (typeof awardPoints === 'function') awardPoints(fakeBadge.pts, 'Badge: ' + fakeBadge.name + ' ' + fakeBadge.emoji, null, null, null, badgeId)
+                    .then(function(result) {
+                        var _alreadyAwarded = result && result.data &&
+                            (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
+                        var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
+                        if (!serverRejected && total === m && typeof window.contributeSatoshiFavor === 'function') {
+                            window.contributeSatoshiFavor('badge_earned', badgeId).catch(function(){});
+                        }
+                    }).catch(function() {});
             } else if (alreadyEarned && typeof earnedBadges !== 'undefined') {
                 // Sync localStorage badges into earnedBadges so future checks are fast
                 earnedBadges.add(badgeId);
