@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-10T12:00:48.576Z",
+  "updated": "2026-08-10T16:00:49.206Z",
   "news": [
+    {
+      "date": "Aug 10, 2026",
+      "title": "BIP-110 Fork Stalls at Two Blocks as Bitcoin Miners Refuse to Follow",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/bip110-stalls-bitcoin-miners-do-not-follow",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Aug 10, 2026",
       "title": "EXPOSED: Why Holding Bitcoin in One Single Place Will DESTROY You",
@@ -13,13 +20,6 @@
       "title": "This Insecure Seed Storage Habit Will Cost You ALL Your Bitcoin",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/a8pOKWXg82M",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 10, 2026",
-      "title": "Don't Trust Anything Right Now: Verify Your Bitcoin Storage",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/z9UFUA_mk9E",
       "source": "lukemikic"
     }
   ]
