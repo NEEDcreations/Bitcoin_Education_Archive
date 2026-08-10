@@ -1,26 +1,26 @@
 {
-  "updated": "2026-08-10T16:00:49.206Z",
+  "updated": "2026-08-10T20:00:50.091Z",
   "news": [
     {
       "date": "Aug 10, 2026",
-      "title": "BIP-110 Fork Stalls at Two Blocks as Bitcoin Miners Refuse to Follow",
+      "title": "Bitcoin Exchange-Traded Funds See Spike In Inflows Following Huge Hack",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bip110-stalls-bitcoin-miners-do-not-follow",
+      "link": "https://bitcoinmagazine.com/news/bitcoin-etfs-see-biggest-flows-since-april",
       "source": "bitcoin-magazine"
     },
     {
       "date": "Aug 10, 2026",
-      "title": "EXPOSED: Why Holding Bitcoin in One Single Place Will DESTROY You",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/ec0Lm80dNkw",
-      "source": "lukemikic"
+      "title": "BlackRock says bitcoin sentiment is turning as decoupling from stocks takes hold",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/news/markets/2026-08-10-blackrock-says-bitcoin-sentiment-turning-decoupling-stocks-takes-hold-411333?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
     },
     {
       "date": "Aug 10, 2026",
-      "title": "This Insecure Seed Storage Habit Will Cost You ALL Your Bitcoin",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/a8pOKWXg82M",
-      "source": "lukemikic"
+      "title": "Keel shutters all US bitcoin mining operations amid continuing AI pivot",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/news/business/2026-08-10-keel-shutters-us-bitcoin-mining-operations-amid-ai-pivot-411302?utm_source=rss&amp;utm_medium=rss",
+      "source": "the-block"
     }
   ]
 }
