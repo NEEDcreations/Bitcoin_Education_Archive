@@ -1,0 +1,33 @@
+name: Deploy to Dev (dev.bitcoineducation.quest)
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Firebase Tools
+        run: npm install -g firebase-tools
+
+      - name: Syntax check bundle
+        run: node -e "new Function(require('fs').readFileSync('bundle.js','utf8'))" && echo "bundle.js OK"
+
+      - name: Deploy to dev hosting
+        run: |
+          firebase deploy \
+            --only hosting:dev \
+            --token "${{ secrets.FIREBASE_TOKEN }}" \
+            --project bitcoin-education-archive \
+            --non-interactive
