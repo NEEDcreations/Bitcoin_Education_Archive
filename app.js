@@ -2861,7 +2861,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         var nachoModeBtn = document.querySelector('[onclick*="enterNachoMode"]');
 
         // Show basic game elements
-        if (spinBtn) spinBtn.parentElement.style.display = 'grid';
+        if (spinBtn) { spinBtn.style.display = ''; spinBtn.removeAttribute('data-simplified-hidden'); spinBtn.parentElement.style.display = 'grid'; }
+        if (predictBtn) { predictBtn.style.display = ''; predictBtn.removeAttribute('data-simplified-hidden'); }
+        var homeAppsBtn = document.getElementById('homeAppsBtn'); if (homeAppsBtn) { homeAppsBtn.style.display = ''; homeAppsBtn.removeAttribute('data-simplified-hidden'); }
         if (challengeCard) challengeCard.style.display = '';
         if (forumBtn) forumBtn.style.display = '';
         if (beatsBtn) beatsBtn.style.display = '';
