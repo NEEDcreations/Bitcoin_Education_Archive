@@ -7974,6 +7974,10 @@ const TITLE_DEFS = [
 
 let earnedBadges = new Set();
 let badgeCheckInterval = null;
+// Session-scoped toast guard: prevents re-toasting badges whose CF award is rolled back.
+// earnedBadges rolls back on CF rejection so the badge can retry next session,
+// but the toast must NOT fire again every 30s while the local condition stays true.
+let _toastedThisSession = new Set();
 // Don't check badges until Firebase has restored the earned list
 window._visibleBadgesReady = false;
 
@@ -8102,9 +8106,15 @@ function checkBadges() {
                 var bubble = document.getElementById('nacho-bubble');
                 if (window._nachoBusy || (bubble && bubble.classList.contains('show'))) {
                     if (!window._visibleBadgeQueue) window._visibleBadgeQueue = [];
-                    window._visibleBadgeQueue.push(badge);
+                    if (!_toastedThisSession.has(badge.id)) {
+                            _toastedThisSession.add(badge.id);
+                            window._visibleBadgeQueue.push(badge);
+                        }
                 } else {
-                    showBadgeToast(badge);
+                    if (!_toastedThisSession.has(badge.id)) {
+                        _toastedThisSession.add(badge.id);
+                        showBadgeToast(badge);
+                    }
                 }
 
                 // Award points and gate Satoshi's Favor on server confirmation.
