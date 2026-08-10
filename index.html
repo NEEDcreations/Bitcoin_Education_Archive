@@ -60,7 +60,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260809_1951" as="script">
+    <link rel="preload" href="bundle.js?v=20260810_fab" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -361,11 +361,18 @@
         #aiToolsBtn     { right:128px; background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 4px 20px rgba(99,102,241,0.4); }
         #dashboardFloatBtn { right:72px; background:linear-gradient(135deg,#f97316,#eab308); box-shadow:0 4px 20px rgba(249,115,22,0.4); }
         #lbFloatBtn     { right:16px; background:var(--accent,#f7931a); box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:200002; }
+        /* FAB minimize/expand controls */
+        #fabMinimizeBtn { position:fixed; right:240px; bottom:10px; z-index:200001; width:24px; height:24px; border-radius:50%; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.38); font-size:0.95rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:opacity 0.15s, background 0.15s; }
+        #fabMinimizeBtn:hover { background:rgba(255,255,255,0.13); color:rgba(255,255,255,0.6); }
+        #fabExpandBtn { position:fixed; right:16px; bottom:10px; z-index:200003; width:34px; height:34px; border-radius:50%; border:1px solid rgba(247,147,26,0.22); background:rgba(247,147,26,0.09); color:rgba(255,255,255,0.38); font-size:0.75rem; cursor:pointer; display:none; align-items:center; justify-content:center; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); transition:opacity 0.15s, background 0.15s; }
+        #fabExpandBtn:hover { background:rgba(247,147,26,0.2); color:rgba(255,255,255,0.6); }
 
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
             .fab-btn { bottom:70px !important; }
             #lbFloatBtn.chat-shifted { bottom:120px !important; }
+            #fabMinimizeBtn { bottom:70px !important; }
+            #fabExpandBtn { bottom:70px !important; }
             #floatingRandomBtn { bottom: 120px !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
             /* RESTORE MOBILE VISIBILITY — but not when explicitly hidden (anon mobile or dismissed) */
             #userDisplay:not(.user-hidden):not([data-mob-hidden]) { display: flex !important; }
@@ -1193,11 +1200,36 @@
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
-    <!-- FAB row: Chat | AI Tools | Metrics | Leaderboard -->
+    <!-- FAB row: [−] Chat | AI Tools | Metrics | Leaderboard -->
+    <button id="fabMinimizeBtn" onclick="toggleFabMinimize()" title="Hide buttons" aria-label="Minimize floating buttons">−</button>
     <button id="chatOverlayBtn" class="fab-btn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else{window._pendingChatOpen=true;if(typeof window._loadDeferred==='function')window._loadDeferred();}" title="Global Chat" aria-label="Open Chat">💬</button>
     <button id="aiToolsBtn"     class="fab-btn" onclick="if(typeof toggleAITools==='function')toggleAITools();else showToast('AI Tools loading...')" title="AI Tools" aria-label="Open AI Tools">🤖</button>
     <div    id="dashboardFloatBtn" class="fab-btn" onclick="if(typeof toggleDashboard==='function')toggleDashboard()" title="Bitcoin Metrics" aria-label="Bitcoin Metrics" role="button" tabindex="0">📊</div>
     <button id="lbFloatBtn"     class="fab-btn" onclick="toggleLeaderboard()" title="Leaderboard" aria-label="Open Leaderboard">🏆</button>
+    <button id="fabExpandBtn" onclick="toggleFabMinimize()" title="Show buttons" aria-label="Expand floating buttons">···</button>
+    <script>
+    (function(){
+      var FAB_BTNS = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
+      window.toggleFabMinimize = function(){
+        var minimized = localStorage.getItem('fabMinimized')==='1';
+        minimized = !minimized;
+        localStorage.setItem('fabMinimized', minimized ? '1' : '0');
+        _applyFabState(minimized);
+      };
+      function _applyFabState(minimized){
+        FAB_BTNS.forEach(function(id){
+          var el = document.getElementById(id);
+          if(!el) return;
+          el.style.display = minimized ? 'none' : '';
+        });
+        var exp = document.getElementById('fabExpandBtn');
+        if(exp) exp.style.display = minimized ? 'flex' : 'none';
+      }
+      document.addEventListener('DOMContentLoaded', function(){
+        _applyFabState(localStorage.getItem('fabMinimized')==='1');
+      });
+    })();
+    </script>
     <div id="leaderboard"></div>
     <div id="badgeFloatTip"></div>
 
@@ -1281,7 +1313,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.js?v=20260809_1951" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260810_fab" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
     <script src="onboarding.js?v=20260718_2219" defer></script>
     <script src="learning-quests.js?v=20260801_ux3" defer></script>

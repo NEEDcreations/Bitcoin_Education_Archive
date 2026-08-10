@@ -7721,11 +7721,12 @@ exports.pvpResolveRound = pvpResolveRound;
 
 
 // ── Daily Firestore Backup ────────────────────────────────────────────────────
-// Exports all collections to gs://bitcoin-education-archive-firestore-backups/
-// Runs daily at 2 AM UTC. Bucket lifecycle deletes exports older than 30 days.
+// Exports all collections to gs://bitcoin-education-archive-backups/
+// Runs daily at 2 AM UTC. Bucket lifecycle deletes exports older than 90 days.
+// Bucket must be in 'us' multi-region (us-central1 causes INVALID_ARGUMENT).
 exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
     const projectId = 'bitcoin-education-archive';
-    const bucket = `gs://${projectId}-firestore-backups`;
+    const bucket = `gs://${projectId}-backups`;
     const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const exportPath = `${bucket}/${timestamp}`;
 
