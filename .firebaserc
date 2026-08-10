@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "bitcoin-education-archive"
+  },
+  "targets": {
+    "bitcoin-education-archive": {
+      "hosting": {
+        "prod": [
+          "bitcoin-education-archive"
+        ],
+        "dev": [
+          "bitcoin-education-dev"
+        ]
+      }
+    }
   }
 }
