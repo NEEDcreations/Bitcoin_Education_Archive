@@ -6356,11 +6356,21 @@ window.minimizeSignUpBanner = function() {
 };
 
 function clearUserLocalStorage() {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country'];
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
+        // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
+        // a cold-start race where checkBadges() fires before Firestore restores
+        // visibleBadges, causing duplicate toast/celebration modals.
+        // These are always safely overwritten by markVisibleBadgesReady() on sign-in.
+        'btc_badges', 'btc_hidden_badges'
+    ];
     var toRemove = [];
     for (var i = 0; i < localStorage.length; i++) {
         var key = localStorage.key(i);
         if (key && key.indexOf('btc_') === 0 && preserve.indexOf(key) === -1) {
+            // Also preserve btc_badge_earned_* sentinel keys — these prevent set/combo
+            // badge re-toasting on the next session. They're harmless to keep and are
+            // restored from visibleBadges by markVisibleBadgesReady() on sign-in anyway.
+            if (key.indexOf('btc_badge_earned_') === 0) continue;
             toRemove.push(key);
         }
     }

@@ -719,8 +719,29 @@ window.markVisibleBadgesReady = function() {
     window._visibleBadgesReady = true;
 };
 
-// Safety: allow badges after 20 seconds even if Firebase is slow
-setTimeout(function() { if (!window._visibleBadgesReady) { if (typeof window.markVisibleBadgesReady === "function") window.markVisibleBadgesReady(); else window._visibleBadgesReady = true; } }, 20000);
+// Safety: allow badges after 20 seconds if Firebase is slow.
+// Only fires for anonymous/unauthenticated users — real-user Firestore load
+// calls markVisibleBadgesReady() explicitly, so we don't want to race it.
+// If a real user's Firestore load genuinely takes >20s (very slow network),
+// wait an additional 10s to give it one more chance before unlocking.
+setTimeout(function() {
+    if (window._visibleBadgesReady) return;
+    // Check if we're waiting on a real user's Firestore load
+    var isRealUser = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+    if (isRealUser) {
+        // Real user — give Firestore another 10s before forcing unlock
+        setTimeout(function() {
+            if (!window._visibleBadgesReady) {
+                if (typeof window.markVisibleBadgesReady === 'function') window.markVisibleBadgesReady();
+                else window._visibleBadgesReady = true;
+            }
+        }, 10000);
+    } else {
+        // Anonymous or no user — safe to unlock immediately
+        if (typeof window.markVisibleBadgesReady === 'function') window.markVisibleBadgesReady();
+        else window._visibleBadgesReady = true;
+    }
+}, 20000);
 
 function checkBadges() {
     // Wait until Firebase has restored earned badges
@@ -1400,6 +1421,8 @@ window._claimSetBonus = function(setId) {
         return;
     }
     localStorage.setItem(badgeKey, '1');
+    // Also add to earnedBadges so it's not re-awarded on the next checkBadges() tick
+    if (typeof earnedBadges !== 'undefined') earnedBadges.add(set.bonusId);
     if (typeof awardPoints === 'function') {
         var _setRef = set; // closure capture
         awardPoints(set.bonusPts, '🎖️ Badge: ' + set.bonusName, null, null, null, set.bonusId)
@@ -1407,10 +1430,20 @@ window._claimSetBonus = function(setId) {
                 var _alreadyAwarded = result && result.data &&
                     (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
                 var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
-                if (!serverRejected && typeof window.contributeSatoshiFavor === 'function') {
+                if (serverRejected) {
+                    // Server rejected — roll back sentinel and earnedBadges so it can retry
+                    try { localStorage.removeItem(badgeKey); } catch(e) {}
+                    if (typeof earnedBadges !== 'undefined') earnedBadges.delete(_setRef.bonusId);
+                    return;
+                }
+                if (typeof window.contributeSatoshiFavor === 'function') {
                     window.contributeSatoshiFavor('badge_earned', _setRef.bonusId).catch(function() {});
                 }
-            }).catch(function() {});
+            }).catch(function() {
+                // Network error — roll back so it can retry next session
+                try { localStorage.removeItem(badgeKey); } catch(e) {}
+                if (typeof earnedBadges !== 'undefined') earnedBadges.delete(_setRef.bonusId);
+            });
     }
     if (typeof showBadgeToast === 'function') showBadgeToast({ id: set.bonusId, emoji: set.bonusEmoji, name: set.bonusName, pts: set.bonusPts });
     else if (typeof showToast === 'function') showToast('🎉 SET COMPLETE! ' + set.bonusEmoji + ' ' + set.bonusName + ' earned! +' + set.bonusPts + ' XP');
