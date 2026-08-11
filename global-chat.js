@@ -1807,13 +1807,13 @@ window.renderChatHub = function(tab) {
 // Re-show overlay button on ANY navigation (go, goHome, popstate)
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
-    // Show on all screen sizes (unless full chat hub is open)
-    if (btn && !document.getElementById('chatContent')) btn.style.display = 'block';
+    // Show on all screen sizes (unless full chat hub is open or FAB is minimized)
+    if (btn && !document.getElementById('chatContent') && localStorage.getItem('fabMinimized') !== '1') btn.style.display = 'block';
 }
 // Periodically check button visibility (catches app navigations that don't call go())
 setInterval(function() {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent')) {
+    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent') && localStorage.getItem('fabMinimized') !== '1') {
         btn.style.display = 'block';
     }
 }, 3000);
