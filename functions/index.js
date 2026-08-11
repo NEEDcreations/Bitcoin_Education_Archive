@@ -3582,7 +3582,9 @@ exports.dailySpin = functions.runWith({ enforceAppCheck: true }).https.onCall(as
         if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
-        if (userData.lastSpinDate === today) {
+        // Allow if server granted a bonus spin (flag set atomically by useBonusSpin CF)
+        const isBonusSpin = !!userData.bonusSpinGranted;
+        if (userData.lastSpinDate === today && !isBonusSpin) {
             throw new functions.https.HttpsError('already-exists', 'Already spun today');
         }
 
@@ -3610,6 +3612,8 @@ exports.dailySpin = functions.runWith({ enforceAppCheck: true }).https.onCall(as
         const update = {
             lastSpinDate: today,
         };
+        // Clear the one-time bonus spin flag if it was set
+        if (isBonusSpin) update.bonusSpinGranted = admin.firestore.FieldValue.delete();
         if (totalPts > 0) update.points = admin.firestore.FieldValue.increment(totalPts);
         if (totalTickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(totalTickets);
         if (totalFreezes > 0) update.streakFreezes = admin.firestore.FieldValue.increment(totalFreezes);
@@ -6697,8 +6701,10 @@ exports.useBonusSpin = functions.runWith({ enforceAppCheck: true }).https.onCall
             throw new functions.https.HttpsError('failed-precondition', 'No bonus spins available.');
         }
 
+        // Set server-side flag so dailySpin bypasses the already-spun check for this spin
         tx.update(userRef, {
             bonusSpins: admin.firestore.FieldValue.increment(-1),
+            bonusSpinGranted: true,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
