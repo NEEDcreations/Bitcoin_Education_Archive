@@ -1,26 +1,26 @@
 {
-  "updated": "2026-08-10T20:00:50.091Z",
+  "updated": "2026-08-11T00:00:48.393Z",
   "news": [
     {
       "date": "Aug 10, 2026",
-      "title": "Bitcoin Exchange-Traded Funds See Spike In Inflows Following Huge Hack",
+      "title": "EXPOSED: US Treasury Move Right Before $90M Hack",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/mZ0c3JMxJG4",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Aug 10, 2026",
+      "title": "Blockstream Debuts Swaps, Allowing Bitcoiners to Move Between Lightning and Main Network With Ease",
       "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoin-etfs-see-biggest-flows-since-april",
+      "link": "https://bitcoinmagazine.com/news/blockstream-debuts-bitcoin-swaps-lightning",
       "source": "bitcoin-magazine"
     },
     {
       "date": "Aug 10, 2026",
-      "title": "BlackRock says bitcoin sentiment is turning as decoupling from stocks takes hold",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/news/markets/2026-08-10-blackrock-says-bitcoin-sentiment-turning-decoupling-stocks-takes-hold-411333?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
-    },
-    {
-      "date": "Aug 10, 2026",
-      "title": "Keel shutters all US bitcoin mining operations amid continuing AI pivot",
-      "snippet": "The Block",
-      "link": "https://www.theblock.co/news/business/2026-08-10-keel-shutters-us-bitcoin-mining-operations-amid-ai-pivot-411302?utm_source=rss&amp;utm_medium=rss",
-      "source": "the-block"
+      "title": "US Treasury Sanctions Iran 🇮🇷 2 Days Before Hack",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/toWqLNr7R4c",
+      "source": "lukemikic"
     }
   ]
 }
