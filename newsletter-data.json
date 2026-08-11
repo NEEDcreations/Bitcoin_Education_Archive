@@ -1,13 +1,6 @@
 {
-  "updated": "2026-08-11T00:00:48.393Z",
+  "updated": "2026-08-11T04:00:49.779Z",
   "news": [
-    {
-      "date": "Aug 10, 2026",
-      "title": "EXPOSED: US Treasury Move Right Before $90M Hack",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/mZ0c3JMxJG4",
-      "source": "lukemikic"
-    },
     {
       "date": "Aug 10, 2026",
       "title": "Blockstream Debuts Swaps, Allowing Bitcoiners to Move Between Lightning and Main Network With Ease",
@@ -17,10 +10,17 @@
     },
     {
       "date": "Aug 10, 2026",
-      "title": "US Treasury Sanctions Iran 🇮🇷 2 Days Before Hack",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/toWqLNr7R4c",
-      "source": "lukemikic"
+      "title": "BTCPay Server supporters offer up to 3 BTC for recovery bounty after critical exploit",
+      "snippet": "The Block",
+      "link": "https://www.theblock.co/news/ecosystems/2026-08-10-btcpay-server-supporters-offer-3-btc-recovery-bounty-critical-exploit-411353",
+      "source": "the-block"
+    },
+    {
+      "date": "Aug 10, 2026",
+      "title": "BTCPay Server Offers a 3 Bitcoin Bounty for Recovery of Stolen Funds After Wallet Exploit",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/btcpay-server-offers-bitcoin-bounty",
+      "source": "bitcoin-magazine"
     }
   ]
 }
