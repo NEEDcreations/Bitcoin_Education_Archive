@@ -77,6 +77,8 @@ service cloud.firestore {
                         'marketListings', 'marketMessages',
                         'referralTicketsEarned', 'referralCode',
                         'pointsDonated', 'donationBadges',
+                        // Anonymous badge merge (CF-only, one-time guard)
+                        'anonBadgesMerged',
                         // Premium — must never be client-writable (self-grant exploit)
                         'premium',
                         // Daily quest gating (CF)

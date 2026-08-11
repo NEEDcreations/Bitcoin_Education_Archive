@@ -338,7 +338,23 @@ function initRanking() {
                     // Award any anonymous points through the server-side Cloud Function
                     var _mergedPts = Math.min(anonData.points || 0, 500);
                     if (_mergedPts > 0 && typeof awardPoints === 'function') {
-                        await awardPoints(_mergedPts, '🔗 Anonymous progress merged');
+                        await awardPoints(_mergedPts, '\uD83D\uDD17 Anonymous progress merged');
+                    }
+                    // Merge anonymous badges into existing account's visibleBadges.
+                    // Anonymous users can't write to Firestore, so their badges are
+                    // localStorage-only. mergeAnonBadges CF validates + unions them
+                    // into the real account's visibleBadges, deduplicated server-side.
+                    // One-time only: CF sets anonBadgesMerged flag to prevent replay.
+                    var _anonBadges = [];
+                    try { _anonBadges = JSON.parse(localStorage.getItem('btc_badges') || '[]'); } catch(e) {}
+                    if (_anonBadges.length > 0) {
+                        try {
+                            var _mergeAnonBadgesFn = firebase.functions().httpsCallable('mergeAnonBadges');
+                            await _mergeAnonBadgesFn({ anonBadges: _anonBadges });
+                            console.log('[Auth] Merged', _anonBadges.length, 'anon badges into account');
+                        } catch(e) {
+                            console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
+                        }
                     }
                 }
             }
@@ -1716,6 +1732,126 @@ async function loadUser(uid, prefetchedDoc) {
                 var fbQuestions = currentUser.nachoQuestions || 0;
                 localStorage.setItem('btc_nacho_questions', Math.max(localQuestions, fbQuestions).toString());
             }
+
+            // ── Badge counter sync (bidirectional: local ↔ Firestore) ─────────────────
+            // Syncs the ~30 localStorage counters that badge checks read but that were
+            // previously never persisted to Firestore. On a new device they're empty,
+            // causing badges to vanish until the user re-performs the actions.
+            // Strategy: max-merge numeric (take higher), min-merge best hash,
+            // any-true-wins for booleans, union for arrays.
+            // Fire-and-forget push: only writes fields where local > server.
+            (function() {
+                var _bc = (currentUser.badgeCounters && typeof currentUser.badgeCounters === 'object')
+                    ? currentUser.badgeCounters : {};
+                var _bcPatch = {};
+
+                // Generic numeric max-merge helper
+                function _syncNum(lsKey, bcKey) {
+                    var local = parseInt(localStorage.getItem(lsKey) || '0') || 0;
+                    var server = parseInt(_bc[bcKey] || '0') || 0;
+                    var merged = Math.max(local, server);
+                    if (merged > local) localStorage.setItem(lsKey, String(merged));
+                    if (merged > server) _bcPatch['badgeCounters.' + bcKey] = merged;
+                }
+
+                // Boolean any-true-wins helper (localStorage value is a string like 'true')
+                function _syncFlag(lsKey, bcKey, lsVal) {
+                    var local = localStorage.getItem(lsKey) === lsVal;
+                    var server = !!_bc[bcKey];
+                    if (local || server) {
+                        if (!local) localStorage.setItem(lsKey, lsVal);
+                        if (!server) _bcPatch['badgeCounters.' + bcKey] = true;
+                    }
+                }
+
+                // Numeric counters
+                _syncNum('btc_chat_msgs',              'chatMsgs');
+                _syncNum('btc_tctv_watch_time',        'tctvWatchTime');
+                _syncNum('btc_tctv_channel_switches',  'tctvChannelSwitches');
+                _syncNum('btc_dj_sets',               'djSets');
+                _syncNum('btc_dj_songs',              'djSongs');
+                _syncNum('btc_dj_listens',            'djListens');
+                _syncNum('btc_beats_uploads',         'beatsUploads');
+                _syncNum('btc_beats_play_count',      'beatsPlayCount');
+                _syncNum('btc_tips_sent',             'tipsSent');
+                _syncNum('btc_tips_total_sats',       'tipsTotalSats');
+                _syncNum('btc_tips_received',         'tipsReceived');
+                _syncNum('btc_sf_hashes',             'sfHashes');
+                _syncNum('btc_sf_activations',        'sfActivations');
+                _syncNum('btc_sf_lucky_count',        'sfLuckyCount');
+                _syncNum('btc_sf_unlucky_count',      'sfUnluckyCount');
+                _syncNum('btc_raid_bosses_defeated',  'raidBossesDefeated');
+                _syncNum('btc_spin_streak',           'spinStreak');
+                _syncNum('btc_chat_reactions',        'chatReactions');
+                _syncNum('btc_dms_sent',              'dmsSent');
+                _syncNum('btc_irl_attended',          'irlAttended');
+                _syncNum('btc_irl_hosted',            'irlHosted');
+
+                // Best hash: min-merge (lower is better)
+                var _lsBestHash  = parseInt(localStorage.getItem('btc_sf_best_hash') || '999999999') || 999999999;
+                var _fbBestHash  = parseInt(_bc.sfBestHash || '999999999') || 999999999;
+                var _mergedBest  = Math.min(_lsBestHash, _fbBestHash);
+                if (_mergedBest < _lsBestHash) localStorage.setItem('btc_sf_best_hash', String(_mergedBest));
+                if (_mergedBest < _fbBestHash) _bcPatch['badgeCounters.sfBestHash'] = _mergedBest;
+
+                // Boolean flags (any true wins)
+                _syncFlag('btc_sf_solved_block',     'sfSolvedBlock',      'true');
+                _syncFlag('btc_spin_hit_rare',        'spinHitRare',        'true');
+                _syncFlag('btc_lightning_setup',      'lightningSetup',     'true');
+                _syncFlag('btc_fp_completed',         'fpCompleted',        'true');
+                _syncFlag('btc_scholar_tech_passed',  'scholarTechPassed',  'true');
+                _syncFlag('btc_nacho_eli5',           'nachoEli5',          'true');
+                _syncFlag('btc_nacho_story_awarded',  'nachoStoryAwarded',  'true');
+
+                // Trail array: union of local + server
+                try {
+                    var _lsTrails    = JSON.parse(localStorage.getItem('btc_trail_passed') || '[]');
+                    var _fbTrails    = Array.isArray(_bc.trailsPassed) ? _bc.trailsPassed : [];
+                    var _allTrails   = [...new Set([..._lsTrails, ..._fbTrails])];
+                    if (_allTrails.length > _lsTrails.length) {
+                        localStorage.setItem('btc_trail_passed', JSON.stringify(_allTrails));
+                    }
+                    if (_allTrails.length > _fbTrails.length) {
+                        _bcPatch['badgeCounters.trailsPassed'] = _allTrails;
+                    }
+                } catch(e) {}
+
+                // Beats liked: store count; on new device restore a count-only sentinel
+                // (we can't restore the exact liked track IDs, but badge checks use .length)
+                try {
+                    var _lsLiked = JSON.parse(localStorage.getItem('btc_beats_liked') || '[]');
+                    var _fbLikedCount = parseInt(_bc.beatsLikedCount || '0') || 0;
+                    if (_lsLiked.length > _fbLikedCount) {
+                        _bcPatch['badgeCounters.beatsLikedCount'] = _lsLiked.length;
+                    } else if (_fbLikedCount > _lsLiked.length && _lsLiked.length === 0) {
+                        // New device with no likes recorded — restore count as placeholder entries
+                        // so badge checks (array.length >= N) still evaluate correctly.
+                        var _restored = [];
+                        for (var _i = 0; _i < _fbLikedCount; _i++) _restored.push('__restored__');
+                        localStorage.setItem('btc_beats_liked', JSON.stringify(_restored));
+                    }
+                } catch(e) {}
+
+                // Market saved: same pattern
+                try {
+                    var _lsMarket = JSON.parse(localStorage.getItem('btc_market_saved') || '[]');
+                    var _fbMarketCount = parseInt(_bc.marketSavedCount || '0') || 0;
+                    if (_lsMarket.length > _fbMarketCount) {
+                        _bcPatch['badgeCounters.marketSavedCount'] = _lsMarket.length;
+                    } else if (_fbMarketCount > _lsMarket.length && _lsMarket.length === 0) {
+                        var _restoredMarket = [];
+                        for (var _j = 0; _j < _fbMarketCount; _j++) _restoredMarket.push('__restored__');
+                        localStorage.setItem('btc_market_saved', JSON.stringify(_restoredMarket));
+                    }
+                } catch(e) {}
+
+                // Push any counters where local > server (fire-and-forget, non-fatal)
+                if (Object.keys(_bcPatch).length > 0) {
+                    db.collection('users').doc(uid).update(_bcPatch).catch(function(e) {
+                        console.warn('[loadUser] badgeCounters sync failed:', e.message);
+                    });
+                }
+            })();
         }
 
         // Sync PVP stats: Firestore is always source of truth (prevents cross-account bleed on same device)

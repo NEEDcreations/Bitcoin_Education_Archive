@@ -7720,6 +7720,152 @@ const { pvpResolveRound } = require('./src/pvpResolve');
 exports.pvpResolveRound = pvpResolveRound;
 
 
+// ── Merge Anonymous Badges into Existing Account ────────────────────────────
+// Called once when an anonymous user signs in to an existing account.
+// Anonymous users can't write to Firestore, so their earned badges live only in
+// localStorage. This CF merges that badge array into the real account's
+// visibleBadges (server-side, deduplicated, validated against BADGE_VALUES catalog).
+// No XP is re-awarded — badge records are written directly via Admin SDK.
+exports.mergeAnonBadges = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    const uid = context.auth.uid;
+    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('failed-precondition', 'Cannot merge for anonymous account');
+    }
+
+    // Validate + sanitize incoming badge array
+    const incoming = Array.isArray(data.anonBadges) ? data.anonBadges : [];
+    if (incoming.length === 0) return { merged: 0, skipped: 0 };
+    if (incoming.length > 500) {
+        throw new functions.https.HttpsError('invalid-argument', 'Too many badges in merge payload');
+    }
+
+    // Same BADGE_VALUES catalog as awardPoints — only known badges are accepted
+    const KNOWN_BADGE_IDS = new Set([
+        'first_channel', 'explorer_10', 'explorer_25', 'explorer_50', 'explorer_100', 'explorer_all',
+        'explorer_5', 'global_citizen',
+        'quest_1', 'quest_3', 'quest_5', 'quest_10', 'quest_25', 'quest_50', 'quest_100',
+        'cert_scholar', 'cert_tech', 'cert_double', 'all_certs',
+        'tctv_tuned_in', 'tctv_couch_potato', 'tctv_binge_watcher', 'tctv_couch_king', 'tctv_satellite',
+        'tctv_channel_hopper', 'tctv_remote_warrior', 'tctv_dial_spinner',
+        'tctv_signal_seeker', 'tctv_antenna_wizard', 'tctv_timechain_surfer',
+        'nacho_chatterbox', 'nacho_bestie', 'nacho_asked_10', 'nacho_asked_100',
+        'nacho_whisper', 'nacho_eli5', 'nacho_quester', 'nacho_dressed',
+        'chat_first', 'chat_10', 'chat_25', 'chat_50', 'chat_100', 'chat_200', 'chat_500', 'chat_1000',
+        'chat_streak_3', 'chat_streak_7', 'chat_streak_30',
+        'chat_lurker_5', 'chat_lurker_10', 'chat_lurker_50', 'chat_lurker_100', 'chat_lurker_500',
+        'lb_lurker_5', 'lb_lurker_10', 'lb_lurker_50', 'lb_lurker_100', 'lb_lurker_500',
+        'dj_first', 'dj_5', 'dj_25', 'dj_50', 'dj_songs_10', 'dj_songs_50', 'dj_songs_100',
+        'dj_listener', 'dj_listener_50', 'dj_listener_100',
+        'producer_1', 'producer_10',
+        'beats_first_listen', 'beats_50_plays', 'beats_100_plays', 'beats_200_plays', 'beats_500_plays',
+        'beats_liked_10', 'beats_liked_50', 'beats_comment_1',
+        'dm_first', 'dm_10', 'dm_25', 'dm_100', 'dm_buddy',
+        'react_5', 'react_10', 'react_50', 'react_100', 'react_200', 'react_500',
+        'pvp_first', 'pvp_5', 'pvp_25', 'pvp_50', 'pvp_100',
+        'pvp_played_1', 'pvp_played_10', 'pvp_played_50',
+        'pvp_win_streak_3', 'pvp_win_streak_5',
+        'referral_1', 'referral_5', 'referral_10', 'referral_25', 'referral_50', 'referral_100', 'referred',
+        'sf_first_hash', 'sf_10_hashes', 'sf_50_hashes', 'sf_100_hashes',
+        'sf_500_hashes', 'sf_1000_hashes', 'sf_10000_hashes', 'sf_100000_hashes',
+        'sf_low_hash', 'sf_ultra_low', 'sf_block_solver',
+        'sf_contributor', 'sf_contributor_10',
+        'sf_lucky_1', 'sf_lucky_5', 'sf_lucky_10', 'sf_lucky_50', 'sf_lucky_100', 'sf_lucky_1000',
+        'sf_unlucky_1', 'sf_unlucky_5', 'sf_unlucky_10', 'sf_unlucky_50', 'sf_unlucky_100', 'sf_unlucky_1000',
+        'raid_first', 'raid_5', 'raid_10', 'raid_25', 'raid_50', 'raid_100',
+        'raid_boss_slayer', 'raid_boss_slayer_5', 'raid_boss_slayer_10', 'raid_winner',
+        'trivia_first', 'trivia_correct_1', 'trivia_correct_10', 'trivia_correct_30', 'trivia_correct_100',
+        'trivia_streak_7', 'trivia_streak_30',
+        'poll_first', 'poll_10', 'poll_50', 'poll_100',
+        'daily_triple_1', 'daily_triple_7', 'daily_triple_30', 'daily_triple_90', 'daily_triple_365',
+        'daily_1', 'daily_5', 'daily_10', 'daily_25', 'daily_50', 'daily_100',
+        'market_browse', 'market_listed_1', 'market_listed_5', 'market_saved_5', 'market_message',
+        'bookmarks_1', 'bookmarks_10', 'favs_10', 'favs_25', 'bookworm',
+        'tip_first', 'tip_10', 'tip_magnet', 'tip_whale',
+        'tip_received_1', 'tip_received_50', 'tip_sats_10k',
+        'predict_1', 'predict_10', 'predict_50',
+        'predict_correct_5', 'predict_correct_25', 'predict_correct_100',
+        'predict_streak_3', 'predict_streak_10',
+        'irl_attend_1', 'irl_attend_5', 'irl_host', 'irl_host_5', 'irl_host_10',
+        'spin_1', 'spin_7', 'spin_30', 'spin_100',
+        'spin_closet_1', 'spin_closet_5',
+        'spin_streak_7', 'spin_streak_14', 'spin_streak_30', 'spin_jackpot',
+        'lightning_setup', 'lightning_address_set',
+        'forum_first', 'forum_5', 'forum_10', 'forum_25', 'forum_50', 'forum_100',
+        'forum_reply_1', 'forum_reply_10',
+        'article_1', 'article_5', 'article_10',
+        'first_purchase', 'first_save', 'ghost_mode',
+        'sats_first', 'sats_1k', 'sats_5k', 'sats_10k', 'sats_21k',
+        'streak_3', 'streak_7', 'streak_14', 'streak_21', 'streak_30', 'streak_60',
+        'streak_100', 'streak_200', 'streak_365',
+        'story_begun', 'story_halfway', 'story_complete',
+        'trail_started', 'trail_meadow', 'trail_mountain', 'trail_summit', 'trail_all',
+        'trail_double', 'trail_speed_3', 'trail_meadow_fast', 'trail_perfectionist', 'trail_revisit',
+        'lq_what_is_bitcoin', 'lq_mining', 'lq_nodes', 'lq_self_custody',
+        'lq_lightning', 'lq_scarcity', 'lq_bitcoin_only', 'lq_privacy', 'lq_graduate',
+        'flex_rookie', 'flex_committed', 'flex_athlete', 'flex_legend', 'flex_all_once',
+        'flex_all_1', 'flex_all_5', 'flex_all_50', 'flex_all_500',
+        'pow_first_step', 'pow_marathoner', 'pow_streak_3', 'pow_streak_7', 'pow_streak_30',
+        'pow_km_10', 'pow_km_50', 'pow_km_100', 'pow_km_500', 'pow_km_1000', 'pow_km_5000',
+        'hall_of_fame', 'the_archive', 'genesis_block', 'satoshis_ghost',
+        'block_250', 'the_hodler', 'satoshis_covenant', 'satoshis_cipher',
+        'combo_trio', 'combo_mega', 'combo_legend', 'weekly_hero',
+        'set_miner_complete', 'set_scholar_complete', 'set_social_complete',
+        'set_streak_complete', 'set_pvp_complete', 'set_builder_complete',
+        'set_explorer_complete', 'set_fun_complete',
+        'bio_author', 'profile_curious',
+        'profile_explorer_5', 'profile_explorer_10', 'profile_explorer_25',
+        'profile_explorer_50', 'profile_explorer_100',
+        'foundation_builder', 'experienced_pro', 'librarian',
+        'early_bird', 'night_owl',
+        'nacho_quester', 'nacho_dressed',
+    ]);
+
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+        throw new functions.https.HttpsError('not-found', 'User document not found');
+    }
+
+    const userData = userDoc.data();
+
+    // One-time guard: if already merged, return silently
+    if (userData.anonBadgesMerged) {
+        return { merged: 0, skipped: 0, alreadyDone: true };
+    }
+
+    const existing = new Set(Array.isArray(userData.visibleBadges) ? userData.visibleBadges : []);
+    const toAdd = [];
+    let skipped = 0;
+
+    for (const badge of incoming) {
+        if (typeof badge !== 'string') { skipped++; continue; }
+        const sanitized = badge.replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 60);
+        if (!sanitized || !KNOWN_BADGE_IDS.has(sanitized)) { skipped++; continue; }
+        if (existing.has(sanitized)) { skipped++; continue; }
+        toAdd.push(sanitized);
+        existing.add(sanitized);
+    }
+
+    if (toAdd.length === 0) {
+        // Still mark as done so we don't try again
+        await userRef.update({ anonBadgesMerged: true });
+        return { merged: 0, skipped };
+    }
+
+    // Write all new badges atomically + set the one-time guard
+    await userRef.update({
+        visibleBadges: admin.firestore.FieldValue.arrayUnion(...toAdd),
+        anonBadgesMerged: true,
+    });
+
+    console.log('[mergeAnonBadges] uid:', uid, 'merged:', toAdd.length, 'skipped:', skipped, 'badges:', toAdd.join(','));
+    return { merged: toAdd.length, skipped };
+});
+
+
 // ── Daily Firestore Backup ────────────────────────────────────────────────────
 // Exports all collections to gs://bitcoin-education-archive-backups/
 // Runs daily at 2 AM UTC. Bucket lifecycle deletes exports older than 90 days.
