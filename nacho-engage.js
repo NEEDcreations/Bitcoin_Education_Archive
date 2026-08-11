@@ -193,7 +193,7 @@ window.nachoTrivia = function() {
     asked.push(trackKey);
     localStorage.setItem('btc_nacho_trivia_asked', JSON.stringify(asked));
 
-    return { trivia: t, index: idx };
+    return { trivia: t, index: trackKey };
 };
 
 window.showNachoTrivia = function() {
