@@ -134,11 +134,15 @@ var ARTICLE_TAGS = [
 // ---- Render Forum ----
 window.renderForum = function() {
     var fc = document.getElementById('forumContainer');
-    
-    
     if (!fc) return;
-    
-    
+
+    // Track daily challenge completion for 'Visit the PlebTalk'
+    try {
+        var _dcToday2 = new Date().toISOString().split('T')[0];
+        localStorage.setItem('btc_forum_visited_' + _dcToday2, 'true');
+        if (typeof checkDailyChallenge === 'function') setTimeout(checkDailyChallenge, 300);
+    } catch(e) {}
+
     fc.innerHTML = '';
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
