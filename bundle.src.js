@@ -27931,12 +27931,30 @@ window.awardOrangeTickets = function(amount, reason) {
 };
 
 // setFloatingElementsVisible — show/hide floating buttons when sidebar opens
+// Respects fabMinimized state: FAB group buttons stay hidden if user minimized them
 window.setFloatingElementsVisible = function(visible) {
-    var ids = ['floatingRandomBtn','lbFloatBtn','mobileSearchBtn','backToTop','scrollToBottom','chatOverlayBtn','aiToolsBtn','dashboardFloatBtn'];
-    ids.forEach(function(id) {
+    var fabMinimized = localStorage.getItem('fabMinimized') === '1';
+    // FAB group — respect user's minimize preference
+    var fabGroupIds = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
+    // Regular floating elements — always follow sidebar show/hide
+    var regularIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom'];
+    regularIds.concat(fabGroupIds).forEach(function(id) {
         var el = document.getElementById(id);
-        if (el) el.style.display = visible ? '' : 'none';
+        if (!el) return;
+        if (!visible) {
+            el.style.display = 'none';
+        } else if (fabGroupIds.indexOf(id) !== -1) {
+            // Only show FAB group buttons if not minimized
+            el.style.display = fabMinimized ? 'none' : '';
+        } else {
+            el.style.display = '';
+        }
     });
+    // Keep expand button in sync
+    if (visible) {
+        var exp = document.getElementById('fabExpandBtn');
+        if (exp) exp.style.display = fabMinimized ? 'flex' : 'none';
+    }
 };
 
 // ========== CELEBRATION SYSTEM ==========
@@ -28802,7 +28820,7 @@ window.toggleMobileLearnMenu = function() {
           html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();window._mbRouted=true;window._skipIRLRules=true;localStorage.setItem(\'btc_irl_rules_accepted\',\'true\');go(\'irl-sync\');setTimeout(function(){var ro=document.getElementById(\'irlRulesOverlay\');if(ro)ro.remove();var _t=0;var _i=setInterval(function(){var ro2=document.getElementById(\'irlRulesOverlay\');if(ro2)ro2.remove();var el=document.getElementById(\'meetupBuilderSection\');if(el){clearInterval(_i);el.scrollIntoView({behavior:\'smooth\',block:\'start\'});}if(++_t>30)clearInterval(_i);},300);},1500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(202,138,4,0.06));border:1px solid #eab308;color:#eab308;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">🔨</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Meetup Builder</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Create or find a local Bitcoin meetup in your city</span></span></button>' },
         // Spend Bitcoin — intermediate and advanced only
         { modes: ['intermediate','advanced'],
-          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'marketplace\');setTimeout(function(){renderMarketplace({section:\'merchants\'})},500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:1px solid #ef4444;color:#ef4444;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">₿</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Spend Bitcoin</span><span style="font-size:0.72rem;font-weight:500;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Find merchants who accept sats — Lightning, on-chain &amp; more</span></span></button>' }
+          html: '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'marketplace\');setTimeout(function(){renderMarketplace({section:\'merchants\'})},500)" style="padding:11px 14px;background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:1px solid #ef4444;color:#ef4444;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:flex-start;gap:10px;width:100%;"><span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">₿</span><span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;">Spend Bitcoin</span><span style="font-size:0.72rem;font-weight:400;color:rgba(255,255,255,0.45);line-height:1.4;white-space:normal;">Find merchants who accept sats — Lightning, on-chain &amp; more</span></span></button>' }
     ];
 
     var _filteredBtns = _learnBtns.filter(function(b) {

@@ -1126,12 +1126,30 @@ window.awardOrangeTickets = function(amount, reason) {
 };
 
 // setFloatingElementsVisible — show/hide floating buttons when sidebar opens
+// Respects fabMinimized state: FAB group buttons stay hidden if user minimized them
 window.setFloatingElementsVisible = function(visible) {
-    var ids = ['floatingRandomBtn','lbFloatBtn','mobileSearchBtn','backToTop','scrollToBottom','chatOverlayBtn','aiToolsBtn','dashboardFloatBtn'];
-    ids.forEach(function(id) {
+    var fabMinimized = localStorage.getItem('fabMinimized') === '1';
+    // FAB group — respect user's minimize preference
+    var fabGroupIds = ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinimizeBtn'];
+    // Regular floating elements — always follow sidebar show/hide
+    var regularIds = ['floatingRandomBtn','mobileSearchBtn','backToTop','scrollToBottom'];
+    regularIds.concat(fabGroupIds).forEach(function(id) {
         var el = document.getElementById(id);
-        if (el) el.style.display = visible ? '' : 'none';
+        if (!el) return;
+        if (!visible) {
+            el.style.display = 'none';
+        } else if (fabGroupIds.indexOf(id) !== -1) {
+            // Only show FAB group buttons if not minimized
+            el.style.display = fabMinimized ? 'none' : '';
+        } else {
+            el.style.display = '';
+        }
     });
+    // Keep expand button in sync
+    if (visible) {
+        var exp = document.getElementById('fabExpandBtn');
+        if (exp) exp.style.display = fabMinimized ? 'flex' : 'none';
+    }
 };
 
 // ========== CELEBRATION SYSTEM ==========
