@@ -6247,6 +6247,7 @@ async function saveProfile() {
                 // Lightning address: must be user@domain format, no special chars that break onclick
                 val = val.replace(/[\\'"<>]/g, '');
                 if (val && !val.match(/^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) val = '';
+                updateData.lightningAddress = val; // keep in sync — dedup check queries this field
             } else if (k === 'contactEmail') {
                 val = val.replace(/[\\'"<>]/g, '');
             } else if (k === 'nostr') {
