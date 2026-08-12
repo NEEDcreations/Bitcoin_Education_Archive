@@ -19,26 +19,28 @@ function initBottomNav() {
     var nav = document.createElement('div');
     nav.id = 'bottomNav';
     nav.className = 'mobile-nav';
-    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200000;background:rgba(10,10,10,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:10px 0 env(safe-area-inset-bottom,10px) 0;padding-bottom:max(env(safe-area-inset-bottom,10px),10px);display:none;transition:transform 0.25s ease;-webkit-transform:translateZ(0);transform:translateZ(0);';
+    // Solid surface with a hairline top — was a translucent blur over content.
+    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:var(--z-nav,10);background:var(--ink-925,#101013);border-top:1px solid var(--line,#26262D);padding:6px 0 env(safe-area-inset-bottom,6px) 0;padding-bottom:max(env(safe-area-inset-bottom,6px),6px);display:none;transition:transform 0.25s ease;-webkit-transform:translateZ(0);transform:translateZ(0);';
+    // Icons, not 🏠🧭🎓🔔⚙️ at 1.3rem.
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
-            '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
-            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
-            '<button onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
-            '<button onclick="if(typeof toggleNotifOverlay===\'function\')toggleNotifOverlay()" class="bnav-btn" id="bnavNotif" style="position:relative;"><span class="bnav-icon">🔔</span><span class="bnav-label">Alerts</span><span id="bnavNotifBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
-            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span></button>' +
+            '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">' + icon('home', 20) + '</span><span class="bnav-label">Home</span></button>' +
+            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">' + icon('compass', 20) + '</span><span class="bnav-label">Apps</span></button>' +
+            '<button onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" style="position:relative;"><span class="bnav-icon">' + icon('book', 20) + '</span><span class="bnav-label">Learn</span></button>' +
+            '<button onclick="if(typeof toggleNotifOverlay===\'function\')toggleNotifOverlay()" class="bnav-btn" id="bnavNotif" style="position:relative;"><span class="bnav-icon">' + icon('bell', 20) + '</span><span class="bnav-label">Alerts</span><span id="bnavNotifBadge" class="count" style="display:none;position:absolute;top:0;right:2px;"></span></button>' +
+            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">' + icon('settings', 20) + '</span><span class="bnav-label">Settings</span></button>' +
         '</div>';
 
     // Add styles
     var style = document.createElement('style');
     style.textContent =
-        '.bnav-btn{background:none;border:none;color:var(--text-dim,#666);font-size:0.6rem;cursor:pointer;font-family:inherit;padding:6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:0.2s;flex:1;min-width:0;}' +
-        '.bnav-icon{font-size:1.3rem;line-height:1;display:block;transition:transform 0.2s;}' +
-        '.bnav-label{font-size:0.55rem;line-height:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}' +
-        '.bnav-btn:active .bnav-icon{transform:scale(1.2);}' +
-        '.bnav-btn.active{color:var(--accent);}' +
+        '.bnav-btn{background:none;border:none;color:var(--fg-3,#71717A);cursor:pointer;font-family:inherit;padding:6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:color 0.12s ease;flex:1;min-width:0;}' +
+        '.bnav-icon{line-height:0;display:flex;align-items:center;justify-content:center;}' +
+        '.bnav-label{font-size:var(--t-11,0.6875rem);line-height:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}' +
+        '.bnav-btn:active{color:var(--fg,#EDEDEF);}' +
+        '.bnav-btn.active{color:var(--orange,#F7931A);}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
-        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
+        '@media(max-width:900px){#bottomNav{display:block!important;visibility:visible!important;opacity:1!important;}.messages{padding-bottom:150px!important;}.home-page{padding-bottom:110px!important;}}';
     document.head.appendChild(style);
     document.body.appendChild(nav);
 }
