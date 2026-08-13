@@ -1,25 +1,25 @@
 {
-  "updated": "2026-08-13T04:00:51.517Z",
+  "updated": "2026-08-13T08:00:50.867Z",
   "news": [
+    {
+      "date": "Aug 12, 2026",
+      "title": "Why AI Warns Against Centralizing Stolen Bitcoin",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/MH6RI1adpZs",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Aug 12, 2026",
+      "title": "EXPOSED: Why Bitcoin Resilience Is Shocking Wall Street",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/8oYaIvosRgA",
+      "source": "lukemikic"
+    },
     {
       "date": "Aug 12, 2026",
       "title": "Bitcoin Price May Be Battered, but Structural Adoption Story Still Intact: Grayscale",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/bitcoin-price-down-but-adoption-to-grow",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 12, 2026",
-      "title": "Goldman Sachs to Acquire NEOS Investments in $2.25B Deal, Adding Bitcoin Income ETFs to Lineup",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/goldman-sachs-to-acquire-neos-investments",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 12, 2026",
-      "title": "Bitcoin Flashes Bottom Signals as &#8220;Digital Gold&#8221; Narrative Returns",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoin-flashes-bottom-signal-digital-gold",
       "source": "bitcoin-magazine"
     }
   ]
