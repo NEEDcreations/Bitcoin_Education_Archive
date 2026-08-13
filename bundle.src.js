@@ -16517,10 +16517,10 @@ function _loadPoolEpoch() {
                 var uname = b.username ? '@' + (typeof escapeHtml === 'function' ? escapeHtml(b.username) : b.username) : '\u2014';
                 var ts = b.foundAt ? (b.foundAt.toDate ? b.foundAt.toDate() : new Date(b.foundAt.seconds * 1000)) : null;
                 var tsStr = ts ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
-                var _safeUid = b.uid ? (typeof escapeHtml === 'function' ? escapeHtml(b.uid) : b.uid) : '';
-                var unameEl = _safeUid
-                    ? '<span onclick="showUserProfile(\'' + _safeUid.replace(/\\/g, '').replace(/['"<>]/g, '') + '\'" style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(34,197,94,0.4);" title="View profile">' + uname + '</span>'
-
+                var _rawUid = b.uid || '';
+                var _attrUid = _rawUid.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                var unameEl = _rawUid
+                    ? '<span data-profile-uid="' + _attrUid + '" style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(34,197,94,0.4);" title="View profile">' + uname + '</span>'
                     : '<span style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;">' + uname + '</span>';
                 rows += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(247,147,26,0.08);">' +
                     '<span style="font-size:0.72rem;font-weight:800;color:var(--accent);width:18px;flex-shrink:0;">' + (i + 1) + '.</span>' +
@@ -16584,10 +16584,10 @@ function _loadPoolEpoch() {
             prevHtml += '</div>';
 
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) el2.innerHTML = currentHtml + prevHtml;
+            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; }
         }).catch(function() {
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>';
+            if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; }
         });
     }, function() {
         var el2 = document.getElementById('sfPoolEpochInner');
