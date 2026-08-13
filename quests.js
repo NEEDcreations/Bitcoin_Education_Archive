@@ -2776,7 +2776,8 @@ function _renderHasherRanksHTML(users) {
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
         var isMe = myUid && u.id === myUid;
         var name = typeof escapeHtml === 'function' ? escapeHtml(u.username || 'Anon') : (u.username || 'Anon');
-        var safeU = (u.username || '').replace(/'/g, '');
+        var safeU = (u.username || '').replace(/\\/g, '').replace(/['"<>]/g, '');
+
         // Format first hash date
         var firstDate = '\u2014';
         if (u.firstHashAt) {
@@ -2885,7 +2886,9 @@ function _renderTopHashesHTML(entries) {
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
-                    (function(){ var _safeU = (e.username||'').replace(/'/g,''); return '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeU+'\')" style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View @'+name+'\'s profile">' + name + (isMe ? ' (you)' : '') + badges + '</span>'; })() +
+                    (function(){ var _safeU = (e.username||'').replace(/\\/g,'').replace(/['"<>]/g,'');
+
+                    return '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeU+'\')" style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View @'+name+'\'s profile">' + name + (isMe ? ' (you)' : '') + badges + '</span>'; })() +
                 '</div>' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" ' +
@@ -3073,7 +3076,8 @@ function _loadLastSFWindow() {
                 clickHandler = 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+escapeHtml(w.uid)+'\')"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
             } else if (w.username) {
-                var _safeName = escapeHtml(w.username).replace(/'/g, '');
+                var _safeName = escapeHtml(w.username).replace(/\\/g, '').replace(/['"<>]/g, '');
+
                 clickHandler = 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeName+'\')"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
             }
@@ -3151,7 +3155,8 @@ function _loadPoolEpoch() {
                 var tsStr = ts ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
                 var _safeUid = b.uid ? (typeof escapeHtml === 'function' ? escapeHtml(b.uid) : b.uid) : '';
                 var unameEl = _safeUid
-                    ? '<span onclick="showUserProfile(\'' + _safeUid.replace(/'/g, '') + '\'" style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(34,197,94,0.4);" title="View profile">' + uname + '</span>'
+                    ? '<span onclick="showUserProfile(\'' + _safeUid.replace(/\\/g, '').replace(/['"<>]/g, '') + '\'" style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(34,197,94,0.4);" title="View profile">' + uname + '</span>'
+
                     : '<span style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;">' + uname + '</span>';
                 rows += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(247,147,26,0.08);">' +
                     '<span style="font-size:0.72rem;font-weight:800;color:var(--accent);width:18px;flex-shrink:0;">' + (i + 1) + '.</span>' +
