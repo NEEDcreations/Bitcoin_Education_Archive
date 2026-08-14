@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-14T00:00:47.264Z",
+  "updated": "2026-08-14T04:07:37.135Z",
   "news": [
+    {
+      "date": "Aug 14, 2026",
+      "title": "BUSTED: The Remote Control Tech Behind Bitcoin Device Security Concerns",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/r0P0N5ot6ek",
+      "source": "lukemikic"
+    },
     {
       "date": "Aug 13, 2026",
       "title": "EXPOSED: Tyler Williams Quits White House Bitcoin Role",
@@ -14,13 +21,6 @@
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/bitcoin-bear-cycle-looks-looks-bullish",
       "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 13, 2026",
-      "title": "Top Bitcoin Advisor Resigns On Day Of $130M Hack",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/TA48sDxJ-Ic",
-      "source": "lukemikic"
     }
   ]
 }
