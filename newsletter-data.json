@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-14T08:00:48.340Z",
+  "updated": "2026-08-14T12:00:49.354Z",
   "news": [
+    {
+      "date": "Aug 14, 2026",
+      "title": "BREAKING: Late Night Warning For All Bitcoin Holders",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/TeTtQ9pyCtE",
+      "source": "lukemikic"
+    },
     {
       "date": "Aug 14, 2026",
       "title": "BUSTED: The Remote Control Tech Behind Bitcoin Device Security Concerns",
@@ -14,13 +21,6 @@
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/8wZzkZUOREc",
       "source": "lukemikic"
-    },
-    {
-      "date": "Aug 13, 2026",
-      "title": "Bitcoin&#8217;s Bear Cycle Looks Familiar — And That Might Be the Bullish Case",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoin-bear-cycle-looks-looks-bullish",
-      "source": "bitcoin-magazine"
     }
   ]
 }
