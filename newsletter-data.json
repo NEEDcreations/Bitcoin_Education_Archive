@@ -1,25 +1,25 @@
 {
-  "updated": "2026-08-13T20:00:49.994Z",
+  "updated": "2026-08-14T00:00:47.264Z",
   "news": [
+    {
+      "date": "Aug 13, 2026",
+      "title": "EXPOSED: Tyler Williams Quits White House Bitcoin Role",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/8wZzkZUOREc",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Aug 13, 2026",
+      "title": "Bitcoin&#8217;s Bear Cycle Looks Familiar — And That Might Be the Bullish Case",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/bitcoin-bear-cycle-looks-looks-bullish",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Aug 13, 2026",
       "title": "Top Bitcoin Advisor Resigns On Day Of $130M Hack",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/TA48sDxJ-Ic",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 13, 2026",
-      "title": "UBS Ups Bitcoin Position, Buys More Shares in BlackRock&#8217;s ETF",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/ubs-buys-blackrock-bitcoin-etf",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 13, 2026",
-      "title": "CONFIRMED: Bug Placed In Entropy For Later Bitcoin Retrieval",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/rDzmtSA_pNg",
       "source": "lukemikic"
     }
   ]
