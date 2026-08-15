@@ -129,6 +129,7 @@ window._beatsAudio = null;
 window._beatsQueue = [];
 window._beatsQueueIdx = -1;
 window._beatsCurrentTab = 'discover';
+window._beatsShuffle = false;
 window._beatsUpdateInterval = null;
 window._beatsNowPlaying = null; // { title, artist, genre, coverArt }
 
@@ -170,6 +171,7 @@ window.beatsEnsureGlobalPlayer = function() {
             '<button onclick="beatsPrevTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏮</button>' +
             '<button id="beatsPlayBtn" onclick="beatsTogglePlay()" style="background:var(--accent);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">▶</button>' +
             '<button onclick="beatsNextTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏭</button>' +
+            '<button id="beatsShuffleBtn" onclick="beatsToggleShuffle()" title="Shuffle" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:0.85rem;cursor:pointer;padding:4px;">🔀</button>' +
             '<button id="beatsRepeatBtn" onclick="beatsCycleRepeat()" title="Repeat" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:0.8rem;cursor:pointer;padding:4px;position:relative;">🔁</button>' +
             '<input type="range" id="beatsVolume" min="0" max="100" value="80" oninput="beatsSetVolume(this.value)" style="width:50px;accent-color:var(--accent);cursor:pointer;" title="Volume">' +
             '<button onclick="beatsShowComments()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:0.9rem;cursor:pointer;padding:4px;" title="Comments">💬</button>' +
@@ -634,9 +636,23 @@ window.beatsUpdateRepeatBtn = function() {
     }
 };
 
+window.beatsToggleShuffle = function() {
+    window._beatsShuffle = !window._beatsShuffle;
+    var btn = document.getElementById('beatsShuffleBtn');
+    if (btn) {
+        btn.style.color = window._beatsShuffle ? 'var(--accent)' : 'rgba(255,255,255,0.35)';
+        btn.title = window._beatsShuffle ? 'Shuffle: On' : 'Shuffle';
+    }
+};
+
 window.beatsNextTrack = function() {
     if (window._beatsQueue.length === 0) return;
-    var next = (window._beatsQueueIdx + 1) % window._beatsQueue.length;
+    var next;
+    if (window._beatsShuffle && window._beatsQueue.length > 1) {
+        do { next = Math.floor(Math.random() * window._beatsQueue.length); } while (next === window._beatsQueueIdx);
+    } else {
+        next = (window._beatsQueueIdx + 1) % window._beatsQueue.length;
+    }
     beatsPlayTrack(next);
 };
 
@@ -2660,7 +2676,7 @@ window.beatsShowArtistPage = function(uid) {
     Promise.all([
         db.collection('users').doc(uid).get(),
         db.collection('beats_artists').doc(uid).get(),
-        db.collection('beats_tracks').where('authorId', '==', uid).orderBy('createdAt', 'desc').limit(50).get()
+        db.collection('beats_tracks').where('authorId', '==', uid).limit(50).get()
     ]).then(function(results) {
         var userDoc    = results[0];
         var artistDoc  = results[1];
@@ -2886,7 +2902,7 @@ window.beatsShowArtistPage = function(uid) {
 // Play track from artist page (loads their catalog in same order as artist page display)
 window.beatsArtistPlayTrack = function(uid, idx) {
     if (typeof db === 'undefined') return;
-    db.collection('beats_tracks').where('authorId', '==', uid).orderBy('createdAt', 'desc').limit(50).get().then(function(snap) {
+    db.collection('beats_tracks').where('authorId', '==', uid).limit(50).get().then(function(snap) {
         var tracks = [];
         snap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
         window._beatsQueue = tracks;
