@@ -2673,16 +2673,20 @@ window.beatsShowArtistPage = function(uid) {
     document.body.appendChild(overlay);
 
     // Fetch user (may be Firebase user or V4V artist), artist doc, and their tracks in parallel
+    // Use individual .catch() so a permissions error on users/ doesn't kill the whole page
+    var _nullDoc = { exists: false, data: function() { return {}; } };
     Promise.all([
-        db.collection('users').doc(uid).get(),
-        db.collection('beats_artists').doc(uid).get(),
+        db.collection('users').doc(uid).get().catch(function() { return _nullDoc; }),
+        db.collection('beats_artists').doc(uid).get().catch(function() { return _nullDoc; }),
+        db.collection('public_profiles').doc(uid).get().catch(function() { return _nullDoc; }),
         db.collection('beats_tracks').where('authorId', '==', uid).limit(50).get()
     ]).then(function(results) {
         var userDoc    = results[0];
         var artistDoc  = results[1];
-        var trackSnap  = results[2];
-        // Merge: user doc wins for registered users, artist doc fills in for V4V imports
-        var u = userDoc.exists ? userDoc.data() : (artistDoc.exists ? artistDoc.data() : {});
+        var pubDoc     = results[2];
+        var trackSnap  = results[3];
+        // Merge priority: users (owner only) > public_profiles (sanitized mirror) > beats_artists (V4V import)
+        var u = userDoc.exists ? userDoc.data() : (pubDoc.exists ? pubDoc.data() : (artistDoc.exists ? artistDoc.data() : {}));
         var tracks = [];
         trackSnap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
 
@@ -2691,13 +2695,13 @@ window.beatsShowArtistPage = function(uid) {
 
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '🎵', name: '' };
         var ap = u.artistProfile || {};
-        var isV4V = artistDoc.exists && !userDoc.exists; // V4V import, no real user account
+        var isV4V = artistDoc.exists && !userDoc.exists && !pubDoc.exists; // V4V import, no real user account
         var ad = artistDoc.exists ? artistDoc.data() : {};
-        var artistName = ap.stageName || ad.name || u.username || (tracks[0] && (tracks[0].artist || tracks[0].authorName)) || 'Unknown Artist';
+        var artistName = ap.stageName || ad.name || u.username || u.displayName || (tracks[0] && (tracks[0].artist || tracks[0].authorName)) || 'Unknown Artist';
         var artistBio = ap.bio || u.bio || ad.bio || '';
         var artistGenres = ap.genres ? ap.genres.split(',').map(function(g) { return g.trim(); }).filter(Boolean) : [];
         var artistImage = ap.artistImage || ad.avatarUrl || ''; // custom artist profile image
-        var isOwner = !isV4V && auth && auth.currentUser && auth.currentUser.uid === uid;
+        var isOwner = auth && auth.currentUser && auth.currentUser.uid === uid;
 
         // Collect music links
         var musicLinks = [];
@@ -2707,7 +2711,7 @@ window.beatsShowArtistPage = function(uid) {
         if (ap.instagram) { var igHandle = ap.instagram.replace('@', ''); musicLinks.push({ emoji: '📸', label: '@' + igHandle, url: 'https://instagram.com/' + igHandle }); }
 
         // Profile mode toggle (only show if user has a real app account)
-        var hasAppProfile = !isV4V && userDoc.exists;
+        var hasAppProfile = !isV4V && (userDoc.exists || pubDoc.exists);
         var toggleHtml = hasAppProfile ? (
             '<div style="display:flex;gap:0;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px;">' +
                 '<button id="beatsProfileTab_artist" onclick="document.getElementById(\'beatsProfileTab_artist\').style.background=\'var(--accent)\';document.getElementById(\'beatsProfileTab_artist\').style.color=\'#fff\';document.getElementById(\'beatsProfileTab_app\').style.background=\'\';document.getElementById(\'beatsProfileTab_app\').style.color=\'var(--text-muted)\';document.getElementById(\'beatsArtistBody\').style.display=\'block\';document.getElementById(\'beatsAppBody\').style.display=\'none\'" style="flex:1;padding:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">🎤 Artist Profile</button>' +
