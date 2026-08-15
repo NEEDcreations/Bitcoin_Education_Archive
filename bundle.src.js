@@ -31931,6 +31931,7 @@ document.addEventListener('btcProfileSaved', function() {
         window.addEventListener('popstate', hideOnNav, { once: true });
     }
 
+    window.goRandom = goRandom;
     window.goRandomMeme = goRandomMeme;
     window.goRandomArt = goRandomArt;
     window.goRandomGraphic = goRandomGraphic;
@@ -35344,8 +35345,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         } catch(e) {}
 
-        // Raid Boss: track channel/topic visit
-        if (typeof window._raidContribute === 'function') window._raidContribute('channelVisit', 1, id);
+        // Raid Boss: track channel/topic visit (uses _raidOnChannelVisit which maps to valid metrics)
+        // Note: 'channelVisit' is not a valid metric in contributeRaid; _raidOnChannelVisit handles this.
 
         // --- SENTIMENT RATING ---
         if (d.msgs && d.msgs.length > 0) {
