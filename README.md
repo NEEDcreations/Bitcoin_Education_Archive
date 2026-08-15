@@ -7,3 +7,28 @@ The education featured in the website came from years of curating information on
 What we need right now are testers. Just play around with the site, find bugs, and report them. Request features if you think something would be a cool addition too!
 
 Thank you so much! - Phil @NEEDcreations
+
+---
+
+## Custom SVG icon system
+
+UI emojis (app chrome: nav, buttons, links, section headers, toasts) are replaced at runtime
+with a custom SVG icon set so the site has its own visual identity. Expressive/social emojis
+(faces, hands, hearts, flags, reactions) are deliberately left native, and user-content zones
+(global chat, forum posts, DMs, marketplace listings) are excluded so people's messages keep
+real emojis.
+
+- `assets/icons/*.svg` — the icon set (24px grid, stroke-based, `currentColor`, works in light
+  and dark themes). Open `assets/icons/preview.html` to eyeball the whole set.
+- `scripts/author-icons.py` — geometry source of truth; regenerates the SVG files + preview.
+- `scripts/build-icons.js` — emoji→icon mapping; inlines the SVGs into `icon-system.js`.
+- `icon-system.js` — generated runtime (do not edit): swaps mapped emojis for inline SVGs via
+  a MutationObserver, exposes `window.BEAIcons` (`.el(name)`, `.svg(name)`, `.sweep(root)`).
+
+To keep an element's emojis native, add `data-emoji-keep` to it (or any ancestor).
+
+Rebuild after changing icons or mappings:
+
+```
+python3 scripts/author-icons.py && node scripts/build-icons.js
+```
