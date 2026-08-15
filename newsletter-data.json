@@ -1,25 +1,25 @@
 {
-  "updated": "2026-08-15T04:00:48.488Z",
+  "updated": "2026-08-15T08:00:49.061Z",
   "news": [
+    {
+      "date": "Aug 15, 2026",
+      "title": "CONFIRMED: Suspicious Activity Behind $130 Million Bitcoin Drain",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/bNGZS58Dj_Y",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Aug 15, 2026",
+      "title": "This Hardware Device May Threaten Your Bitcoin Security",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/pJNg-IHxBfE",
+      "source": "lukemikic"
+    },
     {
       "date": "Aug 14, 2026",
       "title": "Edelman Financial, Tudor Investment Reveal Significant Bitcoin Holdings",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/edelman-financial-reveals-bitcoin-positio",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 14, 2026",
-      "title": "Abu Dhabi Sovereign Wealth Funds Keep Big Bitcoin Positions",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/abu-dhabi-funds-keep-big-bitcoin-positions",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 14, 2026",
-      "title": "Bitcoiners Warned After French Tax Authority Confirms Data Breach Affecting Hundreds of Thousands",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoiners-warned-of-wrench-attacks",
       "source": "bitcoin-magazine"
     }
   ]
