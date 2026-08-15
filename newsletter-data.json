@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-15T00:00:49.024Z",
+  "updated": "2026-08-15T04:00:48.488Z",
   "news": [
     {
       "date": "Aug 14, 2026",
@@ -10,16 +10,16 @@
     },
     {
       "date": "Aug 14, 2026",
-      "title": "REVEALED: CTO Background Raises Severe Bitcoin Remote Viewing Fears",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/s8I5hRWfiFY",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 14, 2026",
       "title": "Abu Dhabi Sovereign Wealth Funds Keep Big Bitcoin Positions",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/abu-dhabi-funds-keep-big-bitcoin-positions",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Aug 14, 2026",
+      "title": "Bitcoiners Warned After French Tax Authority Confirms Data Breach Affecting Hundreds of Thousands",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/bitcoiners-warned-of-wrench-attacks",
       "source": "bitcoin-magazine"
     }
   ]
