@@ -1320,7 +1320,7 @@
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.js?v=20260816_edit" defer fetchpriority="high"></script>
-    <script src="patches.js?v=20260713_scrollfix" defer></script>
+    <script src="patches.js?v=20260816_fabs" defer></script>
     <script src="onboarding.js?v=20260816_edit" defer></script>
     <script src="learning-quests.js?v=20260816_d2" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
@@ -1331,7 +1331,7 @@
             'hot-topics.js?v=20260628_1300',
             'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260803_1628',
             'scholar.js?v=20260809_1846','beats.js?v=20260809_1346',
-            'global-chat.js?v=20260816_d2','lightning.js?v=20260807_1915','lightning-tips.js?v=20260807_1915',
+            'global-chat.js?v=20260816_fabs','lightning.js?v=20260807_1915','lightning-tips.js?v=20260807_1915',
             'notifications.js?v=20260730_0723','guide.js?v=20260716_1628','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
@@ -1377,10 +1377,10 @@
         var hash = (window.location.hash || '').replace('#', '').split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20260809_1346', 'global-chat.js?v=20260816_d2'],
-            'beats':         ['beats.js?v=20260809_1346', 'global-chat.js?v=20260816_d2'],
-            'chat':          ['global-chat.js?v=20260816_d2'],
-            'dms':           ['global-chat.js?v=20260816_d2'],
+            'bitcoin-beats': ['beats.js?v=20260809_1346', 'global-chat.js?v=20260816_fabs'],
+            'beats':         ['beats.js?v=20260809_1346', 'global-chat.js?v=20260816_fabs'],
+            'chat':          ['global-chat.js?v=20260816_fabs'],
+            'dms':           ['global-chat.js?v=20260816_fabs'],
             'irl-sync':      ['irl-sync.js?v=20260802_1121'],
             'lightning':     ['lightning.js?v=20260807_1915', 'lightning-tips.js?v=20260807_1915'],
             'pvp':           ['pvp.js?v=20260708_0427'],

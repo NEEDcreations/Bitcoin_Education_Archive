@@ -1551,9 +1551,7 @@ window.toggleChatOverlay = function() {
 
     if (btn) {
         btn.innerHTML = '💬';
-        btn.style.background = 'var(--accent,#f7931a)';
-        btn.style.color = '#fff';
-        btn.style.display = _overlayOpen ? 'none' : 'block';
+        btn.style.display = _overlayOpen ? 'none' : '';
     }
 
     // Click-outside backdrop
@@ -1797,7 +1795,7 @@ window.renderChatHub = function(tab) {
         window._chatOverlayOpen = false;
         var panel = document.getElementById('chatOverlay');
         if (panel) panel.style.transform = 'translateY(100%)';
-        if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }
+        if (btn) { btn.innerHTML = '💬'; }
         var bd = document.getElementById('chatOverlayBackdrop');
         if (bd) bd.remove();
     }
@@ -1808,13 +1806,13 @@ window.renderChatHub = function(tab) {
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
     // Show on all screen sizes (unless full chat hub is open)
-    if (btn && !document.getElementById('chatContent')) btn.style.display = 'block';
+    if (btn && !document.getElementById('chatContent')) btn.style.display = '';
 }
 // Periodically check button visibility (catches app navigations that don't call go())
 setInterval(function() {
     var btn = document.getElementById('chatOverlayBtn');
     if (btn && btn.style.display === 'none' && !document.getElementById('chatContent')) {
-        btn.style.display = 'block';
+        btn.style.display = '';
     }
 }, 3000);
 
