@@ -77,6 +77,31 @@ const MAP = {
   '☮️': 'peace', '🕊️': 'peace', '🍴': 'fork', '🍽️': 'fork', '⛵': 'sailboat',
   '🏋️': 'dumbbell', '🔋': 'battery', '🥕': 'carrot', '🥤': 'drink', '🥩': 'steak',
   '🐈': 'cat', '🐱': 'cat', '👕': 'tshirt', '🧢': 'cap', '🍎': 'apple', '🎭': 'laugh',
+  // feature-identity icons
+  '🐝': 'bee', '🦡': 'badger', '🍀': 'clover', '☘️': 'clover', '👻': 'ghost',
+  '🐋': 'whale', '🐳': 'whale', '🐟': 'whale', '🐙': 'octopus', '🍕': 'pizza',
+  '👔': 'tie', '🛋️': 'couch', '🧭': 'compass', '🌈': 'rainbow', '💥': 'burst',
+  '💣': 'burst', '🌊': 'wave', '🏄': 'wave', '🎛️': 'sliders', '🎚️': 'sliders',
+  '🚶': 'footsteps', '🏃': 'footsteps', '👟': 'footsteps', '💼': 'briefcase',
+  '🔱': 'trident', '🧩': 'puzzle', '♟️': 'pawn', '♾️': 'infinity', '🚪': 'door',
+  '🎁': 'gift', '💧': 'drop', '🧲': 'magnet', '🔓': 'unlock', '🖼️': 'image',
+  '❄️': 'snowflake', '🐇': 'rabbit', '🐰': 'rabbit', '💊': 'pill',
+  // tail coverage -> existing icons
+  '🏗️': 'bricks', '🏟️': 'landmark', '🏰': 'landmark', '🏢': 'landmark',
+  '📘': 'book', '📗': 'book', '📙': 'book', '📓': 'book',
+  '🌿': 'sprout', '🌴': 'tree', '🌞': 'sun', '🌅': 'sun', '🌤️': 'sun', '🌕': 'moon',
+  '📬': 'mail', '📫': 'mail', '📮': 'mail', '📥': 'mail', '🏁': 'flag', '🏴': 'flag',
+  '🏪': 'cart', '🏬': 'cart', '🛍️': 'cart', '📻': 'radio', '🛰️': 'radio',
+  '🥈': 'medal', '🥉': 'medal', '💫': 'sparkles', '🆕': 'sparkles', '🌌': 'sparkles',
+  '🏎️': 'rocket', '🛸': 'rocket', '📵': 'ban', '🔈': 'volume', '🔉': 'volume',
+  '🔘': 'target', '🔬': 'search', '🔭': 'search', '🪖': 'shield', '🍺': 'drink',
+  '☕': 'drink', '🏜️': 'mountain', '🎽': 'tshirt', '🧥': 'tshirt', '👗': 'tshirt',
+  '🟧': 'dot-orange', '🕰️': 'clock', '📯': 'megaphone', '📀': 'disc', '🔁': 'refresh',
+  '💱': 'refresh', '☆': 'star', '★': 'star', '🧮': 'chart', '🃏': 'dice',
+  '🎱': 'dice', '👾': 'gamepad', '🕶️': 'spy', '💠': 'gem', '🆘': 'siren',
+  '♫': 'music', '♪': 'music', '🥊': 'swords', '🗡️': 'swords', '✗': 'x',
+  '📐': 'pencil', '🍊': 'apple', '🗳️': 'clipboard', '🐂': 'trend-up', '🐻': 'trend-down',
+  '🪫': 'battery', '🔌': 'battery',
 };
 
 const VS = '️';

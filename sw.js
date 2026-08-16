@@ -1,7 +1,7 @@
 // Bitcoin Education Archive - Service Worker v15
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v1986';
-const IMG_CACHE = 'btc-images-v2';
+const CACHE_NAME = 'btc-archive-v1987';
+const IMG_CACHE = 'btc-images-v3'; // v3: Nacho v2 mascot + icon set (svg served cache-first from here)
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
 // [AUDIT FIX B10] Pre-cache critical files including key JS modules

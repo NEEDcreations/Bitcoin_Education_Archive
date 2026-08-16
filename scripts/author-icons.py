@@ -483,6 +483,141 @@ icon('skull',
 icon('hash',
      '<path d="M9.6 4.5 8.1 19.5"/><path d="M15.9 4.5l-1.5 15"/>'
      '<path d="M4.75 9.25h15.5"/><path d="M4 14.75h15.5"/>')
+# ---------- Feature-identity icons (bee, badger, ghost mode, etc.) ----------
+icon('bee',
+     '<circle cx="12" cy="6.6" r="2.4"/>'
+     '<path d="M10.9 4.6 9.9 2.9" stroke-width="1.6"/><path d="m13.1 4.6 1-1.7" stroke-width="1.6"/>'
+     '<ellipse cx="5.9" cy="10.6" rx="3" ry="2" transform="rotate(-30 5.9 10.6)" fill="currentColor" fill-opacity=".12"/>'
+     '<ellipse cx="18.1" cy="10.6" rx="3" ry="2" transform="rotate(30 18.1 10.6)" fill="currentColor" fill-opacity=".12"/>'
+     '<ellipse cx="12" cy="14" rx="4.4" ry="6.2"/>'
+     '<path d="M8.1 12.2h7.8" stroke-width="1.6"/><path d="M8.3 15.5h7.4" stroke-width="1.6"/>'
+     '<path d="M12 20.2v1.6" stroke-width="1.6"/>')
+icon('badger',
+     '<path d="M12 4.75c4.7 0 8 3.4 8 8.1 0 4.3-3.3 7.4-8 7.4s-8-3.1-8-7.4c0-4.7 3.3-8.1 8-8.1Z" fill="currentColor" fill-opacity=".04"/>'
+     '<circle cx="6.9" cy="6.4" r="1.9"/><circle cx="17.1" cy="6.4" r="1.9"/>'
+     '<path d="M8.6 6.4c-.7 3-.7 5.9-.1 8.8" stroke-width="2.4"/>'
+     '<path d="M15.4 6.4c.7 3 .7 5.9.1 8.8" stroke-width="2.4"/>'
+     '<circle cx="8.55" cy="10.9" r="1" fill="currentColor" stroke="none"/>'
+     '<circle cx="15.45" cy="10.9" r="1" fill="currentColor" stroke="none"/>'
+     '<path d="M10.7 14.9h2.6l-1.3 1.7Z" fill="currentColor" stroke="currentColor" stroke-width="1.6"/>')
+icon('clover',
+     '<circle cx="12" cy="7.7" r="3.8" fill="currentColor" fill-opacity=".08"/>'
+     '<circle cx="7.7" cy="13.3" r="3.8" fill="currentColor" fill-opacity=".08"/>'
+     '<circle cx="16.3" cy="13.3" r="3.8" fill="currentColor" fill-opacity=".08"/>'
+     '<path d="M12.6 14.7c.4 2.5-.4 4.4-2.6 5.8"/>')
+icon('ghost',
+     '<path d="M12 3.4a6.9 6.9 0 0 1 6.9 6.9v9.9l-2.3-1.85-2.3 1.85L12 18.35l-2.3 1.85-2.3-1.85L5.1 20.2v-9.9A6.9 6.9 0 0 1 12 3.4Z" fill="currentColor" fill-opacity=".06"/>'
+     '<circle cx="9.5" cy="10.4" r="1.1" fill="currentColor" stroke="none"/>'
+     '<circle cx="14.5" cy="10.4" r="1.1" fill="currentColor" stroke="none"/>')
+icon('whale',
+     '<path d="M2.9 15.75c0-5.3 3.9-8.75 8.7-8.75 4.2 0 7.4 2.7 7.4 6.1 0 1-.2 1.9-.6 2.65Z" fill="currentColor" fill-opacity=".07"/>'
+     '<path d="M17.5 12.4c1.1-.9 1.8-2.1 2-3.6-1.5.1-2.8.7-3.8 1.7"/>'
+     '<path d="m19.5 8.8 2.4-2.1c.5 1.4.5 2.8 0 4.2"/>'
+     '<circle cx="7.3" cy="12.5" r=".9" fill="currentColor" stroke="none"/>'
+     '<path d="M9.9 5.4V3.15"/><path d="M8 4.4 6.9 2.9" stroke-width="1.4"/><path d="m11.8 4.4 1.1-1.5" stroke-width="1.4"/>')
+icon('octopus',
+     '<circle cx="12" cy="9.25" r="5.6" fill="currentColor" fill-opacity=".06"/>'
+     '<circle cx="10" cy="9" r=".85" fill="currentColor" stroke="none"/>'
+     '<circle cx="14" cy="9" r=".85" fill="currentColor" stroke="none"/>'
+     '<path d="M7.1 13.2q-1.2 3.2-3.6 3.9"/>'
+     '<path d="M10.2 14.6q-.4 3.4-2.7 5"/>'
+     '<path d="M13.8 14.6q.4 3.4 2.7 5"/>'
+     '<path d="M16.9 13.2q1.2 3.2 3.6 3.9"/>')
+icon('pizza',
+     '<path d="M12 21 4.9 7.6a15.4 15.4 0 0 1 14.2 0Z" fill="currentColor" fill-opacity=".06"/>'
+     '<path d="M4.15 9.15C9 6.35 15 6.35 19.85 9.15"/>'
+     '<circle cx="10.2" cy="11.3" r="1.15" fill="currentColor" stroke="none"/>'
+     '<circle cx="13.8" cy="10.2" r="1.15" fill="currentColor" stroke="none"/>'
+     '<circle cx="11.7" cy="15" r="1.15" fill="currentColor" stroke="none"/>')
+icon('tie',
+     '<path d="M9.6 4.25h4.8l-1 3.1h-2.8Z" fill="currentColor" fill-opacity=".1"/>'
+     '<path d="M10.4 7.35h3.2l1.5 8.4L12 19.75l-3.1-4Z" fill="currentColor" fill-opacity=".1"/>')
+icon('couch',
+     '<path d="M4.4 11V8.9a2.4 2.4 0 0 1 2.4-2.4h10.4a2.4 2.4 0 0 1 2.4 2.4V11"/>'
+     '<path d="M3.1 12.75a1.85 1.85 0 0 1 3.7 0v1.5h10.4v-1.5a1.85 1.85 0 0 1 3.7 0v2.25a2.4 2.4 0 0 1-2.4 2.4H5.5a2.4 2.4 0 0 1-2.4-2.4Z" fill="currentColor" fill-opacity=".06"/>'
+     '<path d="M6.4 17.9v1.6"/><path d="M17.6 17.9v1.6"/>')
+icon('compass',
+     '<circle cx="12" cy="12" r="8.75"/>'
+     '<path d="m15.7 8.3-2.1 5.3-5.3 2.1 2.1-5.3Z" fill="currentColor" fill-opacity=".15"/>'
+     '<circle cx="12" cy="12" r=".8" fill="currentColor" stroke="none"/>')
+icon('rainbow',
+     '<path d="M3.5 16.5a8.5 8.5 0 0 1 17 0"/>'
+     '<path d="M7 16.5a5 5 0 0 1 10 0"/>'
+     '<path d="M10.5 16.5a1.5 1.5 0 0 1 3 0"/>')
+icon('burst',
+     '<path d="m12 2.75 1.9 5.1 5.1-1.85-1.85 5.1L22.25 12l-5.1 1.9 1.85 5.1-5.1-1.85L12 22.25l-1.9-5.1-5.1 1.85 1.85-5.1L1.75 12l5.1-1.9L5.05 5l5.05 1.85Z" fill="currentColor" fill-opacity=".08"/>')
+icon('wave',
+     '<path d="M2.75 7.5c3.1-3.1 6.1-3.1 9.25 0s6.15 3.1 9.25 0"/>'
+     '<path d="M2.75 12.5c3.1-3.1 6.1-3.1 9.25 0s6.15 3.1 9.25 0"/>'
+     '<path d="M2.75 17.5c3.1-3.1 6.1-3.1 9.25 0s6.15 3.1 9.25 0"/>')
+icon('sliders',
+     '<path d="M6 4.25v15.5"/><path d="M12 4.25v15.5"/><path d="M18 4.25v15.5"/>'
+     '<circle cx="6" cy="9.6" r="2" fill="currentColor" stroke="none"/>'
+     '<circle cx="12" cy="14.4" r="2" fill="currentColor" stroke="none"/>'
+     '<circle cx="18" cy="7.6" r="2" fill="currentColor" stroke="none"/>')
+icon('footsteps',
+     '<ellipse cx="8.2" cy="7.4" rx="2.6" ry="3.9" fill="currentColor" fill-opacity=".08"/>'
+     '<circle cx="8.2" cy="13.4" r="1.7"/>'
+     '<ellipse cx="15.8" cy="10.6" rx="2.6" ry="3.9" fill="currentColor" fill-opacity=".08"/>'
+     '<circle cx="15.8" cy="16.6" r="1.7"/>')
+icon('briefcase',
+     '<rect x="3.75" y="7.9" width="16.5" height="11.6" rx="2" fill="currentColor" fill-opacity=".05"/>'
+     '<path d="M9.4 7.9V6.3a1.55 1.55 0 0 1 1.55-1.55h2.1A1.55 1.55 0 0 1 14.6 6.3v1.6"/>'
+     '<path d="M3.75 12.6h16.5"/>'
+     '<rect x="10.55" y="11.7" width="2.9" height="1.9" rx=".5"/>')
+icon('trident',
+     '<path d="M12 21.25v-13"/>'
+     '<path d="M7.25 4.5v2.4a4.75 4.75 0 0 0 9.5 0V4.5"/>'
+     '<path d="M12 8.25v-4.5"/>'
+     '<path d="m10.6 4.75 1.4-1.7 1.4 1.7"/>'
+     '<path d="M8.9 13.4h6.2"/>')
+icon('puzzle',
+     '<path d="M6 8.25A2.25 2.25 0 0 1 8.25 6h1.35a2.4 2.4 0 0 1 4.8 0h1.35A2.25 2.25 0 0 1 18 8.25v1.35a2.4 2.4 0 0 1 0 4.8v1.35A2.25 2.25 0 0 1 15.75 18H8.25A2.25 2.25 0 0 1 6 15.75Z" fill="currentColor" fill-opacity=".06"/>')
+icon('pawn',
+     '<circle cx="12" cy="6.4" r="2.9" fill="currentColor" fill-opacity=".1"/>'
+     '<path d="M10.3 9.1c-.3 2.7-1.3 5-2.9 6.65h9.2C15 14.1 14 11.8 13.7 9.1"/>'
+     '<path d="M6.75 19.5c.5-1.6 2.7-2.75 5.25-2.75s4.75 1.15 5.25 2.75Z" fill="currentColor" fill-opacity=".1"/>')
+icon('infinity',
+     '<path d="M12 12c-1.6-2.3-3-3.4-4.7-3.4a3.4 3.4 0 1 0 0 6.8c1.7 0 3.1-1.1 4.7-3.4Z"/>'
+     '<path d="M12 12c1.6 2.3 3 3.4 4.7 3.4a3.4 3.4 0 1 0 0-6.8c-1.7 0-3.1 1.1-4.7 3.4Z"/>')
+icon('door',
+     '<rect x="6" y="3.75" width="12" height="16.5" rx="1.5" fill="currentColor" fill-opacity=".04"/>'
+     '<circle cx="15" cy="12.4" r=".9" fill="currentColor" stroke="none"/>'
+     '<path d="M3.75 20.25h16.5"/>')
+icon('gift',
+     '<rect x="4.5" y="10.4" width="15" height="9.35" rx="1.6" fill="currentColor" fill-opacity=".05"/>'
+     '<rect x="3.75" y="7.1" width="16.5" height="3.3" rx="1.2"/>'
+     '<path d="M12 7.1v12.65"/>'
+     '<path d="M12 7.1C8.6 7.5 6.7 6.1 7.4 4.6c.7-1.4 3.2-.9 4.6 2.5Z"/>'
+     '<path d="M12 7.1c3.4.4 5.3-1 4.6-2.5-.7-1.4-3.2-.9-4.6 2.5Z"/>')
+icon('drop',
+     '<path d="M12 3.9c3.3 4 5.6 7 5.6 10.1a5.6 5.6 0 0 1-11.2 0c0-3.1 2.3-6.1 5.6-10.1Z" fill="currentColor" fill-opacity=".08"/>')
+icon('magnet',
+     '<path d="M6.5 4.5h3.6v7a1.9 1.9 0 0 0 3.8 0v-7h3.6v7a5.5 5.5 0 0 1-11 0Z" fill="currentColor" fill-opacity=".06"/>'
+     '<path d="M6.5 8.25h3.6"/><path d="M13.9 8.25h3.6"/>')
+icon('unlock',
+     '<rect x="5.25" y="10.4" width="13.5" height="9.9" rx="2.2" fill="currentColor" fill-opacity=".08"/>'
+     '<path d="M8.25 10.4V7.75a3.75 3.75 0 0 1 7.3-1.2"/>'
+     '<circle cx="12" cy="15.3" r="1.4" fill="currentColor" stroke="none"/>')
+icon('image',
+     '<rect x="3.75" y="4.75" width="16.5" height="14.5" rx="2" fill="currentColor" fill-opacity=".04"/>'
+     '<circle cx="8.6" cy="9.3" r="1.7"/>'
+     '<path d="m4.6 17.4 4.7-5.4 3.9 4.3 2.5-2.7 4.3 4.5"/>')
+icon('snowflake',
+     '<path d="M12 3.5v17"/><path d="m4.6 7.75 14.8 8.5"/><path d="M19.4 7.75 4.6 16.25"/>'
+     '<path d="m9.9 4.7 2.1 1.7 2.1-1.7" stroke-width="1.5"/>'
+     '<path d="m14.1 19.3-2.1-1.7-2.1 1.7" stroke-width="1.5"/>')
+icon('rabbit',
+     '<path d="M9.4 9.3C8 5.6 8.3 2.6 10 2.2c1.6-.4 2.4 2.4 2.3 6.3"/>'
+     '<path d="M14.6 9.3c1.4-3.7 1.1-6.7-.6-7.1-1.6-.4-2.4 2.4-2.3 6.3"/>'
+     '<circle cx="12" cy="14.7" r="5.9"/>'
+     '<circle cx="9.9" cy="13.9" r=".8" fill="currentColor" stroke="none"/>'
+     '<circle cx="14.1" cy="13.9" r=".8" fill="currentColor" stroke="none"/>'
+     '<path d="M10.9 15.9h2.2l-1.1 1.4Z" fill="currentColor" stroke="currentColor" stroke-width="1.4"/>')
+icon('pill',
+     '<g transform="rotate(-30 12 12)"><rect x="4.7" y="9.2" width="14.6" height="5.6" rx="2.8" fill="currentColor" fill-opacity=".08"/>'
+     '<path d="M12 9.2v5.6"/></g>')
+
 # ---------- Channel-pun icons ----------
 icon('peace',
      '<circle cx="12" cy="12" r="8.75"/><path d="M12 3.25v17.5"/>'
