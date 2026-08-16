@@ -92,14 +92,14 @@ function initTicker() {
     document.body.classList.add('ticker-visible');
 
     // Modern ticker style - fixed top, reserve space
-    ticker.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10005;background:#030712;border-bottom:1px solid #f7931a;padding:0;height:32px;overflow:hidden;display:flex;align-items:center;font-family:inherit;font-size:0.75rem;color:#94a3b8;line-height:32px;';
+    ticker.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10005;background:#030712;border-bottom:1px solid #1e293b;padding:0;height:32px;overflow:hidden;display:flex;align-items:center;font-family:inherit;font-size:0.75rem;color:#94a3b8;line-height:32px;';
     
     // The scrolling track (Triple content for seamless loop)
     var scroller = document.createElement('div');
     scroller.id = 'tickerScroller';
     scroller.style.cssText = 'display:flex;white-space:nowrap;width:max-content;animation:btcTickerScroll 25s linear infinite;will-change:transform;';
     
-    const tickerHtml = "\n        <div class=\"ticker-item-set\" style=\"display:flex;align-items:center;padding-right:50px;\">\n            <span class=\"t-news-items\" style=\"color:#fff;font-weight:600;display:flex;align-items:center;gap:35px;\">\n                <span>📡 LOADING SIGNAL...</span>\n            </span>\n        </div>";
+    const tickerHtml = "\n        <div class=\"ticker-item-set\" style=\"display:flex;align-items:center;padding-right:50px;\">\n            <span class=\"t-news-items\" style=\"color:#cbd5e1;font-weight:500;display:flex;align-items:center;gap:35px;\">\n                <span>📡 LOADING SIGNAL...</span>\n            </span>\n        </div>";
     scroller.innerHTML = tickerHtml + tickerHtml + tickerHtml + tickerHtml;
     ticker.innerHTML = '';
     ticker.appendChild(scroller);
@@ -135,7 +135,7 @@ function initTicker() {
             data.news.forEach((n, i) => { 
                 var safeTitle = (typeof escapeHtml === 'function' ? escapeHtml(n.title) : n.title.replace(/<[^>]+>/g, '')).toUpperCase();
                 var safeLink = (n.link && /^https:\/\//.test(n.link)) ? n.link : '#';
-                html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeLink + '\',\'_blank\',\'noopener,noreferrer\');"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>'; 
+                html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeLink + '\',\'_blank\',\'noopener,noreferrer\');"><span style="color:#f7931a;opacity:0.55;margin-right:8px;font-weight:700;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>'; 
             });
             itemsSets.forEach(el => el.innerHTML = html);
         }
@@ -157,7 +157,7 @@ function initTicker() {
                 data.news.slice(0, 3).forEach(function(n, i) {
                     var safeTitle = (typeof escapeHtml === 'function' ? escapeHtml(n.title) : n.title.replace(/<[^>]+>/g, '')).toUpperCase();
                     var safeLink = (n.link && /^https:\/\//.test(n.link)) ? n.link : '#';
-                    html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeLink + '\',\'_blank\',\'noopener,noreferrer\');"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>';
+                    html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeLink + '\',\'_blank\',\'noopener,noreferrer\');"><span style="color:#f7931a;opacity:0.55;margin-right:8px;font-weight:700;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>';
                 });
                 // Only update DOM if content actually changed (avoids animation restart)
                 if (html !== _lastSignalHtml) {

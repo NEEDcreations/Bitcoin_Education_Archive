@@ -9,7 +9,6 @@
 :root {
     --ds-radius: 12px;
     --ds-radius-lg: 16px;
-    --ds-surface: var(--bg-side, #0f172a);
     --ds-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
     --ds-shadow-2: 0 6px 18px rgba(0, 0, 0, 0.32);
     --ds-shadow-3: 0 16px 44px rgba(0, 0, 0, 0.45);
@@ -32,7 +31,7 @@ h1, h2, h3, .channel-title { letter-spacing: -0.015em; }
 
 /* ---------- floating chrome rendered by bundle JS ---------- */
 #backToTop, #scrollToBottom, #floatingRandomBtn {
-    background: var(--ds-surface) !important;
+    background: var(--bg-side, #0f172a) !important;
     border: 1px solid var(--border) !important;
     color: var(--text-dim) !important;
     box-shadow: var(--ds-shadow-2) !important;
@@ -44,7 +43,7 @@ h1, h2, h3, .channel-title { letter-spacing: -0.015em; }
 
 /* Sign-up / guest points banner + logged-in user chip */
 #guestPointsBanner, #userDisplay {
-    background: var(--ds-surface) !important;
+    background: var(--bg-side, #0f172a) !important;
     border: 1px solid var(--border) !important;
     box-shadow: var(--ds-shadow-2) !important;
     border-radius: 14px !important;
@@ -52,7 +51,7 @@ h1, h2, h3, .channel-title { letter-spacing: -0.015em; }
 
 /* Toasts and popups */
 .rank-toast {
-    background: var(--ds-surface) !important;
+    background: var(--bg-side, #0f172a) !important;
     border: 1px solid var(--border) !important;
     color: var(--text) !important;
     box-shadow: var(--ds-shadow-3) !important;
@@ -109,4 +108,44 @@ button { -webkit-tap-highlight-color: transparent; }
 /* Ghost-mode save banner: clear the FAB row on mobile */
 @media (max-width: 900px) {
     #ghostModeBanner { bottom: 128px !important; }
+}
+
+/* ---------- final professional pass ---------- */
+
+/* Donate button next to the logo: neutral circle, accent bolt */
+.donate-circle {
+    background: var(--bg-side, #0f172a) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--ds-shadow-2) !important;
+}
+.donate-circle svg polygon { fill: var(--accent) !important; }
+
+/* Kill neon text glows wherever inline styles paint them */
+[style*="text-shadow:0 0"], [style*="text-shadow: 0 0"] { text-shadow: none !important; }
+
+/* Calm wide-tracked ALL-CAPS microlabels from bundle-rendered markup */
+[style*="letter-spacing:2px"], [style*="letter-spacing: 2px"],
+[style*="letter-spacing:1.5px"], [style*="letter-spacing: 1.5px"] {
+    letter-spacing: 0.5px !important;
+}
+
+/* Orange ALL-CAPS section labels -> quiet slate (color = meaning, not decoration) */
+[style*="text-transform:uppercase"][style*="color:#f7931a"],
+[style*="text-transform:uppercase"][style*="color:#f97316"],
+[style*="text-transform:uppercase"][style*="color:var(--accent)"],
+[style*="text-transform: uppercase"][style*="color:#f7931a"],
+[style*="text-transform: uppercase"][style*="color:#f97316"] {
+    color: var(--text-faint) !important;
+    font-weight: 600 !important;
+}
+
+/* Remaining inline orange glow shadows -> one soft elevation */
+[style*="box-shadow:0 4px 20px rgba(249,115,22"],
+[style*="box-shadow:0 4px 20px rgba(247,147,26"],
+[style*="box-shadow:0 4px 16px rgba(59,130,246"],
+[style*="box-shadow:0 4px 24px rgba(247,147,26"],
+[style*="box-shadow:0 0 24px rgba(247,147,26"],
+[style*="box-shadow: 0 8px 25px rgba(249,115,22"],
+[style*="box-shadow: 0 12px 40px rgba(249,115,22"] {
+    box-shadow: var(--ds-shadow-2) !important;
 }

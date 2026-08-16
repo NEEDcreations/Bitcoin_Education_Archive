@@ -60,7 +60,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260816_ch" as="script">
+    <link rel="preload" href="bundle.js?v=20260816_pro" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -203,7 +203,7 @@
         .sr-item:hover, .sr-item:active { background: var(--accent-bg); color: var(--heading); border-left-color: var(--accent); }
         .sr-item .sr-cat { font-size: 0.65rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; }
         .sr-item .sr-match { color: var(--accent); font-size: 0.8rem; margin-top: 4px; line-height: 1.4; }
-        .cat-label { font-size: 0.65rem; text-transform: uppercase; color: #d97706; letter-spacing: 0.6px; margin: 20px 0 8px 12px; font-weight: 800; }
+        .cat-label { font-size: 0.65rem; text-transform: uppercase; color: var(--text-faint); letter-spacing: 0.6px; margin: 20px 0 8px 12px; font-weight: 600; }
         .cat-toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding-right: 12px; transition: color 0.2s; user-select: none; }
         .cat-toggle:hover { color: var(--accent); }
         .cat-arrow { font-size: 0.55rem; transition: transform 0.2s; }
@@ -684,7 +684,7 @@
     }
     </script>
 <!-- proof-of-walk and proof-of-play are lazy-loaded on demand (saves ~55KB on initial parse) -->
-    <link rel="stylesheet" href="design-system.css?v=20260815">
+    <link rel="stylesheet" href="design-system.css?v=20260816_pro2">
 </head>
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;width:0;min-width:0;flex-shrink:0;overflow:visible;"></div>
@@ -1284,9 +1284,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.js?v=20260816_ch" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260816_pro" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
-    <script src="onboarding.js?v=20260816_d2" defer></script>
+    <script src="onboarding.js?v=20260816_pro" defer></script>
     <script src="learning-quests.js?v=20260816_d2" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
