@@ -42,12 +42,11 @@ def icon(name, inner, color=None, root=None):
 
 # ---------- Brand / energy ----------
 icon('zap',
-     f'<path d="M13.4 2.6 5.5 13.1a.45.45 0 0 0 .36.72h4.64l-1.9 7.3c-.11.44.44.72.72.36l7.9-10.5a.45.45 0 0 0-.36-.72h-4.64l1.9-7.3c.11-.44-.44-.72-.72-.36Z" fill="{BTC}" stroke="{BTC}" stroke-width="1.2"/>')
+     '<path d="M13.4 2.6 5.5 13.1a.45.45 0 0 0 .36.72h4.64l-1.9 7.3c-.11.44.44.72.72.36l7.9-10.5a.45.45 0 0 0-.36-.72h-4.64l1.9-7.3c.11-.44-.44-.72-.72-.36Z" fill="currentColor" fill-opacity=".12"/>')
 
 icon('flame',
-     f'<path d="M12 3.4c.6 3-1.2 4.6-2.8 6.2C7.7 11.1 6.6 12.7 6.6 15a5.4 5.4 0 0 0 10.8 0c0-1.9-.7-3.5-1.7-5-.5 1-1.2 1.7-2 2.2.4-3-.3-6.3-1.7-8.8Z" fill="{ORANGE}" fill-opacity=".14"/>'
-     f'<path d="M9.8 15.9a2.2 2.2 0 0 0 4.4 0c0-.9-.5-1.6-1-2.3-.4-.5-.8-1-1.2-1.7-.4.7-.8 1.2-1.2 1.7-.5.7-1 1.4-1 2.3Z"',
-     color=ORANGE)
+     '<path d="M12 3.4c.6 3-1.2 4.6-2.8 6.2C7.7 11.1 6.6 12.7 6.6 15a5.4 5.4 0 0 0 10.8 0c0-1.9-.7-3.5-1.7-5-.5 1-1.2 1.7-2 2.2.4-3-.3-6.3-1.7-8.8Z" fill="currentColor" fill-opacity=".12"/>'
+     '<path d="M9.8 15.9a2.2 2.2 0 0 0 4.4 0c0-.9-.5-1.6-1-2.3-.4-.5-.8-1-1.2-1.7-.4.7-.8 1.2-1.2 1.7-.5.7-1 1.4-1 2.3Z"/>')
 
 icon('deer',
      '<path d="M9.2 9.1 7.2 4.5 5.3 5.9"/><path d="M7.2 4.5 7.7 2.2"/>'
@@ -63,7 +62,7 @@ icon('rocket',
      '<path d="M12 3.2c3 1.6 4.7 4.6 4.7 8.1 0 1.5-.3 2.9-.8 4.2H8.1a11 11 0 0 1-.8-4.2c0-3.5 1.7-6.5 4.7-8.1Z" fill="currentColor" fill-opacity=".08"/>'
      '<circle cx="12" cy="9.6" r="1.9"/>'
      '<path d="M8.1 13.6 5.6 18.9l3.5-1.1"/><path d="M15.9 13.6l2.5 5.3-3.5-1.1"/>'
-     f'<path d="M12 18.4v2.9" stroke="{ORANGE}"/>')
+     '<path d="M12 18.4v2.9"/>')
 
 icon('sparkles',
      '<path d="M11 4.6c.4 3 2.3 4.9 5.3 5.3-3 .4-4.9 2.3-5.3 5.3-.4-3-2.3-4.9-5.3-5.3 3-.4 4.9-2.3 5.3-5.3Z" fill="currentColor" fill-opacity=".14"/>'
@@ -74,8 +73,8 @@ icon('confetti',
      '<path d="M8.9 8.9 4.4 19.6l10.7-4.5Z" fill="currentColor" fill-opacity=".1"/>'
      '<path d="M12.4 5.9c1.1-1.1 2.2-1.1 3.3 0"/>'
      '<path d="M18.1 11.6c1.1-1.1 2.2-1.1 3.3 0"/>'
-     f'<circle cx="13.4" cy="3.4" r="1" fill="{BTC}" stroke="none"/>'
-     f'<circle cx="20.6" cy="8" r="1" fill="{BTC}" stroke="none"/>'
+     '<circle cx="13.4" cy="3.4" r="1" fill="currentColor" stroke="none"/>'
+     '<circle cx="20.6" cy="8" r="1" fill="currentColor" stroke="none"/>'
      '<circle cx="17.2" cy="16.8" r="1" fill="currentColor" stroke="none"/>'
      '<path d="M17.6 3.9l-.9 1.6"/>')
 
@@ -153,7 +152,7 @@ icon('gem',
      '<path d="M3.3 9.4h17.4"/><path d="M7.2 4l1.7 5.4L12 20.6l3.1-11.2L16.8 4"/>')
 icon('target',
      '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.9"/>'
-     f'<circle cx="12" cy="12" r="1.5" fill="{ORANGE}" stroke="none"/>')
+     '<circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>')
 
 # ---------- Communication ----------
 icon('chat',
@@ -404,10 +403,10 @@ icon('gamepad',
      '<circle cx="15.3" cy="11.6" r=".55" fill="currentColor"/><circle cx="17.4" cy="13.5" r=".55" fill="currentColor"/>')
 icon('palette',
      '<path d="M12 3.4a8.6 8.6 0 1 0 0 17.2c1.3 0 2-.8 2-1.8 0-.9-.6-1.35-.6-2.2 0-1 .8-1.8 2-1.8h1.9a3.3 3.3 0 0 0 3.3-3.3A8.7 8.7 0 0 0 12 3.4Z" fill="currentColor" fill-opacity=".05"/>'
-     f'<circle cx="7.6" cy="9.1" r="1" fill="{ORANGE}" stroke="none"/>'
-     f'<circle cx="11.4" cy="6.9" r="1" fill="{BLUE}" stroke="none"/>'
-     f'<circle cx="15.5" cy="8.3" r="1" fill="{GREEN}" stroke="none"/>'
-     f'<circle cx="6.9" cy="13.4" r="1" fill="{PURPLE}" stroke="none"/>')
+     '<circle cx="7.6" cy="9.1" r="1" fill="currentColor" stroke="none"/>'
+     '<circle cx="11.4" cy="6.9" r="1" fill="currentColor" stroke="none"/>'
+     '<circle cx="15.5" cy="8.3" r="1" fill="currentColor" stroke="none"/>'
+     '<circle cx="6.9" cy="13.4" r="1" fill="currentColor" stroke="none"/>')
 icon('dice',
      '<rect x="4" y="4" width="16" height="16" rx="3.4" fill="currentColor" fill-opacity=".05"/>'
      '<circle cx="8.4" cy="8.4" r="1.1" fill="currentColor" stroke="none"/>'
@@ -425,7 +424,7 @@ icon('wheel',
      '<circle cx="12" cy="12" r="8.5" fill="currentColor" fill-opacity=".04"/>'
      '<path d="M12 3.5v17"/><path d="M3.5 12h17"/>'
      '<path d="m6 6 12 12"/><path d="M18 6 6 18"/>'
-     f'<circle cx="12" cy="12" r="2" fill="{ORANGE}" stroke="{ORANGE}"/>')
+     '<circle cx="12" cy="12" r="2" fill="currentColor"/>')
 icon('ticket',
      '<path d="M20.25 7.4H3.75v3.3a2.3 2.3 0 0 1 0 4.6v3.3h16.5v-3.3a2.3 2.3 0 0 1 0-4.6Z" fill="currentColor" fill-opacity=".07"/>'
      '<path d="M14.9 7.4v2.2m0 2.6v1.6m0 2.6v2.2" stroke-dasharray="none"/>')
