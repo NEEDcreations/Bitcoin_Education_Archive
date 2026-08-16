@@ -172,7 +172,7 @@
         .sidebar-collapse-btn:hover { border-color: var(--accent); color: var(--accent); }
         @media (min-width: 901px) { .sidebar-collapse-btn { display: flex; } }
         .sidebar-header { padding: 24px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-        .sidebar-header h2 { color: var(--accent); font-size: 1rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 900; line-height: 1.3; }
+        .sidebar-header h2 { color: var(--accent); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 900; line-height: 1.3; }
         .sidebar-header p { color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; }
         .channels { flex: 1; overflow-y: auto; padding: 12px; }
         .search-box { padding: 16px 12px 12px; border-bottom: 1px solid var(--border); }
@@ -203,7 +203,7 @@
         .sr-item:hover, .sr-item:active { background: var(--accent-bg); color: var(--heading); border-left-color: var(--accent); }
         .sr-item .sr-cat { font-size: 0.65rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; }
         .sr-item .sr-match { color: var(--accent); font-size: 0.8rem; margin-top: 4px; line-height: 1.4; }
-        .cat-label { font-size: 0.65rem; text-transform: uppercase; color: #d97706; letter-spacing: 2px; margin: 20px 0 8px 12px; font-weight: 800; }
+        .cat-label { font-size: 0.65rem; text-transform: uppercase; color: #d97706; letter-spacing: 0.6px; margin: 20px 0 8px 12px; font-weight: 800; }
         .cat-toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding-right: 12px; transition: color 0.2s; user-select: none; }
         .cat-toggle:hover { color: var(--accent); }
         .cat-arrow { font-size: 0.55rem; transition: transform 0.2s; }
@@ -224,7 +224,7 @@
         .fade-in { animation: fadeSlideIn 0.35s ease-out; }
 
         .hero { padding: 80px 60px 40px; max-width: 1300px; margin: 0 auto; }
-        .hero .cat { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 800; margin-bottom: 12px; }
+        .hero .cat { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--accent); font-weight: 800; margin-bottom: 12px; }
         .hero h1 { font-size: 2.4rem; font-weight: 900; color: var(--heading); letter-spacing: -0.5px; line-height: 1.25; margin-bottom: 16px; font-family: var(--display-font); }
         .hero .desc { color: var(--text-muted); font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 30px; margin-bottom: 0; }
         
@@ -355,12 +355,13 @@
         .username-box .skip:hover { color: var(--text-dim); }
 
         /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
-        .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; border:none; color:#fff; font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-        .fab-btn:hover { transform:translateY(-2px) translateZ(0); filter:brightness(1.1); }
-        #chatOverlayBtn { right:184px; background:linear-gradient(135deg,#3b82f6,#6366f1); box-shadow:0 4px 16px rgba(59,130,246,0.4); }
-        #aiToolsBtn     { right:128px; background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 4px 20px rgba(99,102,241,0.4); }
-        #dashboardFloatBtn { right:72px; background:linear-gradient(135deg,#f97316,#eab308); box-shadow:0 4px 20px rgba(249,115,22,0.4); }
-        #lbFloatBtn     { right:16px; background:var(--accent,#f7931a); box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:200002; }
+        .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; background:var(--bg-side); border:1px solid var(--border); color:var(--text-dim); box-shadow:0 6px 18px rgba(0,0,0,0.30); font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+        .fab-btn:hover { transform:translateY(-2px) translateZ(0); color:var(--accent); border-color:var(--accent); }
+        [data-theme="light"] .fab-btn { box-shadow:0 6px 18px rgba(15,23,42,0.08); }
+        #chatOverlayBtn { right:184px; }
+        #aiToolsBtn     { right:128px; }
+        #dashboardFloatBtn { right:72px; }
+        #lbFloatBtn     { right:16px; z-index:200002; }
 
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
@@ -402,7 +403,7 @@
         .oled-theme .glass-dark { background: rgba(0,0,0,0.8); }
 
         @keyframes badgeBounce { 0% { transform: scale(0); } 50% { transform: scale(1.3); } 70% { transform: scale(0.9); } 100% { transform: scale(1); } }
-        @keyframes streakGlow { 0%, 100% { text-shadow: 0 0 5px #f97316, 0 0 10px #f97316; transform: scale(1); } 50% { text-shadow: 0 0 20px #f97316, 0 0 30px #f97316, 0 0 40px #fbbf24; transform: scale(1.05); } }
+        @keyframes streakGlow { 0%, 100% { text-shadow: 0 0 6px rgba(249,115,22,0.35); transform: scale(1); } 50% { text-shadow: 0 0 12px rgba(249,115,22,0.5); transform: scale(1.02); } }
         @keyframes tickerScroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
         /* Quest Modal */
@@ -458,7 +459,7 @@
         .home-stat-label { font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
         .daily-channel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px; margin-bottom: 30px; cursor: pointer; transition: 0.2s; text-align: left; }
         .daily-channel:hover { border-color: var(--accent); box-shadow: 0 4px 20px var(--accent-glow); }
-        .daily-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); font-weight: 800; margin-bottom: 8px; }
+        .daily-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-weight: 800; margin-bottom: 8px; }
         .daily-title { color: var(--heading); font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; }
         .daily-desc { color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; }
 
@@ -683,6 +684,7 @@
     }
     </script>
 <!-- proof-of-walk and proof-of-play are lazy-loaded on demand (saves ~55KB on initial parse) -->
+    <link rel="stylesheet" href="design-system.css?v=20260815">
 </head>
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;width:0;min-width:0;flex-shrink:0;overflow:visible;"></div>
@@ -713,7 +715,7 @@
     </div>
 
     <aside id="sidebar">
-        <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
+        <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--bg-side);color:var(--text-dim);width:50px;height:50px;border-radius:50%;border:1px solid var(--border);box-shadow:0 6px 18px rgba(0,0,0,0.30);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
         <button class="mobile-close" onclick="toggleMenu()">✕</button>
         <div class="sidebar-header">
             <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
@@ -729,7 +731,7 @@
         </div>
         <div class="search-box">
             <div id="activity-ticker" style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;padding:6px 12px;font-size:0.75rem;color:var(--text-muted);overflow:hidden;white-space:nowrap;display:none;align-items:center;gap:8px;position:relative;">
-                <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(0,0,0,0.9);padding:3px 10px;border-radius:4px;flex-shrink:0;z-index:2;position:relative;border:1px solid rgba(247,147,26,0.3);box-shadow:8px 0 12px rgba(0,0,0,0.9);">🔴 Live</span>
+                <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(0,0,0,0.9);padding:3px 10px;border-radius:4px;flex-shrink:0;z-index:2;position:relative;border:1px solid rgba(247,147,26,0.3);">🔴 Live</span>
                 <div id="ticker-content" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
             </div>
             <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all topics..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="doSearch(this.value)">
@@ -919,7 +921,7 @@
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
             </div>
             <div style="margin:14px 8px 12px;text-align:center;">
-                <button id="randomToggleBtn" onclick="toggleRandomPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">🎲 Random <span id="randomToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
+                <button id="randomToggleBtn" onclick="toggleRandomPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">🎲 Random <span id="randomToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
                 <div id="randomPanel" style="display:none;margin-top:8px;">
                     <div style="display:flex;gap:8px;justify-content:center;">
                         <button class="random-btn" onclick="goRandom()" title="Random Channel"><span>🎲</span><span class="random-label">Channel</span></button>
@@ -942,7 +944,7 @@
                 };
             </script>
             <div style="margin:12px 8px 12px;text-align:center;">
-                <button id="communityStatsToggle" onclick="toggleCommunityStatsPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='#22c55e';this.style.color='#22c55e'" onmouseout="var o=document.getElementById('communityStatsPanel2');this.style.borderColor=o&&o.style.display!=='none'?'#22c55e':'var(--border)';this.style.color=o&&o.style.display!=='none'?'#22c55e':'var(--text-muted)'">🌍 Community Stats <span id="csToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
+                <button id="communityStatsToggle" onclick="toggleCommunityStatsPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='#22c55e';this.style.color='#22c55e'" onmouseout="var o=document.getElementById('communityStatsPanel2');this.style.borderColor=o&&o.style.display!=='none'?'#22c55e':'var(--border)';this.style.color=o&&o.style.display!=='none'?'#22c55e':'var(--text-muted)'">🌍 Community Stats <span id="csToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
                 <div id="communityStatsPanel2" style="display:none;margin-top:10px;padding:10px;text-align:center;">
                     <div id="communityStatsInner" style="font-size:0.82rem;color:var(--text-muted);line-height:2;">Loading...</div>
                 </div>
@@ -974,14 +976,14 @@
         <div id="home" class="home-page">
             <div class="home-inner">
                 <div class="home-logos">
-                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
+                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 10px 30px rgba(0,0,0,0.35);border:1px solid var(--border);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
                     <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">Bitcoin Quest</h1>
                 <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 146 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
                 <!-- Intro/Tutorial Video -->
                 <div id="introVideoSection" style="width:100%;max-width:640px;margin:0 auto 24px auto;">
-                    <div id="introVideoFull" style="position:relative;width:100%;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 4px 32px rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.25);">
+                    <div id="introVideoFull" style="position:relative;width:100%;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 10px 32px rgba(0,0,0,0.30);border:1px solid var(--border);">
                         <video id="introVideo" controls playsinline preload="metadata" style="display:block;width:100%;max-height:360px;object-fit:contain;" onplay="var o=document.getElementById('introVideoOverlay');if(o){o.style.opacity='0';o.style.pointerEvents='none';}">
                             <source src="https://assets.bitcoineducation.quest/videos/intro-tutorial.mp4" type="video/mp4">
                         </video>
@@ -1008,7 +1010,7 @@
                         <div onclick="if(typeof showGuide==='function')showGuide()" style="flex:1;padding:16px 18px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(168,85,247,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:16px;cursor:pointer;transition:all 0.2s;position:relative;" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)';this.style.boxShadow='0 4px 20px rgba(99,102,241,0.15)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.25)';this.style.boxShadow='none'">
                             <button onclick="event.stopPropagation();document.getElementById('questGuideFull').style.display='none';document.getElementById('questGuideMini').style.display='flex';localStorage.setItem('btc_guide_collapsed','1')" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;opacity:0.6;">▲ hide</button>
                             <div style="display:flex;align-items:center;gap:14px;">
-                                <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(168,85,247,0.15));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📜</div>
+                                <div style="width:48px;height:48px;border-radius:14px;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📜</div>
                                 <div style="flex:1;min-width:0;">
                                     <div style="font-size:0.95rem;font-weight:800;color:var(--heading);margin-bottom:2px;">Your Quest Begins</div>
                                     <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">Everything you can do — how to earn XP, unlock apps, and level up. Tap to open the full guide.</div>
@@ -1284,8 +1286,8 @@
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.js?v=20260809_1951" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
-    <script src="onboarding.js?v=20260718_2219" defer></script>
-    <script src="learning-quests.js?v=20260801_ux3" defer></script>
+    <script src="onboarding.js?v=20260816_d2" defer></script>
+    <script src="learning-quests.js?v=20260816_d2" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
     <script>
@@ -1294,14 +1296,14 @@
             'hot-topics.js?v=20260628_1300',
             'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260803_1628',
             'scholar.js?v=20260809_1846','beats.js?v=20260809_1346',
-            'global-chat.js?v=20260806_security','lightning.js?v=20260807_1915','lightning-tips.js?v=20260807_1915',
+            'global-chat.js?v=20260816_d2','lightning.js?v=20260807_1915','lightning-tips.js?v=20260807_1915',
             'notifications.js?v=20260730_0723','guide.js?v=20260716_1628','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20260802_1121',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602','satoshi-favor.js?v=20260806_security',
             'timechain-tv.js?v=20260807_2300',
-            'learning-quests.js?v=20260801_ux3',
+            'learning-quests.js?v=20260816_d2',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
         ];
         var _loaded = false;
@@ -1340,17 +1342,17 @@
         var hash = (window.location.hash || '').replace('#', '').split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20260809_1346', 'global-chat.js?v=20260806_security'],
-            'beats':         ['beats.js?v=20260809_1346', 'global-chat.js?v=20260806_security'],
-            'chat':          ['global-chat.js?v=20260806_security'],
-            'dms':           ['global-chat.js?v=20260806_security'],
+            'bitcoin-beats': ['beats.js?v=20260809_1346', 'global-chat.js?v=20260816_d2'],
+            'beats':         ['beats.js?v=20260809_1346', 'global-chat.js?v=20260816_d2'],
+            'chat':          ['global-chat.js?v=20260816_d2'],
+            'dms':           ['global-chat.js?v=20260816_d2'],
             'irl-sync':      ['irl-sync.js?v=20260802_1121'],
             'lightning':     ['lightning.js?v=20260807_1915', 'lightning-tips.js?v=20260807_1915'],
             'pvp':           ['pvp.js?v=20260708_0427'],
             'proof-of-play': ['pvp.js?v=20260708_0427', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20260331'],
-            'learning-quests': ['learning-quests.js?v=20260801_ux3'],
+            'learning-quests': ['learning-quests.js?v=20260816_d2'],
             'timechain-tv':  ['timechain-tv.js?v=20260807_2300'],
             'tv':            ['timechain-tv.js?v=20260807_2300']
         };
@@ -1391,8 +1393,8 @@ if ('serviceWorker' in navigator) {
             var banner = document.createElement('div');
             banner.id = '_swUpdateBanner';
             var _isMobUpd = window.innerWidth <= 900;
-            banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? '130px' : '70px') + ';left:16px;right:16px;z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
-            banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button id="_swRefreshBtn" style="padding:8px 18px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;white-space:nowrap;">↺ Refresh</button>';
+            banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? '130px' : '70px') + ';left:16px;right:16px;z-index:200010;max-width:420px;margin:0 auto;background:var(--bg-side);color:var(--text);border:1px solid var(--border);padding:12px 14px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 16px 44px rgba(0,0,0,0.45);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
+            banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button id="_swRefreshBtn" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;">↺ Refresh</button>';
             document.body.appendChild(banner);
             document.getElementById('_swRefreshBtn').addEventListener('click', function() {
                 var btn = document.getElementById('_swRefreshBtn');

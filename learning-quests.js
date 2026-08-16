@@ -203,10 +203,10 @@ function _lqIllustration_lightning(idx) {
 function _lqIllustration_scarcity(idx) {
     return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:140px;gap:6px;">' +
         '<div style="font-size:2rem;">💎</div>' +
-        '<div style="font-family:monospace;font-size:1.1rem;color:#a855f7;font-weight:700;letter-spacing:2px;">21,000,000</div>' +
-        '<div style="font-size:0.7rem;color:rgba(168,85,247,0.7);letter-spacing:1px;">BTC — FOREVER FIXED</div>' +
-        '<div style="width:140px;height:8px;background:rgba(168,85,247,0.15);border-radius:4px;overflow:hidden;margin-top:4px;">' +
-        '<div style="width:90%;height:100%;background:linear-gradient(90deg,#a855f7,#7c3aed);border-radius:4px;animation:lqPulse 2s ease-in-out infinite;"></div>' +
+        '<div style="font-family:monospace;font-size:1.1rem;color:var(--accent);font-weight:700;letter-spacing:2px;">21,000,000</div>' +
+        '<div style="font-size:0.7rem;color:rgba(247,147,26,0.7);letter-spacing:1px;">BTC — FOREVER FIXED</div>' +
+        '<div style="width:140px;height:8px;background:rgba(247,147,26,0.15);border-radius:4px;overflow:hidden;margin-top:4px;">' +
+        '<div style="width:90%;height:100%;background:linear-gradient(90deg,var(--accent),#ea580c);border-radius:4px;animation:lqPulse 2s ease-in-out infinite;"></div>' +
         '</div>' +
         '<div style="font-size:0.7rem;color:rgba(255,255,255,0.5);">~19.8M mined · ~1.2M remaining</div>' +
         '</div>';
@@ -517,7 +517,7 @@ var LQ_TOPICS = [
         slug: 'scarcity',
         emoji: '💎',
         title: "Bitcoin's Fixed Supply",
-        color: '#a855f7',
+        color: 'var(--accent)',
         badgeId: 'lq_scarcity',
         badgeName: '💎 21M Believer',
         slides: [

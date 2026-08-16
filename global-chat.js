@@ -418,7 +418,7 @@ function renderGlobalChat() {
         '</div>' +
         '<div style="flex-shrink:0;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg-side);">' +
             (hasUsername ?
-                '<div id="chatReplyBanner" style="display:none;padding:6px 12px;background:rgba(99,102,241,0.1);border-left:3px solid #6366f1;border-radius:6px;margin-bottom:6px;font-size:0.75rem;color:var(--text-muted);position:relative;">Replying to <strong id="chatReplyName"></strong>: <span id="chatReplyPreview"></span><span onclick="cancelReply()" style="position:absolute;right:8px;top:4px;cursor:pointer;font-size:0.9rem;color:var(--text-faint);">✕</span></div>' +
+                '<div id="chatReplyBanner" style="display:none;padding:6px 12px;background:rgba(247,147,26,0.1);border-left:3px solid var(--accent);border-radius:6px;margin-bottom:6px;font-size:0.75rem;color:var(--text-muted);position:relative;">Replying to <strong id="chatReplyName"></strong>: <span id="chatReplyPreview"></span><span onclick="cancelReply()" style="position:absolute;right:8px;top:4px;cursor:pointer;font-size:0.9rem;color:var(--text-faint);">✕</span></div>' +
                 '<div style="position:relative;">' +
                     '<div id="chatAutocomplete" style="display:none;position:absolute;bottom:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);z-index:10;"></div>' +
                     '<div style="display:flex;gap:6px;align-items:center;">' +
@@ -589,7 +589,7 @@ function renderChatMessages(msgs) {
 
         var isNacho = m.uid === 'nacho-bot' || m.isNachoAuto === true;
         var _factionStyle = !isNacho && m.faction ? window._factionNameStyle(m.faction) : '';
-        var nameColor = isNacho ? '#22c55e' : isMe ? 'var(--accent)' : '#6366f1';
+        var nameColor = isNacho ? '#22c55e' : isMe ? 'var(--accent)' : 'var(--accent)';
         var bubbleBg = isNacho ? 'rgba(34,197,94,0.06)' : isMe ? 'var(--accent-bg,rgba(247,147,26,0.08))' : 'var(--card-bg)';
         var bubbleBorder = isNacho ? 'rgba(34,197,94,0.2)' : isMe ? 'rgba(247,147,26,0.2)' : 'var(--border)';
         var align = isMe && !isNacho ? 'flex-end' : 'flex-start';
@@ -613,8 +613,8 @@ function renderChatMessages(msgs) {
         html += '</div>';
         if (m.replyToName) {
             var _replyId = m.replyTo || '';
-            html += '<div data-msg-id="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.msgId)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
-            html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
+            html += '<div data-msg-id="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.msgId)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid var(--accent);font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(247,147,26,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.22)\'" onmouseout="this.style.background=\'rgba(247,147,26,0.12)\'">';
+            html += '<span style="font-weight:700;color:var(--accent);font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
             html += '<span style="color:var(--text-muted);">' + esc((m.replyToText||'').substring(0,80)) + (m.replyToText && m.replyToText.length > 80 ? '…' : '') + '</span>';
             html += '</div>';
         }
@@ -747,7 +747,7 @@ function formatChatText(text, mentionUid) {
                      : route === 'favor' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();},100);"
                      : "event.preventDefault();if(typeof go==='function')go('" + route + "');";
         var placeholder = '%%INAPPLINK_' + _inAppLinks.length + '%%';
-        _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>');
+        _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:var(--accent);font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>');
         return placeholder;
     });
     // #channel tags — skip matches inside HTML attributes (href, onclick, style, etc.)
@@ -793,7 +793,7 @@ function formatChatText(text, mentionUid) {
             _mentionHandled = true;
             var safeName = name.trim();
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-            _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-profile-uid="' + esc(mentionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.profileUid)" title="View profile — tap to tip!">@' + safeName + '</span>');
+            _safeMentions.push('<span style="color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-profile-uid="' + esc(mentionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.profileUid)" title="View profile — tap to tip!">@' + safeName + '</span>');
             return placeholder;
         });
     }
@@ -820,7 +820,7 @@ function formatChatText(text, mentionUid) {
             safeName = knownName;
         }
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
+        _safeMentions.push('<span style="color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
         return placeholder;
     });
     // Fallback: single-word @mentions (user-typed, no space in name)
@@ -828,7 +828,7 @@ function formatChatText(text, mentionUid) {
         var safeName = name.replace(/['"]/g, '').trim();
         if (!safeName) return match;
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
+        _safeMentions.push('<span style="color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
         return placeholder;
     });
     // H1: Post-transform sanitization
@@ -905,7 +905,7 @@ function showACResults(trigger, query) {
     var html = '';
     for (var j = 0; j < Math.min(results.length, 8); j++) {
         var r = results[j];
-        html += '<div class="ac-item" data-value="' + esc(r.value) + '" data-trigger="' + trigger + '" onclick="selectAC(this)" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:0.15s;' + (j === 0 ? 'background:rgba(99,102,241,0.1);' : '') + '" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="if(' + j + '!==window._acIndex)this.style.background=\'none\'">';
+        html += '<div class="ac-item" data-value="' + esc(r.value) + '" data-trigger="' + trigger + '" onclick="selectAC(this)" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:0.15s;' + (j === 0 ? 'background:rgba(247,147,26,0.1);' : '') + '" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="if(' + j + '!==window._acIndex)this.style.background=\'none\'">';
         html += '<span style="font-weight:700;font-size:0.85rem;color:var(--accent);">' + esc(r.label) + '</span>';
         if (r.desc) html += '<span style="font-size:0.7rem;color:var(--text-faint);">' + esc(r.desc) + '</span>';
         html += '</div>';
@@ -916,7 +916,7 @@ function showACResults(trigger, query) {
 
 function highlightAC(items) {
     for (var i = 0; i < items.length; i++) {
-        items[i].style.background = i === _acIndex ? 'rgba(99,102,241,0.1)' : 'none';
+        items[i].style.background = i === _acIndex ? 'rgba(247,147,26,0.1)' : 'none';
     }
 }
 
@@ -972,9 +972,9 @@ window._scrollToChatMsg = function(msgId) {
         var origBg = bubble.style.background || '';
         var origTransition = bubble.style.transition || '';
         bubble.style.transition = 'background 0.15s';
-        bubble.style.background = 'rgba(99,102,241,0.35)';
+        bubble.style.background = 'rgba(247,147,26,0.35)';
         setTimeout(function() {
-            bubble.style.background = 'rgba(99,102,241,0.15)';
+            bubble.style.background = 'rgba(247,147,26,0.15)';
             setTimeout(function() {
                 bubble.style.background = origBg;
                 bubble.style.transition = origTransition;
@@ -1727,7 +1727,7 @@ function renderOverlayChat() {
         '</div>' +
         '<div style="flex-shrink:0;padding:8px 14px;border-top:1px solid var(--border);background:var(--bg-side);">' +
             (hasUsername ?
-                '<div id="chatReplyBanner" style="display:none;padding:4px 10px;background:rgba(99,102,241,0.1);border-left:3px solid #6366f1;border-radius:6px;margin-bottom:4px;font-size:0.7rem;color:var(--text-muted);position:relative;">Replying to <strong id="chatReplyName"></strong>: <span id="chatReplyPreview"></span><span onclick="cancelReply()" style="position:absolute;right:6px;top:2px;cursor:pointer;font-size:0.85rem;color:var(--text-faint);">✕</span></div>' +
+                '<div id="chatReplyBanner" style="display:none;padding:4px 10px;background:rgba(247,147,26,0.1);border-left:3px solid var(--accent);border-radius:6px;margin-bottom:4px;font-size:0.7rem;color:var(--text-muted);position:relative;">Replying to <strong id="chatReplyName"></strong>: <span id="chatReplyPreview"></span><span onclick="cancelReply()" style="position:absolute;right:6px;top:2px;cursor:pointer;font-size:0.85rem;color:var(--text-faint);">✕</span></div>' +
                 '<div style="position:relative;">' +
                     '<div id="chatAutocomplete" style="display:none;position:absolute;bottom:100%;left:0;right:0;max-height:150px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);z-index:10;"></div>' +
                     '<div style="display:flex;gap:4px;align-items:center;">' +
@@ -2032,7 +2032,7 @@ window.showGifPicker = function() {
         '<div style="font-size:0.6rem;color:var(--text-faint);margin-bottom:6px;">Paste any GIF/image URL, or search Giphy</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">' +
             '<button onclick="searchGifs(\'bitcoin\')" class="gif-tag" style="padding:4px 10px;border-radius:8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);color:var(--accent);font-size:0.7rem;cursor:pointer;font-family:inherit;">₿ Bitcoin</button>' +
-            '<button onclick="searchGifs(\'lightning\')" class="gif-tag" style="padding:4px 10px;border-radius:8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#6366f1;font-size:0.7rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' +
+            '<button onclick="searchGifs(\'lightning\')" class="gif-tag" style="padding:4px 10px;border-radius:8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);color:var(--accent);font-size:0.7rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' +
             '<button onclick="searchGifs(\'celebration\')" class="gif-tag" style="padding:4px 10px;border-radius:8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);color:#22c55e;font-size:0.7rem;cursor:pointer;font-family:inherit;">🎉 Celebrate</button>' +
             '<button onclick="searchGifs(\'funny\')" class="gif-tag" style="padding:4px 10px;border-radius:8px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.2);color:#eab308;font-size:0.7rem;cursor:pointer;font-family:inherit;">😂 Funny</button>' +
         '</div>' +
@@ -2104,7 +2104,7 @@ window.previewGifBeforeSend = function(url) {
     if (old) old.remove();
     var preview = document.createElement('div');
     preview.id = 'chatImagePreview';
-    preview.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:10px;margin-bottom:6px;';
+    preview.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);border-radius:10px;margin-bottom:6px;';
     preview.innerHTML =
         '<img src="' + url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
         '<div style="flex:1;min-width:0;"><div style="color:var(--text);font-size:0.8rem;font-weight:600;">GIF ready</div><div style="color:var(--text-faint);font-size:0.7rem;">Press Send to share</div></div>' +
@@ -2593,11 +2593,11 @@ window.showDJControlPanel = function() {
 
     var panel = document.createElement('div');
     panel.id = 'djControlPanel';
-    panel.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:310;width:280px;background:var(--bg-side,#1a1a2e);border:2px solid #6366f1;border-radius:16px;box-shadow:0 8px 32px rgba(99,102,241,0.3);display:flex;flex-direction:column;transition:0.3s;overflow:hidden;';
+    panel.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:310;width:280px;background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:16px;box-shadow:0 8px 32px rgba(247,147,26,0.3);display:flex;flex-direction:column;transition:0.3s;overflow:hidden;';
 
     panel.innerHTML =
         '<div onclick="var body=document.getElementById(\'djControlBody\');var arrow=document.getElementById(\'djControlArrow\');if(body.style.display===\'none\'){body.style.display=\'block\';arrow.textContent=\'▼\'}else{body.style.display=\'none\';arrow.textContent=\'▶\'}" style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid var(--border);">' +
-            '<span style="font-weight:700;font-size:0.85rem;color:#6366f1;">🎛️ DJ Controls</span>' +
+            '<span style="font-weight:700;font-size:0.85rem;color:var(--accent);">🎛️ DJ Controls</span>' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span id="djControlArrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>' +
                 '<span onclick="event.stopPropagation();document.getElementById(\'djControlPanel\').style.display=\'none\'" style="color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 6px;">✕</span>' +
@@ -2619,9 +2619,9 @@ window.showDJControlPanel = function() {
                 '<div style="display:flex;flex-wrap:wrap;gap:5px;">' +
                     '<button onclick="djPlaySFX(\'horn\')" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">📯 Horn</button>' +
                     '<button onclick="djPlaySFX(\'airhorn\')" style="padding:6px 10px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:8px;color:#eab308;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">📢 Airhorn</button>' +
-                    '<button onclick="djPlaySFX(\'scratch\')" style="padding:6px 10px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#6366f1;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">💿 Scratch</button>' +
+                    '<button onclick="djPlaySFX(\'scratch\')" style="padding:6px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">💿 Scratch</button>' +
                     '<button onclick="djPlaySFX(\'rewind\')" style="padding:6px 10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#22c55e;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">⏪ Rewind</button>' +
-                    '<button onclick="djPlaySFX(\'boom\')" style="padding:6px 10px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);border-radius:8px;color:#a855f7;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">💥 Boom</button>' +
+                    '<button onclick="djPlaySFX(\'boom\')" style="padding:6px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">💥 Boom</button>' +
                     '<button onclick="djPlaySFX(\'applause\')" style="padding:6px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">👏 Applause</button>' +
                 '</div>' +
             '</div>' +
@@ -2630,7 +2630,7 @@ window.showDJControlPanel = function() {
             '<div style="margin-bottom:12px;">' +
                 '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
                     '<span style="color:var(--text-faint);font-size:0.7rem;">🎵 Up Next</span>' +
-                    '<button onclick="djShowTrackPicker()" style="padding:3px 8px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:6px;color:#6366f1;font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">+ Add Track</button>' +
+                    '<button onclick="djShowTrackPicker()" style="padding:3px 8px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">+ Add Track</button>' +
                 '</div>' +
                 '<div id="djUpNextList" style="display:flex;flex-direction:column;gap:4px;"></div>' +
             '</div>' +
@@ -2703,7 +2703,7 @@ window.djShowTrackPicker = function() {
     for (var i = 0; i < tracks.length; i++) {
         var t = tracks[i];
         var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
-        listHtml += '<div class="djPickerItem" data-search="' + esc((t.title || '') + ' ' + (t.artist || t.authorName || '')).toLowerCase() + '" onclick="djAddToQueue(' + i + ')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'none\'">' +
+        listHtml += '<div class="djPickerItem" data-search="' + esc((t.title || '') + ' ' + (t.artist || t.authorName || '')).toLowerCase() + '" onclick="djAddToQueue(' + i + ')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="this.style.background=\'none\'">' +
             '<div style="font-size:0.8rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(t.title || 'Untitled') + '</div>' +
             '<div style="font-size:0.65rem;color:var(--text-faint);">' + esc(t.artist || t.authorName || 'Unknown') + '</div>' +
         '</div>';
@@ -3096,7 +3096,7 @@ function showDJBar(d) {
     if (!bar) {
         bar = document.createElement('div');
         bar.id = 'djNowPlaying';
-        bar.style.cssText = 'position:relative;z-index:5;background:#0a0a0f;border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:10px 14px;margin-bottom:8px;flex-shrink:0;';
+        bar.style.cssText = 'position:relative;z-index:5;background:#0a0a0f;border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:10px 14px;margin-bottom:8px;flex-shrink:0;';
         // Insert before the messages container, not inside it
         var chatPanel = container.parentElement;
         if (chatPanel) chatPanel.insertBefore(bar, container);
@@ -3135,11 +3135,11 @@ function showDJBar(d) {
     bar.innerHTML =
         // Row 1: DJ label
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
-            '<div style="font-size:0.72rem;color:#6366f1;font-weight:700;">' + djLabel + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
+            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;">' + djLabel + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
         '</div>' +
         // Row 2: Cover art + track info
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
-            (d.trackCoverArt ? '<img src="' + (typeof _safeCover === 'function' ? _safeCover(d.trackCoverArt) : esc(d.trackCoverArt)) + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:40px;height:40px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">' + (isNacho ? '🦌' : '🎧') + '</div>') +
+            (d.trackCoverArt ? '<img src="' + (typeof _safeCover === 'function' ? _safeCover(d.trackCoverArt) : esc(d.trackCoverArt)) + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:40px;height:40px;border-radius:8px;background:rgba(247,147,26,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">' + (isNacho ? '🦌' : '🎧') + '</div>') +
             '<div style="flex:1;min-width:0;">' +
                 '<div style="font-size:0.85rem;color:var(--heading,#fff);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">♫ ' + esc(d.trackTitle) + '</div>' +
                 '<div style="font-size:0.72rem;color:var(--text-muted);">' + artistHtml + '</div>' +
@@ -3174,7 +3174,7 @@ function addDJButton() {
     btn.id = 'djGoLiveBtn';
     btn.textContent = '📡 DJ';
     btn.title = 'Broadcast to Global Chat';
-    btn.style.cssText = 'padding:4px 8px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#6366f1;font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;margin-left:4px;';
+    btn.style.cssText = 'padding:4px 8px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;margin-left:4px;';
     btn.onclick = function(e) { e.stopPropagation(); djBroadcast(); };
     var controls = mini.querySelector('div') || mini;
     controls.appendChild(btn);
@@ -3643,7 +3643,7 @@ function _renderAnnouncementItem(doc, context) {
         // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
         text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
             var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:var(--accent);font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
     } else {
         // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
@@ -3652,12 +3652,12 @@ function _renderAnnouncementItem(doc, context) {
         text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
             _annMentionFound = true;
             var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:var(--accent);font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
         // Also handle any remaining single-word @mentions (user-typed in normal chat)
         if (!_annMentionFound) {
             text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+)/g, function(_, uname) {
-                return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+                return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:var(--accent);font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
             });
         }
     }

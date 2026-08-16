@@ -1,0 +1,112 @@
+/* ==========================================================================
+   Bitcoin Education Archive — design system overlay
+   Loaded after page styles on every page. Unifies chrome that scattered
+   inline styles can't keep consistent: one accent (Bitcoin orange), neutral
+   surfaces, a single shadow scale, calm typography. Both themes supported —
+   everything derives from the theme variables set in index.html.
+   ========================================================================== */
+
+:root {
+    --ds-radius: 12px;
+    --ds-radius-lg: 16px;
+    --ds-surface: var(--bg-side, #0f172a);
+    --ds-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --ds-shadow-2: 0 6px 18px rgba(0, 0, 0, 0.32);
+    --ds-shadow-3: 0 16px 44px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] {
+    --ds-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --ds-shadow-2: 0 6px 18px rgba(15, 23, 42, 0.07);
+    --ds-shadow-3: 0 16px 44px rgba(15, 23, 42, 0.11);
+}
+
+/* ---------- typography rhythm ---------- */
+h1, h2, h3, .channel-title { letter-spacing: -0.015em; }
+
+/* ---------- scrollbars ---------- */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- floating chrome rendered by bundle JS ---------- */
+#backToTop, #scrollToBottom, #floatingRandomBtn {
+    background: var(--ds-surface) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-dim) !important;
+    box-shadow: var(--ds-shadow-2) !important;
+}
+#backToTop:hover, #scrollToBottom:hover, #floatingRandomBtn:hover {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+/* Sign-up / guest points banner + logged-in user chip */
+#guestPointsBanner, #userDisplay {
+    background: var(--ds-surface) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--ds-shadow-2) !important;
+    border-radius: 14px !important;
+}
+
+/* Toasts and popups */
+.rank-toast {
+    background: var(--ds-surface) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    box-shadow: var(--ds-shadow-3) !important;
+    border-radius: 14px !important;
+}
+
+/* Bottom navigation (mobile) */
+#bottomNav {
+    background: rgba(2, 6, 23, 0.88) !important;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--border) !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] #bottomNav {
+    background: rgba(255, 255, 255, 0.88) !important;
+}
+
+/* Overlay panels get one consistent elevation */
+#appsMenu, #leaderboard, #aiToolsPanel, #miniPlayer, #dmWindow, #dmInbox {
+    border-radius: var(--ds-radius-lg) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--ds-shadow-3) !important;
+}
+
+/* ---------- single-accent policy: neutralize stray indigo/purple chrome
+   rendered from the bundle (attribute-targeted so games/sub-brands that
+   define their own classed styles are unaffected) ---------- */
+[style*="linear-gradient(135deg,rgba(99,102,241"],
+[style*="linear-gradient(135deg,rgba(139,92,246"],
+[style*="linear-gradient(135deg,rgba(168,85,247"],
+[style*="linear-gradient(135deg, rgba(99,102,241"] {
+    background: var(--card-bg) !important;
+}
+
+/* ---------- tame leftover neon glows on inline-styled elements ---------- */
+[style*="box-shadow:0 0 15px rgba(247,147,26"],
+[style*="box-shadow:0 0 20px rgba(247,147,26"],
+[style*="box-shadow: 0 0 15px rgba(247,147,26"],
+[style*="box-shadow: 0 0 20px rgba(247,147,26"] {
+    box-shadow: var(--ds-shadow-2) !important;
+}
+
+/* ---------- buttons: calm the shouting ---------- */
+button { -webkit-tap-highlight-color: transparent; }
+
+/* Focus ring: keep visible but tighter than the default orange flood */
+:focus-visible {
+    outline: 2px solid var(--accent) !important;
+    outline-offset: 2px;
+    box-shadow: none !important;
+}
+
+/* Ghost-mode save banner: clear the FAB row on mobile */
+@media (max-width: 900px) {
+    #ghostModeBanner { bottom: 128px !important; }
+}

@@ -27,6 +27,17 @@ real emojis.
 
 To keep an element's emojis native, add `data-emoji-keep` to it (or any ancestor).
 
+### Design system overlay
+
+`design-system.css` rides on top of the page styles on every page: one accent
+(Bitcoin orange), neutral surfaces, a single shadow scale, thin scrollbars, and
+unified floating buttons/toasts/panels in both themes. Decorative indigo/purple
+chrome was normalized to the accent at the source in `onboarding.js`,
+`global-chat.js`, and `learning-quests.js` (game/faction colors and the
+Timechain TV sub-brand palette are intentionally untouched). When editing those
+lazy-loaded files, bump their `?v=` query in **both** `index.html` and
+`404.html` or browsers keep the stale cached copy.
+
 Rebuild after changing icons or mappings:
 
 ```
