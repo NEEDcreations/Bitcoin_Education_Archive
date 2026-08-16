@@ -1,47 +1,55 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <!-- Antlers -->
-  <g fill="none" stroke="#8B4513" stroke-width="5" stroke-linecap="round">
-    <!-- Left antler -->
-    <path d="M70 65 L55 30 L45 40"/>
-    <path d="M55 30 L60 15"/>
-    <path d="M55 30 L40 20"/>
-    <!-- Right antler -->
-    <path d="M130 65 L145 30 L155 40"/>
-    <path d="M145 30 L140 15"/>
-    <path d="M145 30 L160 20"/>
+  <!-- Nacho v2 — sleek line-art mascot. Bold ink outline, white sticker fill,
+       single orange accent. Idle animations (breathe, blink, ear twitch) are
+       baked in so every <img> instance is alive. -->
+  <style>
+    .ink { stroke: #0f172a; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .body { fill: #ffffff; }
+    .solid { fill: #0f172a; stroke: none; }
+    .accent { fill: #f7931a; }
+    #breathe { animation: nBreathe 3.8s ease-in-out infinite; transform-origin: 100px 192px; }
+    #eyes { animation: nBlink 4.6s linear infinite; transform-origin: 100px 101px; }
+    #earL { animation: nEarL 7.3s linear infinite; transform-origin: 54px 84px; }
+    #earR { animation: nEarR 8.1s linear infinite; transform-origin: 146px 84px; }
+    @keyframes nBreathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.015, 0.978); } }
+    @keyframes nBlink { 0%, 91%, 97%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.07); } }
+    @keyframes nEarL { 0%, 86%, 100% { transform: rotate(0deg); } 90% { transform: rotate(-9deg); } 95% { transform: rotate(3deg); } }
+    @keyframes nEarR { 0%, 70%, 84%, 100% { transform: rotate(0deg); } 75% { transform: rotate(9deg); } 80% { transform: rotate(-3deg); } }
+    @media (prefers-reduced-motion: reduce) { #breathe, #eyes, #earL, #earR { animation: none; } }
+  </style>
+  <g id="breathe">
+    <!-- antlers -->
+    <path class="ink" d="M74 56 63 26"/>
+    <path class="ink" d="M63 26 66 10"/>
+    <path class="ink" d="M63 26 48 24"/>
+    <path class="ink" d="M126 56l11-30"/>
+    <path class="ink" d="M137 26l-3-16"/>
+    <path class="ink" d="M137 26l15-2"/>
+    <!-- ears -->
+    <g id="earL"><path class="ink body" d="M58 82C46 64 28 58 16 68c6 16 24 24 42 22Z"/></g>
+    <g id="earR"><path class="ink body" d="M142 82c12-18 30-24 42-14-6 16-24 24-42 22Z"/></g>
+    <!-- body blob -->
+    <path class="ink body" d="M70 140c-6 34 8 52 30 52s36-18 30-52"/>
+    <!-- head -->
+    <path class="ink body" d="M100 54c34 0 55 22 55 50 0 29-22 50-55 50S45 133 45 104c0-28 21-50 55-50Z"/>
+    <!-- feet -->
+    <ellipse class="solid" cx="82" cy="190" rx="9.5" ry="6"/>
+    <ellipse class="solid" cx="118" cy="190" rx="9.5" ry="6"/>
+    <!-- blush -->
+    <circle class="accent" cx="65" cy="117" r="6.5" opacity="0.28"/>
+    <circle class="accent" cx="135" cy="117" r="6.5" opacity="0.28"/>
+    <!-- eyes -->
+    <g id="eyes">
+      <circle class="solid" cx="80" cy="101" r="5.6"/>
+      <circle class="solid" cx="120" cy="101" r="5.6"/>
+    </g>
+    <!-- muzzle -->
+    <ellipse class="ink body" cx="100" cy="122.5" rx="19" ry="12.5" stroke-width="6"/>
+    <path d="M96.5 116.5h7l-3.5 4.4Z" fill="#0f172a" stroke="#0f172a" stroke-width="3" stroke-linejoin="round"/>
+    <path class="ink" d="M93.5 126.5c3 3 10 3 13 0" stroke-width="3"/>
+    <!-- scarf -->
+    <path class="ink accent" d="M70 147q30 11 60 0-2.5 15-14.5 18.5-15.5 4-31 0Q72.5 162 70 147Z" stroke-width="5.5"/>
+    <!-- B on scarf -->
+    <path d="M95.5 151.5v12m0-12h5a3.3 3.3 0 0 1 0 6.6h-5m0 0h5.8a3.3 3.3 0 0 1 0 6.6h-5.8" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <!-- Ears -->
-  <ellipse cx="62" cy="72" rx="18" ry="12" fill="#D2854D" transform="rotate(-30,62,72)"/>
-  <ellipse cx="62" cy="72" rx="12" ry="7" fill="#F0B88A" transform="rotate(-30,62,72)"/>
-  <ellipse cx="138" cy="72" rx="18" ry="12" fill="#D2854D" transform="rotate(30,138,72)"/>
-  <ellipse cx="138" cy="72" rx="12" ry="7" fill="#F0B88A" transform="rotate(30,138,72)"/>
-  <!-- Head -->
-  <ellipse cx="100" cy="110" rx="50" ry="48" fill="#D2854D"/>
-  <!-- Face/lighter area -->
-  <ellipse cx="100" cy="118" rx="35" ry="34" fill="#E8C9A0"/>
-  <!-- Eyes - big and friendly -->
-  <ellipse cx="82" cy="102" rx="12" ry="13" fill="white"/>
-  <ellipse cx="118" cy="102" rx="12" ry="13" fill="white"/>
-  <circle cx="84" cy="103" r="7" fill="#2D1B00"/>
-  <circle cx="120" cy="103" r="7" fill="#2D1B00"/>
-  <!-- Eye shine -->
-  <circle cx="87" cy="100" r="3" fill="white"/>
-  <circle cx="123" cy="100" r="3" fill="white"/>
-  <!-- Nose -->
-  <ellipse cx="100" cy="125" rx="10" ry="7" fill="#1a1a1a"/>
-  <ellipse cx="100" cy="124" rx="10" ry="6.5" fill="#333"/>
-  <!-- Nose shine -->
-  <ellipse cx="97" cy="122" rx="3" ry="2" fill="#555" opacity="0.6"/>
-  <!-- Smile -->
-  <path d="M90 133 Q100 142 110 133" fill="none" stroke="#5D3A1A" stroke-width="2.5" stroke-linecap="round"/>
-  <!-- Cheek blush -->
-  <circle cx="72" cy="118" r="8" fill="#F7931A" opacity="0.25"/>
-  <circle cx="128" cy="118" r="8" fill="#F7931A" opacity="0.25"/>
-  <!-- Body hint -->
-  <ellipse cx="100" cy="170" rx="38" ry="28" fill="#D2854D"/>
-  <!-- Orange scarf/bandana -->
-  <path d="M65 148 Q100 158 135 148 Q132 165 120 168 Q100 172 80 168 Q68 165 65 148Z" fill="#F7931A"/>
-  <path d="M100 168 L96 185 L104 185 Z" fill="#F7931A"/>
-  <!-- Bitcoin B on scarf -->
-  <text x="100" y="163" text-anchor="middle" font-size="18" font-weight="bold" fill="white" font-family="Arial, sans-serif">B</text>
 </svg>

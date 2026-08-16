@@ -10851,6 +10851,10 @@ function createNacho() {
         }
 
         #nacho-avatar.anim-tap { animation: nachoTap 2s ease-in-out infinite; }
+        /* squash-and-stretch on hover/press (v2 vector mascot) */
+        #nacho-avatar img { transform-origin: 50% 100%; transition: transform .16s cubic-bezier(.34,1.56,.64,1); }
+        #nacho-avatar:hover img { transform: scale(1.05); }
+        #nacho-avatar:active img { transform: scale(1.14, .8); }
         #nacho-avatar.anim-lean { animation: nachoLean 3.5s ease-in-out infinite; }
         #nacho-avatar.anim-wiggle { animation: nachoWiggle 2.5s ease-in-out infinite; }
         #nacho-avatar.anim-bounce { animation: nachoBounce 1.8s ease-in-out infinite; }

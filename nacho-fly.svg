@@ -1,112 +1,60 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 200" width="220" height="200">
-  <defs>
-    <radialGradient id="bodyGrad" cx="50%" cy="40%" r="50%">
-      <stop offset="0%" stop-color="#d4915c"/>
-      <stop offset="100%" stop-color="#b07040"/>
-    </radialGradient>
-    <radialGradient id="faceGrad" cx="50%" cy="45%" r="50%">
-      <stop offset="0%" stop-color="#f5dcc0"/>
-      <stop offset="100%" stop-color="#e8c9a0"/>
-    </radialGradient>
-  </defs>
+  <!-- Nacho v2 flying — sticker line-art style matching nacho-deer.svg.
+       Orange cape + wind lines, happy closed eyes. -->
+  <style>
+    .ink { stroke: #0f172a; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .body { fill: #ffffff; }
+    .solid { fill: #0f172a; stroke: none; }
+    #fly { animation: nFly 2.6s ease-in-out infinite; transform-origin: 110px 100px; }
+    @keyframes nFly { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(-2deg); } }
+    @media (prefers-reduced-motion: reduce) { #fly { animation: none; } }
+  </style>
 
-  <!-- Wind trail lines (trailing from upper-left since tilting clockwise) -->
-  <g opacity="0.5" stroke="#f7931a" stroke-width="2.5" stroke-linecap="round" fill="none">
-    <path d="M45 50 Q25 45 5 42" opacity="0.3">
-      <animate attributeName="d" values="M45 50 Q25 45 5 42;M45 50 Q28 48 5 46;M45 50 Q25 45 5 42" dur="1.5s" repeatCount="indefinite"/>
-    </path>
-    <path d="M35 65 Q15 62 -5 58" opacity="0.5">
-      <animate attributeName="d" values="M35 65 Q15 62 -5 58;M35 65 Q18 66 -5 63;M35 65 Q15 62 -5 58" dur="1.8s" repeatCount="indefinite"/>
-    </path>
-    <path d="M50 80 Q30 78 10 75" opacity="0.25">
-      <animate attributeName="d" values="M50 80 Q30 78 10 75;M50 80 Q33 82 10 80;M50 80 Q30 78 10 75" dur="1.3s" repeatCount="indefinite"/>
-    </path>
+  <!-- wind lines -->
+  <g stroke="#0f172a" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.35">
+    <path d="M46 52Q26 47 8 44"><animate attributeName="d" values="M46 52Q26 47 8 44;M46 52Q29 50 8 48;M46 52Q26 47 8 44" dur="1.5s" repeatCount="indefinite"/></path>
+    <path d="M36 92Q18 90 0 87"><animate attributeName="d" values="M36 92Q18 90 0 87;M36 92Q21 94 0 91;M36 92Q18 90 0 87" dur="1.8s" repeatCount="indefinite"/></path>
+    <path d="M48 132Q30 132 12 130"><animate attributeName="d" values="M48 132Q30 132 12 130;M48 132Q33 135 12 134;M48 132Q30 132 12 130" dur="1.3s" repeatCount="indefinite"/></path>
   </g>
 
-  <!-- Cape flowing behind -->
-  <g transform="translate(75, 95) rotate(14)">
-    <path d="M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z" fill="#f7931a" opacity="0.9">
-      <animate attributeName="d" values="M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z;M-5 10 Q-28 28 -42 58 Q-32 48 -22 62 Q-18 42 -8 52 Q-13 32 -5 20 Z;M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z" dur="2s" repeatCount="indefinite"/>
+  <g id="fly" transform="rotate(8 110 100)">
+    <!-- cape -->
+    <path d="M78 108Q48 124 34 156q14-6 22 2 6-16 18-12-4-14 10-22Z" fill="#f7931a" stroke="#0f172a" stroke-width="5.5" stroke-linejoin="round">
+      <animate attributeName="d"
+        values="M78 108Q48 124 34 156q14-6 22 2 6-16 18-12-4-14 10-22Z;M78 108Q44 120 26 148q15-4 24 6 7-17 19-13-5-15 9-21Z;M78 108Q48 124 34 156q14-6 22 2 6-16 18-12-4-14 10-22Z"
+        dur="1.6s" repeatCount="indefinite"/>
     </path>
-    <path d="M-5 10 Q-25 20 -38 45 Q-28 42 -20 50 Q-15 35 -5 20 Z" fill="#ea580c" opacity="0.6">
-      <animate attributeName="d" values="M-5 10 Q-25 20 -38 45 Q-28 42 -20 50 Q-15 35 -5 20 Z;M-5 10 Q-23 23 -35 48 Q-25 44 -18 52 Q-13 37 -5 20 Z;M-5 10 Q-25 20 -38 45 Q-28 42 -20 50 Q-15 35 -5 20 Z" dur="2s" repeatCount="indefinite"/>
-    </path>
-  </g>
-
-  <!-- Main body group — tilted 14° clockwise to match ₿ logo -->
-  <g transform="translate(110, 100) rotate(14)">
-    <!-- Body -->
-    <ellipse cx="0" cy="20" rx="32" ry="36" fill="url(#bodyGrad)"/>
-
-    <!-- Orange shirt with B -->
-    <ellipse cx="0" cy="28" rx="30" ry="24" fill="#f7931a"/>
-    <text x="0" y="36" text-anchor="middle" font-size="22" font-weight="bold" fill="#fff" font-family="Arial, sans-serif">₿</text>
-
-    <!-- Head -->
-    <circle cx="0" cy="-25" r="28" fill="url(#bodyGrad)"/>
-
-    <!-- Face (lighter area) -->
-    <ellipse cx="0" cy="-20" rx="20" ry="18" fill="url(#faceGrad)"/>
-
-    <!-- Eyes -->
-    <ellipse cx="-9" cy="-28" rx="7" ry="8" fill="#fff"/>
-    <ellipse cx="9" cy="-28" rx="7" ry="8" fill="#fff"/>
-    <circle cx="-7" cy="-27" r="4.5" fill="#222"/>
-    <circle cx="11" cy="-27" r="4.5" fill="#222"/>
-    <!-- Eye shine -->
-    <circle cx="-5.5" cy="-29" r="1.8" fill="#fff"/>
-    <circle cx="12.5" cy="-29" r="1.8" fill="#fff"/>
-
-    <!-- Happy mouth -->
-    <path d="M-6 -16 Q0 -10 6 -16" fill="none" stroke="#6b4226" stroke-width="2" stroke-linecap="round"/>
-
-    <!-- Nose -->
-    <ellipse cx="0" cy="-19" rx="3.5" ry="2.5" fill="#6b4226"/>
-
-    <!-- Blush -->
-    <ellipse cx="-14" cy="-18" rx="5" ry="3" fill="#ff9999" opacity="0.4"/>
-    <ellipse cx="14" cy="-18" rx="5" ry="3" fill="#ff9999" opacity="0.4"/>
-
-    <!-- Ears -->
-    <ellipse cx="-22" cy="-35" rx="8" ry="5" fill="#b07040" transform="rotate(-20 -22 -35)"/>
-    <ellipse cx="22" cy="-35" rx="8" ry="5" fill="#b07040" transform="rotate(20 22 -35)"/>
-    <ellipse cx="-22" cy="-35" rx="5" ry="3" fill="#e8c9a0" transform="rotate(-20 -22 -35)"/>
-    <ellipse cx="22" cy="-35" rx="5" ry="3" fill="#e8c9a0" transform="rotate(20 22 -35)"/>
-
-    <!-- Antlers -->
-    <g fill="none" stroke="#8B5E3C" stroke-width="3.5" stroke-linecap="round">
-      <path d="M-12 -48 L-18 -70 L-25 -62"/>
-      <path d="M-18 -62 L-12 -58"/>
-      <path d="M12 -48 L18 -70 L25 -62"/>
-      <path d="M18 -62 L12 -58"/>
-    </g>
-
-    <!-- Arms stretched forward (flying!) -->
-    <g fill="#b07040">
-      <ellipse cx="28" cy="-5" rx="14" ry="7" transform="rotate(-30 28 -5)"/>
-      <ellipse cx="-28" cy="-5" rx="14" ry="7" transform="rotate(30 -28 -5)"/>
-    </g>
-
-    <!-- Legs trailing behind -->
-    <g fill="#b07040">
-      <ellipse cx="-12" cy="52" rx="8" ry="6" transform="rotate(15 -12 52)"/>
-      <ellipse cx="12" cy="52" rx="8" ry="6" transform="rotate(-15 12 52)"/>
-    </g>
-  </g>
-
-  <!-- Speed sparkles -->
-  <g fill="#f7931a">
-    <circle cx="40" cy="70" r="2" opacity="0.6">
-      <animate attributeName="opacity" values="0.6;0.1;0.6" dur="1.2s" repeatCount="indefinite"/>
-      <animate attributeName="cx" values="40;30;40" dur="1.2s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="35" cy="130" r="1.5" opacity="0.4">
-      <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1.5s" repeatCount="indefinite"/>
-      <animate attributeName="cx" values="35;25;35" dur="1.5s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="50" cy="105" r="2.5" opacity="0.5">
-      <animate attributeName="opacity" values="0.5;0.1;0.5" dur="1s" repeatCount="indefinite"/>
-      <animate attributeName="cx" values="50;38;50" dur="1s" repeatCount="indefinite"/>
-    </circle>
+    <!-- antlers -->
+    <path class="ink" d="M104 44 95 18"/>
+    <path class="ink" d="M95 18l2-14"/>
+    <path class="ink" d="M95 18 81 15"/>
+    <path class="ink" d="M150 46l9-26"/>
+    <path class="ink" d="M159 20l-2-14"/>
+    <path class="ink" d="M159 20l14-3"/>
+    <!-- ears -->
+    <path class="ink body" d="M92 68C80 52 63 46 52 55c6 15 23 23 40 21Z"/>
+    <path class="ink body" d="M164 70c11-17 28-24 40-15-5 16-22 25-40 23Z"/>
+    <!-- trailing legs -->
+    <path class="ink" d="M96 152q-10 14-26 16"/>
+    <path class="ink" d="M126 158q-4 16-16 24"/>
+    <ellipse class="solid" cx="68" cy="169" rx="8.5" ry="5.5" transform="rotate(-24 68 169)"/>
+    <ellipse class="solid" cx="109" cy="183" rx="8.5" ry="5.5" transform="rotate(-58 109 183)"/>
+    <!-- body -->
+    <path class="ink body" d="M100 118c-10 24-2 42 18 46 20 4 34-10 32-38"/>
+    <!-- head -->
+    <path class="ink body" d="M128 42c32 4 50 27 47 53-3 28-26 46-58 42-31-4-49-27-46-54 3-26 26-44 57-41Z"/>
+    <!-- blush -->
+    <circle cx="96" cy="106" r="6" fill="#f7931a" opacity="0.28"/>
+    <circle cx="160" cy="112" r="6" fill="#f7931a" opacity="0.28"/>
+    <!-- happy closed eyes -->
+    <path class="ink" d="M104 90q6-7 13-1" stroke-width="5.5"/>
+    <path class="ink" d="M143 93q6-7 13-1" stroke-width="5.5"/>
+    <!-- muzzle -->
+    <ellipse class="ink body" cx="128" cy="112" rx="18" ry="12" stroke-width="6" transform="rotate(4 128 112)"/>
+    <path d="M124 105.5h7l-3.5 4.4Z" fill="#0f172a" stroke="#0f172a" stroke-width="3" stroke-linejoin="round"/>
+    <path class="ink" d="M120.5 117c3.5 3 11.5 3 15 0" stroke-width="3"/>
+    <!-- scarf -->
+    <path d="M96 130q26 14 52 6-1 14-12 18-14 4-28-1-11-4-12-23Z" fill="#f7931a" stroke="#0f172a" stroke-width="5.5" stroke-linejoin="round"/>
+    <path d="M112 142.5v11m0-11h4.6a3 3 0 0 1 0 6h-4.6m0 0h5.3a3 3 0 0 1 0 6h-5.3" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" transform="rotate(6 112 148)"/>
   </g>
 </svg>
