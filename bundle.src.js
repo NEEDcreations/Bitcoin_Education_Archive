@@ -33982,6 +33982,8 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
+
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
         window._navGeneration = (window._navGeneration || 0) + 1;
 
@@ -34080,7 +34082,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
         // Render Satoshi's Favor banner on home
-        if (typeof window._renderSatoshiFavorHome === 'function') window._renderSatoshiFavorHome();
+        try { if (typeof window._renderSatoshiFavorHome === 'function') window._renderSatoshiFavorHome(); } catch(e) { console.warn('[goHome] favor banner failed', e); }
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
             setFloatingElementsVisible(true);

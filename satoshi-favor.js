@@ -328,6 +328,7 @@
     }
 
     function renderHomeBanner() {
+        if (!favorState) return; // state not loaded yet (anon users / slow fetch) - banner renders on next pass
         const homeInner = document.querySelector('#home .home-inner');
         if (!homeInner) return;
 
