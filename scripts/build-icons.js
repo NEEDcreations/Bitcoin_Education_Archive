@@ -66,6 +66,17 @@ const MAP = {
   '➕': 'plus', '📦': 'package', '💾': 'save', '💻': 'laptop', '🖥️': 'monitor',
   '🤖': 'robot', '👥': 'users', '👤': 'user', '🚩': 'flag', '💀': 'skull',
   '🔢': 'hash', '💯': 'hundred',
+  // channel-topic coverage (incl. pun icons)
+  '📆': 'calendar', '🕐': 'clock', '🕑': 'clock', '🕒': 'clock', '🕓': 'clock',
+  '🕔': 'clock', '🕕': 'clock', '🕖': 'clock', '🕗': 'clock', '🕘': 'clock',
+  '🕙': 'clock', '🕚': 'clock', '🕛': 'clock',
+  '✍️': 'pencil', '📒': 'book', '🌀': 'refresh', '♻️': 'refresh', '➰': 'refresh',
+  '🚲': 'wheel', '🛑': 'ban', '🟩': 'dot-green', '💲': 'banknote', '🕳️': 'cube',
+  '🌋': 'mountain', '☣️': 'skull', '👨‍💻': 'laptop', '👩‍💻': 'laptop',
+  '👷': 'toolbox', '👴': 'hourglass', '🏈': 'dice', '🚧': 'bricks', '🥐': 'package',
+  '☮️': 'peace', '🕊️': 'peace', '🍴': 'fork', '🍽️': 'fork', '⛵': 'sailboat',
+  '🏋️': 'dumbbell', '🔋': 'battery', '🥕': 'carrot', '🥤': 'drink', '🥩': 'steak',
+  '🐈': 'cat', '🐱': 'cat', '👕': 'tshirt', '🧢': 'cap', '🍎': 'apple', '🎭': 'laugh',
 };
 
 const VS = '️';

@@ -483,6 +483,65 @@ icon('skull',
 icon('hash',
      '<path d="M9.6 4.5 8.1 19.5"/><path d="M15.9 4.5l-1.5 15"/>'
      '<path d="M4.75 9.25h15.5"/><path d="M4 14.75h15.5"/>')
+# ---------- Channel-pun icons ----------
+icon('peace',
+     '<circle cx="12" cy="12" r="8.75"/><path d="M12 3.25v17.5"/>'
+     '<path d="M12 12 5.8 18.2"/><path d="m12 12 6.2 6.2"/>')
+icon('fork',
+     '<path d="M8.5 3.25V9"/><path d="M15.5 3.25V9"/><path d="M12 3.25v5.5"/>'
+     '<path d="M8.5 9a3.5 3.5 0 0 0 7 0"/><path d="M12 12.5v8.25"/>')
+icon('sailboat',
+     '<path d="M4.25 16.5h15.5l-2.4 3.75H6.65Z" fill="currentColor" fill-opacity=".1"/>'
+     '<path d="M12.4 3.25V16.5"/>'
+     '<path d="M12.4 4 5.4 14h7Z" fill="currentColor" fill-opacity=".08"/>'
+     '<path d="M12.4 4.75 18.4 14h-6"/>')
+icon('dumbbell',
+     '<rect x="4.5" y="8" width="2.6" height="8" rx="1.2"/>'
+     '<rect x="16.9" y="8" width="2.6" height="8" rx="1.2"/>'
+     '<rect x="7.6" y="9.6" width="1.9" height="4.8" rx=".9" fill="currentColor" fill-opacity=".12"/>'
+     '<rect x="14.5" y="9.6" width="1.9" height="4.8" rx=".9" fill="currentColor" fill-opacity=".12"/>'
+     '<path d="M9.9 12h4.2"/>')
+icon('battery',
+     '<rect x="3.25" y="8" width="15.5" height="8.5" rx="2" fill="currentColor" fill-opacity=".05"/>'
+     '<path d="M20.9 10.6v3.3" stroke-width="2.4"/>'
+     '<rect x="6.1" y="10.4" width="2" height="3.7" rx=".7" fill="currentColor" stroke="none"/>'
+     '<rect x="9.5" y="10.4" width="2" height="3.7" rx=".7" fill="currentColor" stroke="none"/>')
+icon('carrot',
+     '<path d="M15.2 8.8c1.8 1.8 1.8 4.2-.2 6.2l-8.2 5.6c-1.3.9-2.9-.7-2-2L10.4 10.4c2-2 3.2-3.2 4.8-1.6Z" fill="currentColor" fill-opacity=".08"/>'
+     '<path d="m15.6 8.4 2.3-4"/><path d="m15.6 8.4 4-2.3"/>'
+     '<path d="m8.9 14 1.5 1.5" stroke-width="1.4"/><path d="m11.7 11.2 1.5 1.5" stroke-width="1.4"/>')
+icon('drink',
+     '<path d="M7.25 8.5h9.5l-1.2 10.9a1.6 1.6 0 0 1-1.6 1.35h-3.9a1.6 1.6 0 0 1-1.6-1.35Z" fill="currentColor" fill-opacity=".06"/>'
+     '<path d="M6.5 8.5h11"/>'
+     '<path d="m13.1 8.2 2.6-5.45"/><path d="M14.7 3.5h2.4"/>')
+icon('steak',
+     '<path d="M7.4 6.2C4.5 7 3 9.6 3.7 12.3c.6 2.4 2.7 3.6 5 4.5 2.4.9 4.5 2.3 7.1 1.8 3.1-.6 5.5-3.2 5.5-6.5 0-4.4-4-7.7-8.4-7-1.8.3-3.7.4-5.5 1.1Z" fill="currentColor" fill-opacity=".07"/>'
+     '<path d="M8.2 9.4c-.5 1.6-.5 3.2 0 4.8" stroke-width="1.6"/>'
+     '<path d="M13.8 10.2c1.2.9 1.5 2.2.7 3.5" stroke-width="1.6"/>')
+icon('cat',
+     '<circle cx="12" cy="13.25" r="7"/>'
+     '<path d="M6.4 9.1 5.4 4l4.2 2"/><path d="m17.6 9.1 1-5.1-4.2 2"/>'
+     '<circle cx="9.5" cy="12.75" r=".85" fill="currentColor" stroke="none"/>'
+     '<circle cx="14.5" cy="12.75" r=".85" fill="currentColor" stroke="none"/>'
+     '<path d="M10.6 15.4h2.8l-1.4 1.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.4"/>'
+     '<path d="M2.9 13.25h2.9" stroke-width="1.4"/><path d="m3.2 15.9 2.7-.7" stroke-width="1.4"/>'
+     '<path d="M21.1 13.25h-2.9" stroke-width="1.4"/><path d="m20.8 15.9-2.7-.7" stroke-width="1.4"/>')
+icon('tshirt',
+     '<path d="M8.25 4.25c.5 1.6 1.9 2.5 3.75 2.5s3.25-.9 3.75-2.5L20.5 6.75l-1.75 3.75L16.5 9.5v10.25h-9V9.5l-2.25 1L3.5 6.75Z" fill="currentColor" fill-opacity=".06"/>')
+icon('cap',
+     '<circle cx="12" cy="4.4" r="1.6"/>'
+     '<path d="M5.5 14.4v-1.9a6.5 6.5 0 0 1 13 0v1.9" fill="currentColor" fill-opacity=".08"/>'
+     '<rect x="4.75" y="14.4" width="14.5" height="4.1" rx="1.7" fill="currentColor" fill-opacity=".12"/>'
+     '<path d="M9.1 14.4v4.1" stroke-width="1.4"/><path d="M14.9 14.4v4.1" stroke-width="1.4"/>')
+icon('apple',
+     '<path d="M12 7.9c-1.4-1.3-3.4-1.5-5-.5-2.3 1.4-2.9 4.9-1.3 7.85 1.3 2.5 3.4 4.35 5.1 4.05.5-.1.9-.3 1.2-.6.3.3.7.5 1.2.6 1.7.3 3.8-1.55 5.1-4.05 1.6-2.95 1-6.45-1.3-7.85-1.6-1-3.6-.8-5 .5Z" fill="currentColor" fill-opacity=".06"/>'
+     '<path d="M12 7.5c-.1-1.5.5-2.75 1.8-3.55"/>'
+     '<path d="M13.4 5.4c1.3-.85 2.7-.9 3.9-.1-.7 1.25-2.1 1.85-3.9 1.6Z"/>')
+icon('laugh',
+     '<circle cx="12" cy="12" r="8.75"/>'
+     '<path d="M7.9 9.9q1.6-2 3.2 0" stroke-width="1.6"/>'
+     '<path d="M12.9 9.9q1.6-2 3.2 0" stroke-width="1.6"/>'
+     '<path d="M7.75 13.25h8.5a4.25 4.25 0 0 1-8.5 0Z" fill="currentColor" fill-opacity=".15"/>')
 icon('hundred',
      '<path d="m4.4 9.6 2-1.3v7.4"/>'
      '<ellipse cx="10.9" cy="12" rx="1.9" ry="3.7"/>'
