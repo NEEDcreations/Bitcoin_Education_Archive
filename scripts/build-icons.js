@@ -48,7 +48,7 @@ const MAP = {
   '⚙️': 'gear', '🧰': 'toolbox', '⛓️': 'chains', '🧊': 'cube', '🧱': 'bricks',
   '⚖️': 'scales',
   // world / places
-  '🌍': 'globe', '🌎': 'globe', '🌏': 'globe', '🌐': 'globe', '🗺️': 'map',
+  '🌍': 'globe', '🌎': 'globe', '🌏': 'globe', '🌐': 'globe', '💹': 'geo-macro', '🗺️': 'map',
   '🏔️': 'mountain', '⛰️': 'mountain', '🏛️': 'landmark', '🗽': 'landmark',
   '🏦': 'landmark', '🏠': 'home', '🏡': 'home',
   '☀️': 'sun', '🌙': 'moon', '🌱': 'sprout', '🌳': 'tree', '🌲': 'tree',

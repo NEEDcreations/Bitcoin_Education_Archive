@@ -68,8 +68,7 @@ icon('rocket',
 icon('sparkles',
      '<path d="M11 4.6c.4 3 2.3 4.9 5.3 5.3-3 .4-4.9 2.3-5.3 5.3-.4-3-2.3-4.9-5.3-5.3 3-.4 4.9-2.3 5.3-5.3Z" fill="currentColor" fill-opacity=".14"/>'
      '<path d="M18 14.4c.25 1.75 1.35 2.85 3.1 3.1-1.75.25-2.85 1.35-3.1 3.1-.25-1.75-1.35-2.85-3.1-3.1 1.75-.25 2.85-1.35 3.1-3.1Z"/>'
-     '<circle cx="17.9" cy="4.9" r="1" fill="currentColor" stroke="none"/>',
-     color=AMBER)
+     '<circle cx="17.9" cy="4.9" r="1" fill="currentColor" stroke="none"/>')
 
 icon('confetti',
      '<path d="M8.9 8.9 4.4 19.6l10.7-4.5Z" fill="currentColor" fill-opacity=".1"/>'
@@ -83,8 +82,7 @@ icon('confetti',
 icon('crystal-ball',
      '<circle cx="12" cy="10.4" r="6.7" fill="currentColor" fill-opacity=".1"/>'
      '<path d="M9 8.1a4.4 4.4 0 0 1 2.6-1.6"/>'
-     '<path d="M8.4 17.1h7.2l1.1 3H7.3Z"/>',
-     color=PURPLE)
+     '<path d="M8.4 17.1h7.2l1.1 3H7.3Z"/>')
 
 # ---------- Arrows ----------
 icon('arrow-right', '<path d="M4.25 12h15"/><path d="m13.5 6.25 5.75 5.75-5.75 5.75"/>')
@@ -120,9 +118,8 @@ icon('help',
      '<path d="M9.4 9.3a2.7 2.7 0 1 1 3.7 2.5c-.8.32-1.1.9-1.1 1.7v.3"/>'
      '<circle cx="12" cy="16.8" r=".4" fill="currentColor"/>')
 icon('bulb',
-     f'<path d="M12 3.1a6.1 6.1 0 0 1 3.5 11.1c-.6.45-1 1.05-1.1 1.8l-.1.75h-4.6l-.1-.75c-.1-.75-.5-1.35-1.1-1.8A6.1 6.1 0 0 1 12 3.1Z" fill="{AMBER}" fill-opacity=".12"/>'
-     '<path d="M10 19.6h4"/><path d="M10.6 21.6h2.8"/>',
-     color=AMBER)
+     '<path d="M12 3.1a6.1 6.1 0 0 1 3.5 11.1c-.6.45-1 1.05-1.1 1.8l-.1.75h-4.6l-.1-.75c-.1-.75-.5-1.35-1.1-1.8A6.1 6.1 0 0 1 12 3.1Z" fill="currentColor" fill-opacity=".12"/>'
+     '<path d="M10 19.6h4"/><path d="M10.6 21.6h2.8"/>')
 icon('hourglass',
      '<path d="M6.5 3.5h11"/><path d="M6.5 20.5h11"/>'
      '<path d="M8.25 3.5v3c0 2.4 3.75 3.6 3.75 5.5s-3.75 3.1-3.75 5.5v3"/>'
@@ -138,27 +135,22 @@ for dname, dcol in (('dot-red', '#ef4444'), ('dot-green', '#22c55e'),
 
 # ---------- Achievement ----------
 icon('trophy',
-     f'<path d="M8 4.4h8v4.7a4 4 0 0 1-8 0Z" fill="{AMBER}" fill-opacity=".14"/>'
+     '<path d="M8 4.4h8v4.7a4 4 0 0 1-8 0Z" fill="currentColor" fill-opacity=".14"/>'
      '<path d="M8 6H5.4v.6A3.1 3.1 0 0 0 8.5 9.7"/>'
      '<path d="M16 6h2.6v.6a3.1 3.1 0 0 1-3.1 3.1"/>'
-     '<path d="M12 13.1v3.1"/><path d="M8.4 19.6h7.2"/><path d="M10 16.2h4l.7 3.4H9.3Z"/>',
-     color=AMBER)
+     '<path d="M12 13.1v3.1"/><path d="M8.4 19.6h7.2"/><path d="M10 16.2h4l.7 3.4H9.3Z"/>')
 icon('medal',
      '<path d="M8.1 10.8 5.9 3.6h4.7L12 8.2l1.4-4.6h4.7l-2.2 7.2"/>'
-     f'<circle cx="12" cy="15.4" r="4.6" fill="{AMBER}" fill-opacity=".14"/>'
-     '<path d="m12 13.3.65 1.32 1.45.21-1.05 1.02.25 1.45L12 16.62l-1.3.68.25-1.45-1.05-1.02 1.45-.21Z" fill="currentColor" stroke="none"/>',
-     color=AMBER)
+     '<circle cx="12" cy="15.4" r="4.6" fill="currentColor" fill-opacity=".14"/>'
+     '<path d="m12 13.3.65 1.32 1.45.21-1.05 1.02.25 1.45L12 16.62l-1.3.68.25-1.45-1.05-1.02 1.45-.21Z" fill="currentColor" stroke="none"/>')
 icon('star',
-     f'<path d="m12 3.4 2.6 5.3 5.85.85-4.23 4.12 1 5.83L12 16.75 6.78 19.5l1-5.83-4.23-4.12 5.85-.85Z" fill="{AMBER}" fill-opacity=".18"/>',
-     color=AMBER)
+     '<path d="m12 3.4 2.6 5.3 5.85.85-4.23 4.12 1 5.83L12 16.75 6.78 19.5l1-5.83-4.23-4.12 5.85-.85Z" fill="currentColor" fill-opacity=".18"/>')
 icon('crown',
-     f'<path d="M4.6 16.75 3.5 7.6l5.1 3.2L12 5.4l3.4 5.4 5.1-3.2-1.1 9.15Z" fill="{AMBER}" fill-opacity=".14"/>'
-     '<path d="M4.6 19.75h14.8"/>',
-     color=AMBER)
+     '<path d="M4.6 16.75 3.5 7.6l5.1 3.2L12 5.4l3.4 5.4 5.1-3.2-1.1 9.15Z" fill="currentColor" fill-opacity=".14"/>'
+     '<path d="M4.6 19.75h14.8"/>')
 icon('gem',
-     f'<path d="M7.2 4h9.6l3.9 5.4L12 20.6 3.3 9.4Z" fill="{BLUE}" fill-opacity=".1"/>'
-     '<path d="M3.3 9.4h17.4"/><path d="M7.2 4l1.7 5.4L12 20.6l3.1-11.2L16.8 4"/>',
-     color=BLUE)
+     '<path d="M7.2 4h9.6l3.9 5.4L12 20.6 3.3 9.4Z" fill="currentColor" fill-opacity=".1"/>'
+     '<path d="M3.3 9.4h17.4"/><path d="M7.2 4l1.7 5.4L12 20.6l3.1-11.2L16.8 4"/>')
 icon('target',
      '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.9"/>'
      f'<circle cx="12" cy="12" r="1.5" fill="{ORANGE}" stroke="none"/>')
@@ -301,6 +293,12 @@ icon('scales',
      '<path d="m16.6 7.4-2.6 5.4h5.2Z"/><path d="M14 12.8a2.6 2.6 0 0 0 5.2 0"/>')
 
 # ---------- World / places ----------
+icon('geo-macro',
+     '<circle cx="10.4" cy="13.9" r="6.6" fill="currentColor" fill-opacity=".06"/>'
+     '<path d="M10.4 7.3c2.3 1.7 2.3 11.5 0 13.2"/>'
+     '<path d="M10.4 7.3c-2.3 1.7-2.3 11.5 0 13.2"/>'
+     '<path d="M4.15 11.9h12.5"/><path d="M4.15 15.9h12.5"/>'
+     '<path d="m13.4 9.9 6.9-6.9"/><path d="M15.6 3h4.7v4.7"/>')
 icon('globe',
      '<circle cx="12" cy="12" r="8.75"/>'
      '<path d="M12 3.25c3.1 2.3 3.1 15.2 0 17.5"/>'
@@ -319,18 +317,16 @@ icon('landmark',
 icon('home',
      '<path d="M4.75 10.75 12 4.25l7.25 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-3.9V15h-3.7v5.5h-3.9a1.5 1.5 0 0 1-1.5-1.5Z" fill="currentColor" fill-opacity=".06"/>')
 icon('sun',
-     f'<circle cx="12" cy="12" r="4" fill="{AMBER}" fill-opacity=".16"/>'
+     '<circle cx="12" cy="12" r="4" fill="currentColor" fill-opacity=".16"/>'
      '<path d="M12 2.75v2"/><path d="M12 19.25v2"/><path d="M2.75 12h2"/><path d="M19.25 12h2"/>'
      '<path d="m5.46 5.46 1.42 1.42"/><path d="m17.12 17.12 1.42 1.42"/>'
-     '<path d="m18.54 5.46-1.42 1.42"/><path d="m6.88 17.12-1.42 1.42"/>',
-     color=AMBER)
+     '<path d="m18.54 5.46-1.42 1.42"/><path d="m6.88 17.12-1.42 1.42"/>')
 icon('moon',
      '<path d="M20.3 14.6A8.55 8.55 0 0 1 9.4 3.7a8.55 8.55 0 1 0 10.9 10.9Z" fill="currentColor" fill-opacity=".1"/>')
 icon('sprout',
      '<path d="M12 20.5v-6.3"/>'
      '<path d="M12 14.2C12 10.5 9.3 8 5.75 8c0 3.75 2.6 6.3 6.25 6.2Z" fill="currentColor" fill-opacity=".12"/>'
-     '<path d="M12 11.4c0-2.9 2.1-5.1 5.4-5.1 0 3.1-2.1 5.3-5.4 5.1Z" fill="currentColor" fill-opacity=".12"/>',
-     color=GREEN)
+     '<path d="M12 11.4c0-2.9 2.1-5.1 5.4-5.1 0 3.1-2.1 5.3-5.4 5.1Z" fill="currentColor" fill-opacity=".12"/>')
 icon('tree',
      '<circle cx="12" cy="9.4" r="5.7" fill="currentColor" fill-opacity=".07"/>'
      '<path d="M12 15.1V21"/><path d="M8.9 21h6.2"/><path d="m12 17.6 2.1-2.1"/>')
@@ -346,10 +342,9 @@ icon('trend-down',
      '<path d="m3.75 6.75 5.75 5.75 3.5-3.5 7.25 7.5"/>'
      '<path d="M15.75 16.5h4.5V12"/>')
 icon('money',
-     f'<path d="M9.4 7.6h5.2l2.5 3.3a6.6 6.6 0 1 1-10.2 0Z" fill="{AMBER}" fill-opacity=".12"/>'
+     '<path d="M9.4 7.6h5.2l2.5 3.3a6.6 6.6 0 1 1-10.2 0Z" fill="currentColor" fill-opacity=".12"/>'
      '<path d="M9.4 7.6 7.9 4.4h8.2l-1.5 3.2"/>'
-     '<path d="M10.7 11.1h2.1a1.4 1.4 0 0 1 0 2.8h-2.1Zm0 2.8h2.5a1.4 1.4 0 0 1 0 2.8h-2.5Zm.6-3.6v.8m0 5.6v-.8"/>',
-     color=AMBER)
+     '<path d="M10.7 11.1h2.1a1.4 1.4 0 0 1 0 2.8h-2.1Zm0 2.8h2.5a1.4 1.4 0 0 1 0 2.8h-2.5Zm.6-3.6v.8m0 5.6v-.8"/>')
 icon('banknote',
      '<rect x="3.25" y="6.75" width="17.5" height="10.5" rx="2" fill="currentColor" fill-opacity=".05"/>'
      '<circle cx="12" cy="12" r="2.4"/>'
@@ -358,10 +353,9 @@ icon('card',
      '<rect x="3.25" y="5.75" width="17.5" height="12.5" rx="2.2" fill="currentColor" fill-opacity=".05"/>'
      '<path d="M3.25 9.9h17.5" stroke-width="2.2"/><path d="M6.5 14.9h4"/>')
 icon('coin',
-     f'<circle cx="12" cy="12" r="8.6" fill="{AMBER}" fill-opacity=".12"/>'
+     '<circle cx="12" cy="12" r="8.6" fill="currentColor" fill-opacity=".12"/>'
      '<circle cx="12" cy="12" r="5.9"/>'
-     '<path d="M10.8 9.4h1.7a1.3 1.3 0 0 1 0 2.6h-1.7Zm0 2.6h2.1a1.3 1.3 0 0 1 0 2.6h-2.1Zm.5-3.3v.7m0 5.2v-.7"/>',
-     color=AMBER)
+     '<path d="M10.8 9.4h1.7a1.3 1.3 0 0 1 0 2.6h-1.7Zm0 2.6h2.1a1.3 1.3 0 0 1 0 2.6h-2.1Zm.5-3.3v.7m0 5.2v-.7"/>')
 
 # ---------- Media ----------
 icon('tv',
