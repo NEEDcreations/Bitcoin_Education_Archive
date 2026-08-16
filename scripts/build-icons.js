@@ -86,7 +86,7 @@ const MAP = {
   '🔱': 'trident', '🧩': 'puzzle', '♟️': 'pawn', '♾️': 'infinity', '🚪': 'door',
   '🎁': 'gift', '💧': 'drop', '🧲': 'magnet', '🔓': 'unlock', '🖼️': 'image',
   '❄️': 'snowflake', '🐇': 'rabbit', '🐰': 'rabbit', '💊': 'pill',
-  '🤝': 'handshake', '👉': 'arrow-right', '👈': 'arrow-left',
+  '🤝': 'handshake', '👉': 'arrow-right', '👈': 'arrow-left', '⭕': 'unlock',
   // tail coverage -> existing icons
   '🏗️': 'bricks', '🏟️': 'landmark', '🏰': 'landmark', '🏢': 'landmark',
   '📘': 'book', '📗': 'book', '📙': 'book', '📓': 'book',
