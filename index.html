@@ -1214,6 +1214,25 @@
             localStorage.removeItem('btc_fabs_min'); // retire old key - stale minimized state hid the row for users
             if (localStorage.getItem('btc_fabs_min2') === '1') { document.body.classList.add('fabs-min'); var b = document.getElementById('fabMinBtn'); if (b) b.title = 'Show quick actions'; }
         } catch(e) {}
+        // Watchdog: several legacy code paths hide these buttons with inline
+        // styles and can miss their restore call (Nacho Mode exit, sidebar
+        // toggle, chat hub). Re-assert visibility unless deliberately
+        // minimized or inside Nacho Mode.
+        function _fabWatchdog() {
+            if (document.body.classList.contains('fabs-min')) return;
+            if (window._nachoMode) return;
+            ['chatOverlayBtn','aiToolsBtn','dashboardFloatBtn','lbFloatBtn','fabMinBtn'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                if (id === 'chatOverlayBtn' && document.getElementById('chatContent')) return;
+                if (el.style.display === 'none') el.style.display = '';
+                if (el.style.visibility === 'hidden') el.style.visibility = '';
+                if (el.style.opacity && el.style.opacity !== '1') el.style.opacity = '';
+            });
+        }
+        setInterval(_fabWatchdog, 3000);
+        window.addEventListener('pageshow', _fabWatchdog);
+        document.addEventListener('visibilitychange', _fabWatchdog);
     })();
     </script>
     <div id="leaderboard"></div>
