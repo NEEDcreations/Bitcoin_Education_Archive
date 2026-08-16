@@ -1153,7 +1153,7 @@
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
