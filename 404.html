@@ -60,7 +60,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260816_nm3" as="script">
+    <link rel="preload" href="bundle.js?v=20260816_090947" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -206,7 +206,7 @@
         .cat-arrow { font-size: 0.55rem; transition: transform 0.2s; }
         .cat-group { overflow: hidden; transition: max-height 0.3s ease; }
         .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-dim); padding: 11px 14px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 0.9rem; font-family: inherit; position: relative; }
-        .ch-btn:hover { background: var(--card-bg); color: var(--text); transform: translateX(2px); }
+        .ch-btn:hover { background: var(--card-bg); color: var(--text); transform: translateX(2px) translateY(var(--row-lift, -2px)); }
         .ch-btn.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; border-left: 3px solid var(--accent); }
         .ch-btn.visited::after { content: " ✓"; color: #22c55e; font-size: 0.75rem; font-weight: 800; }
         .ch-btn::before { content: "# "; color: var(--text-faint); font-weight: 700; }
@@ -304,8 +304,7 @@
         .rank-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
         /* Leaderboard */
-        #leaderboard { display: none; position: fixed; right: 20px; bottom: 20px; width: 340px; max-height: 70vh; background: var(--bg-side); border: 1px solid var(--border); border-radius: 16px; z-index: 300000; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); transition: 0.3s; }
-        #leaderboard.open { display: block; animation: fadeSlideIn 0.3s ease-out; }
+        #leaderboard { display: block; position: fixed; right: 20px; bottom: 20px; width: 340px; max-height: 70vh; background: var(--bg-side); border: 1px solid var(--border); border-radius: 16px; z-index: 300000; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
         #leaderboard.minimized { max-height: 48px; overflow: hidden; border-radius: 24px; width: auto; cursor: pointer; }
         .lb-min-bar { display: none; padding: 12px 18px; font-size: 0.85rem; font-weight: 700; color: var(--accent); text-align: center; }
         #leaderboard.minimized .lb-min-bar { display: block; }
@@ -338,8 +337,7 @@
         .lb-level-row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--text-muted); font-size: 0.8rem; }
 
         /* Username Modal */
-        #usernameModal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); z-index: 400000; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
-        #usernameModal.open { display: block; }
+        #usernameModal { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); z-index: 400000; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
         .username-box { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 40px; max-width: 400px; width: 90%; text-align: center; margin: 20px auto; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         @media (max-width: 900px) { .username-box { padding: 20px 16px; width: 95%; margin: 10px auto; } }
         .username-box h2 { color: #fff; margin-bottom: 8px; font-size: 1.5rem; }
@@ -686,7 +684,7 @@
     }
     </script>
 <!-- proof-of-walk and proof-of-play are lazy-loaded on demand (saves ~55KB on initial parse) -->
-    <link rel="stylesheet" href="design-system.css?v=20260816_edit">
+    <link rel="stylesheet" href="design-system.css?v=20260816_090947">
 </head>
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;width:0;min-width:0;flex-shrink:0;overflow:visible;"></div>
@@ -1319,9 +1317,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.js?v=20260816_nm3" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260816_090947" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260816_fabs" defer></script>
-    <script src="onboarding.js?v=20260816_hs" defer></script>
+    <script src="onboarding.js?v=20260816_090947" defer></script>
     <script src="learning-quests.js?v=20260816_d2" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
@@ -1428,9 +1426,11 @@ if ('serviceWorker' in navigator) {
             var banner = document.createElement('div');
             banner.id = '_swUpdateBanner';
             var _isMobUpd = window.innerWidth <= 900;
-            banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? '130px' : '70px') + ';left:16px;right:16px;z-index:200010;max-width:420px;margin:0 auto;background:var(--bg-side);color:var(--text);border:1px solid var(--border);padding:12px 14px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 16px 44px rgba(0,0,0,0.45);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
+            banner.className = 't-toast';
+            banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? '130px' : '70px') + ';left:16px;right:16px;z-index:200010;max-width:420px;margin:0 auto;background:var(--bg-side);color:var(--text);border:1px solid var(--border);padding:12px 14px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 16px 44px rgba(0,0,0,0.45);font-family:inherit;';
             banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button id="_swRefreshBtn" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;">↺ Refresh</button>';
             document.body.appendChild(banner);
+            requestAnimationFrame(function() { requestAnimationFrame(function() { banner.classList.add('is-open'); }); });
             document.getElementById('_swRefreshBtn').addEventListener('click', function() {
                 var btn = document.getElementById('_swRefreshBtn');
                 if (btn) { btn.textContent = 'Updating…'; btn.disabled = true; }

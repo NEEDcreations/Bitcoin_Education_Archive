@@ -160,6 +160,150 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .home-footer { border-top: 1px solid var(--border); padding-top: 20px; }
 
+/* ---------- transitions.dev — motion tokens (curated subset) ----------
+   Installed via https://transitions.dev (skills add Jakubantalik/transitions.dev).
+   Only the tokens the site actually uses; see ~/.claude/skills/transitions-dev
+   for the full 27-transition catalog and _root.css for the complete block. */
+:root {
+    --t-duration-stagger: 40ms;
+    --t-duration-quick: 150ms;
+    --t-duration-fast: 250ms;
+    --t-duration-slow: 400ms;
+    --t-ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --t-ease-bounce-strong: cubic-bezier(0.34, 3.85, 0.64, 1);
+    /* Modal open / close */
+    --modal-open-dur: 250ms;
+    --modal-close-dur: 150ms;
+    --modal-scale: 0.96;
+    --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    /* Toast open / close */
+    --toast-open: 350ms;
+    --toast-close: 250ms;
+    --toast-distance: 16px;
+    --toast-blur: 2px;
+    --toast-scale: 0.97;
+    --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    /* Row lift (adapted from avatar-group-hover, single-item form) */
+    --row-lift: -2px;
+    --row-lift-dur: 220ms;
+    --row-lift-ease-in: cubic-bezier(0.22, 1, 0.36, 1);
+    --row-lift-ease-out: cubic-bezier(0.34, 3.85, 0.64, 1);
+}
+
+/* Modal open / close — reused by #leaderboard and #usernameModal (settings),
+   and by any element carrying .t-modal (donate modal card). */
+.t-modal, #leaderboard, #usernameModal {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: scale(var(--modal-scale));
+    transition:
+        opacity var(--modal-close-dur) var(--modal-ease),
+        transform var(--modal-close-dur) var(--modal-ease),
+        visibility 0s linear var(--modal-close-dur);
+    will-change: transform, opacity;
+}
+.t-modal.is-open, #leaderboard.open, #usernameModal.open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: scale(1);
+    transition:
+        opacity var(--modal-open-dur) var(--modal-ease),
+        transform var(--modal-open-dur) var(--modal-ease),
+        visibility 0s linear 0s;
+}
+/* usernameModal is a full-screen overlay, not a centered card — fade only. */
+#usernameModal { transform: none; }
+#usernameModal.open { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+    .t-modal, #leaderboard, #usernameModal { transition: none !important; }
+}
+
+/* Toast open / close — quest pill, update-ready banner. */
+.t-toast {
+    opacity: 0;
+    transform: translateY(var(--toast-distance)) scale(var(--toast-scale));
+    filter: blur(var(--toast-blur));
+    will-change: transform, opacity, filter;
+    transition:
+        opacity var(--toast-close) var(--toast-ease),
+        transform var(--toast-close) var(--toast-ease),
+        filter var(--toast-close) var(--toast-ease);
+}
+.t-toast.is-open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+    transition:
+        opacity var(--toast-open) var(--toast-ease),
+        transform var(--toast-open) var(--toast-ease),
+        filter var(--toast-open) var(--toast-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+    .t-toast { transition: none !important; }
+}
+/* Centered variant (e.g. left:50% pills) — keeps the translateX(-50%)
+   centering composed with the toast's own translateY/scale. */
+.t-toast-centered {
+    opacity: 0;
+    transform: translateX(-50%) translateY(var(--toast-distance)) scale(var(--toast-scale));
+    filter: blur(var(--toast-blur));
+    will-change: transform, opacity, filter;
+    transition:
+        opacity var(--toast-close) var(--toast-ease),
+        transform var(--toast-close) var(--toast-ease),
+        filter var(--toast-close) var(--toast-ease);
+}
+.t-toast-centered.is-open {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    filter: blur(0);
+    transition:
+        opacity var(--toast-open) var(--toast-ease),
+        transform var(--toast-open) var(--toast-ease),
+        filter var(--toast-open) var(--toast-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+    .t-toast-centered { transition: none !important; }
+}
+
+/* Sidebar row lift — the existing .ch-btn/.ch-btn:hover rule in index.html
+   already carries the translateX(2px) + lift transform; this just gives
+   hover-in a clean ease and hover-out a bouncy return (transitions.dev
+   avatar-group-hover pattern, single-item form: direction-aware easing
+   without a second class). */
+.ch-btn { transition: transform var(--row-lift-dur) var(--row-lift-ease-out), background 0.2s, color 0.2s; }
+.ch-btn:hover { transition: transform var(--row-lift-dur) var(--row-lift-ease-in), background 0.2s, color 0.2s; }
+@media (prefers-reduced-motion: reduce) {
+    .ch-btn { transition: background 0.2s, color 0.2s !important; }
+    .ch-btn:hover { transform: none !important; }
+}
+
+/* Quick-action chip row — staggered toast-style entrance/exit instead of a
+   flat opacity fade; each chip is offset by --t-duration-stagger. */
+.fab-btn {
+    transition:
+        transform var(--t-duration-fast) var(--t-ease-smooth-out),
+        opacity var(--t-duration-fast) var(--t-ease-smooth-out),
+        box-shadow 0.2s, color 0.2s !important;
+}
+body.fabs-min .fab-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(10px) scale(0.9) translateZ(0) !important;
+    transition:
+        transform var(--t-duration-quick) var(--modal-ease),
+        opacity var(--t-duration-quick) var(--modal-ease) !important;
+}
+#chatOverlayBtn { transition-delay: 0ms !important; }
+#aiToolsBtn { transition-delay: var(--t-duration-stagger) !important; }
+#dashboardFloatBtn { transition-delay: calc(var(--t-duration-stagger) * 2) !important; }
+#lbFloatBtn { transition-delay: calc(var(--t-duration-stagger) * 3) !important; }
+@media (prefers-reduced-motion: reduce) {
+    .fab-btn, body.fabs-min .fab-btn { transition: box-shadow 0.2s, color 0.2s !important; transform: none !important; transition-delay: 0ms !important; }
+}
+
 /* Remaining inline orange glow shadows -> one soft elevation */
 [style*="box-shadow:0 4px 20px rgba(249,115,22"],
 [style*="box-shadow:0 4px 20px rgba(247,147,26"],

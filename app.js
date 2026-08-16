@@ -1007,13 +1007,13 @@
         if (existing) existing.remove();
         var modal = document.createElement('div');
         modal.id = 'donateModal';
-        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:260000;display:flex;align-items:flex-start;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:260000;display:flex;align-items:flex-start;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;opacity:0;transition:opacity 250ms cubic-bezier(0.22,1,0.36,1);';
         var lnAddr = _donateLnAddr;
         var qrUrl = _donateQRDataUri || (typeof _localQRDataUrl === 'function' ? _localQRDataUrl('lightning:' + lnAddr) : null);
         
         modal.innerHTML =
-            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:24px;padding:30px 20px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6);animation:fadeSlideIn 0.3s;margin:40px auto;">' +
-                '<button onclick="document.getElementById(\'donateModal\').remove()" style="position:absolute;top:15px;right:15px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
+            '<div id="donateModalCard" class="t-modal" style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:24px;padding:30px 20px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6);margin:40px auto;">' +
+                '<button onclick="window._closeDonateModal()" style="position:absolute;top:15px;right:15px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
                 '<div style="font-size:2.5rem;margin-bottom:12px;">🧡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:6px;">Support the Archive</div>' +
                 '<p style="color:var(--text-muted,#aaa);font-size:0.9rem;margin-bottom:20px;line-height:1.5;">Your sats help keep this archive free and open for the next billion Bitcoiners! 🦌⚡</p>' +
@@ -1038,6 +1038,19 @@
                 '</div>' +
             '</div>';
         document.body.appendChild(modal);
+        requestAnimationFrame(function() { requestAnimationFrame(function() {
+            modal.style.opacity = '1';
+            var _card = document.getElementById('donateModalCard');
+            if (_card) _card.classList.add('is-open');
+        }); });
+        window._closeDonateModal = function() {
+            var m = document.getElementById('donateModal');
+            if (!m) return;
+            var c = document.getElementById('donateModalCard');
+            if (c) c.classList.remove('is-open');
+            m.style.opacity = '0';
+            setTimeout(function() { if (m && m.parentNode) m.remove(); }, 150);
+        };
         // Local QR fallback when preload hasn't finished yet
         var donateBox = document.getElementById('donateQRBox');
         if (donateBox && typeof _renderQRCode === 'function') {
