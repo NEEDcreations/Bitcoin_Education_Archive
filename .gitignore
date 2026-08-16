@@ -1,7 +1,10 @@
 .env
 functions/.env
 test.sh
-scripts/
+scripts/*
+!scripts/author-icons.py
+!scripts/build-icons.js
+!scripts/icon-runtime.template.js
 .keys/
 firebase-debug.log
 images/
