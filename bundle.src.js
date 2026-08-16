@@ -10865,6 +10865,17 @@ function createNacho() {
         #nacho-avatar.anim-wave { animation: nachoWave 1.5s ease-in-out infinite; }
         #nacho-avatar.anim-sleepy { animation: nachoSleepy 4s ease-in-out infinite; }
 
+        /* Quiet mode: only the avatar shows until Nacho is hovered or speaking */
+        #nacho-avatar .nacho-name, #nachoHideBtn, #nachoDragHandle, .nacho-btn-stack {
+            opacity: 0; pointer-events: none; transition: opacity 0.25s;
+        }
+        #nacho-container:hover .nacho-name, #nacho-container:hover #nachoHideBtn,
+        #nacho-container:hover #nachoDragHandle, #nacho-container:hover .nacho-btn-stack,
+        #nacho-container.nacho-engaged .nacho-name, #nacho-container.nacho-engaged #nachoHideBtn,
+        #nacho-container.nacho-engaged #nachoDragHandle, #nacho-container.nacho-engaged .nacho-btn-stack {
+            opacity: 1; pointer-events: auto;
+        }
+
         /* Tablet — sidebar is 280px */
         @media (max-width: 1100px) {
             #nacho-container { left: 290px; }
@@ -10872,11 +10883,11 @@ function createNacho() {
         }
         /* Mobile — sidebar hidden, Nacho goes bottom-left, above clutter */
         @media (max-width: 900px) {
-            #nacho-container { bottom: calc(50vh - 30px); left: 12px; }
-            #nacho-avatar { width: 68px; height: 68px; }
+            #nacho-container { bottom: 76px; left: 10px; }
+            #nacho-avatar { width: 56px; height: 56px; }
             #nacho-bubble {
                 position: fixed;
-                bottom: calc(50vh + 50px);
+                bottom: 148px;
                 left: 12px;
                 right: 12px;
                 max-width: calc(100vw - 24px);
@@ -10894,10 +10905,10 @@ function createNacho() {
             #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -44px; padding: 5px 14px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: calc(50vh - 40px); left: 10px; }
-            #nacho-avatar { width: 60px; height: 60px; }
+            #nacho-container { bottom: 76px; left: 8px; }
+            #nacho-avatar { width: 52px; height: 52px; }
             #nacho-bubble {
-                bottom: calc(50vh + 30px);
+                bottom: 140px;
                 left: 10px;
                 right: 10px;
                 max-width: calc(100vw - 20px);
@@ -11298,6 +11309,8 @@ function startIdleCycle() {
 
 // ---- Show/Hide Bubble ----
 function showBubble(text, pose) {
+    var _nc = document.getElementById('nacho-container');
+    if (_nc) _nc.classList.add('nacho-engaged');
     if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
     const now = Date.now();
     if (now - lastBubbleTime < MIN_INTERVAL) return;
@@ -11681,6 +11694,8 @@ window.hideBubble = function(force) {
     setTimeout(function() {
         if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
     }, 2000);
+    var _nc2 = document.getElementById('nacho-container');
+    if (_nc2) _nc2.classList.remove('nacho-engaged');
     var avatar = document.getElementById('nacho-avatar');
     if (bubble) bubble.classList.remove('show');
     clearTimeout(bubbleTimeout);

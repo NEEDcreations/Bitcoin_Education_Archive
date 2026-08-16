@@ -115,18 +115,18 @@ button { -webkit-tap-highlight-color: transparent; }
 
 /* Ghost-mode save banner: clear the FAB row on mobile */
 @media (max-width: 900px) {
-    #ghostModeBanner { bottom: 128px !important; }
+    #ghostModeBanner { bottom: 192px !important; }
 }
 
 /* ---------- final professional pass ---------- */
 
-/* Donate button next to the logo: neutral circle, accent bolt */
+/* Donate bolt: bare mark, no chrome */
 .donate-circle {
-    background: var(--bg-side, #0f172a) !important;
-    border: 1px solid var(--border) !important;
-    box-shadow: var(--ds-shadow-2) !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 50%;
 }
-.donate-circle svg polygon { fill: var(--accent) !important; }
 
 /* Kill neon text glows wherever inline styles paint them */
 [style*="text-shadow:0 0"], [style*="text-shadow: 0 0"] { text-shadow: none !important; }
@@ -146,6 +146,19 @@ button { -webkit-tap-highlight-color: transparent; }
     color: var(--text-faint) !important;
     font-weight: 600 !important;
 }
+
+/* ---------- editorial home rhythm ---------- */
+#em-quick-actions button, .apps-grid-btn {
+    border-radius: 10px !important;
+    border: 1px solid var(--border) !important;
+    background: transparent !important;
+    text-align: left !important;
+}
+#em-quick-actions button:hover, .apps-grid-btn:hover {
+    border-color: var(--text-faint) !important;
+    background: var(--card-bg) !important;
+}
+.home-footer { border-top: 1px solid var(--border); padding-top: 20px; }
 
 /* Remaining inline orange glow shadows -> one soft elevation */
 [style*="box-shadow:0 4px 20px rgba(249,115,22"],

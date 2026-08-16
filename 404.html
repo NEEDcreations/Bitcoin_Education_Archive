@@ -60,7 +60,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260816_pro" as="script">
+    <link rel="preload" href="bundle.js?v=20260816_edit" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -149,9 +149,6 @@
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         /* Hero gradient glow behind logo */
         .home-logos { position: relative; }
-        .home-logos::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; background: radial-gradient(circle, rgba(247,147,26,0.12) 0%, transparent 70%); border-radius: 50%; pointer-events: none; animation: heroGlow 4s ease-in-out infinite; z-index: 0; }
-        @keyframes heroGlow { 0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } }
-        .home-logos > * { position: relative; z-index: 1; }
         
         /* Theme Toggle */
         .theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-dim); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; margin-left: 10px; }
@@ -372,6 +369,7 @@
             #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
             .fab-btn { bottom:128px !important; }
             #fabMinBtn { bottom:142px !important; }
+            #scrollToBottom { display:none !important; }
             #lbFloatBtn.chat-shifted { bottom:120px !important; }
             #floatingRandomBtn { bottom: 120px !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
             /* RESTORE MOBILE VISIBILITY — but not when explicitly hidden (anon mobile or dismissed) */
@@ -441,20 +439,20 @@
         .quest-done { width: 100%; padding: 14px; background: var(--accent); border: none; border-radius: 12px; color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; }
 
         /* Home Page */
-        .home-page { display: flex; animation: fadeSlideIn 0.4s ease-out; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 60px 30px; background: radial-gradient(ellipse at 30% 20%, rgba(249,115,22,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(121,45,228,0.06) 0%, transparent 60%); }
+        .home-page { display: flex; animation: fadeSlideIn 0.4s ease-out; align-items: center; justify-content: center; min-height: 100vh; text-align: left; padding: 48px 24px; background: var(--bg); }
         .home-page.hidden { display: none; }
         .home-inner { max-width: 650px; width: 100%; display: flex; flex-direction: column; }
-        .home-logos { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 40px; }
+        .home-logos { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
         .channel-logos { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 16px; }
         .channel-logos .channel-logo-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 24px rgba(247,147,26,0.35); image-rendering: -webkit-optimize-contrast; }
         .channel-logos svg { width: 50px; height: 50px; }
         .donate-circle { position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; touch-action: manipulation; }
         .donate-circle::after { content: 'Donate'; position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; font-weight: 700; color: #f7931a; opacity: 0; transition: opacity 0.2s; white-space: nowrap; pointer-events: none; }
         .donate-circle:hover::after { opacity: 1; }
-        .home-btc { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
-        .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
-        .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; }
-        .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 40px; line-height: 1.6; }
+        .home-btc { filter: none; }
+        .home-ln { filter: none; }
+        .home-title { font-size: 1.9rem; font-weight: 800; color: var(--heading); letter-spacing: -0.5px; line-height: 1.15; margin-bottom: 8px; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; }
+        .home-subtitle { font-size: 0.95rem; color: var(--text-dim); margin-bottom: 28px; line-height: 1.55; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
         .home-credits { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 24px 30px; margin-bottom: 40px; text-align: left; }
         .home-credits p { color: var(--text-dim); font-size: 1rem; margin-bottom: 8px; line-height: 1.6; }
         .home-credits p:last-child { margin-bottom: 0; }
@@ -487,7 +485,7 @@
         @keyframes skeletonLoading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
         @media (max-width: 900px) {
-            .home-title { font-size: 2.4rem; }
+            .home-title { font-size: 1.75rem; }
             .home-stats { grid-template-columns: repeat(4, auto); gap: 20px 28px; }
             .home-stat-num { font-size: 1.5rem; }
         }
@@ -514,7 +512,6 @@
 
         /* Mobile breakpoint */
         @media (max-width: 900px) {
-            #mobileSearchBtn { display: flex !important; }
             aside { display: none; position: fixed; inset: 0; z-index: 100; width: 100% !important; max-width: 100%; min-width: 0 !important; }
             aside.open { display: flex; padding-bottom: 140px; }
             aside.open > * { opacity: 1 !important; pointer-events: auto !important; }
@@ -545,14 +542,14 @@
             .back-to-top { bottom: calc(190px + env(safe-area-inset-bottom, 0px)) !important; right: 12px; width: 34px; height: 34px; font-size: 0.95rem; }
             .scroll-to-bottom { bottom: calc(190px + env(safe-area-inset-bottom, 0px)) !important; right: 52px; width: 34px; height: 34px; font-size: 0.95rem; }
             .home-page { padding: 30px 16px; min-height: auto; }
-            .home-title { font-size: 2rem; letter-spacing: -1px; }
-            .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
+            .home-title { font-size: 1.6rem; letter-spacing: -0.5px; }
+            .home-subtitle { font-size: 0.9rem; margin-bottom: 20px; }
             .home-stats { grid-template-columns: repeat(3, auto); gap: 14px 20px; }
             .home-stat-num { font-size: 1.3rem; }
             .home-stat-label { font-size: 0.7rem; }
             .home-credits { padding: 14px; }
             .home-credits p { font-size: 0.85rem; }
-            .home-logos svg { width: 56px; height: 56px; }
+            .home-logos svg { width: 30px; height: 30px; }
             .channel-logos .channel-logo-img { width: 64px; height: 64px; }
             .channel-logos svg { width: 40px; height: 40px; }
             .daily-channel { padding: 14px; }
@@ -690,7 +687,7 @@
     }
     </script>
 <!-- proof-of-walk and proof-of-play are lazy-loaded on demand (saves ~55KB on initial parse) -->
-    <link rel="stylesheet" href="design-system.css?v=20260816_glass">
+    <link rel="stylesheet" href="design-system.css?v=20260816_edit">
 </head>
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;width:0;min-width:0;flex-shrink:0;overflow:visible;"></div>
@@ -721,7 +718,6 @@
     </div>
 
     <aside id="sidebar">
-        <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--bg-side);color:var(--text-dim);width:50px;height:50px;border-radius:50%;border:1px solid var(--border);box-shadow:0 6px 18px rgba(0,0,0,0.30);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
         <button class="mobile-close" onclick="toggleMenu()">✕</button>
         <div class="sidebar-header">
             <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
@@ -982,11 +978,11 @@
         <div id="home" class="home-page">
             <div class="home-inner">
                 <div class="home-logos">
-                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 10px 30px rgba(0,0,0,0.35);border:1px solid var(--border);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
-                    <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
+                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="40" height="40" style="width:40px;height:40px;border-radius:10px;object-fit:cover;cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
+                    <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="32" height="32" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">Bitcoin Quest</h1>
-                <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 146 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
+                <p class="home-subtitle">Learn Bitcoin. Earn real sats. 146 topics, 24/7 TV, games, and community — free.</p>
                 <!-- Intro/Tutorial Video -->
                 <div id="introVideoSection" style="width:100%;max-width:640px;margin:0 auto 24px auto;">
                     <div id="introVideoFull" style="position:relative;width:100%;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 10px 32px rgba(0,0,0,0.30);border:1px solid var(--border);">
@@ -1302,9 +1298,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.js?v=20260816_pro" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260816_edit" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
-    <script src="onboarding.js?v=20260816_pro" defer></script>
+    <script src="onboarding.js?v=20260816_edit" defer></script>
     <script src="learning-quests.js?v=20260816_d2" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
