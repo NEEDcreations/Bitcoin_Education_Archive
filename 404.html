@@ -355,7 +355,7 @@
         .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; background:rgba(148,163,184,0.07); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.14); color:#e2e8f0; box-shadow:0 6px 18px rgba(0,0,0,0.25); font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.25s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
         .fab-btn:hover { transform:translateY(-2px) translateZ(0); color:var(--accent); border-color:rgba(247,147,26,0.5); }
         [data-theme="light"] .fab-btn { background:rgba(15,23,42,0.05); border-color:rgba(15,23,42,0.14); color:#475569; box-shadow:0 6px 18px rgba(15,23,42,0.08); }
-        #fabMinBtn { position:fixed; bottom:24px; right:10px; z-index:200003; width:22px; height:22px; border-radius:50%; background:rgba(148,163,184,0.07); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.16); color:#94a3b8; font-size:0.7rem; line-height:1; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; padding:0; transition:transform 0.25s,color 0.2s; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+        #fabMinBtn { position:fixed; bottom:66px; right:23px; z-index:200003; width:22px; height:22px; border-radius:50%; background:rgba(148,163,184,0.07); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.16); color:#94a3b8; font-size:0.7rem; line-height:1; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; padding:0; transition:transform 0.25s,color 0.2s; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
         [data-theme="light"] #fabMinBtn { background:rgba(15,23,42,0.05); border-color:rgba(15,23,42,0.14); }
         #fabMinBtn:hover { color:var(--accent); }
         body.fabs-min .fab-btn { opacity:0 !important; pointer-events:none !important; transform:translateY(14px) scale(0.85) translateZ(0) !important; }
@@ -368,7 +368,7 @@
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 124px; width: auto; }
             .fab-btn { bottom:128px !important; }
-            #fabMinBtn { bottom:142px !important; }
+            #fabMinBtn { bottom:96px !important; right:23px !important; }
             #lbFloatBtn.chat-shifted { bottom:120px !important; }
             #floatingRandomBtn { bottom: 120px !important; right: auto !important; left: 16px !important; transform: none !important; z-index: 200001 !important; }
             /* RESTORE MOBILE VISIBILITY — but not when explicitly hidden (anon mobile or dismissed) */
@@ -1206,11 +1206,14 @@
     (function(){
         window._toggleFabs = function() {
             var min = document.body.classList.toggle('fabs-min');
-            try { localStorage.setItem('btc_fabs_min', min ? '1' : '0'); } catch(e) {}
+            try { localStorage.setItem('btc_fabs_min2', min ? '1' : '0'); } catch(e) {}
             var b = document.getElementById('fabMinBtn');
             if (b) b.title = min ? 'Show quick actions' : 'Hide quick actions';
         };
-        try { if (localStorage.getItem('btc_fabs_min') === '1') { document.body.classList.add('fabs-min'); var b = document.getElementById('fabMinBtn'); if (b) b.title = 'Show quick actions'; } } catch(e) {}
+        try {
+            localStorage.removeItem('btc_fabs_min'); // retire old key - stale minimized state hid the row for users
+            if (localStorage.getItem('btc_fabs_min2') === '1') { document.body.classList.add('fabs-min'); var b = document.getElementById('fabMinBtn'); if (b) b.title = 'Show quick actions'; }
+        } catch(e) {}
     })();
     </script>
     <div id="leaderboard"></div>
