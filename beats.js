@@ -3607,7 +3607,7 @@ window.beatsPerformSearch = function() {
     // 4. Merge + dedup
     Promise.all([
         db.collection('beats_artists').orderBy('name','asc').limit(300).get().catch(function(){return{empty:true,forEach:function(){}};}),
-        db.collection('beats_tracks').orderBy('createdAt','desc').limit(500).get().catch(function(){return{empty:true,forEach:function(){}};})
+        db.collection('beats_tracks').orderBy('createdAt','desc').limit(2000).get().catch(function(){return{empty:true,forEach:function(){}};})
     ]).then(function(results) {
         var artistSnap = results[0], trackSnap = results[1];
 
