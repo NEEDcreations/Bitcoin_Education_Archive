@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-17T12:00:52.269Z",
+  "updated": "2026-08-17T16:00:48.662Z",
   "news": [
+    {
+      "date": "Aug 17, 2026",
+      "title": "Strategy Goes Another Week Without Buying — Or Selling — Bitcoin, Builds Up Cash Reserve",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/strategy-goes-another-week-without-buying",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Aug 17, 2026",
       "title": "Scott Bessents WARNING Has Officially CONFIRMED The ECB JUST LOST CONTROL OF BITCOIN",
@@ -13,13 +20,6 @@
       "title": "ZERO Bitcoin Left on Exchanges by 2029",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/Pbmdj4asZ9g",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 16, 2026",
-      "title": "The Inflection Point: When Bitcoin Adoption Goes Vertical",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/U_QOZKJIPsU",
       "source": "lukemikic"
     }
   ]
