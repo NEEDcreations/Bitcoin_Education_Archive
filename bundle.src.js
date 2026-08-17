@@ -16254,11 +16254,14 @@ function _renderTopHashesHTML(entries) {
 
                     return '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeU+'\')" style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View @'+name+'\'s profile">' + name + (isMe ? ' (you)' : '') + badges + '</span>'; })() +
                 '</div>' +
-                '<div style="display:flex;align-items:center;gap:6px;">' +
-                    '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" ' +
-                        'onclick="window._sfHashTap(\'' + rowId + '\',' + diffTarget + ')" ' +
-                        'style="font-family:monospace;font-size:0.82rem;font-weight:800;cursor:pointer;color:' + (isWin ? '#22c55e' : 'var(--text-muted)') + ';">' + e.value.toLocaleString() + '</span>' +
-                    '<span onclick="window._sfHashTap(\'' + rowId + '\',' + diffTarget + ')" style="font-size:0.65rem;color:var(--text-faint);cursor:pointer;user-select:none;" title="Tap to see difficulty">ⓘ</span>' +
+                '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                        '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" ' +
+                            'onclick="window._sfHashTap(\'' + rowId + '\',' + diffTarget + ')" ' +
+                            'style="font-family:monospace;font-size:0.82rem;font-weight:800;cursor:pointer;color:' + (isWin ? '#22c55e' : 'var(--text-muted)') + ';">' + e.value.toLocaleString() + '</span>' +
+                        '<span onclick="window._sfHashTap(\'' + rowId + '\',' + diffTarget + ')" style="font-size:0.65rem;color:var(--text-faint);cursor:pointer;user-select:none;" title="Tap to see difficulty">ⓘ</span>' +
+                    '</div>' +
+                    (tsMs ? '<span style="font-size:0.62rem;color:var(--text-faint);">' + winDate + '</span>' : '') +
                 '</div>' +
             '</div>' +
             '<div id="' + rowId + '_tip" style="display:none;font-size:0.72rem;color:var(--text-muted);margin-top:4px;padding:4px 8px;background:rgba(0,0,0,0.35);border-radius:6px;">⛏️ Difficulty when mined: <strong>' + diffTarget.toLocaleString() + '</strong></div>' +
