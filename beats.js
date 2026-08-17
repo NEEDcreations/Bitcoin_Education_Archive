@@ -3600,29 +3600,73 @@ window.beatsPerformSearch = function() {
         return;
     }
 
-    db.collection('beats_tracks').orderBy('createdAt','desc').limit(100).get().then(function(snap) {
-        if (snap.empty) { listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2.5rem;">🔍</div><div style="color:var(--text-muted);">No results</div></div>'; return; }
-        
-        var allTracks=[];
-        snap.forEach(function(doc){ allTracks.push({id:doc.id,...doc.data()}); });
-        
-        var results=allTracks.filter(function(t){
-            var title=(t.title||'').toLowerCase().indexOf(query)!==-1;
-            var artist=(t.artist||t.authorName||'').toLowerCase().indexOf(query)!==-1;
-            var genre=(t.genre||'').toLowerCase().indexOf(query)!==-1;
-            return title||artist||genre;
+    // Two-phase search:
+    // 1. Find matching artists in beats_artists by name (catches V4V imports + older tracks)
+    // 2. Fetch recent tracks and filter by title/artist/genre
+    // 3. For artist matches, load ALL their tracks by authorId
+    // 4. Merge + dedup
+    Promise.all([
+        db.collection('beats_artists').orderBy('name','asc').limit(300).get().catch(function(){return{empty:true,forEach:function(){}};}),
+        db.collection('beats_tracks').orderBy('createdAt','desc').limit(500).get().catch(function(){return{empty:true,forEach:function(){}};})
+    ]).then(function(results) {
+        var artistSnap = results[0], trackSnap = results[1];
+
+        // Find artists whose name contains the query
+        var matchedArtistIds = [];
+        artistSnap.forEach(function(doc) {
+            var name = (doc.data().name || '').toLowerCase();
+            if (name.indexOf(query) !== -1) matchedArtistIds.push(doc.id);
         });
 
-        if (results.length===0) { listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2.5rem;">🔍</div><div style="color:var(--text-muted);">No results for "'+escapeHtml(query)+'"</div></div>'; return; }
+        // Build track list from recent fetch, filtering by title/artist/genre
+        var seen = {};
+        var recentMatches = [];
+        trackSnap.forEach(function(doc) {
+            var t = doc.data();
+            var title  = (t.title      || '').toLowerCase().indexOf(query) !== -1;
+            var artist = (t.artist || t.authorName || '').toLowerCase().indexOf(query) !== -1;
+            var genre  = (t.genre  || '').toLowerCase().indexOf(query) !== -1;
+            if (title || artist || genre) {
+                seen[doc.id] = true;
+                recentMatches.push({id: doc.id, ...t});
+            }
+        });
 
-        window._beatsQueue=results;
-        var liked=typeof safeJSON==='function'?safeJSON('btc_beats_liked',[]):[];
-        
-        var html='<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-faint);font-size:0.75rem;">🔍 Found '+results.length+' result'+(results.length!==1?'s':'')+' for "'+escapeHtml(query)+'"</span><button onclick="beatsClearSearch()" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;cursor:pointer;">Clear</button></div>';
-        
-        results.forEach(function(t,idx){ var isLiked=liked.indexOf(t.id)!==-1;var isPlaying=window._beatsQueueIdx===idx;var duration=t.duration?beatsFormatTime(t.duration):'--:--'; html+='<div class="beats-track-row" onclick="beatsPlayTrack('+idx+')" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;'+ (isPlaying?'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);':'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:28px;text-align:center;color:' + (isPlaying?'var(--accent)':'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;">'+(isPlaying?'▶':(idx+1))+'</div><div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt||t.coverUrl)?'<img src="'+_safeCover(t.coverUrl||t.coverArt)+'" style="width:100%;height:100%;object-fit:cover;">':(t.genre==='podcast'?'🎙️':'🎵')) + '</div><div style="flex:1;min-width:0;"><div style="color:' + (isPlaying?'var(--accent)':'var(--heading)') + ';font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title||'Untitled') + '</div><div style="color:var(--text-faint);font-size:0.72rem;">' + escapeHtml(t.artist||t.authorName||'Unknown') + (t.genre?' · '+t.genre:'') + '</div></div><div style="flex-shrink:0;text-align:right;"><div style="color:var(--text-faint);font-size:0.7rem;">'+duration+'</div><div style="color:var(--text-faint);font-size:0.6rem;">▶ '+_formatPlays(t.plays||0)+'</div></div></div></div>';});
-        
-        listEl.innerHTML=html;
+        // If any artist names matched, also load their full track catalogues
+        var artistTrackPromises = matchedArtistIds.map(function(aid) {
+            return db.collection('beats_tracks').where('authorId', '==', aid).limit(100).get()
+                .catch(function(){return{empty:true,forEach:function(){}};});
+        });
+
+        Promise.all(artistTrackPromises).then(function(artistSnaps) {
+            var artistTracks = [];
+            artistSnaps.forEach(function(snap) {
+                snap.forEach(function(doc) {
+                    if (!seen[doc.id]) {
+                        seen[doc.id] = true;
+                        artistTracks.push({id: doc.id, ...doc.data()});
+                    }
+                });
+            });
+
+            // Artist tracks first (sorted by plays desc), then recent title/genre matches
+            artistTracks.sort(function(a,b){return (b.plays||0)-(a.plays||0);});
+            var allResults = artistTracks.concat(recentMatches);
+
+            if (allResults.length === 0) {
+                listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2.5rem;">🔍</div><div style="color:var(--text-muted);">No results for "'+escapeHtml(query)+'"</div></div>';
+                return;
+            }
+
+            window._beatsQueue = allResults;
+            var liked = typeof safeJSON === 'function' ? safeJSON('btc_beats_liked', []) : [];
+
+            var html = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-faint);font-size:0.75rem;">🔍 Found '+allResults.length+' result'+(allResults.length!==1?'s':'')+' for "'+escapeHtml(query)+'"</span><button onclick="beatsClearSearch()" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;cursor:pointer;">Clear</button></div>';
+
+            allResults.forEach(function(t,idx){ var isLiked=liked.indexOf(t.id)!==-1;var isPlaying=window._beatsQueueIdx===idx;var duration=t.duration?beatsFormatTime(t.duration):'--:--'; html+='<div class="beats-track-row" onclick="beatsPlayTrack('+idx+')" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;'+ (isPlaying?'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);':'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:28px;text-align:center;color:' + (isPlaying?'var(--accent)':'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;">'+(isPlaying?'▶':(idx+1))+'</div><div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt||t.coverUrl)?'<img src="'+_safeCover(t.coverUrl||t.coverArt)+'" style="width:100%;height:100%;object-fit:cover;">':(t.genre==='podcast'?'🎙️':'🎵')) + '</div><div style="flex:1;min-width:0;"><div style="color:' + (isPlaying?'var(--accent)':'var(--heading)') + ';font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title||'Untitled') + '</div><div style="color:var(--text-faint);font-size:0.72rem;">' + escapeHtml(t.artist||t.authorName||'Unknown') + (t.genre?' · '+t.genre:'') + '</div></div><div style="flex-shrink:0;text-align:right;"><div style="color:var(--text-faint);font-size:0.7rem;">'+duration+'</div><div style="color:var(--text-faint);font-size:0.6rem;">▶ '+_formatPlays(t.plays||0)+'</div></div></div></div>';});
+
+            listEl.innerHTML = html;
+        }).catch(function(e){console.error('[Beats Search artist]',e);});
     }).catch(function(e){console.error('[Beats Search]',e);listEl.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-faint);">Error searching</div>';});
 };
 
