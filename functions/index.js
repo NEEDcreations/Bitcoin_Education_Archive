@@ -7901,3 +7901,141 @@ exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
     }
     console.log(`[BACKUP] Export started → ${exportPath}`, result.name);
 });
+
+// ================================================================
+// NACHO RADIO — Auto-DJ that keeps beats playing in Global Chat
+// Runs every minute: starts Nacho when no human is DJing,
+// advances to next track when current one finishes.
+// Schema mirrors the live_dj doc written by human DJs.
+// ================================================================
+exports.nachoRadioTick = onSchedule({
+    schedule: 'every 1 minutes',
+    timeZone: 'UTC',
+    region: 'us-central1',
+    memory: '256MiB',
+}, async (event) => {
+    const djRef  = db.collection('global_chat_meta').doc('live_dj');
+    const radioRef = db.collection('global_chat_meta').doc('nacho_radio');
+
+    const [djDoc, radioDoc] = await Promise.all([djRef.get(), radioRef.get()]);
+    const dj    = djDoc.exists ? djDoc.data() : {};
+    const radio = radioDoc.exists ? radioDoc.data() : {};
+
+    // ── 1. Human DJ is live — leave them alone ─────────────────
+    if (dj.active && dj.djUid && dj.djUid !== 'nacho-dj') {
+        console.log('[NachoRadio] Human DJ active:', dj.djUid);
+        return;
+    }
+
+    const now = Date.now();
+
+    // ── 2. Nacho track still playing — nothing to do ────────────
+    if (dj.active && dj.isNachoDJ && dj.trackStartedAt && dj.trackDuration) {
+        const startMs = dj.trackStartedAt._seconds
+            ? dj.trackStartedAt._seconds * 1000
+            : (dj.trackStartedAt.toMillis ? dj.trackStartedAt.toMillis() : now);
+        const elapsed = (now - startMs) / 1000;
+        const remaining = dj.trackDuration - elapsed;
+        if (remaining > 5) {
+            console.log(`[NachoRadio] Playing: "${dj.trackTitle}" — ${remaining.toFixed(0)}s left`);
+            return;
+        }
+    }
+
+    // ── 3. Need to pick next track ────────────────────────────────
+    const playedRecently = (radio.playedRecently || []).slice(-80);
+
+    // Fetch up to 500 playable tracks
+    let snap;
+    try {
+        snap = await db.collection('beats_tracks').orderBy('title').limit(500).get();
+    } catch (e) {
+        console.error('[NachoRadio] fetch error:', e.message);
+        return;
+    }
+
+    let candidates = [];
+    snap.forEach(d => {
+        const t = d.data();
+        if (
+            t.audioUrl &&
+            (t.duration || 0) >= 60 &&
+            t.genre !== 'podcast' &&
+            !playedRecently.includes(d.id)
+        ) {
+            candidates.push({ id: d.id, ...t });
+        }
+    });
+
+    // If pool runs dry, reset played history and try again
+    if (candidates.length < 5) {
+        console.log('[NachoRadio] Pool exhausted — resetting history');
+        candidates = [];
+        snap.forEach(d => {
+            const t = d.data();
+            if (t.audioUrl && (t.duration || 0) >= 60 && t.genre !== 'podcast') {
+                candidates.push({ id: d.id, ...t });
+            }
+        });
+        playedRecently.length = 0;
+    }
+
+    if (candidates.length === 0) {
+        console.error('[NachoRadio] No playable tracks found');
+        return;
+    }
+
+    const track    = candidates[Math.floor(Math.random() * candidates.length)];
+    const wasActive = dj.active === true;
+    const songCount = (radio.songCount || 0) + 1;
+    const newPlayed = [...playedRecently, track.id];
+
+    const batch = db.batch();
+
+    // Update live_dj doc
+    batch.set(djRef, {
+        djUid:          'nacho-dj',
+        djName:         '🦌 Nacho',
+        isNachoDJ:      true,
+        active:         true,
+        trackId:        track.id,
+        trackTitle:     track.title     || 'Untitled',
+        trackArtist:    track.artist    || track.authorName || 'Unknown',
+        trackAudioUrl:  track.audioUrl,
+        trackCoverArt:  track.coverArt  || track.coverUrl  || '',
+        trackDuration:  track.duration  || 180,
+        trackStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+        artistUid:      track.authorId  || '',
+        songCount:      songCount,
+        playbackTime:   0,
+        playbackUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        startedAt:      wasActive ? (dj.startedAt || admin.firestore.FieldValue.serverTimestamp())
+                                  : admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Persist radio state
+    batch.set(radioRef, {
+        playedRecently: newPlayed.slice(-80),
+        songCount,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+
+    // Announce in chat only when going live from inactive, or every 10 tracks
+    const shouldAnnounce = !wasActive || (songCount % 10 === 1);
+    if (shouldAnnounce) {
+        const msg = wasActive
+            ? `🦌 Nacho Radio: "${track.title || 'Untitled'}" by ${track.artist || track.authorName || 'Unknown'} is up next 🎵 Tune in!`
+            : `🦌 **Nacho Radio** is live! Spinning beats from the Bitcoin Beats library. Now playing: "${track.title || 'Untitled'}" by ${track.artist || track.authorName || 'Unknown'} 🎵 Tune in!`;
+        await db.collection('global_chat').add({
+            uid:          'nacho-dj',
+            name:         '🦌 Nacho',
+            text:         msg,
+            ts:           admin.firestore.FieldValue.serverTimestamp(),
+            isNachoAuto:  true,
+        }).catch(e => console.warn('[NachoRadio] chat post failed:', e.message));
+    }
+
+    console.log(`[NachoRadio] ▶ "${track.title}" by ${track.artist || track.authorName} (${track.duration}s) | song #${songCount}`);
+});
