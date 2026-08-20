@@ -70,6 +70,18 @@ function _localQRDataUrl(data) {
 window._renderQRCode = _renderQRCode;
 window._localQRDataUrl = _localQRDataUrl;
 
+function _normalizeUrl(url) {
+    if (!url) return '#';
+    url = url.trim();
+    if (!url) return '#';
+    // Already has a protocol
+    if (/^https?:\/\//i.test(url)) return url;
+    // Has a protocol-relative URL
+    if (url.startsWith('//')) return 'https:' + url;
+    // No protocol — prepend https://
+    return 'https://' + url;
+}
+
 // Points config
 const POINTS = {
     visit: 5,
@@ -1380,6 +1392,7 @@ async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
+        window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
         if (currentUser.visitedChannelsList) {
             currentUser.visitedChannelsList.forEach(ch => allTimeChannels.add(ch));
@@ -3129,9 +3142,10 @@ function _lbBuildResultRow(u) {
     var pts = (u.points || 0).toLocaleString();
     var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
     var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
+    var peerTag = (window._myPeers && window._myPeers.has(u.uid || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     return '<div class="lb-search-result">' +
         '<span>' + lv.emoji + '</span>' +
-        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>' +
+        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + peerTag + escapeHtml(u.username || 'Anon') + '</a>' +
         '<span class="lb-sr-pts">' + pts + ' XP · <strong>' + (u.rank ? '#' + u.rank : '—') + '</strong></span>' +
     '</div>';
 }
@@ -3248,9 +3262,10 @@ window.lbSearchUser = function(val) {
             var pts = (u.points || 0).toLocaleString();
             var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
             var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
+            var peerTag = (window._myPeers && window._myPeers.has(u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             return '<div class="lb-search-result">' +
                 '<span>' + (lv.emoji || '') + '</span>' +
-                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">'
+                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + peerTag
                     + escapeHtml(u.username || 'Anon') + '</a>' +
                 '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + rank + '</strong></span>' +
                 '</div>';
@@ -3736,10 +3751,11 @@ async function toggleLeaderboard() {
 
             var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
             var _lbNameStyle = d.faction ? window._factionNameStyle(d.faction) : '';
+            var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
+                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (_lbPeriod === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : _lbPeriod === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP') + '</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
@@ -3830,10 +3846,11 @@ async function _loadPVPLeaderboard() {
             var pvpIcon = p.wins >= 100 ? '👑' : p.wins >= 50 ? '🏆' : p.wins >= 25 ? '🏟️' : p.wins >= 5 ? '🥊' : '⚔️';
             var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (p.isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (p.isMe ? ' lb-me' : '') + '"';
             var _pvpTipData = JSON.stringify({recipientName: p.username, recipientUid: p.id, lightningAddress: p.lightningAddress, context: 'pvp', label: 'Tip ' + p.username}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+            var peerTag = (window._myPeers && window._myPeers.has(p.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + p.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
-                '<span class="lb-name">' + p.username + '</span>' +
+                '<span class="lb-name">' + peerTag + p.username + '</span>' +
                 '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W - ' + p.losses + 'L</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + p.username + '">⚡</span>' +
             '</div>';
@@ -4272,9 +4289,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'sats', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix' };
+    ['account', 'scholar', 'sats', 'prefs', 'security', 'data', 'peers'].forEach(t => {
+        const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊', peers: '🧡' };
+        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix', peers: 'Peers' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:normal;text-align:center;line-height:1.2;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -5860,6 +5877,11 @@ function showSettingsPage(tab) {
             '<button onclick="confirmDeleteAccount()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
             '</div>';
         html += '</div>'; // close advStatsPanel
+    } else if (settingsTab === 'peers') {
+        html += '<div id="peersPanel" style="padding:0 4px;">';
+        html += '<h3 style="font-size:1rem;margin:0 0 12px;color:var(--text);">🧡 Your Peers</h3>';
+        html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:20px 0;">Loading...</div>';
+        html += '</div>';
     }
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
@@ -6023,6 +6045,66 @@ function showSettingsPage(tab) {
             }
         }
     }
+    // Load peers tab data
+    if (settingsTab === 'peers' && auth && auth.currentUser && typeof db !== 'undefined') {
+        setTimeout(async function() {
+            var listEl = document.getElementById('peersList');
+            if (!listEl) return;
+            try {
+                var uid = auth.currentUser.uid;
+                var userDoc = await db.collection('users').doc(uid).get();
+                var userData = userDoc.exists ? userDoc.data() : {};
+                var peers = userData.peers || [];
+                window._myPeers = new Set(peers);
+
+                // Load inbound requests first
+                var reqSnap = await db.collection('peer_requests')
+                    .where('to', '==', uid).where('status', '==', 'pending').limit(20).get();
+                var reqHtml = '';
+                if (!reqSnap.empty) {
+                    reqHtml += '<h4 style="font-size:0.85rem;margin:0 0 8px;color:var(--text);">Incoming Requests</h4>';
+                    reqSnap.forEach(function(doc) {
+                        var d = doc.data();
+                        reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
+                            '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
+                            '<div style="display:flex;gap:6px;">' +
+                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
+                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                            '</div></div>';
+                    });
+                }
+
+                // Load current peers
+                var peerHtml = '';
+                if (peers.length === 0) {
+                    peerHtml = '<p style="color:var(--text-muted);text-align:center;padding:12px 0;">No peers yet. Find people on the leaderboard and add them!</p>';
+                } else {
+                    var peerDocs = await Promise.all(peers.slice(0, 50).map(function(p) {
+                        return db.collection('public_profiles').doc(p).get();
+                    }));
+                    peerDocs.forEach(function(snap, i) {
+                        var d = snap.exists ? snap.data() : {};
+                        var name = d.username || d.displayName || 'Bitcoiner';
+                        var puid = peers[i];
+                        peerHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
+                            '<span style="font-size:0.9rem;cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + name + '</span>' +
+                            '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Remove</button>' +
+                            '</div>';
+                    });
+                }
+
+                var finalHtml = '';
+                if (reqHtml) finalHtml += reqHtml + '<h4 style="font-size:0.85rem;margin:16px 0 8px;color:var(--text);">Your Peers (' + peers.length + ')</h4>';
+                finalHtml += peerHtml;
+                var listEl2 = document.getElementById('peersList');
+                if (listEl2) listEl2.innerHTML = finalHtml || '<p style="text-align:center;color:var(--text-muted);">No peers yet</p>';
+            } catch(e) {
+                var listEl3 = document.getElementById('peersList');
+                if (listEl3) listEl3.innerHTML = '<p style="color:#ef4444;text-align:center;">Could not load peers: ' + (e.message || 'error') + '</p>';
+            }
+        }, 150);
+    }
+
     } catch(e) {
         if (typeof showToast === 'function') showToast('Settings page error: ' + e.message);
         console.error('showSettingsPage error:', e);
@@ -6254,6 +6336,7 @@ async function saveProfile() {
                 val = val.replace(/[\\'"<>]/g, '');
             } else {
                 val = _safeUrl(val);
+                if (k === 'website') val = _normalizeUrl(val) === '#' ? '' : _normalizeUrl(val);
             }
             updateData[k] = val;
         }
@@ -6377,7 +6460,7 @@ window.saveArtistProfile = function() {
         stageName: (document.getElementById('artistStageName').value || '').trim().substring(0, 40),
         bio: (document.getElementById('artistBio').value || '').trim().substring(0, 500),
         genres: (document.getElementById('artistGenres').value || '').trim().substring(0, 100),
-        website: (document.getElementById('artistLinkWebsite').value || '').trim().substring(0, 200),
+        website: (function(v) { v = (v || '').trim().substring(0, 200); v = _normalizeUrl(v) === '#' ? '' : _normalizeUrl(v); return v; })(document.getElementById('artistLinkWebsite').value),
         x: (document.getElementById('artistLinkX').value || '').trim().substring(0, 50),
         instagram: (document.getElementById('artistLinkInstagram').value || '').trim().substring(0, 50)
     };
@@ -7330,5 +7413,84 @@ window._buyStreakFreeze = async function(amount) {
         var msg = err.message || 'Purchase failed';
         if (err.code === 'resource-exhausted') msg = err.message;
         if (typeof showToast === 'function') showToast('\u274c ' + msg);
+    }
+};
+
+// ---- Peer system profile injection ----
+(function(){
+    var _origShowUserProfile = window.showUserProfile;
+    window.showUserProfile = function(uid){
+        if (typeof _origShowUserProfile === 'function') _origShowUserProfile.apply(this, arguments);
+        if (!uid || uid === 'nacho' || uid === 'nacho-bot') return;
+        var tries = 0;
+        function _tryInject(){
+            var modal = document.getElementById('userProfileModal');
+            if (!modal || modal.dataset.peerPatched){
+                if (++tries < 50){ setTimeout(_tryInject, 60); }
+                return;
+            }
+            modal.dataset.peerPatched = '1';
+            var isPeer = window._myPeers && window._myPeers.has(uid);
+            var peerBtnHtml = isPeer
+                ? '<button style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;">🧡 Peers</button>'
+                : '<button onclick="window.managePeer(\'send\',\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;">🧡 Add Peer</button>';
+            var blockRow = modal.querySelector('div[style*="display:flex;gap:8px;margin-top:8px;"]');
+            if (blockRow && blockRow.parentNode){
+                var peerRow = document.createElement('div');
+                peerRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
+                peerRow.innerHTML = peerBtnHtml;
+                blockRow.parentNode.insertBefore(peerRow, blockRow.nextSibling);
+            } else {
+                var inner = modal.querySelector('div[style*="background:var(--bg-side)"]') || modal.firstElementChild;
+                if (inner){
+                    var peerRow = document.createElement('div');
+                    peerRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
+                    peerRow.innerHTML = peerBtnHtml;
+                    inner.appendChild(peerRow);
+                }
+            }
+            if (db){
+                db.collection('public_profiles').doc(uid).get().then(function(doc){
+                    if (!doc.exists) return;
+                    var u = doc.data();
+                    if (!u.peerCount) return;
+                    var m2 = document.getElementById('userProfileModal');
+                    if (!m2 || m2.dataset.peerStatPatched) return;
+                    m2.dataset.peerStatPatched = '1';
+                    var rows = m2.querySelectorAll('div[style*="grid-template-columns:repeat(3,1fr)"]');
+                    if (rows.length){
+                        var lastRow = rows[rows.length - 1];
+                        var statDiv = document.createElement('div');
+                        statDiv.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;';
+                        statDiv.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;"><div style="font-size:1.3rem;">🧡</div><div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + u.peerCount + '</div><div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">Peers</div></div>';
+                        lastRow.parentNode.insertBefore(statDiv, lastRow.nextSibling);
+                    }
+                }).catch(function(){});
+            }
+        }
+        setTimeout(_tryInject, 50);
+    };
+})();
+
+window.managePeer = async function(action, targetUid) {
+    if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Sign in first'); return; }
+    try {
+        var fn = firebase.functions().httpsCallable('managePeer');
+        var result = await fn({ action: action, targetUid: targetUid });
+        if (result && result.data && result.data.success) {
+            if (action === 'send')   { if (typeof showToast === 'function') showToast('Peer request sent! 🧡'); }
+            if (action === 'remove') { window._myPeers && window._myPeers.delete(targetUid); if (typeof showToast === 'function') showToast('Peer removed'); }
+            if (action === 'accept') {
+                window._myPeers = window._myPeers || new Set();
+                window._myPeers.add(targetUid);
+                if (typeof showToast === 'function') showToast('Peer accepted! 🧡');
+                if (typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
+            }
+        }
+    } catch(e) {
+        var msg = (e && e.message) || 'Error';
+        if (msg.includes('already-exists')) msg = 'Already sent or already peers';
+        if (typeof showToast === 'function') showToast(msg);
+        console.error('[managePeer]', e);
     }
 };

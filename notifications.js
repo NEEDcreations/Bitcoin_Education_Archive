@@ -241,8 +241,18 @@ window.showNotifications = async function() {
             var isUnread = !n.read;
             var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', security: '🔐' };
             var icon = icons[n.type] || '🔔';
+            if (n.type === 'peer_request') icon = '🧡';
+            if (n.type === 'peer_accepted') icon = '🧡';
 
-            html += '<div style="padding:10px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\')">' +
+            var extraHtml = '';
+            if (n.type === 'peer_request' && n.fromUid) {
+                extraHtml = '<div style="display:flex;gap:6px;margin-top:6px;">' +
+                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'accept\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
+                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'decline\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                    '</div>';
+            }
+
+            html += '<div data-notif-id="' + doc.id + '" style="padding:10px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\')">' +
                 '<div style="display:flex;gap:8px;align-items:flex-start;">' +
                     '<span style="font-size:1.1rem;flex-shrink:0;">' + icon + '</span>' +
                     '<div style="flex:1;min-width:0;">' +
@@ -250,13 +260,42 @@ window.showNotifications = async function() {
                         '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">' + timeStr + '</div>' +
                     '</div>' +
                     (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
-                '</div>' +
+                '</div>' + extraHtml +
             '</div>';
         });
         list.innerHTML = html;
     } catch(e) {
         var list = document.getElementById('notifList');
         if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.82rem;">Could not load notifications</div>';
+    }
+};
+
+// Peer notification action handler
+window.handlePeerNotifAction = async function(action, fromUid, notifId, btnEl) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    btnEl.textContent = '...';
+    try {
+        var fn = firebase.functions().httpsCallable('managePeer');
+        await fn({ action: action, targetUid: fromUid });
+        // Dismiss the notification row
+        var row = btnEl.closest('[data-notif-id]');
+        if (row) row.remove();
+        if (typeof showToast === 'function') {
+            showToast(action === 'accept' ? 'Peer request accepted! 🧡' : 'Request declined');
+        }
+        if (action === 'accept') {
+            // Refresh peer cache
+            if (auth && auth.currentUser && typeof db !== 'undefined') {
+                db.collection('users').doc(auth.currentUser.uid).get().then(function(snap) {
+                    if (snap.exists) window._myPeers = new Set(snap.data().peers || []);
+                });
+            }
+        }
+    } catch(e) {
+        btnEl.disabled = false;
+        btnEl.textContent = action === 'accept' ? 'Accept' : 'Decline';
+        if (typeof showToast === 'function') showToast('Error: ' + (e.message || 'Try again'));
     }
 };
 
@@ -283,6 +322,10 @@ window.handleNotifClick = async function(notifId, targetType, targetId) {
         } catch(e) {
             if (typeof showInbox === 'function') showInbox();
         }
+    }
+    else if (targetType === 'peer_request') {
+        if (typeof showSettingsPage === 'function') showSettingsPage('peers');
+        return;
     }
 };
 
@@ -469,8 +512,18 @@ window.renderNotifList = async function() {
             var timeStr = ts ? formatNotifTime(ts) : '';
             var isUnread = !n.read;
             var icon = icons[n.type] || '🔔';
+            if (n.type === 'peer_request') icon = '🧡';
+            if (n.type === 'peer_accepted') icon = '🧡';
 
-            html += '<div onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\');toggleNotifOverlay()" style="padding:12px 16px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.03)\'" onmouseout="this.style.background=\'' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + '\'">' +
+            var extraHtml = '';
+            if (n.type === 'peer_request' && n.fromUid) {
+                extraHtml = '<div style="display:flex;gap:6px;margin-top:6px;">' +
+                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'accept\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
+                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'decline\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                    '</div>';
+            }
+
+            html += '<div data-notif-id="' + doc.id + '" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\');toggleNotifOverlay()" style="padding:12px 16px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.03)\'" onmouseout="this.style.background=\'' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + '\'">' +
                 '<div style="display:flex;gap:10px;align-items:flex-start;">' +
                     '<span style="font-size:1.2rem;flex-shrink:0;">' + icon + '</span>' +
                     '<div style="flex:1;min-width:0;">' +
@@ -478,7 +531,7 @@ window.renderNotifList = async function() {
                         '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + timeStr + '</div>' +
                     '</div>' +
                     (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
-                '</div>' +
+                '</div>' + extraHtml +
             '</div>';
         });
         body.innerHTML = html;

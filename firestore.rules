@@ -90,6 +90,8 @@ service cloud.firestore {
                         'banned', 'ban_reason', 'flagged', 'flag_reason',
                         'withdrawals_disabled', 'satsDisabled',
                         'known_ips', 'fingerprint', 'fraudScore',
+                        // Peer network (CF-only via managePeer)
+                        'peers', 'peerCount',
                         // Immutable identity
                         'created', 'createdAt', 'uid'
                     ]))
@@ -1520,6 +1522,18 @@ service cloud.firestore {
     // CSRF nonce store for Strava OAuth — server-side only, clients have zero access
     match /strava_nonces/{nonce} {
       allow read, write: if false;
+    }
+
+    // =============================================
+    // PEER REQUESTS
+    // All writes go through the managePeer Cloud Function (Admin SDK).
+    // Participants may read their own requests only (sent or received).
+    // =============================================
+    match /peer_requests/{reqId} {
+      allow read: if request.auth != null
+                  && (resource.data.from == request.auth.uid
+                      || resource.data.to == request.auth.uid);
+      allow write: if false; // Cloud Function (Admin SDK) only
     }
 
     match /{document=**} {

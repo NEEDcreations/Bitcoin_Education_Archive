@@ -7,6 +7,15 @@
 // Online Presence + User Profiles + Direct Messages
 // =============================================
 
+function _normalizeUrl(url) {
+    if (!url) return '#';
+    url = url.trim();
+    if (!url) return '#';
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith('//')) return 'https:' + url;
+    return 'https://' + url;
+}
+
 // ---- CONFIG ----
 var MSG_CONFIG = {
     onlineThreshold: 5 * 60 * 1000,    // 5 min = online (green)
@@ -206,9 +215,14 @@ function _canStartNewConvo(recipientUid) {
 }
 
 // ---- ACCOUNT AGE & POINTS CHECK ----
-function _canAccountDM() {
+function _canAccountDM(targetUid) {
     if (!auth || !auth.currentUser) return { ok: false, reason: 'Sign in to send messages' };
     if (auth.currentUser.isAnonymous) return { ok: false, reason: 'Sign in with an account to send messages' };
+
+    // Peers bypass point/age requirements
+    if (targetUid && window._myPeers && window._myPeers.has(targetUid)) {
+        return { ok: true };
+    }
 
     // Check points requirement
     var pts = 0;
@@ -583,7 +597,7 @@ window.showUserProfile = function(uid) {
         }
 
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
-        var dmEligibility = canMessage ? _canAccountDM() : { ok: false };
+        var dmEligibility = canMessage ? _canAccountDM(uid) : { ok: false };
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -646,7 +660,7 @@ window.showUserProfile = function(uid) {
             ((u.twitter || u.nostr || u.website) ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
                 (u.twitter ? '<a href="https://x.com/' + escapeHtml(u.twitter.replace('@','')) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">𝕏 ' + escapeHtml(u.twitter) + '</a>' : '') +
                 (u.nostr ? '<span style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:#8b5cf6;font-size:0.72rem;">🟣 Nostr</span>' : '') +
-                (u.website && !/^(javascript|data|vbscript|blob):/i.test(u.website.trim()) ? '<a href="' + escapeHtml(u.website) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
+                (u.website && !/^(javascript|data|vbscript|blob):/i.test(u.website.trim()) ? '<a href="' + escapeHtml(_normalizeUrl(u.website)) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
             '</div>' : '') +
             // Stats grid
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
@@ -795,7 +809,7 @@ window.openDM = function(recipientUid, recipientName) {
     }
 
     // Account eligibility check (age + points)
-    var eligibility = _canAccountDM();
+    var eligibility = _canAccountDM(recipientUid);
     if (!eligibility.ok) {
         if (typeof showToast === 'function') showToast(eligibility.reason);
         return;
