@@ -25,6 +25,7 @@ const DIFFICULTY_HISTORY = [
   { target: 10000, since: '2026-07-02' },
   { target: 8000,  since: '2026-07-10' }, // +25% raise — tightening odds to 1:12,500
   { target: 7000,  since: '2026-07-29' }, // -12.5% drop — easing odds to 1:14,286
+  { target: 10000, since: '2026-08-20' }, // -30% decrease — easing odds to 1:10,000
 ];
 const DIFFICULTY_TARGET = DIFFICULTY_HISTORY[DIFFICULTY_HISTORY.length - 1].target;
 

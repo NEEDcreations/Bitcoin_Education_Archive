@@ -1816,9 +1816,18 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
                 throw new Error('Sats withdrawals are disabled on this account. Contact support if you believe this is an error.');
             }
 
-            // L1: Check if a previous claim is still pending
+            // L1: Check if a previous claim is still pending (5-min TTL self-heal)
             if (user._pendingClaim === true) {
-                throw new Error('A previous claim is still processing. Try again in a minute.');
+                const pendingAt = user._pendingClaimAt
+                    ? (user._pendingClaimAt.toDate ? user._pendingClaimAt.toDate() : new Date(user._pendingClaimAt))
+                    : null;
+                const PENDING_TTL_MS = 5 * 60 * 1000; // 5 minutes
+                if (!pendingAt || (Date.now() - pendingAt.getTime() > PENDING_TTL_MS)) {
+                    // Flag is stale — auto-clear and proceed
+                    console.log('[FAUCET] Auto-clearing stale _pendingClaim for uid=' + uid);
+                } else {
+                    throw new Error('A previous claim is still processing. Try again in a minute.');
+                }
             }
 
             // Check channels read
@@ -1946,7 +1955,8 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
                 pointsClaimed: admin.firestore.FieldValue.increment(pointsToClaim),
                 satsWithdrawn: admin.firestore.FieldValue.increment(amount),
                 lastSatsClaim: admin.firestore.FieldValue.serverTimestamp(),
-                _pendingClaim: true // flag: payment in progress
+                _pendingClaim: true, // flag: payment in progress
+                _pendingClaimAt: admin.firestore.Timestamp.now()
             });
 
             // ALSO write to server-only ledger (C-NEW-6 fix). Using set+merge so
@@ -1976,7 +1986,7 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
     let nwc;
     try {
         nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
-        const balanceResult = await nwc.getBalance();
+        const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) {
             // ROLLBACK: refund points since we already deducted
@@ -1986,7 +1996,8 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
     } catch (e) {
         console.error('[FAUCET] Balance check failed:', e.message);
         await _rollbackClaim(uid, amount, today);
-        return { success: false, error: 'Could not connect to payment wallet. Try again later.' };
+        const isTimeout = e.message && e.message.indexOf('[TIMEOUT]') === 0;
+        return { success: false, error: isTimeout ? 'Payment wallet is not responding. Try again in a moment.' : 'Could not connect to payment wallet. Try again later.' };
     }
 
     // FINAL SAFETY CHECK - absolute hard cap before touching the wallet
@@ -1998,7 +2009,7 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
 
     // 9. PAY THE INVOICE via NWC
     try {
-        const payResult = await nwc.payInvoice({ invoice: invoice });
+        const payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) {
             await _rollbackClaim(uid, amount, today);
             return { success: false, error: 'Payment failed. Check your invoice and try again.' };
@@ -2006,7 +2017,7 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
 
         // 9. Payment succeeded - record withdrawal history, clear pending flag, mark invoice used
         const batch = db.batch();
-        batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete() });
+        batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete(), _pendingClaimAt: admin.firestore.FieldValue.delete() });
         batch.set(userRef.collection('sats_withdrawals').doc(), {
             amount: amount,
             pointsUsed: amount * FAUCET.POINTS_PER_SAT,
@@ -2067,9 +2078,22 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
         console.error('[FAUCET] Payment error:', e.message);
         // Payment failed - rollback the points deduction
         await _rollbackClaim(uid, amount, today);
-        return { success: false, error: 'Payment failed. Please try again.' };
+        const isTimeout = e.message && e.message.indexOf('[TIMEOUT]') === 0;
+        return { success: false, error: isTimeout ? 'Payment timed out — your sats were not sent. Please try again.' : 'Payment failed. Please try again.' };
     }
 });
+
+// Timeout helper: race a promise against a deadline; rejects with a labeled error on timeout
+function _withTimeout(promise, ms, label) {
+    return Promise.race([
+        promise,
+        new Promise(function(_, reject) {
+            setTimeout(function() {
+                reject(new Error('[TIMEOUT] ' + label + ' timed out after ' + ms + 'ms'));
+            }, ms);
+        })
+    ]);
+}
 
 // Rollback helper: refund points if payment fails after transaction
 async function _rollbackClaim(uid, amount, today) {
@@ -2079,7 +2103,8 @@ async function _rollbackClaim(uid, amount, today) {
         batch.update(db.collection('users').doc(uid), {
             pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
             satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            _pendingClaim: admin.firestore.FieldValue.delete()
+            _pendingClaim: admin.firestore.FieldValue.delete(),
+            _pendingClaimAt: admin.firestore.FieldValue.delete()
         });
         // Also roll back the server-only ledger (C-NEW-6 fix)
         batch.set(db.collection('faucet_ledger').doc(uid), {
@@ -5281,6 +5306,7 @@ exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
             flag_reason: admin.firestore.FieldValue.delete(),
             ban_reason: admin.firestore.FieldValue.delete(),
             _pendingClaim: admin.firestore.FieldValue.delete(),
+            _pendingClaimAt: admin.firestore.FieldValue.delete(),
         });
         // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
         batch.set(db.collection('faucet_ledger').doc(uid), {
