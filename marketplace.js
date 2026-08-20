@@ -80,6 +80,7 @@ var MARKETPLACE_SECTIONS = [
     { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
     { id: 'merchants', name: 'More Bitcoin Merchants', emoji: '🏪', desc: 'Browse more Bitcoin merchants' },
     { id: 'noderunners', name: 'Even More Merchants', emoji: '🌐', desc: 'Bitcoin shops via Node Runners' },
+    { id: 'conduit', name: 'Conduit Market', emoji: '🔌', desc: 'Shop at Conduit Market' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
@@ -177,6 +178,15 @@ function _preloadMarketIframes() {
         nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
         document.body.appendChild(nrWrap);
     }
+
+    // Conduit Market iframe (hidden, preloading in background)
+    if (!document.getElementById('conduitIframeWrap')) {
+        var conduitWrap = document.createElement('div');
+        conduitWrap.id = 'conduitIframeWrap';
+        conduitWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        conduitWrap.innerHTML = '<iframe id="conduitIframe" src="https://shop.conduit.market/products" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        document.body.appendChild(conduitWrap);
+    }
 }
 
 // Show a preloaded iframe by positioning it over a placeholder element
@@ -214,6 +224,7 @@ function _hidePreloadedIframe(wrapId) {
 window._hideMarketIframes = function() {
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
+    _hidePreloadedIframe('conduitIframeWrap');
 };
 
 window.renderMarketplace = function(options) {
@@ -306,9 +317,10 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
-    // Hide both preloaded iframes by default
+    // Hide all preloaded iframes by default
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
+    _hidePreloadedIframe('conduitIframeWrap');
 
     // If "Other Bitcoin Merchants" tab is active, show preloaded Galaxy Mind iframe
     if (activeSection === 'merchants') {
@@ -325,6 +337,15 @@ function _actualRenderMarketplace(options) {
         html += '</div>';
         container.innerHTML = html;
         _showPreloadedIframe('nrIframeWrap', 'nrIframePlaceholder');
+        return;
+    }
+
+    // If "Conduit Market" tab is active, show preloaded iframe
+    if (activeSection === 'conduit') {
+        html += '<div id="conduitIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('conduitIframeWrap', 'conduitIframePlaceholder');
         return;
     }
 
