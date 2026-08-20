@@ -3142,7 +3142,7 @@ function _lbBuildResultRow(u) {
     var pts = (u.points || 0).toLocaleString();
     var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
     var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
-    var peerTag = (window._myPeers && window._myPeers.has(u.uid || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+    var peerTag = (window._myPeers && window._myPeers.has(u.uid || u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     return '<div class="lb-search-result">' +
         '<span>' + lv.emoji + '</span>' +
         '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + peerTag + escapeHtml(u.username || 'Anon') + '</a>' +
