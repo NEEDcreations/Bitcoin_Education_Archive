@@ -1023,13 +1023,17 @@ window.renderReadNext = function(currentId) {
     if (sameCat.length === 0) return '';
     // Pick 3 random from same category
     var shuffled = sameCat.sort(function() { return Math.random() - 0.5; }).slice(0, 3);
-    var html = '<div style="margin-top:20px;padding:20px 0;border-top:1px solid var(--border);">' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📖 Read Next</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+    // Was: a 📖 heading plus chips whose glyph was scraped out of the title
+    // with a regex. Channels now carry an `icon` field, so ask for it.
+    // NB: the old code declared `var icon` here, shadowing the global helper.
+    var html = '<div class="read-next">' +
+        '<div class="kicker">Read next</div>' +
+        '<div class="read-next-list">';
     shuffled.forEach(function(e) {
-        var emoji = e[1].title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}]+)/u);
-        var icon = emoji ? emoji[1] : '📄';
-        html += '<button onclick="go(\'' + e[0] + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + icon + ' ' + e[0].replace(/-/g,' ') + '</button>';
+        var glyph = (typeof icon === 'function') ? icon(e[1].icon || 'book', 16) : '';
+        var label = (typeof stripLeadingEmoji === 'function' ? stripLeadingEmoji(e[1].title || e[0]) : e[0]);
+        html += '<button class="read-next-item" onclick="go(\'' + e[0] + '\')">' +
+            glyph + '<span>' + label + '</span></button>';
     });
     html += '</div></div>';
     return html;

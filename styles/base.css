@@ -1,0 +1,183 @@
+/* ==========================================================================
+   base.css — reset, self-hosted faces, element defaults, reading layer.
+   Loaded after tokens.css, before the page's own <style> block.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Self-hosted faces. `local()` first so a user who already has the family
+   installed pays nothing. If a .woff2 is absent the browser falls straight
+   through to the fallback stack declared in --font-ui / --font-content /
+   --font-mono, so the design is correct with or without the font payload.
+   -------------------------------------------------------------------------- */
+@font-face {
+    font-family: 'InterTight';
+    src: local('Inter Tight'), url('../fonts/inter-tight-latin.woff2') format('woff2');
+    font-weight: 400 600;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F,
+                   U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215;
+}
+@font-face {
+    font-family: 'Newsreader';
+    src: local('Newsreader'), url('../fonts/newsreader-latin.woff2') format('woff2');
+    font-weight: 400 600;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F,
+                   U+2074, U+20AC, U+2122, U+2212;
+}
+@font-face {
+    font-family: 'Newsreader';
+    src: local('Newsreader Italic'), url('../fonts/newsreader-latin-italic.woff2') format('woff2');
+    font-weight: 400 600;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'IBMPlexMono';
+    src: local('IBM Plex Mono'), url('../fonts/ibm-plex-mono-latin.woff2') format('woff2');
+    font-weight: 400 500;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2212;
+}
+
+/* --------------------------------------------------------------------------
+   Reset
+   -------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+button, a, [onclick] { touch-action: manipulation; }
+html, body { overflow-x: hidden; scroll-behavior: smooth; overscroll-behavior-y: contain; }
+img, svg, video { max-width: 100%; }
+img, video { height: auto; }
+
+/* --------------------------------------------------------------------------
+   Document
+   -------------------------------------------------------------------------- */
+body {
+    background: var(--ink-950);
+    color: var(--fg);
+    font-family: var(--font-ui);
+    font-size: var(--t-15);
+    line-height: var(--lh-ui);
+    font-weight: var(--w-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'kern' 1;
+    transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+
+/* --------------------------------------------------------------------------
+   Headings. Content headings are serif; chrome headings are UI sans.
+   No 900 weights, no negative tracking, no uppercase display type.
+   -------------------------------------------------------------------------- */
+h1, h2, h3, h4 {
+    font-family: var(--font-ui);
+    font-weight: var(--w-semi);
+    line-height: var(--lh-tight);
+    color: var(--fg);
+    letter-spacing: 0;
+}
+h1 { font-size: var(--t-31); }
+h2 { font-size: var(--t-24); }
+h3 { font-size: var(--t-19); }
+h4 { font-size: var(--t-17); }
+
+/* --------------------------------------------------------------------------
+   Reading layer — the core fix. Body copy was running ~115 characters per
+   line at 16.8px in a system font stack that differed on every OS.
+   -------------------------------------------------------------------------- */
+.measure      { max-width: var(--measure); }
+.measure-wide { max-width: var(--measure-wide); }
+
+.prose {
+    font-family: var(--font-content);
+    font-size: var(--t-19);
+    line-height: var(--lh-read);
+    color: var(--fg);
+    max-width: var(--measure);
+    font-feature-settings: 'kern' 1, 'liga' 1, 'onum' 1;
+}
+.prose strong, .prose b { font-weight: var(--w-semi); color: var(--fg); }
+.prose em, .prose i    { font-style: italic; }
+.prose a               { color: var(--orange); text-decoration-thickness: 1px;
+                         text-underline-offset: 0.2em; }
+
+/* Numerals: tabular mono everywhere a figure appears — price, sats, XP,
+   block height, countdowns. This is what makes the data read as data. */
+.num, .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'zero' 1;
+    letter-spacing: -0.01em;
+}
+
+/* Kicker — the small uppercase label above a heading. Replaces the
+   800-weight #d97706 letterspaced-2px treatment used throughout. */
+.kicker {
+    font-family: var(--font-ui);
+    font-size: var(--t-11);
+    font-weight: var(--w-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-3);
+}
+
+/* --------------------------------------------------------------------------
+   Links
+   -------------------------------------------------------------------------- */
+a { color: var(--orange); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+
+/* --------------------------------------------------------------------------
+   Focus — visible, consistent, and previously absent
+   -------------------------------------------------------------------------- */
+:focus-visible {
+    outline: 2px solid var(--orange);
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* --------------------------------------------------------------------------
+   Form controls inherit the type system
+   -------------------------------------------------------------------------- */
+input, textarea, select, button { font-family: inherit; font-size: inherit; color: inherit; }
+::placeholder { color: var(--fg-4); opacity: 1; }
+
+/* --------------------------------------------------------------------------
+   Selection
+   -------------------------------------------------------------------------- */
+::selection { background: var(--orange-tint); color: var(--fg); }
+
+/* --------------------------------------------------------------------------
+   Scrollbars — tuned to the ink ramp instead of OS default
+   -------------------------------------------------------------------------- */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: var(--r-full);
+    border: 3px solid transparent;
+    background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--fg-4); background-clip: content-box; }
+
+/* --------------------------------------------------------------------------
+   Motion discipline. Global tactile press feedback stays; the pulsing
+   glows and triple text-shadows are gone.
+   -------------------------------------------------------------------------- */
+button, [onclick] { transition: transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease); }
+button:active, [onclick]:active { transform: scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

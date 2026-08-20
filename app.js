@@ -69,12 +69,16 @@
 
     function toggleTheme() {
         const isDark = document.body.getAttribute('data-theme') !== 'light';
-        document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
-        localStorage.setItem('theme', isDark ? 'light' : 'dark');
-        const icon = document.getElementById('themeBtn');
-        if (icon) icon.textContent = isDark ? '☀️' : '🌙';
-        const mIcon = document.getElementById('mobileThemeBtn');
-        if (mIcon) mIcon.textContent = isDark ? '☀️' : '🌙';
+        const next = isDark ? 'light' : 'dark';
+        document.body.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        // The glyph shows the theme you'd switch TO. Was ☀️ / 🌙; the local
+        // `icon` name below used to shadow the global icon() helper.
+        const glyph = window.icon ? window.icon(next === 'light' ? 'sun' : 'moon', 20) : '';
+        ['themeBtn', 'mobileThemeBtn'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = glyph;
+        });
     }
 
     function toggleMenu() {
@@ -249,16 +253,10 @@
                 
                 // Add AI Summary box at the very top of the list
                 if (startIdx === 0) {
-                    const meta = typeof CHANNELS !== 'undefined' ? CHANNELS[id] : null;
-                    if (meta && meta.desc) {
-                        html += '<div class="ai-summary-box" style="margin:20px 0;padding:20px;background:var(--accent-bg);border:1px dashed var(--accent);border-radius:16px;">' +
-                            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
-                                '<span style="font-size:1.5rem;">🦌</span>' +
-                                '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">Nacho\'s Summary</div>' +
-                            '</div>' +
-                            '<div style="color:var(--text);font-size:0.95rem;line-height:1.6;font-weight:500;">' + meta.desc + '</div>' +
-                        '</div>';
-                    }
+                    // The "Nacho's Summary" box that used to sit here printed
+                    // meta.desc inside a dashed-orange card — the same sentence
+                    // the masthead standfirst now carries, so it rendered the
+                    // description twice on every topic. The masthead keeps it.
                 }
 
                 batch.forEach((m, bi) => {
@@ -347,28 +345,57 @@
         const prevId = currentIdx > 0 ? channelKeys[currentIdx - 1] : channelKeys[channelKeys.length - 1];
         const prevTitle = CHANNELS[prevId] ? CHANNELS[prevId].title : prevId;
 
-        let navHtml = '<div style="display:flex;gap:12px;justify-content:center;align-items:center;padding:30px 0 40px;border-top:1px solid var(--border);margin-top:30px;flex-wrap:wrap;">';
-        navHtml += '<button onclick="go(\''+ prevId + '\')" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);transition:0.2s;">← Back</button>';
-        navHtml += '<button onclick="goRandom()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Channel">🎲</button>';
-        navHtml += '<button onclick="goRandomGraphic()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Graphic">📊</button>';
-        navHtml += '<button onclick="goRandomArt()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Art">🎨</button>';
-        navHtml += '<button onclick="goRandomMeme()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Meme">😂</button>';
-        navHtml += '<button onclick="go(\''+ nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
-        navHtml += '</div>';
-        navHtml += '<div style="text-align:center;padding-bottom:20px;">';
-        navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual(currentChannelId)" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
-        navHtml += '</div>';
+        // ---- Article footer -------------------------------------------------
+        // Was: a centred row of "← Back", four bare-emoji random buttons, and an
+        // orange "Next →". Now a share row, a pager that names where it goes,
+        // and quiet secondary actions — all on the reading measure.
+        const sb = window._pendingShareBar || {};
+        let navHtml = '<div class="article-foot">';
+
+        if (sb.shareUrl) {
+            const safeText = String(sb.shareText || '').replace(/[\\'"]/g, '');
+            navHtml += '<div class="share-bar">' +
+                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(sb.shareText || '') + '&url=' + encodeURIComponent(sb.shareUrl) + '" target="_blank" rel="noopener">' + icon('share', 16) + ' Share</a>' +
+                '<button class="share-btn" onclick="shareNostr(\'' + safeText + '\', \'' + sb.shareUrl + '\')">' + icon('globe', 16) + ' Nostr</button>' +
+                '<button class="share-btn" onclick="copyLink(\'' + sb.shareUrl + '\', this)">' + icon('link', 16) + ' Copy link</button>' +
+                '<button class="share-btn" id="favBtn" onclick="toggleFav(\'' + sb.id + '\', this)">' + icon('star', 16) + ' ' + (getFavs().includes(sb.id) ? 'Saved' : 'Save') + '</button>' +
+            '</div>';
+        }
+
+        navHtml += '<button class="quest-cta" onclick="if(typeof startQuestManual===\'function\')startQuestManual(currentChannelId)">' +
+            icon('quest', 16) + ' Test your knowledge on this topic</button>';
+
+        // Pager: naming the destination beats an anonymous arrow.
+        navHtml += '<nav class="pager">' +
+            '<button class="pager-item" onclick="go(\'' + prevId + '\')">' +
+                '<span class="pager-dir">' + icon('arrow-left', 16) + ' Previous</span>' +
+                '<span class="pager-title">' + stripLeadingEmoji(prevTitle) + '</span>' +
+            '</button>' +
+            '<button class="pager-item pager-next" onclick="go(\'' + nextId + '\')">' +
+                '<span class="pager-dir">Next ' + icon('arrow-right', 16) + '</span>' +
+                '<span class="pager-title">' + stripLeadingEmoji(nextTitle) + '</span>' +
+            '</button>' +
+        '</nav>';
+
+        navHtml += '<div class="shuffle-row">' +
+            '<span class="shuffle-label">Shuffle</span>' +
+            '<button class="btn btn-sm btn-quiet" onclick="goRandom()" title="Random topic">' + icon('dice', 16) + ' Topic</button>' +
+            '<button class="btn btn-sm btn-quiet" onclick="goRandomGraphic()" title="Random chart">' + icon('chart', 16) + ' Chart</button>' +
+            '<button class="btn btn-sm btn-quiet" onclick="goRandomArt()" title="Random art">' + icon('image', 16) + ' Art</button>' +
+            '<button class="btn btn-sm btn-quiet" onclick="goRandomMeme()" title="Random meme">' + icon('flame', 16) + ' Meme</button>' +
+        '</div>';
         // Read Next suggestions
         if (typeof renderReadNext === 'function') {
             navHtml += renderReadNext(id);
         }
-        // Educational content disclaimer (dim, bottom of every topic)
-        navHtml += '<div style="max-width:720px;margin:24px auto 8px;padding:14px 22px;font-size:0.62rem;line-height:1.55;color:var(--text-faint);text-align:center;letter-spacing:0.2px;opacity:0.7;">' +
-            '<div style="font-weight:700;font-size:0.58rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1.2px;">Disclaimer</div>' +
+        // Educational content disclaimer (bottom of every topic)
+        navHtml += '<div class="disclaimer">' +
+            '<div class="kicker" style="margin-bottom:6px;">Disclaimer</div>' +
             'This Bitcoin education is presented authentically and from a first-principles standpoint that maximizes truth. However, this is <strong>not financial, investment, legal, or tax advice</strong> and anyone reading this material should still verify its validity by doing their own research. ' +
             'Bitcoin is volatile and you can lose money. Bitcoin Education Archive, its operators, and contributors make no warranty regarding the accuracy, completeness, or timeliness of any educational content and accept no liability for decisions made based on it. Always consult a licensed professional before making financial decisions. ' +
-            '<a href="/terms.html" style="color:var(--text-muted);text-decoration:underline;">Terms</a> · <a href="/privacy.html" style="color:var(--text-muted);text-decoration:underline;">Privacy</a>' +
+            '<a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a>' +
         '</div>';
+        navHtml += '</div>';   // close .article-foot
         msgsEl.innerHTML += navHtml;
 
         msgsEl.classList.add('fade-in');
@@ -3772,21 +3799,19 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         const shareUrl = 'https://bitcoineducation.quest/#' + id;
         const shareText = meta.title + ' — Bitcoin Education Archive';
+        // Article masthead. The two centred circular logos that used to sit
+        // above this were a Home button and a Donate button dressed as
+        // decoration — centred art over left-aligned text. Home is the
+        // wordmark in the sidebar; Donate lives in the footer. The share row
+        // has moved below the article (see renderShareBar) because nobody
+        // shares a piece before reading it.
         document.getElementById('hero').innerHTML =
-            '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
-                '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
-                '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
-                '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
-            '</div>' +
+            '<button onclick="history.back()" class="mobile-back-btn" title="Back" aria-label="Back">' + icon('arrow-left', 20) + '</button>' +
             '<div class="cat">' + meta.cat + '</div>' +
-            '<h1>' + meta.title + '</h1>' +
-            '<div class="share-bar">' +
-                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/[\\'"]/g, "") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
-                '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
-                '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
-            '</div>' +
-            (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
+            '<h1>' + stripLeadingEmoji(meta.title) + '</h1>' +
+            (meta.desc ? '<p class="desc">' + meta.desc + '</p>' : '') +
+            (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">' + icon('image', 16) + ' Gallery view</button>' : '');
+        window._pendingShareBar = { id: id, shareText: shareText, shareUrl: shareUrl };
         document.getElementById('hero').classList.remove('fade-in');
         document.getElementById('msgs').innerHTML = '<div style="padding:40px;text-align:center;">' +
             '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>' +
@@ -3950,13 +3975,12 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // --- SENTIMENT RATING ---
         if (d.msgs && d.msgs.length > 0) {
-            const sentimentHtml = '<div id="sentiment-' + id + '" style="margin:40px 20px;padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +
-                '<div style="font-weight:800;color:var(--heading);margin-bottom:8px;">Did this help you learn something?</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Your feedback helps Nacho improve the archive!</div>' +
-                '<div style="display:flex;justify-content:center;gap:12px;">' +
-                   '<button onclick="rateChannel(\''+ id + '\', 1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #22c55e;border-radius:10px;color:#22c55e;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(34,197,94,0.1)\'" onmouseout="this.style.background=\'none\'">👍 Yes</button>' +
-                   '<button onclick="rateChannel(\''+ id + '\', -1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">👎 No</button>' +
-                '</div>' +
+            // A quiet inline question on the measure, not a centred card with
+            // one green-outlined and one red-outlined button.
+            const sentimentHtml = '<div id="sentiment-' + id + '" class="sentiment">' +
+                '<span class="sentiment-q">Was this useful?</span>' +
+                '<button class="btn btn-sm btn-quiet" onclick="rateChannel(\'' + id + '\', 1)">' + icon('check', 16) + ' Yes</button>' +
+                '<button class="btn btn-sm btn-quiet" onclick="rateChannel(\'' + id + '\', -1)">' + icon('x', 16) + ' No</button>' +
             '</div>';
             msgs.insertAdjacentHTML('beforeend', sentimentHtml);
         }
