@@ -7416,62 +7416,6 @@ window._buyStreakFreeze = async function(amount) {
     }
 };
 
-// ---- Peer system profile injection ----
-(function(){
-    var _origShowUserProfile = window.showUserProfile;
-    window.showUserProfile = function(uid){
-        if (typeof _origShowUserProfile === 'function') _origShowUserProfile.apply(this, arguments);
-        if (!uid || uid === 'nacho' || uid === 'nacho-bot') return;
-        var tries = 0;
-        function _tryInject(){
-            var modal = document.getElementById('userProfileModal');
-            if (!modal || modal.dataset.peerPatched){
-                if (++tries < 50){ setTimeout(_tryInject, 60); }
-                return;
-            }
-            modal.dataset.peerPatched = '1';
-            var isPeer = window._myPeers && window._myPeers.has(uid);
-            var peerBtnHtml = isPeer
-                ? '<button style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;">🧡 Peers</button>'
-                : '<button onclick="window.managePeer(\'send\',\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;">🧡 Add Peer</button>';
-            var blockRow = modal.querySelector('div[style*="display:flex;gap:8px;margin-top:8px;"]');
-            if (blockRow && blockRow.parentNode){
-                var peerRow = document.createElement('div');
-                peerRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
-                peerRow.innerHTML = peerBtnHtml;
-                blockRow.parentNode.insertBefore(peerRow, blockRow.nextSibling);
-            } else {
-                var inner = modal.querySelector('div[style*="background:var(--bg-side)"]') || modal.firstElementChild;
-                if (inner){
-                    var peerRow = document.createElement('div');
-                    peerRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
-                    peerRow.innerHTML = peerBtnHtml;
-                    inner.appendChild(peerRow);
-                }
-            }
-            if (db){
-                db.collection('public_profiles').doc(uid).get().then(function(doc){
-                    if (!doc.exists) return;
-                    var u = doc.data();
-                    if (!u.peerCount) return;
-                    var m2 = document.getElementById('userProfileModal');
-                    if (!m2 || m2.dataset.peerStatPatched) return;
-                    m2.dataset.peerStatPatched = '1';
-                    var rows = m2.querySelectorAll('div[style*="grid-template-columns:repeat(3,1fr)"]');
-                    if (rows.length){
-                        var lastRow = rows[rows.length - 1];
-                        var statDiv = document.createElement('div');
-                        statDiv.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;';
-                        statDiv.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;"><div style="font-size:1.3rem;">🧡</div><div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + u.peerCount + '</div><div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">Peers</div></div>';
-                        lastRow.parentNode.insertBefore(statDiv, lastRow.nextSibling);
-                    }
-                }).catch(function(){});
-            }
-        }
-        setTimeout(_tryInject, 50);
-    };
-})();
-
 window.managePeer = async function(action, targetUid) {
     if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Sign in first'); return; }
     try {

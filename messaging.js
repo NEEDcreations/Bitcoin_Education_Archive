@@ -598,6 +598,10 @@ window.showUserProfile = function(uid) {
 
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
         var dmEligibility = canMessage ? _canAccountDM(uid) : { ok: false };
+        var _isPeer = window._myPeers && window._myPeers.has(uid);
+        var _peerBtn = _isPeer
+            ? '<button style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
+            : '<button onclick="window.managePeer(\'send\',\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;">🧡 Add Peer</button>';
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -640,6 +644,7 @@ window.showUserProfile = function(uid) {
                            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_tDef.flavor) + '</div>';
                 })() +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
+                (u.peerCount ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">🧡 ' + u.peerCount + ' peers</div>' : '') +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
                 // Faction + Country row
                 '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;flex-wrap:wrap;">' +
@@ -719,6 +724,7 @@ window.showUserProfile = function(uid) {
             // Block & Report buttons
             (canMessage ?
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
+                    _peerBtn +
                     (isUserBlocked(uid) ?
                         '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
                         : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +

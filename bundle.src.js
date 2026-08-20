@@ -7585,62 +7585,6 @@ window._buyStreakFreeze = async function(amount) {
     }
 };
 
-// ---- Peer system profile injection ----
-(function(){
-    var _origShowUserProfile = window.showUserProfile;
-    window.showUserProfile = function(uid){
-        if (typeof _origShowUserProfile === 'function') _origShowUserProfile.apply(this, arguments);
-        if (!uid || uid === 'nacho' || uid === 'nacho-bot') return;
-        var tries = 0;
-        function _tryInject(){
-            var modal = document.getElementById('userProfileModal');
-            if (!modal || modal.dataset.peerPatched){
-                if (++tries < 50){ setTimeout(_tryInject, 60); }
-                return;
-            }
-            modal.dataset.peerPatched = '1';
-            var isPeer = window._myPeers && window._myPeers.has(uid);
-            var peerBtnHtml = isPeer
-                ? '<button style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;">🧡 Peers</button>'
-                : '<button onclick="window.managePeer(\'send\',\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;">🧡 Add Peer</button>';
-            var blockRow = modal.querySelector('div[style*="display:flex;gap:8px;margin-top:8px;"]');
-            if (blockRow && blockRow.parentNode){
-                var peerRow = document.createElement('div');
-                peerRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
-                peerRow.innerHTML = peerBtnHtml;
-                blockRow.parentNode.insertBefore(peerRow, blockRow.nextSibling);
-            } else {
-                var inner = modal.querySelector('div[style*="background:var(--bg-side)"]') || modal.firstElementChild;
-                if (inner){
-                    var peerRow = document.createElement('div');
-                    peerRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
-                    peerRow.innerHTML = peerBtnHtml;
-                    inner.appendChild(peerRow);
-                }
-            }
-            if (db){
-                db.collection('public_profiles').doc(uid).get().then(function(doc){
-                    if (!doc.exists) return;
-                    var u = doc.data();
-                    if (!u.peerCount) return;
-                    var m2 = document.getElementById('userProfileModal');
-                    if (!m2 || m2.dataset.peerStatPatched) return;
-                    m2.dataset.peerStatPatched = '1';
-                    var rows = m2.querySelectorAll('div[style*="grid-template-columns:repeat(3,1fr)"]');
-                    if (rows.length){
-                        var lastRow = rows[rows.length - 1];
-                        var statDiv = document.createElement('div');
-                        statDiv.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;';
-                        statDiv.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;"><div style="font-size:1.3rem;">🧡</div><div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + u.peerCount + '</div><div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">Peers</div></div>';
-                        lastRow.parentNode.insertBefore(statDiv, lastRow.nextSibling);
-                    }
-                }).catch(function(){});
-            }
-        }
-        setTimeout(_tryInject, 50);
-    };
-})();
-
 window.managePeer = async function(action, targetUid) {
     if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Sign in first'); return; }
     try {
@@ -7834,8 +7778,11 @@ const BADGE_DEFS = [
     { id: 'referral_50',  name: 'Super Spreader',     emoji: '📡', desc: 'Referred 50 people — legend status',       check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 50,  pts: 1000 },
     { id: 'referral_100', name: 'Viral Plebian',       emoji: '👑', desc: 'Referred 100 people — you are the movement', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 100, pts: 2500 },
     { id: 'referred',     name: 'Referred Friend',    emoji: '🫂', desc: 'Joined Bitcoin Education Archive via a referral link', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.referredBy), pts: 25 },
-    { id: 'first_peer',      name: 'First Peer',     emoji: '🧡', desc: 'Connected with your first peer on the Bitcoin Education Archive', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 1,  pts: 50 },
-    { id: 'peer_network_10', name: 'Node Runner',     emoji: '🕸️', desc: 'Built a peer network of 10 people on the Bitcoin Education Archive', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 10, pts: 200 },
+    { id: 'first_peer',        name: 'First Peer',       emoji: '🧡', desc: 'Connected with your first peer on the Bitcoin Education Archive', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 1,   pts: 50 },
+    { id: 'peer_network_10',   name: 'Node Runner',       emoji: '🕸️', desc: 'Built a peer network of 10 people',                                 check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 10,  pts: 200 },
+    { id: 'peer_network_50',   name: 'Signal Booster',    emoji: '📡', desc: 'Connected with 50 peers — spreading the signal',                   check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 50,  pts: 500 },
+    { id: 'peer_network_100',  name: 'Hub Node',          emoji: '🌐', desc: 'Connected with 100 peers — you are a hub on the network',          check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 100, pts: 1000 },
+    { id: 'peer_network_250',  name: 'Network Sovereign', emoji: '👑', desc: 'Connected with 250 peers — sovereign node of the Archive',         check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 250, pts: 2500 },
 
     // ---- DM / Social Badges ----
     { id: 'dm_first', name: 'DM Starter', emoji: '✉️', desc: 'Sent your first direct message', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 1, pts: 15 },
@@ -8732,11 +8679,11 @@ function getBadgeHTML() {
         '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
-        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_') || b.id === 'global_citizen' || b.id === 'referred' || b.id === 'first_peer' || b.id === 'peer_network_10'),
+        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_') || b.id === 'global_citizen' || b.id === 'referred'),
         '👤 Profile': _cat(BADGE_DEFS, b => b.id.startsWith('profile_') || b.id === 'bio_author' || b.id === 'lightning_address_set'),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
-        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50' || b.id === 'react_5' || b.id === 'react_200'),
+        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50' || b.id === 'react_5' || b.id === 'react_200' || b.id === 'first_peer' || b.id.startsWith('peer_network_')),
         '🚶 Proof of Walk': _cat(BADGE_DEFS, b => b.id.startsWith('pow_')),
         '🎡 Spin Wheel': _cat(BADGE_DEFS, b => b.id.startsWith('spin_')),
         '⛏️ Satoshi\'s Favor': _cat(BADGE_DEFS, b => b.id.startsWith('sf_')),
@@ -26143,6 +26090,10 @@ window.showUserProfile = function(uid) {
 
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
         var dmEligibility = canMessage ? _canAccountDM(uid) : { ok: false };
+        var _isPeer = window._myPeers && window._myPeers.has(uid);
+        var _peerBtn = _isPeer
+            ? '<button style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
+            : '<button onclick="window.managePeer(\'send\',\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;">🧡 Add Peer</button>';
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -26185,6 +26136,7 @@ window.showUserProfile = function(uid) {
                            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_tDef.flavor) + '</div>';
                 })() +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
+                (u.peerCount ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">🧡 ' + u.peerCount + ' peers</div>' : '') +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
                 // Faction + Country row
                 '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;flex-wrap:wrap;">' +
@@ -26264,6 +26216,7 @@ window.showUserProfile = function(uid) {
             // Block & Report buttons
             (canMessage ?
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
+                    _peerBtn +
                     (isUserBlocked(uid) ?
                         '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
                         : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +

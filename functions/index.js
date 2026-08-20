@@ -2253,10 +2253,17 @@ exports.managePeer = functions.runWith({ enforceAppCheck: true }).https.onCall(a
             const _awardIfMissing = (ref, field, badges) => {
                 if (!badges.includes(field)) { badgeBatch.update(ref, { badges: admin.firestore.FieldValue.arrayUnion(field) }); hasBadgeWork = true; }
             };
-            if ((uData.peerCount || 0) >= 1)  _awardIfMissing(userRef,   'first_peer',      uData.badges || []);
-            if ((uData.peerCount || 0) >= 10) _awardIfMissing(userRef,   'peer_network_10', uData.badges || []);
-            if ((tData.peerCount || 0) >= 1)  _awardIfMissing(targetRef, 'first_peer',      tData.badges || []);
-            if ((tData.peerCount || 0) >= 10) _awardIfMissing(targetRef, 'peer_network_10', tData.badges || []);
+            const PEER_BADGE_TIERS = [
+                [1,   'first_peer'],
+                [10,  'peer_network_10'],
+                [50,  'peer_network_50'],
+                [100, 'peer_network_100'],
+                [250, 'peer_network_250'],
+            ];
+            PEER_BADGE_TIERS.forEach(([min, id]) => {
+                if ((uData.peerCount || 0) >= min) _awardIfMissing(userRef,   id, uData.badges || []);
+                if ((tData.peerCount || 0) >= min) _awardIfMissing(targetRef, id, tData.badges || []);
+            });
             if (hasBadgeWork) await badgeBatch.commit();
         } catch(e) { console.warn('[managePeer] badge award failed:', e.message); }
 
