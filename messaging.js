@@ -599,9 +599,10 @@ window.showUserProfile = function(uid) {
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
         var dmEligibility = canMessage ? _canAccountDM(uid) : { ok: false };
         var _isPeer = window._myPeers && window._myPeers.has(uid);
+        var _peerBtnId = 'peerActionBtn_' + uid;
         var _peerBtn = _isPeer
-            ? '<button style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
-            : '<button onclick="window.managePeer(\'send\',\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;">🧡 Add Peer</button>';
+            ? '<button id="' + _peerBtnId + '" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
+            : '<button id="' + _peerBtnId + '" onclick="window._sendPeerRequest(this,\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:opacity 0.2s;">🧡 Add Peer</button>';
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -625,8 +626,8 @@ window.showUserProfile = function(uid) {
                 lvl.emoji +
                 '</div>';
 
-        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
-            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;' + _frameStyle + '" onclick="event.stopPropagation()">' +
+        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:flex-start;justify-content:center;padding:20px 0;overflow-y:auto;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;overflow-y:auto;max-height:90vh;' + _frameStyle + '" onclick="event.stopPropagation()">' +
             // Close button
             '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             // Avatar & name
@@ -775,6 +776,34 @@ window._tipFromProfile = function() {
         showTipOverlay(data);
     } else {
         if (typeof showToast === 'function') showToast('⚡ Lightning tips still loading, try again in a moment');
+    }
+};
+
+window._sendPeerRequest = async function(btnEl, targetUid) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Sending...';
+    btnEl.style.opacity = '0.6';
+    try {
+        var fn = firebase.functions().httpsCallable('managePeer');
+        await fn({ action: 'send', targetUid: targetUid });
+        btnEl.textContent = '🧡 Sent!';
+        btnEl.style.background = 'rgba(249,115,22,0.2)';
+        btnEl.style.opacity = '1';
+        btnEl.style.cursor = 'default';
+        if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
+    } catch(e) {
+        var msg = (e && e.message) || 'Error';
+        if (msg.includes('already-exists')) {
+            btnEl.textContent = '🧡 Sent!';
+            btnEl.style.opacity = '0.8';
+            btnEl.style.cursor = 'default';
+        } else {
+            btnEl.disabled = false;
+            btnEl.textContent = '🧡 Add Peer';
+            btnEl.style.opacity = '1';
+            if (typeof showToast === 'function') showToast(msg);
+        }
     }
 };
 
