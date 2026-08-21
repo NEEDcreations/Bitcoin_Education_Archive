@@ -24481,7 +24481,7 @@ function _preloadMarketIframes() {
         var gmWrap = document.createElement('div');
         gmWrap.id = 'gmIframeWrap';
         gmWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(gmWrap);
     }
 
@@ -24490,7 +24490,7 @@ function _preloadMarketIframes() {
         var nrWrap = document.createElement('div');
         nrWrap.id = 'nrIframeWrap';
         nrWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(nrWrap);
     }
 
@@ -24499,7 +24499,7 @@ function _preloadMarketIframes() {
         var conduitWrap = document.createElement('div');
         conduitWrap.id = 'conduitIframeWrap';
         conduitWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        conduitWrap.innerHTML = '<iframe id="conduitIframe" src="https://shop.conduit.market/products" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        conduitWrap.innerHTML = '<iframe id="conduitIframe" src="https://shop.conduit.market/products" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(conduitWrap);
     }
 }
@@ -25505,7 +25505,7 @@ window._togglePlebShop = function() {
         embed.style.height = 'calc(100vh - 280px)';
         embed.style.minHeight = '500px';
         if (!embed.querySelector('iframe')) {
-            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="no-referrer"></iframe>';
+            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         }
         if (btn) { btn.textContent = 'Close Shop'; btn.style.background = 'var(--border)'; }
     } else {
