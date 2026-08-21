@@ -6086,10 +6086,49 @@ function showSettingsPage(tab) {
                         var d = snap.exists ? snap.data() : {};
                         var name = d.username || d.displayName || 'Bitcoiner';
                         var puid = peers[i];
-                        peerHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
-                            '<span style="font-size:0.9rem;cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + name + '</span>' +
-                            '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Remove</button>' +
-                            '</div>';
+                        var pLvl = typeof getLevel === 'function' ? getLevel(d.points || 0) : { name: 'Pleb', emoji: '🌱' };
+                        var pStreak = d.streak || 0;
+                        var pPosts = d.forumPosts || 0;
+                        var pXP = (d.points || 0).toLocaleString();
+                        var pWeekly = d.weeklyXP || 0;
+                        var pLastVisit = d.lastVisit || '';
+                        var pDetailId = 'peerDetail_' + puid.replace(/[^a-z0-9]/gi,'_');
+                        // Format last active
+                        var pLastStr = '';
+                        if (pLastVisit) {
+                            try {
+                                var today = new Date(); today.setHours(0,0,0,0);
+                                var lv = new Date(pLastVisit); lv.setHours(0,0,0,0);
+                                var diffDays = Math.round((today - lv) / 86400000);
+                                pLastStr = diffDays === 0 ? 'Active today' : diffDays === 1 ? 'Active yesterday' : 'Active ' + diffDays + 'd ago';
+                            } catch(e) { pLastStr = ''; }
+                        }
+                        // Summary line (collapsed)
+                        var summaryParts = [];
+                        if (pLastStr) summaryParts.push(pLastStr);
+                        summaryParts.push(pLvl.emoji + ' ' + pLvl.name);
+                        if (pStreak > 0) summaryParts.push('🔥 ' + pStreak + 'd');
+                        var summaryText = summaryParts.join(' · ');
+                        peerHtml += '<div style="border-bottom:1px solid var(--border);padding:8px 0;">' +
+                            // Header row: name + expand arrow + remove
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span style="flex:1;font-size:0.9rem;cursor:pointer;color:var(--text);" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
+                                '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">' + summaryText + '</span>' +
+                                '<button onclick="var el=document.getElementById(\'' + pDetailId + '\');var arr=this.querySelector(\'span\');if(el.style.display===\'none\'){el.style.display=\'block\';arr.textContent=\'▲\';}else{el.style.display=\'none\';arr.textContent=\'▼\';}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;"><span>▼</span></button>' +
+                                '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
+                            '</div>' +
+                            // Expandable detail panel
+                            '<div id="' + pDetailId + '" style="display:none;margin-top:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +
+                                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;">' +
+                                    '<div style="color:var(--text-muted);">⭐ <b style="color:var(--text);">' + pXP + '</b> XP</div>' +
+                                    '<div style="color:var(--text-muted);">🔥 <b style="color:var(--text);">' + pStreak + 'd</b> streak</div>' +
+                                    '<div style="color:var(--text-muted);">🗣️ <b style="color:var(--text);">' + pPosts + '</b> posts</div>' +
+                                    '<div style="color:var(--text-muted);">📅 <b style="color:var(--text);">' + (pWeekly > 0 ? '+' + pWeekly.toLocaleString() + ' XP this week' : 'No XP this week') + '</b></div>' +
+                                '</div>' +
+                                (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-faint);">' + pLastStr + '</div>' : '') +
+                                '<button onclick="document.getElementById(\'' + pDetailId + '\').previousElementSibling.querySelector(\'button\').click()" style="margin-top:8px;width:100%;padding:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.72rem;cursor:pointer;">View Full Profile →</button>' +
+                            '</div>' +
+                        '</div>';
                     });
                 }
 
