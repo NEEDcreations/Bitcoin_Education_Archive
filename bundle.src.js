@@ -2759,11 +2759,19 @@ function trackScroll() {
 }
 
 // Listen for real user activity
-document.addEventListener('mousemove', trackActivity);
+// mousemove is throttled: fires hundreds of times/sec on desktop — cap at 2/sec
+var _mmThrottleTs = 0;
+document.addEventListener('mousemove', function() {
+    var _now = Date.now();
+    if (_now - _mmThrottleTs < 500) return;
+    _mmThrottleTs = _now;
+    trackActivity();
+});
 document.addEventListener('keydown', trackActivity);
 document.addEventListener('touchstart', trackActivity, { passive: true });
 document.addEventListener('click', trackActivity);
-setInterval(trackScroll, 2000);
+// Skip trackScroll when tab is in background
+setInterval(function() { if (!document.hidden) trackScroll(); }, 2000);
 
 function startReadTimer() {
     if (readTimer) clearInterval(readTimer);
@@ -2777,8 +2785,8 @@ function startReadTimer() {
         if (!hasScrolledSinceLastAward) return; // No scrolling
 
         readSeconds++;
-        // Track for Nacho bubble quiz trigger
-        sessionStorage.setItem('btc_channel_read_seconds', readSeconds.toString());
+        // Track for Nacho bubble quiz trigger — only write every 5s to avoid sync I/O every second
+        if (readSeconds % 5 === 0) sessionStorage.setItem('btc_channel_read_seconds', readSeconds.toString());
         if (readSeconds - lastReadAward >= 30) {
             lastReadAward = readSeconds;
             hasScrolledSinceLastAward = false;
@@ -34875,8 +34883,16 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
         document.querySelectorAll('.home-logos img, .channel-logos .channel-logo-img').forEach(attachLogoGesture);
         // Watch for dynamically added channel logos
+        // Debounced: MutationObserver fires on every DOM mutation during channel renders
+        // (scores of msgs inserted at once). Without debounce this fires querySelectorAll
+        // hundreds of times per navigation on mobile. Coalesce into one call per frame.
+        var _logoObserverRaf = null;
         new MutationObserver(function() {
-            document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
+            if (_logoObserverRaf) return;
+            _logoObserverRaf = requestAnimationFrame(function() {
+                _logoObserverRaf = null;
+                document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
+            });
         }).observe(document.getElementById('main'), { childList: true, subtree: true });
 
         // Three-finger tap → Settings
@@ -35056,7 +35072,11 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Call updates
     updateSidebarTiers();
-    window._sidebarTierInterval = setInterval(updateSidebarTiers, 5000);
+    // Run sidebar tier updates only when the tab is visible and at a relaxed cadence.
+    // Previously ran every 5s unconditionally — wasted CPU on background tabs.
+    window._sidebarTierInterval = setInterval(function() {
+        if (!document.hidden) updateSidebarTiers();
+    }, 10000);
 
     // Audio system
     window.audioEnabled = localStorage.getItem('btc_audio') !== 'false';

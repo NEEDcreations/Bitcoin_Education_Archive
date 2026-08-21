@@ -60,7 +60,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260821_1228" as="script">
+    <link rel="preload" href="bundle.js?v=20260821_1448" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -598,6 +598,42 @@
         body { top: 0 !important; }
         .skiptranslate { display: none !important; }
         #goog-gt-tt { display: none !important; }
+
+        /* ── Mobile Performance Optimizations ──────────────────────────────── */
+        @media (max-width: 900px) {
+            /* backdrop-filter forces a full GPU compositing layer on every painted
+               pixel behind the element — extremely expensive on mobile SoCs */
+            .glass, .glass-dark {
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+            /* heroGlow runs a scale+opacity animation at 4s infinite.
+               It stays in the DOM and keeps animating even when home is offscreen. */
+            .home-logos::before { animation: none; opacity: 0.5; }
+            /* [onclick] matches thousands of DOM nodes — having a CSS transition on
+               them means the browser tracks each one for animation. On every tap,
+               style recalculation runs across the whole matched set.
+               Keep button transitions (opacity only — no GPU transform animation). */
+            [onclick] { transition: none !important; }
+            button { transition: opacity 0.1s ease !important; }
+            /* Instant active scale is perceived as MORE responsive (hard snap beats lag) */
+            button:active { transform: scale(0.96) !important; }
+            /* Prevent scroll chaining from sidebar bleeding into page scroll */
+            .channels { overscroll-behavior: contain; }
+            /* Keep animated nav on its own compositor layer to avoid repaint on scroll */
+            .mobile-nav { will-change: transform; }
+            /* Improve tap latency on interactive elements */
+            .ch-btn, .sr-item, .msg, .home-cta { touch-action: manipulation; }
+        }
+
+        /* Respect OS accessibility preference — skip all animation */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
         select, select option, select optgroup { background: var(--bg-side, #0f172a); color: var(--text, #e0e0e0); }
         select option:checked { background: var(--accent-bg, #1a1a2e); color: var(--accent, #f7931a); }
 
@@ -1313,7 +1349,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.js?v=20260821_1228" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260821_1448" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
     <script src="onboarding.js?v=20260811_0110" defer></script>
     <script src="learning-quests.js?v=20260801_ux3" defer></script>
