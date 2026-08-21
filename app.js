@@ -2784,6 +2784,20 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
     };
 
+    // CH-BTN MAP — built once on first call, O(1) lookup by channel id + single tracked active button
+    var _chBtnMapCache = null;
+    var _activeChBtn = null;
+    function _getChBtnMap() {
+        if (!_chBtnMapCache) {
+            _chBtnMapCache = {};
+            document.querySelectorAll('.ch-btn').forEach(function(b) {
+                var m = b.getAttribute('onclick') && b.getAttribute('onclick').match(/go\('([^']+)'/);
+                if (m) _chBtnMapCache[m[1]] = b;
+            });
+        }
+        return _chBtnMapCache;
+    }
+
     window.goHome = function goHome(fromPopState) {
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
         window._navGeneration = (window._navGeneration || 0) + 1;
@@ -2881,7 +2895,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _homeShowEl = document.getElementById('home');
         _homeShowEl.classList.remove('hidden');
         if (_homeShowEl.style.visibility) _homeShowEl.style.visibility = ''; // clear direct-link preload hide
-        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
+        if (_activeChBtn) { _activeChBtn.classList.remove('active'); _activeChBtn = null; }
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
         // Render Satoshi's Favor banner on home
@@ -3765,17 +3779,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:35%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:80%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:50%;"></div></div></div>' +
         '</div>';
 
-        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
-        if (btn) { btn.classList.add('active'); expandCatForChannel(btn); }
-        else {
-            // Find the button by channel id and expand its section
-            document.querySelectorAll('.ch-btn').forEach(b => {
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + id + "'") !== -1) {
-                    b.classList.add('active');
-                    expandCatForChannel(b);
-                }
-            });
-        }
+        if (_activeChBtn) { _activeChBtn.classList.remove('active'); _activeChBtn = null; }
+        var _activeBtn = btn || (_getChBtnMap()[id] || null);
+        if (_activeBtn) { _activeBtn.classList.add('active'); expandCatForChannel(_activeBtn); _activeChBtn = _activeBtn; }
 
         // Show loading state
         // Check if this is an image-heavy channel
@@ -3933,11 +3939,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         })();
 
         // Mark channel as visited in sidebar
-        document.querySelectorAll('.ch-btn').forEach(b => {
-            if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
-                b.classList.add('visited');
-            }
-        });
+        var _vBtn = _getChBtnMap()[id];
+        if (_vBtn) _vBtn.classList.add('visited');
 
         // Save visited channels locally
         let visited = safeJSON('btc_visited_channels', []);
@@ -4653,15 +4656,10 @@ if (locked) {
             setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(); }, 1500);
         }
 
-        // Restore visited channel checkmarks
+        // Restore visited channel checkmarks — O(n) using cached button map
         const visited = safeJSON('btc_visited_channels', []);
-        visited.forEach(id => {
-            document.querySelectorAll('.ch-btn').forEach(b => {
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
-                    b.classList.add('visited');
-                }
-            });
-        });
+        const _bmap = _getChBtnMap();
+        visited.forEach(id => { if (_bmap[id]) _bmap[id].classList.add('visited'); });
 
         renderFavs();
         showContinueReading();
