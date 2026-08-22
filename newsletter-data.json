@@ -1,25 +1,25 @@
 {
-  "updated": "2026-08-22T16:01:06.180Z",
+  "updated": "2026-08-22T20:00:52.290Z",
   "news": [
+    {
+      "date": "Aug 22, 2026",
+      "title": "Self-Custody Your Bitcoin NOW, This Is Serious",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/76qBOD-cAko",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Aug 22, 2026",
+      "title": "EXPOSED: The ECB Is Building a Digital Prison While Inflation Runs Hot",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/l2OOIrLzpok",
+      "source": "lukemikic"
+    },
     {
       "date": "Aug 21, 2026",
       "title": "Smart Money Helping Support Bitcoin Rebound, Says Pantera Capital",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/pantera-capital-says-bitcoin-to-go-higher",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 21, 2026",
-      "title": "Legendary Investor Ray Dalio Touts Bitcoin — With Gold — To Hedge Against Incoming Debt Crisis",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/ray-dalio-touts-bitcoin",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 21, 2026",
-      "title": "Bitcoin Has Its Best Week Since 2023 as Shortsellers Continue To Get Wiped Out",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/markets/bitcoin-has-best-week-since-2023",
       "source": "bitcoin-magazine"
     }
   ]
