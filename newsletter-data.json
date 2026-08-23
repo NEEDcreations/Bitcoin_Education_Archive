@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-23T08:00:50.308Z",
+  "updated": "2026-08-23T12:00:48.442Z",
   "news": [
     {
       "date": "Aug 22, 2026",
@@ -9,17 +9,17 @@
       "source": "lukemikic"
     },
     {
-      "date": "Aug 22, 2026",
-      "title": "Self-Custody Your Bitcoin NOW, This Is Serious",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/76qBOD-cAko",
-      "source": "lukemikic"
-    },
-    {
       "date": "Aug 21, 2026",
       "title": "Smart Money Helping Support Bitcoin Rebound, Says Pantera Capital",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/news/pantera-capital-says-bitcoin-to-go-higher",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Aug 21, 2026",
+      "title": "Legendary Investor Ray Dalio Touts Bitcoin — With Gold — To Hedge Against Incoming Debt Crisis",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/ray-dalio-touts-bitcoin",
       "source": "bitcoin-magazine"
     }
   ]
