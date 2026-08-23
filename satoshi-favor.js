@@ -27,8 +27,8 @@
         { date: '2026-06-30', target: 15000, label: '+100%',    hashes: 8293,  luck: 321.6 },
         { date: '2026-07-02', target: 10000, label: '+50%',     hashes: 50538, luck: 98.9  },
         { date: '2026-07-10', target: 8000,  label: '+25%',     hashes: 56913, luck: 131.8 },
-        { date: '2026-07-29', target: 7000,  label: '+14.3%',   hashes: null,  luck: null  },
-        { date: '2026-08-20', target: 10000, label: '-30%',      hashes: null,  luck: null  },
+        { date: '2026-07-29', target: 7000,  label: '+14.3%',   hashes: 36407, luck: 117.7 },
+        { date: '2026-08-20', target: 10000, label: '-30%',      hashes: null,  luck: null,  eraHashOffset: 50538 },
     ];
     // hashes = total hashes cast in that period (from Firestore analysis 2026-07-17)
     // luck   = (expected hashes for blocks found) / actual hashes * 100  (null = live/current or zero-block genesis)

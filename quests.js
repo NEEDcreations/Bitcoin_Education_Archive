@@ -2948,8 +2948,12 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
                 return;
             }
             var data = doc.exists ? doc.data() : {};
-            // Read cumulative hashes for current difficulty target from the dedicated stats doc
-            var eraHashes = data['target_' + curTarget] || 0;
+            // Read cumulative hashes for current difficulty target from the dedicated stats doc.
+            // Subtract eraHashOffset if set — handles cases where the same target value existed
+            // in a prior period (e.g. 10,000 in July AND August).
+            var rawEraHashes = data['target_' + curTarget] || 0;
+            var offset = (curRow.eraHashOffset != null) ? curRow.eraHashOffset : 0;
+            var eraHashes = Math.max(0, rawEraHashes - offset);
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
             if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
 
@@ -2996,29 +3000,38 @@ function _loadDifficultyHistoryBlocks() {
     }
 
     // Query all winner hashes to get block counts per difficulty period
+    // Use timestamp ranges so repeated targets (e.g. 10,000 in July and August) are counted separately
     db.collection('satoshiFavor').doc('current').collection('hashes')
         .where('isWinner', '==', true)
         .get()
         .then(function(snap) {
-            var counts = {};
+            // Build period start timestamps from the history array
+            var periodStarts = _dh.map(function(row) { return new Date(row.date).getTime(); });
+
+            // counts[i] = blocks found in period i (by timestamp, not just by target)
+            var counts = new Array(_dh.length).fill(0);
             snap.forEach(function(doc) {
                 var d = doc.data();
-                var t;
-                if (d.difficultyTarget != null) {
-                    t = d.difficultyTarget;
-                } else if (d.timestamp && d.timestamp.toMillis) {
-                    t = _difficultyAtTs(d.timestamp.toMillis());
+                var tsMs;
+                if (d.timestamp && d.timestamp.toMillis) {
+                    tsMs = d.timestamp.toMillis();
                 } else {
-                    t = 1000;
+                    tsMs = 0;
                 }
-                counts[t] = (counts[t] || 0) + 1;
+                // Find which period this winner belongs to (last period whose start <= tsMs)
+                var periodIdx = 0;
+                for (var _pi = 0; _pi < periodStarts.length; _pi++) {
+                    if (periodStarts[_pi] <= tsMs) periodIdx = _pi;
+                    else break;
+                }
+                counts[periodIdx]++;
             });
 
             // Update Blocks cells for all rows + running total
             var totalBlocks = 0;
             _dh.forEach(function(row, i) {
                 var el = document.getElementById('sfBlocksRow' + i);
-                var n = counts[row.target] || 0;
+                var n = counts[i] || 0;
                 if (el) el.textContent = n.toString();
                 totalBlocks += n;
             });
@@ -3026,7 +3039,7 @@ function _loadDifficultyHistoryBlocks() {
             if (totalBlocksEl) totalBlocksEl.textContent = totalBlocks.toString();
 
             // Start live listener on current doc for hashes + luck (uses eraHashes field)
-            var curBlocksFound = currentIdx >= 0 ? (counts[_dh[currentIdx].target] || 0) : 0;
+            var curBlocksFound = currentIdx >= 0 ? (counts[currentIdx] || 0) : 0;
             _startDifficultyCurrentListener(curBlocksFound);
         })
         .catch(function() {
