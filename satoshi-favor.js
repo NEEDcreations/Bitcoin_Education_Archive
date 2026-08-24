@@ -960,7 +960,8 @@
     window.minerDoHash = async function(rig) {
         rig = rig || 1;
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-            showToast('Please sign in to mine.');
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
             return;
         }
 
@@ -1544,7 +1545,8 @@
 
         // Check logged in
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-            if (typeof showToast === 'function') showToast('Sign in to mine!');
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
             return;
         }
         if (!favorState || !favorState.favorActive) {

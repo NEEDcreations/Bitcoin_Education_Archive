@@ -6509,9 +6509,8 @@ window.removeProfilePic = function() {
 async function saveProfile() {
     var status = document.getElementById('profileStatus');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('🔒 Sign in with Google, Facebook, Twitter, or email to save your profile!');
-        if (status) status.innerHTML = '<span style="color:#ef4444;">🔒 Create a free account to save your profile</span>';
-        if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 1500);
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
         return;
     }
 
@@ -27644,6 +27643,12 @@ window.showNachoStory = function(chapterOverride) {
 
 // ---- Price Prediction Game ----
 window.showPricePrediction = function() {
+    // Auth gate — must be signed in to predict
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
     var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     // Try multiple sources if localStorage is empty
     if (!currentPrice && typeof _lastWsPrice !== 'undefined' && _lastWsPrice) { currentPrice = _lastWsPrice; localStorage.setItem('btc_last_price', currentPrice.toString()); }
@@ -32237,6 +32242,12 @@ document.addEventListener('btcProfileSaved', function() {
     }
 
     window.showSpinWheel = function() {
+        // Auth gate — must be signed in to spin
+        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            return;
+        }
         // Check if already spun today (bypass for bonus spins from Nook)
         var isBonusSpin = !!window._bonusSpinActive;
         window._bonusSpinActive = false; // consume the flag

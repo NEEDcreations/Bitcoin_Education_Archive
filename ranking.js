@@ -6340,9 +6340,8 @@ window.removeProfilePic = function() {
 async function saveProfile() {
     var status = document.getElementById('profileStatus');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('🔒 Sign in with Google, Facebook, Twitter, or email to save your profile!');
-        if (status) status.innerHTML = '<span style="color:#ef4444;">🔒 Create a free account to save your profile</span>';
-        if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 1500);
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
         return;
     }
 

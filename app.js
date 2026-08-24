@@ -587,6 +587,12 @@
     }
 
     window.showSpinWheel = function() {
+        // Auth gate — must be signed in to spin
+        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            return;
+        }
         // Check if already spun today (bypass for bonus spins from Nook)
         var isBonusSpin = !!window._bonusSpinActive;
         window._bonusSpinActive = false; // consume the flag
