@@ -11646,6 +11646,9 @@ function showBubble(text, pose) {
     const now = Date.now();
     if (now - lastBubbleTime < MIN_INTERVAL) return;
     if (shownMessages.has(text)) return;
+    // Never overwrite an active trivia/quiz — let user finish reading
+    var _activeBubble = document.getElementById('nacho-bubble');
+    if (_activeBubble && _activeBubble.classList.contains('show') && _activeBubble.getAttribute('data-interactive') === 'true') return;
     _showBubble(text, pose);
 }
 
@@ -12460,6 +12463,9 @@ window.nachoOnFinishChannel = function() {
 function periodicMessage() {
     if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
     if (Math.random() > 0.3) return;
+    // Don't interrupt active trivia/quiz — user is reading
+    var _pb = document.getElementById('nacho-bubble');
+    if (_pb && _pb.classList.contains('show') && _pb.getAttribute('data-interactive') === 'true') return;
 
     // Check for milestone celebration first
     if (typeof nachoCheckMilestone === 'function') {
