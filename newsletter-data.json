@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-25T12:00:48.024Z",
+  "updated": "2026-08-25T16:00:47.733Z",
   "news": [
+    {
+      "date": "Aug 25, 2026",
+      "title": "Bitcoin Tops $81,000 — Is the Debasement Trade Back?",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/markets/bitcoin-surges-is-debasement-trade-back",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Aug 25, 2026",
       "title": "Cypher Tank Returns to Lugano, Expanding Its Bet on Bitcoin Founders",
@@ -14,13 +21,6 @@
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/CXE35K7BaVc",
       "source": "lukemikic"
-    },
-    {
-      "date": "Aug 24, 2026",
-      "title": "UK Banks Still Blocking Bitcoin, Policy Group Tells Parliament",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/uk-banks-blocking-bitcoin",
-      "source": "bitcoin-magazine"
     }
   ]
 }
