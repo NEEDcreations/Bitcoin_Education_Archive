@@ -36513,8 +36513,21 @@ if (locked) {
 
             // Meetup Builder
             if (hash === 'meetup-builder' || state.channel === 'meetup-builder') {
-                // Stay on IRL sync page, just scroll to section
-                if (typeof go === 'function') go('irl-sync', null, true);
+                if (window._mbRouted) return;
+                window._mbRouted = true;
+                window._skipIRLRules = true;
+                localStorage.setItem('btc_irl_rules_accepted', 'true');
+                if (typeof go === 'function') go('irl-sync');
+                setTimeout(function() { var ro = document.getElementById('irlRulesOverlay'); if (ro) ro.remove(); }, 100);
+                history.replaceState({channel:'meetup-builder'}, '', '#meetup-builder');
+                var _mbTries1 = 0;
+                var _mbInt1 = setInterval(function() {
+                    var ro2 = document.getElementById('irlRulesOverlay');
+                    if (ro2) ro2.remove();
+                    var el = document.getElementById('meetupBuilderSection');
+                    if (el) { clearInterval(_mbInt1); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                    if (++_mbTries1 > 30) clearInterval(_mbInt1);
+                }, 300);
                 return;
             }
 
