@@ -1,26 +1,26 @@
 {
-  "updated": "2026-08-27T08:00:49.887Z",
+  "updated": "2026-08-27T12:00:50.097Z",
   "news": [
+    {
+      "date": "Aug 27, 2026",
+      "title": "USA Bails Out Japan as $350T Debt Unwinds",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/VI7ikGFRJXQ",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Aug 27, 2026",
+      "title": "Japan CONFIRMED Bitcoin as Financial Asset and Cuts Taxes",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/QOuDk0WOzzs",
+      "source": "lukemikic"
+    },
     {
       "date": "Aug 27, 2026",
       "title": "Bank of America 🇺🇸 Recommends 4% Bitcoin Allocation",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/82Oqak6XBw4",
       "source": "lukemikic"
-    },
-    {
-      "date": "Aug 27, 2026",
-      "title": "Why You Should NEVER Trade Your Bitcoin Eve",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/yCtaMLadShs",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 26, 2026",
-      "title": "Coinkite’s Coldcard Bug Exposed Single-Sig Risk. Multi-Vendor Multisig Is the New Bitcoin Custody Baseline",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/business/coinkites-coldcard-bug-exposed-single-sig-risk-multi-vendor-multisig-is-the-new-bitcoin-custody-baseline",
-      "source": "bitcoin-magazine"
     }
   ]
 }
