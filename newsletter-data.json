@@ -1,25 +1,25 @@
 {
-  "updated": "2026-08-27T04:00:50.959Z",
+  "updated": "2026-08-27T08:00:49.887Z",
   "news": [
+    {
+      "date": "Aug 27, 2026",
+      "title": "Bank of America 🇺🇸 Recommends 4% Bitcoin Allocation",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/82Oqak6XBw4",
+      "source": "lukemikic"
+    },
+    {
+      "date": "Aug 27, 2026",
+      "title": "Why You Should NEVER Trade Your Bitcoin Eve",
+      "snippet": "Luke Mikic",
+      "link": "https://www.youtube.com/shorts/yCtaMLadShs",
+      "source": "lukemikic"
+    },
     {
       "date": "Aug 26, 2026",
       "title": "Coinkite’s Coldcard Bug Exposed Single-Sig Risk. Multi-Vendor Multisig Is the New Bitcoin Custody Baseline",
       "snippet": "Bitcoin Magazine",
       "link": "https://bitcoinmagazine.com/business/coinkites-coldcard-bug-exposed-single-sig-risk-multi-vendor-multisig-is-the-new-bitcoin-custody-baseline",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 26, 2026",
-      "title": "Billions Pour Into Bitcoin ETFs as Rally Rolls On",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoin-etfs-receive-billions-in-new-cash",
-      "source": "bitcoin-magazine"
-    },
-    {
-      "date": "Aug 26, 2026",
-      "title": "Forget the Trump Bump — Bitcoin Would Be Fine Under Democrats, Says VanEck",
-      "snippet": "Bitcoin Magazine",
-      "link": "https://bitcoinmagazine.com/news/bitcoin-would-be-fine-under-democrats",
       "source": "bitcoin-magazine"
     }
   ]
