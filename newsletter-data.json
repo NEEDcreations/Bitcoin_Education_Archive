@@ -1,13 +1,6 @@
 {
-  "updated": "2026-08-27T00:00:49.817Z",
+  "updated": "2026-08-27T04:00:50.959Z",
   "news": [
-    {
-      "date": "Aug 27, 2026",
-      "title": "Why You Should NEVER Trade Your Bitcoin Eve",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/yCtaMLadShs",
-      "source": "lukemikic"
-    },
     {
       "date": "Aug 26, 2026",
       "title": "Coinkite’s Coldcard Bug Exposed Single-Sig Risk. Multi-Vendor Multisig Is the New Bitcoin Custody Baseline",
@@ -17,10 +10,17 @@
     },
     {
       "date": "Aug 26, 2026",
-      "title": "How Bitcoin Surprised Everyone and 3X'd in 2021",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/q7iI9BpFeRQ",
-      "source": "lukemikic"
+      "title": "Billions Pour Into Bitcoin ETFs as Rally Rolls On",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/bitcoin-etfs-receive-billions-in-new-cash",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Aug 26, 2026",
+      "title": "Forget the Trump Bump — Bitcoin Would Be Fine Under Democrats, Says VanEck",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/bitcoin-would-be-fine-under-democrats",
+      "source": "bitcoin-magazine"
     }
   ]
 }
