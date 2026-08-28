@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-28T12:00:49.912Z",
+  "updated": "2026-08-28T16:00:47.692Z",
   "news": [
+    {
+      "date": "Aug 28, 2026",
+      "title": "Bitcoin Drops Before Shrugging Off Fed Chair&#8217;s Inflation Comments",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/markets/bitcoin-shrugs-off-fed-chair-comments",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Aug 28, 2026",
       "title": "Pakistan Built Its Crypto Regulatory Regime Using Just 8% of Its Budget, Minister Bilal Bin Saqib Reveals at Bitcoin Asia",
@@ -13,13 +20,6 @@
       "title": "Trump's 🇺🇸 Treasury Plan FORCES Massive Capital Flight Into Bitcoin",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/_zACVu3tmd0",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 27, 2026",
-      "title": "$150M Stolen from Air-Gapped Wallet: Fix Your Bitcoin Setup NOW",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/3dW788Qf4wo",
       "source": "lukemikic"
     }
   ]
