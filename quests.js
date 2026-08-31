@@ -5792,8 +5792,9 @@ if (typeof window._questHubRouteAdded === 'undefined') {
 window._raidContribute = function(metric, amount, detail) {
     if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) return;
     if (firebase.auth().currentUser.isAnonymous) return;
+    // Skip silently if no active boss — avoids 404 spam for every channel visit
+    if (!window._currentRaidBoss) return;
     try {
-        console.log('[RAID] Contributing:', metric, amount || 1);
         var fn = firebase.functions().httpsCallable('contributeRaid');
         fn({ metric: metric, amount: amount || 1, detail: detail || '' }).then(function(r) {
             if (r && r.data) {

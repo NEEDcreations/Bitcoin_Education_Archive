@@ -867,6 +867,23 @@ window.forumVotePost = async function(postId) {
             }
         }
 
+        // Bust cache so re-render shows updated vote count
+        window._forumCache = null;
+        // Update in-memory cache too so list re-render is instant
+        if (forumPostsCache) {
+            var _cp = forumPostsCache.find(function(x) { return x.id === postId; });
+            if (_cp) {
+                var _uid2 = auth.currentUser.uid;
+                var _alreadyVoted = (_cp.voters || []).indexOf(_uid2) !== -1;
+                if (_alreadyVoted) {
+                    _cp.upvotes = Math.max(0, (_cp.upvotes || 0) - 1);
+                    _cp.voters = (_cp.voters || []).filter(function(v) { return v !== _uid2; });
+                } else {
+                    _cp.upvotes = (_cp.upvotes || 0) + 1;
+                    _cp.voters = (_cp.voters || []).concat([_uid2]);
+                }
+            }
+        }
         // Refresh
         if (forumCurrentPost && forumCurrentPost.id === postId) {
             forumViewPost(postId);

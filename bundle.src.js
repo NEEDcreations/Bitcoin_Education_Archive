@@ -19319,8 +19319,9 @@ if (typeof window._questHubRouteAdded === 'undefined') {
 window._raidContribute = function(metric, amount, detail) {
     if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) return;
     if (firebase.auth().currentUser.isAnonymous) return;
+    // Skip silently if no active boss — avoids 404 spam for every channel visit
+    if (!window._currentRaidBoss) return;
     try {
-        console.log('[RAID] Contributing:', metric, amount || 1);
         var fn = firebase.functions().httpsCallable('contributeRaid');
         fn({ metric: metric, amount: amount || 1, detail: detail || '' }).then(function(r) {
             if (r && r.data) {
@@ -22839,6 +22840,23 @@ window.forumVotePost = async function(postId) {
             }
         }
 
+        // Bust cache so re-render shows updated vote count
+        window._forumCache = null;
+        // Update in-memory cache too so list re-render is instant
+        if (forumPostsCache) {
+            var _cp = forumPostsCache.find(function(x) { return x.id === postId; });
+            if (_cp) {
+                var _uid2 = auth.currentUser.uid;
+                var _alreadyVoted = (_cp.voters || []).indexOf(_uid2) !== -1;
+                if (_alreadyVoted) {
+                    _cp.upvotes = Math.max(0, (_cp.upvotes || 0) - 1);
+                    _cp.voters = (_cp.voters || []).filter(function(v) { return v !== _uid2; });
+                } else {
+                    _cp.upvotes = (_cp.upvotes || 0) + 1;
+                    _cp.voters = (_cp.voters || []).concat([_uid2]);
+                }
+            }
+        }
         // Refresh
         if (forumCurrentPost && forumCurrentPost.id === postId) {
             forumViewPost(postId);
