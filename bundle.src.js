@@ -24495,9 +24495,12 @@ function isMarketAdmin() {
 var MARKETPLACE_SECTIONS = [
     { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
     { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
-    { id: 'merchants', name: 'More Bitcoin Merchants', emoji: '🏪', desc: 'Browse more Bitcoin merchants' },
-    { id: 'noderunners', name: 'Even More Merchants', emoji: '🌐', desc: 'Bitcoin shops via Node Runners' },
+    { id: 'merchants', name: 'Galaxy Mind', emoji: '🌌', desc: 'Galaxy Mind Bitcoin marketplace' },
+    { id: 'noderunners', name: 'Noderunners', emoji: '🌐', desc: 'Bitcoin shops via Noderunners' },
     { id: 'conduit', name: 'Conduit Market', emoji: '🔌', desc: 'Shop at Conduit Market' },
+    { id: 'plebeian', name: 'Plebeian Market', emoji: '🗽', desc: 'P2P Bitcoin-only marketplace' },
+    { id: 'scarcecity', name: 'Scarce City', emoji: '💎', desc: 'Bitcoin auctions & rare collectibles' },
+    { id: 'proofofink', name: 'Proof of Ink', emoji: '✒️', desc: 'Bitcoin tattoo art & culture' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
@@ -24604,6 +24607,33 @@ function _preloadMarketIframes() {
         conduitWrap.innerHTML = '<iframe id="conduitIframe" src="https://shop.conduit.market/products" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(conduitWrap);
     }
+
+    // Plebeian Market iframe
+    if (!document.getElementById('plebeianIframeWrap')) {
+        var plWrap = document.createElement('div');
+        plWrap.id = 'plebeianIframeWrap';
+        plWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        plWrap.innerHTML = '<iframe id="plebeianIframe" src="https://plebeian.market/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(plWrap);
+    }
+
+    // Scarce City iframe
+    if (!document.getElementById('scarcecityIframeWrap')) {
+        var scWrap = document.createElement('div');
+        scWrap.id = 'scarcecityIframeWrap';
+        scWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        scWrap.innerHTML = '<iframe id="scarcecityIframe" src="https://scarce.city/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(scWrap);
+    }
+
+    // Proof of Ink iframe
+    if (!document.getElementById('proofofinkIframeWrap')) {
+        var poiWrap = document.createElement('div');
+        poiWrap.id = 'proofofinkIframeWrap';
+        poiWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        poiWrap.innerHTML = '<iframe id="proofofinkIframe" src="https://proofofink.com/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(poiWrap);
+    }
 }
 
 // Show a preloaded iframe by positioning it over a placeholder element
@@ -24642,6 +24672,9 @@ window._hideMarketIframes = function() {
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
+    _hidePreloadedIframe('plebeianIframeWrap');
+    _hidePreloadedIframe('scarcecityIframeWrap');
+    _hidePreloadedIframe('proofofinkIframeWrap');
 };
 
 window.renderMarketplace = function(options) {
@@ -24763,6 +24796,33 @@ function _actualRenderMarketplace(options) {
         html += '</div>';
         container.innerHTML = html;
         _showPreloadedIframe('conduitIframeWrap', 'conduitIframePlaceholder');
+        return;
+    }
+
+    // Plebeian Market
+    if (activeSection === 'plebeian') {
+        html += '<div id="plebeianIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('plebeianIframeWrap', 'plebeianIframePlaceholder');
+        return;
+    }
+
+    // Scarce City
+    if (activeSection === 'scarcecity') {
+        html += '<div id="scarcecityIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('scarcecityIframeWrap', 'scarcecityIframePlaceholder');
+        return;
+    }
+
+    // Proof of Ink
+    if (activeSection === 'proofofink') {
+        html += '<div id="proofofinkIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('proofofinkIframeWrap', 'proofofinkIframePlaceholder');
         return;
     }
 
