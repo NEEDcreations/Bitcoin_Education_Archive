@@ -4675,6 +4675,12 @@ if (locked) {
             setTimeout(checkPredictionResult, 4000);
         }
 
+        // Pre-warm marketplace iframes in background so Pleb Shop loads instantly
+        // when user clicks Lightning Mart. Delayed 5s to not compete with initial page load.
+        setTimeout(function() {
+            if (typeof window._preloadMarketIframes === 'function') window._preloadMarketIframes();
+        }, 5000);
+
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
         // This prevents iOS swipe-back from exiting the app
