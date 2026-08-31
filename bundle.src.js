@@ -5356,7 +5356,7 @@ function showSettingsPage(tab) {
 
         // Expandable disclaimer note
         html += '<div style="margin-bottom:8px;">';
-        html += '<button onclick="window._toggleSatsCharityNote()" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">i️ About Donations <span id="satsCharityNoteArrow">▼</span></button>';
+        html += '<button onclick="window._toggleSatsCharityNote()" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">About Donations <span id="satsCharityNoteArrow">▼</span></button>';
         html += '<div id="satsCharityNote" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:12px;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Donations are non-refundable and not tax-deductible. Faction is always recorded even for anonymous donations. Community votes on which charities receive the funds.</div>';
         html += '</div>';
 
@@ -17876,7 +17876,7 @@ function _renderCharityTabInner(body) {
 
     // Expandable note
     html += '<div style="margin-bottom:16px;">' +
-        '<button onclick="var n=document.getElementById(\'charityNote\');n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=n.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">ℹ️ About Donations <span>▼</span></button>' +
+        '<button onclick="var n=document.getElementById(\'charityNote\');n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=n.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">About Donations <span>▼</span></button>' +
         '<div id="charityNote" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:14px;font-size:0.8rem;color:var(--text-muted);line-height:1.6;">' +
             '<p style="margin:0 0 8px;">Our community will vote on which charities our contributions go to. In Bitcoin, the charities will focus on Bitcoin education and adoption - but our donations are not limited to the Bitcoin ecosystem. We can find charities outside of Bitcoin that we want to support as a community.</p>' +
             '<p style="margin:0;color:#ef4444;"><strong>⚠️ Donations are non-refundable.</strong> Donated XP cannot be reclaimed or reversed. Donations are a community pledge and are not tax-deductible. This is not a registered charitable organization and no tax receipts are issued.</p>' +
