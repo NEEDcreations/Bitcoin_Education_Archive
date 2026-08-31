@@ -23559,14 +23559,20 @@ window.articleView = async function(articleId) {
         // Comments (reuse forum reply system)
         html += '<h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin-bottom:12px;">💬 Comments</h3>';
         html += '<div id="articleReplies"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Loading comments...</div></div>';
-        
-        // Reply input
+
+        // Reply compose box
         if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            html += '<div style="margin-top:12px;">' +
+            html += '<div id="articleReplyCompose" style="margin-top:12px;">' +
+                '<div id="articleReplyingToBanner" style="display:none;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:6px 12px;margin-bottom:6px;align-items:center;justify-content:space-between;font-size:0.8rem;color:var(--accent);">' +
+                    '<span id="articleReplyingToLabel"></span>' +
+                    '<button onclick="window.articleCancelReplyTo()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;touch-action:manipulation;" title="Cancel reply">✕</button>' +
+                '</div>' +
                 '<textarea id="articleReplyInput" rows="3" maxlength="1000" placeholder="Share your thoughts..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;"></textarea>' +
                 '<button onclick="articleSubmitReply(\'' + articleId + '\')" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
                 '<div id="articleReplyStatus" style="margin-top:4px;font-size:0.8rem;"></div>' +
             '</div>';
+        } else {
+            html += '<div style="margin-top:12px;padding:12px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;text-align:center;color:var(--text-muted);font-size:0.85rem;">🔒 <button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;">Sign in</button> to leave a comment</div>';
         }
         
         html += '</div>';
@@ -23622,27 +23628,85 @@ window.articleVote = async function(articleId) {
 };
 
 // ---- Article Comments ----
+window._articleReplyingTo = null; // { replyId, authorName }
+
+window.articleReplyToComment = function(replyId, authorName) {
+    window._articleReplyingTo = { replyId: replyId, authorName: authorName };
+    var banner = document.getElementById('articleReplyingToBanner');
+    var label = document.getElementById('articleReplyingToLabel');
+    if (banner && label) {
+        label.textContent = '↩ Replying to @' + authorName;
+        banner.style.display = 'flex';
+    }
+    var input = document.getElementById('articleReplyInput');
+    if (input) { input.placeholder = 'Reply to @' + authorName + '...'; input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+};
+
+window.articleCancelReplyTo = function() {
+    window._articleReplyingTo = null;
+    var banner = document.getElementById('articleReplyingToBanner');
+    if (banner) banner.style.display = 'none';
+    var input = document.getElementById('articleReplyInput');
+    if (input) input.placeholder = 'Share your thoughts...';
+};
+
 async function articleLoadReplies(articleId) {
     var container = document.getElementById('articleReplies');
     if (!container) return;
     try {
-        var snap = await db.collection('article_replies').where('articleId', '==', articleId).orderBy('createdAt', 'asc').limit(50).get();
+        var snap = await db.collection('article_replies').where('articleId', '==', articleId).orderBy('createdAt', 'asc').limit(100).get();
         if (snap.empty) { container.innerHTML = '<div style="padding:12px;color:var(--text-faint);font-size:0.85rem;">No comments yet. Be the first!</div>'; return; }
-        var html = '';
-        snap.forEach(function(doc) {
-            var r = doc.data();
+
+        var replies = [];
+        snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+
+        // Build threaded structure (one level deep)
+        var topLevel = [];
+        var childMap = {};
+        replies.forEach(function(r) {
+            if (r.parentReplyId) {
+                if (!childMap[r.parentReplyId]) childMap[r.parentReplyId] = [];
+                childMap[r.parentReplyId].push(r);
+            } else {
+                topLevel.push(r);
+            }
+        });
+
+        var html = '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">' + replies.length + ' ' + (replies.length === 1 ? 'comment' : 'comments') + '</div>';
+
+        function _renderArticleComment(r, isNested) {
             var rlv = typeof getLevel === 'function' ? getLevel(r.authorPoints || 0) : { emoji: '🟢' };
-            var rDate = r.createdAt && r.createdAt.toDate ? (typeof timeAgo === 'function' ? timeAgo(r.createdAt.toDate()) : r.createdAt.toDate().toLocaleDateString()) : '';
+            var rDate = r.createdAt ? (typeof timeAgo === 'function' ? timeAgo(r.createdAt) : (r.createdAt.toDate ? r.createdAt.toDate().toLocaleDateString() : '')) : '';
             var canDel = auth && auth.currentUser && (auth.currentUser.uid === r.authorId || isForumAdmin());
-            html += '<div style="padding:12px 0;border-bottom:1px solid var(--border);">' +
+            var canReply = auth && auth.currentUser && !auth.currentUser.isAnonymous;
+            var bodyHtml = forumRenderMentions(fEsc(r.body).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>'));
+            var replyToLabel = r.parentAuthorName ? '<div style="font-size:0.7rem;color:var(--accent);margin-bottom:4px;">↩ ' + fEsc(r.parentAuthorName) + '</div>' : '';
+            var indent = isNested ? 'margin-left:20px;border-left:2px solid rgba(247,147,26,0.35);padding-left:10px;' : '';
+            return '<div style="padding:12px 0;border-bottom:1px solid var(--border);' + indent + '">' +
+                replyToLabel +
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
                     '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
-                    (canDel ? '<button onclick="articleDeleteReply(\'' + doc.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;">🗑️</button>' : '') +
+                    (canDel ? '<button onclick="articleDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
                 '</div>' +
-                '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;">' + forumRenderMentions(fEsc(r.body).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>')) + '</div>' +
+                '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;margin-bottom:6px;">' + bodyHtml + '</div>' +
+                (canReply ? '<button data-rid="' + r.id + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
             '</div>';
+        }
+
+        topLevel.forEach(function(r) {
+            html += _renderArticleComment(r, false);
+            (childMap[r.id] || []).forEach(function(child) {
+                html += _renderArticleComment(child, true);
+            });
         });
+        // Orphaned children (parent deleted — show flat)
+        Object.keys(childMap).forEach(function(pid) {
+            if (!topLevel.some(function(t) { return t.id === pid; })) {
+                childMap[pid].forEach(function(orphan) { html += _renderArticleComment(orphan, false); });
+            }
+        });
+
         container.innerHTML = html;
     } catch(e) { container.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;">Error loading comments</div>'; }
 }
@@ -23657,35 +23721,37 @@ window.articleSubmitReply = async function(articleId) {
     try {
         var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
         var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
-        await db.collection('article_replies').add({
+        var replyData = {
             articleId: articleId, body: body.substring(0, 1000), authorId: auth.currentUser.uid,
             authorName: userName, authorPoints: userPts, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        if (window._articleReplyingTo) {
+            replyData.parentReplyId = window._articleReplyingTo.replyId;
+            replyData.parentAuthorName = window._articleReplyingTo.authorName;
+        }
+        await db.collection('article_replies').add(replyData);
         await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
-        // Notify article author + @mentioned users
         try {
             var _aDoc = await db.collection('articles').doc(articleId).get();
+            var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
             if (_aDoc.exists && _aDoc.data().authorId && typeof sendNotification === 'function') {
-                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
                 sendNotification(_aDoc.data().authorId, 'comment', _un + ' commented on your article "' + (_aDoc.data().title || '').substring(0, 40) + '"', 'article', articleId);
+            }
+            if (window._articleReplyingTo && window._articleReplyingTo.replyId && typeof sendNotification === 'function') {
+                var _parentDoc = await db.collection('article_replies').doc(window._articleReplyingTo.replyId).get();
+                if (_parentDoc.exists && _parentDoc.data().authorId && _parentDoc.data().authorId !== auth.currentUser.uid) {
+                    sendNotification(_parentDoc.data().authorId, 'reply', _un + ' replied to your comment on "' + (_aDoc.exists ? (_aDoc.data().title || '').substring(0, 40) : 'an article') + '"', 'article', articleId);
+                }
             }
             forumNotifyMentions(body, 'article', articleId, _aDoc && _aDoc.exists ? _aDoc.data().title : '');
         } catch(e) {}
         input.value = '';
+        window.articleCancelReplyTo();
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Comment posted!</span>';
+        setTimeout(function() { if (status) status.innerHTML = ''; }, 3000);
         articleLoadReplies(articleId);
     } catch(e) { if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting comment</span>'; }
-};
-
-window.articleDeleteReply = async function(replyId, articleId) {
-    if (!confirm('Delete this comment?')) return;
-    try {
-        await db.collection('article_replies').doc(replyId).delete();
-        await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(-1) });
-        if (typeof showToast === 'function') showToast('🗑️ Comment deleted');
-        articleLoadReplies(articleId);
-    } catch(e) {}
 };
 
 // ---- Article Edit ----
