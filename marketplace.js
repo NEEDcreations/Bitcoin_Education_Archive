@@ -365,17 +365,16 @@ function _actualRenderMarketplace(options) {
     // Featured: 603BTC Pleb Shop (Educational section)
     if (activeSection === 'educational' || activeSection === 'all') {
         html += '<div id="plebShopCard" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:14px;overflow:hidden;">' +
-            '<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
-                '<div style="display:flex;align-items:center;gap:10px;">' +
-                    '<span style="font-size:1.5rem;">\uD83D\uDED2</span>' +
-                    '<div>' +
-                        '<div style="font-size:0.9rem;font-weight:800;color:var(--heading);">603BTC Pleb Shop</div>' +
-                        '<div style="font-size:0.72rem;color:var(--text-muted);">Bitcoin educational products, merch & gear</div>' +
-                    '</div>' +
+            '<div style="padding:14px 16px;display:flex;align-items:center;gap:10px;">' +
+                '<span style="font-size:1.5rem;">\uD83D\uDED2</span>' +
+                '<div>' +
+                    '<div style="font-size:0.9rem;font-weight:800;color:var(--heading);">603BTC Pleb Shop</div>' +
+                    '<div style="font-size:0.72rem;color:var(--text-muted);">Bitcoin educational products, merch & gear</div>' +
                 '</div>' +
-                '<button onclick="window._togglePlebShop()" id="plebShopToggle" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Open Shop</button>' +
             '</div>' +
-            '<div id="plebShopEmbed" style="display:none;width:100%;height:0;transition:height 0.3s ease;"></div>' +
+            '<div style="width:100%;height:600px;">' +
+                '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="strict-origin-when-cross-origin"></iframe>' +
+            '</div>' +
         '</div>';
     }
 
