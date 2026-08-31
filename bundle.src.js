@@ -24603,7 +24603,7 @@ function _preloadMarketIframes() {
         var psWrap = document.createElement('div');
         psWrap.id = 'plebshopIframeWrap';
         psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(psWrap);
     }
 
@@ -24776,10 +24776,14 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
-    // Hide all preloaded iframes by default
+    // Hide all preloaded iframes before showing the active one
+    _hidePreloadedIframe('plebshopIframeWrap');
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
+    _hidePreloadedIframe('plebeianIframeWrap');
+    _hidePreloadedIframe('scarcecityIframeWrap');
+    _hidePreloadedIframe('proofofinkIframeWrap');
 
     // Pleb Shop
     if (activeSection === 'plebshop') {
@@ -24857,21 +24861,6 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
-    // Featured: 603BTC Pleb Shop (Educational section)
-    if (activeSection === 'educational' || activeSection === 'all') {
-        html += '<div id="plebShopCard" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:14px;overflow:hidden;">' +
-            '<div style="padding:14px 16px;display:flex;align-items:center;gap:10px;">' +
-                '<span style="font-size:1.5rem;">\uD83D\uDED2</span>' +
-                '<div>' +
-                    '<div style="font-size:0.9rem;font-weight:800;color:var(--heading);">603BTC Pleb Shop</div>' +
-                    '<div style="font-size:0.72rem;color:var(--text-muted);">Bitcoin educational products, merch & gear</div>' +
-                '</div>' +
-            '</div>' +
-            '<div style="width:100%;height:600px;">' +
-                '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="strict-origin-when-cross-origin"></iframe>' +
-            '</div>' +
-        '</div>';
-    }
 
     // Sort dropdown
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
@@ -25684,7 +25673,7 @@ window._togglePlebShop = function() {
         embed.style.height = 'calc(100vh - 280px)';
         embed.style.minHeight = '500px';
         if (!embed.querySelector('iframe')) {
-            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         }
         if (btn) { btn.textContent = 'Close Shop'; btn.style.background = 'var(--border)'; }
     } else {
