@@ -1060,7 +1060,7 @@ service cloud.firestore {
                     && request.resource.data.recipientId.size() > 0
                     && request.resource.data.message is string
                     && request.resource.data.message.size() <= 200
-                    && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy']
+                    && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy', 'comment', 'upvote', 'security', 'badge', 'quest', 'streak', 'level_up', 'chat_mention', 'leaderboard_reward', 'article', 'forum_post']
                     && (request.resource.data.senderId == request.auth.uid
                         || (request.resource.data.senderId == 'system'
                             && isAdmin()));

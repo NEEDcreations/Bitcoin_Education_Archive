@@ -2549,7 +2549,43 @@ window.beatsSetGenre = function(genre) {
             var needsClientSort = sort !== 'newest';
 
             if (needsClientSort) {
-                // For non-chronological sorts, fetch all tracks of genre once, sort client-side, paginate locally
+                // For non-newest sorts, use native Firestore orderBy for accurate ranking across all tracks.
+                // most-played/most-liked: native orderBy on plays/likes field (requires composite index).
+                // trending/shuffle: still fetch all and sort client-side (no single field maps to trending score).
+                var nativeOrderField = sort === 'most-played' ? 'plays' : sort === 'most-liked' ? 'likes' : null;
+                if (nativeOrderField && !append) {
+                    var nQ = db.collection('beats_tracks');
+                    if (genre) nQ = nQ.where('genre', '==', genre);
+                    nQ = nQ.orderBy(nativeOrderField, 'desc').limit(200);
+                    nQ.get().then(function(snap) {
+                        if (sentinel) sentinel.style.display = 'none';
+                        var all = [];
+                        snap.forEach(function(doc) { all.push({ id: doc.id, ...doc.data() }); });
+                        window._beatsQueue = all;
+                        window._beatsExhausted = true;
+                        var html = beatsRenderTrackList(all, false);
+                        if (!html) html = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
+                        listEl.innerHTML = html;
+                    }).catch(function(e) {
+                        // Fallback: index may still be building — fetch newest 500 and sort client-side
+                        console.warn('[Beats] native sort unavailable, falling back:', e.message);
+                        var fbQ = db.collection('beats_tracks');
+                        if (genre) fbQ = fbQ.where('genre', '==', genre);
+                        fbQ.orderBy('createdAt', 'desc').limit(500).get().then(function(snap2) {
+                            if (sentinel) sentinel.style.display = 'none';
+                            var all2 = [];
+                            snap2.forEach(function(doc) { all2.push({ id: doc.id, ...doc.data() }); });
+                            all2 = beatsApplySort(all2, sort);
+                            window._beatsQueue = all2;
+                            window._beatsExhausted = true;
+                            var html2 = beatsRenderTrackList(all2, false);
+                            if (!html2) html2 = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
+                            listEl.innerHTML = html2;
+                        }).catch(function(e2) { console.error('[Beats] fallback load error:', e2); if (sentinel) sentinel.style.display='none'; });
+                    });
+                    return;
+                }
+                // trending/shuffle: fetch all newest and sort client-side
                 if (!append) {
                     var csQ = db.collection('beats_tracks');
                     if (genre) csQ = csQ.where('genre', '==', genre);
@@ -2559,7 +2595,7 @@ window.beatsSetGenre = function(genre) {
                         snap.forEach(function(doc) { all.push({ id: doc.id, ...doc.data() }); });
                         all = beatsApplySort(all, sort);
                         window._beatsQueue = all;
-                        window._beatsExhausted = true; // all loaded
+                        window._beatsExhausted = true;
                         var html = beatsRenderTrackList(all, false);
                         if (!html) html = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
                         listEl.innerHTML = html;
