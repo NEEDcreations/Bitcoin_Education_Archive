@@ -24493,14 +24493,13 @@ function isMarketAdmin() {
 }
 
 var MARKETPLACE_SECTIONS = [
-    { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
-    { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
+    { id: 'plebshop', name: 'Pleb Shop', emoji: '🛒', desc: '603BTC educational products, merch & gear' },
     { id: 'merchants', name: 'Galaxy Mind', emoji: '🌌', desc: 'Galaxy Mind Bitcoin marketplace' },
+    { id: 'proofofink', name: 'Proof of Ink', emoji: '✒️', desc: 'Bitcoin tattoo art & culture' },
     { id: 'noderunners', name: 'Noderunners', emoji: '🌐', desc: 'Bitcoin shops via Noderunners' },
     { id: 'conduit', name: 'Conduit Market', emoji: '🔌', desc: 'Shop at Conduit Market' },
-    { id: 'plebeian', name: 'Plebeian Market', emoji: '🗽', desc: 'P2P Bitcoin-only marketplace' },
     { id: 'scarcecity', name: 'Scarce City', emoji: '💎', desc: 'Bitcoin auctions & rare collectibles' },
-    { id: 'proofofink', name: 'Proof of Ink', emoji: '✒️', desc: 'Bitcoin tattoo art & culture' },
+    { id: 'plebeian', name: 'Plebeian Market', emoji: '🗽', desc: 'P2P Bitcoin-only marketplace' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
@@ -24599,6 +24598,15 @@ function _preloadMarketIframes() {
         document.body.appendChild(nrWrap);
     }
 
+    // Pleb Shop iframe (hidden, preloading in background)
+    if (!document.getElementById('plebshopIframeWrap')) {
+        var psWrap = document.createElement('div');
+        psWrap.id = 'plebshopIframeWrap';
+        psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(psWrap);
+    }
+
     // Conduit Market iframe (hidden, preloading in background)
     if (!document.getElementById('conduitIframeWrap')) {
         var conduitWrap = document.createElement('div');
@@ -24669,6 +24677,7 @@ function _hidePreloadedIframe(wrapId) {
 
 // Hide preloaded iframes when leaving marketplace (called by go/goHome)
 window._hideMarketIframes = function() {
+    _hidePreloadedIframe('plebshopIframeWrap');
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
@@ -24750,15 +24759,15 @@ function _actualRenderMarketplace(options) {
     '</div>';
 
     // Determine active section from category
-    var activeSection = options.section || 'merchants';
+    var activeSection = options.section || 'plebshop';
     if (activeCategory !== 'all' && activeSection === 'all') {
         var catObj = MARKETPLACE_CATEGORIES.find(function(c) { return c.id === activeCategory; });
         if (catObj) activeSection = catObj.section;
     }
 
-    // Section tabs: All | Educational | General
-    html += '<div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">';
-    var sectionTabs = [{ id: 'all', name: 'All', emoji: '🛒' }].concat(MARKETPLACE_SECTIONS);
+    // Section tabs
+    html += '<div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;overflow-x:auto;">';
+    var sectionTabs = MARKETPLACE_SECTIONS;
     for (var si = 0; si < sectionTabs.length; si++) {
         var sec = sectionTabs[si];
         var secActive = activeSection === sec.id;
@@ -24772,7 +24781,16 @@ function _actualRenderMarketplace(options) {
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
 
-    // If "Other Bitcoin Merchants" tab is active, show preloaded Galaxy Mind iframe
+    // Pleb Shop
+    if (activeSection === 'plebshop') {
+        html += '<div id="plebshopIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('plebshopIframeWrap', 'plebshopIframePlaceholder');
+        return;
+    }
+
+    // Galaxy Mind
     if (activeSection === 'merchants') {
         html += '<div id="gmIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
         html += '</div>';
