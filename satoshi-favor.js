@@ -1264,11 +1264,38 @@
         } else if (source === 'level_up_10') {
             howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
         } else if (source === 'badge_earned') {
-            // detail is the badge id — look up emoji + name for the announcement text
-            var _badgeDef = (typeof window.BADGE_DEFS !== 'undefined' && window.BADGE_DEFS)
-                ? window.BADGE_DEFS.find(function(b) { return b.id === detail; })
-                : null;
-            var _badgeDisplay = _badgeDef ? (_badgeDef.emoji + ' ' + _badgeDef.name) : (detail || '🏅');
+            // detail is the badge id — look up emoji + name from ALL badge sources
+            var _allSFBadges = [].concat(
+                (typeof window.BADGE_DEFS !== 'undefined' ? window.BADGE_DEFS : []),
+                (typeof window.HIDDEN_BADGES !== 'undefined' ? window.HIDDEN_BADGES : [])
+            );
+            // TITLE_DEFS
+            if (typeof window.TITLE_DEFS !== 'undefined') {
+                window.TITLE_DEFS.forEach(function(t) {
+                    _allSFBadges.push({ id: t.id, name: t.title || t.name || t.id, emoji: t.emoji || '🏅', desc: t.flavor || '' });
+                });
+            }
+            // BADGE_SETS bonus completion badges
+            if (typeof window.BADGE_SETS !== 'undefined') {
+                window.BADGE_SETS.forEach(function(s) {
+                    if (s && s.bonusId) _allSFBadges.push({ id: s.bonusId, name: s.bonusName || s.name, emoji: s.bonusEmoji || '🏅', desc: s.bonusDesc || '' });
+                });
+            }
+            // Flex per-action milestone badges (flex_cold_50, flex_journal_10, etc.)
+            if (typeof window.FLEX_ACTIONS !== 'undefined' && typeof window.FLEX_BADGE_MILESTONES !== 'undefined') {
+                window.FLEX_ACTIONS.forEach(function(a) {
+                    window.FLEX_BADGE_MILESTONES.forEach(function(m) {
+                        _allSFBadges.push({
+                            id: 'flex_' + a.id + '_' + m,
+                            name: a.name + ' \u00d7' + m,
+                            emoji: a.emoji,
+                            desc: 'Completed \u201c' + a.name + '\u201d ' + m + ' time' + (m === 1 ? '' : 's')
+                        });
+                    });
+                });
+            }
+            var _badgeDef = _allSFBadges.find(function(b) { return b.id === detail; }) || null;
+            var _badgeDisplay = _badgeDef ? (_badgeDef.emoji + ' ' + _badgeDef.name) : (detail || '\uD83C\uDFC5');
             howEarned = '@' + username + ' earned a badge: ' + _badgeDisplay + '!';
         }
 
