@@ -1,6 +1,13 @@
 {
-  "updated": "2026-08-31T12:00:48.361Z",
+  "updated": "2026-08-31T16:00:48.009Z",
   "news": [
+    {
+      "date": "Aug 31, 2026",
+      "title": "Strategy Resumes Bitcoin Buying After 10-Week Hiatus",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/strategy-resumes-bitcoin-buys",
+      "source": "bitcoin-magazine"
+    },
     {
       "date": "Aug 31, 2026",
       "title": "Hundreds of Trillions ARE FLOWING Into Bitcoin Right Now",
@@ -13,13 +20,6 @@
       "title": "ONE MILLION Bitcoin Vanished From Exchanges Into HODL Hands",
       "snippet": "Luke Mikic",
       "link": "https://www.youtube.com/shorts/tGww6gOknMs",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 30, 2026",
-      "title": "CONFIRMED: The History of Money Proves Bitcoin Superiority",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/Sgr6rAEjiWo",
       "source": "lukemikic"
     }
   ]
