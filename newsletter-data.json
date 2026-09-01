@@ -1,26 +1,26 @@
 {
-  "updated": "2026-09-01T12:00:49.512Z",
+  "updated": "2026-09-01T16:00:48.803Z",
   "news": [
     {
       "date": "Sep 1, 2026",
-      "title": "Bitcoin: Why Top Investors Are Buying NOW!",
+      "title": "South Korea&#8217;s Bitcoin &#8216;Kimchi Premium&#8217; Returns",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/news/korea-bitcoin-premium-kimchi-returns",
+      "source": "bitcoin-magazine"
+    },
+    {
+      "date": "Sep 1, 2026",
+      "title": "CBDCs, Digital IDs &amp; Bitcoin: The Escape Valve",
       "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/wPujYKTtBYI",
+      "link": "https://www.youtube.com/shorts/r8hDI0yEqbc",
       "source": "lukemikic"
     },
     {
       "date": "Sep 1, 2026",
-      "title": "Bitcoin Will Either Be ZERO or Own World Wealth",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/RQ-4Us2PWaI",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Aug 31, 2026",
-      "title": "CONFIRMED: Why 0.1 Bitcoin Will Fund Your Retirement",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/Urf7eWSauAg",
-      "source": "lukemikic"
+      "title": "BlackRock Re-Underwrites Bitcoin, and the Portfolio Math Still Holds",
+      "snippet": "Bitcoin Magazine",
+      "link": "https://bitcoinmagazine.com/bitcoin-for-corporations/blackrock-re-underwrites-bitcoin-and-the-portfolio-math-still-holds",
+      "source": "bitcoin-magazine"
     }
   ]
 }
