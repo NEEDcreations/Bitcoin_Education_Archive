@@ -6359,12 +6359,13 @@ exports.monthlyRaffleDraw = functions.pubsub.schedule('0 18 1 * *').timeZone('UT
     });
 
     // 5. Post winner announcement to global_chat as Nacho
-    const msg = `🎉🦌 ORANGE TICKET RAFFLE — ${monthLabel.toUpperCase()} RESULTS!\n\nThe draw has been made! 🍊\n\n🏆 THIS MONTH'S WINNER IS...\n\n✨ ${winner.username} ✨\n\nCongratulations! Pick #${pick + 1} out of ${total} — your ${winner.entries} entries delivered! ⚡🎫\n\nPhil will be in touch to arrange your 21,000 sats prize. Make sure your Lightning Address is set in your profile settings!\n\n—\n📊 Draw stats:\n• ${pool.length} eligible entrants · ${total} entries\n• Drawn using cryptographically secure randomness 🔐\n\nKeep stacking those orange tickets — every quest, trivia, spin and daily streak earns you entries next month! 🦌🍊⚡`;
+    const msg = `🎉🦌 ORANGE TICKET RAFFLE — ${monthLabel.toUpperCase()} RESULTS!\n\nThe draw has been made! 🍊\n\n🏆 THIS MONTH'S WINNER IS...\n\n✨ @${winner.username} ✨\n\nCongratulations! Pick #${pick + 1} out of ${total} — your ${winner.entries} entries delivered! ⚡🎫\n\nPhil will be in touch to arrange your 21,000 sats prize. Make sure your Lightning Address is set in your profile settings!\n\n—\n📊 Draw stats:\n• ${pool.length} eligible entrants · ${total} entries\n• Drawn using cryptographically secure randomness 🔐\n\nKeep stacking those orange tickets — every quest, trivia, spin and daily streak earns you entries next month! 🦌🍊⚡`;
 
     await db.collection('global_chat').add({
         uid: 'nacho-bot',
         name: '🦌 Nacho',
         text: msg,
+        mentionUid: winner.uid,
         isNachoAuto: false,
         ts: admin.firestore.FieldValue.serverTimestamp(),
     });
