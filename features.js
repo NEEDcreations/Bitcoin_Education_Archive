@@ -398,6 +398,12 @@ window.showNachoStory = function(chapterOverride) {
 
 // ---- Price Prediction Game ----
 window.showPricePrediction = function() {
+    // Auth gate — must be signed in to predict
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
     var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     // Try multiple sources if localStorage is empty
     if (!currentPrice && typeof _lastWsPrice !== 'undefined' && _lastWsPrice) { currentPrice = _lastWsPrice; localStorage.setItem('btc_last_price', currentPrice.toString()); }

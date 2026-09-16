@@ -15,7 +15,8 @@
     // 2026-07-02  |  10,000 |      0       | +50% difficulty raise — tightening odds to ~1:10,000
     // 2026-07-10  |   8,000 |      0       | +25% difficulty raise — tightening odds to ~1:12,500
     // 2026-07-29  |   7,000 |      0       | -12.5% difficulty drop — easing odds to ~1:14,286
-    const DIFFICULTY_TARGET = 7000;
+    // 2026-08-20  |  10,000 |      0       | -30% difficulty decrease — easing odds to ~1:10,000
+    const DIFFICULTY_TARGET = 10000;
     // ── Difficulty history (ordered oldest→newest) ─────────────────
     // Add a new entry here whenever the target changes. quests.js reads
     // window.SF_DIFFICULTY_HISTORY to render the Difficulty History table
@@ -26,7 +27,8 @@
         { date: '2026-06-30', target: 15000, label: '+100%',    hashes: 8293,  luck: 321.6 },
         { date: '2026-07-02', target: 10000, label: '+50%',     hashes: 50538, luck: 98.9  },
         { date: '2026-07-10', target: 8000,  label: '+25%',     hashes: 56913, luck: 131.8 },
-        { date: '2026-07-29', target: 7000,  label: '+14.3%',   hashes: null,  luck: null  },
+        { date: '2026-07-29', target: 7000,  label: '+14.3%',   hashes: 36407, luck: 117.7 },
+        { date: '2026-08-20', target: 10000, label: '-30%',      hashes: null,  luck: null,  eraHashOffset: 50538 },
     ];
     // hashes = total hashes cast in that period (from Firestore analysis 2026-07-17)
     // luck   = (expected hashes for blocks found) / actual hashes * 100  (null = live/current or zero-block genesis)
@@ -615,7 +617,7 @@
             // Feature 4: Heat meter
             _buildHeatMeterHTML() +
             '<div id="sfRateInfoBox" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
-            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you solve a block! That\'s a 1 in 14,286 chance per hash (~0.007%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
+            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you solve a block! That\'s a 1 in 10,000 chance per hash (~0.01%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
@@ -630,7 +632,7 @@
             '</div>' +
             '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px;font-size:0.8rem;">' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET + '</div></div>' +
-            '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:14,286</div></div>' +
+            '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:10,000</div></div>' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 1</div><div id="hashCooldown" style="font-weight:800;color:var(--accent);">Ready</div></div>' +
             (hasSecondRig ? '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 2</div><div id="hashCooldown2" style="font-weight:800;color:#8b5cf6;">Ready</div></div>' : '') +
             '</div>' +
@@ -958,7 +960,8 @@
     window.minerDoHash = async function(rig) {
         rig = rig || 1;
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-            showToast('Please sign in to mine.');
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
             return;
         }
 
@@ -1261,11 +1264,38 @@
         } else if (source === 'level_up_10') {
             howEarned = '@' + username + ' leveled up to ' + (detail || 'a new rank') + '! (+10 points)';
         } else if (source === 'badge_earned') {
-            // detail is the badge id — look up emoji + name for the announcement text
-            var _badgeDef = (typeof window.BADGE_DEFS !== 'undefined' && window.BADGE_DEFS)
-                ? window.BADGE_DEFS.find(function(b) { return b.id === detail; })
-                : null;
-            var _badgeDisplay = _badgeDef ? (_badgeDef.emoji + ' ' + _badgeDef.name) : (detail || '🏅');
+            // detail is the badge id — look up emoji + name from ALL badge sources
+            var _allSFBadges = [].concat(
+                (typeof window.BADGE_DEFS !== 'undefined' ? window.BADGE_DEFS : []),
+                (typeof window.HIDDEN_BADGES !== 'undefined' ? window.HIDDEN_BADGES : [])
+            );
+            // TITLE_DEFS
+            if (typeof window.TITLE_DEFS !== 'undefined') {
+                window.TITLE_DEFS.forEach(function(t) {
+                    _allSFBadges.push({ id: t.id, name: t.title || t.name || t.id, emoji: t.emoji || '🏅', desc: t.flavor || '' });
+                });
+            }
+            // BADGE_SETS bonus completion badges
+            if (typeof window.BADGE_SETS !== 'undefined') {
+                window.BADGE_SETS.forEach(function(s) {
+                    if (s && s.bonusId) _allSFBadges.push({ id: s.bonusId, name: s.bonusName || s.name, emoji: s.bonusEmoji || '🏅', desc: s.bonusDesc || '' });
+                });
+            }
+            // Flex per-action milestone badges (flex_cold_50, flex_journal_10, etc.)
+            if (typeof window.FLEX_ACTIONS !== 'undefined' && typeof window.FLEX_BADGE_MILESTONES !== 'undefined') {
+                window.FLEX_ACTIONS.forEach(function(a) {
+                    window.FLEX_BADGE_MILESTONES.forEach(function(m) {
+                        _allSFBadges.push({
+                            id: 'flex_' + a.id + '_' + m,
+                            name: a.name + ' \u00d7' + m,
+                            emoji: a.emoji,
+                            desc: 'Completed \u201c' + a.name + '\u201d ' + m + ' time' + (m === 1 ? '' : 's')
+                        });
+                    });
+                });
+            }
+            var _badgeDef = _allSFBadges.find(function(b) { return b.id === detail; }) || null;
+            var _badgeDisplay = _badgeDef ? (_badgeDef.emoji + ' ' + _badgeDef.name) : (detail || '\uD83C\uDFC5');
             howEarned = '@' + username + ' earned a badge: ' + _badgeDisplay + '!';
         }
 
@@ -1542,7 +1572,8 @@
 
         // Check logged in
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-            if (typeof showToast === 'function') showToast('Sign in to mine!');
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
             return;
         }
         if (!favorState || !favorState.favorActive) {

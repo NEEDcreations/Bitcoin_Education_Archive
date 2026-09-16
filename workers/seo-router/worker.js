@@ -131,7 +131,8 @@ function buildCSP(nonce) {
             " https://ck121212195.github.io" +       // SAT-ARCADE game
             " https://bitcoin-education-archive.firebaseapp.com" + // Firebase Auth iframe
             " https://accounts.google.com" +          // Google Sign-In popup
-            " https://www.google.com",          // reCAPTCHA v3 hidden iframe (App Check)
+            " https://www.google.com" +          // reCAPTCHA v3 hidden iframe (App Check)
+            " https://leo-mattes.com",           // Pump It! game (Bitcoin Beats tab)
 
         "font-src 'self' https://fonts.gstatic.com",
 

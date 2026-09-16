@@ -7,6 +7,15 @@
 // Online Presence + User Profiles + Direct Messages
 // =============================================
 
+function _normalizeUrl(url) {
+    if (!url) return '#';
+    url = url.trim();
+    if (!url) return '#';
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith('//')) return 'https:' + url;
+    return 'https://' + url;
+}
+
 // ---- CONFIG ----
 var MSG_CONFIG = {
     onlineThreshold: 5 * 60 * 1000,    // 5 min = online (green)
@@ -206,9 +215,14 @@ function _canStartNewConvo(recipientUid) {
 }
 
 // ---- ACCOUNT AGE & POINTS CHECK ----
-function _canAccountDM() {
+function _canAccountDM(targetUid) {
     if (!auth || !auth.currentUser) return { ok: false, reason: 'Sign in to send messages' };
     if (auth.currentUser.isAnonymous) return { ok: false, reason: 'Sign in with an account to send messages' };
+
+    // Peers bypass point/age requirements
+    if (targetUid && window._myPeers && window._myPeers.has(targetUid)) {
+        return { ok: true };
+    }
 
     // Check points requirement
     var pts = 0;
@@ -583,7 +597,12 @@ window.showUserProfile = function(uid) {
         }
 
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
-        var dmEligibility = canMessage ? _canAccountDM() : { ok: false };
+        var dmEligibility = canMessage ? _canAccountDM(uid) : { ok: false };
+        var _isPeer = window._myPeers && window._myPeers.has(uid);
+        var _peerBtnId = 'peerActionBtn_' + uid;
+        var _peerBtn = _isPeer
+            ? '<button id="' + _peerBtnId + '" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
+            : '<button id="' + _peerBtnId + '" onclick="window._sendPeerRequest(this,\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:opacity 0.2s;">🧡 Add Peer</button>';
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -607,8 +626,8 @@ window.showUserProfile = function(uid) {
                 lvl.emoji +
                 '</div>';
 
-        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
-            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;' + _frameStyle + '" onclick="event.stopPropagation()">' +
+        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:flex-start;justify-content:center;padding:20px 0;overflow-y:auto;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;overflow-y:auto;max-height:90vh;' + _frameStyle + '" onclick="event.stopPropagation()">' +
             // Close button
             '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             // Avatar & name
@@ -626,6 +645,7 @@ window.showUserProfile = function(uid) {
                            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_tDef.flavor) + '</div>';
                 })() +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
+                (u.peerCount ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">🧡 ' + u.peerCount + ' peers</div>' : '') +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
                 // Faction + Country row
                 '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;flex-wrap:wrap;">' +
@@ -646,7 +666,7 @@ window.showUserProfile = function(uid) {
             ((u.twitter || u.nostr || u.website) ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
                 (u.twitter ? '<a href="https://x.com/' + escapeHtml(u.twitter.replace('@','')) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">𝕏 ' + escapeHtml(u.twitter) + '</a>' : '') +
                 (u.nostr ? '<span style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:#8b5cf6;font-size:0.72rem;">🟣 Nostr</span>' : '') +
-                (u.website && !/^(javascript|data|vbscript|blob):/i.test(u.website.trim()) ? '<a href="' + escapeHtml(u.website) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
+                (u.website && !/^(javascript|data|vbscript|blob):/i.test(u.website.trim()) ? '<a href="' + escapeHtml(_normalizeUrl(u.website)) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
             '</div>' : '') +
             // Stats grid
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
@@ -705,13 +725,14 @@ window.showUserProfile = function(uid) {
             // Block & Report buttons
             (canMessage ?
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
+                    _peerBtn +
                     (isUserBlocked(uid) ?
                         '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
                         : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
                     '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
                 '</div>' : '') +
             // Own-profile country nudge (only visible to yourself, only if country not set)
-            + (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
+            (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
                 '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showSettings===\'function\')showSettings();">' +
                     '<span style="font-size:1rem;">🌍</span>' +
                     '<span style="color:#22c55e;font-size:0.8rem;">Add your country → earn <strong>+100 XP</strong> + 🌍 Global Citizen badge</span>' +
@@ -758,6 +779,34 @@ window._tipFromProfile = function() {
     }
 };
 
+window._sendPeerRequest = async function(btnEl, targetUid) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Sending...';
+    btnEl.style.opacity = '0.6';
+    try {
+        var fn = firebase.functions().httpsCallable('managePeer');
+        await fn({ action: 'send', targetUid: targetUid });
+        btnEl.textContent = '🧡 Sent!';
+        btnEl.style.background = 'rgba(249,115,22,0.2)';
+        btnEl.style.opacity = '1';
+        btnEl.style.cursor = 'default';
+        if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
+    } catch(e) {
+        var msg = (e && e.message) || 'Error';
+        if (msg.includes('already-exists')) {
+            btnEl.textContent = '🧡 Sent!';
+            btnEl.style.opacity = '0.8';
+            btnEl.style.cursor = 'default';
+        } else {
+            btnEl.disabled = false;
+            btnEl.textContent = '🧡 Add Peer';
+            btnEl.style.opacity = '1';
+            if (typeof showToast === 'function') showToast(msg);
+        }
+    }
+};
+
 function profileStat(emoji, value, label) {
     return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:8px 4px;text-align:center;">' +
         '<div style="font-size:0.75rem;">' + emoji + '</div>' +
@@ -795,7 +844,7 @@ window.openDM = function(recipientUid, recipientName) {
     }
 
     // Account eligibility check (age + points)
-    var eligibility = _canAccountDM();
+    var eligibility = _canAccountDM(recipientUid);
     if (!eligibility.ok) {
         if (typeof showToast === 'function') showToast(eligibility.reason);
         return;

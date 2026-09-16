@@ -357,6 +357,18 @@ function _localQRDataUrl(data) {
 window._renderQRCode = _renderQRCode;
 window._localQRDataUrl = _localQRDataUrl;
 
+function _normalizeUrl(url) {
+    if (!url) return '#';
+    url = url.trim();
+    if (!url) return '#';
+    // Already has a protocol
+    if (/^https?:\/\//i.test(url)) return url;
+    // Has a protocol-relative URL
+    if (url.startsWith('//')) return 'https:' + url;
+    // No protocol — prepend https://
+    return 'https://' + url;
+}
+
 // Points config
 const POINTS = {
     visit: 5,
@@ -1667,6 +1679,7 @@ async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
+        window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
         if (currentUser.visitedChannelsList) {
             currentUser.visitedChannelsList.forEach(ch => allTimeChannels.add(ch));
@@ -2864,11 +2877,19 @@ function trackScroll() {
 }
 
 // Listen for real user activity
-document.addEventListener('mousemove', trackActivity);
+// mousemove is throttled: fires hundreds of times/sec on desktop — cap at 2/sec
+var _mmThrottleTs = 0;
+document.addEventListener('mousemove', function() {
+    var _now = Date.now();
+    if (_now - _mmThrottleTs < 500) return;
+    _mmThrottleTs = _now;
+    trackActivity();
+});
 document.addEventListener('keydown', trackActivity);
 document.addEventListener('touchstart', trackActivity, { passive: true });
 document.addEventListener('click', trackActivity);
-setInterval(trackScroll, 2000);
+// Skip trackScroll when tab is in background
+setInterval(function() { if (!document.hidden) trackScroll(); }, 2000);
 
 function startReadTimer() {
     if (readTimer) clearInterval(readTimer);
@@ -2882,8 +2903,8 @@ function startReadTimer() {
         if (!hasScrolledSinceLastAward) return; // No scrolling
 
         readSeconds++;
-        // Track for Nacho bubble quiz trigger
-        sessionStorage.setItem('btc_channel_read_seconds', readSeconds.toString());
+        // Track for Nacho bubble quiz trigger — only write every 5s to avoid sync I/O every second
+        if (readSeconds % 5 === 0) sessionStorage.setItem('btc_channel_read_seconds', readSeconds.toString());
         if (readSeconds - lastReadAward >= 30) {
             lastReadAward = readSeconds;
             hasScrolledSinceLastAward = false;
@@ -3416,9 +3437,10 @@ function _lbBuildResultRow(u) {
     var pts = (u.points || 0).toLocaleString();
     var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
     var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
+    var peerTag = (window._myPeers && window._myPeers.has(u.uid || u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     return '<div class="lb-search-result">' +
         '<span>' + lv.emoji + '</span>' +
-        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + escapeHtml(u.username || 'Anon') + '</a>' +
+        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + peerTag + escapeHtml(u.username || 'Anon') + '</a>' +
         '<span class="lb-sr-pts">' + pts + ' XP · <strong>' + (u.rank ? '#' + u.rank : '—') + '</strong></span>' +
     '</div>';
 }
@@ -3535,9 +3557,10 @@ window.lbSearchUser = function(val) {
             var pts = (u.points || 0).toLocaleString();
             var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
             var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
+            var peerTag = (window._myPeers && window._myPeers.has(u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             return '<div class="lb-search-result">' +
                 '<span>' + (lv.emoji || '') + '</span>' +
-                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">'
+                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + peerTag
                     + escapeHtml(u.username || 'Anon') + '</a>' +
                 '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + rank + '</strong></span>' +
                 '</div>';
@@ -4023,10 +4046,11 @@ async function toggleLeaderboard() {
 
             var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
             var _lbNameStyle = d.faction ? window._factionNameStyle(d.faction) : '';
+            var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
+                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (_lbPeriod === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : _lbPeriod === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP') + '</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
@@ -4117,10 +4141,11 @@ async function _loadPVPLeaderboard() {
             var pvpIcon = p.wins >= 100 ? '👑' : p.wins >= 50 ? '🏆' : p.wins >= 25 ? '🏟️' : p.wins >= 5 ? '🥊' : '⚔️';
             var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (p.isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (p.isMe ? ' lb-me' : '') + '"';
             var _pvpTipData = JSON.stringify({recipientName: p.username, recipientUid: p.id, lightningAddress: p.lightningAddress, context: 'pvp', label: 'Tip ' + p.username}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+            var peerTag = (window._myPeers && window._myPeers.has(p.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + p.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
-                '<span class="lb-name">' + p.username + '</span>' +
+                '<span class="lb-name">' + peerTag + p.username + '</span>' +
                 '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W - ' + p.losses + 'L</span>' +
                 '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + p.username + '">⚡</span>' +
             '</div>';
@@ -4559,9 +4584,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'sats', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix' };
+    ['account', 'scholar', 'sats', 'prefs', 'security', 'data', 'peers'].forEach(t => {
+        const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊', peers: '🧡' };
+        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix', peers: 'Peers' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:normal;text-align:center;line-height:1.2;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -5449,7 +5474,7 @@ function showSettingsPage(tab) {
 
         // Expandable disclaimer note
         html += '<div style="margin-bottom:8px;">';
-        html += '<button onclick="window._toggleSatsCharityNote()" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">i️ About Donations <span id="satsCharityNoteArrow">▼</span></button>';
+        html += '<button onclick="window._toggleSatsCharityNote()" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">About Donations <span id="satsCharityNoteArrow">▼</span></button>';
         html += '<div id="satsCharityNote" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:12px;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Donations are non-refundable and not tax-deductible. Faction is always recorded even for anonymous donations. Community votes on which charities receive the funds.</div>';
         html += '</div>';
 
@@ -6147,6 +6172,11 @@ function showSettingsPage(tab) {
             '<button onclick="confirmDeleteAccount()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
             '</div>';
         html += '</div>'; // close advStatsPanel
+    } else if (settingsTab === 'peers') {
+        html += '<div id="peersPanel" style="padding:0 4px;">';
+        html += '<h3 style="font-size:1rem;margin:0 0 12px;color:var(--text);">🧡 Your Peers</h3>';
+        html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:20px 0;">Loading...</div>';
+        html += '</div>';
     }
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
@@ -6310,6 +6340,105 @@ function showSettingsPage(tab) {
             }
         }
     }
+    // Load peers tab data
+    if (settingsTab === 'peers' && auth && auth.currentUser && typeof db !== 'undefined') {
+        setTimeout(async function() {
+            var listEl = document.getElementById('peersList');
+            if (!listEl) return;
+            try {
+                var uid = auth.currentUser.uid;
+                var userDoc = await db.collection('users').doc(uid).get();
+                var userData = userDoc.exists ? userDoc.data() : {};
+                var peers = userData.peers || [];
+                window._myPeers = new Set(peers);
+
+                // Load inbound requests first
+                var reqSnap = await db.collection('peer_requests')
+                    .where('to', '==', uid).where('status', '==', 'pending').limit(20).get();
+                var reqHtml = '';
+                if (!reqSnap.empty) {
+                    reqHtml += '<h4 style="font-size:0.85rem;margin:0 0 8px;color:var(--text);">Incoming Requests</h4>';
+                    reqSnap.forEach(function(doc) {
+                        var d = doc.data();
+                        reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
+                            '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
+                            '<div style="display:flex;gap:6px;">' +
+                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
+                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                            '</div></div>';
+                    });
+                }
+
+                // Load current peers
+                var peerHtml = '';
+                if (peers.length === 0) {
+                    peerHtml = '<p style="color:var(--text-muted);text-align:center;padding:12px 0;">No peers yet. Find people on the leaderboard and add them!</p>';
+                } else {
+                    var peerDocs = await Promise.all(peers.slice(0, 50).map(function(p) {
+                        return db.collection('public_profiles').doc(p).get();
+                    }));
+                    peerDocs.forEach(function(snap, i) {
+                        var d = snap.exists ? snap.data() : {};
+                        var name = d.username || d.displayName || 'Bitcoiner';
+                        var puid = peers[i];
+                        var pLvl = typeof getLevel === 'function' ? getLevel(d.points || 0) : { name: 'Pleb', emoji: '🌱' };
+                        var pStreak = d.streak || 0;
+                        var pPosts = d.forumPosts || 0;
+                        var pXP = (d.points || 0).toLocaleString();
+                        var pWeekly = d.weeklyXP || 0;
+                        var pLastVisit = d.lastVisit || '';
+                        var pDetailId = 'peerDetail_' + puid.replace(/[^a-z0-9]/gi,'_');
+                        // Format last active
+                        var pLastStr = '';
+                        if (pLastVisit) {
+                            try {
+                                var today = new Date(); today.setHours(0,0,0,0);
+                                var lv = new Date(pLastVisit); lv.setHours(0,0,0,0);
+                                var diffDays = Math.round((today - lv) / 86400000);
+                                pLastStr = diffDays === 0 ? 'Active today' : diffDays === 1 ? 'Active yesterday' : 'Active ' + diffDays + 'd ago';
+                            } catch(e) { pLastStr = ''; }
+                        }
+                        // Summary line (collapsed)
+                        var summaryParts = [];
+                        if (pLastStr) summaryParts.push(pLastStr);
+                        summaryParts.push(pLvl.emoji + ' ' + pLvl.name);
+                        if (pStreak > 0) summaryParts.push('🔥 ' + pStreak + 'd');
+                        var summaryText = summaryParts.join(' · ');
+                        peerHtml += '<div style="border-bottom:1px solid var(--border);padding:8px 0;">' +
+                            // Header row: name + expand arrow + remove
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span style="flex:1;font-size:0.9rem;cursor:pointer;color:var(--text);" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
+                                '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">' + summaryText + '</span>' +
+                                '<button onclick="var el=document.getElementById(\'' + pDetailId + '\');var arr=this.querySelector(\'span\');if(el.style.display===\'none\'){el.style.display=\'block\';arr.textContent=\'▲\';}else{el.style.display=\'none\';arr.textContent=\'▼\';}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;"><span>▼</span></button>' +
+                                '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
+                            '</div>' +
+                            // Expandable detail panel
+                            '<div id="' + pDetailId + '" style="display:none;margin-top:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +
+                                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;">' +
+                                    '<div style="color:var(--text-muted);">⭐ <b style="color:var(--text);">' + pXP + '</b> XP</div>' +
+                                    '<div style="color:var(--text-muted);">🔥 <b style="color:var(--text);">' + pStreak + 'd</b> streak</div>' +
+                                    '<div style="color:var(--text-muted);">🗣️ <b style="color:var(--text);">' + pPosts + '</b> posts</div>' +
+                                    '<div style="color:var(--text-muted);">📅 <b style="color:var(--text);">' + (pWeekly > 0 ? '+' + pWeekly.toLocaleString() + ' XP this week' : 'No XP this week') + '</b></div>' +
+                                '</div>' +
+                                (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-faint);">' + pLastStr + '</div>' : '') +
+                                '<button onclick="document.getElementById(\'' + pDetailId + '\').previousElementSibling.querySelector(\'button\').click()" style="margin-top:8px;width:100%;padding:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.72rem;cursor:pointer;">View Full Profile →</button>' +
+                            '</div>' +
+                        '</div>';
+                    });
+                }
+
+                var finalHtml = '';
+                if (reqHtml) finalHtml += reqHtml + '<h4 style="font-size:0.85rem;margin:16px 0 8px;color:var(--text);">Your Peers (' + peers.length + ')</h4>';
+                finalHtml += peerHtml;
+                var listEl2 = document.getElementById('peersList');
+                if (listEl2) listEl2.innerHTML = finalHtml || '<p style="text-align:center;color:var(--text-muted);">No peers yet</p>';
+            } catch(e) {
+                var listEl3 = document.getElementById('peersList');
+                if (listEl3) listEl3.innerHTML = '<p style="color:#ef4444;text-align:center;">Could not load peers: ' + (e.message || 'error') + '</p>';
+            }
+        }, 150);
+    }
+
     } catch(e) {
         if (typeof showToast === 'function') showToast('Settings page error: ' + e.message);
         console.error('showSettingsPage error:', e);
@@ -6498,9 +6627,8 @@ window.removeProfilePic = function() {
 async function saveProfile() {
     var status = document.getElementById('profileStatus');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('🔒 Sign in with Google, Facebook, Twitter, or email to save your profile!');
-        if (status) status.innerHTML = '<span style="color:#ef4444;">🔒 Create a free account to save your profile</span>';
-        if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 1500);
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
         return;
     }
 
@@ -6541,6 +6669,7 @@ async function saveProfile() {
                 val = val.replace(/[\\'"<>]/g, '');
             } else {
                 val = _safeUrl(val);
+                if (k === 'website') val = _normalizeUrl(val) === '#' ? '' : _normalizeUrl(val);
             }
             updateData[k] = val;
         }
@@ -6664,7 +6793,7 @@ window.saveArtistProfile = function() {
         stageName: (document.getElementById('artistStageName').value || '').trim().substring(0, 40),
         bio: (document.getElementById('artistBio').value || '').trim().substring(0, 500),
         genres: (document.getElementById('artistGenres').value || '').trim().substring(0, 100),
-        website: (document.getElementById('artistLinkWebsite').value || '').trim().substring(0, 200),
+        website: (function(v) { v = (v || '').trim().substring(0, 200); v = _normalizeUrl(v) === '#' ? '' : _normalizeUrl(v); return v; })(document.getElementById('artistLinkWebsite').value),
         x: (document.getElementById('artistLinkX').value || '').trim().substring(0, 50),
         instagram: (document.getElementById('artistLinkInstagram').value || '').trim().substring(0, 50)
     };
@@ -7619,6 +7748,29 @@ window._buyStreakFreeze = async function(amount) {
         if (typeof showToast === 'function') showToast('\u274c ' + msg);
     }
 };
+
+window.managePeer = async function(action, targetUid) {
+    if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Sign in first'); return; }
+    try {
+        var fn = firebase.functions().httpsCallable('managePeer');
+        var result = await fn({ action: action, targetUid: targetUid });
+        if (result && result.data && result.data.success) {
+            if (action === 'send')   { if (typeof showToast === 'function') showToast('Peer request sent! 🧡'); }
+            if (action === 'remove') { window._myPeers && window._myPeers.delete(targetUid); if (typeof showToast === 'function') showToast('Peer removed'); }
+            if (action === 'accept') {
+                window._myPeers = window._myPeers || new Set();
+                window._myPeers.add(targetUid);
+                if (typeof showToast === 'function') showToast('Peer accepted! 🧡');
+                if (typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
+            }
+        }
+    } catch(e) {
+        var msg = (e && e.message) || 'Error';
+        if (msg.includes('already-exists')) msg = 'Already sent or already peers';
+        if (typeof showToast === 'function') showToast(msg);
+        console.error('[managePeer]', e);
+    }
+};
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -7790,6 +7942,11 @@ const BADGE_DEFS = [
     { id: 'referral_50',  name: 'Super Spreader',     emoji: '📡', desc: 'Referred 50 people — legend status',       check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 50,  pts: 1000 },
     { id: 'referral_100', name: 'Viral Plebian',       emoji: '👑', desc: 'Referred 100 people — you are the movement', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 100, pts: 2500 },
     { id: 'referred',     name: 'Referred Friend',    emoji: '🫂', desc: 'Joined Bitcoin Education Archive via a referral link', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.referredBy), pts: 25 },
+    { id: 'first_peer',        name: 'First Peer',       emoji: '🧡', desc: 'Connected with your first peer on the Bitcoin Education Archive', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 1,   pts: 50 },
+    { id: 'peer_network_10',   name: 'Node Runner',       emoji: '🕸️', desc: 'Built a peer network of 10 people',                                 check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 10,  pts: 200 },
+    { id: 'peer_network_50',   name: 'Signal Booster',    emoji: '📡', desc: 'Connected with 50 peers — spreading the signal',                   check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 50,  pts: 500 },
+    { id: 'peer_network_100',  name: 'Hub Node',          emoji: '🌐', desc: 'Connected with 100 peers — you are a hub on the network',          check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 100, pts: 1000 },
+    { id: 'peer_network_250',  name: 'Network Sovereign', emoji: '👑', desc: 'Connected with 250 peers — sovereign node of the Archive',         check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 250, pts: 2500 },
 
     // ---- DM / Social Badges ----
     { id: 'dm_first', name: 'DM Starter', emoji: '✉️', desc: 'Sent your first direct message', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 1, pts: 15 },
@@ -8690,7 +8847,7 @@ function getBadgeHTML() {
         '👤 Profile': _cat(BADGE_DEFS, b => b.id.startsWith('profile_') || b.id === 'bio_author' || b.id === 'lightning_address_set'),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
-        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50' || b.id === 'react_5' || b.id === 'react_200'),
+        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50' || b.id === 'react_5' || b.id === 'react_200' || b.id === 'first_peer' || b.id.startsWith('peer_network_')),
         '🚶 Proof of Walk': _cat(BADGE_DEFS, b => b.id.startsWith('pow_')),
         '🎡 Spin Wheel': _cat(BADGE_DEFS, b => b.id.startsWith('spin_')),
         '⛏️ Satoshi\'s Favor': _cat(BADGE_DEFS, b => b.id.startsWith('sf_')),
@@ -11606,6 +11763,9 @@ function showBubble(text, pose) {
     const now = Date.now();
     if (now - lastBubbleTime < MIN_INTERVAL) return;
     if (shownMessages.has(text)) return;
+    // Never overwrite an active trivia/quiz — let user finish reading
+    var _activeBubble = document.getElementById('nacho-bubble');
+    if (_activeBubble && _activeBubble.classList.contains('show') && _activeBubble.getAttribute('data-interactive') === 'true') return;
     _showBubble(text, pose);
 }
 
@@ -12420,6 +12580,9 @@ window.nachoOnFinishChannel = function() {
 function periodicMessage() {
     if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
     if (Math.random() > 0.3) return;
+    // Don't interrupt active trivia/quiz — user is reading
+    var _pb = document.getElementById('nacho-bubble');
+    if (_pb && _pb.classList.contains('show') && _pb.getAttribute('data-interactive') === 'true') return;
 
     // Check for milestone celebration first
     if (typeof nachoCheckMilestone === 'function') {
@@ -16430,8 +16593,12 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
                 return;
             }
             var data = doc.exists ? doc.data() : {};
-            // Read cumulative hashes for current difficulty target from the dedicated stats doc
-            var eraHashes = data['target_' + curTarget] || 0;
+            // Read cumulative hashes for current difficulty target from the dedicated stats doc.
+            // Subtract eraHashOffset if set — handles cases where the same target value existed
+            // in a prior period (e.g. 10,000 in July AND August).
+            var rawEraHashes = data['target_' + curTarget] || 0;
+            var offset = (curRow.eraHashOffset != null) ? curRow.eraHashOffset : 0;
+            var eraHashes = Math.max(0, rawEraHashes - offset);
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
             if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
 
@@ -16478,29 +16645,38 @@ function _loadDifficultyHistoryBlocks() {
     }
 
     // Query all winner hashes to get block counts per difficulty period
+    // Use timestamp ranges so repeated targets (e.g. 10,000 in July and August) are counted separately
     db.collection('satoshiFavor').doc('current').collection('hashes')
         .where('isWinner', '==', true)
         .get()
         .then(function(snap) {
-            var counts = {};
+            // Build period start timestamps from the history array
+            var periodStarts = _dh.map(function(row) { return new Date(row.date).getTime(); });
+
+            // counts[i] = blocks found in period i (by timestamp, not just by target)
+            var counts = new Array(_dh.length).fill(0);
             snap.forEach(function(doc) {
                 var d = doc.data();
-                var t;
-                if (d.difficultyTarget != null) {
-                    t = d.difficultyTarget;
-                } else if (d.timestamp && d.timestamp.toMillis) {
-                    t = _difficultyAtTs(d.timestamp.toMillis());
+                var tsMs;
+                if (d.timestamp && d.timestamp.toMillis) {
+                    tsMs = d.timestamp.toMillis();
                 } else {
-                    t = 1000;
+                    tsMs = 0;
                 }
-                counts[t] = (counts[t] || 0) + 1;
+                // Find which period this winner belongs to (last period whose start <= tsMs)
+                var periodIdx = 0;
+                for (var _pi = 0; _pi < periodStarts.length; _pi++) {
+                    if (periodStarts[_pi] <= tsMs) periodIdx = _pi;
+                    else break;
+                }
+                counts[periodIdx]++;
             });
 
             // Update Blocks cells for all rows + running total
             var totalBlocks = 0;
             _dh.forEach(function(row, i) {
                 var el = document.getElementById('sfBlocksRow' + i);
-                var n = counts[row.target] || 0;
+                var n = counts[i] || 0;
                 if (el) el.textContent = n.toString();
                 totalBlocks += n;
             });
@@ -16508,7 +16684,7 @@ function _loadDifficultyHistoryBlocks() {
             if (totalBlocksEl) totalBlocksEl.textContent = totalBlocks.toString();
 
             // Start live listener on current doc for hashes + luck (uses eraHashes field)
-            var curBlocksFound = currentIdx >= 0 ? (counts[_dh[currentIdx].target] || 0) : 0;
+            var curBlocksFound = currentIdx >= 0 ? (counts[currentIdx] || 0) : 0;
             _startDifficultyCurrentListener(curBlocksFound);
         })
         .catch(function() {
@@ -17818,7 +17994,7 @@ function _renderCharityTabInner(body) {
 
     // Expandable note
     html += '<div style="margin-bottom:16px;">' +
-        '<button onclick="var n=document.getElementById(\'charityNote\');n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=n.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">ℹ️ About Donations <span>▼</span></button>' +
+        '<button onclick="var n=document.getElementById(\'charityNote\');n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=n.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:10px 14px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;">About Donations <span>▼</span></button>' +
         '<div id="charityNote" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:14px;font-size:0.8rem;color:var(--text-muted);line-height:1.6;">' +
             '<p style="margin:0 0 8px;">Our community will vote on which charities our contributions go to. In Bitcoin, the charities will focus on Bitcoin education and adoption - but our donations are not limited to the Bitcoin ecosystem. We can find charities outside of Bitcoin that we want to support as a community.</p>' +
             '<p style="margin:0;color:#ef4444;"><strong>⚠️ Donations are non-refundable.</strong> Donated XP cannot be reclaimed or reversed. Donations are a community pledge and are not tax-deductible. This is not a registered charitable organization and no tax receipts are issued.</p>' +
@@ -19261,8 +19437,9 @@ if (typeof window._questHubRouteAdded === 'undefined') {
 window._raidContribute = function(metric, amount, detail) {
     if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) return;
     if (firebase.auth().currentUser.isAnonymous) return;
+    // Skip silently if no active boss — avoids 404 spam for every channel visit
+    if (!window._currentRaidBoss) return;
     try {
-        console.log('[RAID] Contributing:', metric, amount || 1);
         var fn = firebase.functions().httpsCallable('contributeRaid');
         fn({ metric: metric, amount: amount || 1, detail: detail || '' }).then(function(r) {
             if (r && r.data) {
@@ -22781,6 +22958,23 @@ window.forumVotePost = async function(postId) {
             }
         }
 
+        // Bust cache so re-render shows updated vote count
+        window._forumCache = null;
+        // Update in-memory cache too so list re-render is instant
+        if (forumPostsCache) {
+            var _cp = forumPostsCache.find(function(x) { return x.id === postId; });
+            if (_cp) {
+                var _uid2 = auth.currentUser.uid;
+                var _alreadyVoted = (_cp.voters || []).indexOf(_uid2) !== -1;
+                if (_alreadyVoted) {
+                    _cp.upvotes = Math.max(0, (_cp.upvotes || 0) - 1);
+                    _cp.voters = (_cp.voters || []).filter(function(v) { return v !== _uid2; });
+                } else {
+                    _cp.upvotes = (_cp.upvotes || 0) + 1;
+                    _cp.voters = (_cp.voters || []).concat([_uid2]);
+                }
+            }
+        }
         // Refresh
         if (forumCurrentPost && forumCurrentPost.id === postId) {
             forumViewPost(postId);
@@ -23483,14 +23677,20 @@ window.articleView = async function(articleId) {
         // Comments (reuse forum reply system)
         html += '<h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin-bottom:12px;">💬 Comments</h3>';
         html += '<div id="articleReplies"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Loading comments...</div></div>';
-        
-        // Reply input
+
+        // Reply compose box
         if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            html += '<div style="margin-top:12px;">' +
+            html += '<div id="articleReplyCompose" style="margin-top:12px;">' +
+                '<div id="articleReplyingToBanner" style="display:none;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:6px 12px;margin-bottom:6px;align-items:center;justify-content:space-between;font-size:0.8rem;color:var(--accent);">' +
+                    '<span id="articleReplyingToLabel"></span>' +
+                    '<button onclick="window.articleCancelReplyTo()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;touch-action:manipulation;" title="Cancel reply">✕</button>' +
+                '</div>' +
                 '<textarea id="articleReplyInput" rows="3" maxlength="1000" placeholder="Share your thoughts..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;"></textarea>' +
                 '<button onclick="articleSubmitReply(\'' + articleId + '\')" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
                 '<div id="articleReplyStatus" style="margin-top:4px;font-size:0.8rem;"></div>' +
             '</div>';
+        } else {
+            html += '<div style="margin-top:12px;padding:12px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;text-align:center;color:var(--text-muted);font-size:0.85rem;">🔒 <button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;">Sign in</button> to leave a comment</div>';
         }
         
         html += '</div>';
@@ -23546,27 +23746,85 @@ window.articleVote = async function(articleId) {
 };
 
 // ---- Article Comments ----
+window._articleReplyingTo = null; // { replyId, authorName }
+
+window.articleReplyToComment = function(replyId, authorName) {
+    window._articleReplyingTo = { replyId: replyId, authorName: authorName };
+    var banner = document.getElementById('articleReplyingToBanner');
+    var label = document.getElementById('articleReplyingToLabel');
+    if (banner && label) {
+        label.textContent = '↩ Replying to @' + authorName;
+        banner.style.display = 'flex';
+    }
+    var input = document.getElementById('articleReplyInput');
+    if (input) { input.placeholder = 'Reply to @' + authorName + '...'; input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+};
+
+window.articleCancelReplyTo = function() {
+    window._articleReplyingTo = null;
+    var banner = document.getElementById('articleReplyingToBanner');
+    if (banner) banner.style.display = 'none';
+    var input = document.getElementById('articleReplyInput');
+    if (input) input.placeholder = 'Share your thoughts...';
+};
+
 async function articleLoadReplies(articleId) {
     var container = document.getElementById('articleReplies');
     if (!container) return;
     try {
-        var snap = await db.collection('article_replies').where('articleId', '==', articleId).orderBy('createdAt', 'asc').limit(50).get();
+        var snap = await db.collection('article_replies').where('articleId', '==', articleId).orderBy('createdAt', 'asc').limit(100).get();
         if (snap.empty) { container.innerHTML = '<div style="padding:12px;color:var(--text-faint);font-size:0.85rem;">No comments yet. Be the first!</div>'; return; }
-        var html = '';
-        snap.forEach(function(doc) {
-            var r = doc.data();
+
+        var replies = [];
+        snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+
+        // Build threaded structure (one level deep)
+        var topLevel = [];
+        var childMap = {};
+        replies.forEach(function(r) {
+            if (r.parentReplyId) {
+                if (!childMap[r.parentReplyId]) childMap[r.parentReplyId] = [];
+                childMap[r.parentReplyId].push(r);
+            } else {
+                topLevel.push(r);
+            }
+        });
+
+        var html = '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">' + replies.length + ' ' + (replies.length === 1 ? 'comment' : 'comments') + '</div>';
+
+        function _renderArticleComment(r, isNested) {
             var rlv = typeof getLevel === 'function' ? getLevel(r.authorPoints || 0) : { emoji: '🟢' };
-            var rDate = r.createdAt && r.createdAt.toDate ? (typeof timeAgo === 'function' ? timeAgo(r.createdAt.toDate()) : r.createdAt.toDate().toLocaleDateString()) : '';
+            var rDate = r.createdAt ? (typeof timeAgo === 'function' ? timeAgo(r.createdAt) : (r.createdAt.toDate ? r.createdAt.toDate().toLocaleDateString() : '')) : '';
             var canDel = auth && auth.currentUser && (auth.currentUser.uid === r.authorId || isForumAdmin());
-            html += '<div style="padding:12px 0;border-bottom:1px solid var(--border);">' +
+            var canReply = auth && auth.currentUser && !auth.currentUser.isAnonymous;
+            var bodyHtml = forumRenderMentions(fEsc(r.body).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>'));
+            var replyToLabel = r.parentAuthorName ? '<div style="font-size:0.7rem;color:var(--accent);margin-bottom:4px;">↩ ' + fEsc(r.parentAuthorName) + '</div>' : '';
+            var indent = isNested ? 'margin-left:20px;border-left:2px solid rgba(247,147,26,0.35);padding-left:10px;' : '';
+            return '<div style="padding:12px 0;border-bottom:1px solid var(--border);' + indent + '">' +
+                replyToLabel +
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
                     '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
-                    (canDel ? '<button onclick="articleDeleteReply(\'' + doc.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;">🗑️</button>' : '') +
+                    (canDel ? '<button onclick="articleDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
                 '</div>' +
-                '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;">' + forumRenderMentions(fEsc(r.body).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>')) + '</div>' +
+                '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;margin-bottom:6px;">' + bodyHtml + '</div>' +
+                (canReply ? '<button data-rid="' + r.id + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
             '</div>';
+        }
+
+        topLevel.forEach(function(r) {
+            html += _renderArticleComment(r, false);
+            (childMap[r.id] || []).forEach(function(child) {
+                html += _renderArticleComment(child, true);
+            });
         });
+        // Orphaned children (parent deleted — show flat)
+        Object.keys(childMap).forEach(function(pid) {
+            if (!topLevel.some(function(t) { return t.id === pid; })) {
+                childMap[pid].forEach(function(orphan) { html += _renderArticleComment(orphan, false); });
+            }
+        });
+
         container.innerHTML = html;
     } catch(e) { container.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;">Error loading comments</div>'; }
 }
@@ -23581,35 +23839,37 @@ window.articleSubmitReply = async function(articleId) {
     try {
         var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
         var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
-        await db.collection('article_replies').add({
+        var replyData = {
             articleId: articleId, body: body.substring(0, 1000), authorId: auth.currentUser.uid,
             authorName: userName, authorPoints: userPts, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        if (window._articleReplyingTo) {
+            replyData.parentReplyId = window._articleReplyingTo.replyId;
+            replyData.parentAuthorName = window._articleReplyingTo.authorName;
+        }
+        await db.collection('article_replies').add(replyData);
         await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
-        // Notify article author + @mentioned users
         try {
             var _aDoc = await db.collection('articles').doc(articleId).get();
+            var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
             if (_aDoc.exists && _aDoc.data().authorId && typeof sendNotification === 'function') {
-                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
                 sendNotification(_aDoc.data().authorId, 'comment', _un + ' commented on your article "' + (_aDoc.data().title || '').substring(0, 40) + '"', 'article', articleId);
+            }
+            if (window._articleReplyingTo && window._articleReplyingTo.replyId && typeof sendNotification === 'function') {
+                var _parentDoc = await db.collection('article_replies').doc(window._articleReplyingTo.replyId).get();
+                if (_parentDoc.exists && _parentDoc.data().authorId && _parentDoc.data().authorId !== auth.currentUser.uid) {
+                    sendNotification(_parentDoc.data().authorId, 'reply', _un + ' replied to your comment on "' + (_aDoc.exists ? (_aDoc.data().title || '').substring(0, 40) : 'an article') + '"', 'article', articleId);
+                }
             }
             forumNotifyMentions(body, 'article', articleId, _aDoc && _aDoc.exists ? _aDoc.data().title : '');
         } catch(e) {}
         input.value = '';
+        window.articleCancelReplyTo();
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Comment posted!</span>';
+        setTimeout(function() { if (status) status.innerHTML = ''; }, 3000);
         articleLoadReplies(articleId);
     } catch(e) { if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting comment</span>'; }
-};
-
-window.articleDeleteReply = async function(replyId, articleId) {
-    if (!confirm('Delete this comment?')) return;
-    try {
-        await db.collection('article_replies').doc(replyId).delete();
-        await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(-1) });
-        if (typeof showToast === 'function') showToast('🗑️ Comment deleted');
-        articleLoadReplies(articleId);
-    } catch(e) {}
 };
 
 // ---- Article Edit ----
@@ -24351,11 +24611,13 @@ function isMarketAdmin() {
 }
 
 var MARKETPLACE_SECTIONS = [
-    { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
-    { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
-    { id: 'merchants', name: 'More Bitcoin Merchants', emoji: '🏪', desc: 'Browse more Bitcoin merchants' },
-    { id: 'noderunners', name: 'Even More Merchants', emoji: '🌐', desc: 'Bitcoin shops via Node Runners' },
+    { id: 'plebshop', name: 'Pleb Shop', emoji: '🛒', desc: '603BTC educational products, merch & gear' },
+    { id: 'merchants', name: 'Galaxy Mind', emoji: '🌌', desc: 'Galaxy Mind Bitcoin marketplace' },
+    { id: 'proofofink', name: 'Proof of Ink', emoji: '✒️', desc: 'Bitcoin tattoo art & culture' },
+    { id: 'noderunners', name: 'Noderunners', emoji: '🌐', desc: 'Bitcoin shops via Noderunners' },
     { id: 'conduit', name: 'Conduit Market', emoji: '🔌', desc: 'Shop at Conduit Market' },
+    { id: 'scarcecity', name: 'Scarce City', emoji: '💎', desc: 'Bitcoin auctions & rare collectibles' },
+    { id: 'plebeian', name: 'Plebeian Market', emoji: '🗽', desc: 'P2P Bitcoin-only marketplace' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
@@ -24441,7 +24703,7 @@ function _preloadMarketIframes() {
         var gmWrap = document.createElement('div');
         gmWrap.id = 'gmIframeWrap';
         gmWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(gmWrap);
     }
 
@@ -24450,8 +24712,17 @@ function _preloadMarketIframes() {
         var nrWrap = document.createElement('div');
         nrWrap.id = 'nrIframeWrap';
         nrWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(nrWrap);
+    }
+
+    // Pleb Shop iframe (hidden, preloading in background)
+    if (!document.getElementById('plebshopIframeWrap')) {
+        var psWrap = document.createElement('div');
+        psWrap.id = 'plebshopIframeWrap';
+        psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(psWrap);
     }
 
     // Conduit Market iframe (hidden, preloading in background)
@@ -24459,8 +24730,35 @@ function _preloadMarketIframes() {
         var conduitWrap = document.createElement('div');
         conduitWrap.id = 'conduitIframeWrap';
         conduitWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        conduitWrap.innerHTML = '<iframe id="conduitIframe" src="https://shop.conduit.market/products" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        conduitWrap.innerHTML = '<iframe id="conduitIframe" src="https://shop.conduit.market/products" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(conduitWrap);
+    }
+
+    // Plebeian Market iframe
+    if (!document.getElementById('plebeianIframeWrap')) {
+        var plWrap = document.createElement('div');
+        plWrap.id = 'plebeianIframeWrap';
+        plWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        plWrap.innerHTML = '<iframe id="plebeianIframe" src="https://plebeian.market/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(plWrap);
+    }
+
+    // Scarce City iframe
+    if (!document.getElementById('scarcecityIframeWrap')) {
+        var scWrap = document.createElement('div');
+        scWrap.id = 'scarcecityIframeWrap';
+        scWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        scWrap.innerHTML = '<iframe id="scarcecityIframe" src="https://scarce.city/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(scWrap);
+    }
+
+    // Proof of Ink iframe
+    if (!document.getElementById('proofofinkIframeWrap')) {
+        var poiWrap = document.createElement('div');
+        poiWrap.id = 'proofofinkIframeWrap';
+        poiWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        poiWrap.innerHTML = '<iframe id="proofofinkIframe" src="https://proofofink.com/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(poiWrap);
     }
 }
 
@@ -24497,9 +24795,13 @@ function _hidePreloadedIframe(wrapId) {
 
 // Hide preloaded iframes when leaving marketplace (called by go/goHome)
 window._hideMarketIframes = function() {
+    _hidePreloadedIframe('plebshopIframeWrap');
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
+    _hidePreloadedIframe('plebeianIframeWrap');
+    _hidePreloadedIframe('scarcecityIframeWrap');
+    _hidePreloadedIframe('proofofinkIframeWrap');
 };
 
 window.renderMarketplace = function(options) {
@@ -24575,15 +24877,15 @@ function _actualRenderMarketplace(options) {
     '</div>';
 
     // Determine active section from category
-    var activeSection = options.section || 'merchants';
+    var activeSection = options.section || 'plebshop';
     if (activeCategory !== 'all' && activeSection === 'all') {
         var catObj = MARKETPLACE_CATEGORIES.find(function(c) { return c.id === activeCategory; });
         if (catObj) activeSection = catObj.section;
     }
 
-    // Section tabs: All | Educational | General
-    html += '<div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">';
-    var sectionTabs = [{ id: 'all', name: 'All', emoji: '🛒' }].concat(MARKETPLACE_SECTIONS);
+    // Section tabs
+    html += '<div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;overflow-x:auto;">';
+    var sectionTabs = MARKETPLACE_SECTIONS;
     for (var si = 0; si < sectionTabs.length; si++) {
         var sec = sectionTabs[si];
         var secActive = activeSection === sec.id;
@@ -24592,12 +24894,25 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
-    // Hide all preloaded iframes by default
+    // Hide all preloaded iframes before showing the active one
+    _hidePreloadedIframe('plebshopIframeWrap');
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
+    _hidePreloadedIframe('plebeianIframeWrap');
+    _hidePreloadedIframe('scarcecityIframeWrap');
+    _hidePreloadedIframe('proofofinkIframeWrap');
 
-    // If "Other Bitcoin Merchants" tab is active, show preloaded Galaxy Mind iframe
+    // Pleb Shop
+    if (activeSection === 'plebshop') {
+        html += '<div id="plebshopIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('plebshopIframeWrap', 'plebshopIframePlaceholder');
+        return;
+    }
+
+    // Galaxy Mind
     if (activeSection === 'merchants') {
         html += '<div id="gmIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
         html += '</div>';
@@ -24624,6 +24939,33 @@ function _actualRenderMarketplace(options) {
         return;
     }
 
+    // Plebeian Market
+    if (activeSection === 'plebeian') {
+        html += '<div id="plebeianIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('plebeianIframeWrap', 'plebeianIframePlaceholder');
+        return;
+    }
+
+    // Scarce City
+    if (activeSection === 'scarcecity') {
+        html += '<div id="scarcecityIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('scarcecityIframeWrap', 'scarcecityIframePlaceholder');
+        return;
+    }
+
+    // Proof of Ink
+    if (activeSection === 'proofofink') {
+        html += '<div id="proofofinkIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('proofofinkIframeWrap', 'proofofinkIframePlaceholder');
+        return;
+    }
+
     // Subcategory pills (filtered by active section)
     var visibleCats = activeSection === 'all' ? MARKETPLACE_CATEGORIES : MARKETPLACE_CATEGORIES.filter(function(c) { return c.section === activeSection; });
     html += '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;">';
@@ -24637,22 +24979,6 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
-    // Featured: 603BTC Pleb Shop (Educational section)
-    if (activeSection === 'educational' || activeSection === 'all') {
-        html += '<div id="plebShopCard" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:14px;overflow:hidden;">' +
-            '<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
-                '<div style="display:flex;align-items:center;gap:10px;">' +
-                    '<span style="font-size:1.5rem;">\uD83D\uDED2</span>' +
-                    '<div>' +
-                        '<div style="font-size:0.9rem;font-weight:800;color:var(--heading);">603BTC Pleb Shop</div>' +
-                        '<div style="font-size:0.72rem;color:var(--text-muted);">Bitcoin educational products, merch & gear</div>' +
-                    '</div>' +
-                '</div>' +
-                '<button onclick="window._togglePlebShop()" id="plebShopToggle" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Open Shop</button>' +
-            '</div>' +
-            '<div id="plebShopEmbed" style="display:none;width:100%;height:0;transition:height 0.3s ease;"></div>' +
-        '</div>';
-    }
 
     // Sort dropdown
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
@@ -25465,7 +25791,7 @@ window._togglePlebShop = function() {
         embed.style.height = 'calc(100vh - 280px)';
         embed.style.minHeight = '500px';
         if (!embed.querySelector('iframe')) {
-            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="no-referrer"></iframe>';
+            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         }
         if (btn) { btn.textContent = 'Close Shop'; btn.style.background = 'var(--border)'; }
     } else {
@@ -25505,6 +25831,15 @@ function getTimeAgo(date) {
 // Bitcoin Education Archive - Messaging System
 // Online Presence + User Profiles + Direct Messages
 // =============================================
+
+function _normalizeUrl(url) {
+    if (!url) return '#';
+    url = url.trim();
+    if (!url) return '#';
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith('//')) return 'https:' + url;
+    return 'https://' + url;
+}
 
 // ---- CONFIG ----
 var MSG_CONFIG = {
@@ -25705,9 +26040,14 @@ function _canStartNewConvo(recipientUid) {
 }
 
 // ---- ACCOUNT AGE & POINTS CHECK ----
-function _canAccountDM() {
+function _canAccountDM(targetUid) {
     if (!auth || !auth.currentUser) return { ok: false, reason: 'Sign in to send messages' };
     if (auth.currentUser.isAnonymous) return { ok: false, reason: 'Sign in with an account to send messages' };
+
+    // Peers bypass point/age requirements
+    if (targetUid && window._myPeers && window._myPeers.has(targetUid)) {
+        return { ok: true };
+    }
 
     // Check points requirement
     var pts = 0;
@@ -26082,7 +26422,12 @@ window.showUserProfile = function(uid) {
         }
 
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
-        var dmEligibility = canMessage ? _canAccountDM() : { ok: false };
+        var dmEligibility = canMessage ? _canAccountDM(uid) : { ok: false };
+        var _isPeer = window._myPeers && window._myPeers.has(uid);
+        var _peerBtnId = 'peerActionBtn_' + uid;
+        var _peerBtn = _isPeer
+            ? '<button id="' + _peerBtnId + '" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
+            : '<button id="' + _peerBtnId + '" onclick="window._sendPeerRequest(this,\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:opacity 0.2s;">🧡 Add Peer</button>';
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -26106,8 +26451,8 @@ window.showUserProfile = function(uid) {
                 lvl.emoji +
                 '</div>';
 
-        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
-            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;' + _frameStyle + '" onclick="event.stopPropagation()">' +
+        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:flex-start;justify-content:center;padding:20px 0;overflow-y:auto;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;overflow-y:auto;max-height:90vh;' + _frameStyle + '" onclick="event.stopPropagation()">' +
             // Close button
             '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             // Avatar & name
@@ -26125,6 +26470,7 @@ window.showUserProfile = function(uid) {
                            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_tDef.flavor) + '</div>';
                 })() +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
+                (u.peerCount ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">🧡 ' + u.peerCount + ' peers</div>' : '') +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
                 // Faction + Country row
                 '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;flex-wrap:wrap;">' +
@@ -26145,7 +26491,7 @@ window.showUserProfile = function(uid) {
             ((u.twitter || u.nostr || u.website) ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
                 (u.twitter ? '<a href="https://x.com/' + escapeHtml(u.twitter.replace('@','')) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">𝕏 ' + escapeHtml(u.twitter) + '</a>' : '') +
                 (u.nostr ? '<span style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:#8b5cf6;font-size:0.72rem;">🟣 Nostr</span>' : '') +
-                (u.website && !/^(javascript|data|vbscript|blob):/i.test(u.website.trim()) ? '<a href="' + escapeHtml(u.website) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
+                (u.website && !/^(javascript|data|vbscript|blob):/i.test(u.website.trim()) ? '<a href="' + escapeHtml(_normalizeUrl(u.website)) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
             '</div>' : '') +
             // Stats grid
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
@@ -26204,13 +26550,14 @@ window.showUserProfile = function(uid) {
             // Block & Report buttons
             (canMessage ?
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
+                    _peerBtn +
                     (isUserBlocked(uid) ?
                         '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
                         : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
                     '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
                 '</div>' : '') +
             // Own-profile country nudge (only visible to yourself, only if country not set)
-            + (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
+            (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
                 '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showSettings===\'function\')showSettings();">' +
                     '<span style="font-size:1rem;">🌍</span>' +
                     '<span style="color:#22c55e;font-size:0.8rem;">Add your country → earn <strong>+100 XP</strong> + 🌍 Global Citizen badge</span>' +
@@ -26257,6 +26604,34 @@ window._tipFromProfile = function() {
     }
 };
 
+window._sendPeerRequest = async function(btnEl, targetUid) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Sending...';
+    btnEl.style.opacity = '0.6';
+    try {
+        var fn = firebase.functions().httpsCallable('managePeer');
+        await fn({ action: 'send', targetUid: targetUid });
+        btnEl.textContent = '🧡 Sent!';
+        btnEl.style.background = 'rgba(249,115,22,0.2)';
+        btnEl.style.opacity = '1';
+        btnEl.style.cursor = 'default';
+        if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
+    } catch(e) {
+        var msg = (e && e.message) || 'Error';
+        if (msg.includes('already-exists')) {
+            btnEl.textContent = '🧡 Sent!';
+            btnEl.style.opacity = '0.8';
+            btnEl.style.cursor = 'default';
+        } else {
+            btnEl.disabled = false;
+            btnEl.textContent = '🧡 Add Peer';
+            btnEl.style.opacity = '1';
+            if (typeof showToast === 'function') showToast(msg);
+        }
+    }
+};
+
 function profileStat(emoji, value, label) {
     return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:8px 4px;text-align:center;">' +
         '<div style="font-size:0.75rem;">' + emoji + '</div>' +
@@ -26294,7 +26669,7 @@ window.openDM = function(recipientUid, recipientName) {
     }
 
     // Account eligibility check (age + points)
-    var eligibility = _canAccountDM();
+    var eligibility = _canAccountDM(recipientUid);
     if (!eligibility.ok) {
         if (typeof showToast === 'function') showToast(eligibility.reason);
         return;
@@ -27536,6 +27911,12 @@ window.showNachoStory = function(chapterOverride) {
 
 // ---- Price Prediction Game ----
 window.showPricePrediction = function() {
+    // Auth gate — must be signed in to predict
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
     var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     // Try multiple sources if localStorage is empty
     if (!currentPrice && typeof _lastWsPrice !== 'undefined' && _lastWsPrice) { currentPrice = _lastWsPrice; localStorage.setItem('btc_last_price', currentPrice.toString()); }
@@ -32162,6 +32543,12 @@ document.addEventListener('btcProfileSaved', function() {
     }
 
     window.showSpinWheel = function() {
+        // Auth gate — must be signed in to spin
+        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            return;
+        }
         // Check if already spun today (bypass for bonus spins from Nook)
         var isBonusSpin = !!window._bonusSpinActive;
         window._bonusSpinActive = false; // consume the flag
@@ -34359,6 +34746,20 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
     };
 
+    // CH-BTN MAP — built once on first call, O(1) lookup by channel id + single tracked active button
+    var _chBtnMapCache = null;
+    var _activeChBtn = null;
+    function _getChBtnMap() {
+        if (!_chBtnMapCache) {
+            _chBtnMapCache = {};
+            document.querySelectorAll('.ch-btn').forEach(function(b) {
+                var m = b.getAttribute('onclick') && b.getAttribute('onclick').match(/go\('([^']+)'/);
+                if (m) _chBtnMapCache[m[1]] = b;
+            });
+        }
+        return _chBtnMapCache;
+    }
+
     window.goHome = function goHome(fromPopState) {
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
         window._navGeneration = (window._navGeneration || 0) + 1;
@@ -34456,7 +34857,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _homeShowEl = document.getElementById('home');
         _homeShowEl.classList.remove('hidden');
         if (_homeShowEl.style.visibility) _homeShowEl.style.visibility = ''; // clear direct-link preload hide
-        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
+        if (_activeChBtn) { _activeChBtn.classList.remove('active'); _activeChBtn = null; }
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
         // Render Satoshi's Favor banner on home
@@ -34827,8 +35228,16 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
         document.querySelectorAll('.home-logos img, .channel-logos .channel-logo-img').forEach(attachLogoGesture);
         // Watch for dynamically added channel logos
+        // Debounced: MutationObserver fires on every DOM mutation during channel renders
+        // (scores of msgs inserted at once). Without debounce this fires querySelectorAll
+        // hundreds of times per navigation on mobile. Coalesce into one call per frame.
+        var _logoObserverRaf = null;
         new MutationObserver(function() {
-            document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
+            if (_logoObserverRaf) return;
+            _logoObserverRaf = requestAnimationFrame(function() {
+                _logoObserverRaf = null;
+                document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
+            });
         }).observe(document.getElementById('main'), { childList: true, subtree: true });
 
         // Three-finger tap → Settings
@@ -35008,7 +35417,11 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Call updates
     updateSidebarTiers();
-    window._sidebarTierInterval = setInterval(updateSidebarTiers, 5000);
+    // Run sidebar tier updates only when the tab is visible and at a relaxed cadence.
+    // Previously ran every 5s unconditionally — wasted CPU on background tabs.
+    window._sidebarTierInterval = setInterval(function() {
+        if (!document.hidden) updateSidebarTiers();
+    }, 10000);
 
     // Audio system
     window.audioEnabled = localStorage.getItem('btc_audio') !== 'false';
@@ -35328,17 +35741,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:35%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:80%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:50%;"></div></div></div>' +
         '</div>';
 
-        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
-        if (btn) { btn.classList.add('active'); expandCatForChannel(btn); }
-        else {
-            // Find the button by channel id and expand its section
-            document.querySelectorAll('.ch-btn').forEach(b => {
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + id + "'") !== -1) {
-                    b.classList.add('active');
-                    expandCatForChannel(b);
-                }
-            });
-        }
+        if (_activeChBtn) { _activeChBtn.classList.remove('active'); _activeChBtn = null; }
+        var _activeBtn = btn || (_getChBtnMap()[id] || null);
+        if (_activeBtn) { _activeBtn.classList.add('active'); expandCatForChannel(_activeBtn); _activeChBtn = _activeBtn; }
 
         // Show loading state
         // Check if this is an image-heavy channel
@@ -35494,11 +35899,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         })();
 
         // Mark channel as visited in sidebar
-        document.querySelectorAll('.ch-btn').forEach(b => {
-            if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
-                b.classList.add('visited');
-            }
-        });
+        var _vBtn = _getChBtnMap()[id];
+        if (_vBtn) _vBtn.classList.add('visited');
 
         // Save visited channels locally
         let visited = safeJSON('btc_visited_channels', []);
@@ -36213,15 +36615,10 @@ if (locked) {
             setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(); }, 1500);
         }
 
-        // Restore visited channel checkmarks
+        // Restore visited channel checkmarks — O(n) using cached button map
         const visited = safeJSON('btc_visited_channels', []);
-        visited.forEach(id => {
-            document.querySelectorAll('.ch-btn').forEach(b => {
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
-                    b.classList.add('visited');
-                }
-            });
-        });
+        const _bmap = _getChBtnMap();
+        visited.forEach(id => { if (_bmap[id]) _bmap[id].classList.add('visited'); });
 
         renderFavs();
         showContinueReading();
@@ -36230,6 +36627,17 @@ if (locked) {
         if (typeof checkPredictionResult === 'function') {
             setTimeout(checkPredictionResult, 4000);
         }
+
+        // Pre-warm Pleb Shop iframe only — it's the marketplace landing tab.
+        // Other embeds load on demand. Delayed 5s to avoid competing with initial page load.
+        setTimeout(function() {
+            if (document.getElementById('plebshopIframeWrap')) return; // already loaded
+            var psWrap = document.createElement('div');
+            psWrap.id = 'plebshopIframeWrap';
+            psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+            psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+            document.body.appendChild(psWrap);
+        }, 5000);
 
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
@@ -36414,8 +36822,21 @@ if (locked) {
 
             // Meetup Builder
             if (hash === 'meetup-builder' || state.channel === 'meetup-builder') {
-                // Stay on IRL sync page, just scroll to section
-                if (typeof go === 'function') go('irl-sync', null, true);
+                if (window._mbRouted) return;
+                window._mbRouted = true;
+                window._skipIRLRules = true;
+                localStorage.setItem('btc_irl_rules_accepted', 'true');
+                if (typeof go === 'function') go('irl-sync');
+                setTimeout(function() { var ro = document.getElementById('irlRulesOverlay'); if (ro) ro.remove(); }, 100);
+                history.replaceState({channel:'meetup-builder'}, '', '#meetup-builder');
+                var _mbTries1 = 0;
+                var _mbInt1 = setInterval(function() {
+                    var ro2 = document.getElementById('irlRulesOverlay');
+                    if (ro2) ro2.remove();
+                    var el = document.getElementById('meetupBuilderSection');
+                    if (el) { clearInterval(_mbInt1); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                    if (++_mbTries1 > 30) clearInterval(_mbInt1);
+                }, 300);
                 return;
             }
 

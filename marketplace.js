@@ -76,11 +76,13 @@ function isMarketAdmin() {
 }
 
 var MARKETPLACE_SECTIONS = [
-    { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
-    { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
-    { id: 'merchants', name: 'More Bitcoin Merchants', emoji: '🏪', desc: 'Browse more Bitcoin merchants' },
-    { id: 'noderunners', name: 'Even More Merchants', emoji: '🌐', desc: 'Bitcoin shops via Node Runners' },
+    { id: 'plebshop', name: 'Pleb Shop', emoji: '🛒', desc: '603BTC educational products, merch & gear' },
+    { id: 'merchants', name: 'Galaxy Mind', emoji: '🌌', desc: 'Galaxy Mind Bitcoin marketplace' },
+    { id: 'proofofink', name: 'Proof of Ink', emoji: '✒️', desc: 'Bitcoin tattoo art & culture' },
+    { id: 'noderunners', name: 'Noderunners', emoji: '🌐', desc: 'Bitcoin shops via Noderunners' },
     { id: 'conduit', name: 'Conduit Market', emoji: '🔌', desc: 'Shop at Conduit Market' },
+    { id: 'scarcecity', name: 'Scarce City', emoji: '💎', desc: 'Bitcoin auctions & rare collectibles' },
+    { id: 'plebeian', name: 'Plebeian Market', emoji: '🗽', desc: 'P2P Bitcoin-only marketplace' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
@@ -166,7 +168,7 @@ function _preloadMarketIframes() {
         var gmWrap = document.createElement('div');
         gmWrap.id = 'gmIframeWrap';
         gmWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        gmWrap.innerHTML = '<iframe id="gmIframe" src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(gmWrap);
     }
 
@@ -175,8 +177,17 @@ function _preloadMarketIframes() {
         var nrWrap = document.createElement('div');
         nrWrap.id = 'nrIframeWrap';
         nrWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        nrWrap.innerHTML = '<iframe id="nrIframe" src="https://noderunners-proxy.needcreations.workers.dev/en/webshop" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(nrWrap);
+    }
+
+    // Pleb Shop iframe (hidden, preloading in background)
+    if (!document.getElementById('plebshopIframeWrap')) {
+        var psWrap = document.createElement('div');
+        psWrap.id = 'plebshopIframeWrap';
+        psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(psWrap);
     }
 
     // Conduit Market iframe (hidden, preloading in background)
@@ -184,8 +195,35 @@ function _preloadMarketIframes() {
         var conduitWrap = document.createElement('div');
         conduitWrap.id = 'conduitIframeWrap';
         conduitWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-        conduitWrap.innerHTML = '<iframe id="conduitIframe" src="https://shop.conduit.market/products" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>';
+        conduitWrap.innerHTML = '<iframe id="conduitIframe" src="https://shop.conduit.market/products" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         document.body.appendChild(conduitWrap);
+    }
+
+    // Plebeian Market iframe
+    if (!document.getElementById('plebeianIframeWrap')) {
+        var plWrap = document.createElement('div');
+        plWrap.id = 'plebeianIframeWrap';
+        plWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        plWrap.innerHTML = '<iframe id="plebeianIframe" src="https://plebeian.market/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(plWrap);
+    }
+
+    // Scarce City iframe
+    if (!document.getElementById('scarcecityIframeWrap')) {
+        var scWrap = document.createElement('div');
+        scWrap.id = 'scarcecityIframeWrap';
+        scWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        scWrap.innerHTML = '<iframe id="scarcecityIframe" src="https://scarce.city/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(scWrap);
+    }
+
+    // Proof of Ink iframe
+    if (!document.getElementById('proofofinkIframeWrap')) {
+        var poiWrap = document.createElement('div');
+        poiWrap.id = 'proofofinkIframeWrap';
+        poiWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+        poiWrap.innerHTML = '<iframe id="proofofinkIframe" src="https://proofofink.com/" style="width:100%;height:100%;border:none;" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+        document.body.appendChild(poiWrap);
     }
 }
 
@@ -222,9 +260,13 @@ function _hidePreloadedIframe(wrapId) {
 
 // Hide preloaded iframes when leaving marketplace (called by go/goHome)
 window._hideMarketIframes = function() {
+    _hidePreloadedIframe('plebshopIframeWrap');
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
+    _hidePreloadedIframe('plebeianIframeWrap');
+    _hidePreloadedIframe('scarcecityIframeWrap');
+    _hidePreloadedIframe('proofofinkIframeWrap');
 };
 
 window.renderMarketplace = function(options) {
@@ -300,15 +342,15 @@ function _actualRenderMarketplace(options) {
     '</div>';
 
     // Determine active section from category
-    var activeSection = options.section || 'merchants';
+    var activeSection = options.section || 'plebshop';
     if (activeCategory !== 'all' && activeSection === 'all') {
         var catObj = MARKETPLACE_CATEGORIES.find(function(c) { return c.id === activeCategory; });
         if (catObj) activeSection = catObj.section;
     }
 
-    // Section tabs: All | Educational | General
-    html += '<div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">';
-    var sectionTabs = [{ id: 'all', name: 'All', emoji: '🛒' }].concat(MARKETPLACE_SECTIONS);
+    // Section tabs
+    html += '<div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;overflow-x:auto;">';
+    var sectionTabs = MARKETPLACE_SECTIONS;
     for (var si = 0; si < sectionTabs.length; si++) {
         var sec = sectionTabs[si];
         var secActive = activeSection === sec.id;
@@ -317,12 +359,25 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
-    // Hide all preloaded iframes by default
+    // Hide all preloaded iframes before showing the active one
+    _hidePreloadedIframe('plebshopIframeWrap');
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
+    _hidePreloadedIframe('plebeianIframeWrap');
+    _hidePreloadedIframe('scarcecityIframeWrap');
+    _hidePreloadedIframe('proofofinkIframeWrap');
 
-    // If "Other Bitcoin Merchants" tab is active, show preloaded Galaxy Mind iframe
+    // Pleb Shop
+    if (activeSection === 'plebshop') {
+        html += '<div id="plebshopIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('plebshopIframeWrap', 'plebshopIframePlaceholder');
+        return;
+    }
+
+    // Galaxy Mind
     if (activeSection === 'merchants') {
         html += '<div id="gmIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
         html += '</div>';
@@ -349,6 +404,33 @@ function _actualRenderMarketplace(options) {
         return;
     }
 
+    // Plebeian Market
+    if (activeSection === 'plebeian') {
+        html += '<div id="plebeianIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('plebeianIframeWrap', 'plebeianIframePlaceholder');
+        return;
+    }
+
+    // Scarce City
+    if (activeSection === 'scarcecity') {
+        html += '<div id="scarcecityIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('scarcecityIframeWrap', 'scarcecityIframePlaceholder');
+        return;
+    }
+
+    // Proof of Ink
+    if (activeSection === 'proofofink') {
+        html += '<div id="proofofinkIframePlaceholder" style="width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;"></div>';
+        html += '</div>';
+        container.innerHTML = html;
+        _showPreloadedIframe('proofofinkIframeWrap', 'proofofinkIframePlaceholder');
+        return;
+    }
+
     // Subcategory pills (filtered by active section)
     var visibleCats = activeSection === 'all' ? MARKETPLACE_CATEGORIES : MARKETPLACE_CATEGORIES.filter(function(c) { return c.section === activeSection; });
     html += '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;">';
@@ -362,22 +444,6 @@ function _actualRenderMarketplace(options) {
     }
     html += '</div>';
 
-    // Featured: 603BTC Pleb Shop (Educational section)
-    if (activeSection === 'educational' || activeSection === 'all') {
-        html += '<div id="plebShopCard" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:14px;overflow:hidden;">' +
-            '<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
-                '<div style="display:flex;align-items:center;gap:10px;">' +
-                    '<span style="font-size:1.5rem;">\uD83D\uDED2</span>' +
-                    '<div>' +
-                        '<div style="font-size:0.9rem;font-weight:800;color:var(--heading);">603BTC Pleb Shop</div>' +
-                        '<div style="font-size:0.72rem;color:var(--text-muted);">Bitcoin educational products, merch & gear</div>' +
-                    '</div>' +
-                '</div>' +
-                '<button onclick="window._togglePlebShop()" id="plebShopToggle" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Open Shop</button>' +
-            '</div>' +
-            '<div id="plebShopEmbed" style="display:none;width:100%;height:0;transition:height 0.3s ease;"></div>' +
-        '</div>';
-    }
 
     // Sort dropdown
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
@@ -1190,7 +1256,7 @@ window._togglePlebShop = function() {
         embed.style.height = 'calc(100vh - 280px)';
         embed.style.minHeight = '500px';
         if (!embed.querySelector('iframe')) {
-            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-payment-request" referrerpolicy="no-referrer"></iframe>';
+            embed.innerHTML = '<iframe src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;border-radius:0 0 14px 14px;" loading="lazy" allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
         }
         if (btn) { btn.textContent = 'Close Shop'; btn.style.background = 'var(--border)'; }
     } else {

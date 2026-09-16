@@ -1816,9 +1816,18 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
                 throw new Error('Sats withdrawals are disabled on this account. Contact support if you believe this is an error.');
             }
 
-            // L1: Check if a previous claim is still pending
+            // L1: Check if a previous claim is still pending (5-min TTL self-heal)
             if (user._pendingClaim === true) {
-                throw new Error('A previous claim is still processing. Try again in a minute.');
+                const pendingAt = user._pendingClaimAt
+                    ? (user._pendingClaimAt.toDate ? user._pendingClaimAt.toDate() : new Date(user._pendingClaimAt))
+                    : null;
+                const PENDING_TTL_MS = 5 * 60 * 1000; // 5 minutes
+                if (!pendingAt || (Date.now() - pendingAt.getTime() > PENDING_TTL_MS)) {
+                    // Flag is stale — auto-clear and proceed
+                    console.log('[FAUCET] Auto-clearing stale _pendingClaim for uid=' + uid);
+                } else {
+                    throw new Error('A previous claim is still processing. Try again in a minute.');
+                }
             }
 
             // Check channels read
@@ -1946,7 +1955,8 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
                 pointsClaimed: admin.firestore.FieldValue.increment(pointsToClaim),
                 satsWithdrawn: admin.firestore.FieldValue.increment(amount),
                 lastSatsClaim: admin.firestore.FieldValue.serverTimestamp(),
-                _pendingClaim: true // flag: payment in progress
+                _pendingClaim: true, // flag: payment in progress
+                _pendingClaimAt: admin.firestore.Timestamp.now()
             });
 
             // ALSO write to server-only ledger (C-NEW-6 fix). Using set+merge so
@@ -1976,7 +1986,7 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
     let nwc;
     try {
         nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
-        const balanceResult = await nwc.getBalance();
+        const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) {
             // ROLLBACK: refund points since we already deducted
@@ -1986,7 +1996,8 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
     } catch (e) {
         console.error('[FAUCET] Balance check failed:', e.message);
         await _rollbackClaim(uid, amount, today);
-        return { success: false, error: 'Could not connect to payment wallet. Try again later.' };
+        const isTimeout = e.message && e.message.indexOf('[TIMEOUT]') === 0;
+        return { success: false, error: isTimeout ? 'Payment wallet is not responding. Try again in a moment.' : 'Could not connect to payment wallet. Try again later.' };
     }
 
     // FINAL SAFETY CHECK - absolute hard cap before touching the wallet
@@ -1998,7 +2009,7 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
 
     // 9. PAY THE INVOICE via NWC
     try {
-        const payResult = await nwc.payInvoice({ invoice: invoice });
+        const payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) {
             await _rollbackClaim(uid, amount, today);
             return { success: false, error: 'Payment failed. Check your invoice and try again.' };
@@ -2006,7 +2017,7 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
 
         // 9. Payment succeeded - record withdrawal history, clear pending flag, mark invoice used
         const batch = db.batch();
-        batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete() });
+        batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete(), _pendingClaimAt: admin.firestore.FieldValue.delete() });
         batch.set(userRef.collection('sats_withdrawals').doc(), {
             amount: amount,
             pointsUsed: amount * FAUCET.POINTS_PER_SAT,
@@ -2067,9 +2078,22 @@ exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(as
         console.error('[FAUCET] Payment error:', e.message);
         // Payment failed - rollback the points deduction
         await _rollbackClaim(uid, amount, today);
-        return { success: false, error: 'Payment failed. Please try again.' };
+        const isTimeout = e.message && e.message.indexOf('[TIMEOUT]') === 0;
+        return { success: false, error: isTimeout ? 'Payment timed out — your sats were not sent. Please try again.' : 'Payment failed. Please try again.' };
     }
 });
+
+// Timeout helper: race a promise against a deadline; rejects with a labeled error on timeout
+function _withTimeout(promise, ms, label) {
+    return Promise.race([
+        promise,
+        new Promise(function(_, reject) {
+            setTimeout(function() {
+                reject(new Error('[TIMEOUT] ' + label + ' timed out after ' + ms + 'ms'));
+            }, ms);
+        })
+    ]);
+}
 
 // Rollback helper: refund points if payment fails after transaction
 async function _rollbackClaim(uid, amount, today) {
@@ -2079,7 +2103,8 @@ async function _rollbackClaim(uid, amount, today) {
         batch.update(db.collection('users').doc(uid), {
             pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
             satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            _pendingClaim: admin.firestore.FieldValue.delete()
+            _pendingClaim: admin.firestore.FieldValue.delete(),
+            _pendingClaimAt: admin.firestore.FieldValue.delete()
         });
         // Also roll back the server-only ledger (C-NEW-6 fix)
         batch.set(db.collection('faucet_ledger').doc(uid), {
@@ -2099,6 +2124,186 @@ async function _rollbackClaim(uid, amount, today) {
         console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
     }
 }
+
+// ===== PEER SYSTEM =====
+// managePeer: send/accept/decline/cancel/remove peer connections.
+// All mutations are CF-only; peer arrays on user docs are in the Firestore rules denylist.
+exports.managePeer = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('unauthenticated', 'Must use a real account to connect with peers');
+    }
+
+    const uid = context.auth.uid;
+    const action = (data.action || '').toString().trim();
+    const targetUid = (data.targetUid || '').toString().trim();
+
+    if (!['send','accept','decline','cancel','remove'].includes(action)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Unknown action');
+    }
+    if (!targetUid || targetUid.length < 4 || targetUid.length > 128) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid targetUid');
+    }
+    if (uid === targetUid) {
+        throw new functions.https.HttpsError('invalid-argument', 'Cannot peer with yourself');
+    }
+
+    const userRef    = db.collection('users').doc(uid);
+    const targetRef  = db.collection('users').doc(targetUid);
+    const reqId      = uid + '_' + targetUid;       // outgoing from uid
+    const revReqId   = targetUid + '_' + uid;       // outgoing from targetUid
+    const reqRef     = db.collection('peer_requests').doc(reqId);
+    const revReqRef  = db.collection('peer_requests').doc(revReqId);
+
+    // ── SEND ──────────────────────────────────────────────────────────────────
+    if (action === 'send') {
+        const [userDoc, targetDoc] = await Promise.all([userRef.get(), targetRef.get()]);
+        if (!userDoc.exists)   throw new functions.https.HttpsError('not-found', 'Your account not found');
+        if (!targetDoc.exists) throw new functions.https.HttpsError('not-found', 'Target user not found');
+
+        const ud = userDoc.data();
+        const td = targetDoc.data();
+
+        if ((ud.peers || []).includes(targetUid)) {
+            throw new functions.https.HttpsError('already-exists', 'Already peers');
+        }
+
+        // Rate-limit: max 50 pending outgoing requests
+        const outSnap = await db.collection('peer_requests')
+            .where('from', '==', uid).where('status', '==', 'pending').limit(51).get();
+        if (outSnap.size >= 50) {
+            throw new functions.https.HttpsError('resource-exhausted',
+                'Too many pending peer requests. Cancel some first.');
+        }
+
+        // Check for existing requests in either direction
+        const [existDoc, revDoc] = await Promise.all([reqRef.get(), revReqRef.get()]);
+        if (existDoc.exists && existDoc.data().status === 'pending') {
+            throw new functions.https.HttpsError('already-exists', 'Peer request already sent');
+        }
+        if (revDoc.exists && revDoc.data().status === 'pending') {
+            throw new functions.https.HttpsError('already-exists',
+                'This user already sent you a request — check your notifications');
+        }
+
+        await reqRef.set({
+            from: uid, to: targetUid,
+            fromUsername: ud.username || 'Bitcoiner',
+            toUsername:   td.username || 'Bitcoiner',
+            status: 'pending',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Notify recipient
+        await db.collection('notifications').add({
+            recipientId: targetUid,
+            senderId: uid,
+            senderName: ud.username || 'Bitcoiner',
+            type: 'peer_request',
+            message: (ud.username || 'Someone') + ' sent you a peer request ⚡',
+            targetType: 'peer_request',
+            targetId: reqId,
+            fromUid: uid,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { success: true };
+    }
+
+    // ── ACCEPT ─────────────────────────────────────────────────────────────────
+    if (action === 'accept') {
+        // The request was sent from targetUid TO uid, so the doc is revReqRef
+        const revDoc = await revReqRef.get();
+        if (!revDoc.exists || revDoc.data().status !== 'pending') {
+            throw new functions.https.HttpsError('not-found', 'Peer request not found or already handled');
+        }
+        if (revDoc.data().to !== uid) {
+            throw new functions.https.HttpsError('permission-denied', 'Not your request to accept');
+        }
+
+        const batch = db.batch();
+        batch.update(revReqRef, { status: 'accepted', acceptedAt: admin.firestore.FieldValue.serverTimestamp() });
+        batch.update(userRef,   { peers: admin.firestore.FieldValue.arrayUnion(targetUid), peerCount: admin.firestore.FieldValue.increment(1) });
+        batch.update(targetRef, { peers: admin.firestore.FieldValue.arrayUnion(uid),       peerCount: admin.firestore.FieldValue.increment(1) });
+        await batch.commit();
+
+        // Notify the original sender that their request was accepted
+        const userDoc = await userRef.get();
+        const ud = userDoc.exists ? userDoc.data() : {};
+        await db.collection('notifications').add({
+            recipientId: targetUid,
+            senderId: uid,
+            senderName: ud.username || 'Bitcoiner',
+            type: 'peer_accepted',
+            message: (ud.username || 'Someone') + ' accepted your peer request! 🧡',
+            targetType: 'peer_accepted',
+            targetId: revReqId,
+            fromUid: uid,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Award badges if applicable (non-blocking)
+        try {
+            const [uSnap, tSnap] = await Promise.all([userRef.get(), targetRef.get()]);
+            const uData = uSnap.exists ? uSnap.data() : {};
+            const tData = tSnap.exists ? tSnap.data() : {};
+            const badgeBatch = db.batch();
+            let hasBadgeWork = false;
+            const _awardIfMissing = (ref, field, badges) => {
+                if (!badges.includes(field)) { badgeBatch.update(ref, { badges: admin.firestore.FieldValue.arrayUnion(field) }); hasBadgeWork = true; }
+            };
+            const PEER_BADGE_TIERS = [
+                [1,   'first_peer'],
+                [10,  'peer_network_10'],
+                [50,  'peer_network_50'],
+                [100, 'peer_network_100'],
+                [250, 'peer_network_250'],
+            ];
+            PEER_BADGE_TIERS.forEach(([min, id]) => {
+                if ((uData.peerCount || 0) >= min) _awardIfMissing(userRef,   id, uData.badges || []);
+                if ((tData.peerCount || 0) >= min) _awardIfMissing(targetRef, id, tData.badges || []);
+            });
+            if (hasBadgeWork) await badgeBatch.commit();
+        } catch(e) { console.warn('[managePeer] badge award failed:', e.message); }
+
+        return { success: true };
+    }
+
+    // ── DECLINE ────────────────────────────────────────────────────────────────
+    if (action === 'decline') {
+        const revDoc = await revReqRef.get();
+        if (!revDoc.exists) throw new functions.https.HttpsError('not-found', 'Peer request not found');
+        if (revDoc.data().to !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your request to decline');
+        await revReqRef.delete();
+        return { success: true };
+    }
+
+    // ── CANCEL (rescind own outgoing request) ──────────────────────────────────
+    if (action === 'cancel') {
+        const reqDoc = await reqRef.get();
+        if (!reqDoc.exists) throw new functions.https.HttpsError('not-found', 'Peer request not found');
+        if (reqDoc.data().from !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your request to cancel');
+        await reqRef.delete();
+        return { success: true };
+    }
+
+    // ── REMOVE ─────────────────────────────────────────────────────────────────
+    if (action === 'remove') {
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        const peers = userDoc.data().peers || [];
+        if (!peers.includes(targetUid)) throw new functions.https.HttpsError('not-found', 'Not peers');
+
+        const batch = db.batch();
+        batch.update(userRef,   { peers: admin.firestore.FieldValue.arrayRemove(targetUid), peerCount: admin.firestore.FieldValue.increment(-1) });
+        batch.update(targetRef, { peers: admin.firestore.FieldValue.arrayRemove(uid),       peerCount: admin.firestore.FieldValue.increment(-1) });
+        batch.delete(reqRef);
+        batch.delete(revReqRef);
+        await batch.commit();
+        return { success: true };
+    }
+});
 
 // ===== SERVER-SIDE POINTS AWARD (Fix #1, #2, #5) =====
 // All point awards go through this Cloud Function instead of direct Firestore writes
@@ -4239,6 +4444,7 @@ const PUBLIC_PROFILE_FIELDS = [
     'lightningAddress',   // display-only; tip button uses this
     'created', 'createdAt',
     'earnedHidden',
+    'peerCount', // peer network size (peers array stays server-only)
 ];
 
 exports.syncPublicProfile = functions.firestore
@@ -5281,6 +5487,7 @@ exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
             flag_reason: admin.firestore.FieldValue.delete(),
             ban_reason: admin.firestore.FieldValue.delete(),
             _pendingClaim: admin.firestore.FieldValue.delete(),
+            _pendingClaimAt: admin.firestore.FieldValue.delete(),
         });
         // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
         batch.set(db.collection('faucet_ledger').doc(uid), {
@@ -6152,12 +6359,13 @@ exports.monthlyRaffleDraw = functions.pubsub.schedule('0 18 1 * *').timeZone('UT
     });
 
     // 5. Post winner announcement to global_chat as Nacho
-    const msg = `🎉🦌 ORANGE TICKET RAFFLE — ${monthLabel.toUpperCase()} RESULTS!\n\nThe draw has been made! 🍊\n\n🏆 THIS MONTH'S WINNER IS...\n\n✨ ${winner.username} ✨\n\nCongratulations! Pick #${pick + 1} out of ${total} — your ${winner.entries} entries delivered! ⚡🎫\n\nPhil will be in touch to arrange your 21,000 sats prize. Make sure your Lightning Address is set in your profile settings!\n\n—\n📊 Draw stats:\n• ${pool.length} eligible entrants · ${total} entries\n• Drawn using cryptographically secure randomness 🔐\n\nKeep stacking those orange tickets — every quest, trivia, spin and daily streak earns you entries next month! 🦌🍊⚡`;
+    const msg = `🎉🦌 ORANGE TICKET RAFFLE — ${monthLabel.toUpperCase()} RESULTS!\n\nThe draw has been made! 🍊\n\n🏆 THIS MONTH'S WINNER IS...\n\n✨ @${winner.username} ✨\n\nCongratulations! Pick #${pick + 1} out of ${total} — your ${winner.entries} entries delivered! ⚡🎫\n\nPhil will be in touch to arrange your 21,000 sats prize. Make sure your Lightning Address is set in your profile settings!\n\n—\n📊 Draw stats:\n• ${pool.length} eligible entrants · ${total} entries\n• Drawn using cryptographically secure randomness 🔐\n\nKeep stacking those orange tickets — every quest, trivia, spin and daily streak earns you entries next month! 🦌🍊⚡`;
 
     await db.collection('global_chat').add({
         uid: 'nacho-bot',
         name: '🦌 Nacho',
         text: msg,
+        mentionUid: winner.uid,
         isNachoAuto: false,
         ts: admin.firestore.FieldValue.serverTimestamp(),
     });

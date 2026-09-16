@@ -52,7 +52,7 @@
     <link rel="preconnect" href="https://mempool.space" crossorigin>
     <!-- Design system. tokens.css must load first: base/primitives consume its vars. -->
     <link rel="stylesheet" href="styles/tokens.css?v=r3">
-    <link rel="stylesheet" href="styles/base.css?v=r3">
+    <link rel="stylesheet" href="styles/base.css?v=r4">
     <link rel="stylesheet" href="styles/primitives.css?v=r3">
     <!-- Self-hosted faces. Absent files fall through to the stacks in tokens.css. -->
     <link rel="preload" href="fonts/inter-tight-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -64,7 +64,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260820_2010_r8" as="script">
+    <link rel="preload" href="bundle.js?v=20260901_tipfix_r9" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -117,7 +117,10 @@
         #guestPointsBanner.banner-min > :not(.banner-toggle) { display: none !important; }
         #guestPointsBanner.banner-min .banner-toggle { width: 32px; height: 32px; padding: 0 !important; display: flex; align-items: center; justify-content: center; font-size: 1.1rem !important; }
 
-        /* App shell only — typography and colour come from base.css */
+        /* App shell only — typography and colour come from base.css.
+           Upstream narrowed the tactile-feedback selector from
+           `button, [onclick]` to `button`; that narrowing is carried
+           in styles/base.css. */
         body { display: flex; height: 100vh; overflow: hidden; }
         .channel-title { font-family: var(--font-ui); font-weight: var(--w-semi); }
         /* Page content fade-in transition */
@@ -736,6 +739,27 @@
         #goog-gt-tt { display: none !important; }
         select, select option, select optgroup { background: var(--bg-side, var(--ink-925)); color: var(--text, #e0e0e0); }
         select option:checked { background: var(--accent-bg, var(--ink-900)); color: var(--accent, var(--orange)); }
+
+        /* ── Mobile performance (from upstream) ─────────────────────────────
+           Kept: the [onclick] transition cost, overscroll containment, nav
+           compositor hint and tap-latency rules — all still apply here.
+           Dropped as already satisfied on this branch: the backdrop-blur
+           override (that property is removed globally here, and .glass /
+           .glass-dark are solid surfaces) and the .home-logos::before animation reset
+           (heroGlow and that pseudo-element no longer exist). The
+           prefers-reduced-motion block lives in styles/base.css. */
+        @media (max-width: 900px) {
+            /* [onclick] matches thousands of DOM nodes — a CSS transition on
+               them makes the browser track each one, so every tap recalculates
+               style across the whole matched set. */
+            [onclick] { transition: none !important; }
+            button { transition: opacity 0.1s ease !important; }
+            /* Instant active scale reads as MORE responsive than an eased one */
+            button:active { transform: scale(0.96) !important; }
+            .channels { overscroll-behavior: contain; }
+            .mobile-nav { will-change: transform; }
+            .ch-btn, .sr-item, .msg, .home-cta { touch-action: manipulation; }
+        }
 
     .no-desktop { display: none !important; } .mobile-back-btn { display: none !important; } @media (max-width: 900px) { .no-desktop { display: flex !important; } .mobile-back-btn { display: inline-flex !important; } }
     /* Explore Apps grid — consistent card style */
@@ -1449,7 +1473,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.js?v=20260820_2010_r8" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260901_tipfix_r9" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
     <script src="onboarding.js?v=20260811_0110" defer></script>
     <script src="learning-quests.js?v=20260801_ux3" defer></script>
@@ -1460,14 +1484,14 @@
         var _lazyScripts = [
             'hot-topics.js?v=20260628_1300',
             'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260803_1628',
-            'scholar.js?v=20260809_1846','beats.js?v=20260817_1815',
-            'global-chat.js?v=20260811_0050','lightning.js?v=20260807_1915','lightning-tips.js?v=20260807_1915',
-            'notifications.js?v=20260730_0723','guide.js?v=20260716_1628','modules.js?v=20260331',
+            'scholar.js?v=20260809_1846','beats.js?v=20260831_1442',
+            'global-chat.js?v=20260811_0050','lightning.js?v=20260807_1915','lightning-tips.js?v=20260901_2212',
+            'notifications.js?v=20260820_2312','guide.js?v=20260716_1628','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20260810_0418',
-            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602','satoshi-favor.js?v=20260806_security',
-            'timechain-tv.js?v=20260814_2300',
+            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602','satoshi-favor.js?v=20260831_1432',
+            'timechain-tv.js?v=20260828_2300',
             'learning-quests.js?v=20260801_ux3',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
         ];
@@ -1507,19 +1531,19 @@
         var hash = (window.location.hash || '').replace('#', '').split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20260817_1815', 'global-chat.js?v=20260811_0050'],
-            'beats':         ['beats.js?v=20260817_1815', 'global-chat.js?v=20260811_0050'],
+            'bitcoin-beats': ['beats.js?v=20260831_1442', 'global-chat.js?v=20260811_0050'],
+            'beats':         ['beats.js?v=20260831_1442', 'global-chat.js?v=20260811_0050'],
             'chat':          ['global-chat.js?v=20260811_0050'],
             'dms':           ['global-chat.js?v=20260811_0050'],
             'irl-sync':      ['irl-sync.js?v=20260810_0418'],
-            'lightning':     ['lightning.js?v=20260807_1915', 'lightning-tips.js?v=20260807_1915'],
+            'lightning':     ['lightning.js?v=20260807_1915', 'lightning-tips.js?v=20260901_2212'],
             'pvp':           ['pvp.js?v=20260708_0427'],
             'proof-of-play': ['pvp.js?v=20260708_0427', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20260331'],
             'learning-quests': ['learning-quests.js?v=20260801_ux3'],
-            'timechain-tv':  ['timechain-tv.js?v=20260814_2300'],
-            'tv':            ['timechain-tv.js?v=20260814_2300']
+            'timechain-tv':  ['timechain-tv.js?v=20260828_2300'],
+            'tv':            ['timechain-tv.js?v=20260828_2300']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {

@@ -170,8 +170,13 @@ input, textarea, select, button { font-family: inherit; font-size: inherit; colo
    Motion discipline. Global tactile press feedback stays; the pulsing
    glows and triple text-shadows are gone.
    -------------------------------------------------------------------------- */
-button, [onclick] { transition: transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease); }
-button:active, [onclick]:active { transform: scale(0.98); }
+/* Scoped to `button` rather than `button, [onclick]`: [onclick] matches
+   thousands of nodes in this app, and a transition on all of them makes the
+   browser track each for animation, so every tap recalculates style across the
+   whole set. Narrowing came from upstream; see also the mobile block in
+   index.html. */
+button { transition: transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease); }
+button:active { transform: scale(0.98); }
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

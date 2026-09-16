@@ -614,6 +614,12 @@
     }
 
     window.showSpinWheel = function() {
+        // Auth gate — must be signed in to spin
+        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            return;
+        }
         // Check if already spun today (bypass for bonus spins from Nook)
         var isBonusSpin = !!window._bonusSpinActive;
         window._bonusSpinActive = false; // consume the flag
@@ -2811,6 +2817,20 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
     };
 
+    // CH-BTN MAP — built once on first call, O(1) lookup by channel id + single tracked active button
+    var _chBtnMapCache = null;
+    var _activeChBtn = null;
+    function _getChBtnMap() {
+        if (!_chBtnMapCache) {
+            _chBtnMapCache = {};
+            document.querySelectorAll('.ch-btn').forEach(function(b) {
+                var m = b.getAttribute('onclick') && b.getAttribute('onclick').match(/go\('([^']+)'/);
+                if (m) _chBtnMapCache[m[1]] = b;
+            });
+        }
+        return _chBtnMapCache;
+    }
+
     window.goHome = function goHome(fromPopState) {
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
         window._navGeneration = (window._navGeneration || 0) + 1;
@@ -2908,7 +2928,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _homeShowEl = document.getElementById('home');
         _homeShowEl.classList.remove('hidden');
         if (_homeShowEl.style.visibility) _homeShowEl.style.visibility = ''; // clear direct-link preload hide
-        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
+        if (_activeChBtn) { _activeChBtn.classList.remove('active'); _activeChBtn = null; }
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
         // Render Satoshi's Favor banner on home
@@ -3279,8 +3299,16 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
         document.querySelectorAll('.home-logos img, .channel-logos .channel-logo-img').forEach(attachLogoGesture);
         // Watch for dynamically added channel logos
+        // Debounced: MutationObserver fires on every DOM mutation during channel renders
+        // (scores of msgs inserted at once). Without debounce this fires querySelectorAll
+        // hundreds of times per navigation on mobile. Coalesce into one call per frame.
+        var _logoObserverRaf = null;
         new MutationObserver(function() {
-            document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
+            if (_logoObserverRaf) return;
+            _logoObserverRaf = requestAnimationFrame(function() {
+                _logoObserverRaf = null;
+                document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
+            });
         }).observe(document.getElementById('main'), { childList: true, subtree: true });
 
         // Three-finger tap → Settings
@@ -3460,7 +3488,11 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Call updates
     updateSidebarTiers();
-    window._sidebarTierInterval = setInterval(updateSidebarTiers, 5000);
+    // Run sidebar tier updates only when the tab is visible and at a relaxed cadence.
+    // Previously ran every 5s unconditionally — wasted CPU on background tabs.
+    window._sidebarTierInterval = setInterval(function() {
+        if (!document.hidden) updateSidebarTiers();
+    }, 10000);
 
     // Audio system
     window.audioEnabled = localStorage.getItem('btc_audio') !== 'false';
@@ -3780,17 +3812,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:35%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:80%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:50%;"></div></div></div>' +
         '</div>';
 
-        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
-        if (btn) { btn.classList.add('active'); expandCatForChannel(btn); }
-        else {
-            // Find the button by channel id and expand its section
-            document.querySelectorAll('.ch-btn').forEach(b => {
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + id + "'") !== -1) {
-                    b.classList.add('active');
-                    expandCatForChannel(b);
-                }
-            });
-        }
+        if (_activeChBtn) { _activeChBtn.classList.remove('active'); _activeChBtn = null; }
+        var _activeBtn = btn || (_getChBtnMap()[id] || null);
+        if (_activeBtn) { _activeBtn.classList.add('active'); expandCatForChannel(_activeBtn); _activeChBtn = _activeBtn; }
 
         // Show loading state
         // Check if this is an image-heavy channel
@@ -3946,11 +3970,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         })();
 
         // Mark channel as visited in sidebar
-        document.querySelectorAll('.ch-btn').forEach(b => {
-            if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
-                b.classList.add('visited');
-            }
-        });
+        var _vBtn = _getChBtnMap()[id];
+        if (_vBtn) _vBtn.classList.add('visited');
 
         // Save visited channels locally
         let visited = safeJSON('btc_visited_channels', []);
@@ -4665,15 +4686,10 @@ if (locked) {
             setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(); }, 1500);
         }
 
-        // Restore visited channel checkmarks
+        // Restore visited channel checkmarks — O(n) using cached button map
         const visited = safeJSON('btc_visited_channels', []);
-        visited.forEach(id => {
-            document.querySelectorAll('.ch-btn').forEach(b => {
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
-                    b.classList.add('visited');
-                }
-            });
-        });
+        const _bmap = _getChBtnMap();
+        visited.forEach(id => { if (_bmap[id]) _bmap[id].classList.add('visited'); });
 
         renderFavs();
         showContinueReading();
@@ -4682,6 +4698,17 @@ if (locked) {
         if (typeof checkPredictionResult === 'function') {
             setTimeout(checkPredictionResult, 4000);
         }
+
+        // Pre-warm Pleb Shop iframe only — it's the marketplace landing tab.
+        // Other embeds load on demand. Delayed 5s to avoid competing with initial page load.
+        setTimeout(function() {
+            if (document.getElementById('plebshopIframeWrap')) return; // already loaded
+            var psWrap = document.createElement('div');
+            psWrap.id = 'plebshopIframeWrap';
+            psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+            psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+            document.body.appendChild(psWrap);
+        }, 5000);
 
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
@@ -4866,8 +4893,21 @@ if (locked) {
 
             // Meetup Builder
             if (hash === 'meetup-builder' || state.channel === 'meetup-builder') {
-                // Stay on IRL sync page, just scroll to section
-                if (typeof go === 'function') go('irl-sync', null, true);
+                if (window._mbRouted) return;
+                window._mbRouted = true;
+                window._skipIRLRules = true;
+                localStorage.setItem('btc_irl_rules_accepted', 'true');
+                if (typeof go === 'function') go('irl-sync');
+                setTimeout(function() { var ro = document.getElementById('irlRulesOverlay'); if (ro) ro.remove(); }, 100);
+                history.replaceState({channel:'meetup-builder'}, '', '#meetup-builder');
+                var _mbTries1 = 0;
+                var _mbInt1 = setInterval(function() {
+                    var ro2 = document.getElementById('irlRulesOverlay');
+                    if (ro2) ro2.remove();
+                    var el = document.getElementById('meetupBuilderSection');
+                    if (el) { clearInterval(_mbInt1); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                    if (++_mbTries1 > 30) clearInterval(_mbInt1);
+                }, 300);
                 return;
             }
 
