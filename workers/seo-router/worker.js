@@ -117,7 +117,9 @@ function buildCSP(nonce) {
             " https://colintalkscrypto.com" +        // CBBI data
             " https://raw.githubusercontent.com" +   // Channel data files
             " https://*.needcreations.workers.dev" + // CF Workers (search, embed-proxy, pleb-sync)
-            " https://us-central1-bitcoin-education-archive.cloudfunctions.net", // Cloud Functions
+            " https://us-central1-bitcoin-education-archive.cloudfunctions.net" +
+            " https://ppq.ai" +                                          // PPQ AI Tools embed
+            " https://*.ppq.ai",                                          // PPQ AI subdomains
 
         "img-src 'self' data: blob: https:",         // Broad: GIF picker, user avatars, YouTube thumbs
 
