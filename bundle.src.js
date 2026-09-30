@@ -427,16 +427,32 @@ function initRanking() {
                 // If email link sign-in is being handled, skip - handleEmailSignIn manages it
                 if (emailLinkHandled) return;
                 if (user && !user.isAnonymous) {
-                    // Real user restored immediately - load them
+                    // Real user restored immediately
                     console.log('[Auth] Real user on first event:', user.uid);
                     sessionStorage.removeItem('btc_redirect_auth');
-                    loadUser(user.uid).then(function() {
-                        if (currentUser && currentUser.username) {
-                            setTimeout(function() {
-                                if (typeof showToast === 'function') showToast('👋 Welcome back, ' + escapeHtml(currentUser.username || '') + '!');
-                            }, 2000);
-                        }
-                    }).catch(function() {});
+                    // Load from localStorage cache INSTANTLY, then refresh from Firestore in background
+                    var _cachedProfile = null;
+                    try {
+                        var _cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+                        if (_cp && _cp.uid === user.uid && (Date.now() - _cp.ts) < 86400000) _cachedProfile = _cp;
+                    } catch(e) {}
+                    if (_cachedProfile) {
+                        // Instant render from cache
+                        currentUser = { uid: user.uid, ..._cachedProfile.data };
+                        window._myPeers = new Set(currentUser.peers || []);
+                        rankingReady = true;
+                        window._badgesReady = true;
+                        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
+                        window._hiddenBadgesReady = true;
+                        restoreVisitedUI();
+                        updateRankUI();
+                        updateAuthButton();
+                        if (typeof renderProgressRings === 'function') renderProgressRings();
+                        // Refresh from Firestore in background (non-blocking)
+                        setTimeout(function() { loadUser(user.uid).catch(function(){}); }, 500);
+                    } else {
+                        loadUser(user.uid).catch(function(){});
+                    }
                 } else if (user && user.isAnonymous) {
                     // If we're pending a redirect, DON'T load anon yet - wait longer for auth to resolve
                     if (_pendingRedirect) {
@@ -1561,6 +1577,8 @@ async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
+        // Cache profile for instant next-load
+        try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
         window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
         if (currentUser.visitedChannelsList) {
@@ -24534,6 +24552,7 @@ var MARKETPLACE_SECTIONS = [
     { id: 'proofofink', name: 'Proof of Ink', emoji: '✒️', desc: 'Bitcoin tattoo art & culture' },
     { id: 'noderunners', name: 'Noderunners', emoji: '🌐', desc: 'Bitcoin shops via Noderunners' },
     { id: 'conduit', name: 'Conduit Market', emoji: '🔌', desc: 'Shop at Conduit Market' },
+    { id: 'clct', name: 'CLCT Auctions', emoji: '🏺', desc: 'Bitcoin collectibles & auctions' },
     { id: 'scarcecity', name: 'Scarce City', emoji: '💎', desc: 'Bitcoin auctions & rare collectibles' },
     { id: 'plebeian', name: 'Plebeian Market', emoji: '🗽', desc: 'P2P Bitcoin-only marketplace' },
 ];
@@ -24714,10 +24733,12 @@ function _hidePreloadedIframe(wrapId) {
 // Hide preloaded iframes when leaving marketplace (called by go/goHome)
 window._hideMarketIframes = function() {
     _hidePreloadedIframe('plebshopIframeWrap');
+    _hidePreloadedIframe('clctIframeWrap');
     _hidePreloadedIframe('gmIframeWrap');
     _hidePreloadedIframe('nrIframeWrap');
     _hidePreloadedIframe('conduitIframeWrap');
     _hidePreloadedIframe('plebeianIframeWrap');
+    _hidePreloadedIframe('clctIframeWrap');
     _hidePreloadedIframe('scarcecityIframeWrap');
     _hidePreloadedIframe('proofofinkIframeWrap');
 };
@@ -24863,6 +24884,21 @@ function _actualRenderMarketplace(options) {
         html += '</div>';
         container.innerHTML = html;
         _showPreloadedIframe('plebeianIframeWrap', 'plebeianIframePlaceholder');
+        return;
+    }
+
+    // CLCT Auctions — blocks iframe (frame-ancestors: none), show launch card
+    if (activeSection === 'clct') {
+        html += '<div style="display:flex;align-items:center;justify-content:center;height:calc(100vh - 220px);min-height:400px;">' +
+            '<div style="text-align:center;max-width:420px;padding:40px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;">' +
+            '<div style="font-size:4rem;margin-bottom:16px;">🏺</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;margin-bottom:8px;">CLCT Auctions</div>' +
+            '<div style="color:var(--text-muted);font-size:0.88rem;line-height:1.6;margin-bottom:24px;">Bitcoin collectibles & auctions — curated rare items for Bitcoiners. Browse current lots, place bids, and pay with Lightning.</div>' +
+            '<a href="https://clctibles.com/" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 32px;background:var(--accent);color:#fff;font-weight:800;font-size:0.95rem;border-radius:12px;text-decoration:none;box-shadow:0 4px 20px rgba(247,147,26,0.35);">🏺 Open CLCT Auctions ↗</a>' +
+            '<div style="color:var(--text-faint);font-size:0.72rem;margin-top:12px;">Opens in new tab — clctibles.com</div>' +
+            '</div></div>';
+        html += '</div>';
+        container.innerHTML = html;
         return;
     }
 

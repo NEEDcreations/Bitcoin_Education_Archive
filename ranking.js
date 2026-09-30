@@ -258,16 +258,32 @@ function initRanking() {
                 // If email link sign-in is being handled, skip - handleEmailSignIn manages it
                 if (emailLinkHandled) return;
                 if (user && !user.isAnonymous) {
-                    // Real user restored immediately - load them
+                    // Real user restored immediately
                     console.log('[Auth] Real user on first event:', user.uid);
                     sessionStorage.removeItem('btc_redirect_auth');
-                    loadUser(user.uid).then(function() {
-                        if (currentUser && currentUser.username) {
-                            setTimeout(function() {
-                                if (typeof showToast === 'function') showToast('👋 Welcome back, ' + escapeHtml(currentUser.username || '') + '!');
-                            }, 2000);
-                        }
-                    }).catch(function() {});
+                    // Load from localStorage cache INSTANTLY, then refresh from Firestore in background
+                    var _cachedProfile = null;
+                    try {
+                        var _cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+                        if (_cp && _cp.uid === user.uid && (Date.now() - _cp.ts) < 86400000) _cachedProfile = _cp;
+                    } catch(e) {}
+                    if (_cachedProfile) {
+                        // Instant render from cache
+                        currentUser = { uid: user.uid, ..._cachedProfile.data };
+                        window._myPeers = new Set(currentUser.peers || []);
+                        rankingReady = true;
+                        window._badgesReady = true;
+                        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
+                        window._hiddenBadgesReady = true;
+                        restoreVisitedUI();
+                        updateRankUI();
+                        updateAuthButton();
+                        if (typeof renderProgressRings === 'function') renderProgressRings();
+                        // Refresh from Firestore in background (non-blocking)
+                        setTimeout(function() { loadUser(user.uid).catch(function(){}); }, 500);
+                    } else {
+                        loadUser(user.uid).catch(function(){});
+                    }
                 } else if (user && user.isAnonymous) {
                     // If we're pending a redirect, DON'T load anon yet - wait longer for auth to resolve
                     if (_pendingRedirect) {
@@ -1392,6 +1408,8 @@ async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
+        // Cache profile for instant next-load
+        try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
         window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
         if (currentUser.visitedChannelsList) {
