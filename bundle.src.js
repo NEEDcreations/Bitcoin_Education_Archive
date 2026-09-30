@@ -30242,6 +30242,9 @@ window.toggleDashboard = async function() {
     document.body.appendChild(overlay);
 
     // Start real-time price + live high/low
+    // Clear stale high/low from cache — always fetch fresh on open
+    if (window._dashData) { window._dashData.high24h = null; window._dashData.low24h = null; }
+    try { var _c = JSON.parse(localStorage.getItem('btc_dashboard_cache')); if (_c && _c.data) { _c.data.high24h = null; _c.data.low24h = null; localStorage.setItem('btc_dashboard_cache', JSON.stringify(_c)); } } catch(e) {}
     startPriceWs();
     startHighLowRefresh();
 
