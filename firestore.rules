@@ -195,7 +195,7 @@ service cloud.firestore {
     // VISITS COLLECTION
     // =============================================
     match /visits/{visitorId} {
-      allow read: if request.auth != null && request.auth.uid == visitorId;
+      allow read: if true; // visit counter needs to display for all users
       // [SECURITY FIX] create/update: enforce uid == visitorId so users can only write
       // their own visit doc. Previously any auth'd user could overwrite any visitor's
       // fingerprint field, enabling ban evasion by poisoning anti-fraud telemetry.
