@@ -37178,18 +37178,6 @@ window.playSpinWin = function() {
 // 🤖 AI Tools Panel (ppq.ai) — Global floating button + slide-up panel
 // ================================================================
 window._aiToolsOpen = false;
-window._switchAITool = function(btn, url) {
-    document.querySelectorAll('#aiToolsTabs button').forEach(function(b) {
-        b.style.background = 'none';
-        b.style.borderColor = 'rgba(255,255,255,0.12)';
-        b.style.color = 'var(--text-muted)';
-    });
-    btn.style.background = 'rgba(99,102,241,0.2)';
-    btn.style.borderColor = 'rgba(99,102,241,0.4)';
-    btn.style.color = '#fff';
-    var iframe = document.getElementById('aiToolsIframe');
-    if (iframe) iframe.src = url;
-};
 
 
 window.toggleAITools = function() {
@@ -37203,7 +37191,7 @@ window.toggleAITools = function() {
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
             '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
             '</div>' +
-            '<div style="display:flex;flex-direction:column;height:100%;"><div style="display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.07);overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0;" id="aiToolsTabs"><button onclick="window._switchAITool(this,\'https://chatgpt.com\')" data-url="https://chatgpt.com" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:rgba(99,102,241,0.2);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">💬 ChatGPT</button><button onclick="window._switchAITool(this,\'https://claude.ai\')" data-url="https://claude.ai" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:none;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">🧠 Claude</button><button onclick="window._switchAITool(this,\'https://gemini.google.com\')" data-url="https://gemini.google.com" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:none;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">✨ Gemini</button><button onclick="window._switchAITool(this,\'https://grok.com\')" data-url="https://grok.com" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:none;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">🔥 Grok</button></div><div style="flex:1;position:relative;"><iframe id="aiToolsIframe" src="https://chatgpt.com" style="width:100%;height:100%;border:none;display:block;" allow="microphone; clipboard-write"></iframe></div></div>';
+            '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
         document.body.appendChild(panel);
 
         // Responsive style for desktop
