@@ -526,13 +526,15 @@ function createNacho() {
             bottom: -46px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.7rem;
-            color: #f7931a;
-            font-weight: 800;
-            letter-spacing: 1.5px;
+            font-size: 0.66rem;
+            color: var(--text-dim, #64748b);
+            font-weight: 600;
+            letter-spacing: 0.4px;
             white-space: nowrap;
-            text-transform: uppercase;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            background: var(--bg-side);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 4px 10px;
             line-height: 1.3;
             text-align: center;
             pointer-events: auto;
@@ -745,6 +747,10 @@ function createNacho() {
         }
 
         #nacho-avatar.anim-tap { animation: nachoTap 2s ease-in-out infinite; }
+        /* squash-and-stretch on hover/press (v2 vector mascot) */
+        #nacho-avatar img { transform-origin: 50% 100%; transition: transform .16s cubic-bezier(.34,1.56,.64,1); }
+        #nacho-avatar:hover img { transform: scale(1.05); }
+        #nacho-avatar:active img { transform: scale(1.14, .8); }
         #nacho-avatar.anim-lean { animation: nachoLean 3.5s ease-in-out infinite; }
         #nacho-avatar.anim-wiggle { animation: nachoWiggle 2.5s ease-in-out infinite; }
         #nacho-avatar.anim-bounce { animation: nachoBounce 1.8s ease-in-out infinite; }
@@ -753,6 +759,17 @@ function createNacho() {
         #nacho-avatar.anim-wave { animation: nachoWave 1.5s ease-in-out infinite; }
         #nacho-avatar.anim-sleepy { animation: nachoSleepy 4s ease-in-out infinite; }
 
+        /* Quiet mode: only the avatar shows until Nacho is hovered or speaking */
+        #nacho-avatar .nacho-name, #nachoHideBtn, #nachoDragHandle, .nacho-btn-stack {
+            opacity: 0; pointer-events: none; transition: opacity 0.25s;
+        }
+        #nacho-container:hover .nacho-name, #nacho-container:hover #nachoHideBtn,
+        #nacho-container:hover #nachoDragHandle, #nacho-container:hover .nacho-btn-stack,
+        #nacho-container.nacho-engaged .nacho-name, #nacho-container.nacho-engaged #nachoHideBtn,
+        #nacho-container.nacho-engaged #nachoDragHandle, #nacho-container.nacho-engaged .nacho-btn-stack {
+            opacity: 1; pointer-events: auto;
+        }
+
         /* Tablet — sidebar is 280px */
         @media (max-width: 1100px) {
             #nacho-container { left: 290px; }
@@ -760,11 +777,11 @@ function createNacho() {
         }
         /* Mobile — sidebar hidden, Nacho goes bottom-left, above clutter */
         @media (max-width: 900px) {
-            #nacho-container { bottom: calc(50vh - 30px); left: 12px; }
-            #nacho-avatar { width: 68px; height: 68px; }
+            #nacho-container { bottom: 76px; left: 10px; }
+            #nacho-avatar { width: 56px; height: 56px; }
             #nacho-bubble {
                 position: fixed;
-                bottom: calc(50vh + 50px);
+                bottom: 148px;
                 left: 12px;
                 right: 12px;
                 max-width: calc(100vw - 24px);
@@ -782,10 +799,10 @@ function createNacho() {
             #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -44px; padding: 5px 14px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: calc(50vh - 40px); left: 10px; }
-            #nacho-avatar { width: 60px; height: 60px; }
+            #nacho-container { bottom: 76px; left: 8px; }
+            #nacho-avatar { width: 52px; height: 52px; }
             #nacho-bubble {
-                bottom: calc(50vh + 30px);
+                bottom: 140px;
                 left: 10px;
                 right: 10px;
                 max-width: calc(100vw - 20px);
@@ -1186,6 +1203,8 @@ function startIdleCycle() {
 
 // ---- Show/Hide Bubble ----
 function showBubble(text, pose) {
+    var _nc = document.getElementById('nacho-container');
+    if (_nc) _nc.classList.add('nacho-engaged');
     if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
     const now = Date.now();
     if (now - lastBubbleTime < MIN_INTERVAL) return;
@@ -1572,6 +1591,8 @@ window.hideBubble = function(force) {
     setTimeout(function() {
         if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
     }, 2000);
+    var _nc2 = document.getElementById('nacho-container');
+    if (_nc2) _nc2.classList.remove('nacho-engaged');
     var avatar = document.getElementById('nacho-avatar');
     if (bubble) bubble.classList.remove('show');
     clearTimeout(bubbleTimeout);

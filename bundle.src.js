@@ -10981,13 +10981,15 @@ function createNacho() {
             bottom: -46px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.7rem;
-            color: #f7931a;
-            font-weight: 800;
-            letter-spacing: 1.5px;
+            font-size: 0.66rem;
+            color: var(--text-dim, #64748b);
+            font-weight: 600;
+            letter-spacing: 0.4px;
             white-space: nowrap;
-            text-transform: uppercase;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            background: var(--bg-side);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 4px 10px;
             line-height: 1.3;
             text-align: center;
             pointer-events: auto;
@@ -11200,6 +11202,10 @@ function createNacho() {
         }
 
         #nacho-avatar.anim-tap { animation: nachoTap 2s ease-in-out infinite; }
+        /* squash-and-stretch on hover/press (v2 vector mascot) */
+        #nacho-avatar img { transform-origin: 50% 100%; transition: transform .16s cubic-bezier(.34,1.56,.64,1); }
+        #nacho-avatar:hover img { transform: scale(1.05); }
+        #nacho-avatar:active img { transform: scale(1.14, .8); }
         #nacho-avatar.anim-lean { animation: nachoLean 3.5s ease-in-out infinite; }
         #nacho-avatar.anim-wiggle { animation: nachoWiggle 2.5s ease-in-out infinite; }
         #nacho-avatar.anim-bounce { animation: nachoBounce 1.8s ease-in-out infinite; }
@@ -11208,6 +11214,17 @@ function createNacho() {
         #nacho-avatar.anim-wave { animation: nachoWave 1.5s ease-in-out infinite; }
         #nacho-avatar.anim-sleepy { animation: nachoSleepy 4s ease-in-out infinite; }
 
+        /* Quiet mode: only the avatar shows until Nacho is hovered or speaking */
+        #nacho-avatar .nacho-name, #nachoHideBtn, #nachoDragHandle, .nacho-btn-stack {
+            opacity: 0; pointer-events: none; transition: opacity 0.25s;
+        }
+        #nacho-container:hover .nacho-name, #nacho-container:hover #nachoHideBtn,
+        #nacho-container:hover #nachoDragHandle, #nacho-container:hover .nacho-btn-stack,
+        #nacho-container.nacho-engaged .nacho-name, #nacho-container.nacho-engaged #nachoHideBtn,
+        #nacho-container.nacho-engaged #nachoDragHandle, #nacho-container.nacho-engaged .nacho-btn-stack {
+            opacity: 1; pointer-events: auto;
+        }
+
         /* Tablet — sidebar is 280px */
         @media (max-width: 1100px) {
             #nacho-container { left: 290px; }
@@ -11215,11 +11232,11 @@ function createNacho() {
         }
         /* Mobile — sidebar hidden, Nacho goes bottom-left, above clutter */
         @media (max-width: 900px) {
-            #nacho-container { bottom: calc(50vh - 30px); left: 12px; }
-            #nacho-avatar { width: 68px; height: 68px; }
+            #nacho-container { bottom: 76px; left: 10px; }
+            #nacho-avatar { width: 56px; height: 56px; }
             #nacho-bubble {
                 position: fixed;
-                bottom: calc(50vh + 50px);
+                bottom: 148px;
                 left: 12px;
                 right: 12px;
                 max-width: calc(100vw - 24px);
@@ -11237,10 +11254,10 @@ function createNacho() {
             #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -44px; padding: 5px 14px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: calc(50vh - 40px); left: 10px; }
-            #nacho-avatar { width: 60px; height: 60px; }
+            #nacho-container { bottom: 76px; left: 8px; }
+            #nacho-avatar { width: 52px; height: 52px; }
             #nacho-bubble {
-                bottom: calc(50vh + 30px);
+                bottom: 140px;
                 left: 10px;
                 right: 10px;
                 max-width: calc(100vw - 20px);
@@ -11641,6 +11658,8 @@ function startIdleCycle() {
 
 // ---- Show/Hide Bubble ----
 function showBubble(text, pose) {
+    var _nc = document.getElementById('nacho-container');
+    if (_nc) _nc.classList.add('nacho-engaged');
     if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
     const now = Date.now();
     if (now - lastBubbleTime < MIN_INTERVAL) return;
@@ -12027,6 +12046,8 @@ window.hideBubble = function(force) {
     setTimeout(function() {
         if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
     }, 2000);
+    var _nc2 = document.getElementById('nacho-container');
+    if (_nc2) _nc2.classList.remove('nacho-engaged');
     var avatar = document.getElementById('nacho-avatar');
     if (bubble) bubble.classList.remove('show');
     clearTimeout(bubbleTimeout);
@@ -16972,7 +16993,7 @@ window.showQuestHub = function() {
         '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
         '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
         '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
-        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">💪 Flex</button>' +
+        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏆 Flex</button>' +
         '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
         '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
         '<button id="qhTabCitadel" onclick="window._questHubTab=\'citadel\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏰 Citadel</button>' +
@@ -19674,14 +19695,14 @@ function _renderFlexTab(body) {
     var _flexNextBadge = FLEX_ALL_BADGE_DEFS.find(function(d){ return _flexAllTotal < d.m; });
     var _flexAllDoneToday = FLEX_ACTIONS.every(function(a){ return _flexDoneToday(a.id); });
     html += '<div style="text-align:center;margin-bottom:16px;">' +
-        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (_flexAllDoneToday ? '🏆' : '💪') + '</div>' +
+        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (_flexAllDoneToday ? '🏆' : '🎯') + '</div>' +
         '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Flex</div>' +
         '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Healthy Bitcoiner habits. 5 XP each. Resets daily.</div>' +
         '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
         '<div style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round(doneCount/FLEX_ACTIONS.length*100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
         '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + doneCount + '/' + FLEX_ACTIONS.length + ' done today' + (_flexAllDoneToday ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Stack!</span>' : '') + '</div>' +
         (_flexAllTotal > 0 || _flexAllDoneToday ? '<div style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;padding:4px 10px;font-size:0.68rem;font-weight:700;color:var(--accent);">'
-            + '💪 Full Stack ×' + _flexAllTotal
+            + '🏆 Full Stack ×' + _flexAllTotal
             + (_flexNextBadge ? ' — next badge at ' + _flexNextBadge.m : ' — 🏆 Max badges!')
             + '</div>' : '') +
     '</div>';
@@ -32819,13 +32840,13 @@ document.addEventListener('btcProfileSaved', function() {
         if (existing) existing.remove();
         var modal = document.createElement('div');
         modal.id = 'donateModal';
-        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:260000;display:flex;align-items:flex-start;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:260000;display:flex;align-items:flex-start;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;opacity:0;transition:opacity 250ms cubic-bezier(0.22,1,0.36,1);';
         var lnAddr = _donateLnAddr;
         var qrUrl = _donateQRDataUri || (typeof _localQRDataUrl === 'function' ? _localQRDataUrl('lightning:' + lnAddr) : null);
         
         modal.innerHTML =
-            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:24px;padding:30px 20px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6);animation:fadeSlideIn 0.3s;margin:40px auto;">' +
-                '<button onclick="document.getElementById(\'donateModal\').remove()" style="position:absolute;top:15px;right:15px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
+            '<div id="donateModalCard" style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:24px;padding:30px 20px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6);margin:40px auto;">' +
+                '<button onclick="window._closeDonateModal()" style="position:absolute;top:15px;right:15px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
                 '<div style="font-size:2.5rem;margin-bottom:12px;">🧡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:6px;">Support the Archive</div>' +
                 '<p style="color:var(--text-muted,#aaa);font-size:0.9rem;margin-bottom:20px;line-height:1.5;">Your sats help keep this archive free and open for the next billion Bitcoiners! 🦌⚡</p>' +
@@ -32850,6 +32871,17 @@ document.addEventListener('btcProfileSaved', function() {
                 '</div>' +
             '</div>';
         document.body.appendChild(modal);
+        requestAnimationFrame(function() { requestAnimationFrame(function() {
+            modal.style.opacity = '1';
+            var _card = document.getElementById('donateModalCard');
+            if (_card) _card.classList.add('is-open');
+        }); });
+        window._closeDonateModal = function() {
+            var m = document.getElementById('donateModal');
+            if (!m) return;
+            m.style.opacity = '0';
+            setTimeout(function() { if (m && m.parentNode) m.remove(); }, 150);
+        };
         // Local QR fallback when preload hasn't finished yet
         var donateBox = document.getElementById('donateQRBox');
         if (donateBox && typeof _renderQRCode === 'function') {
@@ -32965,7 +32997,7 @@ document.addEventListener('btcProfileSaved', function() {
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
@@ -34610,6 +34642,8 @@ window.nachoQuizAnswer = function(btn, correct) {
     }
 
     window.goHome = function goHome(fromPopState) {
+        window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
+
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
         window._navGeneration = (window._navGeneration || 0) + 1;
 
@@ -34710,7 +34744,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
         // Render Satoshi's Favor banner on home
-        if (typeof window._renderSatoshiFavorHome === 'function') window._renderSatoshiFavorHome();
+        try { if (typeof window._renderSatoshiFavorHome === 'function') window._renderSatoshiFavorHome(); } catch(e) { console.warn('[goHome] favor banner failed', e); }
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
             setFloatingElementsVisible(true);
