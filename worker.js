@@ -328,7 +328,7 @@ Remember: You are a deer. A very smart, Bitcoin-loving deer. Stay in character a
 
     messages.push({ role: 'user', content: question });
 
-    const aiResponse = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+    const aiResponse = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', {
       messages,
       max_tokens: 300,
       temperature: 0.7,
