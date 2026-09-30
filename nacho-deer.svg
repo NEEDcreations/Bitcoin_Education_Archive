@@ -4,7 +4,7 @@
        head sway, blink, glancing pupils, ear twitches, tuft wiggle. -->
   <style>
     .ink { stroke: #0f172a; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-    .body { fill: #ffffff; }
+    .body { fill: #d4956a; }
     .solid { fill: #0f172a; stroke: none; }
     .accent { fill: #f7931a; }
     #breathe { animation: nBreathe 3.8s ease-in-out infinite; transform-origin: 100px 192px; }
