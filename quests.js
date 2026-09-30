@@ -2480,10 +2480,10 @@ function _renderFavorTab(body) {
         '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
             '<div id="sfScoreBarFill" style="height:100%;background:linear-gradient(90deg,#f7931a,#f7931a 50%,#a855f7 50%,#a855f7);width:100%;border-radius:3px;transition:background 0.5s;"></div>' +
         '</div>' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
+        '<div id="sfUserFactionRow" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
             '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<span style="font-size:0.82rem;">👤</span>' +
-                '<span style="font-size:0.72rem;color:var(--text-muted);">Unaffiliated - <span onclick=\"document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)\" style=\"color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline;\">Choose a Faction!</span></span>' +
+                '<span id="sfUserFactionIcon" style="font-size:0.82rem;">👤</span>' +
+                '<span id="sfUserFactionLabel" style="font-size:0.72rem;color:var(--text-muted);">Loading...</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span id="sfScoreUnaffiliated" style="font-size:0.88rem;font-weight:800;color:var(--text-muted);font-family:monospace;">0</span>' +
@@ -2735,10 +2735,24 @@ function _startFactionScoreboardListener() {
                 'linear-gradient(90deg, #f7931a ' + hornetPct + '%, #a855f7 ' + hornetPct + '%)';
         }
 
-        // Show join note if user has no faction
+        // Show user's faction status dynamically
         var userFaction = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
         if (elNote) {
             elNote.style.display = userFaction ? 'none' : 'block';
+        }
+        var sfLabel = document.getElementById('sfUserFactionLabel');
+        var sfIcon = document.getElementById('sfUserFactionIcon');
+        if (sfLabel && sfIcon) {
+            if (userFaction === 'cyber_hornets') {
+                sfIcon.textContent = '🐝';
+                sfLabel.innerHTML = '<span style="color:#f7931a;font-weight:700;">Cyber Hornets</span>';
+            } else if (userFaction === 'honey_badgers') {
+                sfIcon.textContent = '🦡';
+                sfLabel.innerHTML = '<span style="color:#a855f7;font-weight:700;">Honey Badgers</span>';
+            } else {
+                sfIcon.textContent = '👤';
+                sfLabel.innerHTML = 'Unaffiliated - <span onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)" style="color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline;">Choose a Faction!</span>';
+            }
         }
 
         // Show backfill button for admin

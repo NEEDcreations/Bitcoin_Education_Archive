@@ -5337,6 +5337,19 @@ window.playSpinWin = function() {
 // 🤖 AI Tools Panel (ppq.ai) — Global floating button + slide-up panel
 // ================================================================
 window._aiToolsOpen = false;
+window._switchAITool = function(btn, url) {
+    document.querySelectorAll('#aiToolsTabs button').forEach(function(b) {
+        b.style.background = 'none';
+        b.style.borderColor = 'rgba(255,255,255,0.12)';
+        b.style.color = 'var(--text-muted)';
+    });
+    btn.style.background = 'rgba(99,102,241,0.2)';
+    btn.style.borderColor = 'rgba(99,102,241,0.4)';
+    btn.style.color = '#fff';
+    var iframe = document.getElementById('aiToolsIframe');
+    if (iframe) iframe.src = url;
+};
+
 
 window.toggleAITools = function() {
     var panel = document.getElementById('aiToolsPanel');
@@ -5349,7 +5362,7 @@ window.toggleAITools = function() {
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
             '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
             '</div>' +
-            '<div style="padding:24px 20px;display:flex;flex-direction:column;gap:16px;"><div style="text-align:center;padding:28px 20px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.04));border:1px solid rgba(99,102,241,0.2);border-radius:16px;"><div style="font-size:3rem;margin-bottom:12px;">🤖</div><div style="color:var(--heading,#fff);font-weight:800;font-size:1.1rem;margin-bottom:6px;">AI Tools — powered by PPQ</div><div style="color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.5;margin-bottom:20px;">Access ChatGPT, Claude, Gemini &amp; more — all in one place. Use your referral link to get started.</div><a href="https://ppq.ai/invite/needcreations" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:800;font-size:0.95rem;border-radius:12px;text-decoration:none;box-shadow:0 4px 20px rgba(99,102,241,0.4);">Open AI Tools ↗</a></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;text-align:center;"><div style="font-size:1.3rem;">💬</div><div style="color:var(--heading,#fff);font-weight:700;font-size:0.8rem;margin-top:4px;">ChatGPT</div></div><div style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;text-align:center;"><div style="font-size:1.3rem;">🧠</div><div style="color:var(--heading,#fff);font-weight:700;font-size:0.8rem;margin-top:4px;">Claude</div></div><div style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;text-align:center;"><div style="font-size:1.3rem;">✨</div><div style="color:var(--heading,#fff);font-weight:700;font-size:0.8rem;margin-top:4px;">Gemini</div></div><div style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;text-align:center;"><div style="font-size:1.3rem;">🔥</div><div style="color:var(--heading,#fff);font-weight:700;font-size:0.8rem;margin-top:4px;">& More</div></div></div></div>';
+            '<div style="display:flex;flex-direction:column;height:100%;"><div style="display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.07);overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0;" id="aiToolsTabs"><button onclick="window._switchAITool(this,\'https://chatgpt.com\')" data-url="https://chatgpt.com" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:rgba(99,102,241,0.2);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">💬 ChatGPT</button><button onclick="window._switchAITool(this,\'https://claude.ai\')" data-url="https://claude.ai" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:none;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">🧠 Claude</button><button onclick="window._switchAITool(this,\'https://gemini.google.com\')" data-url="https://gemini.google.com" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:none;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">✨ Gemini</button><button onclick="window._switchAITool(this,\'https://grok.com\')" data-url="https://grok.com" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:none;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">🔥 Grok</button></div><div style="flex:1;position:relative;"><iframe id="aiToolsIframe" src="https://chatgpt.com" style="width:100%;height:100%;border:none;display:block;" allow="microphone; clipboard-write"></iframe></div></div>';
         document.body.appendChild(panel);
 
         // Responsive style for desktop
