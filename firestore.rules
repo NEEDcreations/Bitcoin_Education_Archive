@@ -1034,9 +1034,21 @@ service cloud.firestore {
                     && isAdmin()
                     );
       // Allow reactions update by any authenticated user (must be a map)
+      // Allow own message edit: only text/editCount/edited fields, max 2 edits, own message only
       allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
-                    && request.resource.data.reactions is map;
+                    && (
+                      // Reactions
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+                       && request.resource.data.reactions is map)
+                      ||
+                      // Message edit: own message, text only, max 2 edits
+                      (resource.data.uid == request.auth.uid
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editCount','edited'])
+                       && request.resource.data.text is string
+                       && request.resource.data.text.size() >= 1
+                       && request.resource.data.text.size() <= 300
+                       && resource.data.get('editCount', 0) < 2)
+                    );
       // Own messages or admin can delete
       allow delete: if request.auth != null
                     && (resource.data.uid == request.auth.uid

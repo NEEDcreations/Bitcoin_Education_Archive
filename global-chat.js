@@ -608,6 +608,9 @@ function renderChatMessages(msgs) {
             html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
         if (isMe || isAdmin) {
+            if (isMe && (m.editCount || 0) < 2 && !m.isGif && !m.imageUrl && !m.gifUrl) {
+                html += '<span onclick="editChatMsg(\'' + m._id + '\',\'' + esc((m.text||'').replace(/'/g,`\\'`)) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
+            }
             html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
         html += '</div>';
@@ -631,7 +634,7 @@ function renderChatMessages(msgs) {
                 html += '<img src="' + esc(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
             };
         } else {
-            html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + '</div>';
+            html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + (m.editCount ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '') + '</div>';
         }
         var reactions = m.reactions || {};
         var hasReactions = Object.keys(reactions).length > 0;
@@ -1336,6 +1339,24 @@ window.deleteChatMsg = function(msgId) {
         if (typeof showToast === 'function') showToast('🗑️ Message deleted');
     }).catch(function() {
         if (typeof showToast === 'function') showToast('Failed to delete');
+    });
+};
+
+window.editChatMsg = function(msgId, currentText) {
+    var newText = prompt('Edit your message:', currentText || '');
+    if (newText === null) return;
+    newText = newText.trim();
+    if (!newText) { if (typeof showToast === 'function') showToast('Message cannot be empty'); return; }
+    if (newText === currentText) return;
+    if (newText.length > 300) { if (typeof showToast === 'function') showToast('Too long — max 300 chars'); return; }
+    db.collection(CHAT_COLLECTION).doc(msgId).update({
+        text: newText,
+        editCount: firebase.firestore.FieldValue.increment(1),
+        edited: true
+    }).then(function() {
+        if (typeof showToast === 'function') showToast('✏️ Message updated');
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('Failed to edit message');
     });
 };
 

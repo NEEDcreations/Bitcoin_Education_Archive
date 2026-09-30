@@ -17358,8 +17358,9 @@ function _renderNookShop() {
         '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this month: <strong style="color:#eab308;">' + raffleEntries + '</strong></div>' +
         '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">🎟️ Community entries this month: ...</div>' +
         '</div>' +
-        '<div style="text-align:right;flex-shrink:0;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;margin-bottom:4px;">10 🎟️</div>' +
-        buyBtn('raffle_entry', 10, 1, 'Enter') +
+        '<div style="text-align:right;flex-shrink:0;">' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="50" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 🎟️</span></div>' +
+        '<button id="raffleEnterBtn" onclick="window._buyRaffleQty(this)" style="padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#f7931a,#e8720c);color:#fff;transition:0.2s;">Enter</button>' +
         '</div>' +
         '</div>' +
     '</div>';
@@ -17377,7 +17378,34 @@ function _renderNookShop() {
     })();
 
     el.innerHTML = html;
+    setTimeout(window._updateRaffleCost, 10);
 }
+
+window._updateRaffleCost = function() {
+    var inp = document.getElementById('raffleQtyInput');
+    var lbl = document.getElementById('raffleCostLabel');
+    var btn = document.getElementById('raffleEnterBtn');
+    if (!inp || !lbl) return;
+    var qty = Math.max(1, Math.min(50, parseInt(inp.value) || 1));
+    inp.value = qty;
+    var cost = qty * 10;
+    var tickets = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.orangeTickets || 0) : 0;
+    var canAfford = tickets >= cost;
+    lbl.textContent = cost + ' 🎟️';
+    if (btn) {
+        btn.disabled = !canAfford;
+        btn.style.opacity = canAfford ? '1' : '0.5';
+        btn.style.cursor = canAfford ? 'pointer' : 'not-allowed';
+        btn.style.background = canAfford ? 'linear-gradient(135deg,#f7931a,#e8720c)' : 'rgba(255,255,255,0.05)';
+        btn.style.color = canAfford ? '#fff' : 'var(--text-faint)';
+    }
+};
+
+window._buyRaffleQty = function(btnEl) {
+    var inp = document.getElementById('raffleQtyInput');
+    var qty = Math.max(1, Math.min(50, parseInt((inp && inp.value) || '1') || 1));
+    _nookBuyItem('raffle_entry', qty, btnEl);
+};
 
 function _renderNookInventory() {
     var el = document.getElementById('nookTabContent');

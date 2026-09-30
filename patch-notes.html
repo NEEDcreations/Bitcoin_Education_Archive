@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patch Notes — Bitcoin Education Archive</title>
+<link rel="icon" type="image/svg+xml" href="nacho-deer.svg">
+<style>
+  :root { --bg: #0d0d14; --card: #13131f; --border: rgba(255,255,255,0.07); --accent: #f7931a; --text: #e2e8f0; --muted: #94a3b8; --faint: #475569; --green: #22c55e; --purple: #818cf8; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+  .hero { background: linear-gradient(135deg, rgba(247,147,26,0.12), rgba(99,102,241,0.08)); border-bottom: 1px solid var(--border); padding: 48px 24px 40px; text-align: center; }
+  .hero-icon { font-size: 3rem; margin-bottom: 12px; }
+  .hero h1 { font-size: 2rem; font-weight: 900; color: var(--text); margin-bottom: 6px; }
+  .hero .sub { color: var(--muted); font-size: 0.9rem; }
+  .hero .site-link { display: inline-block; margin-top: 16px; padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; }
+  .container { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+  .patch { background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 28px; overflow: hidden; }
+  .patch-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .patch-badge { background: linear-gradient(135deg, #f7931a, #e8720c); color: #fff; font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; align-self: center; }
+  .patch-badge.prev { background: linear-gradient(135deg, #475569, #334155); }
+  .patch-title { font-size: 1.2rem; font-weight: 800; color: var(--text); }
+  .patch-date { color: var(--faint); font-size: 0.78rem; margin-top: 2px; }
+  .patch-body { padding: 20px 24px; }
+  .section-label { font-size: 0.65rem; font-weight: 800; color: var(--faint); text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; }
+  .section-label:first-child { margin-top: 0; }
+  .item { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); align-items: flex-start; }
+  .item:last-child { border-bottom: none; }
+  .tag { font-size: 0.62rem; font-weight: 800; padding: 2px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+  .tag.feat { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .tag.fix { background: rgba(99,102,241,0.15); color: #818cf8; }
+  .tag.perf { background: rgba(247,147,26,0.15); color: #f7931a; }
+  .tag.sec { background: rgba(239,68,68,0.15); color: #f87171; }
+  .item-text { font-size: 0.84rem; color: var(--text); line-height: 1.5; }
+  .item-text span { color: var(--muted); }
+  .commit { display: inline-block; font-family: monospace; font-size: 0.7rem; background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px; color: var(--faint); margin-left: 6px; }
+  footer { text-align: center; padding: 32px 20px; color: var(--faint); font-size: 0.75rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="hero-icon">🦌⚡</div>
+  <h1>Patch Notes</h1>
+  <p class="sub">Bitcoin Education Archive — release history &amp; changelog</p>
+  <a href="/" class="site-link">← Back to App</a>
+</div>
+
+<div class="container">
+
+  <!-- CURRENT PATCH -->
+  <div class="patch">
+    <div class="patch-header">
+      <div>
+        <div class="patch-title">Operation Nacho Unleashed</div>
+        <div class="patch-date">September 30, 2026 · v2076–2077</div>
+      </div>
+      <div class="patch-badge">Latest</div>
+    </div>
+    <div class="patch-body">
+
+      <div class="section-label">⚡ Performance</div>
+      <div class="item"><span class="tag perf">PERF</span><div class="item-text">Instant login — returning users now render from a local profile cache in under 100ms. Chat, leaderboard, and all user features are available immediately without waiting for Firestore.</div></div>
+
+      <div class="section-label">💬 Global Chat</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Message editing — tap ✏️ on any of your messages to edit it. Posts show <em>(edited)</em> label. Each message allows up to 2 edits.</div></div>
+
+      <div class="section-label">🎟️ Monthly Raffle</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Bulk raffle entries — use the quantity input to buy multiple entries at once. Enter 10 to spend 100 🎟️ and get 10 chances in one click.</div></div>
+
+      <div class="section-label">🏪 Lightning Mart</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">CLCT Auctions tab — Bitcoin collectibles &amp; auctions shop added between Conduit Market and Scarce City. Opens at clctibles.com.</div></div>
+
+      <div class="section-label">🤖 Nacho AI</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Upgraded to Meta Llama 4 Scout 17B — smarter, faster responses from Nacho's AI.</div></div>
+
+      <div class="section-label">📺 Timechain TV</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">+751 videos added across 11 stations — library now at 7,689 videos. All durations verified via YouTube API.</div></div>
+
+      <div class="section-label">🔒 Security</div>
+      <div class="item"><span class="tag sec">SEC</span><div class="item-text">Firestore rules updated — chat edits locked to message owner only, max 2 edits enforced server-side.</div></div>
+
+    </div>
+  </div>
+
+  <!-- PREVIOUS PATCHES (summarized) -->
+  <div class="patch">
+    <div class="patch-header">
+      <div>
+        <div class="patch-title">The Signal Update</div>
+        <div class="patch-date">August – September 2026 · v2070–2075</div>
+      </div>
+      <div class="patch-badge prev">Previous</div>
+    </div>
+    <div class="patch-body">
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Peers section consolidated into Account tab as collapsible panel</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">YouTube embeds restored, forum upvote counter, threaded replies to article comments</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">24h high/low price now always fetches fresh data on dashboard open</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">ppq.ai AI Tools embed restored and whitelisted in CSP</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Faction badge now displays dynamically from your profile</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Proof of Walk temporarily disabled with informational toast</div></div>
+    </div>
+  </div>
+
+  <div class="patch">
+    <div class="patch-header">
+      <div>
+        <div class="patch-title">The Marketplace Rebuild</div>
+        <div class="patch-date">August 2026 · v2060–2069</div>
+      </div>
+      <div class="patch-badge prev">Previous</div>
+    </div>
+    <div class="patch-body">
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Lightning Mart tabs restructured and renamed for clarity</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Tipping fallback — failed LNURL fetch now shows correct "Copy Lightning Address" UI</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Raffle winner announcement now shows @username mention in Global Chat</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">New Nacho SVGs, quiet mode, squash-and-stretch animations, donate modal fade</div></div>
+      <div class="item"><span class="tag sec">SEC</span><div class="item-text">18 ring accounts had withdrawals disabled</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Visits counter Firestore rules fixed for fingerprint-based writes</div></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Bitcoin Education Archive · <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> · Built by Bitcoiners, for Bitcoiners 🟠
+</footer>
+</body>
+</html>
