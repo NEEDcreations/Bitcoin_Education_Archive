@@ -1,0 +1,227 @@
+/* ==========================================================================
+   tokens.css — the single source of truth for the visual system
+   Direction: Archive / editorial.
+   Warm near-monochrome ink surfaces, Bitcoin orange as the ONLY accent,
+   serif for content, mono for numerics, hairlines instead of card borders.
+
+   IMPORTANT — the legacy alias block at the bottom of each theme is what
+   lets ~7,390 pre-existing inline `var(--card-bg)` / `var(--text-dim)` /
+   `var(--accent)` usages across 68 JS files inherit this system without
+   being edited. Do not remove those aliases; retire them only once the
+   corresponding call sites are migrated to the canonical names above.
+   ========================================================================== */
+
+:root {
+    /* ---- Surfaces: warm neutral ramp (deliberately NOT Tailwind slate) ---- */
+    --ink-950: #0B0B0D;   /* page */
+    --ink-925: #101013;   /* sunken — sidebar, wells */
+    --ink-900: #16161A;   /* raised surface 1 — cards, panels */
+    --ink-850: #1D1D22;   /* raised surface 2 — hover, active rows */
+    --ink-800: #26262D;   /* raised surface 3 — inputs, chips */
+
+    /* ---- Hairlines ---- */
+    --line:        #26262D;
+    --line-strong: #34343D;
+
+    /* ---- Foreground ----
+       Verified against --ink-950 (page) and --ink-900 (raised). --fg-2/3 clear
+       WCAG AA for normal text; --fg-4 does NOT and is therefore reserved for
+       decoration — icon strokes, disabled states, dividers. Never set small
+       text in --fg-4: an earlier pass did, and the 11px disclaimer landed at
+       2.54:1. Ratios on the page background:
+         --fg 16.8   --fg-2 8.3   --fg-3 5.8   --fg-4 3.7 (decorative) */
+    --fg:   #EDEDEF;      /* primary text */
+    --fg-2: #A8A8B0;      /* secondary text */
+    --fg-3: #8A8A93;      /* tertiary text, meta, kickers — AA at 11px */
+    --fg-4: #6B6B74;      /* DECORATION ONLY — not AA for text */
+    --fg-on-accent: #12100C;  /* text on an orange fill — dark, not white */
+
+    /* ---- Accent: exactly one chromatic hue ---- */
+    --orange:      #F7931A;
+    --orange-hi:   #FFA733;
+    --orange-lo:   #C2690A;
+    --orange-tint: rgba(247, 147, 26, 0.12);
+    --orange-line: rgba(247, 147, 26, 0.30);
+
+    /* ---- Semantic: desaturated on purpose. Saturated #22c55e/#ef4444
+           at full strength is a strong generated-UI tell. ---- */
+    --pos:      #5FAF7C;   /* 7.4:1 — desaturated, but still AA */
+    --pos-tint: rgba(95, 175, 124, 0.12);
+    --neg:      #D0686F;   /* 5.5:1 */
+    --neg-tint: rgba(208, 104, 111, 0.12);
+    --warn:     #C99A3E;
+    --info:     #7796B3;
+
+    /* ---- Type families ---- */
+    --font-ui:      'InterTight', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-content: 'Newsreader', ui-serif, Georgia, 'Times New Roman', serif;
+    --font-mono:    'IBMPlexMono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+    /* ---- Type scale: 10 steps, replacing 40+ ad-hoc rem values ---- */
+    --t-11: 0.6875rem;
+    --t-12: 0.75rem;
+    --t-13: 0.8125rem;
+    --t-15: 0.9375rem;    /* UI default */
+    --t-17: 1.0625rem;
+    --t-19: 1.1875rem;
+    --t-24: 1.5rem;
+    --t-31: 1.9375rem;
+    --t-40: 2.5rem;
+    --t-52: 3.25rem;
+
+    /* ---- Line heights ---- */
+    --lh-tight: 1.2;
+    --lh-snug:  1.4;
+    --lh-ui:    1.5;
+    --lh-read:  1.7;      /* long-form content */
+
+    /* ---- Weights: ceiling is 600. No 800/900. ---- */
+    --w-normal: 400;
+    --w-medium: 500;
+    --w-semi:   600;
+
+    /* ---- Measure: the readability fix. Body copy was running ~115ch.
+           Expressed in rem rather than ch on purpose: `68ch` resolves to
+           ~793px against Newsreader's wide zero-width, which is looser than
+           intended. 40rem = 640px ≈ 68 characters at the content size. ---- */
+    --measure:      40rem;
+    --measure-wide: 52rem;
+
+    /* ---- Space: 4px base ---- */
+    --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+    --s-6: 24px; --s-8: 32px; --s-12: 48px; --s-16: 64px; --s-24: 96px;
+
+    /* ---- Radius: three values, down from twelve ---- */
+    --r-sm:   6px;
+    --r-md:   10px;
+    --r-full: 999px;
+
+    /* ---- Elevation: hairline by default; shadow only for true overlays ---- */
+    --e-1: none;
+    --e-2: 0 1px 2px rgba(0,0,0,0.30), 0 8px 24px -8px rgba(0,0,0,0.55);
+    --e-3: 0 2px 4px rgba(0,0,0,0.35), 0 16px 48px -12px rgba(0,0,0,0.65);
+
+    /* ---- Motion ---- */
+    --dur-1: 120ms;
+    --dur-2: 200ms;
+    --ease:  cubic-bezier(0.2, 0, 0.3, 1);
+
+    /* ---- Z-index scale, replacing 10005 / 99999 / 400000 / 2000002 ---- */
+    --z-base:    0;
+    --z-nav:     10;
+    --z-dock:    20;
+    --z-sticky:  30;
+    --z-overlay: 40;
+    --z-modal:   50;
+    --z-toast:   60;
+
+    --overlay: rgba(6, 6, 8, 0.88);
+}
+
+/* ==========================================================================
+   Light theme — warm paper, designed rather than derived.
+   The previous light theme inverted a blue-grey ramp and needed runtime
+   !important patches to stay legible.
+   ========================================================================== */
+[data-theme="light"] {
+    --ink-950: #FBFBFA;
+    --ink-925: #F4F4F2;
+    --ink-900: #FFFFFF;
+    --ink-850: #EFEFEC;
+    --ink-800: #E8E8E4;
+
+    --line:        #E2E2DE;
+    --line-strong: #CFCFC9;
+
+    /* Warm-shifted greys to sit with the paper white. Same rule as dark:
+       --fg-4 is decoration only.
+         --fg 17.1   --fg-2 7.7   --fg-3 5.5   --fg-4 3.6 (decorative) */
+    --fg:   #18181B;
+    --fg-2: #55504F;
+    --fg-3: #6B6564;
+    --fg-4: #8A8483;      /* DECORATION ONLY — not AA for text */
+    --fg-on-accent: #FFFFFF;
+
+    /* Darkened for AA on paper. #F7931A is 1.9:1 against white; even #B3600A
+       only reached 4.41. This clears 4.5 on both page and card. */
+    --orange:      #A85C08;
+    --orange-hi:   #8C4B06;
+    --orange-lo:   #6F3B05;
+    --orange-tint: rgba(168, 92, 8, 0.09);
+    --orange-line: rgba(168, 92, 8, 0.30);
+
+    --pos:      #2F6B47;
+    --pos-tint: rgba(47, 107, 71, 0.10);
+    --neg:      #8E3A40;
+    --neg-tint: rgba(142, 58, 64, 0.10);
+    --warn:     #7E5A10;
+    --info:     #3F5A73;
+
+    --e-2: 0 1px 2px rgba(24,24,27,0.06), 0 8px 24px -8px rgba(24,24,27,0.14);
+    --e-3: 0 2px 4px rgba(24,24,27,0.08), 0 16px 48px -12px rgba(24,24,27,0.18);
+
+    --overlay: rgba(251, 251, 250, 0.92);
+}
+
+/* OLED: true black. */
+.oled-theme,
+[data-theme="oled"] {
+    --ink-950: #000000;
+    --ink-925: #000000;
+    --ink-900: #08080A;
+    --ink-850: #101013;
+    --ink-800: #16161A;
+    --line:        #1A1A1F;
+    --line-strong: #26262D;
+}
+
+/* ==========================================================================
+   LEGACY ALIASES — map the old variable names onto the new ramp. This is what
+   lets ~4,700 pre-existing inline `var(--card-bg)` / `var(--text-dim)` /
+   `var(--accent)` usages across the JS files inherit this system unedited.
+
+   The selector list is load-bearing. A `var()` alias declared only on :root is
+   resolved once, against the dark values, and then inherited by every
+   descendant as that already-computed colour — so it never follows a theme
+   change. Declaring the aliases in each theme's scope re-resolves them against
+   that scope's own ink and fg values.
+
+   Symptom when this is wrong: `--ink-950` on <body data-theme="light"> reads
+   #FBFBFA while `--bg` still reads #0B0B0D, so every legacy surface stays dark
+   on a light page.
+   ========================================================================== */
+:root,
+[data-theme="dark"],
+[data-theme="light"],
+[data-theme="oled"],
+.oled-theme {
+    --bg:             var(--ink-950);
+    --bg-main:        var(--ink-950);   /* also fixes the original .oled-theme
+                                           bug: it set --bg-main while body
+                                           consumed --bg, so it never applied */
+    --bg-side:        var(--ink-925);
+    --border:         var(--line);
+    --text:           var(--fg);
+    --text-dim:       var(--fg-2);
+    --text-muted:     var(--fg-3);
+    --text-faint:     var(--fg-3);      /* was --fg-4; that tone is not AA for
+                                           text and legacy call sites use this
+                                           for real copy */
+    --text-secondary: var(--fg-2);
+    --heading:        var(--fg);
+    --link:           var(--orange);
+    --accent:         var(--orange);
+    --accent-bg:      var(--orange-tint);
+    --accent-glow:    var(--orange-line);  /* low alpha: legacy glow shadows
+                                              fade out, but it still reads as a
+                                              border where used as one */
+    --input-bg:       var(--ink-800);
+    --card-bg:        var(--ink-900);
+    --msg-border:     var(--line);
+    --secondary:      var(--ink-850);
+    --display-font:   var(--font-ui);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root { --dur-1: 0ms; --dur-2: 0ms; }
+}

@@ -1,0 +1,249 @@
+/* ==========================================================================
+   primitives.css — the component vocabulary of the system.
+   Every new surface should be composed from these instead of new inline
+   styles. When the remaining ~7,000 inline styles are swept, these are the
+   classes they collapse into.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Surfaces. A box must earn its border: default is a flat raised surface
+   with no outline at all. `.card` adds a hairline only when the content
+   genuinely needs separating from its neighbours.
+   -------------------------------------------------------------------------- */
+.surface     { background: var(--ink-900); border-radius: var(--r-md); }
+.surface-sunk{ background: var(--ink-925); border-radius: var(--r-md); }
+
+.card {
+    background: var(--ink-900);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: var(--s-4);
+}
+.card-quiet { background: transparent; border: 1px solid var(--line); }
+.card-flush { padding: 0; }
+
+/* Interactive card: border shift only. No lift, no glow — the old
+   `transform: translateY(-3px)` + `box-shadow: 0 12px 40px orange` recipe
+   was applied to nearly every clickable element. */
+.card-link { cursor: pointer; transition: border-color var(--dur-1) var(--ease),
+                                          background var(--dur-1) var(--ease); }
+.card-link:hover { border-color: var(--line-strong); background: var(--ink-850); }
+
+/* --------------------------------------------------------------------------
+   Hairline rules — the primary separator in this system, replacing the
+   wrap-everything-in-a-rounded-box pattern.
+   -------------------------------------------------------------------------- */
+.rule    { height: 1px; background: var(--line); border: 0; }
+.rule-v  { width: 1px; align-self: stretch; background: var(--line); }
+.divided > * + * { border-top: 1px solid var(--line); }
+
+/* --------------------------------------------------------------------------
+   List rows — what most of the current full-width stacked cards should be.
+   -------------------------------------------------------------------------- */
+.list { display: flex; flex-direction: column; }
+.list-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-2);
+    border-top: 1px solid var(--line);
+    text-align: left;
+    background: none;
+    border-left: 0; border-right: 0; border-bottom: 0;
+    width: 100%;
+    cursor: pointer;
+    color: var(--fg);
+    transition: background var(--dur-1) var(--ease);
+}
+.list-row:last-child { border-bottom: 1px solid var(--line); }
+.list-row:hover { background: var(--ink-900); }
+.list-row-title { font-size: var(--t-15); font-weight: var(--w-medium); color: var(--fg); }
+.list-row-desc  { font-size: var(--t-13); color: var(--fg-3); line-height: var(--lh-snug); }
+.list-row-icon  { flex-shrink: 0; color: var(--fg-3); }
+.list-row-end   { margin-left: auto; flex-shrink: 0; color: var(--fg-4); }
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-4);
+    min-height: 36px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--ink-900);
+    color: var(--fg);
+    font-size: var(--t-15);
+    font-weight: var(--w-medium);
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+.btn:hover { background: var(--ink-850); border-color: var(--line-strong); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary {
+    background: var(--orange);
+    border-color: var(--orange);
+    color: var(--fg-on-accent);
+    font-weight: var(--w-semi);
+}
+.btn-primary:hover { background: var(--orange-hi); border-color: var(--orange-hi); }
+
+.btn-quiet { background: transparent; border-color: transparent; color: var(--fg-2); }
+.btn-quiet:hover { background: var(--ink-900); border-color: transparent; color: var(--fg); }
+
+.btn-sm  { min-height: 30px; padding: var(--s-1) var(--s-3); font-size: var(--t-13); }
+.btn-lg  { min-height: 46px; padding: var(--s-3) var(--s-6); font-size: var(--t-17); }
+.btn-icon{ padding: 0; width: 36px; min-height: 36px; }
+.btn-block { width: 100%; }
+
+/* --------------------------------------------------------------------------
+   Pills / tags / badges
+   -------------------------------------------------------------------------- */
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    padding: 3px var(--s-2);
+    border-radius: var(--r-full);
+    background: var(--ink-850);
+    color: var(--fg-2);
+    font-size: var(--t-11);
+    font-weight: var(--w-medium);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.pill-accent { background: var(--orange-tint); color: var(--orange); }
+.pill-pos    { background: var(--pos-tint);    color: var(--pos); }
+.pill-neg    { background: var(--neg-tint);    color: var(--neg); }
+.pill-outline{ background: transparent; border: 1px solid var(--line); color: var(--fg-3); }
+
+/* Count badge — small, mono, tabular */
+.count {
+    font-family: var(--font-mono);
+    font-size: var(--t-11);
+    font-variant-numeric: tabular-nums;
+    min-width: 16px; height: 16px;
+    padding: 0 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--r-full);
+    background: var(--orange); color: var(--fg-on-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Inputs
+   -------------------------------------------------------------------------- */
+.input {
+    width: 100%;
+    padding: var(--s-2) var(--s-3);
+    min-height: 36px;
+    background: var(--ink-800);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    color: var(--fg);
+    font-size: 16px;   /* 16px prevents iOS zoom-on-focus */
+    outline: none;
+    transition: border-color var(--dur-1) var(--ease);
+}
+.input:focus { border-color: var(--orange-line); }
+
+/* --------------------------------------------------------------------------
+   Layout helpers
+   -------------------------------------------------------------------------- */
+.row     { display: flex; align-items: center; gap: var(--s-3); }
+.row-tight { display: flex; align-items: center; gap: var(--s-2); }
+.col     { display: flex; flex-direction: column; }
+.between { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.wrap    { flex-wrap: wrap; }
+.grow    { flex: 1; min-width: 0; }
+.push    { margin-left: auto; }
+
+.stack-1 > * + * { margin-top: var(--s-1); }
+.stack-2 > * + * { margin-top: var(--s-2); }
+.stack-3 > * + * { margin-top: var(--s-3); }
+.stack-4 > * + * { margin-top: var(--s-4); }
+.stack-6 > * + * { margin-top: var(--s-6); }
+.stack-8 > * + * { margin-top: var(--s-8); }
+
+/* --------------------------------------------------------------------------
+   Stats strip — mono figure over a small label. Replaces the
+   2rem/900-weight orange number treatment.
+   -------------------------------------------------------------------------- */
+.stats { display: flex; flex-wrap: wrap; gap: var(--s-6) var(--s-8); }
+.stat  { display: flex; flex-direction: column; gap: 2px; }
+.stat-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--t-24);
+    font-weight: var(--w-medium);
+    color: var(--fg);
+    line-height: 1;
+}
+.stat-label {
+    font-size: var(--t-11);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-3);
+}
+
+/* --------------------------------------------------------------------------
+   Progress — the one place a gradient is still allowed, and only single-hue
+   -------------------------------------------------------------------------- */
+.progress {
+    height: 3px;
+    background: var(--ink-800);
+    border-radius: var(--r-full);
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    background: var(--orange);
+    border-radius: var(--r-full);
+    transition: width var(--dur-2) var(--ease);
+}
+
+/* --------------------------------------------------------------------------
+   Icons — sprite-backed, currentColor, three sizes
+   -------------------------------------------------------------------------- */
+.icon {
+    display: inline-block;
+    width: 20px; height: 20px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vertical-align: -0.2em;
+}
+.icon-16 { width: 16px; height: 16px; stroke-width: 1.6; }
+.icon-24 { width: 24px; height: 24px; stroke-width: 1.4; }
+
+/* --------------------------------------------------------------------------
+   Overlays — the only surfaces that get a shadow
+   -------------------------------------------------------------------------- */
+.overlay-scrim {
+    position: fixed; inset: 0;
+    background: var(--overlay);
+    z-index: var(--z-overlay);
+}
+.panel {
+    background: var(--ink-900);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    box-shadow: var(--e-2);
+    padding: var(--s-6);
+}
+
+/* --------------------------------------------------------------------------
+   Screen-reader only
+   -------------------------------------------------------------------------- */
+.sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
