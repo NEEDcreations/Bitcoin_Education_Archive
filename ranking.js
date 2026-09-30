@@ -5891,11 +5891,6 @@ function showSettingsPage(tab) {
             '<button onclick="confirmDeleteAccount()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
             '</div>';
         html += '</div>'; // close advStatsPanel
-    } else if (settingsTab === 'peers') {
-        html += '<div id="peersPanel" style="padding:0 4px;">';
-        html += '<h3 style="font-size:1rem;margin:0 0 12px;color:var(--text);">🧡 Your Peers</h3>';
-        html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:20px 0;">Loading...</div>';
-        html += '</div>';
     }
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
@@ -6059,8 +6054,8 @@ function showSettingsPage(tab) {
             }
         }
     }
-    // Load peers tab data
-    if (settingsTab === 'peers' && auth && auth.currentUser && typeof db !== 'undefined') {
+    // Load peers data (now in Account tab, triggered when account tab renders)
+    if (settingsTab === 'account' && auth && auth.currentUser && typeof db !== 'undefined') {
         setTimeout(async function() {
             var listEl = document.getElementById('peersList');
             if (!listEl) return;
