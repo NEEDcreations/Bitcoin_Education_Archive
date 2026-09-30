@@ -1,49 +1,49 @@
 {
-  "updated": "2026-09-30T18:55:16.372Z",
-  "btcPrice": 83905,
+  "updated": "2026-09-30T19:08:45.417Z",
+  "btcPrice": 83855,
   "holdings": [
     {
       "ticker": "IBIT",
       "name": "BlackRock",
       "color": "#6366f1",
       "btc": 787325,
-      "aum": 66060504125,
-      "sharePrice": 47.48
+      "aum": 66021137875,
+      "sharePrice": 47.44
     },
     {
       "ticker": "FBTC",
       "name": "Fidelity",
       "color": "#22c55e",
       "btc": 213302,
-      "aum": 17897104310,
-      "sharePrice": 72.945
+      "aum": 17886439210,
+      "sharePrice": 72.895
     },
     {
       "ticker": "GBTC",
       "name": "Grayscale",
       "color": "#eab308",
       "btc": 180525,
-      "aum": 15146950125,
-      "sharePrice": 64.805
+      "aum": 15137923875,
+      "sharePrice": 64.79
     },
     {
       "ticker": "ARKB",
       "name": "ARK 21Shares",
       "color": "#f97316",
       "btc": 63911,
-      "aum": 5362452455,
-      "sharePrice": 27.795
+      "aum": 5359256905,
+      "sharePrice": 27.79
     },
     {
       "ticker": "BITB",
       "name": "Bitwise",
       "color": "#06b6d4",
       "btc": 53954,
-      "aum": 4527010370,
+      "aum": 4524312670,
       "sharePrice": 45.505
     }
   ],
   "totalBtc": 1367386,
-  "totalAum": 114730522330,
+  "totalAum": 114662153030,
   "source": "Derived from shares outstanding (SEC filings) × BTC-per-share + Yahoo Finance prices"
 }
