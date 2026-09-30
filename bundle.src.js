@@ -36431,7 +36431,7 @@ if (locked) {
                         _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
                         _em !== 'beginner' ? appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) : '',
                         appBtn('📺', 'Timechain TV', "go('timechain-tv')", false),
-                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "showProofOfWalk()", false) : ''
+                        _em !== 'beginner' ? appBtn('👟', 'Proof of Walk', "if(typeof showToast==='function')showToast('🚧 Proof of Walk is temporarily disabled — check back soon!')", false) : ''
                     ];
                     return _all.join('');
                 })() +
@@ -36703,7 +36703,7 @@ if (locked) {
 
             // Proof of Walk
             if (hash === 'proof-of-walk' || state.channel === 'proof-of-walk') {
-                if (typeof showProofOfWalk === 'function') showProofOfWalk();
+                if (typeof showToast === 'function') showToast('🚧 Proof of Walk is temporarily disabled — check back soon!');
                 return;
             }
 
