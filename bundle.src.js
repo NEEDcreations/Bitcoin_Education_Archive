@@ -36396,7 +36396,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             'IRL Sync': 'Find or host local Bitcoin meetups near you',
             'Bitcoin Beats': 'Community music player — Bitcoin-themed tracks & beats',
             'Timechain TV': '21 channels of Bitcoin video — free-to-air, always on',
-            'Proof of Walk': 'Earn XP for real-world steps — connect Strava to stack sats'
+            'Proof of Walk': 'Earn XP for real-world steps — connect Strava to stack sats (temporarily disabled)'
         };
         function appBtn(emoji, label, action, locked, lockMsg) {
             var tip = _appTooltips[label] || label;
