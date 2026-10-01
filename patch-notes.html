@@ -61,10 +61,14 @@
 
       <div class="section-label">⛏️ Satoshi's Favor</div>
       <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Difficulty lowered to 20,000 — odds now 1:5,000 (~0.02% per hash). Easier to find a block. 🎰</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Difficulty History table: frozen hashes (16,200) and luck (61.7%) for the 2026-08-20 era — previously showed "--" after the era ended since live data no longer loads for past rows.</div></div>
 
       <div class="section-label">📊 Data</div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">Gold market cap updated to 222,600 tonnes — sourced from World Gold Council Q2 2026 data.</div></div>
       <div class="item"><span class="tag feat">FEAT</span><div class="item-text">SatoABC Bitcoin wallet safety guide added to the Self-Custody learning channel.</div></div>
+
+      <div class="section-label">📊 Quest Hub — Poll</div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Poll vote count now updates immediately after voting — previously showed "1 answered today" until you switched tabs and came back. Fixed by forcing a server-side Firestore read instead of hitting the local cache.</div></div>
 
       <div class="section-label">🔔 Notifications</div>
       <div class="item"><span class="tag fix">FIX</span><div class="item-text">XP notification now reflects the actual amount awarded by Cloudflare (post daily cap), not the eager pre-cap estimate. No more misleading +XP toasts.</div></div>
