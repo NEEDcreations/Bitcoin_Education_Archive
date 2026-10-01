@@ -5017,7 +5017,8 @@ function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
     // Read from today's day-scoped doc (resets each day — shows today's votes only)
     if (typeof db !== 'undefined' && poll.id) {
         var pollId = poll.id + '_' + todayKey;
-        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
+        // Force server read so vote totals are always fresh (cache only has local writes)
+        db.collection('poll_votes').doc(pollId).get({ source: 'server' }).then(function(doc) {
             if (doc.exists) {
                 var d = doc.data();
                 var votes = d.votes || poll.options.map(function() { return 0; });
