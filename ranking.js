@@ -2323,15 +2323,17 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     // (CF is async - user may navigate away before it returns)
     // Exception: badge_earned - defer notification until server confirms (prevents ghost XP on cache-clear re-trigger)
     var _isBadgeEarned = !!(badgeId);
-    if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
-        notifySelfPoints(pts, reason);
-    }
+    var _eagerNotifyTs = null; // timestamp of eager log entry — used to correct it post-CF if capped
     try {
         // 🎯 Double XP: check if active before sending points (client-side boost signal)
         var doubleXPExpiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
         var doubleXPActive = doubleXPExpiry > Date.now();
         if (doubleXPActive && pts > 0) {
             pts = Math.min(2200, pts * 2); // double, respect anti-abuse cap
+        }
+        // Eager notify AFTER double-XP so the logged amount matches what we sent to CF
+        if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
+            _eagerNotifyTs = notifySelfPoints(pts, reason);
         }
 
         var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
@@ -2359,6 +2361,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             // For badge_earned: notify here (deferred from eager path above) - server confirmed it's real
             if (_isBadgeEarned && awarded > 0 && typeof notifySelfPoints === 'function') {
                 notifySelfPoints(awarded, reason);
+            }
+            // Correct the eager notification entry if CF awarded less than expected (daily cap)
+            if (!_isBadgeEarned && _eagerNotifyTs && awarded !== (pts) && typeof _correctLastPointsNotif === 'function') {
+                _correctLastPointsNotif(_eagerNotifyTs, awarded);
             }
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
@@ -2422,7 +2428,8 @@ function _showPointsToast(pts, reason) {
 window.notifySelfPoints = function(pts, reason) {
     if (!pts || pts < 1) return;
     if (!reason || reason === '') return;
-    var entry = { pts: pts, reason: reason, ts: Date.now(), read: false };
+    var ts = Date.now();
+    var entry = { pts: pts, reason: reason, ts: ts, read: false };
     try {
         var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
         log.push(entry);
@@ -2431,6 +2438,29 @@ window.notifySelfPoints = function(pts, reason) {
     } catch(e) {}
     // Badge update (if notifications.js has loaded)
     if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
+    return ts; // return ts so callers can correct the entry post-CF if needed
+};
+
+// Correct a previously-logged notification entry when server returns a different (capped) value.
+// Matches by timestamp; updates pts in-place so 'Today\'s earnings' reflects reality.
+window._correctLastPointsNotif = function(ts, actualPts) {
+    if (!ts || actualPts < 0) return;
+    try {
+        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
+        // Walk backwards — the entry we want is almost always the last one
+        for (var i = log.length - 1; i >= Math.max(0, log.length - 5); i--) {
+            if (log[i].ts === ts) {
+                if (actualPts === 0) {
+                    log.splice(i, 1); // remove entirely if nothing was awarded
+                } else {
+                    log[i].pts = actualPts;
+                }
+                localStorage.setItem('btc_points_log', JSON.stringify(log));
+                if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
+                break;
+            }
+        }
+    } catch(e) {}
 };
 
 // Auto-refresh leaderboard if it's currently open
