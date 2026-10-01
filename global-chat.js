@@ -666,7 +666,11 @@ function renderChatMessages(msgs) {
         html += '</div></div>';
     }
 
+    // Preserve pinned banner across re-renders
+    var _savedBanner = document.getElementById('chatPinnedBanner');
+    if (_savedBanner) _savedBanner.remove();
     el.innerHTML = html;
+    if (_savedBanner) el.insertBefore(_savedBanner, el.firstChild);
 
     // Auto-scroll to bottom if user was near bottom
     if (wasAtBottom) {
