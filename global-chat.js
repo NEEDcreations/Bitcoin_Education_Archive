@@ -614,7 +614,7 @@ function renderChatMessages(msgs) {
             if (isAdmin && !m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true) {
                 var _pt = esc((m.text||'').substring(0,200).replace(/'/g,"\\\\'"));
                 var _pa = esc((m.name||'Anon').replace(/'/g,"\\\\'"));
-                html += '<span onclick="pinChatMessage(\'\'' + m._id + '\'\',\'\'' + _pt + '\'\',\'\'' + _pa + '\'\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
+                html += '<span onclick="pinChatMessage(\'' + m._id + '\',\'' + _pt + '\',\'' + _pa + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
             }
             html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }

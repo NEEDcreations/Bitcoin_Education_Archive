@@ -61,13 +61,11 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
     // DM image uploads (private messages)
-    // [SECURITY FIX] read was open to any authenticated user — any signed-in user could
-    // enumerate and read DM images from any other user's folder by guessing/iterating paths.
-    // Recipients never hit storage rules for read; handleDMImage() calls getDownloadURL()
-    // and stores the tokenized URL in Firestore. Recipients load via <img src=tokenUrl>
-    // which bypasses storage rules entirely. Owner-only read is safe.
+    // Read: any authenticated user — recipients load via <img src="tokenUrl"> which
+    // hits storage rules even with rules_version='2'. Path security comes from the
+    // random filename + Firestore DM conversation access controls.
     match /dm-images/{userId}/{fileName} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.size < 5 * 1024 * 1024
