@@ -910,7 +910,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
-            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="handleDMImage(this,\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
+            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="if(this.files[0])showDMImagePreview(this.files[0],\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
             '<button onclick="document.getElementById(\'dmImageInput\').click()" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send image">📷</button>' +
             '<button onclick="showDMGifPicker(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'\"]/g, "") + '\')" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
             '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onkeydown="if(event.key===\'Enter\')sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
@@ -927,7 +927,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         var inp = document.getElementById('dmInput');
         if (inp) {
             inp.focus();
-            // Paste image from clipboard into DM
+            // Paste image from clipboard into DM — show preview, don't auto-send
             inp.addEventListener('paste', function(e) {
                 var items = e.clipboardData && e.clipboardData.items;
                 if (!items) return;
@@ -935,11 +935,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
                     if (items[i].type.startsWith('image/')) {
                         e.preventDefault();
                         var file = items[i].getAsFile();
-                        if (file) {
-                            // Route through handleDMImage using a synthetic input-like object
-                            var fakeInput = { files: [file], value: '' };
-                            handleDMImage(fakeInput, convoId, otherUid, otherName);
-                        }
+                        if (file) showDMImagePreview(file, convoId, otherUid, otherName);
                         return;
                     }
                 }
@@ -949,7 +945,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         var fileInput = document.getElementById('dmImageInput');
         if (fileInput) {
             fileInput.onchange = function() {
-                handleDMImage(this, convoId, otherUid, otherName);
+                if (this.files[0]) showDMImagePreview(this.files[0], convoId, otherUid, otherName);
             };
         }
     }, 300);
@@ -1042,7 +1038,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 // Image support
                 var imgHtml = '';
                 if (m.imageUrl) {
-                    imgHtml = '<img src="' + escapeHtml(sanitizeUrl(m.imageUrl)) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
@@ -1065,6 +1061,41 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
 }
 
 // Send a DM
+
+// ---- DM Image Preview (paste/select → confirm before send) ----
+window.showDMImagePreview = function(file, convoId, recipientUid, recipientName) {
+    var old = document.getElementById('dmImagePreview');
+    if (old) old.remove();
+
+    var objectUrl = URL.createObjectURL(file);
+    var overlay = document.createElement('div');
+    overlay.id = 'dmImagePreview';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:700000;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML =
+        '<div style="background:var(--card-bg,#1a1a2e);border-radius:16px;padding:16px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5);">' +
+            '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Send this image?</div>' +
+            '<img src="' + objectUrl + '" style="max-width:100%;max-height:260px;border-radius:10px;display:block;margin:0 auto 14px;">' +
+            '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+                '<button onclick="document.getElementById("dmImagePreview").remove();URL.revokeObjectURL("' + objectUrl + '")" style="padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:0.85rem;cursor:pointer;">Cancel</button>' +
+                '<button id="dmImageConfirmBtn" style="padding:8px 18px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:0.85rem;font-weight:700;cursor:pointer;">Send</button>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('dmImageConfirmBtn').addEventListener('click', function() {
+        overlay.remove();
+        URL.revokeObjectURL(objectUrl);
+        var fakeInput = { files: [file], value: '' };
+        handleDMImage(fakeInput, convoId, recipientUid, recipientName);
+    });
+
+    // Tap outside to cancel
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) { overlay.remove(); URL.revokeObjectURL(objectUrl); }
+    });
+};
+
 // ---- DM Image Send ----
 window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
     if (!input || !input.files || !input.files[0]) return;
