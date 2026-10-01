@@ -617,7 +617,7 @@
             // Feature 4: Heat meter
             _buildHeatMeterHTML() +
             '<div id="sfRateInfoBox" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
-            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you solve a block! That\'s a 1 in 10,000 chance per hash (~0.01%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
+            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you solve a block! That\'s a 1 in 5,000 chance per hash (~0.02%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
@@ -632,7 +632,7 @@
             '</div>' +
             '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px;font-size:0.8rem;">' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET + '</div></div>' +
-            '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:10,000</div></div>' +
+            '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:5,000</div></div>' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 1</div><div id="hashCooldown" style="font-weight:800;color:var(--accent);">Ready</div></div>' +
             (hasSecondRig ? '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 2</div><div id="hashCooldown2" style="font-weight:800;color:#8b5cf6;">Ready</div></div>' : '') +
             '</div>' +
