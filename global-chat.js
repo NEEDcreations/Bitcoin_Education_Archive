@@ -491,6 +491,7 @@ function startChatListener() {
     }
 
     window._chatShowCount = 0; // Reset on fresh load
+    _startPinListener(); // start pin banner listener
     // Use orderBy('ts','asc') + limitToLast(N) so Firestore returns the N most recent
     // messages in chronological order (oldest first, newest last). This means:
     // - No .reverse() needed — messages arrive in render order
@@ -3922,12 +3923,6 @@ window.nachoGlobalAnnounce = function(text, mentionUid) {
 // =============================================
 var _pinUnsub = null;
 
-// Hook into startChatListener (now inside the IIFE, so it's accessible)
-var _origStartChatListener = startChatListener;
-startChatListener = function() {
-    _origStartChatListener();
-    _startPinListener();
-};
 
 function _startPinListener() {
     if (_pinUnsub) { _pinUnsub(); _pinUnsub = null; }
