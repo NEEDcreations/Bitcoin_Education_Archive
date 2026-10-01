@@ -16,7 +16,8 @@
     // 2026-07-10  |   8,000 |      0       | +25% difficulty raise — tightening odds to ~1:12,500
     // 2026-07-29  |   7,000 |      0       | -12.5% difficulty drop — easing odds to ~1:14,286
     // 2026-08-20  |  10,000 |      0       | -30% difficulty decrease — easing odds to ~1:10,000
-    const DIFFICULTY_TARGET = 10000;
+    // 2026-10-01  |  20,000 |      0       | -50% difficulty decrease — easing odds to ~1:5,000
+    const DIFFICULTY_TARGET = 20000;
     // ── Difficulty history (ordered oldest→newest) ─────────────────
     // Add a new entry here whenever the target changes. quests.js reads
     // window.SF_DIFFICULTY_HISTORY to render the Difficulty History table
@@ -29,6 +30,7 @@
         { date: '2026-07-10', target: 8000,  label: '+25%',     hashes: 56913, luck: 131.8 },
         { date: '2026-07-29', target: 7000,  label: '+14.3%',   hashes: 36407, luck: 117.7 },
         { date: '2026-08-20', target: 10000, label: '-30%',      hashes: null,  luck: null,  eraHashOffset: 50538 },
+        { date: '2026-10-01', target: 20000, label: '-50%',      hashes: null,  luck: null },
     ];
     // hashes = total hashes cast in that period (from Firestore analysis 2026-07-17)
     // luck   = (expected hashes for blocks found) / actual hashes * 100  (null = live/current or zero-block genesis)
