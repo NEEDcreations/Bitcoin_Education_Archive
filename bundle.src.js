@@ -31353,7 +31353,7 @@ function loadTopIndicators() {
 // ── Live Gold vs Bitcoin (CoinGecko tether-gold price → calculate gold market cap) ──
 var _goldCache = null;
 var _goldCacheTs = 0;
-var TOTAL_GOLD_OZ = 212582 * 32150.7; // ~6.83 billion troy oz above-ground gold
+var TOTAL_GOLD_OZ = 222600 * 32150.7; // ~7.16 billion troy oz above-ground gold (World Gold Council, end-Q2 2026: 222,600 tonnes)
 
 function _fetchGoldData(btcMktCapT, btcSupply) {
     // Restore from localStorage if no in-memory cache
@@ -31407,7 +31407,7 @@ function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
     // Add tooltip via data attribute + re-attach listeners
     var card = document.getElementById('goldCompareCard');
     if (card) {
-        var goldTip = 'Gold has been humanitys store of value for 5,000+ years. Bitcoin is digital gold — scarce, durable, portable, divisible, and verifiable. Gold price: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz. Total above-ground gold: ~212,582 tonnes (~6.83B troy oz). Gold market cap: ~$' + goldMktCapT.toFixed(1) + 'T. The flippening = Bitcoin absorbs golds entire monetary premium.';
+        var goldTip = 'Gold has been humanitys store of value for 5,000+ years. Bitcoin is digital gold — scarce, durable, portable, divisible, and verifiable. Gold price: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz. Total above-ground gold: ~222,600 tonnes (~7.16B troy oz, World Gold Council Q2 2026). Gold market cap: ~$' + goldMktCapT.toFixed(1) + 'T. The flippening = Bitcoin absorbs golds entire monetary premium.';
         card.setAttribute('data-dash-tip', goldTip);
         if (typeof window._attachTipListeners === 'function') window._attachTipListeners();
     }
