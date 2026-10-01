@@ -3917,21 +3917,17 @@ window.nachoGlobalAnnounce = function(text, mentionUid) {
     });
 };
 
-console.log('[CHAT] Global chat module loaded');
-}();
-
 // =============================================
 // 📌 PINNED MESSAGE
 // =============================================
 var _pinUnsub = null;
 
-(function() {
-    var _origStart = startChatListener;
-    startChatListener = function() {
-        _origStart();
-        _startPinListener();
-    };
-})();
+// Hook into startChatListener (now inside the IIFE, so it's accessible)
+var _origStartChatListener = startChatListener;
+startChatListener = function() {
+    _origStartChatListener();
+    _startPinListener();
+};
 
 function _startPinListener() {
     if (_pinUnsub) { _pinUnsub(); _pinUnsub = null; }
@@ -3941,6 +3937,9 @@ function _startPinListener() {
             _renderPinnedBanner(doc.exists ? doc.data() : null);
         }, function() {});
 }
+
+console.log('[CHAT] Global chat module loaded');
+}();\n
 
 function _renderPinnedBanner(pin) {
     var el = document.getElementById('globalChatMessages');
@@ -3966,7 +3965,7 @@ function _renderPinnedBanner(pin) {
             '<span style="font-size:0.65rem;font-weight:700;color:var(--accent);margin-right:4px;">@' + author + ':</span>' +
             '<span style="font-size:0.72rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + previewHtml + '</span>' +
         '</div>' +
-        (isAdmin ? '<button onclick="event.stopPropagation();unpinChatMessage()" title="Unpin" style="flex-shrink:0;background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;padding:2px 6px;opacity:0.6;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">X</button>' : '');
+        (isAdmin ? '<button onclick="event.stopPropagation();unpinChatMessage()" title="Unpin" style="flex-shrink:0;background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;padding:2px 6px;opacity:0.6;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✕</button>' : '');
 
     banner.onclick = function(e) {
         if (e.target.tagName === 'BUTTON') return;
