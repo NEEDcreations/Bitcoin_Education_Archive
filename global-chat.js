@@ -611,6 +611,11 @@ function renderChatMessages(msgs) {
             if (isMe && (m.editCount || 0) < 2 && !m.isGif && !m.imageUrl && !m.gifUrl) {
                 html += '<span onclick="editChatMsg(\'' + m._id + '\',\'' + esc((m.text||'').replace(/'/g,`\\'`)) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
             }
+            if (isAdmin && !m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true) {
+                var _pt = esc((m.text||'').substring(0,200).replace(/'/g,"\\\\'"));
+                var _pa = esc((m.name||'Anon').replace(/'/g,"\\\\'"));
+                html += '<span onclick="pinChatMessage(\'\'' + m._id + '\'\',\'\'' + _pt + '\'\',\'\'' + _pa + '\'\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
+            }
             html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
         html += '</div>';
@@ -3914,3 +3919,91 @@ window.nachoGlobalAnnounce = function(text, mentionUid) {
 
 console.log('[CHAT] Global chat module loaded');
 }();
+
+// =============================================
+// 📌 PINNED MESSAGE
+// =============================================
+var _pinUnsub = null;
+
+(function() {
+    var _origStart = startChatListener;
+    startChatListener = function() {
+        _origStart();
+        _startPinListener();
+    };
+})();
+
+function _startPinListener() {
+    if (_pinUnsub) { _pinUnsub(); _pinUnsub = null; }
+    if (typeof db === 'undefined' || !db) return;
+    _pinUnsub = db.collection('global_chat_meta').doc('pinned')
+        .onSnapshot(function(doc) {
+            _renderPinnedBanner(doc.exists ? doc.data() : null);
+        }, function() {});
+}
+
+function _renderPinnedBanner(pin) {
+    var el = document.getElementById('globalChatMessages');
+    if (!el) return;
+    var old = document.getElementById('chatPinnedBanner');
+    if (old) old.remove();
+    if (!pin || !pin.text) return;
+
+    var _adminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
+    var isAdmin = typeof auth !== 'undefined' && auth && auth.currentUser &&
+        _adminEmails.indexOf(auth.currentUser.email) !== -1;
+
+    var preview = (pin.text || '').substring(0, 80) + ((pin.text || '').length > 80 ? '...' : '');
+    var author = typeof escapeHtml === 'function' ? escapeHtml(pin.authorName || 'Admin') : (pin.authorName || 'Admin');
+    var previewHtml = typeof escapeHtml === 'function' ? escapeHtml(preview) : preview;
+
+    var banner = document.createElement('div');
+    banner.id = 'chatPinnedBanner';
+    banner.style.cssText = 'position:sticky;top:0;z-index:10;background:var(--bg-side,#0a0a0f);border-left:3px solid var(--accent,#f7931a);border-bottom:1px solid rgba(247,147,26,0.15);padding:8px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;';
+    banner.innerHTML =
+        '<span style="font-size:0.75rem;flex-shrink:0;">📌</span>' +
+        '<div style="flex:1;min-width:0;overflow:hidden;">' +
+            '<span style="font-size:0.65rem;font-weight:700;color:var(--accent);margin-right:4px;">@' + author + ':</span>' +
+            '<span style="font-size:0.72rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + previewHtml + '</span>' +
+        '</div>' +
+        (isAdmin ? '<button onclick="event.stopPropagation();unpinChatMessage()" title="Unpin" style="flex-shrink:0;background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;padding:2px 6px;opacity:0.6;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">X</button>' : '');
+
+    banner.onclick = function(e) {
+        if (e.target.tagName === 'BUTTON') return;
+        if (pin.msgId) {
+            var target = el.querySelector('[data-msg-id="' + pin.msgId + '"]');
+            if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+        }
+        el.scrollTop = 0;
+    };
+
+    el.insertBefore(banner, el.firstChild);
+}
+
+window.pinChatMessage = function(msgId, text, authorName) {
+    if (typeof db === 'undefined' || !db) return;
+    db.collection('global_chat_meta').doc('pinned').get().then(function(doc) {
+        if (doc.exists && doc.data() && doc.data().text) {
+            if (!confirm('Replace the current pinned message?')) return Promise.reject('cancelled');
+        }
+        return db.collection('global_chat_meta').doc('pinned').set({
+            msgId: msgId,
+            text: text,
+            authorName: authorName,
+            pinnedBy: auth.currentUser ? auth.currentUser.uid : '',
+            ts: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }).then(function() {
+        if (typeof showToast === 'function') showToast('📌 Message pinned!');
+    }).catch(function(e) {
+        if (e !== 'cancelled' && typeof showToast === 'function') showToast('Failed to pin: ' + (e.message || e.code || e));
+    });
+};
+
+window.unpinChatMessage = function() {
+    if (!confirm('Unpin this message?')) return;
+    if (typeof db === 'undefined' || !db) return;
+    db.collection('global_chat_meta').doc('pinned').delete()
+        .then(function() { if (typeof showToast === 'function') showToast('📌 Message unpinned.'); })
+        .catch(function(e) { if (typeof showToast === 'function') showToast('Failed to unpin: ' + (e.message || e.code)); });
+};

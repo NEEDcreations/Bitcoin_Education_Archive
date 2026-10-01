@@ -904,6 +904,12 @@ service cloud.firestore {
                    && request.resource.data.typing is map;
     }
 
+    match /global_chat_meta/pinned {
+      allow read: if true;
+      allow write: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     match /global_chat_meta/{docId} {
       allow read: if true;
 
