@@ -244,6 +244,10 @@
     {
       "text": "Self custody guide by seed signer \nhttps://github.com/SeedSigner/independent_custody_guide",
       "link": "https://github.com/SeedSigner/independent_custody_guide"
+    },
+    {
+      "text": "<b>BITCOIN WALLET SAFETY GUIDE (BEGINNER-FRIENDLY)</b>\nSatoABC has a well-written beginner guide covering: hot wallets vs cold wallets, why exchange custody is risky, when to move to a hardware wallet, seed phrase backup hygiene, and why slow/careful beats fast/sorry.\n\nCovers: wallet types, private keys, seed phrases, test transactions before larger amounts, and common beginner mistakes.\n\nhttps://www.satoabc.com/how-to-store",
+      "link": "https://www.satoabc.com/how-to-store"
     }
   ]
 }
