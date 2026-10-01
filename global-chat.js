@@ -3939,7 +3939,8 @@ function _startPinListener() {
 }
 
 console.log('[CHAT] Global chat module loaded');
-}();\n
+}();
+
 
 function _renderPinnedBanner(pin) {
     var el = document.getElementById('globalChatMessages');
