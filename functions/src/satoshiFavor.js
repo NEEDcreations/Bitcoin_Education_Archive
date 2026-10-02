@@ -6,6 +6,7 @@
  */
 
 const functions = require('firebase-functions');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 
@@ -266,12 +267,12 @@ const MAX_POINTS = 42; // 2x activation threshold — prevents unbounded accumul
  */
 exports.contributeFavor = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+    throw new HttpsError('unauthenticated', 'Must be signed in.');
   }
 
   // Block anonymous users
   if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-    throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to Satoshi\'s Favor.');
+    throw new HttpsError('permission-denied', 'Anonymous users cannot contribute to Satoshi\'s Favor.');
   }
 
   const uid = context.auth.uid;
@@ -279,7 +280,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
 
   // Validate source
   if (!source || !POINT_VALUES[source]) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Invalid source. Must be one of: ${Object.keys(POINT_VALUES).join(', ')}`
     );
@@ -292,7 +293,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
   // Fetch user doc for ALL source types (needed for validation)
   const userDoc = await db.collection('users').doc(uid).get();
   if (!userDoc.exists) {
-    throw new functions.https.HttpsError('failed-precondition', 'User profile not found.');
+    throw new HttpsError('failed-precondition', 'User profile not found.');
   }
   const userData = userDoc.data();
 
@@ -313,7 +314,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
       questDoc  = results[2];
     } catch (readErr) {
       console.error('[SF] daily_all_three validation read failed:', readErr);
-      throw new functions.https.HttpsError('internal', 'Could not verify completion — please try again.');
+      throw new HttpsError('internal', 'Could not verify completion — please try again.');
     }
 
     const triviaComplete = triviaDoc && triviaDoc.exists;
@@ -323,7 +324,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
     console.log(`[SF] daily_all_three check uid=${uid} today=${today} trivia=${triviaComplete} poll=${pollComplete} quest=${questComplete}`);
 
     if (!triviaComplete || !pollComplete || !questComplete) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         `Must complete all three today: quiz=${questComplete}, trivia=${triviaComplete}, poll=${pollComplete}.`
       );
@@ -336,7 +337,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
     const levelName = detail || '';
     // Validate the level name is in the correct tier
     if (!validLevels || !validLevels.includes(levelName)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         `Invalid level name for ${source}: ${levelName}`
       );
@@ -345,7 +346,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
     const requiredPoints = LEVEL_MIN_POINTS[levelName];
     const userPoints = userData.points || 0;
     if (userPoints < requiredPoints) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         `User has ${userPoints} XP but needs ${requiredPoints} for ${levelName}.`
       );
@@ -357,11 +358,11 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
   let sanitizedBadge = null;
   if (source === 'badge_earned') {
     if (!detail || typeof detail !== 'string') {
-      throw new functions.https.HttpsError('invalid-argument', 'Invalid badge detail.');
+      throw new HttpsError('invalid-argument', 'Invalid badge detail.');
     }
     sanitizedBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
     if (!VALID_BADGE_IDS.has(sanitizedBadge)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         `Unknown badge id: ${sanitizedBadge}`
       );
@@ -406,7 +407,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
 
     // Check dedup
     if (contributorDoc.exists) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'already-exists',
         'You have already contributed for this action.'
       );
@@ -418,7 +419,7 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
     if (badgeProofRef) {
       if (!badgeProofDoc || !badgeProofDoc.exists) {
         console.warn(`[SF] badge_earned rejected — no badge_awards proof uid=${uid} badge=${sanitizedBadge}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'failed-precondition',
           'Badge has not been earned. Complete the badge challenge first.'
         );
@@ -515,16 +516,18 @@ exports.contributeFavor = functions.https.onCall(async (data, context) => {
  * hashForFavor (onCall)
  * The mining/hashing function. Auth required.
  */
-exports.hashForFavor = functions.https.onCall(async (data, context) => {
+exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
+  const data = request.data;
+  const context = request;
   if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+    throw new HttpsError('unauthenticated', 'Must be signed in.');
   }
 
   const uid = context.auth.uid;
 
   // Must not be anonymous
   if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-    throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot mine.');
+    throw new HttpsError('permission-denied', 'Anonymous users cannot mine.');
   }
 
   const stateRef = db.collection('satoshiFavor').doc('current');
@@ -532,13 +535,13 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   // Check favor state
   const stateDoc = await stateRef.get();
   if (!stateDoc.exists) {
-    throw new functions.https.HttpsError('failed-precondition', 'Satoshi\'s Favor has not been initialized.');
+    throw new HttpsError('failed-precondition', 'Satoshi\'s Favor has not been initialized.');
   }
 
   const stateData = stateDoc.data();
 
   if (!stateData.favorActive) {
-    throw new functions.https.HttpsError('failed-precondition', 'Satoshi\'s Favor is not currently active.');
+    throw new HttpsError('failed-precondition', 'Satoshi\'s Favor is not currently active.');
   }
 
   // Check if favor has expired
@@ -548,7 +551,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
   const effectiveEnd = favorEndBase + bonusMs;
 
   if (now > effectiveEnd) {
-    throw new functions.https.HttpsError('failed-precondition', 'Satoshi\'s Favor has expired.');
+    throw new HttpsError('failed-precondition', 'Satoshi\'s Favor has expired.');
   }
 
   // Get username (outside transaction — read-only, not security-critical)
@@ -601,7 +604,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
       const lastRigCycleId = userData.lastSecondRigCycleId || null;
       rig2AlreadyUnlocked = lastRigCycleId === currentCycleId;
       if (!rig2AlreadyUnlocked && rigCharges <= 0) {
-        throw new functions.https.HttpsError('permission-denied', 'No Second Rig charges remaining.');
+        throw new HttpsError('permission-denied', 'No Second Rig charges remaining.');
       }
     }
 
@@ -618,7 +621,7 @@ exports.hashForFavor = functions.https.onCall(async (data, context) => {
     if (!usingBooster && timestamps.length >= effectiveRateLimit) {
       const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
       const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'resource-exhausted',
         `Rate limit: ${waitSec}s until next hash (${effectiveRateLimit}/min).`
       );
@@ -1055,12 +1058,12 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
   // Admin check - only specific UIDs can run this
   const ADMIN_UIDS = ['Rv2KwSy4flQmYMiHobV1V03KJDX2', 'ZVlpC6mfs1W7GlKsY9TQN3Jr8Hd4']; // Add admin UIDs here
   if (!context.auth || !ADMIN_UIDS.includes(context.auth.uid)) {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only');
+    throw new HttpsError('permission-denied', 'Admin only');
   }
 
   const { cycleId } = data || {};
   if (!cycleId) {
-    throw new functions.https.HttpsError('invalid-argument', 'cycleId required');
+    throw new HttpsError('invalid-argument', 'cycleId required');
   }
 
   const stateRef = db.collection('satoshiFavor').doc('current');
@@ -1131,13 +1134,13 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
  * Safe to run multiple times — idempotent.
  */
 exports.backfillFactionTotals = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  if (!context.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
 
   // Admin-only: check email
   const ADMIN_EMAILS = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
   const userRecord = await admin.auth().getUser(context.auth.uid);
   if (!ADMIN_EMAILS.includes(userRecord.email)) {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only.');
+    throw new HttpsError('permission-denied', 'Admin only.');
   }
 
   const contributorsRef = db.collection('satoshiFavor').doc('current').collection('contributors');
@@ -1212,16 +1215,16 @@ exports.backfillFactionTotals = functions.https.onCall(async (data, context) => 
  * Safe to call multiple times — uses a per-user sync record to prevent double-counting.
  */
 exports.syncUserFactionPoints = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  if (!context.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
   if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-    throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot sync faction points.');
+    throw new HttpsError('permission-denied', 'Anonymous users cannot sync faction points.');
   }
 
   const uid = context.auth.uid;
   const { newFaction, previousFaction } = data;
 
   if (!['cyber_hornets', 'honey_badgers'].includes(newFaction)) {
-    throw new functions.https.HttpsError('invalid-argument', 'Invalid faction.');
+    throw new HttpsError('invalid-argument', 'Invalid faction.');
   }
 
   const contributorsRef = db.collection('satoshiFavor').doc('current').collection('contributors');
