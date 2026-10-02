@@ -29661,57 +29661,77 @@ if (document.readyState === 'loading') {
 (function() {
 'use strict';
 
-// ---- Real-Time Price WebSocket (Binance) ----
+// ---- Real-Time Price WebSocket ----
+// Binance combined stream: aggTrade fires on every trade (multiple/sec),
+// miniTicker fires every second with 24h open/close/change so % is always accurate.
 var _priceWs = null;
 var _lastWsPrice = null;
 var _lastWsChange = null;
-var _wsOpenPrice = null; // 24h open for % calc
+var _wsOpenPrice = null;
+var _wsReconnectTimer = null;
+var _wsFailCount = 0;
+
+function _wsUpdateDom() {
+    var priceEl = document.getElementById('dashLivePrice');
+    if (priceEl && _lastWsPrice) priceEl.textContent = '$' + fmtNum(_lastWsPrice, 2);
+    if (_lastWsChange !== null) {
+        var color = _lastWsChange >= 0 ? '#22c55e' : '#ef4444';
+        var arrow = _lastWsChange >= 0 ? '▲' : '▼';
+        var changeEl = document.getElementById('dashLiveChange');
+        if (changeEl) changeEl.innerHTML = '<span style="color:' + color + ';">' + arrow + ' ' + Math.abs(_lastWsChange).toFixed(2) + '% (24h)</span>';
+        var btnPrice = document.getElementById('dashBtnPrice');
+        if (btnPrice) btnPrice.innerHTML = '$' + fmtNum(_lastWsPrice, 0) + ' <span style="color:' + color + ';font-size:0.6rem;">' + arrow + Math.abs(_lastWsChange).toFixed(1) + '%</span>';
+    }
+    window._btcPriceCache = { price: _lastWsPrice, change: _lastWsChange, ts: Date.now() };
+}
 
 function startPriceWs() {
-    if (_priceWs && _priceWs.readyState <= 1) return; // already open/connecting
+    if (_priceWs && _priceWs.readyState <= 1) return;
+    if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
     try {
-        // Use CoinCap WebSocket — free, no CORS issues, no auth
-        var wsUrl = 'wss://ws.coincap.io/prices?assets=bitcoin';
+        // Combined stream: aggTrade for per-trade price ticks + miniTicker for 24h stats
+        var wsUrl = 'wss://stream.binance.com:9443/stream?streams=btcusdt@aggTrade/btcusdt@miniTicker';
         _priceWs = new WebSocket(wsUrl);
-        _priceWs.onopen = function() { 
-            console.log('[Dashboard] Price WebSocket connected (CoinCap)'); 
+        _priceWs.onopen = function() {
+            console.log('[Dashboard] Price WS connected (Binance aggTrade+miniTicker)');
+            _wsFailCount = 0;
             window._wsDataTimer = setTimeout(function() {
-                if (!_lastWsPrice) { console.warn('[Dashboard] WS connected but no data — falling back'); startPricePolling(); }
-            }, 10000);
+                if (!_lastWsPrice) { console.warn('[Dashboard] WS no data — falling back to polling'); startPricePolling(); }
+            }, 8000);
         };
         _priceWs.onmessage = function(evt) {
             try {
                 if (window._wsDataTimer) { clearTimeout(window._wsDataTimer); window._wsDataTimer = null; }
-                var d = JSON.parse(evt.data);
-                if (!d.bitcoin) return;
-                var newPrice = parseFloat(d.bitcoin);
-                // Calculate change from cached 24h data or previous price
-                if (!_wsOpenPrice && _lastWsPrice) _wsOpenPrice = _lastWsPrice;
-                _lastWsPrice = newPrice;
-                if (_wsOpenPrice) _lastWsChange = ((_lastWsPrice - _wsOpenPrice) / _wsOpenPrice) * 100;
-                _wsOpenPrice = parseFloat(d.o); // 24h open
-                // Update dashboard overlay if open
-                var priceEl = document.getElementById('dashLivePrice');
-                if (priceEl) priceEl.textContent = '$' + fmtNum(_lastWsPrice, 2);
-                var changeEl = document.getElementById('dashLiveChange');
-                if (changeEl) {
-                    var color = _lastWsChange >= 0 ? '#22c55e' : '#ef4444';
-                    var arrow = _lastWsChange >= 0 ? '▲' : '▼';
-                    changeEl.innerHTML = '<span style="color:' + color + ';">' + arrow + ' ' + Math.abs(_lastWsChange).toFixed(2) + '% (24h)</span>';
+                var msg = JSON.parse(evt.data);
+                var d = msg.data || msg; // combined stream wraps in {stream, data}
+                if (d.e === 'aggTrade') {
+                    // p = trade price — fires on every individual trade
+                    var p = parseFloat(d.p);
+                    if (!isFinite(p)) return;
+                    _lastWsPrice = p;
+                    if (_wsOpenPrice && isFinite(_wsOpenPrice)) {
+                        _lastWsChange = (p - _wsOpenPrice) / _wsOpenPrice * 100;
+                    }
+                    _wsUpdateDom();
+                } else if (d.e === '24hrMiniTicker') {
+                    // o = 24h open price — updates every second, keeps % accurate
+                    var open = parseFloat(d.o);
+                    if (isFinite(open) && open > 0) _wsOpenPrice = open;
+                    if (!_lastWsPrice) { _lastWsPrice = parseFloat(d.c); _wsUpdateDom(); }
                 }
-                // Update fixed button
-                var btnPrice = document.getElementById('dashBtnPrice');
-                if (btnPrice) {
-                    var c2 = _lastWsChange >= 0 ? '#22c55e' : '#ef4444';
-                    var a2 = _lastWsChange >= 0 ? '▲' : '▼';
-                    btnPrice.innerHTML = '$' + fmtNum(_lastWsPrice, 0) + ' <span style="color:' + c2 + ';font-size:0.6rem;">' + a2 + Math.abs(_lastWsChange).toFixed(1) + '%</span>';
-                }
-                // Cache for other uses
-                window._btcPriceCache = { price: _lastWsPrice, change: _lastWsChange, ts: Date.now() };
             } catch(e) {}
         };
-        _priceWs.onclose = function() { console.log('[Dashboard] WS closed, reconnecting...'); _priceWs = null; setTimeout(startPriceWs, 5000); };
-        _priceWs.onerror = function(e) { console.warn('[Dashboard] WS error, falling back to polling'); try { _priceWs.close(); } catch(x) {} _priceWs = null; startPricePolling(); };
+        _priceWs.onclose = function() {
+            _priceWs = null;
+            _wsFailCount++;
+            var delay = Math.min(1000 * Math.pow(2, _wsFailCount), 30000); // exponential backoff, max 30s
+            console.log('[Dashboard] WS closed, reconnecting in ' + delay + 'ms');
+            _wsReconnectTimer = setTimeout(startPriceWs, delay);
+        };
+        _priceWs.onerror = function() {
+            try { _priceWs.close(); } catch(x) {}
+            _priceWs = null;
+        };
     } catch(e) { startPricePolling(); }
 }
 
