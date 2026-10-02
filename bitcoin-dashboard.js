@@ -156,207 +156,70 @@ function fmtPctMined(n) {
     return ((n / 21000000) * 100).toFixed(2) + '%';
 }
 
-// ---- Fetch All Data ----
+// ---- Fetch All Data — proxied through CF Worker ----
+// One call to /btc-data returns everything, cached 90s at the edge.
+// No direct browser-to-API calls; external breakage fixed in the worker only.
+var WORKER_URL = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/btc-data';
+
 async function fetchDashboardData() {
-    // If already loading, wait up to 10s for it, then return whatever we have
     if (_dashLoading) {
         await new Promise(function(r) { var _w = setInterval(function() { if (!_dashLoading) { clearInterval(_w); r(); } }, 200); setTimeout(function() { clearInterval(_w); _dashLoading = false; r(); }, 10000); });
         return _dashData || {};
     }
     _dashLoading = true;
 
-    // Check cache — use it immediately, but still fetch fresh in background
-    var _cachedData = null;
+    // Serve from localStorage cache if still fresh
     try {
         var cached = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
-        if (cached && cached.data) {
-            _cachedData = cached.data;
-            // If cache is fresh enough, return it
-            if (Date.now() - cached.ts < DASH_CACHE_TTL) {
-                _dashData = cached.data;
-                _dashLoading = false;
-                return _dashData;
-            }
+        if (cached && cached.data && (Date.now() - cached.ts < DASH_CACHE_TTL)) {
+            _dashData = cached.data;
+            _dashLoading = false;
+            return _dashData;
         }
     } catch(e) {}
-    
-    // Start with cached data as baseline so we always have something to render
-    if (_cachedData) _dashData = _cachedData;
 
     var data = _dashData || {};
 
-    // Parallel fetch from multiple APIs
-    var promises = [];
-
-    // 1. mempool.space — block height, fees, hashrate, difficulty, mempool
-    promises.push(
-        fetch('https://mempool.space/api/blocks/tip/height').then(r => r.text()).then(h => {
-            data.blockHeight = parseInt(h);
-            try { localStorage.setItem('btc_last_height', data.blockHeight.toString()); } catch(e) {}
-            // Progressive render: show block data immediately on cold load
-            var _c = document.getElementById('btcDashCard');
-            if (_c && !data.price && data.blockHeight) _c.innerHTML = renderDashboard(data);
-        }).catch(() => {})
-    );
-    promises.push(
-        fetch('https://mempool.space/api/v1/fees/recommended').then(r => r.json()).then(f => {
-            data.feeFast = f.fastestFee;
-            data.feeHalf = f.halfHourFee;
-            data.feeHour = f.hourFee;
-            data.feeEcon = f.economyFee;
-            data.feeMin = f.minimumFee;
-        }).catch(() => {})
-    );
-    promises.push(
-        fetch('https://mempool.space/api/v1/mining/hashrate/1m').then(r => r.json()).then(d => {
-            if (d.currentHashrate) data.hashrate = d.currentHashrate;
-            if (d.currentDifficulty) data.difficulty = d.currentDifficulty;
-            // Calculate hashrate change using 3-day moving averages (smooths daily noise)
-            if (d.hashrates && d.hashrates.length >= 6) {
-                var n = d.hashrates.length;
-                var avg3Recent = (d.hashrates[n-1].avgHashrate + d.hashrates[n-2].avgHashrate + d.hashrates[n-3].avgHashrate) / 3;
-                var avg3Prev = (d.hashrates[n-4].avgHashrate + d.hashrates[n-5].avgHashrate + d.hashrates[n-6].avgHashrate) / 3;
-                if (avg3Prev > 0) {
-                    data.hashrateChange24h = ((avg3Recent - avg3Prev) / avg3Prev * 100);
-                }
-            }
-        }).catch(() => {})
-    );
-    promises.push(
-        fetch('https://mempool.space/api/v1/difficulty-adjustment').then(r => r.json()).then(d => {
-            data.diffChange = d.difficultyChange;
-            data.diffEstDate = d.estimatedRetargetDate;
-            data.diffRemaining = d.remainingBlocks;
-            data.diffProgress = d.progressPercent;
-        }).catch(() => {})
-    );
-    promises.push(
-        fetch('https://mempool.space/api/mempool').then(r => r.json()).then(m => {
-            data.mempoolTxs = m.count;
-            data.mempoolSize = m.vsize; // vbytes
-        }).catch(() => {})
-    );
-
-    // 1b. High/low now come from CoinGecko /coins/bitcoin below (Binance removed — CORS blocked)
-
-    // 2. CoinGecko — serialized to avoid rate limiting (free tier is aggressive)
-    // First call: price basics (most important)
-    promises.push(
-        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true').then(r => {
-            if (r.status === 429) throw new Error('rate-limited');
-            return r.json();
-        }).then(d => {
-            if (d.bitcoin) {
-                data.price = d.bitcoin.usd;
-                try { localStorage.setItem('btc_last_price', d.bitcoin.usd.toString()); } catch(e) {}
-                data.change24h = d.bitcoin.usd_24h_change;
-                data.volume24h = d.bitcoin.usd_24h_vol;
-                data.marketCap = d.bitcoin.usd_market_cap;
-                if (!_wsOpenPrice && data.price && data.change24h) {
-                    _wsOpenPrice = data.price / (1 + data.change24h / 100);
-                    _lastWsChange = data.change24h;
-                }
-            }
-            // Progressive re-render after price arrives
-            var _c = document.getElementById('btcDashCard');
-            if (_c && data.price) _c.innerHTML = renderDashboard(data);
-            // Second call: detailed data — delayed 1.5s to dodge rate limit
-            return new Promise(function(r) { setTimeout(r, 1500); });
-        }).then(function() {
-            return fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false');
-        }).then(r => {
-            if (r.status === 429) throw new Error('rate-limited');
-            return r.json();
-        }).then(d => {
-            if (d.market_data) {
-                data.supply = d.market_data.circulating_supply;
-                data.ath = d.market_data.ath ? d.market_data.ath.usd : null;
-                data.athDate = d.market_data.ath_date ? d.market_data.ath_date.usd : null;
-                data.athChange = d.market_data.ath_change_percentage ? d.market_data.ath_change_percentage.usd : null;
-                data.high24h = d.market_data.high_24h ? d.market_data.high_24h.usd : null;
-                data.low24h = d.market_data.low_24h ? d.market_data.low_24h.usd : null;
-                data.mktCapChange24h = d.market_data.market_cap_change_percentage_24h || null;
-            }
-        }).catch(() => {})
-    );
-
-    // 3. Lightning Network capacity (mempool.space)
-    promises.push(
-        fetch('https://mempool.space/api/v1/lightning/statistics/latest').then(r => r.json()).then(d => {
-            if (d) {
-                data.lnCapacity = d.latest ? d.latest.total_capacity : d.total_capacity;
-                data.lnNodes = d.latest ? d.latest.node_count : d.node_count;
-                data.lnChannels = d.latest ? d.latest.channel_count : d.channel_count;
-            }
-        }).catch(() => {})
-    );
-
-    // 4. Fear & Greed Index
-    promises.push(
-        fetch('https://api.alternative.me/fng/?limit=1').then(r => r.json()).then(d => {
-            if (d.data && d.data[0]) {
-                data.fearGreed = parseInt(d.data[0].value);
-                data.fearGreedLabel = d.data[0].value_classification;
-            }
-        }).catch(() => {})
-    );
-
-    // Race: all fetches vs 12-second timeout (allows serialized CoinGecko calls)
-    await Promise.race([
-        Promise.all(promises),
-        new Promise(resolve => setTimeout(resolve, 12000))
-    ]);
-
-    // Fill any missing fields from WS price, then stale cache — user should NEVER see blanks
-    if (!data.price && _lastWsPrice) data.price = _lastWsPrice;
-    // Merge from short-TTL cache, then persistent backup — fill every gap
-    var _cacheKeys = [DASH_CACHE_KEY, 'btc_dash_backup'];
-    for (var _ci = 0; _ci < _cacheKeys.length; _ci++) {
+    try {
+        var resp = await Promise.race([
+            fetch(WORKER_URL),
+            new Promise(function(_, rej) { setTimeout(function() { rej(new Error('timeout')); }, 12000); })
+        ]);
+        if (resp.ok) {
+            var fresh = await resp.json();
+            // Worker already computed all derived fields — merge over existing data
+            Object.assign(data, fresh);
+        }
+    } catch(e) {
+        // Worker unavailable — fall back to stale cache or localStorage fallbacks
+        console.warn('[Dashboard] Worker fetch failed, using fallback:', e.message);
         try {
-            var _fc = JSON.parse(localStorage.getItem(_cacheKeys[_ci]));
-            if (_fc && _fc.data) {
-                Object.keys(_fc.data).forEach(function(k) {
-                    if (data[k] === undefined || data[k] === null || data[k] === '' || (typeof data[k] === 'number' && isNaN(data[k]))) {
-                        data[k] = _fc.data[k];
-                    }
-                });
-            }
-        } catch(e) {}
+            var fb = JSON.parse(localStorage.getItem('btc_dash_backup'));
+            if (fb && fb.data) Object.assign(data, fb.data);
+        } catch(x) {}
     }
+
     // Last-resort individual field fallbacks
     if (!data.price) { try { data.price = parseFloat(localStorage.getItem('btc_last_price')) || undefined; } catch(e) {} }
     if (!data.blockHeight) { try { data.blockHeight = parseInt(localStorage.getItem('btc_last_height')) || undefined; } catch(e) {} }
 
-    // Derived metrics
-    if (data.price) {
-        data.satsPerDollar = Math.round(100000000 / data.price);
-        data.moscowTime = Math.round(100000000 / data.price); // sats per dollar
-    }
-    if (data.blockHeight) {
-        data.halving = 210000 - (data.blockHeight % 210000);
-        var halvingEpoch = Math.floor(data.blockHeight / 210000);
-        data.subsidy = (50 / Math.pow(2, halvingEpoch)).toFixed(4);
-        data.nextSubsidy = (50 / Math.pow(2, halvingEpoch + 1)).toFixed(4);
-        data.halvingBlock = (halvingEpoch + 1) * 210000;
-        // ETA: ~10 min per block
-        var halvingMs = data.halving * 10 * 60 * 1000;
-        data.halvingEta = new Date(Date.now() + halvingMs);
-        // Countdown components
-        var totalSec = Math.floor(halvingMs / 1000);
-        data.halvingDays = Math.floor(totalSec / 86400);
-        data.halvingHours = Math.floor((totalSec % 86400) / 3600);
-        data.halvingMins = Math.floor((totalSec % 3600) / 60);
+    // Seed WS open price from fetched data
+    if (!_wsOpenPrice && data.price && data.change24h) {
+        _wsOpenPrice = data.price / (1 + data.change24h / 100);
+        _lastWsChange = data.change24h;
     }
 
-    data.ts = Date.now();
-    _dashData = data;
-
-    // Cache — save if we got meaningful data (short-TTL + persistent backup)
+    // Persist to cache + backup
     if (data.price || data.blockHeight) {
-        var cachePayload = JSON.stringify({ ts: Date.now(), data: data });
-        try { localStorage.setItem(DASH_CACHE_KEY, cachePayload); } catch(e) {}
-        try { localStorage.setItem('btc_dash_backup', cachePayload); } catch(e) {}
+        try { localStorage.setItem('btc_last_price', String(data.price || '')); } catch(e) {}
+        try { localStorage.setItem('btc_last_height', String(data.blockHeight || '')); } catch(e) {}
+        var payload = JSON.stringify({ ts: Date.now(), data: data });
+        try { localStorage.setItem(DASH_CACHE_KEY, payload); } catch(e) {}
+        try { localStorage.setItem('btc_dash_backup', payload); } catch(e) {}
     }
+
+    data.ts = data.ts || Date.now();
+    _dashData = data;
     _dashLoading = false;
     return data;
 }

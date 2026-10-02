@@ -30,6 +30,11 @@ export default {
       return handleAI(request, env, corsHeaders);
     }
 
+    // Route: /btc-data — server-side Bitcoin metrics proxy with edge cache
+    if (path === '/btc-data') {
+      return handleBtcData(request, env, corsHeaders);
+    }
+
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -76,6 +81,130 @@ async function handleSearch(request, env, corsHeaders, url) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+}
+
+// =============================================
+// ₿ Bitcoin Data Proxy — server-side fetch + 90s edge cache
+// All external API calls happen here, not in user browsers.
+// 1000 users open the dashboard → 1 upstream call → everyone gets cached JSON.
+// To swap/fix an API: edit this worker only, no bundle redeploy needed.
+// =============================================
+
+const BTC_CACHE_KEY = 'btc_data_v1';
+const BTC_CACHE_TTL = 90; // seconds
+
+async function handleBtcData(request, env, corsHeaders) {
+  // Serve from Cache API if fresh
+  const cache = caches.default;
+  const cacheUrl = new URL(request.url);
+  cacheUrl.pathname = '/btc-data-cache';
+  const cached = await cache.match(cacheUrl.toString());
+  if (cached) return cached;
+
+  // Parallel upstream fetches — all server-side, no CORS issues
+  const results = await Promise.allSettled([
+    // 1. mempool.space — block height
+    fetch('https://mempool.space/api/blocks/tip/height').then(r => r.text()).then(h => ({ blockHeight: parseInt(h) })),
+    // 2. mempool.space — fees
+    fetch('https://mempool.space/api/v1/fees/recommended').then(r => r.json()).then(f => ({
+      feeFast: f.fastestFee, feeHalf: f.halfHourFee, feeHour: f.hourFee, feeEcon: f.economyFee, feeMin: f.minimumFee
+    })),
+    // 3. mempool.space — hashrate + difficulty
+    fetch('https://mempool.space/api/v1/mining/hashrate/1m').then(r => r.json()).then(d => {
+      const out = {};
+      if (d.currentHashrate) out.hashrate = d.currentHashrate;
+      if (d.currentDifficulty) out.difficulty = d.currentDifficulty;
+      if (d.hashrates && d.hashrates.length >= 6) {
+        const n = d.hashrates.length;
+        const avg3Recent = (d.hashrates[n-1].avgHashrate + d.hashrates[n-2].avgHashrate + d.hashrates[n-3].avgHashrate) / 3;
+        const avg3Prev   = (d.hashrates[n-4].avgHashrate + d.hashrates[n-5].avgHashrate + d.hashrates[n-6].avgHashrate) / 3;
+        if (avg3Prev > 0) out.hashrateChange24h = (avg3Recent - avg3Prev) / avg3Prev * 100;
+      }
+      return out;
+    }),
+    // 4. mempool.space — difficulty adjustment
+    fetch('https://mempool.space/api/v1/difficulty-adjustment').then(r => r.json()).then(d => ({
+      diffChange: d.difficultyChange, diffEstDate: d.estimatedRetargetDate,
+      diffRemaining: d.remainingBlocks, diffProgress: d.progressPercent
+    })),
+    // 5. mempool.space — mempool
+    fetch('https://mempool.space/api/mempool').then(r => r.json()).then(m => ({
+      mempoolTxs: m.count, mempoolSize: m.vsize
+    })),
+    // 6. mempool.space — Lightning
+    fetch('https://mempool.space/api/v1/lightning/statistics/latest').then(r => r.json()).then(d => ({
+      lnCapacity: d.latest ? d.latest.total_capacity : d.total_capacity,
+      lnNodes:    d.latest ? d.latest.node_count    : d.node_count,
+      lnChannels: d.latest ? d.latest.channel_count : d.channel_count,
+    })),
+    // 7. CoinGecko — price, change, volume, market cap, supply, high/low, ATH
+    fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false')
+      .then(r => { if (r.status === 429) throw new Error('rate-limited'); return r.json(); })
+      .then(d => {
+        const md = d.market_data || {};
+        return {
+          price:          md.current_price?.usd ?? null,
+          change24h:      md.price_change_percentage_24h ?? null,
+          volume24h:      md.total_volume?.usd ?? null,
+          marketCap:      md.market_cap?.usd ?? null,
+          mktCapChange24h: md.market_cap_change_percentage_24h ?? null,
+          supply:         md.circulating_supply ?? null,
+          high24h:        md.high_24h?.usd ?? null,
+          low24h:         md.low_24h?.usd ?? null,
+          ath:            md.ath?.usd ?? null,
+          athDate:        md.ath_date?.usd ?? null,
+          athChange:      md.ath_change_percentage?.usd ?? null,
+        };
+      }),
+    // 8. Alternative.me — Fear & Greed
+    fetch('https://api.alternative.me/fng/?limit=1').then(r => r.json()).then(d => ({
+      fearGreed:      d.data?.[0] ? parseInt(d.data[0].value) : null,
+      fearGreedLabel: d.data?.[0]?.value_classification ?? null,
+    })),
+  ]);
+
+  // Merge all settled results — fulfilled wins, rejected silently skipped
+  const data = { ts: Date.now() };
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) Object.assign(data, r.value);
+  }
+
+  // Derive computed fields server-side so the client never has to
+  if (data.blockHeight) {
+    const epoch = Math.floor(data.blockHeight / 210000);
+    data.subsidy      = (50 / Math.pow(2, epoch)).toFixed(4);
+    data.nextSubsidy  = (50 / Math.pow(2, epoch + 1)).toFixed(4);
+    data.halvingBlock = (epoch + 1) * 210000;
+    data.halving      = 210000 - (data.blockHeight % 210000);
+    const halvMs      = data.halving * 10 * 60 * 1000;
+    data.halvingEta   = new Date(Date.now() + halvMs).toISOString(); // string — safe to cache/serialize
+    const totalSec    = Math.floor(halvMs / 1000);
+    data.halvingDays  = Math.floor(totalSec / 86400);
+    data.halvingHours = Math.floor((totalSec % 86400) / 3600);
+    data.halvingMins  = Math.floor((totalSec % 3600) / 60);
+  }
+  if (data.price) {
+    data.satsPerDollar = Math.round(100000000 / data.price);
+    data.moscowTime    = data.satsPerDollar;
+  }
+
+  const body = JSON.stringify(data);
+  const response = new Response(body, {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'Cache-Control': `public, max-age=${BTC_CACHE_TTL}, s-maxage=${BTC_CACHE_TTL}`,
+      'X-Cache': 'MISS',
+      'X-BTC-Sources': 'mempool.space,coingecko,alternative.me',
+    },
+  });
+
+  // Store in Cache API — next requests within TTL are instant
+  const cacheResponse = response.clone();
+  cacheResponse.headers.set('X-Cache', 'HIT');
+  await cache.put(cacheUrl.toString(), cacheResponse);
+
+  return response;
 }
 
 // =============================================
