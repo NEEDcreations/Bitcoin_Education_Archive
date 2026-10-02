@@ -35,12 +35,18 @@ function startPriceWs() {
     if (_priceWs && _priceWs.readyState <= 1) return;
     if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
     try {
-        // Combined stream: aggTrade for per-trade price ticks + miniTicker for 24h stats
-        var wsUrl = 'wss://stream.binance.com/stream?streams=btcusdt@aggTrade/btcusdt@miniTicker';
-        _priceWs = new WebSocket(wsUrl);
+        // Coinbase Exchange WebSocket — browser-friendly, no auth, fires on every trade
+        // Binance blocks browser WS connections; Coinbase does not
+        _priceWs = new WebSocket('wss://ws-feed.exchange.coinbase.com');
         _priceWs.onopen = function() {
-            console.log('[Dashboard] Price WS connected (Binance aggTrade+miniTicker)');
+            console.log('[Dashboard] Price WS connected (Coinbase)');
             _wsFailCount = 0;
+            // Subscribe to BTC-USD ticker — sends price + open_24h + high_24h + low_24h
+            _priceWs.send(JSON.stringify({
+                type: 'subscribe',
+                product_ids: ['BTC-USD'],
+                channels: ['ticker']
+            }));
             window._wsDataTimer = setTimeout(function() {
                 if (!_lastWsPrice) { console.warn('[Dashboard] WS no data — falling back to polling'); startPricePolling(); }
             }, 8000);
@@ -48,32 +54,28 @@ function startPriceWs() {
         _priceWs.onmessage = function(evt) {
             try {
                 if (window._wsDataTimer) { clearTimeout(window._wsDataTimer); window._wsDataTimer = null; }
-                var msg = JSON.parse(evt.data);
-                var d = msg.data || msg; // combined stream wraps in {stream, data}
-                if (d.e === 'aggTrade') {
-                    // p = trade price — fires on every individual trade
-                    var p = parseFloat(d.p);
-                    if (!isFinite(p)) return;
-                    _lastWsPrice = p;
-                    if (_wsOpenPrice && isFinite(_wsOpenPrice)) {
-                        _lastWsChange = (p - _wsOpenPrice) / _wsOpenPrice * 100;
-                    }
-                    _wsUpdateDom();
-                } else if (d.e === '24hrMiniTicker') {
-                    // o=24h open, h=24h high, l=24h low — fires every second
-                    var open = parseFloat(d.o);
-                    if (isFinite(open) && open > 0) _wsOpenPrice = open;
-                    if (!_lastWsPrice) { _lastWsPrice = parseFloat(d.c); _wsUpdateDom(); }
-                    var wh = parseFloat(d.h), wl = parseFloat(d.l);
-                    if (isFinite(wh)) { var hEl = document.getElementById('dashHighLow_high'); if (hEl) hEl.textContent = '$' + fmtNum(wh, 0); }
-                    if (isFinite(wl)) { var lEl = document.getElementById('dashHighLow_low');  if (lEl) lEl.textContent = '$' + fmtNum(wl, 0); }
+                var d = JSON.parse(evt.data);
+                if (d.type !== 'ticker') return;
+                var p = parseFloat(d.price);
+                if (!isFinite(p)) return;
+                _lastWsPrice = p;
+                // open_24h gives accurate 24h open for % calc
+                var open = parseFloat(d.open_24h);
+                if (isFinite(open) && open > 0) _wsOpenPrice = open;
+                if (_wsOpenPrice && isFinite(_wsOpenPrice)) {
+                    _lastWsChange = (_lastWsPrice - _wsOpenPrice) / _wsOpenPrice * 100;
                 }
+                _wsUpdateDom();
+                // Update 24h High/Low from every tick
+                var wh = parseFloat(d.high_24h), wl = parseFloat(d.low_24h);
+                if (isFinite(wh)) { var hEl = document.getElementById('dashHighLow_high'); if (hEl) hEl.textContent = '$' + fmtNum(wh, 0); }
+                if (isFinite(wl)) { var lEl = document.getElementById('dashHighLow_low');  if (lEl) lEl.textContent = '$' + fmtNum(wl, 0); }
             } catch(e) {}
         };
         _priceWs.onclose = function() {
             _priceWs = null;
             _wsFailCount++;
-            var delay = Math.min(1000 * Math.pow(2, _wsFailCount), 30000); // exponential backoff, max 30s
+            var delay = Math.min(1000 * Math.pow(2, _wsFailCount), 30000);
             console.log('[Dashboard] WS closed, reconnecting in ' + delay + 'ms');
             _wsReconnectTimer = setTimeout(startPriceWs, delay);
         };
