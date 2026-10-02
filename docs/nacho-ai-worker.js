@@ -142,25 +142,43 @@ async function handleBtcData(request, env, corsHeaders) {
       lnNodes:    d.latest ? d.latest.node_count    : d.node_count,
       lnChannels: d.latest ? d.latest.channel_count : d.channel_count,
     })),
-    // 7. CoinGecko — price, change, volume, market cap, supply, high/low, ATH
+    // 7. Coinbase — spot price (reliable from CF IPs, no rate limits on free tier)
+    //    + Kraken ticker for 24h high/low, volume, market cap derived
+    fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot')
+      .then(r => r.json())
+      .then(d => ({ price: d.data?.amount ? parseFloat(d.data.amount) : null }))
+      .catch(() => ({})),
+    fetch('https://api.kraken.com/0/public/Ticker?pair=XBTUSD')
+      .then(r => r.json())
+      .then(d => {
+        const t = d.result?.XXBTZUSD;
+        if (!t) return {};
+        const price = parseFloat(t.c[0]);
+        const open  = parseFloat(t.o);
+        return {
+          high24h:   parseFloat(t.h[1]),
+          low24h:    parseFloat(t.l[1]),
+          volume24h: parseFloat(t.v[1]) * price,
+          change24h: open > 0 ? (price - open) / open * 100 : null,
+        };
+      })
+      .catch(() => ({})),
+    // CoinGecko for supply, ATH, market cap — lower priority, skip if rate-limited
     fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false')
-      .then(r => { if (r.status === 429) throw new Error('rate-limited'); return r.json(); })
+      .then(r => { if (r.status === 429) return { json: () => ({}) }; return r; })
+      .then(r => r.json())
       .then(d => {
         const md = d.market_data || {};
         return {
-          price:          md.current_price?.usd ?? null,
-          change24h:      md.price_change_percentage_24h ?? null,
-          volume24h:      md.total_volume?.usd ?? null,
           marketCap:      md.market_cap?.usd ?? null,
           mktCapChange24h: md.market_cap_change_percentage_24h ?? null,
           supply:         md.circulating_supply ?? null,
-          high24h:        md.high_24h?.usd ?? null,
-          low24h:         md.low_24h?.usd ?? null,
           ath:            md.ath?.usd ?? null,
           athDate:        md.ath_date?.usd ?? null,
           athChange:      md.ath_change_percentage?.usd ?? null,
         };
-      }),
+      })
+      .catch(() => ({})),
     // 8. Alternative.me — Fear & Greed
     fetch('https://api.alternative.me/fng/?limit=1').then(r => r.json()).then(d => ({
       fearGreed:      d.data?.[0] ? parseInt(d.data[0].value) : null,
@@ -227,39 +245,40 @@ async function handleBtcCandles(request, env, corsHeaders) {
   const LIMIT = 20; // bars to return
   let candles = null;
 
-  // Try Binance first (most accurate, no API key needed server-side)
+  // Coinbase Exchange candles — works from CF IPs (Binance+Kraken block/rate-limit CF)
+  // Format: [[ts_s, low, high, open, close, vol], ...] newest first
   try {
-    const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=5m&limit=${LIMIT}`);
+    const r = await fetch(`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=300&limit=${LIMIT}`);
     if (r.ok) {
       const raw = await r.json();
-      // Binance format: [openTime, open, high, low, close, volume, ...]
-      candles = raw.map(k => ({
-        t: k[0],                    // open timestamp ms
-        o: parseFloat(k[1]),
-        h: parseFloat(k[2]),
-        l: parseFloat(k[3]),
-        c: parseFloat(k[4]),
-        v: parseFloat(k[5]),
-      }));
+      if (Array.isArray(raw) && raw.length) {
+        candles = raw.slice(0, LIMIT).reverse().map(k => ({
+          t: k[0] * 1000,
+          o: parseFloat(k[3]),
+          h: parseFloat(k[2]),
+          l: parseFloat(k[1]),
+          c: parseFloat(k[4]),
+          v: parseFloat(k[5]),
+        }));
+      }
     }
   } catch(e) {}
 
-  // Fallback: Kraken OHLC (free, reliable)
+  // Fallback: Bitstamp (also works from CF)
   if (!candles) {
     try {
-      const r = await fetch(`https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5&count=${LIMIT}`);
+      const r = await fetch(`https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=300&limit=${LIMIT}`);
       if (r.ok) {
         const raw = await r.json();
-        const pairs = raw.result?.XXBTZUSD || raw.result?.XBTUSDT || Object.values(raw.result || {})[0];
-        if (pairs) {
-          // Kraken format: [time(s), open, high, low, close, vwap, volume, count]
-          candles = pairs.slice(-LIMIT).map(k => ({
-            t: k[0] * 1000,
-            o: parseFloat(k[1]),
-            h: parseFloat(k[2]),
-            l: parseFloat(k[3]),
-            c: parseFloat(k[4]),
-            v: parseFloat(k[6]),
+        const bars = raw.data?.ohlc;
+        if (bars && bars.length) {
+          candles = bars.map(k => ({
+            t: parseInt(k.timestamp) * 1000,
+            o: parseFloat(k.open),
+            h: parseFloat(k.high),
+            l: parseFloat(k.low),
+            c: parseFloat(k.close),
+            v: parseFloat(k.volume),
           }));
         }
       }

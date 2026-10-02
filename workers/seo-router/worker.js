@@ -114,7 +114,7 @@ function buildCSP(nonce) {
             " https://api.alternative.me" +          // Fear & Greed index
             " https://mempool.space" +               // Block explorer / REST
             " wss://mempool.space" +                 // Block-surf WebSocket
-            " wss://ws.coincap.io" +                 // CoinCap price WebSocket
+            " wss://stream.binance.com" +           // Binance aggTrade+miniTicker WebSocket
             " https://colintalkscrypto.com" +        // CBBI data
             " https://raw.githubusercontent.com" +   // Channel data files
             " https://*.needcreations.workers.dev" + // CF Workers (search, embed-proxy, pleb-sync)
