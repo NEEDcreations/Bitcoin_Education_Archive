@@ -113,6 +113,13 @@ var _dashData = null;
 var _dashLoading = false;
 var _dashInterval = null;
 
+// ---- Candle Chart State ----
+var _candleData = null;
+var _candleInterval = null;
+var _candleFetchTs = 0;
+var CANDLE_WORKER_URL = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/btc-candles';
+var CANDLE_REFRESH_MS = 5 * 60 * 1000; // re-fetch historical bars every 5 min
+
 // ---- Number Formatting ----
 function fmtNum(n, decimals) {
     if (n === null || n === undefined) return '—';
@@ -224,6 +231,93 @@ async function fetchDashboardData() {
     return data;
 }
 
+// ---- Candle Chart ----
+async function fetchCandleData() {
+    try {
+        var r = await fetch(CANDLE_WORKER_URL);
+        if (r.ok) {
+            var d = await r.json();
+            if (d.candles && d.candles.length >= 2) {
+                _candleData = d.candles;
+                _candleFetchTs = Date.now();
+            }
+        }
+    } catch(e) { console.warn('[Dashboard] Candle fetch failed:', e.message); }
+}
+
+function renderCandleChart(candles, livePrice) {
+    if (!candles || candles.length < 2) return '<div style="text-align:center;padding:24px;color:var(--text-faint);font-size:0.75rem;">Fetching chart data...</div>';
+    var W = 460, H = 170, PL = 54, PR = 8, PT = 8, PB = 22;
+    var IW = W - PL - PR, IH = H - PT - PB;
+    // Deep-copy + apply live price to last candle
+    var cs = candles.map(function(c) { return {t:c.t,o:c.o,h:c.h,l:c.l,c:c.c,v:c.v}; });
+    if (livePrice && cs.length) {
+        var last = cs[cs.length - 1];
+        last.c = livePrice;
+        if (livePrice > last.h) last.h = livePrice;
+        if (livePrice < last.l) last.l = livePrice;
+    }
+    var minL = cs.reduce(function(m,c){return Math.min(m,c.l);}, Infinity);
+    var maxH = cs.reduce(function(m,c){return Math.max(m,c.h);}, -Infinity);
+    if (!isFinite(minL) || !isFinite(maxH)) return '<div style="text-align:center;padding:24px;color:var(--text-faint);font-size:0.75rem;">Chart data unavailable</div>';
+    var rng = maxH - minL || 1;
+    var pd = rng * 0.07;
+    var lo = minL - pd, hi = maxH + pd, pr = hi - lo;
+    function py(p) { return PT + IH * (1 - (p - lo) / pr); }
+    var n = cs.length, cw = IW / n, bw = Math.max(2, Math.floor(cw * 0.55));
+    function cx(i) { return PL + (i + 0.5) * cw; }
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">';
+    // Grid lines + price labels
+    for (var gi = 1; gi <= 4; gi++) {
+        var gp = lo + pr * (gi / 5), gy = py(gp).toFixed(1);
+        svg += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>';
+        svg += '<text x="' + (PL - 3) + '" y="' + (parseFloat(gy) + 3.5).toFixed(1) + '" text-anchor="end" fill="rgba(255,255,255,0.35)" font-size="8.5" font-family="monospace">$' + Math.round(gp).toLocaleString() + '</text>';
+    }
+    // Candles
+    for (var i = 0; i < n; i++) {
+        var c = cs[i], isUp = c.c >= c.o, col = isUp ? '#22c55e' : '#ef4444';
+        var x = cx(i), isLast = i === n - 1;
+        var wyTop = py(c.h).toFixed(1), wyBot = py(c.l).toFixed(1);
+        var byTop = py(Math.max(c.o, c.c)).toFixed(1);
+        var byH = Math.max(1, py(Math.min(c.o, c.c)) - py(Math.max(c.o, c.c))).toFixed(1);
+        svg += '<line x1="' + x.toFixed(1) + '" y1="' + wyTop + '" x2="' + x.toFixed(1) + '" y2="' + wyBot + '" stroke="' + col + '" stroke-width="1.2" opacity="' + (isLast ? '1' : '0.8') + '"/>';
+        svg += '<rect x="' + (x - bw/2).toFixed(1) + '" y="' + byTop + '" width="' + bw + '" height="' + byH + '" fill="' + col + '" opacity="' + (isLast ? '1' : '0.8') + '"/>';
+        if (isLast) {
+            var dotY = py(c.c).toFixed(1);
+            svg += '<circle cx="' + x.toFixed(1) + '" cy="' + dotY + '" r="3" fill="' + col + '"/>';
+            svg += '<text x="' + (W - PR - 1) + '" y="' + (parseFloat(dotY) + 3.5).toFixed(1) + '" text-anchor="end" fill="' + col + '" font-size="9" font-weight="700" font-family="monospace">$' + Math.round(c.c).toLocaleString() + '</text>';
+        }
+    }
+    // X-axis time labels
+    var step = Math.max(1, Math.floor(n / 5));
+    for (var i = 0; i < n; i++) {
+        if (i !== 0 && i % step !== 0 && i !== n - 1) continue;
+        var lbl = i === n - 1 ? 'now' : new Date(cs[i].t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
+        svg += '<text x="' + cx(i).toFixed(1) + '" y="' + (H - 5) + '" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="7.5" font-family="monospace">' + lbl + '</text>';
+    }
+    svg += '</svg>';
+    return svg;
+}
+
+function _updateCandleChart() {
+    var el = document.getElementById('dashCandleChartSvg');
+    if (!el) { if (_candleInterval) { clearInterval(_candleInterval); _candleInterval = null; } return; }
+    if (Date.now() - _candleFetchTs > CANDLE_REFRESH_MS) fetchCandleData(); // async, non-blocking
+    if (!_candleData || !_candleData.length) return;
+    var live = _lastWsPrice || (_dashData && _dashData.price) || null;
+    el.innerHTML = renderCandleChart(_candleData, live);
+}
+
+function _loadCandleChart() {
+    if (_candleInterval) { clearInterval(_candleInterval); _candleInterval = null; }
+    if (_candleData && Date.now() - _candleFetchTs < 30000) {
+        _updateCandleChart();
+    } else {
+        fetchCandleData().then(function() { _updateCandleChart(); });
+    }
+    _candleInterval = setInterval(_updateCandleChart, 1000);
+}
+
 // Safety: always clear loading flag after 15s max
 setInterval(function() { if (_dashLoading) { console.warn('[Dashboard] Force-clearing stuck loading flag'); _dashLoading = false; } }, 15000);
 
@@ -292,6 +386,15 @@ function renderDashboard(data) {
     html += '<span>24h High: <strong id="dashHighLow_high" style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
     html += '<span>24h Low: <strong id="dashHighLow_low" style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
     html += '</div>';
+    html += '</div>';
+
+    // Live candlestick chart
+    html += '<div style="margin-bottom:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:rgba(0,0,0,0.15);">'
+    html += '<div style="padding:8px 12px 2px;display:flex;justify-content:space-between;align-items:center;">';
+    html += '<span style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">📈 BTC/USD &middot; 5m &middot; <span style="color:#22c55e;">⬤ Live</span></span>';
+    html += '<span style="color:var(--text-faint);font-size:0.62rem;">20 bars</span>';
+    html += '</div>';
+    html += '<div id="dashCandleChartSvg" style="padding:0 4px 4px;min-height:80px;display:flex;align-items:center;justify-content:center;color:var(--text-faint);font-size:0.75rem;">Loading chart...</div>';
     html += '</div>';
 
     // Halving Countdown
@@ -428,10 +531,11 @@ function renderDashboard(data) {
 
 
 
-    // Start halving countdown ticker + attach tooltip listeners after DOM renders
+    // Start halving countdown ticker + attach tooltip listeners + candle chart after DOM renders
     setTimeout(function() {
         if (window._halvingTargetMs && document.getElementById('halvSecs') && typeof window._startHalvingTicker === 'function') window._startHalvingTicker();
         if (typeof window._attachTipListeners === 'function') window._attachTipListeners();
+        _loadCandleChart();
     }, 100);
 
     return html;
@@ -637,6 +741,7 @@ window.closeDashboard = function() {
     var overlay = document.getElementById('btcDashOverlay');
     if (overlay) overlay.remove();
     if (_dashInterval) { clearInterval(_dashInterval); _dashInterval = null; }
+    if (_candleInterval) { clearInterval(_candleInterval); _candleInterval = null; }
 };
 
 // ---- Auto-inject on page load ----

@@ -35,6 +35,11 @@ export default {
       return handleBtcData(request, env, corsHeaders);
     }
 
+    // Route: /btc-candles — 5-min OHLCV candles, 60s edge cache
+    if (path === '/btc-candles') {
+      return handleBtcCandles(request, env, corsHeaders);
+    }
+
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -204,6 +209,79 @@ async function handleBtcData(request, env, corsHeaders) {
   cacheResponse.headers.set('X-Cache', 'HIT');
   await cache.put(cacheUrl.toString(), cacheResponse);
 
+  return response;
+}
+
+// =============================================
+// 📊 Bitcoin Candle Proxy — 5-min OHLCV, 60s edge cache
+// Fetches from Binance server-side (no CORS), falls back to Kraken.
+// =============================================
+
+async function handleBtcCandles(request, env, corsHeaders) {
+  const cache = caches.default;
+  const cacheUrl = new URL(request.url);
+  cacheUrl.pathname = '/btc-candles-cache';
+  const cached = await cache.match(cacheUrl.toString());
+  if (cached) return cached;
+
+  const LIMIT = 20; // bars to return
+  let candles = null;
+
+  // Try Binance first (most accurate, no API key needed server-side)
+  try {
+    const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=5m&limit=${LIMIT}`);
+    if (r.ok) {
+      const raw = await r.json();
+      // Binance format: [openTime, open, high, low, close, volume, ...]
+      candles = raw.map(k => ({
+        t: k[0],                    // open timestamp ms
+        o: parseFloat(k[1]),
+        h: parseFloat(k[2]),
+        l: parseFloat(k[3]),
+        c: parseFloat(k[4]),
+        v: parseFloat(k[5]),
+      }));
+    }
+  } catch(e) {}
+
+  // Fallback: Kraken OHLC (free, reliable)
+  if (!candles) {
+    try {
+      const r = await fetch(`https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5&count=${LIMIT}`);
+      if (r.ok) {
+        const raw = await r.json();
+        const pairs = raw.result?.XXBTZUSD || raw.result?.XBTUSDT || Object.values(raw.result || {})[0];
+        if (pairs) {
+          // Kraken format: [time(s), open, high, low, close, vwap, volume, count]
+          candles = pairs.slice(-LIMIT).map(k => ({
+            t: k[0] * 1000,
+            o: parseFloat(k[1]),
+            h: parseFloat(k[2]),
+            l: parseFloat(k[3]),
+            c: parseFloat(k[4]),
+            v: parseFloat(k[6]),
+          }));
+        }
+      }
+    } catch(e) {}
+  }
+
+  if (!candles) {
+    return new Response(JSON.stringify({ error: 'candle data unavailable' }), {
+      status: 503,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const body = JSON.stringify({ candles, ts: Date.now() });
+  const response = new Response(body, {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=60, s-maxage=60',
+    },
+  });
+  await cache.put(cacheUrl.toString(), response.clone());
   return response;
 }
 
