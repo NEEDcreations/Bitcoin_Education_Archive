@@ -18492,7 +18492,23 @@ window.triviaAnswer = function(chosenIdx) {
         // Also write per-day doc
         var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
         dayStatsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-        db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true }).catch(function() {});
+        db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true })
+            .then(function() { return db.collection('trivia_stats').doc(todayKey).get(); })
+            .then(function(doc) {
+                if (!doc.exists) return;
+                var stats = doc.data();
+                var total = stats.total || 1;
+                for (var _j = 0; _j < t.options.length; _j++) {
+                    var _count = stats['option_' + _j] || 0;
+                    var _pct = Math.round((_count / total) * 100);
+                    var _bar = document.getElementById('triviaBar_' + _j);
+                    var _pct2 = document.getElementById('triviaPct_' + _j);
+                    if (_bar) _bar.style.width = _pct + '%';
+                    if (_pct2) _pct2.textContent = _pct + '% (' + _count + ')';
+                }
+                var _totEl = document.getElementById('triviaTotalVotes');
+                if (_totEl) _totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' today';
+            }).catch(function() {});
     }
 
     // Re-render immediately with optimistic +1 so count is correct before Firestore write settles
@@ -18623,7 +18639,7 @@ function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
     if (typeof db !== 'undefined' && poll.id) {
         var pollId = poll.id + '_' + todayKey;
         // Force server read so vote totals are always fresh (cache only has local writes)
-        db.collection('poll_votes').doc(pollId).get({ source: 'server' }).then(function(doc) {
+        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
             if (doc.exists) {
                 var d = doc.data();
                 var votes = d.votes || poll.options.map(function() { return 0; });
