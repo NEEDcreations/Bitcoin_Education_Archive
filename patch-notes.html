@@ -52,10 +52,42 @@
   <div class="patch">
     <div class="patch-header">
       <div>
+        <div class="patch-title">Bitcoin Dashboard Overhaul</div>
+        <div class="patch-date">October 2, 2026 · v2079</div>
+      </div>
+      <div class="patch-badge">Latest</div>
+    </div>
+    <div class="patch-body">
+
+      <div class="section-label">🆕 New</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Live candlestick chart</strong> — 5-minute OHLCV, 20 bars, on the Bitcoin Network dashboard. Last candle updates every second with live trade price.</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Real-time price WebSocket</strong> — Coinbase Exchange aggTrade stream fires on every individual trade (multiple times/second). Price tile, candle, and 24h High/Low all update live.</div></div>
+
+      <div class="section-label">⚡ Performance</div>
+      <div class="item"><span class="tag perf">PERF</span><div class="item-text"><strong style="color:var(--text);">Dashboard API proxied through Cloudflare Worker.</strong> <span>1,000 users opening the dashboard simultaneously = 1 upstream API call, not 1,000. All data (price, hashrate, fees, mempool, candles) fetched server-side and edge-cached for 90 seconds. Rate limiting from CoinGecko, Binance, and other external APIs is eliminated entirely.</span></div></div>
+
+      <div class="section-label">🔧 Fixes</div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Dashboard crashed on second open — <code>halvingEta</code> was stored as a Date object but JSON-serialized to a string in localStorage. Calling <code>.toLocaleDateString()</code> on a string threw, breaking the entire render for returning users.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Supply, Market Cap, ATH, and ATH drawdown no longer show — — CoinGecko rate-limits Cloudflare IPs. Supply now computed directly from block height (exact formula). Market cap derived from price × supply. ATH uses a hardcoded fallback (08,135, Jan 2025) if CoinGecko fails.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">4 Top Indicators (Fear &amp; Greed, ATH Drawdown, NVT Ratio, BTC Dominance) were silently skipped when their data wasn't available on first load — all now always render with "Loading..." placeholders. Indicator count is stable at 31.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Candlestick chart axis labels increased to 12px — previous sizes (8.5px Y-axis, 7.5px X-axis) were unreadable on most screens.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Timechain Calendar iframe restored — <code>timechaincalendar.com</code> was dropped from <code>frame-src</code> when the SEO router CSP was rewritten.</div></div>
+
+      <div class="section-label">🧠 Quest Hub</div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Trivia vote totals update immediately after answering.</strong> Previously showed "1 answer today" (just your own vote) until you switched tabs and came back. Now chains a real Firestore read after the write and patches the DOM directly.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Poll vote results show correct community counts instantly after voting.</strong> Was using <code>get({ source: 'server' })</code> which raced against the just-committed transaction. Removed the server-source override — Firestore's local cache already had the committed data.</div></div>
+
+    </div>
+  </div>
+
+  <!-- PREVIOUS PATCH (October Calibration) -->
+  <div class="patch">
+    <div class="patch-header">
+      <div>
         <div class="patch-title">October Calibration</div>
         <div class="patch-date">October 1, 2026 · v2078</div>
       </div>
-      <div class="patch-badge">Latest</div>
+      <div class="patch-badge prev">Previous</div>
     </div>
     <div class="patch-body">
 
