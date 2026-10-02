@@ -29926,7 +29926,7 @@ async function fetchCandleData() {
 
 function renderCandleChart(candles, livePrice) {
     if (!candles || candles.length < 2) return '<div style="text-align:center;padding:24px;color:var(--text-faint);font-size:0.75rem;">Fetching chart data...</div>';
-    var W = 460, H = 176, PL = 62, PR = 8, PT = 8, PB = 26;
+    var W = 460, H = 185, PL = 70, PR = 8, PT = 8, PB = 30;
     var IW = W - PL - PR, IH = H - PT - PB;
     // Deep-copy + apply live price to last candle
     var cs = candles.map(function(c) { return {t:c.t,o:c.o,h:c.h,l:c.l,c:c.c,v:c.v}; });
@@ -29950,7 +29950,7 @@ function renderCandleChart(candles, livePrice) {
     for (var gi = 1; gi <= 4; gi++) {
         var gp = lo + pr * (gi / 5), gy = py(gp).toFixed(1);
         svg += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>';
-        svg += '<text x="' + (PL - 3) + '" y="' + (parseFloat(gy) + 3.5).toFixed(1) + '" text-anchor="end" fill="rgba(255,255,255,0.35)" font-size="11" font-family="monospace">$' + Math.round(gp).toLocaleString() + '</text>';
+        svg += '<text x="' + (PL - 3) + '" y="' + (parseFloat(gy) + 3.5).toFixed(1) + '" text-anchor="end" fill="rgba(255,255,255,0.35)" font-size="12" font-family="monospace">$' + Math.round(gp).toLocaleString() + '</text>';
     }
     // Candles
     for (var i = 0; i < n; i++) {
@@ -29964,7 +29964,7 @@ function renderCandleChart(candles, livePrice) {
         if (isLast) {
             var dotY = py(c.c).toFixed(1);
             svg += '<circle cx="' + x.toFixed(1) + '" cy="' + dotY + '" r="3" fill="' + col + '"/>';
-            svg += '<text x="' + (W - PR - 1) + '" y="' + (parseFloat(dotY) + 3.5).toFixed(1) + '" text-anchor="end" fill="' + col + '" font-size="9" font-weight="700" font-family="monospace">$' + Math.round(c.c).toLocaleString() + '</text>';
+            svg += '<text x="' + (W - PR - 1) + '" y="' + (parseFloat(dotY) + 3.5).toFixed(1) + '" text-anchor="end" fill="' + col + '" font-size="12" font-weight="700" font-family="monospace">$' + Math.round(c.c).toLocaleString() + '</text>';
         }
     }
     // X-axis time labels
@@ -29972,7 +29972,7 @@ function renderCandleChart(candles, livePrice) {
     for (var i = 0; i < n; i++) {
         if (i !== 0 && i % step !== 0 && i !== n - 1) continue;
         var lbl = i === n - 1 ? 'now' : new Date(cs[i].t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
-        svg += '<text x="' + cx(i).toFixed(1) + '" y="' + (H - 5) + '" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="10" font-family="monospace">' + lbl + '</text>';
+        svg += '<text x="' + cx(i).toFixed(1) + '" y="' + (H - 5) + '" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="12" font-family="monospace">' + lbl + '</text>';
     }
     svg += '</svg>';
     return svg;

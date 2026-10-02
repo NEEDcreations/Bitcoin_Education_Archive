@@ -163,22 +163,25 @@ async function handleBtcData(request, env, corsHeaders) {
         };
       })
       .catch(() => ({})),
-    // CoinGecko for supply, ATH, market cap — lower priority, skip if rate-limited
-    fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false')
-      .then(r => { if (r.status === 429) return { json: () => ({}) }; return r; })
-      .then(r => r.json())
+    // CoinGecko for ATH — add User-Agent header to reduce rate-limit chance
+    // supply + marketCap computed locally (exact math, never null)
+    fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false', {
+      headers: { 'User-Agent': 'Bitcoin-Education-Archive/1.0 (bitcoineducation.quest)' }
+    })
+      .then(r => { if (r.status === 429) throw new Error('rate-limited'); return r.json(); })
       .then(d => {
         const md = d.market_data || {};
         return {
-          marketCap:      md.market_cap?.usd ?? null,
           mktCapChange24h: md.market_cap_change_percentage_24h ?? null,
-          supply:         md.circulating_supply ?? null,
-          ath:            md.ath?.usd ?? null,
-          athDate:        md.ath_date?.usd ?? null,
-          athChange:      md.ath_change_percentage?.usd ?? null,
+          ath:             md.ath?.usd ?? null,
+          athDate:         md.ath_date?.usd ?? null,
+          athChange:       md.ath_change_percentage?.usd ?? null,
         };
       })
-      .catch(() => ({})),
+      .catch(() => ({
+        // Hardcoded fallback — ATH from Jan 2025, update periodically
+        ath: 108135, athDate: '2025-01-20T00:00:00.000Z', athChange: null,
+      })),
     // 8. Alternative.me — Fear & Greed
     fetch('https://api.alternative.me/fng/?limit=1').then(r => r.json()).then(d => ({
       fearGreed:      d.data?.[0] ? parseInt(d.data[0].value) : null,
@@ -205,6 +208,23 @@ async function handleBtcData(request, env, corsHeaders) {
     data.halvingDays  = Math.floor(totalSec / 86400);
     data.halvingHours = Math.floor((totalSec % 86400) / 3600);
     data.halvingMins  = Math.floor((totalSec % 3600) / 60);
+  }
+  // Compute circulating supply from blockHeight — exact, never null
+  // Bitcoin supply formula: sum of block rewards across all epochs
+  if (data.blockHeight && !data.supply) {
+    let supply = 0;
+    const epoch = Math.floor(data.blockHeight / 210000);
+    for (let e = 0; e < epoch; e++) supply += 210000 * (50 / Math.pow(2, e));
+    supply += (data.blockHeight % 210000) * (50 / Math.pow(2, epoch));
+    data.supply = Math.round(supply * 1e8) / 1e8; // satoshi-precise
+  }
+  // Derive marketCap from price × supply — never null if both present
+  if (data.price && data.supply && !data.marketCap) {
+    data.marketCap = data.price * data.supply;
+  }
+  // Fix athChange if ath and price both present
+  if (data.ath && data.price && !data.athChange) {
+    data.athChange = (data.price - data.ath) / data.ath * 100;
   }
   if (data.price) {
     data.satsPerDollar = Math.round(100000000 / data.price);
