@@ -135,7 +135,8 @@ function buildCSP(nonce) {
             " https://bitcoin-education-archive.firebaseapp.com" + // Firebase Auth iframe
             " https://accounts.google.com" +          // Google Sign-In popup
             " https://www.google.com" +          // reCAPTCHA v3 hidden iframe (App Check)
-            " https://leo-mattes.com",           // Pump It! game (Bitcoin Beats tab)
+            " https://leo-mattes.com" +           // Pump It! game (Bitcoin Beats tab)
+            " https://timechaincalendar.com",      // Timechain Calendar iframe (dashboard)
 
         "font-src 'self' https://fonts.gstatic.com",
 
