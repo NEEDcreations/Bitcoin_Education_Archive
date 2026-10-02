@@ -29690,7 +29690,7 @@ function startPriceWs() {
     if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
     try {
         // Combined stream: aggTrade for per-trade price ticks + miniTicker for 24h stats
-        var wsUrl = 'wss://stream.binance.com:9443/stream?streams=btcusdt@aggTrade/btcusdt@miniTicker';
+        var wsUrl = 'wss://stream.binance.com/stream?streams=btcusdt@aggTrade/btcusdt@miniTicker';
         _priceWs = new WebSocket(wsUrl);
         _priceWs.onopen = function() {
             console.log('[Dashboard] Price WS connected (Binance aggTrade+miniTicker)');
@@ -29714,10 +29714,13 @@ function startPriceWs() {
                     }
                     _wsUpdateDom();
                 } else if (d.e === '24hrMiniTicker') {
-                    // o = 24h open price — updates every second, keeps % accurate
+                    // o=24h open, h=24h high, l=24h low — fires every second
                     var open = parseFloat(d.o);
                     if (isFinite(open) && open > 0) _wsOpenPrice = open;
                     if (!_lastWsPrice) { _lastWsPrice = parseFloat(d.c); _wsUpdateDom(); }
+                    var wh = parseFloat(d.h), wl = parseFloat(d.l);
+                    if (isFinite(wh)) { var hEl = document.getElementById('dashHighLow_high'); if (hEl) hEl.textContent = '$' + fmtNum(wh, 0); }
+                    if (isFinite(wl)) { var lEl = document.getElementById('dashHighLow_low');  if (lEl) lEl.textContent = '$' + fmtNum(wl, 0); }
                 }
             } catch(e) {}
         };
@@ -30491,14 +30494,15 @@ function loadTopIndicators() {
         });
     }
 
-    // 2. Fear & Greed (already fetched)
-    if (fearGreed) {
-        var fgColor = fearGreed <= 25 ? '#ef4444' : fearGreed <= 45 ? '#f97316' : fearGreed <= 55 ? '#eab308' : fearGreed <= 75 ? '#84cc16' : '#22c55e';
+    // 2. Fear & Greed (always show)
+    {
+        var fgHas = fearGreed > 0;
+        var fgColor = !fgHas ? 'var(--heading)' : fearGreed <= 25 ? '#ef4444' : fearGreed <= 45 ? '#f97316' : fearGreed <= 55 ? '#eab308' : fearGreed <= 75 ? '#84cc16' : '#22c55e';
         indicators.push({
             emoji: '😱', name: 'Fear & Greed',
-            value: fearGreed,
+            value: fgHas ? fearGreed : '—',
             color: fgColor,
-            sub: fearLabel,
+            sub: fgHas ? fearLabel : 'Loading...',
             tip: 'Crypto Fear & Greed Index. 0 = Extreme Fear (potential buy), 100 = Extreme Greed (potential sell). Aggregates volatility, momentum, social media, and surveys.'
         });
     }
@@ -30522,15 +30526,15 @@ function loadTopIndicators() {
         });
     }
 
-    // 6. Days Since ATH
-    if (d.ath && d.athDate) {
-        var athDate = new Date(d.athDate);
-        var daysSinceATH = Math.floor((Date.now() - athDate.getTime()) / 86400000);
-        var drawdown = d.athChange ? Math.abs(d.athChange).toFixed(1) : '—';
+    // 6. ATH Drawdown (always show)
+    {
+        var athHas = !!(d.ath && d.athDate);
+        var drawdown = athHas && d.athChange ? Math.abs(d.athChange).toFixed(1) : null;
+        var daysSinceATH = athHas ? Math.floor((Date.now() - new Date(d.athDate).getTime()) / 86400000) : null;
         indicators.push({
             emoji: '🏔️', name: 'ATH Drawdown',
-            value: '-' + drawdown + '%',
-            sub: daysSinceATH + ' days since ATH ($' + fmtNum(Math.round(d.ath)) + ')',
+            value: drawdown ? '-' + drawdown + '%' : '—',
+            sub: athHas ? daysSinceATH + ' days since ATH ($' + fmtNum(Math.round(d.ath)) + ')' : 'Loading...',
             tip: 'Current drawdown from the all-time high. In previous cycles, bear markets saw -70% to -85% drawdowns. Recovery to new ATH has always followed.'
         });
     }
@@ -30559,34 +30563,29 @@ function loadTopIndicators() {
         });
     }
 
-    // 9. NVT Ratio (Network Value to Transactions)
-    if (price && supply && d.volume24h) {
-        var marketCapNVT = price * supply;
-        var nvt = d.volume24h > 0 ? (marketCapNVT / d.volume24h).toFixed(1) : '—';
-        var nvtColor = nvt < 30 ? '#22c55e' : nvt > 150 ? '#ef4444' : 'var(--heading)';
+    // 9. NVT Ratio (always show)
+    {
+        var nvtHas = !!(price && supply && d.volume24h);
+        var nvt = nvtHas ? (price * supply / d.volume24h).toFixed(1) : null;
+        var nvtNum = parseFloat(nvt);
+        var nvtColor = !nvtHas ? 'var(--heading)' : nvtNum < 30 ? '#22c55e' : nvtNum > 150 ? '#ef4444' : 'var(--heading)';
         indicators.push({
             emoji: '📡', name: 'NVT Ratio',
-            value: nvt,
+            value: nvtHas ? nvt : '—',
             color: nvtColor,
-            sub: nvt < 30 ? 'Undervalued zone' : nvt > 150 ? 'Overvalued zone' : 'Normal range',
+            sub: nvtHas ? (nvtNum < 30 ? 'Undervalued zone' : nvtNum > 150 ? 'Overvalued zone' : 'Normal range') : 'Loading...',
             tip: 'Network Value to Transactions ratio. Compares market cap to annualized transaction volume. Below 30 = undervalued relative to usage. Above 150 = potentially overvalued. Think of it like P/E ratio for Bitcoin.'
         });
     }
 
-    // 11. Bitcoin Dominance (from market cap vs total crypto market)
-    if (d.marketCap) {
-        // CoinGecko gives BTC market cap; total crypto ~$2.5T estimate
-        var totalCryptoMarketCap = d.marketCap / 0.62; // rough estimate: BTC ~62% dominance
-        var dominance = ((d.marketCap / totalCryptoMarketCap) * 100).toFixed(1);
-        // Actually, use a more accurate approach — fetch or estimate
-        indicators.push({
-            emoji: '👑', name: 'BTC Dominance',
-            value: '~62%',
-            sub: 'Market cap share vs all crypto',
-            tip: 'Bitcoin\'s share of the total cryptocurrency market cap. Higher dominance = Bitcoin is outperforming alts. During alt seasons, dominance drops below 40%. During Bitcoin seasons (now), it rises above 55-65%. Historically, increasing dominance signals strength.',
-            id: 'btcDominance'
-        });
-    }
+    // 11. Bitcoin Dominance (always show — live value fetched async)
+    indicators.push({
+        emoji: '👑', name: 'BTC Dominance',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading...',
+        tip: 'Bitcoin\'s share of the total cryptocurrency market cap. Higher dominance = Bitcoin is outperforming alts. During alt seasons, dominance drops below 40%. During Bitcoin seasons (now), it rises above 55-65%. Historically, increasing dominance signals strength.',
+        id: 'btcDominance'
+    });
 
     // MVRV Z-Score (loaded from CBBI API)
     indicators.push({
