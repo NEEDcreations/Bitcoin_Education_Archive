@@ -8,6 +8,7 @@
  */
 
 const functions = require('firebase-functions');
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 
@@ -95,9 +96,8 @@ async function postTweet(text) {
 
 // ── Cloud Function ────────────────────────────────────────────────────────
 
-exports.tweetSatoshisFavor = functions.firestore
-  .document('satoshiFavor/current')
-  .onWrite(async (change, context) => {
+exports.tweetSatoshisFavor = onDocumentWritten('satoshiFavor/current', async (event) => {
+    const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
     const before = change.before.exists ? change.before.data() : null;
     const after  = change.after.exists  ? change.after.data()  : null;
 

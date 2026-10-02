@@ -3,105 +3,135 @@
     "name": "Channel-Crawler",
     "description": "100 different users must each visit at least 5 learning topics.",
     "metric": "uniqueUsers5Topics",
-    "target": 100,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/channel-crawler.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/channel-crawler.png",
+    "damageScale": 10,
+    "communityTarget": 100
   },
   {
     "name": "Quiz-Crusader",
     "description": "The community must complete 1,000 quiz quests.",
     "metric": "quizCompletions",
     "target": 1000,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/quiz-crusader.png"
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/quiz-crusader.png",
+    "damageScale": 1,
+    "communityTarget": 1000
   },
   {
     "name": "TV-Titan",
     "description": "The community must watch 200 hours of Timechain TV.",
     "metric": "watchMinutes",
-    "target": 12000,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/tv-titan.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/tv-titan.png",
+    "damageScale": 0.0833333,
+    "communityTarget": 12000
   },
   {
     "name": "Beats-Baron",
     "description": "The community must listen to 150 hours of Bitcoin Beats.",
     "metric": "beatsMinutes",
-    "target": 9000,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/beats-baron.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/beats-baron.png",
+    "damageScale": 0.111111,
+    "communityTarget": 9000
   },
   {
     "name": "Flash-Flash",
     "description": "Complete 125 flashcard sets across the community.",
     "metric": "flashcardCompletions",
-    "target": 125,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/flash-flash.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/flash-flash.png",
+    "damageScale": 8,
+    "communityTarget": 125
   },
   {
     "name": "XP-Hoarder",
     "description": "The community must earn 250,000 XP collectively.",
     "metric": "totalXP",
-    "target": 250000,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/xp-hoarder.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/xp-hoarder.png",
+    "damageScale": 0.004,
+    "communityTarget": 250000
   },
   {
     "name": "Poll-Patroller",
     "description": "Cast 500 poll votes in the Quest Hub.",
     "metric": "pollVotes",
-    "target": 500,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/poll-patroller.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/poll-patroller.png",
+    "damageScale": 2,
+    "communityTarget": 500
   },
   {
     "name": "Chat-Charger",
     "description": "Send 2,500 messages in Global Chat.",
     "metric": "chatMessages",
-    "target": 2500,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/chat-charger.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/chat-charger.png",
+    "damageScale": 0.4,
+    "communityTarget": 2500
   },
   {
     "name": "Badge-Builder",
     "description": "150 distinct badges must be earned across the community.",
     "metric": "badgesEarned",
-    "target": 150,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/badge-builder.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/badge-builder.png",
+    "damageScale": 6.66667,
+    "communityTarget": 150
   },
   {
     "name": "Streak-Sage",
     "description": "The community must collectively reach 25 seven-day visit streaks. Every time any user hits a 7-day streak, it deals 1 damage.",
     "metric": "streakUsers",
-    "target": 25,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/streak-sage.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/streak-sage.png",
+    "damageScale": 40,
+    "communityTarget": 25
   },
   {
     "name": "Topic-Explorer",
     "description": "Every learning topic must be visited at least 3 times each (collectively).",
     "metric": "uniqueTopicsVisited",
-    "target": 250,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/topic-explorer.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/topic-explorer.png",
+    "damageScale": 4,
+    "communityTarget": 250
   },
   {
     "name": "Lightning-Lancer",
     "description": "100 Lightning tips sent across the community.",
     "metric": "tipsSent",
-    "target": 100,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/lightning-lancer.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/lightning-lancer.png",
+    "damageScale": 10,
+    "communityTarget": 100
   },
   {
     "name": "Forum-Forge",
     "description": "150 new forum posts created.",
     "metric": "forumPosts",
-    "target": 150,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/forum-forge.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/forum-forge.png",
+    "damageScale": 6.66667,
+    "communityTarget": 150
   },
   {
     "name": "Trivia-Tactician",
     "description": "1,500 correct trivia answers across the community.",
     "metric": "triviaCorrect",
-    "target": 1500,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/trivia-tactician.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/trivia-tactician.png",
+    "damageScale": 0.666667,
+    "communityTarget": 1500
   },
   {
     "name": "Content-Conqueror",
     "description": "The community must read 2,500 total learning topics.",
     "metric": "totalTopicReads",
-    "target": 2500,
-    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/content-conqueror.png"
+    "target": 1000,
+    "image": "https://assets.bitcoineducation.quest/images/raid-bosses/content-conqueror.png",
+    "damageScale": 0.4,
+    "communityTarget": 2500
   }
 ]

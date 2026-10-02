@@ -6,6 +6,7 @@
  * array stored in Firestore — never trusting client-supplied `correct` flags.
  */
 const functions = require('firebase-functions');
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const db = admin.firestore();
 
@@ -22,9 +23,8 @@ function streakPts(answers, winIdx) {
   return 10 + (streak > 1 ? 5 * (streak - 1) : 0);
 }
 
-exports.pvpResolveRound = functions.firestore
-  .document('pvp_matches/{matchId}')
-  .onWrite(async (change, context) => {
+exports.pvpResolveRound = onDocumentWritten('pvp_matches/{matchId}', async (event) => {
+    const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
     if (!change.after.exists) return null;
     const data = change.after.data();
 

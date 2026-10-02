@@ -29755,32 +29755,10 @@ function stopPriceWs() {
     if (_priceWs) { _priceWs.onclose = null; _priceWs.close(); _priceWs = null; }
 }
 
-// ---- Real-time 24h High/Low (Binance 24hr ticker) ----
-var _highLowTimer = null;
-function refreshHighLow() {
-    fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            if (!d || !d.highPrice) return;
-            var high = parseFloat(d.highPrice);
-            var low  = parseFloat(d.lowPrice);
-            if (!isFinite(high) || !isFinite(low)) return;
-            // Update cached data object used by renderDashboard
-            if (window._dashData) {
-                window._dashData.high24h = high;
-                window._dashData.low24h  = low;
-            }
-            // Update DOM directly if dashboard is open
-            var highEl = document.getElementById('dashHighLow_high');
-            var lowEl  = document.getElementById('dashHighLow_low');
-            if (highEl) highEl.textContent = '$' + fmtNum(high, 0);
-            if (lowEl)  lowEl.textContent  = '$' + fmtNum(low, 0);
-        }).catch(function() {});
-}
-function startHighLowRefresh() {
-    refreshHighLow();
-    if (!_highLowTimer) _highLowTimer = setInterval(refreshHighLow, 5 * 60 * 1000); // every 5 min
-}
+// ---- Real-time 24h High/Low — sourced from CoinGecko (see fetchDashboardData) ----
+// Binance removed: api.binance.com blocks browser requests (CORS). High/low now
+// come from CoinGecko /coins/bitcoin market_data.high_24h / low_24h.
+function startHighLowRefresh() { /* no-op — CoinGecko handles this */ }
 
 // ---- Cache & State ----
 var DASH_CACHE_KEY = 'btc_dashboard_cache';
@@ -29913,22 +29891,7 @@ async function fetchDashboardData() {
         }).catch(() => {})
     );
 
-    // 1b. Binance 24hr ticker — accurate real-time high/low (runs in parallel, no rate limits)
-    promises.push(
-        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (!d || !d.highPrice) return;
-                var high = parseFloat(d.highPrice);
-                var low  = parseFloat(d.lowPrice);
-                if (isFinite(high)) data.high24h = high;
-                if (isFinite(low))  data.low24h  = low;
-                // Also seed the open price for % change if not yet set
-                if (!_wsOpenPrice && d.openPrice) {
-                    _wsOpenPrice = parseFloat(d.openPrice);
-                }
-            }).catch(function() {})
-    );
+    // 1b. High/low now come from CoinGecko /coins/bitcoin below (Binance removed — CORS blocked)
 
     // 2. CoinGecko — serialized to avoid rate limiting (free tier is aggressive)
     // First call: price basics (most important)
@@ -30067,6 +30030,22 @@ function fgColor(val) {
 // ---- Render Dashboard Overlay ----
 function renderDashboard(data) {
     var d = data || {};
+    // Rehydrate halvingEta from cached string → Date; compute derived fields if missing
+    if (d.halvingEta && !(d.halvingEta instanceof Date)) d.halvingEta = new Date(d.halvingEta);
+    if (d.blockHeight && !d.subsidy) {
+        var _epoch = Math.floor(d.blockHeight / 210000);
+        d.subsidy = (50 / Math.pow(2, _epoch)).toFixed(4);
+        d.nextSubsidy = (50 / Math.pow(2, _epoch + 1)).toFixed(4);
+        d.halvingBlock = (_epoch + 1) * 210000;
+        d.halving = 210000 - (d.blockHeight % 210000);
+        var _halvMs = d.halving * 10 * 60 * 1000;
+        d.halvingEta = new Date(Date.now() + _halvMs);
+        var _totalSec = Math.floor(_halvMs / 1000);
+        d.halvingDays = Math.floor(_totalSec / 86400);
+        d.halvingHours = Math.floor((_totalSec % 86400) / 3600);
+        d.halvingMins = Math.floor((_totalSec % 3600) / 60);
+        window._halvingTargetMs = Date.now() + _halvMs;
+    }
     var changeColor = (d.change24h || 0) >= 0 ? '#22c55e' : '#ef4444';
     var changeArrow = (d.change24h || 0) >= 0 ? '▲' : '▼';
     var diffChangeColor = (d.diffChange || 0) >= 0 ? '#22c55e' : '#ef4444';
@@ -30109,7 +30088,7 @@ function renderDashboard(data) {
     // Halving Countdown
     if (d.halvingDays !== undefined) {
         var halvingPct = d.halving ? ((210000 - d.halving) / 210000 * 100).toFixed(1) : 0;
-        var etaStr = d.halvingEta ? d.halvingEta.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
+        var etaStr = d.halvingEta ? (d.halvingEta instanceof Date ? d.halvingEta : new Date(d.halvingEta)).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
         var halvingTip = 'Every 210,000 blocks (~4 years), the Bitcoin block reward is cut in half. This is called the "halving." It reduces the rate of new Bitcoin created, enforcing scarcity. The reward started at 50 BTC in 2009 and has halved 4 times: 50 → 25 → 12.5 → 6.25 → 3.125 BTC. After the next halving, miners will receive 1.5625 BTC per block. There will only ever be 21 million Bitcoin.';
         html += '<div data-dash-tip="' + halvingTip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;">';
         html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
@@ -30376,11 +30355,7 @@ window.toggleDashboard = async function() {
     document.body.appendChild(overlay);
 
     // Start real-time price + live high/low
-    // Clear stale high/low from cache — always fetch fresh on open
-    if (window._dashData) { window._dashData.high24h = null; window._dashData.low24h = null; }
-    try { var _c = JSON.parse(localStorage.getItem('btc_dashboard_cache')); if (_c && _c.data) { _c.data.high24h = null; _c.data.low24h = null; localStorage.setItem('btc_dashboard_cache', JSON.stringify(_c)); } } catch(e) {}
     startPriceWs();
-    startHighLowRefresh();
 
     // Show cached/live data IMMEDIATELY — never make user wait
     var _shown = false;

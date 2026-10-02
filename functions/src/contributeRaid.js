@@ -100,6 +100,9 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('not-found', 'No active Raid Boss found.');
   }
 
+  // Damage scale: each raw metric unit = damageScale HP against the boss (target always 1000)
+  const damageScale = typeof activeBoss.damageScale === 'number' ? activeBoss.damageScale : 1;
+
   // Check metric matches boss
   if (activeBoss.metric !== metric) {
     return {
@@ -161,9 +164,10 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
       lastAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    // Update participant doc
+    // Update participant doc (store scaled damage, not raw metric amount)
+    const scaledDamage = Math.round(effectiveAmount * damageScale * 1000) / 1000;
     const participantUpdate = {
-      contributed: admin.firestore.FieldValue.increment(effectiveAmount),
+      contributed: admin.firestore.FieldValue.increment(scaledDamage),
       lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
     };
     if (detail) {
@@ -173,15 +177,15 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     }
     tx.set(participantRef, participantUpdate, { merge: true });
 
-    return { effectiveAmount };
+    return { effectiveAmount, scaledDamage };
   });
 
-  const { effectiveAmount } = result;
+  const { effectiveAmount, scaledDamage } = result;
 
   // Track all-time raid damage on user doc (outside transaction — not security-critical)
   try {
     await db.collection('users').doc(uid).set({
-      raidDamageAllTime: admin.firestore.FieldValue.increment(effectiveAmount)
+      raidDamageAllTime: admin.firestore.FieldValue.increment(scaledDamage)
     }, { merge: true });
   } catch (e) {
     console.warn('[RAID] raidDamageAllTime update failed:', e.message);
@@ -288,5 +292,6 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     current: finalTotal,
     target: activeBoss.target,
     defeated: defeated,
+    damage: scaledDamage,
   };
 });

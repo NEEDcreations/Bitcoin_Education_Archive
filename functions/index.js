@@ -1,5 +1,6 @@
 const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const { authenticator } = require("otplib");
 const QRCode = require('qrcode');
@@ -120,7 +121,7 @@ const FAUCET = {
 };
 
 // Generate TOTP secret and QR code for user
-exports.totpSetup = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.totpSetup = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -143,7 +144,7 @@ exports.totpSetup = functions.runWith({ enforceAppCheck: true }).https.onCall(as
 });
 
 // Verify TOTP code and enable it
-exports.totpVerify = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.totpVerify = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
 
@@ -194,7 +195,7 @@ exports.totpVerify = functions.runWith({ enforceAppCheck: true }).https.onCall(a
 });
 
 // Validate TOTP code on sign-in
-exports.totpCheck = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.totpCheck = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
 
@@ -242,7 +243,7 @@ exports.totpCheck = functions.runWith({ enforceAppCheck: true }).https.onCall(as
 });
 
 // Disable TOTP
-exports.totpDisable = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.totpDisable = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Enter your current code to disable');
 
@@ -281,7 +282,7 @@ exports.totpDisable = functions.runWith({ enforceAppCheck: true }).https.onCall(
 });
 
 // Check if user has TOTP enabled
-exports.totpStatus = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.totpStatus = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -458,7 +459,7 @@ exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' },
 // Nostr Sign-In (NIP-07)
 // Verify Schnorr signature and issue Firebase custom token
 // =============================================
-exports.nostrAuth = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.nostrAuth = functions.https.onCall(async (data, context) => {
     const { pubkey, sig, event } = data;
 
     if (!pubkey || !sig || !event) {
@@ -613,7 +614,7 @@ exports.nostrAuth = functions.runWith({ enforceAppCheck: true }).https.onCall(as
 // =============================================
 
 // Step 1: Generate a challenge (k1) and return LNURL
-exports.lnAuthChallenge = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
     // Rate limiting: max 10 challenges per IP per hour (atomic transaction)
     const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (lnIP !== 'unknown') {
@@ -777,7 +778,7 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
 });
 
 // Step 3: Client polls this to check if wallet completed auth
-exports.lnAuthVerify = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
     const { k1 } = data;
     if (!k1) throw new functions.https.HttpsError('invalid-argument', 'Missing k1');
 
@@ -948,9 +949,8 @@ function bech32Encode(url) {
 // =============================================
 // Forum Post Notification - email admin on new post
 // =============================================
-exports.onForumPost = functions.firestore
-    .document('forum_posts/{postId}')
-    .onCreate(async (snap, context) => {
+exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) => {
+    const snap = event.data; const context = { params: event.params };
         const post = snap.data();
         const postId = context.params.postId;
         const authorId = post.authorId || 'unknown';
@@ -1166,7 +1166,7 @@ exports.nachoFeedbackReport = onSchedule({
 // Runs when a referred user meets qualifications
 // Uses admin SDK to update the referrer's document
 // =============================================
-exports.verifyReferral = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.verifyReferral = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const referredUid = context.auth.uid;
@@ -1315,7 +1315,7 @@ exports.verifyReferral = functions.runWith({ enforceAppCheck: true }).https.onCa
 // AUDIT FIX: Server-Side Daily Limit Check
 // Spin wheel, scholar exam, quest attempts
 // =============================================
-exports.checkDailyLimit = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -1376,7 +1376,7 @@ exports.checkDailyLimit = functions.runWith({ enforceAppCheck: true }).https.onC
 // AUDIT FIX: Forum Content Moderation
 // Server-side profanity filter with leetspeak detection
 // =============================================
-exports.moderateContent = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.moderateContent = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const text = (data.text || '').trim();
@@ -1431,7 +1431,7 @@ exports.moderateContent = functions.runWith({ enforceAppCheck: true }).https.onC
 // [C1] SECURE TELEGRAM BRIDGE
 // Bridge secret lives here, NOT in client code
 // =============================================
-exports.bridgeToTelegram = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing content');
@@ -1542,7 +1542,7 @@ exports.bridgeToTelegram = functions.runWith({ enforceAppCheck: true }).https.on
 });
 
 // ===== SATS FAUCET - claimSats Cloud Function =====
-exports.claimSats = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.claimSats = functions.https.onCall(async (data, context) => {
     // 1. Must be authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
@@ -2128,7 +2128,7 @@ async function _rollbackClaim(uid, amount, today) {
 // ===== PEER SYSTEM =====
 // managePeer: send/accept/decline/cancel/remove peer connections.
 // All mutations are CF-only; peer arrays on user docs are in the Firestore rules denylist.
-exports.managePeer = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.managePeer = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('unauthenticated', 'Must use a real account to connect with peers');
@@ -2308,7 +2308,7 @@ exports.managePeer = functions.runWith({ enforceAppCheck: true }).https.onCall(a
 // ===== SERVER-SIDE POINTS AWARD (Fix #1, #2, #5) =====
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
-exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.awardPoints = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -3201,7 +3201,7 @@ exports.awardPoints = functions.runWith({ enforceAppCheck: true }).https.onCall(
 });
 
 // ===== FAUCET ADMIN - getFaucetStats =====
-exports.getFaucetStats = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.getFaucetStats = functions.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
@@ -3226,7 +3226,7 @@ exports.getFaucetStats = functions.runWith({ enforceAppCheck: true }).https.onCa
 });
 
 // ===== FAUCET ADMIN - toggleFaucet =====
-exports.toggleFaucet = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.toggleFaucet = functions.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
@@ -3236,7 +3236,7 @@ exports.toggleFaucet = functions.runWith({ enforceAppCheck: true }).https.onCall
 });
 
 // ===== ONE-TIME: Backfill bestStreak for all users =====
-exports.backfillBestStreak = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.backfillBestStreak = functions.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
@@ -3324,7 +3324,7 @@ exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: '
 });
 
 // ---- One-time backfill global community stats ----
-exports.backfillGlobalStats = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
     // Admin only
     if (!context.auth || (!context.auth.token.admin)) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
@@ -3420,7 +3420,7 @@ exports.backfillGlobalStats = functions.runWith({ enforceAppCheck: true }).https
 // ===== SERVER-SIDE DAILY VISIT TRACKING =====
 // Handles streak, totalVisits, bestStreak, orangeTickets, streakFreezes
 // All these fields are blocked from client writes in Firestore rules
-exports.recordDailyVisit = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -3530,7 +3530,7 @@ exports.recordDailyVisit = functions.runWith({ enforceAppCheck: true }).https.on
 });
 
 // ---- Poll Vote (server-side with IP + fingerprint rate limiting) ----
-exports.pollVote = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.pollVote = functions.https.onCall(async (data, context) => {
     const { side, fingerprint, satsCount, bitsCount } = data || {};
 
     // Support batched votes: satsCount + bitsCount, or single side vote (backward compat)
@@ -3595,7 +3595,7 @@ exports.pollVote = functions.runWith({ enforceAppCheck: true }).https.onCall(asy
 });
 
 // ---- PVP Answer Submission (server-side validation) ----
-exports.pvpSubmitAnswer = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { matchId, questionIndex, answerIndex } = data || {};
@@ -3738,7 +3738,7 @@ exports.pvpSubmitAnswer = functions.runWith({ enforceAppCheck: true }).https.onC
 });
 
 // ---- Daily Spin (server-side validation + reward) ----
-exports.dailySpin = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.dailySpin = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
@@ -3850,7 +3850,7 @@ exports.dailySpin = functions.runWith({ enforceAppCheck: true }).https.onCall(as
 
 // ── PVP Store Answer Key (called by player-2 matchmaker after client-side match creation) ──
 // Validates that the caller is a player in the match before accepting keys.
-exports.pvpStoreAnswerKey = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.pvpStoreAnswerKey = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     const { matchId, keys, keyIndex } = data || {};
     // keys: array of correct-answer integers
@@ -3902,7 +3902,7 @@ exports.pvpStoreAnswerKey = functions.runWith({ enforceAppCheck: true }).https.o
 });
 
 // ── PVP Match Creation (server-side, hides answer keys) ──
-exports.pvpCreateMatch = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     // [SECURITY FIX] Caller is always player2 (the matchmaker who found an opponent).
@@ -4020,7 +4020,7 @@ function _pickScholarQuestions(type) {
     return indices; // array of 25 ints into SCHOLAR_BANK[type]
 }
 
-exports.startScholarExam = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.startScholarExam = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
@@ -4058,7 +4058,7 @@ exports.startScholarExam = functions.runWith({ enforceAppCheck: true }).https.on
     return { examId, indices };
 });
 
-exports.gradeScholarExam = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { examId, answers } = data || {};
@@ -4136,7 +4136,7 @@ exports.gradeScholarExam = functions.runWith({ enforceAppCheck: true }).https.on
 });
 
 // ── Quest: Server-Side Grading ──
-exports.startQuest = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.startQuest = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { questions, topicKey } = data || {};
@@ -4174,7 +4174,7 @@ exports.startQuest = functions.runWith({ enforceAppCheck: true }).https.onCall(a
     return { questId };
 });
 
-exports.gradeQuest = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.gradeQuest = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { questId, answers, isRetry } = data || {};
@@ -4297,7 +4297,7 @@ exports.gradeQuest = functions.runWith({ enforceAppCheck: true }).https.onCall(a
 // AUDIT FIX: Secure Certificate Issuance (M-NEW-15)
 // Only issues certificates if user has passed the exam server-side
 // =============================================
-exports.issueCertificate = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.issueCertificate = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -4366,9 +4366,8 @@ exports.issueCertificate = functions.runWith({ enforceAppCheck: true }).https.on
 // Each counter is bumped by a Firestore trigger on the authoritative event.
 
 // Chat message posted → bump chatMessages
-exports.onChatMessageCreated = functions.firestore
-    .document('global_chat/{msgId}')
-    .onCreate(async (snap, _context) => {
+exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (event) => {
+    const snap = event.data; const _context = { params: event.params };
         const data = snap.data() || {};
         // Skip bot/nacho/system messages so the counter reflects real users
         if (data.uid === 'nacho-bot' || data.uid === 'system') return null;
@@ -4382,9 +4381,8 @@ exports.onChatMessageCreated = functions.firestore
     });
 
 // PVP match finished → bump pvpMatches (only once per match)
-exports.onPvpMatchFinished = functions.firestore
-    .document('pvp_matches/{matchId}')
-    .onUpdate(async (change, _context) => {
+exports.onPvpMatchFinished = onDocumentUpdated('pvp_matches/{matchId}', async (event) => {
+    const change = { before: event.data.before, after: event.data.after }; const _context = { params: event.params };
         const before = change.before.data() || {};
         const after = change.after.data() || {};
         // Count only the transition into finished (not forfeit, not repeated writes)
@@ -4399,9 +4397,8 @@ exports.onPvpMatchFinished = functions.firestore
     });
 
 // New user doc created → bump userCount + assign plebNumber
-exports.onUserDocCreated = functions.firestore
-    .document('users/{uid}')
-    .onCreate(async (snap, context) => {
+exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
+    const snap = event.data; const context = { params: event.params };
         const uid = context.params.uid;
         try {
             const statsRef = db.collection('stats').doc('global');
@@ -4447,9 +4444,8 @@ const PUBLIC_PROFILE_FIELDS = [
     'peerCount', // peer network size (peers array stays server-only)
 ];
 
-exports.syncPublicProfile = functions.firestore
-    .document('users/{uid}')
-    .onWrite(async (change, context) => {
+exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
+    const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
         const uid = context.params.uid;
         const pubRef = db.collection('public_profiles').doc(uid);
         // Deleted user → remove public profile
@@ -4468,8 +4464,7 @@ exports.syncPublicProfile = functions.firestore
 
 // Admin-only backfill: copies all existing user docs → public_profiles.
 // Call once after deploy: firebase functions:call backfillPublicProfiles (with admin auth)
-exports.backfillPublicProfiles = functions.runWith({ timeoutSeconds: 540, memory: '1GB' })
-    .https.onCall(async (data, context) => {
+exports.backfillPublicProfiles = functions.https.onCall(async (data, context) => {
         if (!context.auth || !context.auth.token.get('admin', false)) {
             throw new functions.https.HttpsError('permission-denied', 'Admin only');
         }
@@ -4496,9 +4491,8 @@ exports.backfillPublicProfiles = functions.runWith({ timeoutSeconds: 540, memory
 // ---- Live triggers for community stats: channelVisits, questsCompleted, watchTimeMinutes ----
 
 // Channel visit → bump global channelVisits (detects channelsVisited increment on user doc)
-exports.onUserChannelVisit = functions.firestore
-    .document('users/{uid}')
-    .onUpdate(async (change, _context) => {
+exports.onUserChannelVisit = onDocumentUpdated('users/{uid}', async (event) => {
+    const change = { before: event.data.before, after: event.data.after }; const _context = { params: event.params };
         const before = change.before.data() || {};
         const after = change.after.data() || {};
         const beforeVisits = before.channelsVisited || 0;
@@ -4515,9 +4509,8 @@ exports.onUserChannelVisit = functions.firestore
     });
 
 // Quest completed → bump global questsCompleted (detects completedQuests array growth)
-exports.onUserQuestCompleted = functions.firestore
-    .document('users/{uid}')
-    .onUpdate(async (change, _context) => {
+exports.onUserQuestCompleted = onDocumentUpdated('users/{uid}', async (event) => {
+    const change = { before: event.data.before, after: event.data.after }; const _context = { params: event.params };
         const before = change.before.data() || {};
         const after = change.after.data() || {};
         const beforeLen = Array.isArray(before.completedQuests) ? before.completedQuests.length : 0;
@@ -4538,7 +4531,7 @@ exports.onUserQuestCompleted = functions.firestore
 // No server trigger needed - would double-count.
 
 // ---- One-shot admin reset for community stats (remove after running) ----
-exports.resetCommunityStats = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     const email = (context.auth.token.email || '').toLowerCase();
     if (!context.auth.token.admin) {
@@ -5212,7 +5205,7 @@ exports.tctvAggregatePresence = onSchedule({
 // Step 1: generate a server-side CSRF nonce tied to the authenticated uid.
 // Frontend calls this BEFORE redirecting to Strava; uses the returned nonce
 // as `state=` instead of the raw uid so the callback can't be forged.
-exports.stravaInitAuth = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.stravaInitAuth = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     const provider = (context.auth.token.firebase || {}).sign_in_provider || '';
     if (provider === 'anonymous') {
@@ -5295,7 +5288,7 @@ exports.stravaAuth = functions.https.onRequest(async (req, res) => {
     }
 });
 
-exports.syncStravaWalks = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
     console.log('[POW] syncStravaWalks called');
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
     const uid = context.auth.uid;
@@ -5583,7 +5576,7 @@ exports.handleTelegramWebhook = handleTelegramReaction;
 exports.setTelegramWebhook = setTelegramWebhook;
 
 // ===== DONATE XP FOR CHARITY =====
-exports.donatePoints = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.donatePoints = functions.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in to donate.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Create an account to donate.');
@@ -5713,7 +5706,7 @@ exports.donatePoints = functions.runWith({ enforceAppCheck: true }).https.onCall
 // ===== LEADERBOARD USER SEARCH =====
 // Fetches top users ordered by points, filters by substring match (case-insensitive),
 // returns matched users with their true rank. Supports cursor-based pagination.
-exports.searchUsers = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.searchUsers = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const query = ((data.query || '').trim()).toLowerCase();
@@ -5810,7 +5803,7 @@ exports.searchUsers = functions.runWith({ enforceAppCheck: true }).https.onCall(
 // POST body: { trackId, amountSats }
 // Returns: { invoices: [{name, split, amountSats, invoice, qr}], totalSats }
 // ================================================================
-exports.v4vSplitRelay = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.v4vSplitRelay = functions.https.onCall(async (data, context) => {
     // SECURITY: auth required — unauthenticated callers could use this as a free SSRF oracle
     // via fetchLnurlInvoice and read internal service responses from the reflected pr field.
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
@@ -5987,7 +5980,7 @@ async function fetchLnurlInvoice(lightningAddress, msats, comment) {
 // ===== BACKFILL DONATION FACTION =====
 // When a user picks their faction for the first time, attribute any charity
 // donations they made under 'no_faction' (or with null faction) to their new faction.
-exports.backfillDonationFaction = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.backfillDonationFaction = functions.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Account required.');
@@ -6236,7 +6229,7 @@ async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
 // Monthly: skip any month reset where the completed month is before 2026-07 (i.e. June 2026 and earlier).
 const REWARDS_START_DATE = new Date('2026-07-01T00:00:00Z');
 
-exports.resetWeeklyXP = functions.pubsub.schedule('0 5 * * 1').timeZone('UTC').onRun(async (ctx) => { // Monday 5 AM UTC — consistent with daily reset boundary
+exports.resetWeeklyXP = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC' }, async (ctx) => { // Monday 5 AM UTC — consistent with daily reset boundary
     const now = new Date();
     // Skip weeks that end before rewards start date
     if (now < REWARDS_START_DATE) {
@@ -6260,7 +6253,7 @@ exports.resetWeeklyXP = functions.pubsub.schedule('0 5 * * 1').timeZone('UTC').o
     return null;
 });
 
-exports.resetMonthlyXP = functions.pubsub.schedule('0 0 1 * *').timeZone('UTC').onRun(async (ctx) => {
+exports.resetMonthlyXP = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC' }, async (ctx) => {
     const now = new Date();
     const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const monthKey = `${prevMonth.getFullYear()}-M${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
@@ -6281,7 +6274,7 @@ exports.resetMonthlyXP = functions.pubsub.schedule('0 0 1 * *').timeZone('UTC').
 // Draws a winner from raffleEntries, posts as Nacho in global_chat,
 // archives snapshot, then resets all raffleEntries to 0 for the new month.
 // ══════════════════════════════════════════════════════════════════════
-exports.monthlyRaffleDraw = functions.pubsub.schedule('0 18 1 * *').timeZone('UTC').onRun(async (ctx) => {
+exports.monthlyRaffleDraw = onSchedule({ schedule: '0 18 1 * *', timeZone: 'UTC' }, async (ctx) => {
     const crypto = require('crypto');
     const now = new Date();
     // monthKey for the month that just ended (previous month)
@@ -6392,7 +6385,7 @@ exports.monthlyRaffleDraw = functions.pubsub.schedule('0 18 1 * *').timeZone('UT
 // 🧊 FEATURE 5: Spend Orange Tickets for Streak Freezes
 // ══════════════════════════════════════════════════════════════════════
 
-exports.spendTicketsForFreeze = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.spendTicketsForFreeze = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot purchase freezes');
@@ -6447,7 +6440,7 @@ function _getCurrentWeekKey() {
 }
 
 // Seed the first community challenge
-exports.seedWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.seedWeeklyChallenge = functions.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
@@ -6470,7 +6463,7 @@ exports.seedWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).https
 });
 
 // Increment community challenge progress (called from client - quiz completion, trivia correct)
-exports.incrementWeeklyChallenge = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.incrementWeeklyChallenge = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     // [SECURITY FIX] Block anonymous users — previously only checked context.auth exists.
     // Anonymous accounts are free to create; an attacker could spam N anonymous UIDs
@@ -6577,7 +6570,7 @@ const NOOK_SHOP_ITEMS = {
     'second_rig':       { cost: 25, type: 'consumable', name: 'Second Mining Rig',       gives: { secondRigCharges: 1 } },
 };
 
-exports.spendTickets = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.spendTickets = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use the shop');
@@ -6693,7 +6686,7 @@ exports.spendTickets = functions.runWith({ enforceAppCheck: true }).https.onCall
     });
 });
 
-exports.convertPointsToTickets = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.convertPointsToTickets = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot convert XP');
@@ -6779,7 +6772,7 @@ exports.convertPointsToTickets = functions.runWith({ enforceAppCheck: true }).ht
     });
 });
 
-exports.activateHashBooster = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.activateHashBooster = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
@@ -6816,7 +6809,7 @@ exports.activateHashBooster = functions.runWith({ enforceAppCheck: true }).https
     });
 });
 
-exports.useHintToken = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.useHintToken = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use hint tokens');
@@ -6845,7 +6838,7 @@ exports.useHintToken = functions.runWith({ enforceAppCheck: true }).https.onCall
     });
 });
 
-exports.activateDoubleXP = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.activateDoubleXP = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot activate Double XP');
@@ -6889,7 +6882,7 @@ exports.activateDoubleXP = functions.runWith({ enforceAppCheck: true }).https.on
     });
 });
 
-exports.useBonusSpin = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.useBonusSpin = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use bonus spins');
@@ -7536,7 +7529,7 @@ exports.tweetSatoshisFavor = tweetSatoshisFavor;
 // ── GIF Search Proxy (Tenor v2) ───────────────────────────────────────────────
 // Proxies Tenor v2 requests server-side so the API key never leaks to the client
 // and no browser-side API activation is required.
-exports.searchGifs = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.searchGifs = functions.https.onCall(async (data, context) => {
     // [SECURITY FIX] Require authenticated non-anonymous user — prevents Giphy quota drain
     // by unauthenticated callers (AppCheck alone doesn't guarantee a real signed-in user).
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
@@ -7649,7 +7642,7 @@ exports.raidBossWeeklyAnnouncement = onSchedule(
 // Runs every 10 minutes. Deletes pvp_lobby docs whose lastSeen is older than
 // 60 seconds (2x the client heartbeat interval of 5s, well beyond the 30s
 // stale threshold). Prevents stale lobby docs from blocking matchmaking.
-exports.cleanupExpiredLobbies = functions.pubsub.schedule('every 60 minutes').timeZone('UTC').onRun(async (ctx) => {
+exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 60 minutes', timeZone: 'UTC' }, async (ctx) => {
     const STALE_MS = 60 * 1000; // 60 seconds
     const cutoff = Date.now() - STALE_MS;
     try {
@@ -7679,9 +7672,8 @@ exports.cleanupExpiredLobbies = functions.pubsub.schedule('every 60 minutes').ti
 // ===== COUNTRY STATS AGGREGATION =====
 // Fires when a user document is written. If country changed, updates stats/countries
 // with atomic increments so the world map always has fresh data.
-exports.updateCountryStats = functions.firestore
-    .document('users/{userId}')
-    .onWrite(async (change, context) => {
+exports.updateCountryStats = onDocumentWritten('users/{uid}', async (event) => {
+    const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
         const before = change.before.exists ? change.before.data() : {};
         const after  = change.after.exists  ? change.after.data()  : {};
 
@@ -7728,10 +7720,7 @@ exports.updateCountryStats = functions.firestore
 // overwrites stats/countries with a fresh accurate tally.
 // This ensures the world map never drifts due to missed trigger fires.
 // ══════════════════════════════════════════════════════════════════════
-exports.recountCountryStats = functions.pubsub
-    .schedule('0 3 * * 0')  // Every Sunday 3 AM UTC
-    .timeZone('UTC')
-    .onRun(async (ctx) => {
+exports.recountCountryStats = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' }, async (ctx) => {
         console.log('[COUNTRY RECOUNT] Starting full recount...');
         const counts = {};
         let processed = 0;
@@ -7835,7 +7824,7 @@ exports.refreshBadgeDistributionHttp = functions.https.onRequest(async (req, res
 // user (including anonymous) to inject fake "official Nacho" messages with
 // arbitrary markdown links (e.g. phishing "claim your airdrop" links).
 // Rules now set allow create: if false; this function is the only write path.
-exports.nachoAnnounce = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
     // 1. Auth: must be signed in and not anonymous
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
@@ -7940,7 +7929,7 @@ exports.pvpResolveRound = pvpResolveRound;
 // localStorage. This CF merges that badge array into the real account's
 // visibleBadges (server-side, deduplicated, validated against BADGE_VALUES catalog).
 // No XP is re-awarded — badge records are written directly via Admin SDK.
-exports.mergeAnonBadges = functions.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+exports.mergeAnonBadges = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     }
