@@ -119,12 +119,7 @@ function initRanking() {
 
         db = firebase.firestore();
         // Enable offline persistence - data survives connection loss
-        db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
-            // multi-tab or unimplemented - not critical
-            if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-                console.log('Persistence error:', err.code);
-            }
-        });
+        // Offline persistence disabled — IndexedDB multi-tab lock was stalling all Firestore reads
         auth = firebase.auth();
         // Ensure auth persists across refreshes, tab closes, and app restarts
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function() {});

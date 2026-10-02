@@ -288,12 +288,7 @@ function initRanking() {
 
         db = firebase.firestore();
         // Enable offline persistence - data survives connection loss
-        db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
-            // multi-tab or unimplemented - not critical
-            if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-                console.log('Persistence error:', err.code);
-            }
-        });
+        // Offline persistence disabled — IndexedDB multi-tab lock was stalling all Firestore reads
         auth = firebase.auth();
         // Ensure auth persists across refreshes, tab closes, and app restarts
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function() {});
@@ -18535,7 +18530,20 @@ function _setPollState(state) {
 function _renderPollTab(body) {
     var today = _getPollToday();
     if (!today || !today.poll) {
-        body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Polls loading...</div>';
+        body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">⏳ Loading poll...</div>';
+        // Retry up to 5s waiting for POLL_BANK script to load
+        var _pollRetries = 0;
+        var _pollRetryTimer = setInterval(function() {
+            _pollRetries++;
+            var t = _getPollToday();
+            if (t && t.poll) {
+                clearInterval(_pollRetryTimer);
+                _renderPollTab(body);
+            } else if (_pollRetries > 25) {
+                clearInterval(_pollRetryTimer);
+                body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Poll unavailable — refresh to retry.</div>';
+            }
+        }, 200);
         return;
     }
 
