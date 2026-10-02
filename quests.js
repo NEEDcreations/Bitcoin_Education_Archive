@@ -2967,15 +2967,9 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
             // Read cumulative hashes for current difficulty target from the dedicated stats doc.
             // Subtract eraHashOffset if set — handles cases where the same target value existed
             // in a prior period (e.g. 10,000 in July AND August).
-            // If statsTarget differs from target, sum both keys:
-            // statsTarget bucket = hashes before function was redeployed to v2
-            // target bucket = hashes after v2 redeploy (correct bucket going forward)
             var rawEraHashes = data['target_' + curTarget] || 0;
             var offset = (curRow.eraHashOffset != null) ? curRow.eraHashOffset : 0;
             var eraHashes = Math.max(0, rawEraHashes - offset);
-            if (curRow.statsTarget && curRow.statsTarget !== curRow.target) {
-                eraHashes += (data['target_' + curRow.target] || 0);
-            }
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
             if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
 
