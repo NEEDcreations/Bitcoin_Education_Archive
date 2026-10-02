@@ -3147,8 +3147,7 @@ function updateUserDisplay(lv) {
                 var container = document.createElement('div');
                 container.id = 'userDisplayContainer';
                 container.style.padding = '16px 20px 24px';
-                container.style.borderBottom = '1px solid var(--border)';
-                sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
+                                sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
                 container.appendChild(el);
             }
             // Add horizontal row for Dashboard + Notifications
@@ -3216,8 +3215,7 @@ function updateUserDisplay(lv) {
                 var container = document.createElement('div');
                 container.id = 'userDisplayContainer';
                 container.style.padding = '16px 20px 24px';
-                container.style.borderBottom = '1px solid var(--border)';
-                sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
+                                sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
                 container.appendChild(el);
             }
             el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:row;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;cursor:pointer;width:100%;';
