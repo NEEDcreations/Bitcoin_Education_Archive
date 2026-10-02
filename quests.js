@@ -2952,7 +2952,9 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
     if (currentIdx < 0) return;
     var curRow = _dh[currentIdx];
 
-    var curTarget = curRow.target;
+    // statsTarget overrides target for difficultyStats key lookup
+    // (used when deployed function lags behind a difficulty change and writes to old key)
+    var curTarget = curRow.statsTarget || curRow.target;
     // Listen to difficultyStats (separate doc that only ever receives merge+increment, never overwritten)
     _difficultyCurrentUnsub = db.collection('satoshiFavor').doc('difficultyStats')
         .onSnapshot(function(doc) {

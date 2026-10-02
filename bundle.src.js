@@ -16542,7 +16542,9 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
     if (currentIdx < 0) return;
     var curRow = _dh[currentIdx];
 
-    var curTarget = curRow.target;
+    // statsTarget overrides target for difficultyStats key lookup
+    // (used when deployed function lags behind a difficulty change and writes to old key)
+    var curTarget = curRow.statsTarget || curRow.target;
     // Listen to difficultyStats (separate doc that only ever receives merge+increment, never overwritten)
     _difficultyCurrentUnsub = db.collection('satoshiFavor').doc('difficultyStats')
         .onSnapshot(function(doc) {
@@ -26381,7 +26383,10 @@ window.showUserProfile = function(uid) {
     d.innerHTML = loadingHtml;
     document.body.appendChild(d.firstChild);
 
-    db.collection('public_profiles').doc(uid).get().then(function(doc) {
+    // Cache-first: instant for recently-viewed profiles; falls back to network on miss
+    var _profileFetch = db.collection('public_profiles').doc(uid).get({ source: 'cache' })
+        .catch(function() { return db.collection('public_profiles').doc(uid).get(); });
+    _profileFetch.then(function(doc) {
         if (!doc.exists) {
             var modal = document.getElementById('userProfileModal');
             if (modal) modal.remove();

@@ -521,7 +521,10 @@ window.showUserProfile = function(uid) {
     d.innerHTML = loadingHtml;
     document.body.appendChild(d.firstChild);
 
-    db.collection('public_profiles').doc(uid).get().then(function(doc) {
+    // Cache-first: instant for recently-viewed profiles; falls back to network on miss
+    var _profileFetch = db.collection('public_profiles').doc(uid).get({ source: 'cache' })
+        .catch(function() { return db.collection('public_profiles').doc(uid).get(); });
+    _profileFetch.then(function(doc) {
         if (!doc.exists) {
             var modal = document.getElementById('userProfileModal');
             if (modal) modal.remove();
