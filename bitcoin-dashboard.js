@@ -132,7 +132,7 @@ function stopPriceWs() {
 function startHighLowRefresh() { /* no-op — CoinGecko handles this */ }
 
 // ---- Cache & State ----
-var DASH_CACHE_KEY = 'btc_dashboard_cache';
+var DASH_CACHE_KEY = 'btc_dashboard_cache_v2';
 var DASH_CACHE_TTL = 120000; // 2 min
 var _dashData = null;
 var _dashLoading = false;
@@ -483,10 +483,11 @@ function renderDashboard(data) {
     if (d.volume24h && d.marketCap) { var _vr = (d.volume24h / d.marketCap * 100); _volSub = 'Vol/MCap: ' + _vr.toFixed(2) + '%'; }
     html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), _volSub, 'Total USD value of Bitcoin traded across all exchanges in the last 24 hours. High volume often signals strong market interest or significant price moves.');
     // Lightning Network
-    var lnBtc = d.lnCapacity ? (d.lnCapacity / 100000000).toFixed(0) : '—';
-    var lnUsd = (d.lnCapacity && d.price) ? '$' + fmtT(d.lnCapacity / 100000000 * d.price) : '';
+    var lnBtcNum = d.lnCapacity ? (d.lnCapacity / 100000000) : null;
+    var lnBtcStr = lnBtcNum !== null ? fmtNum(lnBtcNum.toFixed(0)) + ' BTC' : '—';
+    var lnUsd = (lnBtcNum && d.price) ? '$' + fmtT(lnBtcNum * d.price) : '';
     var _lnSub = (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? '<br>' + lnUsd : '');
-    html += metricCard('⚡', 'Lightning Capacity', fmtNum(lnBtc) + ' BTC', _lnSub, 'Total Bitcoin locked in Lightning Network payment channels. Lightning enables instant, near-free Bitcoin payments. More capacity = more liquidity for fast payments. Nodes route payments; channels connect them.');
+    html += metricCard('⚡', 'Lightning Capacity', lnBtcStr, _lnSub, 'Total Bitcoin locked in Lightning Network payment channels. Lightning enables instant, near-free Bitcoin payments. More capacity = more liquidity for fast payments. Nodes route payments; channels connect them.');
 
     // Fear & Greed moved to Top Indicators section
 
@@ -547,10 +548,13 @@ function renderDashboard(data) {
     // Sources
     html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:0.6rem;color:var(--text-faint);line-height:1.6;">';
     html += '<strong>Data Sources:</strong> ';
-    html += '<a href="https://mempool.space" target="_blank" rel="noopener" style="color:var(--accent);">mempool.space</a> (blocks, fees, hashrate, difficulty, mempool) · ';
-    html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (price, market cap, supply, volume) · ';
+    html += '<a href="https://mempool.space" target="_blank" rel="noopener" style="color:var(--accent);">mempool.space</a> (blocks, fees, hashrate, difficulty, mempool, Lightning) · ';
+    html += '<a href="https://www.coinbase.com" target="_blank" rel="noopener" style="color:var(--accent);">Coinbase</a> (price, 5m candles) · ';
+    html += '<a href="https://www.kraken.com" target="_blank" rel="noopener" style="color:var(--accent);">Kraken</a> (24h high/low, volume) · ';
+    html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (supply, market cap, ATH) · ';
     html += '<a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener" style="color:var(--accent);">Alternative.me</a> (Fear & Greed Index) · ';
-    html += '<a href="https://bitcointreasuries.net" target="_blank" rel="noopener" style="color:var(--accent);">BitcoinTreasuries.net</a> (company & government holdings)';
+    html += '<a href="https://bitcointreasuries.net" target="_blank" rel="noopener" style="color:var(--accent);">BitcoinTreasuries.net</a> (company & government holdings) · ';
+    html += '<a href="https://colintalkscrypto.com/cbbi/" target="_blank" rel="noopener" style="color:var(--accent);">CBBI</a> (MVRV, NUPL, RHODL, Macro Oscillator)';
     html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
     html += '</div>';
 
@@ -1337,7 +1341,7 @@ function loadTopIndicators() {
     });
 
     var flashingCount = indicators.filter(function(i) { return i.flashing; }).length;
-    var topSignalIndicators = indicators.filter(function(i) { return !i.noFlashLogic; }).length;
+    var topSignalIndicators = indicators.length;
 
     // Render indicators
     var html = '';
