@@ -5701,25 +5701,35 @@ function _listenAllTimeRaiders() {
 }
 
 // Metric → user guidance: how to deal damage to this boss
-// unitLabel: human-readable name for 1 contribution event
-// unitAmt: raw metric units per contribution call (1 for most; 10 for watch/beats minutes)
+// unitLabel: human-readable name for 1 contribution call
+// unitAmt: raw metric units per contribution call (1 for most; 10 for watch/beats; 100 for XP)
 var RAID_GUIDANCE = {
-    'uniqueUsers5Topics': { action: 'Visit 5+ different learning topics in a single day!', nav: 'home',            unitLabel: 'day you hit 5+ topics',    unitAmt: 1  },
-    'quizCompletions':    { action: 'Complete quiz quests to deal damage!',                nav: 'quests',          unitLabel: 'quiz completed',           unitAmt: 1  },
-    'watchMinutes':       { action: 'Watch Timechain TV to deal damage!',                  nav: 'tctv',            unitLabel: '10 min of Timechain TV',   unitAmt: 10 },
-    'beatsMinutes':       { action: 'Listen to Bitcoin Beats to deal damage!',             nav: 'beats',           unitLabel: '10 min of Bitcoin Beats',  unitAmt: 10 },
-    'flashcardCompletions':{ action: 'Complete flashcard sets to deal damage!',            nav: 'learning-quests', unitLabel: 'flashcard set completed',  unitAmt: 1  },
-    'totalXP':            { action: 'Earn XP from any activity to deal damage!',           nav: 'home',            unitLabel: 'XP earned',                unitAmt: 1  },
-    'pollVotes':          { action: 'Vote in the daily Quest Hub poll to deal damage!',    nav: 'quests',          unitLabel: 'poll vote',                unitAmt: 1  },
-    'chatMessages':       { action: 'Send messages in Global Chat to deal damage!',        nav: 'chat',            unitLabel: 'chat message sent',        unitAmt: 1  },
-    'badgesEarned':       { action: 'Earn badges to deal damage! Find them in the Leaderboard 🏆', nav: 'badges', unitLabel: 'badge earned', unitAmt: 1  },
-    'streakUsers':        { action: 'Reach a 7-day daily visit streak to deal damage!',    nav: 'home',            unitLabel: '7-day streak reached',     unitAmt: 1  },
-    'uniqueTopicsVisited':{ action: "Visit learning topics you haven't read yet!",         nav: 'home',            unitLabel: 'new topic visited',        unitAmt: 1  },
-    'tipsSent':           { action: 'Send Lightning tips to deal damage!',                 nav: 'home',            unitLabel: 'Lightning tip sent',       unitAmt: 1  },
-    'forumPosts':         { action: 'Create forum posts to deal damage!',                  nav: 'forum',           unitLabel: 'forum post created',       unitAmt: 1  },
-    'triviaCorrect':      { action: 'Answer trivia correctly in Quest Hub to deal damage!',nav: 'quests',          unitLabel: 'correct trivia answer',    unitAmt: 1  },
-    'totalTopicReads':    { action: 'Read learning topics to deal damage!',                nav: 'home',            unitLabel: 'topic read',               unitAmt: 1  }
+    'uniqueUsers5Topics': { action: 'Visit 5+ different learning topics in a single day!',    nav: 'home',            unitLabel: 'qualifying day (5+ topics)', unitAmt: 1   },
+    'quizCompletions':    { action: 'Complete quiz quests to deal damage!',                   nav: 'quests',          unitLabel: 'quiz completed',             unitAmt: 1   },
+    'watchMinutes':       { action: 'Watch Timechain TV to deal damage!',                     nav: 'tctv',            unitLabel: '10 min of Timechain TV',     unitAmt: 10  },
+    'beatsMinutes':       { action: 'Listen to Bitcoin Beats to deal damage!',                nav: 'beats',           unitLabel: '10 min of Bitcoin Beats',    unitAmt: 10  },
+    'flashcardCompletions':{ action: 'Complete flashcard sets to deal damage!',               nav: 'learning-quests', unitLabel: 'flashcard set completed',    unitAmt: 1   },
+    'totalXP':            { action: 'Earn XP from any activity to deal damage!',              nav: 'home',            unitLabel: '100 XP earned',              unitAmt: 100 },
+    'pollVotes':          { action: 'Vote in the daily Quest Hub poll to deal damage!',       nav: 'quests',          unitLabel: 'poll vote',                  unitAmt: 1   },
+    'chatMessages':       { action: 'Send messages in Global Chat (up to 3/day count)!',      nav: 'chat',            unitLabel: 'chat message (max 3/day)',    unitAmt: 1   },
+    'badgesEarned':       { action: 'Earn badges to deal damage! Find them in the Leaderboard 🏆', nav: 'badges', unitLabel: 'badge earned',          unitAmt: 1   },
+    'streakUsers':        { action: 'Hit a 7-day daily visit streak to deal damage!',         nav: 'home',            unitLabel: '7-day streak milestone',     unitAmt: 1   },
+    'uniqueTopicsVisited':{ action: "Visit learning topics you haven't read yet (up to 3/day count)!", nav: 'home',  unitLabel: 'new topic visited (max 3/day)', unitAmt: 1 },
+    'tipsSent':           { action: 'Send Lightning tips to deal damage!',                    nav: 'home',            unitLabel: 'Lightning tip sent',         unitAmt: 1   },
+    'forumPosts':         { action: 'Create forum posts to deal damage!',                     nav: 'forum',           unitLabel: 'forum post created',         unitAmt: 1   },
+    'triviaCorrect':      { action: 'Answer trivia correctly in Quest Hub to deal damage!',   nav: 'quests',          unitLabel: 'correct trivia answer',      unitAmt: 1   },
+    'totalTopicReads':    { action: 'Read learning topics to deal damage (up to 3/day count)!', nav: 'home',          unitLabel: 'topic read (max 3/day)',      unitAmt: 1   }
 };
+
+// Returns an HTML snippet showing the damage rate for the active boss
+function _raidDmgRateHtml(boss) {
+    var g = RAID_GUIDANCE[boss.metric];
+    if (!g) return '';
+    var scale = typeof boss.damageScale === 'number' ? boss.damageScale : 1;
+    var dmgPerCall = Math.round(scale * g.unitAmt);
+    return '<div style="margin-top:8px;padding:7px 12px;background:rgba(139,92,246,0.13);border:1px solid rgba(139,92,246,0.4);border-radius:9px;font-size:0.8rem;color:#c4b5fd;font-weight:700;text-align:center;">' +
+        '⚔️ 1 ' + g.unitLabel + ' = <span style="color:#a78bfa;font-size:0.92rem;">' + dmgPerCall + ' dmg</span></div>';
+}
 
 // Returns an HTML snippet showing the damage rate for the active boss
 function _raidDmgRateHtml(boss) {
@@ -5967,8 +5977,15 @@ window._raidOnFlashcardComplete = function(deckName) {
 };
 
 // Hook: XP earned (amount = XP gained)
+// Client-side buffer: accumulate XP and only fire a raid contribution per 100 XP.
+// This ensures scale=0.01 × 100 = 1 whole dmg per call (no fractions).
+window._raidXPBuffer = 0;
 window._raidOnXPEarned = function(amount) {
-    window._raidContribute('totalXP', amount || 1);
+    window._raidXPBuffer = (window._raidXPBuffer || 0) + (amount || 0);
+    while (window._raidXPBuffer >= 100) {
+        window._raidXPBuffer -= 100;
+        window._raidContribute('totalXP', 100);
+    }
 };
 
 // Hook: chat message sent

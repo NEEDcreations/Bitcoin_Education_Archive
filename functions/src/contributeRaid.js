@@ -20,22 +20,24 @@ const db = admin.firestore();
 //   - binary actions (quiz, trivia, poll) = 1 per call, small daily real limits
 //   - XP: capped at 500/day server-side in awardPoints, so 500 is the honest max
 //   - chat/forum/read: generous but bounded
+// ── Daily caps are tuned so all bosses take ~25-30 days with ~20 active users.
+// ── XP is batched client-side at 100 XP per call (maxAmount=100) → 1 dmg/batch.
 const METRIC_RULES = {
-  quizCompletions:      { maxAmount: 1,    dailyUserCap: 3    },  // 3 quests/day server limit
-  triviaCorrect:        { maxAmount: 1,    dailyUserCap: 1    },  // 1 trivia/day
-  pollVotes:            { maxAmount: 1,    dailyUserCap: 1    },  // 1 poll/day
-  flashcardCompletions: { maxAmount: 1,    dailyUserCap: 17   },  // 17 decks total; per-boss per-deck dedup enforced below
-  totalXP:              { maxAmount: 500,  dailyUserCap: 500  },  // matches daily XP cap
-  chatMessages:         { maxAmount: 1,    dailyUserCap: 100  },  // 100 chat msgs/day max
-  badgesEarned:         { maxAmount: 1,    dailyUserCap: 20   },  // realistic badge earn rate
-  tipsSent:             { maxAmount: 1,    dailyUserCap: 50   },  // tip rate
-  forumPosts:           { maxAmount: 1,    dailyUserCap: 20   },  // reasonable post rate
-  totalTopicReads:      { maxAmount: 1,    dailyUserCap: 100  },  // topic browsing
-  uniqueTopicsVisited:  { maxAmount: 1,    dailyUserCap: 100  },  // topic browsing
-  uniqueUsers5Topics:   { maxAmount: 1,    dailyUserCap: 1    },  // once per user per day
-  watchMinutes:         { maxAmount: 10,   dailyUserCap: 240  },  // 4h TCTV max per day
-  beatsMinutes:         { maxAmount: 10,   dailyUserCap: 120  },  // 2h Beats per day
-  streakUsers:          { maxAmount: 1,    dailyUserCap: 1    },  // once per day (fires at each 7-day streak milestone)
+  quizCompletions:      { maxAmount: 1,   dailyUserCap: 3   },  // 3 quests/day server limit
+  triviaCorrect:        { maxAmount: 1,   dailyUserCap: 1   },  // 1 trivia/day
+  pollVotes:            { maxAmount: 1,   dailyUserCap: 1   },  // 1 poll/day
+  flashcardCompletions: { maxAmount: 1,   dailyUserCap: 17  },  // 17 decks total; per-boss per-deck dedup enforced below
+  totalXP:              { maxAmount: 100, dailyUserCap: 500 },  // client batches at 100 XP; 500 XP/day daily rail still applies
+  chatMessages:         { maxAmount: 1,   dailyUserCap: 3   },  // 3 msgs/day toward raid (avoids chat spam = easy win)
+  badgesEarned:         { maxAmount: 1,   dailyUserCap: 5   },  // 5 badges/day cap
+  tipsSent:             { maxAmount: 1,   dailyUserCap: 50  },  // tip rate
+  forumPosts:           { maxAmount: 1,   dailyUserCap: 20  },  // reasonable post rate
+  totalTopicReads:      { maxAmount: 1,   dailyUserCap: 3   },  // 3 topic reads/day toward raid
+  uniqueTopicsVisited:  { maxAmount: 1,   dailyUserCap: 3   },  // 3 new topics/day toward raid
+  uniqueUsers5Topics:   { maxAmount: 1,   dailyUserCap: 1   },  // once per user per day
+  watchMinutes:         { maxAmount: 10,  dailyUserCap: 240 },  // 4h TCTV max per day
+  beatsMinutes:         { maxAmount: 10,  dailyUserCap: 120 },  // 2h Beats per day
+  streakUsers:          { maxAmount: 1,   dailyUserCap: 1   },  // once per day (fires at each 7-day streak milestone)
 };
 
 exports.contributeRaid = functions.https.onCall(async (data, context) => {
