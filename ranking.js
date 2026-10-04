@@ -4345,6 +4345,14 @@ document.addEventListener('click', function(e) {
 function showSettingsPage(tab) {
     try {
     settingsTab = tab || 'account';
+    // Set page title to app name when on security tab — Authy/browser extensions
+    // read document.title (not the otpauth issuer) when auto-detecting QR codes.
+    if (settingsTab === 'security') {
+        document.title = 'Bitcoin Education Archive';
+    } else if (document.title === 'Bitcoin Education Archive') {
+        // Restore to channel title when leaving security tab
+        document.title = (typeof _currentChannelTitle !== 'undefined' && _currentChannelTitle) ? _currentChannelTitle : 'Bitcoin Education Archive';
+    }
     const modal = document.getElementById('usernameModal');
     const box = modal.querySelector('.username-box');
     if (!modal) { if (typeof showToast === 'function') showToast('Error: modal not found'); return; }
