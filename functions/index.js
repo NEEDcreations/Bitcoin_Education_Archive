@@ -1,4 +1,5 @@
 const functions = require('firebase-functions');
+const functionsV1 = require('firebase-functions/v1');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -121,7 +122,7 @@ const FAUCET = {
 };
 
 // Generate TOTP secret and QR code for user
-exports.totpSetup = functions.https.onCall(async (data, context) => {
+exports.totpSetup = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
@@ -144,7 +145,7 @@ exports.totpSetup = functions.https.onCall(async (data, context) => {
 });
 
 // Verify TOTP code and enable it
-exports.totpVerify = functions.https.onCall(async (data, context) => {
+exports.totpVerify = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
 
@@ -195,7 +196,7 @@ exports.totpVerify = functions.https.onCall(async (data, context) => {
 });
 
 // Validate TOTP code on sign-in
-exports.totpCheck = functions.https.onCall(async (data, context) => {
+exports.totpCheck = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
 
@@ -243,7 +244,7 @@ exports.totpCheck = functions.https.onCall(async (data, context) => {
 });
 
 // Disable TOTP
-exports.totpDisable = functions.https.onCall(async (data, context) => {
+exports.totpDisable = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Enter your current code to disable');
 
@@ -282,7 +283,7 @@ exports.totpDisable = functions.https.onCall(async (data, context) => {
 });
 
 // Check if user has TOTP enabled
-exports.totpStatus = functions.https.onCall(async (data, context) => {
+exports.totpStatus = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;

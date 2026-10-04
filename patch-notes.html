@@ -52,10 +52,39 @@
   <div class="patch">
     <div class="patch-header">
       <div>
+        <div class="patch-title">Two-Factor Authentication &amp; Raid Intelligence</div>
+        <div class="patch-date">October 4, 2026 · v2080</div>
+      </div>
+      <div class="patch-badge">Latest</div>
+    </div>
+    <div class="patch-body">
+
+      <div class="section-label">🔐 Security</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Phone 2FA is live.</strong> Users can now enroll a phone number under Settings → Security. Firebase sends a real SMS verification code — enter it to enable two-factor auth on your account. Supported on all sign-in methods (email, Google, Twitter, GitHub, Facebook). Accounts with phone 2FA get a challenge prompt automatically on every sign-in.</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Authenticator app 2FA is live.</strong> Scan the QR code in Settings → Security with Google Authenticator, Authy, or any TOTP app. Disable any time by entering your current 6-digit code. TOTP is fully server-side — secrets never leave Firebase Cloud Functions.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">TOTP Cloud Functions were deployed as 2nd Gen, which the Firebase compat SDK (v9) doesn't pass auth tokens to — every call returned <code>functions/unauthenticated</code>. Redeployed as 1st Gen. Also fixed a key mismatch where the frontend expected <code>result.data.qrUrl</code> but the function returned <code>result.data.qr</code>.</div></div>
+
+      <div class="section-label">⚔️ Raid Boss</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Damage rate displayed on boss card.</strong> Every boss now shows exactly how much damage your actions deal — e.g. "⚔️ 1 quiz completed = 5 dmg" — so you always know the most effective way to contribute.</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Boss preloader.</strong> The active raid boss is now silently loaded on sign-in, before you ever open the Raid tab. Previously, poll voters and other users who never visited the Raid tab had their contributions silently dropped. Fixed.</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">More damage metrics.</strong> Bosses can now use any of 16 action types to deal damage: quiz completions, flashcard sets, Timechain TV watch time, Bitcoin Beats listen time, poll votes, forum posts, trivia correct answers, topic reads, new topics visited, badges earned, 7-day streaks, Lightning tips sent, chat messages, and total XP earned.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">XP-based bosses now accumulate damage in a 100 XP buffer before firing a contribution call. Prevents fractional damage values and reduces Firestore writes during rapid XP gains.</div></div>
+
+      <div class="section-label">🔧 Dashboard Fixes</div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Lightning Network capacity showed NaN — caused by calling <code>fmtNum()</code> on a value already converted to a formatted string. Fixed the calculation chain; capacity now shows correctly (e.g. "5,342 BTC").</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Dashboard cache bumped to v2 — clears stale null values that were persisting from a prior bad fetch and showing blank tiles on return visits.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Indicator count corrected to 32 — the count previously excluded indicators with no flash logic, making the displayed total inconsistent.</div></div>
+
+    </div>
+  </div>
+
+  <div class="patch">
+    <div class="patch-header">
+      <div>
         <div class="patch-title">Bitcoin Dashboard Overhaul</div>
         <div class="patch-date">October 2, 2026 · v2079</div>
       </div>
-      <div class="patch-badge">Latest</div>
+      <div class="patch-badge prev">Previous</div>
     </div>
     <div class="patch-body">
 
