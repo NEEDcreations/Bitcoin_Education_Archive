@@ -5863,6 +5863,47 @@ if (typeof window._questHubRouteAdded === 'undefined') {
 // Raid Boss - Auto-contribution hooks
 // Fire-and-forget calls to contributeRaid Cloud Function
 // =============================================
+// ── Raid Boss Preloader ──────────────────────────────────────────────────
+// Silently loads the active boss into _currentRaidBoss on auth sign-in so
+// _raidContribute doesn't drop contributions from users who never opened
+// the Raid tab (e.g. poll voters who go straight to the Poll tab).
+(function() {
+    function _raidPreloadBoss() {
+        if (typeof db === 'undefined') return;
+        var now = Date.now();
+        db.collection('raid_bosses').orderBy('startTime', 'desc').limit(5).get().then(function(snap) {
+            snap.forEach(function(doc) {
+                if (window._currentRaidBoss) return;
+                var d = doc.data();
+                d._id = doc.id;
+                var startMs = d.startTime ? (d.startTime.toMillis ? d.startTime.toMillis() : d.startTime._seconds * 1000) : 0;
+                var endMs = d.endTime ? (d.endTime.toMillis ? d.endTime.toMillis() : d.endTime._seconds * 1000) : 0;
+                if (!d.placeholder && !d.defeated && startMs <= now && endMs > now) {
+                    window._currentRaidBoss = d;
+                }
+            });
+        }).catch(function() {});
+    }
+    // Fire immediately if already authed, otherwise wait for auth
+    function _raidPreloadWhenReady() {
+        if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
+            _raidPreloadBoss();
+        } else if (typeof firebase !== 'undefined' && firebase.auth) {
+            var unsub = firebase.auth().onAuthStateChanged(function(user) {
+                if (user && !user.isAnonymous) {
+                    _raidPreloadBoss();
+                    unsub();
+                }
+            });
+        }
+    }
+    if (document.readyState === 'complete') {
+        setTimeout(_raidPreloadWhenReady, 2000);
+    } else {
+        window.addEventListener('load', function() { setTimeout(_raidPreloadWhenReady, 2000); });
+    }
+}());
+
 window._raidContribute = function(metric, amount, detail) {
     if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) return;
     if (firebase.auth().currentUser.isAnonymous) return;
