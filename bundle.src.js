@@ -7358,7 +7358,10 @@ async function loadTotpStatus() {
                 '<button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Set Up Authenticator App</button>';
         }
     } catch(e) {
-        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;padding:8px;background:var(--bg-side);border-radius:6px;">⏳ Authenticator setup requires Cloud Functions. Check back soon!</div>';
+        console.error('[TOTP Status] error:', e.code, e.message, e);
+        var errMsg = (e.code || e.message || 'unknown error');
+        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;padding:8px;background:var(--bg-side);border-radius:6px;margin-bottom:8px;">⚠️ Could not load authenticator status (' + errMsg + ')</div>' +
+            '<button onclick="loadTotpStatus()" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🔄 Try Again</button>';
     }
 }
 
