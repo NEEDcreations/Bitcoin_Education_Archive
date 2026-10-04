@@ -535,6 +535,15 @@ async function finishEmailSignIn(email, _signInUrl) {
         showToast('✅ Email verified! Signed in as ' + escapeHtml(pendingUsername || email));
     } catch(e) {
         console.error('[Email Sign-In] Full error:', e.code, e.message, e.stack);
+        // MFA required
+        if (e.code === 'auth/multi-factor-auth-required') {
+            if (typeof window._showMFASignInChallenge === 'function') {
+                window._showMFASignInChallenge(e.resolver);
+            } else {
+                showToast('Two-factor authentication required. Please refresh and try again.');
+            }
+            return;
+        }
         // Check if this is a Firestore permission error
         if (e.code === 'permission-denied') {
             showToast('⚠️ Permission denied. Try refreshing the page or clearing cache.');
@@ -1261,6 +1270,11 @@ async function signInWithProvider(provider) {
                 }
             } catch(popupErr) {
                 console.log('[Auth] Mobile popup failed, falling back to redirect:', popupErr.code);
+                // MFA challenge
+                if (popupErr.code === 'auth/multi-factor-auth-required') {
+                    if (typeof window._showMFASignInChallenge === 'function') window._showMFASignInChallenge(popupErr.resolver);
+                    return;
+                }
                 // Popup failed - use redirect
                 sessionStorage.setItem('btc_redirect_pending', '1');
                 localStorage.setItem('btc_pwa_auth_pending', '1');
@@ -1282,6 +1296,16 @@ async function signInWithProvider(provider) {
         await handleSignInResult(result.user, anonUid, anonData);
     } catch(e) {
         console.error('Provider sign-in error:', e.code, e.message, e);
+
+        // MFA required - user has phone 2FA enabled
+        if (e.code === 'auth/multi-factor-auth-required') {
+            if (typeof window._showMFASignInChallenge === 'function') {
+                window._showMFASignInChallenge(e.resolver);
+            } else {
+                showToast('Two-factor authentication required. Please refresh and try again.');
+            }
+            return;
+        }
 
         // Popup blocked, closed, or failed - fallback to redirect
         if (e.code === 'auth/popup-blocked' ||
@@ -6955,9 +6979,195 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
 };
 window.togglePushNotifications = async function() { try { if (!('Notification' in window)) { showToast('Notifications not supported in this browser'); return; } var permission = await Notification.requestPermission(); if (permission === 'granted') { localStorage.setItem('btc_push_enabled', 'true'); showToast('🔔 Notifications Enabled!'); } else { localStorage.setItem('btc_push_enabled', 'false'); showToast('❌ Notification permission denied'); } showSettingsPage('prefs'); } catch(e) { console.error(e); } };
 if (typeof sendEmailVerification === 'undefined') window.sendEmailVerification = function() { if (auth && auth.currentUser && auth.currentUser.sendEmailVerification) { auth.currentUser.sendEmailVerification().then(function() { showToast('📧 Verification email sent!'); }).catch(function() { showToast('Could not send verification email'); }); } };
-if (typeof disable2FA === 'undefined') window.disable2FA = function() { showToast('2FA management coming soon'); };
-if (typeof startMFAEnroll === 'undefined') window.startMFAEnroll = function() { showToast('2FA enrollment coming soon'); };
-if (typeof verifyMFACode === 'undefined') window.verifyMFACode = function() { showToast('2FA verification coming soon'); };
+// ===== PHONE 2FA ENROLLMENT =====
+// Uses Firebase Phone MFA (compat SDK v9)
+
+window._mfaVerificationId = null;
+window._mfaResolver = null; // for sign-in MFA challenge
+
+window.disable2FA = async function() {
+    if (!auth || !auth.currentUser) { showToast('Not signed in'); return; }
+    var factors = auth.currentUser.multiFactor && auth.currentUser.multiFactor.enrolledFactors;
+    if (!factors || factors.length === 0) { showToast('2FA is not enabled'); return; }
+    try {
+        for (var f of factors) {
+            await auth.currentUser.multiFactor.unenroll(f);
+        }
+        await db.collection('users').doc(auth.currentUser.uid).update({ phoneVerified: false }).catch(function() {});
+        showToast('✅ 2FA disabled');
+        showSettingsPage('security');
+    } catch(e) {
+        if (e.code === 'auth/requires-recent-login') {
+            showToast('⚠️ Please sign out and sign back in, then disable 2FA.');
+        } else {
+            showToast('Error disabling 2FA: ' + (e.message || 'try again'));
+        }
+    }
+};
+
+window.startMFAEnroll = async function() {
+    if (!auth || !auth.currentUser) { showToast('Not signed in'); return; }
+    var phoneInput = document.getElementById('mfaPhone');
+    if (!phoneInput) { showToast('Phone input not found'); return; }
+    var phone = phoneInput.value.trim();
+    if (!phone) { showToast('Enter your phone number'); return; }
+    // Auto-format US numbers
+    if (/^[2-9]\d{9}$/.test(phone.replace(/[^\d]/g, ''))) {
+        phone = '+1' + phone.replace(/[^\d]/g, '');
+    } else if (/^[\d]{10}$/.test(phone.replace(/[^\d]/g, '')) && !phone.startsWith('+')) {
+        phone = '+1' + phone.replace(/[^\d]/g, '');
+    }
+    if (!phone.startsWith('+')) {
+        showToast('Include country code, e.g. +1 for US');
+        return;
+    }
+    var status = document.getElementById('mfaStatus');
+    if (status) status.textContent = 'Sending code...';
+    try {
+        // Create invisible reCAPTCHA if not already done
+        if (!window._mfaRecaptcha) {
+            var container = document.getElementById('mfaRecaptchaContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'mfaRecaptchaContainer';
+                container.style.display = 'none';
+                document.body.appendChild(container);
+            }
+            window._mfaRecaptcha = new firebase.auth.RecaptchaVerifier('mfaRecaptchaContainer', { size: 'invisible' });
+        }
+        var session = await auth.currentUser.multiFactor.getSession();
+        var phoneProvider = new firebase.auth.PhoneAuthProvider();
+        window._mfaVerificationId = await phoneProvider.verifyPhoneNumber(
+            { phoneNumber: phone, session: session },
+            window._mfaRecaptcha
+        );
+        // Show code input
+        var mfaVerify = document.getElementById('mfaVerify');
+        if (mfaVerify) mfaVerify.style.display = 'block';
+        if (status) status.textContent = '✅ Code sent! Check your messages.';
+    } catch(e) {
+        console.error('[MFA Enroll]', e.code, e.message);
+        // Reset reCAPTCHA on error so it can be used again
+        if (window._mfaRecaptcha) { try { window._mfaRecaptcha.clear(); } catch(_) {} window._mfaRecaptcha = null; }
+        if (status) status.textContent = '';
+        if (e.code === 'auth/requires-recent-login') {
+            showToast('⚠️ Sign out and sign back in, then try enabling 2FA.');
+        } else if (e.code === 'auth/invalid-phone-number') {
+            showToast('⚠️ Invalid phone number. Use format: +1XXXXXXXXXX');
+        } else if (e.code === 'auth/too-many-requests') {
+            showToast('⚠️ Too many attempts. Please wait a few minutes.');
+        } else {
+            showToast('Error sending code: ' + (e.message || 'try again'));
+        }
+    }
+};
+
+window.verifyMFACode = async function() {
+    if (!auth || !auth.currentUser) { showToast('Not signed in'); return; }
+    var codeInput = document.getElementById('mfaCode');
+    if (!codeInput) { showToast('Code input not found'); return; }
+    var code = codeInput.value.trim();
+    if (!code || code.length < 6) { showToast('Enter the 6-digit code'); return; }
+    if (!window._mfaVerificationId) { showToast('Start enrollment first — click "Send Verification Code"'); return; }
+    var status = document.getElementById('mfaStatus');
+    if (status) status.textContent = 'Verifying...';
+    try {
+        var cred = firebase.auth.PhoneAuthProvider.credential(window._mfaVerificationId, code);
+        var multiFactorAssertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
+        await auth.currentUser.multiFactor.enroll(multiFactorAssertion, 'Phone Number');
+        await db.collection('users').doc(auth.currentUser.uid).update({ phoneVerified: true }).catch(function() {});
+        window._mfaVerificationId = null;
+        showToast('✅ 2FA enabled! Your account is now protected.');
+        showSettingsPage('security');
+    } catch(e) {
+        console.error('[MFA Verify]', e.code, e.message);
+        if (status) status.textContent = '';
+        if (e.code === 'auth/invalid-verification-code') {
+            showToast('⚠️ Invalid code. Check your messages and try again.');
+        } else if (e.code === 'auth/code-expired') {
+            showToast('⚠️ Code expired. Click "Send Verification Code" to get a new one.');
+            window._mfaVerificationId = null;
+        } else {
+            showToast('Verification failed: ' + (e.message || 'try again'));
+        }
+    }
+};
+
+// Show MFA sign-in challenge when user with phone 2FA tries to sign in
+window._showMFASignInChallenge = async function(resolver) {
+    window._mfaResolver = resolver;
+    var overlay = document.createElement('div');
+    overlay.id = 'mfaSignInOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">🔐</div>' +
+        '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:6px;">Two-Factor Authentication</div>' +
+        '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Enter the code sent to your phone</div>' +
+        '<input id="mfaSignInCode" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="width:100%;padding:12px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.2rem;text-align:center;letter-spacing:4px;font-family:inherit;outline:none;margin-bottom:12px;box-sizing:border-box;">' +
+        '<div id="mfaSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);margin-bottom:10px;"></div>' +
+        '<button onclick="window._submitMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
+        '<button onclick="document.getElementById(\"mfaSignInOverlay\").remove();auth.signOut();" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    // Send the code automatically
+    try {
+        if (!window._mfaSignInRecaptcha) {
+            var rc = document.createElement('div'); rc.id = 'mfaSignInRecaptcha'; rc.style.display = 'none';
+            document.body.appendChild(rc);
+            window._mfaSignInRecaptcha = new firebase.auth.RecaptchaVerifier('mfaSignInRecaptcha', { size: 'invisible' });
+        }
+        var phoneHint = resolver.hints.find(function(h) { return h.factorId === firebase.auth.PhoneMultiFactorGenerator.FACTOR_ID; });
+        if (phoneHint) {
+            var phoneProvider = new firebase.auth.PhoneAuthProvider();
+            window._mfaSignInVerificationId = await phoneProvider.verifyPhoneNumber(
+                { multiFactorHint: phoneHint, session: resolver.session },
+                window._mfaSignInRecaptcha
+            );
+            var statusEl = document.getElementById('mfaSignInStatus');
+            if (statusEl) statusEl.textContent = '✅ Code sent to ' + (phoneHint.phoneNumber || 'your phone');
+        }
+    } catch(e) {
+        console.error('[MFA Sign-in challenge]', e);
+        if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
+    }
+    setTimeout(function() { var inp = document.getElementById('mfaSignInCode'); if (inp) inp.focus(); }, 200);
+    // Allow Enter key
+    setTimeout(function() {
+        var inp = document.getElementById('mfaSignInCode');
+        if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') window._submitMFASignIn(); });
+    }, 250);
+};
+
+window._submitMFASignIn = async function() {
+    var code = (document.getElementById('mfaSignInCode') || {}).value || '';
+    code = code.trim();
+    if (!code || code.length < 6) { showToast('Enter the 6-digit code'); return; }
+    if (!window._mfaResolver || !window._mfaSignInVerificationId) { showToast('Session expired. Please sign in again.'); return; }
+    var statusEl = document.getElementById('mfaSignInStatus');
+    if (statusEl) statusEl.textContent = 'Verifying...';
+    try {
+        var cred = firebase.auth.PhoneAuthProvider.credential(window._mfaSignInVerificationId, code);
+        var assertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
+        var result = await window._mfaResolver.resolveSignIn(assertion);
+        window._mfaResolver = null;
+        window._mfaSignInVerificationId = null;
+        var overlay = document.getElementById('mfaSignInOverlay');
+        if (overlay) overlay.remove();
+        // Let the normal auth state change listener handle the rest
+        loadUser(result.user.uid);
+        showToast('✅ Signed in successfully!');
+    } catch(e) {
+        console.error('[MFA Sign-in submit]', e);
+        if (statusEl) statusEl.textContent = '';
+        if (e.code === 'auth/invalid-verification-code') {
+            showToast('⚠️ Invalid code. Try again.');
+        } else if (e.code === 'auth/code-expired') {
+            showToast('⚠️ Code expired. Close and sign in again.');
+        } else {
+            showToast('Verification failed: ' + (e.message || 'try again'));
+        }
+    }
+};
 if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
 if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return; if (auth && auth.currentUser) { var uid = auth.currentUser.uid; db.collection('users').doc(uid).delete().then(function() { return auth.currentUser.delete(); }).then(function() { localStorage.clear(); location.reload(); }).catch(function(e) { showToast('Error: ' + e.message); }); } };
 async function loadTotpStatus() {
@@ -6987,18 +7197,21 @@ async function startTotpSetup() {
     try {
         var totpSetupFn = firebase.functions().httpsCallable('totpSetup');
         var result = await totpSetupFn();
-        if (result.data && result.data.qrUrl) {
+        var qrDataUrl = result.data && (result.data.qr || result.data.qrUrl || result.data.qrDataUrl);
+        if (qrDataUrl) {
             var area = document.getElementById('totpSetupArea') || document.getElementById('totpSection');
             if (area) {
                 area.style.display = 'block';
                 area.innerHTML = '<div style="text-align:center;margin:12px 0;">' +
                     '<div style="color:var(--heading);font-weight:600;font-size:0.9rem;margin-bottom:8px;">Scan this QR code with your authenticator app:</div>' +
-                    '<img src="' + result.data.qrUrl + '" style="width:200px;height:200px;border-radius:8px;border:2px solid var(--border);margin-bottom:12px;">' +
-                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or enter this key manually: <strong>' + (result.data.secret || '') + '</strong></div>' +
-                    '<input type="text" id="totpVerifyCode" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
+                    '<img src="' + qrDataUrl + '" style="width:200px;height:200px;border-radius:8px;border:2px solid var(--border);margin-bottom:12px;">' +
+                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or enter this key manually: <strong style="font-family:monospace;">' + (result.data.secret || '') + '</strong></div>' +
+                    '<input type="text" id="totpVerifyCode" inputmode="numeric" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
                     '<button onclick="verifyTotpSetup()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Verify & Enable</button>' +
                     '</div>';
             }
+        } else {
+            showToast('Could not load QR code. Check your connection and try again.');
         }
     } catch(e) {
         showToast('Error setting up authenticator: ' + (e.message || 'try again'));
