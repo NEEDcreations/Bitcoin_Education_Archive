@@ -136,7 +136,10 @@ function buildCSP(nonce) {
             " https://accounts.google.com" +          // Google Sign-In popup
             " https://www.google.com" +          // reCAPTCHA v3 hidden iframe (App Check)
             " https://leo-mattes.com" +           // Pump It! game (Bitcoin Beats tab)
-            " https://timechaincalendar.com",      // Timechain Calendar iframe (dashboard)
+            " https://timechaincalendar.com" +      // Timechain Calendar iframe (dashboard)
+            " https://ppq.ai" +                     // AI Tools panel
+            " https://*.ppq.ai" +                   // PPQ subdomains
+            " https://platform.twitter.com",        // Embedded tweets
 
         "font-src 'self' https://fonts.gstatic.com",
 
