@@ -1915,7 +1915,7 @@ window.showReactPicker = function(msgId, btnEl) {
     // Category tabs
     var tabHtml = '<div id="reactEmojiTabBar" style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
     cats.forEach(function(cat, i) {
-        var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : cat === 'Animals' ? '🐶' : cat === 'Food' ? '🍕' : cat === 'Travel' ? '✈️' : cat === 'Symbols' ? '❤️' : '🔥';
+        var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
         tabHtml += '<button onclick="window._switchReactTab(\''+cat+'\')" id="reactEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.95rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
     });
     tabHtml += '</div>';
@@ -2274,7 +2274,7 @@ window.showEmojiPicker = function() {
     // Category tabs
     var tabHtml = '<div id="emojiTabBar" style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;overflow-y:visible;padding:3px 0 3px 0;">';
     cats.forEach(function(cat, i) {
-        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : cat === 'Symbols' ? '❓' : '🔥';
+        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
         tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
     });
     tabHtml += '</div>';
@@ -3831,7 +3831,7 @@ window._showAnnReactPicker = function(btnEl, docId) {
     var cats = Object.keys(EMOJI_CATEGORIES);
     var tabHtml = '<div style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
     cats.forEach(function(cat, i) {
-        var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '👍' : cat === 'Bitcoin' ? '₿' : cat === 'Animals' ? '🐶' : cat === 'Food' ? '🍕' : cat === 'Travel' ? '✈️' : cat === 'Symbols' ? '❤️' : '🔥';
+        var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
         tabHtml += '<button onclick="window._switchAnnEmojiTab(\''+cat+'\')" id="annEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.9rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
     });
     tabHtml += '<button onclick="document.getElementById(\'annReactPicker\').remove()" style="margin-left:auto;padding:4px 7px;background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;flex-shrink:0;">✕</button></div>';
