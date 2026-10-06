@@ -5188,7 +5188,7 @@ exports.auditWithdrawals = functionsV1.https.onRequest(async (req, res) => {
 // Runs every 10 seconds, aggregates presence docs into per-station counts
 // =============================================
 exports.tctvAggregatePresence = onSchedule({
-    schedule: 'every 10 seconds',
+    schedule: 'every 1 minutes',
     timeZone: 'UTC',
     retryCount: 0,
 }, async (event) => {
