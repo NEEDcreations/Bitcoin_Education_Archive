@@ -26,7 +26,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Terms of Service</h1>
-    <p class="subtitle">Last updated: May 4, 2026</p>
+    <p class="subtitle">Last updated: October 6, 2026</p>
 
     <h2>1. Acceptance of Terms</h2>
     <p>By accessing or using the Bitcoin Education Archive website at <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> ("the Site"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Site.</p>
@@ -65,6 +65,11 @@
         <li>Profile pictures and public user profiles</li>
         <li>Two-factor authentication (TOTP)</li>
         <li>A Progressive Web App (PWA) for mobile and desktop</li>
+        <li>Factions (Cyber Hornets &amp; Honey Badgers) — team identity that influences community leaderboards and charity pledges</li>
+        <li>Proof of Walk — Strava integration that awards points for real-world steps and activity</li>
+        <li>Proof of Play — a gaming hub including PVP, Timechain Arcade, Sat Arcade, Galaxy Mind, and RyRacer</li>
+        <li>Peers — a mutual-follow social graph connecting users across the leaderboard and profiles</li>
+        <li>Price Predictions — daily Bitcoin up/down price predictions tracked server-side via Cloud Functions</li>
     </ul>
 
     <h2 id="educational-content">2a. Educational Content — First-Principles, Not Financial Advice</h2>
@@ -125,6 +130,16 @@
         <li><strong>XP/points, badges, and ranks are virtual, have no monetary value, and are non-transferable.</strong> They cannot be exchanged for real currency, Bitcoin, or any asset of value.</li>
         <li><strong>We are not responsible for the loss of XP, points, streaks, badges, or rank</strong> due to account actions, technical errors, policy enforcement, exploits by other users, or any other cause. Virtual items carry no guarantee of persistence.</li>
         <li>If you believe your points were incorrectly affected by another user's exploit or abuse, you may report it — but we do not guarantee restoration of virtual balances.</li>
+    </ul>
+
+    <h2>5a. Factions</h2>
+    <ul>
+        <li>During sign-up, users may choose a faction: <strong>Cyber Hornets</strong> or <strong>Honey Badgers</strong></li>
+        <li>Faction choice is voluntary and can be made at any time from your profile settings</li>
+        <li>Faction affiliation is stored on your account and is publicly visible on your profile and the leaderboard</li>
+        <li>Factions compete on aggregate community leaderboards including the Charity donation totals</li>
+        <li>Faction affiliation has no monetary value and confers no real-world benefit</li>
+        <li>We reserve the right to modify or remove the faction system at any time</li>
     </ul>
 
     <h2>6. Sats Rewards &amp; In-App Balances</h2>
@@ -352,6 +367,38 @@
         <li>Cheating, using external tools during battles, or exploiting bugs is prohibited</li>
     </ul>
 
+    <h2>13a. Proof of Play (Gaming Hub)</h2>
+    <ul>
+        <li>Proof of Play is a gaming hub that includes PVP quiz battles, Timechain Arcade, Sat Arcade, Galaxy Mind, and RyRacer tabs</li>
+        <li>Arcade games (Timechain Arcade, Sat Arcade, Galaxy Mind, RyRacer) are hosted by third-party providers — clicking a game opens it on the third-party site or in an embedded frame</li>
+        <li>Third-party arcade games are governed by their own terms of service and privacy policies. Bitcoin Education Archive is not responsible for third-party game content, availability, fees, or outcomes</li>
+        <li>Some arcade games (e.g., RyRacer, Sat Arcade) may involve real Bitcoin or satoshi payments made directly to the third-party provider. These are not transactions with Bitcoin Education Archive</li>
+        <li>Visiting any arcade tab awards a small number of points as an engagement reward — this is non-manipulable and subject to the daily point cap in Section 5</li>
+        <li>We reserve the right to add, remove, or modify games in the Proof of Play hub at any time</li>
+    </ul>
+
+    <h2>13b. Proof of Walk (Strava Integration)</h2>
+    <ul>
+        <li>Proof of Walk allows you to connect your Strava account to earn points for real-world physical activity</li>
+        <li>Connecting Strava is entirely voluntary. You can disconnect at any time from the Proof of Walk settings page, which immediately deletes all stored Strava data from our servers</li>
+        <li>By connecting Strava, you authorize Bitcoin Education Archive to read your activity data (steps, distance, duration) via the Strava API for the purpose of awarding points</li>
+        <li>Only activity data is read — we do not access your Strava followers, social graph, heart rate data, GPS route maps, or any data beyond activity metrics needed for point calculation</li>
+        <li>Strava authentication is handled via OAuth 2.0 through a secure Cloud Function — your Strava credentials are never exposed to the client or stored on our servers</li>
+        <li>Points awarded through Proof of Walk are subject to the same daily 500-point cap as all other point sources (Section 5)</li>
+        <li>Bitcoin Education Archive is not affiliated with or endorsed by Strava. Use of the Strava integration is also subject to <a href="https://www.strava.com/legal/terms" target="_blank" rel="noopener">Strava's Terms of Service</a></li>
+        <li>We are not responsible for any issues arising from Strava's service availability, API changes, or account access</li>
+    </ul>
+
+    <h2>13c. Peers</h2>
+    <ul>
+        <li>Peers is a mutual-follow social graph. You can send a peer request to any user from their profile</li>
+        <li>A peer connection is established only when both users have accepted each other's request — there are no one-sided follows</li>
+        <li>Your peer list is visible on your public profile. You can remove a peer at any time from your profile settings</li>
+        <li>Peer connections do not grant access to private data — they are a social indicator only</li>
+        <li>Peer requests are stored in Firebase and are subject to the same conduct rules as all other features. Sending unsolicited, harassing, or spam peer requests is prohibited</li>
+        <li>We reserve the right to modify or remove the Peers feature at any time</li>
+    </ul>
+
     <h2>14. User Profiles & Online Status</h2>
     <ul>
         <li>Signed-in users have a public profile visible to other signed-in users</li>
@@ -487,6 +534,16 @@
         <li>Indicator values, thresholds, and signals are <strong>not financial advice</strong> and should not be used as the sole basis for investment decisions</li>
         <li>Static data (MSTR holdings, ETF data) is updated periodically and may not reflect real-time values</li>
         <li>We make no guarantees about the accuracy, timeliness, or completeness of dashboard data</li>
+    </ul>
+
+    <h2>27a. Price Predictions</h2>
+    <ul>
+        <li>Price Predictions is a daily game where signed-in users predict whether Bitcoin's price will be higher or lower after a set period</li>
+        <li>Predictions are resolved server-side via a Cloud Function — the client cannot influence the outcome</li>
+        <li>Correct predictions contribute to your accuracy streak and may award badge progress</li>
+        <li>Price Predictions are for entertainment and educational purposes only. They are <strong>not financial advice</strong> and should not inform any real investment decisions</li>
+        <li>Price data used for resolution is sourced from public third-party APIs and may differ from other data sources. We make no guarantees about the accuracy or timeliness of resolution prices</li>
+        <li>We reserve the right to pause, modify, or remove the Price Predictions feature at any time</li>
     </ul>
 
     <h2>28. Sats Faucet (Claim Sats)</h2>

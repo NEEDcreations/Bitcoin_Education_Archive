@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: July 26, 2026</p>
+    <p class="subtitle">Last updated: October 6, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -70,6 +70,9 @@
         <tr><td>Contact email (if provided)</td><td>Display on public profile for contact (optional, separate from sign-in email)</td></tr>
         <tr><td>Online presence (lastSeen timestamp)</td><td>Show online/away/offline status on leaderboard and profiles (can be disabled in Settings)</td></tr>
         <tr><td>Blocked users list</td><td>Synced block list to prevent unwanted messages across devices</td></tr>
+        <tr><td>Faction (Cyber Hornets or Honey Badgers)</td><td>Displayed publicly on profile and leaderboard; used in community charity and challenge leaderboards</td></tr>
+        <tr><td>Peer connections (peer_requests subcollection)</td><td>Mutual-follow social graph — sent/received peer requests and confirmed connections</td></tr>
+        <tr><td>Price prediction history (predictions subcollection)</td><td>Daily up/down predictions, resolution status, accuracy streak</td></tr>
     </table>
 
     <h3>Direct Messages (stored in Firebase)</h3>
@@ -176,6 +179,26 @@
         <tr><td>User count</td><td>Display total registered users</td></tr>
     </table>
     <p>Community statistics are fully anonymous aggregate counters. They do not contain any personally identifiable information.</p>
+
+    <h3>Proof of Walk / Strava Integration (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Strava OAuth token (stored server-side in Cloud Function only)</td><td>Authorize API calls to Strava on your behalf — never stored in Firestore or exposed to the client</td></tr>
+        <tr><td>Athlete name (display only)</td><td>Confirm which Strava account is connected on the Proof of Walk dashboard</td></tr>
+        <tr><td>Activity metrics (steps, distance, duration per session)</td><td>Calculate and award points for physical activity</td></tr>
+        <tr><td>Daily activity stats (proof_of_walk_stats subcollection)</td><td>Track daily totals to enforce per-day point limits</td></tr>
+        <tr><td>Individual activity records (proof_of_walk subcollection)</td><td>Log synced activities for audit and badge progress</td></tr>
+    </table>
+    <p>Strava data is only collected while your Strava account is connected. Disconnecting Strava from the Proof of Walk settings page immediately and permanently deletes all stored Strava data (integration record, activity logs, and daily stats) from Firebase. We do not access GPS routes, heart rate, social graph, or any Strava data beyond activity metrics.</p>
+
+    <h3>Peers (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Sender &amp; recipient user IDs</td><td>Route peer requests to the correct users</td></tr>
+        <tr><td>Request status (pending / accepted)</td><td>Track the state of each peer connection</td></tr>
+        <tr><td>Timestamp</td><td>Display when a connection was made</td></tr>
+    </table>
+    <p>Peer connection data is stored in the <code>peer_requests</code> Firestore collection. Your peer list is visible on your public profile. You can remove a peer or withdraw a request at any time from your profile settings.</p>
 
     <h3>Price Predictions (stored in Firebase)</h3>
     <table>
@@ -361,6 +384,8 @@
         <tr><td>RainbowChart.com</td><td>Rainbow chart formula reference</td><td>None (formula only, no API calls)</td></tr>
         <tr><td>Firebase Cloud Functions</td><td>Secure Telegram bridge, server-side operations</td><td>Chat messages (username + text)</td></tr>
         <tr><td>Telegram Bot API</td><td>Bridge Global Chat to Telegram group</td><td>Username and message text</td></tr>
+        <tr><td>Strava API</td><td>Proof of Walk — read activity metrics (steps, distance, duration) to award points</td><td>OAuth token (server-side only); activity metrics. No GPS routes, heart rate, or social data.</td></tr>
+        <tr><td>Timechain Arcade / Sat Arcade / RyRacer / Galaxy Mind</td><td>Third-party Bitcoin games embedded in Proof of Play hub</td><td>None from us — games open on the third-party site; their own privacy policies apply</td></tr>
     </table>
     <p>We do <strong>not</strong> use Google Analytics, Facebook Pixel, ad networks, or any tracking/analytics services.</p>
 
