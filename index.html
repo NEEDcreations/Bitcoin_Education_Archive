@@ -353,6 +353,30 @@
         .username-box button:hover { background: #ea580c; }
         .username-box .skip { color: #475569; font-size: 0.85rem; margin-top: 12px; cursor: pointer; display: block; }
         .username-box .skip:hover { color: var(--text-dim); }
+        /* TOS checkbox */
+        .tos-check-row { display:flex; align-items:flex-start; gap:10px; text-align:left; margin-bottom:14px; }
+        .tos-check-row input[type=checkbox] { flex-shrink:0; width:18px; height:18px; margin-top:2px; accent-color:#f7931a; cursor:pointer; }
+        .tos-check-row label { font-size:0.78rem; color:#94a3b8; line-height:1.5; cursor:pointer; }
+        .tos-check-row label a { color:#f7931a; text-decoration:underline; }
+        /* Existing-user TOS modal */
+        #tosModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:500000; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        #tosModal.open { display:block; }
+        #tosModal .tos-box { background:rgba(15,23,42,0.95); border:1px solid rgba(247,147,26,0.3); border-radius:20px; padding:36px 28px; max-width:420px; width:92%; margin:40px auto; box-shadow:0 20px 60px rgba(0,0,0,0.7); }
+        #tosModal h2 { color:#f7931a; font-size:1.3rem; margin-bottom:8px; text-align:center; }
+        #tosModal .tos-subtitle { color:#94a3b8; font-size:0.85rem; margin-bottom:20px; text-align:center; line-height:1.5; }
+        #tosModal .tos-links { background:rgba(247,147,26,0.06); border:1px solid rgba(247,147,26,0.15); border-radius:10px; padding:14px 16px; margin-bottom:18px; }
+        #tosModal .tos-links a { display:flex; align-items:center; gap:8px; color:#f7931a; font-size:0.9rem; font-weight:600; text-decoration:none; padding:6px 0; }
+        #tosModal .tos-links a:hover { text-decoration:underline; }
+        #tosModal .tos-links a + a { border-top:1px solid rgba(255,255,255,0.06); margin-top:4px; padding-top:10px; }
+        #tosModal .tos-accept-check { display:flex; align-items:flex-start; gap:10px; margin-bottom:18px; }
+        #tosModal .tos-accept-check input { flex-shrink:0; width:20px; height:20px; margin-top:2px; accent-color:#f7931a; cursor:pointer; }
+        #tosModal .tos-accept-check label { font-size:0.85rem; color:#cbd5e1; line-height:1.6; cursor:pointer; }
+        #tosModal .tos-accept-check label a { color:#f7931a; text-decoration:underline; }
+        #tosModal .tos-accept-btn { width:100%; padding:14px; background:#f7931a; border:none; border-radius:10px; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; opacity:0.4; pointer-events:none; transition:opacity 0.2s; }
+        #tosModal .tos-accept-btn.ready { opacity:1; pointer-events:auto; }
+        #tosModal .tos-accept-btn.ready:hover { background:#ea580c; }
+        #tosModal .tos-signout { display:block; text-align:center; margin-top:12px; color:#475569; font-size:0.78rem; cursor:pointer; }
+        #tosModal .tos-signout:hover { color:#94a3b8; }
 
         /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
         .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; border:none; color:#fff; font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
@@ -1236,6 +1260,24 @@
         <div id="forumContainer" style="display:none;"></div>
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
+    <!-- TOS acceptance modal for existing users -->
+    <div id="tosModal">
+        <div class="tos-box">
+            <h2>📜 Updated Terms & Privacy</h2>
+            <p class="tos-subtitle">We've updated our Terms of Service and Privacy Policy. Please review and accept to continue using Bitcoin Education Archive.</p>
+            <div class="tos-links">
+                <a href="/terms.html" target="_blank" rel="noopener">📄 Terms of Service <span style="margin-left:auto;font-size:0.7rem;opacity:0.6;">opens in new tab ↗</span></a>
+                <a href="/privacy.html" target="_blank" rel="noopener">🔒 Privacy Policy <span style="margin-left:auto;font-size:0.7rem;opacity:0.6;">opens in new tab ↗</span></a>
+            </div>
+            <div class="tos-accept-check">
+                <input type="checkbox" id="tosModalCheck" onchange="var btn=document.getElementById('tosAcceptBtn');if(btn){btn.classList.toggle('ready',this.checked);}">
+                <label for="tosModalCheck">I have read and agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</label>
+            </div>
+            <button id="tosAcceptBtn" class="tos-accept-btn" onclick="window._acceptTos&&window._acceptTos()">Accept &amp; Continue →</button>
+            <span class="tos-signout" onclick="if(typeof signOutUser==='function')signOutUser()">Sign out instead</span>
+        </div>
+    </div>
+
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
     <!-- FAB row: [−] Chat | AI Tools | Metrics | Leaderboard -->
     <button id="fabMinimizeBtn" onclick="toggleFabMinimize()" title="Hide buttons" aria-label="Minimize floating buttons">−</button>
@@ -1303,7 +1345,11 @@
                 </div>
             </div>
             <div id="turnstileWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
-            <button onclick="submitUsername()">Start Learning →</button>
+            <div class="tos-check-row">
+                <input type="checkbox" id="signupTosCheck" onchange="var btn=document.querySelector('#usernameModal button[onclick=\'submitUsername()\']');if(btn){btn.style.opacity=this.checked?'1':'0.45';btn.style.pointerEvents=this.checked?'auto':'none';}">
+                <label for="signupTosCheck">I have read and agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</label>
+            </div>
+            <button onclick="submitUsername()" style="opacity:0.45;pointer-events:none;">Start Learning →</button>
             <div id="emailSignInSection" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Already have an account? Sign in with your email:</p>
                 <input type="email" id="returningEmailInput" placeholder="📧 Your email address" maxlength="100" aria-label="Email address for magic link sign-in" onkeydown="if(event.key==='Enter')sendReturningMagicLink()" style="font-size:16px;padding:14px 18px;width:100%;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:var(--text,#fff);font-family:inherit;outline:none;box-sizing:border-box;">

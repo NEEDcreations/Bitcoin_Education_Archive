@@ -91,6 +91,11 @@ const POINTS = {
     streak: 100,        // daily streak bonus
 };
 
+// TOS version — bump this string whenever Terms or Privacy Policy update significantly.
+// Existing users who haven't accepted this version will see the acceptance modal on next load.
+const TOS_CURRENT_VERSION = '2026-10-06';
+window.TOS_CURRENT_VERSION = TOS_CURRENT_VERSION;
+
 let db, auth, currentUser = null;
 let signInAttempts = 0;
 let signInLockout = 0;
@@ -514,6 +519,9 @@ async function finishEmailSignIn(email, _signInUrl) {
             if (pendingCountry)   { userData.country = pendingCountry; }
             var _emailSrc = localStorage.getItem('btc_signup_source');
             if (_emailSrc) { userData.signupSource = _emailSrc; }
+            // TOS acceptance recorded at signup (email verification path)
+            userData.tosVersion = TOS_CURRENT_VERSION;
+            userData.tosAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection('users').doc(emailUid).set(userData);
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
 
@@ -1455,6 +1463,10 @@ async function loadUser(uid, prefetchedDoc) {
         currentUser = { uid, ...doc.data() };
         // Cache profile for instant next-load
         try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
+        // TOS check — show acceptance modal if user hasn't accepted current version
+        if (!auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
+            _showTosModal();
+        }
         window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
         if (currentUser.visitedChannelsList) {
@@ -2094,6 +2106,9 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     // Campaign source tracking - written once at signup, never overwritten
     var _signupSrc = localStorage.getItem('btc_signup_source');
     if (_signupSrc) { userData.signupSource = _signupSrc; }
+    // Record TOS acceptance at signup
+    userData.tosVersion = TOS_CURRENT_VERSION;
+    userData.tosAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
 
     await db.collection('users').doc(uid).set(userData);
     // Increment global registered user count
@@ -6745,6 +6760,40 @@ function clearUserLocalStorage() {
     }
 }
 window.clearUserLocalStorage = clearUserLocalStorage;
+
+// ---- TOS Acceptance Modal (existing users) ----
+function _showTosModal() {
+    var m = document.getElementById('tosModal');
+    if (m) m.classList.add('open');
+}
+
+window._acceptTos = async function() {
+    var check = document.getElementById('tosModalCheck');
+    if (!check || !check.checked) return;
+    var btn = document.getElementById('tosAcceptBtn');
+    if (btn) { btn.textContent = 'Saving...'; btn.classList.remove('ready'); }
+    try {
+        if (currentUser && auth.currentUser && !auth.currentUser.isAnonymous) {
+            await db.collection('users').doc(auth.currentUser.uid).update({
+                tosVersion: TOS_CURRENT_VERSION,
+                tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            currentUser.tosVersion = TOS_CURRENT_VERSION;
+            // Update local cache
+            try {
+                var cached = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+                if (cached && cached.data) { cached.data.tosVersion = TOS_CURRENT_VERSION; localStorage.setItem('btc_profile_cache', JSON.stringify(cached)); }
+            } catch(e) {}
+        }
+        var m = document.getElementById('tosModal');
+        if (m) m.classList.remove('open');
+        if (typeof showToast === 'function') showToast('✅ Terms accepted. Welcome back!');
+    } catch(e) {
+        if (btn) { btn.textContent = 'Accept & Continue →'; btn.classList.add('ready'); }
+        if (typeof showToast === 'function') showToast('Error saving. Please try again.');
+        console.error('[TOS] Accept error:', e);
+    }
+};
 
 async function signOutUser() {
     // [AUDIT FIX M5] Clear caches on sign-out for shared device security
