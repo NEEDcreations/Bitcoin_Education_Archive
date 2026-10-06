@@ -34305,8 +34305,7 @@ document.addEventListener('btcProfileSaved', function() {
 
     window.nachoLearningPath = function() {
         var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
-        var exploredCount = 0;
-        try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
+        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var _a = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
         var isFull = true;
@@ -35102,6 +35101,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         return _chBtnMapCache;
     }
 
+    // getExploredCount() — canonical source of truth for tier gates.
+    // For signed-in users: prefers currentUser.visitedChannelsList (Firestore-backed,
+    // already loaded by loadUser()) and takes the MAX of that vs localStorage so
+    // neither source can regress the count. For anon users: localStorage only.
+    // This fixes the "new device / cleared storage / incognito" wrong-tier bug.
+    window.getExploredCount = function() {
+        var local = 0;
+        try { local = (safeJSON('btc_visited_channels', [])).length; } catch(e) {}
+        var firestore = 0;
+        try {
+            if (typeof currentUser !== 'undefined' && currentUser &&
+                Array.isArray(currentUser.visitedChannelsList)) {
+                firestore = currentUser.visitedChannelsList.length;
+            }
+        } catch(e) {}
+        return Math.max(local, firestore);
+    };
+
     window.goHome = function goHome(fromPopState) {
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
 
@@ -35166,8 +35183,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
         var isAdmin = window._isAdminClaim === true;
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-        var exploredCount = 0;
-        try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
+        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
         var isNewUser = !isAdmin && (visits < 2 && exploredCount < 3);
         
         // Hide distracting gamification for absolute beginners to focus on core education
@@ -35608,8 +35624,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // PROGRESSIVE SIDEBAR UPDATE
     function updateSidebarTiers() {
-        const explored = safeJSON('btc_visited_channels', []);
-        const exploredCount = explored.length;
+        const exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
         const visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         
         // Admin Bypass Logic — safely handle auth not being ready yet
@@ -35943,8 +35958,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
 
         // PROGRESSIVE DISCLOSURE TIER SYSTEM
-        var exploredCount = 0;
-        try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
+        var exploredCount = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         
         // Admin Bypass Logic
@@ -36834,8 +36848,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (oldMenu) oldMenu.remove();
 
         // Check tier status
-        var _explored = safeJSON('btc_visited_channels', []);
-        var _exploredN = _explored.length;
+        var _exploredN = getExploredCount(); // Firestore-backed; max(visitedChannelsList, localStorage)
         var _vis = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var _aAuth = (typeof auth !== 'undefined') ? auth : null;
         var _aCu = _aAuth && _aAuth.currentUser;
