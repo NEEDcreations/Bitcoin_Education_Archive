@@ -164,7 +164,7 @@ const FAUCET = {
 
 // Generate TOTP secret and QR code for user
 exports.totpSetup = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
     const email = context.auth.token.email || 'user';
@@ -187,8 +187,8 @@ exports.totpSetup = functionsV1.https.onCall(async (data, context) => {
 
 // Verify TOTP code and enable it
 exports.totpVerify = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Code required');
 
     const uid = context.auth.uid;
 
@@ -200,7 +200,7 @@ exports.totpVerify = functionsV1.https.onCall(async (data, context) => {
             const rd = rlDoc.data();
             const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
             if (ws && (Date.now() - ws.getTime()) < 120000) {
-                if ((rd.attempts || 0) >= 5) throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+                if ((rd.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
                 tx.update(rlRef, { attempts: (rd.attempts || 0) + 1 });
             } else {
                 tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
@@ -212,13 +212,13 @@ exports.totpVerify = functionsV1.https.onCall(async (data, context) => {
 
     // Get pending secret
     const pending = await db.collection('totp_pending').doc(uid).get();
-    if (!pending.exists) throw new functions.https.HttpsError('not-found', 'No pending TOTP setup. Start setup first.');
+    if (!pending.exists) throw new functionsV1.https.HttpsError('not-found', 'No pending TOTP setup. Start setup first.');
 
     const secret = pending.data().secret;
 
     // Verify the code
     var isValid = authenticator.verify({ token: data.code, secret: secret });
-    if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code. Try again.');
+    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code. Try again.');
 
     // Store verified secret
     await db.collection('totp_secrets').doc(uid).set({
@@ -238,8 +238,8 @@ exports.totpVerify = functionsV1.https.onCall(async (data, context) => {
 
 // Validate TOTP code on sign-in
 exports.totpCheck = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Code required');
 
     const uid = context.auth.uid;
 
@@ -252,7 +252,7 @@ exports.totpCheck = functionsV1.https.onCall(async (data, context) => {
             const d = doc.data();
             const ws = d.windowStart ? (d.windowStart.toDate ? d.windowStart.toDate() : new Date(d.windowStart)) : null;
             if (ws && (now - ws.getTime()) < 120000) {
-                if ((d.attempts || 0) >= 5) throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+                if ((d.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
                 t.set(totpRateRef, { attempts: (d.attempts || 0) + 1, windowStart: d.windowStart }, { merge: true });
             } else {
                 t.set(totpRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
@@ -264,13 +264,13 @@ exports.totpCheck = functionsV1.https.onCall(async (data, context) => {
 
     const doc = await db.collection('totp_secrets').doc(uid).get();
     if (!doc.exists || !doc.data().enabled) {
-        throw new functions.https.HttpsError('not-found', 'TOTP not enabled');
+        throw new functionsV1.https.HttpsError('not-found', 'TOTP not enabled');
     }
 
     const secret = doc.data().secret;
     var isValid = authenticator.verify({ token: data.code, secret: secret });
 
-    if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code');
+    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code');
 
     // Reset rate limit on success
     await totpRateRef.delete().catch(function() {});
@@ -286,8 +286,8 @@ exports.totpCheck = functionsV1.https.onCall(async (data, context) => {
 
 // Disable TOTP
 exports.totpDisable = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Enter your current code to disable');
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Enter your current code to disable');
 
     const uid = context.auth.uid;
 
@@ -299,7 +299,7 @@ exports.totpDisable = functionsV1.https.onCall(async (data, context) => {
             const rd = rlDoc.data();
             const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
             if (ws && (Date.now() - ws.getTime()) < 120000) {
-                if ((rd.attempts || 0) >= 5) throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+                if ((rd.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
                 tx.update(rlRef, { attempts: (rd.attempts || 0) + 1 });
             } else {
                 tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
@@ -310,11 +310,11 @@ exports.totpDisable = functionsV1.https.onCall(async (data, context) => {
     });
 
     const doc = await db.collection('totp_secrets').doc(uid).get();
-    if (!doc.exists) throw new functions.https.HttpsError('not-found', 'TOTP not enabled');
+    if (!doc.exists) throw new functionsV1.https.HttpsError('not-found', 'TOTP not enabled');
 
     // Verify code before disabling
     var isValid = authenticator.verify({ token: data.code, secret: doc.data().secret });
-    if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code. Must verify to disable.');
+    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code. Must verify to disable.');
 
     await db.collection('totp_secrets').doc(uid).delete();
     await db.collection('totp_sessions').doc(uid).delete();
@@ -325,7 +325,7 @@ exports.totpDisable = functionsV1.https.onCall(async (data, context) => {
 
 // Check if user has TOTP enabled
 exports.totpStatus = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
     const doc = await db.collection('totp_secrets').doc(uid).get();
@@ -501,11 +501,11 @@ exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' },
 // Nostr Sign-In (NIP-07)
 // Verify Schnorr signature and issue Firebase custom token
 // =============================================
-exports.nostrAuth = functions.https.onCall(async (data, context) => {
+exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
     const { pubkey, sig, event } = data;
 
     if (!pubkey || !sig || !event) {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing pubkey, sig, or event');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Missing pubkey, sig, or event');
     }
 
     // Rate limiting: max 5 nostrAuth calls per IP per hour (atomic transaction)
@@ -519,7 +519,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
                 const windowStart = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
                 if (windowStart && (Date.now() - windowStart.getTime()) < 3600000) {
                     if ((rd.attempts || 0) >= 5) {
-                        throw new functions.https.HttpsError('resource-exhausted', 'Too many sign-in attempts. Try again later.');
+                        throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many sign-in attempts. Try again later.');
                     }
                     tx.update(nostrRateRef, { attempts: (rd.attempts || 0) + 1 });
                 } else {
@@ -533,7 +533,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 
     // Validate pubkey format (64 hex chars)
     if (!/^[a-f0-9]{64}$/.test(pubkey)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid pubkey format');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid pubkey format');
     }
 
     // Parse and validate the event
@@ -541,19 +541,19 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
     try {
         nostrEvent = typeof event === 'string' ? JSON.parse(event) : event;
     } catch(e) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid event format');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid event format');
     }
 
     // Verify it's a kind 27235 (NIP-98 HTTP Auth) or kind 22242 (auth) event
     if (nostrEvent.kind !== 27235 && nostrEvent.kind !== 22242) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid event kind');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid event kind');
     }
 
     // Verify event is recent (within 5 minutes)
     const eventTime = nostrEvent.created_at || 0;
     const now = Math.floor(Date.now() / 1000);
     if (Math.abs(now - eventTime) > 300) {
-        throw new functions.https.HttpsError('invalid-argument', 'Event too old or too far in future');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Event too old or too far in future');
     }
 
     // Verify the Schnorr signature
@@ -598,7 +598,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
         // This is the canonical NIP-01 requirement: id = SHA256 of the serialized event.
         if (nostrEvent.id && nostrEvent.id !== eventId) {
             console.error('Nostr event id mismatch. client:', nostrEvent.id.substring(0,16), 'computed:', eventId.substring(0,16));
-            throw new functions.https.HttpsError('permission-denied', 'Event id mismatch - signature not bound to this event');
+            throw new functionsV1.https.HttpsError('permission-denied', 'Event id mismatch - signature not bound to this event');
         }
 
         // Get the actual signature - from the event object or the top-level sig param
@@ -615,12 +615,12 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 
         if (!valid) {
             console.error('Nostr sig verify FAILED. computedId:', eventId.substring(0,16), 'sigLen:', actualSig.length, 'pubkey:', pubkey.substring(0,16));
-            throw new functions.https.HttpsError('permission-denied', 'Signature verification failed');
+            throw new functionsV1.https.HttpsError('permission-denied', 'Signature verification failed');
         }
     } catch(e) {
-        if (e instanceof functions.https.HttpsError) throw e;
+        if (e instanceof functionsV1.https.HttpsError) throw e;
         console.error('Nostr sig verify error:', e.message, 'sig len:', sig ? sig.length : 0, 'pubkey:', pubkey ? pubkey.substring(0,16) : 'none');
-        throw new functions.https.HttpsError('internal', 'Signature verification failed');
+        throw new functionsV1.https.HttpsError('internal', 'Signature verification failed');
     }
 
     // Create or get Firebase user by Nostr pubkey
@@ -656,7 +656,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 // =============================================
 
 // Step 1: Generate a challenge (k1) and return LNURL
-exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
+exports.lnAuthChallenge = functionsV1.https.onCall(async (data, context) => {
     // Rate limiting: max 10 challenges per IP per hour (atomic transaction)
     const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (lnIP !== 'unknown') {
@@ -667,7 +667,7 @@ exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
                 const rd = lnRateDoc.data();
                 const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
                 if (ws && (Date.now() - ws.getTime()) < 3600000) {
-                    if ((rd.attempts || 0) >= 10) throw new functions.https.HttpsError('resource-exhausted', 'Too many requests. Try again later.');
+                    if ((rd.attempts || 0) >= 10) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many requests. Try again later.');
                     tx.update(lnRateRef, { attempts: (rd.attempts || 0) + 1 });
                 } else {
                     tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
@@ -820,9 +820,9 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
 });
 
 // Step 3: Client polls this to check if wallet completed auth
-exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
+exports.lnAuthVerify = functionsV1.https.onCall(async (data, context) => {
     const { k1 } = data;
-    if (!k1) throw new functions.https.HttpsError('invalid-argument', 'Missing k1');
+    if (!k1) throw new functionsV1.https.HttpsError('invalid-argument', 'Missing k1');
 
     // Rate limiting: max 20 polls per IP per minute (atomic transaction)
     const verifyIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
@@ -834,7 +834,7 @@ exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
                 const rd = vrDoc.data();
                 const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
                 if (ws && (Date.now() - ws.getTime()) < 60000) {
-                    if ((rd.attempts || 0) >= 20) throw new functions.https.HttpsError('resource-exhausted', 'Too many requests');
+                    if ((rd.attempts || 0) >= 20) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many requests');
                     tx.update(vrRef, { attempts: (rd.attempts || 0) + 1 });
                 } else {
                     tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
@@ -853,13 +853,13 @@ exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
     try {
         await db.runTransaction(async (tx) => {
             const doc = await tx.get(challengeRef);
-            if (!doc.exists) throw new functions.https.HttpsError('not-found', 'Challenge not found');
+            if (!doc.exists) throw new functionsV1.https.HttpsError('not-found', 'Challenge not found');
             const data = doc.data();
             if (data.expiresAt) {
                 const expires = data.expiresAt.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
                 if (Date.now() > expires.getTime()) {
                     tx.delete(doc.ref);
-                    throw new functions.https.HttpsError('deadline-exceeded', 'Challenge expired');
+                    throw new functionsV1.https.HttpsError('deadline-exceeded', 'Challenge expired');
                 }
             }
             if (data.status === 'completed') {
@@ -875,17 +875,17 @@ exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
                 tx.update(doc.ref, { mintPending: false, remintAt: admin.firestore.FieldValue.serverTimestamp() });
                 challenge = data;
             } else {
-                throw new functions.https.HttpsError('not-found', 'Not yet authenticated');
+                throw new functionsV1.https.HttpsError('not-found', 'Not yet authenticated');
             }
         });
     } catch (e) {
-        if (e instanceof functions.https.HttpsError) throw e;
-        throw new functions.https.HttpsError('internal', 'Transaction failed');
+        if (e instanceof functionsV1.https.HttpsError) throw e;
+        throw new functionsV1.https.HttpsError('internal', 'Transaction failed');
     }
 
     const uid = challenge.uid;
     const linkingKey = challenge.linkingKey;
-    if (!uid) throw new functions.https.HttpsError('internal', 'Invalid challenge state');
+    if (!uid) throw new functionsV1.https.HttpsError('internal', 'Invalid challenge state');
 
     let token;
     try {
@@ -893,7 +893,7 @@ exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
     } catch(e) {
         // Restore mintPending so a later poll can remint
         try { await challengeRef.update({ mintPending: true }); } catch (_) {}
-        throw new functions.https.HttpsError('internal', 'Token generation failed');
+        throw new functionsV1.https.HttpsError('internal', 'Token generation failed');
     }
 
     // Hard-delete after successful mint (one-time use)
@@ -1208,8 +1208,8 @@ exports.nachoFeedbackReport = onSchedule({
 // Runs when a referred user meets qualifications
 // Uses admin SDK to update the referrer's document
 // =============================================
-exports.verifyReferral = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.verifyReferral = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const referredUid = context.auth.uid;
 
@@ -1227,7 +1227,7 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
     const referrerUid = referralData.referrerUid;
 
     const referredUser = await db.collection('users').doc(referredUid).get();
-    if (!referredUser.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+    if (!referredUser.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
     const referrerDoc = await db.collection('users').doc(referrerUid).get();
     if (!referrerDoc.exists) return { success: false, reason: 'Referrer not found' };
@@ -1357,8 +1357,8 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
 // AUDIT FIX: Server-Side Daily Limit Check
 // Spin wheel, scholar exam, quest attempts
 // =============================================
-exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.checkDailyLimit = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
     const action = data.action || '';
@@ -1372,7 +1372,7 @@ exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
     };
 
     if (!allowedActions[action]) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid action');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid action');
     }
 
     const config = allowedActions[action];
@@ -1407,10 +1407,10 @@ exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
         return result;
     } catch (e) {
         if (e.message === 'NOT_FOUND') {
-            throw new functions.https.HttpsError('not-found', 'User not found');
+            throw new functionsV1.https.HttpsError('not-found', 'User not found');
         }
         console.error('[CHECK_DAILY_LIMIT_TRANS_ERR]', e);
-        throw new functions.https.HttpsError('internal', 'Internal transaction error');
+        throw new functionsV1.https.HttpsError('internal', 'Internal transaction error');
     }
 });
 
@@ -1418,8 +1418,8 @@ exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
 // AUDIT FIX: Forum Content Moderation
 // Server-side profanity filter with leetspeak detection
 // =============================================
-exports.moderateContent = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.moderateContent = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const text = (data.text || '').trim();
     if (!text) return { clean: true };
@@ -1473,10 +1473,10 @@ exports.moderateContent = functions.https.onCall(async (data, context) => {
 // [C1] SECURE TELEGRAM BRIDGE
 // Bridge secret lives here, NOT in client code
 // =============================================
-exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64) {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing content');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Missing content');
     }
 
     // Server-side content filtering - prevents bypassing client-side filters via direct CF calls
@@ -1494,9 +1494,9 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
             'kill yourself','kys','kill myself','self harm','death to','gas the'];
         const words = text.split(/\s+/);
         for (const bad of BAD) {
-            if (bad.includes(' ')) { if (text.includes(bad)) throw new functions.https.HttpsError('invalid-argument', 'Message blocked by content filter'); }
-            else { for (const w of words) { if (w === bad) throw new functions.https.HttpsError('invalid-argument', 'Message blocked by content filter'); } }
-            if (bad.length >= 4 && text.includes(bad)) throw new functions.https.HttpsError('invalid-argument', 'Message blocked by content filter');
+            if (bad.includes(' ')) { if (text.includes(bad)) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter'); }
+            else { for (const w of words) { if (w === bad) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter'); } }
+            if (bad.length >= 4 && text.includes(bad)) throw new functionsV1.https.HttpsError('invalid-argument', 'Message blocked by content filter');
         }
     }
 
@@ -1509,7 +1509,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
         if (rateLimitDoc.exists) {
             const lastCall = rateLimitDoc.data().lastCall;
             if (lastCall && Date.now() - (lastCall.toDate ? lastCall.toDate() : new Date(lastCall)).getTime() < 3000) {
-                throw new functions.https.HttpsError('resource-exhausted', 'Too fast - wait 3 seconds');
+                throw new functionsV1.https.HttpsError('resource-exhausted', 'Too fast - wait 3 seconds');
             }
         }
         tx.set(rateLimitRef, { lastCall: admin.firestore.FieldValue.serverTimestamp() });
@@ -1584,10 +1584,10 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
 });
 
 // ===== SATS FAUCET - claimSats Cloud Function =====
-exports.claimSats = functions.https.onCall(async (data, context) => {
+exports.claimSats = functionsV1.https.onCall(async (data, context) => {
     // 1. Must be authenticated
     if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
     const uid = context.auth.uid;
     const email = context.auth.token.email;
@@ -2176,10 +2176,10 @@ async function _rollbackClaim(uid, amount, today) {
 // ===== PEER SYSTEM =====
 // managePeer: send/accept/decline/cancel/remove peer connections.
 // All mutations are CF-only; peer arrays on user docs are in the Firestore rules denylist.
-exports.managePeer = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.managePeer = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('unauthenticated', 'Must use a real account to connect with peers');
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to connect with peers');
     }
 
     const uid = context.auth.uid;
@@ -2187,13 +2187,13 @@ exports.managePeer = functions.https.onCall(async (data, context) => {
     const targetUid = (data.targetUid || '').toString().trim();
 
     if (!['send','accept','decline','cancel','remove'].includes(action)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Unknown action');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Unknown action');
     }
     if (!targetUid || targetUid.length < 4 || targetUid.length > 128) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid targetUid');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid targetUid');
     }
     if (uid === targetUid) {
-        throw new functions.https.HttpsError('invalid-argument', 'Cannot peer with yourself');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Cannot peer with yourself');
     }
 
     const userRef    = db.collection('users').doc(uid);
@@ -2206,31 +2206,31 @@ exports.managePeer = functions.https.onCall(async (data, context) => {
     // ── SEND ──────────────────────────────────────────────────────────────────
     if (action === 'send') {
         const [userDoc, targetDoc] = await Promise.all([userRef.get(), targetRef.get()]);
-        if (!userDoc.exists)   throw new functions.https.HttpsError('not-found', 'Your account not found');
-        if (!targetDoc.exists) throw new functions.https.HttpsError('not-found', 'Target user not found');
+        if (!userDoc.exists)   throw new functionsV1.https.HttpsError('not-found', 'Your account not found');
+        if (!targetDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Target user not found');
 
         const ud = userDoc.data();
         const td = targetDoc.data();
 
         if ((ud.peers || []).includes(targetUid)) {
-            throw new functions.https.HttpsError('already-exists', 'Already peers');
+            throw new functionsV1.https.HttpsError('already-exists', 'Already peers');
         }
 
         // Rate-limit: max 50 pending outgoing requests
         const outSnap = await db.collection('peer_requests')
             .where('from', '==', uid).where('status', '==', 'pending').limit(51).get();
         if (outSnap.size >= 50) {
-            throw new functions.https.HttpsError('resource-exhausted',
+            throw new functionsV1.https.HttpsError('resource-exhausted',
                 'Too many pending peer requests. Cancel some first.');
         }
 
         // Check for existing requests in either direction
         const [existDoc, revDoc] = await Promise.all([reqRef.get(), revReqRef.get()]);
         if (existDoc.exists && existDoc.data().status === 'pending') {
-            throw new functions.https.HttpsError('already-exists', 'Peer request already sent');
+            throw new functionsV1.https.HttpsError('already-exists', 'Peer request already sent');
         }
         if (revDoc.exists && revDoc.data().status === 'pending') {
-            throw new functions.https.HttpsError('already-exists',
+            throw new functionsV1.https.HttpsError('already-exists',
                 'This user already sent you a request — check your notifications');
         }
 
@@ -2263,10 +2263,10 @@ exports.managePeer = functions.https.onCall(async (data, context) => {
         // The request was sent from targetUid TO uid, so the doc is revReqRef
         const revDoc = await revReqRef.get();
         if (!revDoc.exists || revDoc.data().status !== 'pending') {
-            throw new functions.https.HttpsError('not-found', 'Peer request not found or already handled');
+            throw new functionsV1.https.HttpsError('not-found', 'Peer request not found or already handled');
         }
         if (revDoc.data().to !== uid) {
-            throw new functions.https.HttpsError('permission-denied', 'Not your request to accept');
+            throw new functionsV1.https.HttpsError('permission-denied', 'Not your request to accept');
         }
 
         const batch = db.batch();
@@ -2321,8 +2321,8 @@ exports.managePeer = functions.https.onCall(async (data, context) => {
     // ── DECLINE ────────────────────────────────────────────────────────────────
     if (action === 'decline') {
         const revDoc = await revReqRef.get();
-        if (!revDoc.exists) throw new functions.https.HttpsError('not-found', 'Peer request not found');
-        if (revDoc.data().to !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your request to decline');
+        if (!revDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Peer request not found');
+        if (revDoc.data().to !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your request to decline');
         await revReqRef.delete();
         return { success: true };
     }
@@ -2330,8 +2330,8 @@ exports.managePeer = functions.https.onCall(async (data, context) => {
     // ── CANCEL (rescind own outgoing request) ──────────────────────────────────
     if (action === 'cancel') {
         const reqDoc = await reqRef.get();
-        if (!reqDoc.exists) throw new functions.https.HttpsError('not-found', 'Peer request not found');
-        if (reqDoc.data().from !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your request to cancel');
+        if (!reqDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Peer request not found');
+        if (reqDoc.data().from !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your request to cancel');
         await reqRef.delete();
         return { success: true };
     }
@@ -2339,9 +2339,9 @@ exports.managePeer = functions.https.onCall(async (data, context) => {
     // ── REMOVE ─────────────────────────────────────────────────────────────────
     if (action === 'remove') {
         const userDoc = await userRef.get();
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
         const peers = userDoc.data().peers || [];
-        if (!peers.includes(targetUid)) throw new functions.https.HttpsError('not-found', 'Not peers');
+        if (!peers.includes(targetUid)) throw new functionsV1.https.HttpsError('not-found', 'Not peers');
 
         const batch = db.batch();
         batch.update(userRef,   { peers: admin.firestore.FieldValue.arrayRemove(targetUid), peerCount: admin.firestore.FieldValue.increment(-1) });
@@ -2356,9 +2356,9 @@ exports.managePeer = functions.https.onCall(async (data, context) => {
 // ===== SERVER-SIDE POINTS AWARD (Fix #1, #2, #5) =====
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
-exports.awardPoints = functions.https.onCall(async (data, context) => {
+exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
     const uid = context.auth.uid;
     const actionKey = (data.actionKey || '').substring(0, 50);
@@ -3249,9 +3249,9 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 });
 
 // ===== FAUCET ADMIN - getFaucetStats =====
-exports.getFaucetStats = functions.https.onCall(async (data, context) => {
+exports.getFaucetStats = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
-        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
     const today = new Date().toISOString().split('T')[0];
     const statsDoc = await db.collection('faucet_stats').doc(today).get();
@@ -3274,9 +3274,9 @@ exports.getFaucetStats = functions.https.onCall(async (data, context) => {
 });
 
 // ===== FAUCET ADMIN - toggleFaucet =====
-exports.toggleFaucet = functions.https.onCall(async (data, context) => {
+exports.toggleFaucet = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
-        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
     const paused = !!data.paused;
     await db.collection('faucet_config').doc('settings').set({ paused: paused }, { merge: true });
@@ -3284,9 +3284,9 @@ exports.toggleFaucet = functions.https.onCall(async (data, context) => {
 });
 
 // ===== ONE-TIME: Backfill bestStreak for all users =====
-exports.backfillBestStreak = functions.https.onCall(async (data, context) => {
+exports.backfillBestStreak = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
-        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
     const usersSnap = await db.collection('users').get();
     let updated = 0;
@@ -3372,10 +3372,10 @@ exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: '
 });
 
 // ---- One-time backfill global community stats ----
-exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
+exports.backfillGlobalStats = functionsV1.https.onCall(async (data, context) => {
     // Admin only
     if (!context.auth || (!context.auth.token.admin)) {
-        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
 
     const usersSnap = await db.collection('users').get();
@@ -3468,12 +3468,12 @@ exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
 // ===== SERVER-SIDE DAILY VISIT TRACKING =====
 // Handles streak, totalVisits, bestStreak, orangeTickets, streakFreezes
 // All these fields are blocked from client writes in Firestore rules
-exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
+exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Sign in required');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Sign in required');
     }
     const uid = context.auth.uid;
     const userRef = db.collection('users').doc(uid);
@@ -3578,7 +3578,7 @@ exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
 });
 
 // ---- Poll Vote (server-side with IP + fingerprint rate limiting) ----
-exports.pollVote = functions.https.onCall(async (data, context) => {
+exports.pollVote = functionsV1.https.onCall(async (data, context) => {
     const { side, fingerprint, satsCount, bitsCount } = data || {};
 
     // Support batched votes: satsCount + bitsCount, or single side vote (backward compat)
@@ -3612,8 +3612,8 @@ exports.pollVote = functions.https.onCall(async (data, context) => {
         const ipCount = (rateData[ipKey] || 0);
         const fpCount = (rateData[fpKey] || 0);
 
-        if (ipCount >= MAX_PER_DAY) throw new functions.https.HttpsError('resource-exhausted', 'Daily IP limit reached');
-        if (fpCount >= MAX_PER_DAY) throw new functions.https.HttpsError('resource-exhausted', 'Daily device limit reached');
+        if (ipCount >= MAX_PER_DAY) throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily IP limit reached');
+        if (fpCount >= MAX_PER_DAY) throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily device limit reached');
 
         // Clamp to remaining daily budget
         const remaining = Math.max(0, MAX_PER_DAY - Math.max(ipCount, fpCount));
@@ -3643,15 +3643,15 @@ exports.pollVote = functions.https.onCall(async (data, context) => {
 });
 
 // ---- PVP Answer Submission (server-side validation) ----
-exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.pvpSubmitAnswer = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { matchId, questionIndex, answerIndex } = data || {};
     if (!matchId || typeof questionIndex !== 'number' || typeof answerIndex !== 'number') {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing matchId, questionIndex, or answerIndex');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Missing matchId, questionIndex, or answerIndex');
     }
     if (questionIndex < 0 || questionIndex > 4 || answerIndex < -1 || answerIndex > 3) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid question or answer index');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid question or answer index');
     }
 
     const uid = context.auth.uid;
@@ -3659,17 +3659,17 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
 
     const result = await db.runTransaction(async (tx) => {
         const matchDoc = await tx.get(matchRef);
-        if (!matchDoc.exists) throw new functions.https.HttpsError('not-found', 'Match not found');
+        if (!matchDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Match not found');
 
         const match = matchDoc.data();
-        if (match.status !== 'active') throw new functions.https.HttpsError('failed-precondition', 'Match not active');
-        if (match.currentQ !== questionIndex) throw new functions.https.HttpsError('failed-precondition', 'Wrong question index');
+        if (match.status !== 'active') throw new functionsV1.https.HttpsError('failed-precondition', 'Match not active');
+        if (match.currentQ !== questionIndex) throw new functionsV1.https.HttpsError('failed-precondition', 'Wrong question index');
 
         // Determine which player this is
         let myKey, oppKey;
         if (match.player1.uid === uid) { myKey = 'player1'; oppKey = 'player2'; }
         else if (match.player2.uid === uid) { myKey = 'player2'; oppKey = 'player1'; }
-        else throw new functions.https.HttpsError('permission-denied', 'Not a player in this match');
+        else throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
 
         const myAnswers = match[myKey].answers || [];
         if (myAnswers.length > questionIndex) {
@@ -3678,7 +3678,7 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
 
         // Server validates correctness from the stored questions
         const question = match.questions[questionIndex];
-        if (!question) throw new functions.https.HttpsError('internal', 'Question not found');
+        if (!question) throw new functionsV1.https.HttpsError('internal', 'Question not found');
 
         // Read answer key from server-only collection
         // The key is written by pvpStoreAnswerKey (for client-created matches) or
@@ -3688,11 +3688,11 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
         if (!keyDoc.exists) {
             // Key not yet stored (race: player 2 created match and immediately answered
             // before pvpStoreAnswerKey CF completed). Reject — client should retry.
-            throw new functions.https.HttpsError('failed-precondition', 'Answer key not ready — please try again');
+            throw new functionsV1.https.HttpsError('failed-precondition', 'Answer key not ready — please try again');
         }
         const keyEntry = keyDoc.data().keys && keyDoc.data().keys.find(k => k.questionIndex === questionIndex);
         if (!keyEntry || typeof keyEntry.correct !== 'number') {
-            throw new functions.https.HttpsError('internal', 'Answer key missing for this question');
+            throw new functionsV1.https.HttpsError('internal', 'Answer key missing for this question');
         }
         const correctAnswer = keyEntry.correct;
 
@@ -3786,10 +3786,10 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
 });
 
 // ---- Daily Spin (server-side validation + reward) ----
-exports.dailySpin = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
     }
 
     const uid = context.auth.uid;
@@ -3832,13 +3832,13 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
 
     const result = await db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
         // Allow if server granted a bonus spin (flag set atomically by useBonusSpin CF)
         const isBonusSpin = !!userData.bonusSpinGranted;
         if (userData.lastSpinDate === today && !isBonusSpin) {
-            throw new functions.https.HttpsError('already-exists', 'Already spun today');
+            throw new functionsV1.https.HttpsError('already-exists', 'Already spun today');
         }
 
         // Server determines reward
@@ -3898,34 +3898,34 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
 
 // ── PVP Store Answer Key (called by player-2 matchmaker after client-side match creation) ──
 // Validates that the caller is a player in the match before accepting keys.
-exports.pvpStoreAnswerKey = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.pvpStoreAnswerKey = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const { matchId, keys, keyIndex } = data || {};
     // keys: array of correct-answer integers
     // keyIndex: when set, this is a reroll — update one specific slot rather than the full array
     if (!matchId || !Array.isArray(keys) || keys.length < 1 || keys.length > 10) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid matchId or keys');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid matchId or keys');
     }
     // Validate keys are all valid integers (0-3)
     for (const k of keys) {
         if (typeof k !== 'number' || k < 0 || k > 3 || !Number.isInteger(k)) {
-            throw new functions.https.HttpsError('invalid-argument', 'Invalid key value');
+            throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid key value');
         }
     }
     const uid = context.auth.uid;
     const matchSnap = await db.collection('pvp_matches').doc(matchId).get();
-    if (!matchSnap.exists) throw new functions.https.HttpsError('not-found', 'Match not found');
+    if (!matchSnap.exists) throw new functionsV1.https.HttpsError('not-found', 'Match not found');
     const match = matchSnap.data();
     // Only a player in the match can store the answer key
     if (match.player1.uid !== uid && match.player2.uid !== uid) {
-        throw new functions.https.HttpsError('permission-denied', 'Not a player in this match');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
     }
     const keyRef = db.collection('pvp_answer_keys').doc(matchId);
     const existing = await keyRef.get();
 
     if (typeof keyIndex === 'number' && keyIndex >= 0 && keyIndex <= 4) {
         // Reroll update: patch one specific slot in an existing key document
-        if (!existing.exists) throw new functions.https.HttpsError('not-found', 'Answer key not found for reroll');
+        if (!existing.exists) throw new functionsV1.https.HttpsError('not-found', 'Answer key not found for reroll');
         const existingKeys = existing.data().keys || [];
         const updated = existingKeys.slice();
         // Find or create the entry for this index
@@ -3950,8 +3950,8 @@ exports.pvpStoreAnswerKey = functions.https.onCall(async (data, context) => {
 });
 
 // ── PVP Match Creation (server-side, hides answer keys) ──
-exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     // [SECURITY FIX] Caller is always player2 (the matchmaker who found an opponent).
     // Pin player2.uid to context.auth.uid — never trust client-supplied uid.
@@ -3961,10 +3961,10 @@ exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
 
     const { lobbyDocId, player2, questions } = data || {};
     if (!lobbyDocId || !player2 || !questions || !Array.isArray(questions)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Missing required fields');
     }
     if (questions.length < 1 || questions.length > 10) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid question count');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid question count');
     }
 
     // Store answer keys separately (not readable by clients)
@@ -3987,11 +3987,11 @@ exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
     await db.runTransaction(async (tx) => {
         const lobbySnap = await tx.get(lobbyRef);
         if (!lobbySnap.exists) {
-            throw new functions.https.HttpsError('not-found', 'Lobby entry not found');
+            throw new functionsV1.https.HttpsError('not-found', 'Lobby entry not found');
         }
         const lobbyData = lobbySnap.data();
         if (lobbyData.status !== 'waiting') {
-            throw new functions.https.HttpsError('already-exists', 'Opponent already matched');
+            throw new functionsV1.https.HttpsError('already-exists', 'Opponent already matched');
         }
 
         // [SECURITY FIX] Pull player1 identity from the lobby doc (server-authoritative).
@@ -3999,11 +3999,11 @@ exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
         // so this is tamper-proof. Client-supplied player1 object is ignored entirely.
         const p1Uid = lobbyData.uid;
         if (!p1Uid) {
-            throw new functions.https.HttpsError('internal', 'Lobby doc missing uid');
+            throw new functionsV1.https.HttpsError('internal', 'Lobby doc missing uid');
         }
         // Caller (player2) must not be the same person as player1
         if (p1Uid === callerUid) {
-            throw new functions.https.HttpsError('permission-denied', 'Cannot match against yourself');
+            throw new functionsV1.https.HttpsError('permission-denied', 'Cannot match against yourself');
         }
 
         // Create the match document
@@ -4056,7 +4056,7 @@ const SCHOLAR_BANK = require('./scholar-bank.json');
 function _pickScholarQuestions(type) {
     const pool = type === 'technical' ? SCHOLAR_BANK.technical : SCHOLAR_BANK.properties;
     if (!Array.isArray(pool) || pool.length < 25) {
-        throw new functions.https.HttpsError('internal', 'Exam bank misconfigured');
+        throw new functionsV1.https.HttpsError('internal', 'Exam bank misconfigured');
     }
     // Pick 25 unique indices
     const indices = [];
@@ -4068,15 +4068,15 @@ function _pickScholarQuestions(type) {
     return indices; // array of 25 ints into SCHOLAR_BANK[type]
 }
 
-exports.startScholarExam = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.startScholarExam = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
     }
 
     const { type } = data || {};
     if (type !== 'properties' && type !== 'technical') {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid exam type');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid exam type');
     }
 
     const uid = context.auth.uid;
@@ -4106,15 +4106,15 @@ exports.startScholarExam = functions.https.onCall(async (data, context) => {
     return { examId, indices };
 });
 
-exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { examId, answers } = data || {};
     if (!examId || !answers || !Array.isArray(answers)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing examId or answers');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Missing examId or answers');
     }
     if (answers.length !== 25) {
-        throw new functions.https.HttpsError('invalid-argument', 'Must have exactly 25 answers');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Must have exactly 25 answers');
     }
 
     const uid = context.auth.uid;
@@ -4122,11 +4122,11 @@ exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
 
     const result = await db.runTransaction(async (tx) => {
         const examDoc = await tx.get(examRef);
-        if (!examDoc.exists) throw new functions.https.HttpsError('not-found', 'Exam not found');
+        if (!examDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Exam not found');
 
         const exam = examDoc.data();
-        if (exam.uid !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your exam');
-        if (exam.graded) throw new functions.https.HttpsError('already-exists', 'Exam already graded');
+        if (exam.uid !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your exam');
+        if (exam.graded) throw new functionsV1.https.HttpsError('already-exists', 'Exam already graded');
 
         const type = exam.type;
         const keyPrefix = type === 'technical' ? 'tech' : 'prop';
@@ -4142,12 +4142,12 @@ exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
         // Block double-dipping: once passed, no more points for this cert type
         if (alreadyPassed) {
             tx.update(examRef, { graded: true, score: 0, passed: false, blocked: 'already_certified', gradedAt: admin.firestore.FieldValue.serverTimestamp() });
-            throw new functions.https.HttpsError('failed-precondition', 'You already hold this certification.');
+            throw new functionsV1.https.HttpsError('failed-precondition', 'You already hold this certification.');
         }
         // Block rapid retakes same day (daily cooldown)
         if (lastAttempt === today) {
             tx.update(examRef, { graded: true, score: 0, passed: false, blocked: 'daily_limit', gradedAt: admin.firestore.FieldValue.serverTimestamp() });
-            throw new functions.https.HttpsError('resource-exhausted', 'Only one exam attempt per 24 hours.');
+            throw new functionsV1.https.HttpsError('resource-exhausted', 'Only one exam attempt per 24 hours.');
         }
 
         // Grade server-side using server-held keys
@@ -4184,12 +4184,12 @@ exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
 });
 
 // ── Quest: Server-Side Grading ──
-exports.startQuest = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.startQuest = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { questions, topicKey } = data || {};
     if (!questions || !Array.isArray(questions) || questions.length < 3 || questions.length > 5) {
-        throw new functions.https.HttpsError('invalid-argument', 'Must have 3-5 questions');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Must have 3-5 questions');
     }
 
     const uid = context.auth.uid;
@@ -4200,7 +4200,7 @@ exports.startQuest = functions.https.onCall(async (data, context) => {
         if (userDoc.exists) {
             const completed = userDoc.data().completedQuests || [];
             if (completed.includes('quest_' + topicKey)) {
-                throw new functions.https.HttpsError('already-exists',
+                throw new functionsV1.https.HttpsError('already-exists',
                     'You already got a perfect score on this topic!');
             }
         }
@@ -4222,12 +4222,12 @@ exports.startQuest = functions.https.onCall(async (data, context) => {
     return { questId };
 });
 
-exports.gradeQuest = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const { questId, answers, isRetry } = data || {};
     if (!questId || !answers || !Array.isArray(answers) || answers.length !== 5) {
-        throw new functions.https.HttpsError('invalid-argument', 'Must have exactly 5 answers');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Must have exactly 5 answers');
     }
 
     const uid = context.auth.uid;
@@ -4246,17 +4246,17 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
 
     const result = await db.runTransaction(async (tx) => {
         const questDoc = await tx.get(questRef);
-        if (!questDoc.exists) throw new functions.https.HttpsError('not-found', 'Quest not found');
+        if (!questDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Quest not found');
 
         const quest = questDoc.data();
-        if (quest.uid !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your quest');
-        if (quest.graded) throw new functions.https.HttpsError('already-exists', 'Quest already graded');
+        if (quest.uid !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your quest');
+        if (quest.graded) throw new functionsV1.https.HttpsError('already-exists', 'Quest already graded');
 
         // Per-day quest count limit (reject before grading to conserve work)
         const qCountDoc = await tx.get(dailyQuestRef);
         const qCountToday = qCountDoc.exists ? (qCountDoc.data().count || 0) : 0;
         if (qCountToday >= DAILY_QUEST_LIMIT) {
-            throw new functions.https.HttpsError('resource-exhausted',
+            throw new functionsV1.https.HttpsError('resource-exhausted',
                 `Daily quest limit reached (max ${DAILY_QUEST_LIMIT}/day). Try again tomorrow.`);
         }
 
@@ -4345,19 +4345,19 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
 // AUDIT FIX: Secure Certificate Issuance (M-NEW-15)
 // Only issues certificates if user has passed the exam server-side
 // =============================================
-exports.issueCertificate = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.issueCertificate = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
     const { type, name } = data || {};
 
     if (!type || !['scholar', 'technical', 'trail_meadow', 'trail_mountain', 'trail_summit'].includes(type)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid certificate type');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid certificate type');
     }
 
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
-    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+    if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
     const userData = userDoc.data();
 
     // Verify passing status from server-authoritative fields only
@@ -4384,7 +4384,7 @@ exports.issueCertificate = functions.https.onCall(async (data, context) => {
     }
 
     if (!passed) {
-        throw new functions.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
+        throw new functionsV1.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
     }
 
     // Generate unique Cert ID
@@ -4512,9 +4512,9 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
 
 // Admin-only backfill: copies all existing user docs → public_profiles.
 // Call once after deploy: firebase functions:call backfillPublicProfiles (with admin auth)
-exports.backfillPublicProfiles = functions.https.onCall(async (data, context) => {
+exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) => {
         if (!context.auth || !context.auth.token.get('admin', false)) {
-            throw new functions.https.HttpsError('permission-denied', 'Admin only');
+            throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
         }
         const snap = await db.collection('users').get();
         const batch_size = 400;
@@ -4579,11 +4579,11 @@ exports.onUserQuestCompleted = onDocumentUpdated('users/{uid}', async (event) =>
 // No server trigger needed - would double-count.
 
 // ---- One-shot admin reset for community stats (remove after running) ----
-exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.resetCommunityStats = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const email = (context.auth.token.email || '').toLowerCase();
     if (!context.auth.token.admin) {
-        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
 
     // Defaults based on Phil's estimate - callable accepts overrides.
@@ -5253,11 +5253,11 @@ exports.tctvAggregatePresence = onSchedule({
 // Step 1: generate a server-side CSRF nonce tied to the authenticated uid.
 // Frontend calls this BEFORE redirecting to Strava; uses the returned nonce
 // as `state=` instead of the raw uid so the callback can't be forged.
-exports.stravaInitAuth = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.stravaInitAuth = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const provider = (context.auth.token.firebase || {}).sign_in_provider || '';
     if (provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot connect Strava');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot connect Strava');
     }
     const crypto = require('crypto');
     const nonce = crypto.randomBytes(32).toString('hex'); // 256-bit unguessable
@@ -5336,15 +5336,15 @@ exports.stravaAuth = functions.https.onRequest(async (req, res) => {
     }
 });
 
-exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
+exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     console.log('[POW] syncStravaWalks called');
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be logged in');
     const uid = context.auth.uid;
     console.log('[POW] uid:', uid);
 
     const stravaRef = db.collection('users').doc(uid).collection('integrations').doc('strava');
     const stravaDoc = await stravaRef.get();
-    if (!stravaDoc.exists) throw new functions.https.HttpsError('not-found', 'Strava not connected');
+    if (!stravaDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Strava not connected');
 
     let tokenData = stravaDoc.data();
     let access_token = tokenData.access_token;
@@ -5371,7 +5371,7 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
                 expires_at: refreshed.expires_at
             });
         } else {
-            throw new functions.https.HttpsError('permission-denied', 'Strava auth expired, please reconnect');
+            throw new functionsV1.https.HttpsError('permission-denied', 'Strava auth expired, please reconnect');
         }
     }
 
@@ -5383,7 +5383,7 @@ exports.syncStravaWalks = functions.https.onCall(async (data, context) => {
     console.log('[POW] Strava returned', Array.isArray(activities) ? activities.length + ' activities' : JSON.stringify(activities).substring(0, 200));
     if (!Array.isArray(activities)) {
         console.error('[POW] Strava API Failed', activities);
-        throw new functions.https.HttpsError('internal', 'Strava API failed: ' + JSON.stringify(activities).substring(0, 100));
+        throw new functionsV1.https.HttpsError('internal', 'Strava API failed: ' + JSON.stringify(activities).substring(0, 100));
     }
 
     let totalPoints = 0;
@@ -5624,18 +5624,18 @@ exports.handleTelegramWebhook = handleTelegramReaction;
 exports.setTelegramWebhook = setTelegramWebhook;
 
 // ===== DONATE XP FOR CHARITY =====
-exports.donatePoints = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in to donate.');
+exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.uid) throw new functionsV1.https.HttpsError('unauthenticated', 'Sign in to donate.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Create an account to donate.');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Create an account to donate.');
     }
 
     const uid = context.auth.uid;
     const amount = Math.floor(Number(data.amount));
     const anonymous = data.anonymous === true;
 
-    if (!amount || amount < 1) throw new functions.https.HttpsError('invalid-argument', 'Donation must be at least 1 point.');
-    if (amount > 1000000) throw new functions.https.HttpsError('invalid-argument', 'Donation too large.');
+    if (!amount || amount < 1) throw new functionsV1.https.HttpsError('invalid-argument', 'Donation must be at least 1 point.');
+    if (amount > 1000000) throw new functionsV1.https.HttpsError('invalid-argument', 'Donation too large.');
 
     const db = admin.firestore();
     const userRef = db.collection('users').doc(uid);
@@ -5659,7 +5659,7 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
 
     await db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found.');
         const u = userDoc.data();
 
         const points = u.points || 0;
@@ -5670,12 +5670,12 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
 
         // Faction required - donations must be attributed to a side
         if (!u.faction || (u.faction !== 'cyber_hornets' && u.faction !== 'honey_badgers')) {
-            throw new functions.https.HttpsError('failed-precondition',
+            throw new functionsV1.https.HttpsError('failed-precondition',
                 'You must choose a faction (Cyber Hornets or Honey Badgers) before donating.');
         }
 
         if (available < amount) {
-            throw new functions.https.HttpsError('failed-precondition',
+            throw new functionsV1.https.HttpsError('failed-precondition',
                 `Not enough available points. You have ${available.toLocaleString()} pts available.`);
         }
 
@@ -5754,8 +5754,8 @@ exports.donatePoints = functions.https.onCall(async (data, context) => {
 // ===== LEADERBOARD USER SEARCH =====
 // Fetches top users ordered by points, filters by substring match (case-insensitive),
 // returns matched users with their true rank. Supports cursor-based pagination.
-exports.searchUsers = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.searchUsers = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const query = ((data.query || '').trim()).toLowerCase();
     if (!query || query.length < 2) return { users: [], hasMore: false };
@@ -5851,12 +5851,12 @@ exports.searchUsers = functions.https.onCall(async (data, context) => {
 // POST body: { trackId, amountSats }
 // Returns: { invoices: [{name, split, amountSats, invoice, qr}], totalSats }
 // ================================================================
-exports.v4vSplitRelay = functions.https.onCall(async (data, context) => {
+exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
     // SECURITY: auth required — unauthenticated callers could use this as a free SSRF oracle
     // via fetchLnurlInvoice and read internal service responses from the reflected pr field.
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Sign in required.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Account required.');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Account required.');
     }
     const uid = context.auth.uid;
 
@@ -5868,7 +5868,7 @@ exports.v4vSplitRelay = functions.https.onCall(async (data, context) => {
             const { count, windowStart } = _rlDoc.data();
             const age = Date.now() - (windowStart && windowStart.toDate ? windowStart.toDate().getTime() : 0);
             if (age < 60000 && count >= 10) {
-                throw new functions.https.HttpsError('resource-exhausted', 'Too many requests. Try again shortly.');
+                throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many requests. Try again shortly.');
             }
             tx.set(_v4vRlRef, age >= 60000
                 ? { count: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }
@@ -5879,16 +5879,16 @@ exports.v4vSplitRelay = functions.https.onCall(async (data, context) => {
     });
 
     const { trackId, amountSats } = data || {};
-    if (!trackId) throw new functions.https.HttpsError('invalid-argument', 'trackId required');
-    if (!amountSats || amountSats < 10) throw new functions.https.HttpsError('invalid-argument', 'amountSats must be >= 10');
-    if (amountSats > 10000000) throw new functions.https.HttpsError('invalid-argument', 'amountSats too large');
+    if (!trackId) throw new functionsV1.https.HttpsError('invalid-argument', 'trackId required');
+    if (!amountSats || amountSats < 10) throw new functionsV1.https.HttpsError('invalid-argument', 'amountSats must be >= 10');
+    if (amountSats > 10000000) throw new functionsV1.https.HttpsError('invalid-argument', 'amountSats too large');
 
     const trackDoc = await admin.firestore().collection('beats_tracks').doc(trackId).get();
-    if (!trackDoc.exists) throw new functions.https.HttpsError('not-found', 'Track not found');
+    if (!trackDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const track    = trackDoc.data();
     const splits   = (track.v4vSplits || []).filter(s => s.split > 0);
 
-    if (splits.length === 0) throw new functions.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
+    if (splits.length === 0) throw new functionsV1.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
 
     // Normalise splits to sum=100
     const totalSplit = splits.reduce((s, r) => s + r.split, 0);
@@ -6032,16 +6032,16 @@ async function fetchLnurlInvoice(lightningAddress, msats, comment) {
 // ===== BACKFILL DONATION FACTION =====
 // When a user picks their faction for the first time, attribute any charity
 // donations they made under 'no_faction' (or with null faction) to their new faction.
-exports.backfillDonationFaction = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+exports.backfillDonationFaction = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.uid) throw new functionsV1.https.HttpsError('unauthenticated', 'Sign in required.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Account required.');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Account required.');
     }
 
     const uid = context.auth.uid;
     const newFaction = (data.newFaction || '').trim();
     if (newFaction !== 'cyber_hornets' && newFaction !== 'honey_badgers') {
-        throw new functions.https.HttpsError('invalid-argument', 'Valid faction required.');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Valid faction required.');
     }
 
     const db = admin.firestore();
@@ -6437,16 +6437,16 @@ exports.monthlyRaffleDraw = onSchedule({ schedule: '0 18 1 * *', timeZone: 'UTC'
 // 🧊 FEATURE 5: Spend Orange Tickets for Streak Freezes
 // ══════════════════════════════════════════════════════════════════════
 
-exports.spendTicketsForFreeze = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.spendTicketsForFreeze = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot purchase freezes');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot purchase freezes');
     }
 
     const uid = context.auth.uid;
     const amount = parseInt(data.amount) || 1;
     if (![1, 3].indexOf(amount) === -1 && amount !== 1 && amount !== 3) {
-        throw new functions.https.HttpsError('invalid-argument', 'Amount must be 1 or 3');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Amount must be 1 or 3');
     }
 
     const FREEZE_COSTS = { 1: 5, 3: 12 }; // tickets per freeze bundle
@@ -6455,13 +6455,13 @@ exports.spendTicketsForFreeze = functions.https.onCall(async (data, context) => 
     const userRef = db.collection('users').doc(uid);
     const result = await db.runTransaction(async (t) => {
         const doc = await t.get(userRef);
-        if (!doc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!doc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
         const userData = doc.data();
         const currentTickets = userData.orangeTickets || 0;
         const currentFreezes = userData.streakFreezes || 0;
 
         if (currentTickets < ticketCost) {
-            throw new functions.https.HttpsError('resource-exhausted',
+            throw new functionsV1.https.HttpsError('resource-exhausted',
                 `Not enough tickets. You have ${currentTickets} but need ${ticketCost}.`);
         }
 
@@ -6492,9 +6492,9 @@ function _getCurrentWeekKey() {
 }
 
 // Seed the first community challenge
-exports.seedWeeklyChallenge = functions.https.onCall(async (data, context) => {
+exports.seedWeeklyChallenge = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
-        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
     const weekKey = data.weekKey || _getCurrentWeekKey();
     await db.collection('weekly_challenges').doc(weekKey).set({
@@ -6515,18 +6515,18 @@ exports.seedWeeklyChallenge = functions.https.onCall(async (data, context) => {
 });
 
 // Increment community challenge progress (called from client - quiz completion, trivia correct)
-exports.incrementWeeklyChallenge = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     // [SECURITY FIX] Block anonymous users — previously only checked context.auth exists.
     // Anonymous accounts are free to create; an attacker could spam N anonymous UIDs
     // and solo-complete the community challenge, triggering the SF boost and badge awards.
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to weekly challenges');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to weekly challenges');
     }
     const uid = context.auth.uid;
 
     const goalType = (data.goalType || '').replace(/[^a-z_]/g, '').substring(0, 30);
-    if (!goalType) throw new functions.https.HttpsError('invalid-argument', 'goalType required');
+    if (!goalType) throw new functionsV1.https.HttpsError('invalid-argument', 'goalType required');
 
     const weekKey = _getCurrentWeekKey();
     const challengeRef = db.collection('weekly_challenges').doc(weekKey);
@@ -6622,10 +6622,10 @@ const NOOK_SHOP_ITEMS = {
     'second_rig':       { cost: 25, type: 'consumable', name: 'Second Mining Rig',       gives: { secondRigCharges: 1 } },
 };
 
-exports.spendTickets = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use the shop');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use the shop');
     }
 
     const uid = context.auth.uid;
@@ -6633,7 +6633,7 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
     const quantity = Math.max(1, Math.min(10, parseInt(data.quantity) || 1));
 
     const item = NOOK_SHOP_ITEMS[itemId];
-    if (!item) throw new functions.https.HttpsError('invalid-argument', 'Unknown item: ' + itemId);
+    if (!item) throw new functionsV1.https.HttpsError('invalid-argument', 'Unknown item: ' + itemId);
 
     // For bundles (streak_freeze_3, hint_token_5), quantity is always 1 (bundle is the unit)
     const isBundle = ['streak_freeze_3', 'hint_token_5'].includes(itemId);
@@ -6644,13 +6644,13 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
 
     return db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
         const currentTickets = userData.orangeTickets || 0;
 
         if (currentTickets < totalCost) {
-            throw new functions.https.HttpsError('failed-precondition',
+            throw new functionsV1.https.HttpsError('failed-precondition',
                 `Not enough tickets. Have ${currentTickets}, need ${totalCost}.`);
         }
 
@@ -6658,7 +6658,7 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
         if (item.type === 'cosmetic' && item.gives.cosmetics) {
             const owned = userData.ownedCosmetics || [];
             if (owned.includes(item.gives.cosmetics)) {
-                throw new functions.https.HttpsError('already-exists', 'You already own this item.');
+                throw new functionsV1.https.HttpsError('already-exists', 'You already own this item.');
             }
         }
 
@@ -6738,10 +6738,10 @@ exports.spendTickets = functions.https.onCall(async (data, context) => {
     });
 });
 
-exports.convertPointsToTickets = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.convertPointsToTickets = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot convert XP');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot convert XP');
     }
 
     const uid = context.auth.uid;
@@ -6756,13 +6756,13 @@ exports.convertPointsToTickets = functions.https.onCall(async (data, context) =>
 
     return db.runTransaction(async (tx) => {
         const [userDoc, dailyDoc] = await Promise.all([tx.get(userRef), tx.get(dailyRef)]);
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
         const todayCount = dailyDoc.exists ? (dailyDoc.data().count || 0) : 0;
 
         if (todayCount + tickets > MAX_PER_DAY) {
-            throw new functions.https.HttpsError('resource-exhausted',
+            throw new functionsV1.https.HttpsError('resource-exhausted',
                 `Daily limit: ${MAX_PER_DAY} tickets/day. Already converted ${todayCount} today.`);
         }
 
@@ -6776,7 +6776,7 @@ exports.convertPointsToTickets = functions.https.onCall(async (data, context) =>
         const availableForExchange = currentPoints - _ptsClaimed - _ptsDonated - _ptsExchanged;
 
         if (availableForExchange < pointsCost) {
-            throw new functions.https.HttpsError('failed-precondition',
+            throw new functionsV1.https.HttpsError('failed-precondition',
                 `Need ${pointsCost.toLocaleString()} XP available, but only ${Math.max(0, availableForExchange).toLocaleString()} is available (total earned: ${currentPoints.toLocaleString()}).`);
         }
 
@@ -6824,10 +6824,10 @@ exports.convertPointsToTickets = functions.https.onCall(async (data, context) =>
     });
 });
 
-exports.activateHashBooster = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.activateHashBooster = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
     }
 
     const uid = context.auth.uid;
@@ -6835,13 +6835,13 @@ exports.activateHashBooster = functions.https.onCall(async (data, context) => {
 
     return db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
         const hashBoosters = userData.hashBoosters || 0;
 
         if (hashBoosters < 1) {
-            throw new functions.https.HttpsError('failed-precondition', 'No hash boosters available.');
+            throw new functionsV1.https.HttpsError('failed-precondition', 'No hash boosters available.');
         }
 
         // Grant +100 bonus hashes (added to hashBoosterHashes budget)
@@ -6861,10 +6861,10 @@ exports.activateHashBooster = functions.https.onCall(async (data, context) => {
     });
 });
 
-exports.useHintToken = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.useHintToken = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use hint tokens');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use hint tokens');
     }
 
     const uid = context.auth.uid;
@@ -6872,13 +6872,13 @@ exports.useHintToken = functions.https.onCall(async (data, context) => {
 
     return db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
         const hintTokens = userData.hintTokens || 0;
 
         if (hintTokens < 1) {
-            throw new functions.https.HttpsError('failed-precondition', 'No hint tokens available.');
+            throw new functionsV1.https.HttpsError('failed-precondition', 'No hint tokens available.');
         }
 
         tx.update(userRef, {
@@ -6890,10 +6890,10 @@ exports.useHintToken = functions.https.onCall(async (data, context) => {
     });
 });
 
-exports.activateDoubleXP = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot activate Double XP');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot activate Double XP');
     }
 
     const uid = context.auth.uid;
@@ -6901,13 +6901,13 @@ exports.activateDoubleXP = functions.https.onCall(async (data, context) => {
 
     return db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
         const charges = userData.doubleXPCharges || 0;
 
         if (charges < 1) {
-            throw new functions.https.HttpsError('failed-precondition', 'No Double XP charges available.');
+            throw new functionsV1.https.HttpsError('failed-precondition', 'No Double XP charges available.');
         }
 
         // Already active? extend or reject
@@ -6934,10 +6934,10 @@ exports.activateDoubleXP = functions.https.onCall(async (data, context) => {
     });
 });
 
-exports.useBonusSpin = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+exports.useBonusSpin = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot use bonus spins');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use bonus spins');
     }
 
     const uid = context.auth.uid;
@@ -6945,13 +6945,13 @@ exports.useBonusSpin = functions.https.onCall(async (data, context) => {
 
     return db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
         const bonusSpins = userData.bonusSpins || 0;
 
         if (bonusSpins < 1) {
-            throw new functions.https.HttpsError('failed-precondition', 'No bonus spins available.');
+            throw new functionsV1.https.HttpsError('failed-precondition', 'No bonus spins available.');
         }
 
         // Set server-side flag so dailySpin bypasses the already-spun check for this spin
@@ -7581,12 +7581,12 @@ exports.tweetSatoshisFavor = tweetSatoshisFavor;
 // ── GIF Search Proxy (Tenor v2) ───────────────────────────────────────────────
 // Proxies Tenor v2 requests server-side so the API key never leaks to the client
 // and no browser-side API activation is required.
-exports.searchGifs = functions.https.onCall(async (data, context) => {
+exports.searchGifs = functionsV1.https.onCall(async (data, context) => {
     // [SECURITY FIX] Require authenticated non-anonymous user — prevents Giphy quota drain
     // by unauthenticated callers (AppCheck alone doesn't guarantee a real signed-in user).
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Sign in required');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Sign in required');
     }
     const query = (data.query || '').trim().slice(0, 100);
     const limit = Math.min(Math.max(parseInt(data.limit) || 20, 1), 50);
@@ -7619,7 +7619,7 @@ exports.searchGifs = functions.https.onCall(async (data, context) => {
         return { results };
     } catch (e) {
         console.error('[searchGifs]', e.message);
-        throw new functions.https.HttpsError('internal', 'GIF search failed');
+        throw new functionsV1.https.HttpsError('internal', 'GIF search failed');
     }
 });
 
@@ -7876,13 +7876,13 @@ exports.refreshBadgeDistributionHttp = functions.https.onRequest(async (req, res
 // user (including anonymous) to inject fake "official Nacho" messages with
 // arbitrary markdown links (e.g. phishing "claim your airdrop" links).
 // Rules now set allow create: if false; this function is the only write path.
-exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
+exports.nachoAnnounce = functionsV1.https.onCall(async (data, context) => {
     // 1. Auth: must be signed in and not anonymous
     if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('permission-denied', 'Sign in required');
+        throw new functionsV1.https.HttpsError('permission-denied', 'Sign in required');
     }
     // NOTE: nachoAnnounce is called by regular users for badge/trifecta/quiz announcements.
     // Protection is: non-anonymous auth + rate limiting + link/hash allowlists.
@@ -7902,7 +7902,7 @@ exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
             const windowStart = d.windowStart && d.windowStart.toDate ? d.windowStart.toDate().getTime() : 0;
             if (now - windowStart < windowMs) {
                 if ((d.count || 0) >= maxCount) {
-                    throw new functions.https.HttpsError('resource-exhausted', 'Too many announcements');
+                    throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many announcements');
                 }
                 tx.update(rateLimitRef, { count: (d.count || 0) + 1 });
             } else {
@@ -7916,7 +7916,7 @@ exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
     // 3. Validate text
     const text = (data.text || '').trim();
     if (!text || text.length < 1 || text.length > 2000) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid text');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid text');
     }
 
     // 4a. HTTPS markdown links: only bitcoineducation.quest
@@ -7927,11 +7927,11 @@ exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
         try {
             const linkHost = new URL(match[2]).hostname.toLowerCase();
             if (!ALLOWED_LINK_HOSTS.some(h => linkHost === h || linkHost.endsWith('.' + h))) {
-                throw new functions.https.HttpsError('invalid-argument', 'Links must point to bitcoineducation.quest');
+                throw new functionsV1.https.HttpsError('invalid-argument', 'Links must point to bitcoineducation.quest');
             }
         } catch (e) {
-            if (e instanceof functions.https.HttpsError) throw e;
-            throw new functions.https.HttpsError('invalid-argument', 'Invalid link URL');
+            if (e instanceof functionsV1.https.HttpsError) throw e;
+            throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid link URL');
         }
     }
 
@@ -7940,13 +7940,13 @@ exports.nachoAnnounce = functions.https.onCall(async (data, context) => {
     const hashLinkRegex = /\[([^\]]*)\]\(#([^)]+)\)/g;
     while ((match = hashLinkRegex.exec(text)) !== null) {
         if (!/^[a-zA-Z0-9_-]+$/.test(match[2])) {
-            throw new functions.https.HttpsError('invalid-argument', 'Invalid hash link');
+            throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid hash link');
         }
     }
 
     // 4c. Reject other URL schemes that could become links in future renderers
     if (/\[[^\]]*\]\(\s*(javascript|data|vbscript):/i.test(text)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Disallowed link scheme');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Disallowed link scheme');
     }
 
     // 5. Write via Admin SDK (bypasses allow create: if false rule)
@@ -7981,20 +7981,20 @@ exports.pvpResolveRound = pvpResolveRound;
 // localStorage. This CF merges that badge array into the real account's
 // visibleBadges (server-side, deduplicated, validated against BADGE_VALUES catalog).
 // No XP is re-awarded — badge records are written directly via Admin SDK.
-exports.mergeAnonBadges = functions.https.onCall(async (data, context) => {
+exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
     const uid = context.auth.uid;
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functions.https.HttpsError('failed-precondition', 'Cannot merge for anonymous account');
+        throw new functionsV1.https.HttpsError('failed-precondition', 'Cannot merge for anonymous account');
     }
 
     // Validate + sanitize incoming badge array
     const incoming = Array.isArray(data.anonBadges) ? data.anonBadges : [];
     if (incoming.length === 0) return { merged: 0, skipped: 0 };
     if (incoming.length > 500) {
-        throw new functions.https.HttpsError('invalid-argument', 'Too many badges in merge payload');
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Too many badges in merge payload');
     }
 
     // Same BADGE_VALUES catalog as awardPoints — only known badges are accepted
@@ -8081,7 +8081,7 @@ exports.mergeAnonBadges = functions.https.onCall(async (data, context) => {
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
     if (!userDoc.exists) {
-        throw new functions.https.HttpsError('not-found', 'User document not found');
+        throw new functionsV1.https.HttpsError('not-found', 'User document not found');
     }
 
     const userData = userDoc.data();
