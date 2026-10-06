@@ -1,20 +1,18 @@
 // Bitcoin Education Archive - Service Worker v15
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v2130';
+const CACHE_NAME = 'btc-archive-v2132';
 const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
 // [AUDIT FIX B10] Pre-cache critical files including key JS modules
+// PRE_CACHE is shell + icons only. bundle.min.js is NOT precached.
+// Keeping SW install fast — bundle loads network-first and caches on first fetch.
 const PRE_CACHE = [
   './',
   './index.html',
-  './bundle.js',
-  './patches.js',
   './nacho-deer.svg',
   './nacho-fly.svg',
   './manifest.json',
-  './donation-qr.jpg',
-  './og-image.png',
   './favicon.ico',
 ];
 

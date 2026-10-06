@@ -1714,7 +1714,7 @@ async function articleLoadReplies(articleId) {
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
                     '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
-                    (canDel ? '<button onclick="articleDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
+                    (canDel ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
                 '</div>' +
                 '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;margin-bottom:6px;">' + bodyHtml + '</div>' +
                 (canReply ? '<button data-rid="' + r.id + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +

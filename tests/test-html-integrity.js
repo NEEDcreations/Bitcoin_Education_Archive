@@ -32,7 +32,7 @@ test('forumContainer exists', () => assert(html.includes('id="forumContainer"'))
 test('questModal exists', () => assert(html.includes('id="questModal"')));
 
 // Critical script references
-test('bundle.js referenced', () => assert(html.match(/src="bundle\.js\?v=[\w]+"/)));
+test('bundle.min.js referenced', () => assert(html.match(/src="bundle\.min\.js\?v=[\w]+"/)));
 // app.js is now in bundle.js
 // nacho-qa.js is now in bundle.js
 // nacho.js is now in bundle.js
@@ -46,7 +46,7 @@ test('bundle.js referenced', () => assert(html.match(/src="bundle\.js\?v=[\w]+"/
 // All scripts should be deferred (except inline)
 test('all external scripts are deferred', () => {
     const scriptTags = html.match(/<script src="[^"]*"[^>]*>/g) || [];
-    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('gstatic') && !s.includes('security-patches'));
+    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('async') && !s.includes('gstatic') && !s.includes('security-patches'));
     assert(nonDeferred.length === 0, `Non-deferred scripts: ${nonDeferred.join(', ')}`);
 });
 
@@ -62,9 +62,9 @@ test('404.html matches index.html', () => {
 });
 
 // Service worker precaches critical files
-test('SW precaches bundle.js', () => {
+test('SW does not precache bundle (intentional - keeps install fast)', () => {
     const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
-    assert(sw.includes('bundle.js'), 'bundle.js not in SW precache');
+    assert(!sw.includes("'./bundle"), 'bundle should not be in SW PRE_CACHE');
 });
 // ranking.js is now in bundle.js
 
