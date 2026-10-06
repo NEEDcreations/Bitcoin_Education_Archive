@@ -701,7 +701,7 @@ exports.lnAuthChallenge = functionsV1.https.onCall(async (data, context) => {
 });
 
 // Step 2: HTTP callback endpoint - wallet calls this with sig + key
-exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
+exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
     // CORS headers
     res.set('Access-Control-Allow-Origin', 'https://bitcoineducation.quest');
 
@@ -4620,7 +4620,7 @@ exports.resetCommunityStats = functionsV1.https.onCall(async (data, context) => 
 // lastActive / lastLogin / lastVisit within the last 24h.
 // Usage: curl "https://us-central1-bitcoin-education-archive.cloudfunctions.net/dailyActiveUsers" -H "x-admin-token: $ADMIN_TOKEN"
 // ───────────────────────────────────────────────────────────────
-exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
+exports.dailyActiveUsers = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const now = new Date();
@@ -4798,7 +4798,7 @@ exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
 // One-shot investigation endpoint: accepts up to 20 UIDs, returns full records +
 // cross-referenced signals (same IP, same lightning address, giveaway entries,
 // points sources, account age, auth method, bestStreak sanity, etc).
-exports.investigateUsers = functions.https.onRequest(async (req, res) => {
+exports.investigateUsers = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const uidsParam = req.query.uids || '';
     const uids = uidsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
@@ -4962,7 +4962,7 @@ const BLACKLISTED_LN = [
     'seedyroute27@walletofsatoshi.com'
 ];
 
-exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
+exports.watchlistCheck = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
 
     try {
@@ -5071,7 +5071,7 @@ exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
 // =============================================
 // AUDIT WITHDRAWALS - Admin endpoint for monitoring blocked accounts & investigating withdrawal clusters
 // =============================================
-exports.auditWithdrawals = functions.https.onRequest(async (req, res) => {
+exports.auditWithdrawals = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
 
     try {
@@ -5273,7 +5273,7 @@ exports.stravaInitAuth = functionsV1.https.onCall(async (data, context) => {
 // Step 2: Strava redirects here with ?code=...&state=<nonce>.
 // We look up the nonce server-side, extract the real uid, delete it
 // (one-time use), then proceed with the token exchange.
-exports.stravaAuth = functions.https.onRequest(async (req, res) => {
+exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
     try {
         const code  = req.query.code;
         const nonce = req.query.state; // server-issued nonce, NOT a raw uid
@@ -5457,7 +5457,7 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     console.log('[POW] Done. synced:', syncedCount, 'pts:', totalPoints);
     return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
 });
-exports.adminLookupUser = functions.https.onRequest(async (req, res) => {
+exports.adminLookupUser = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         let q = req.query.q;
@@ -5469,7 +5469,7 @@ exports.adminLookupUser = functions.https.onRequest(async (req, res) => {
         res.json(out);
     } catch(e) { console.error('[adminLookupUser] error:', e); res.status(500).json({error: 'Internal server error'}); }
 });
-exports.adminQueryUsers = functions.https.onRequest(async (req, res) => {
+exports.adminQueryUsers = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         let snap = await db.collection('users').get();
@@ -5488,7 +5488,7 @@ exports.adminQueryUsers = functions.https.onRequest(async (req, res) => {
 });
 // [VULN-7 FIX] adminBanUser — sets ban flags in BOTH user doc and faucet_ledger atomically.
 // The ledger ban survives user-doc deletion (faucet_ledger is write:false for clients).
-exports.adminBanUser = functions.https.onRequest(async (req, res) => {
+exports.adminBanUser = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const uid = req.query.uid;
@@ -5513,7 +5513,7 @@ exports.adminBanUser = functions.https.onRequest(async (req, res) => {
     } catch(e) { console.error('[adminBanUser] error:', e); res.status(500).json({error: 'Internal server error'});}
 });
 
-exports.adminUnbanUser = functions.https.onRequest(async (req, res) => {
+exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const uid = req.query.uid;
@@ -6089,7 +6089,7 @@ exports.backfillDonationFaction = functionsV1.https.onCall(async (data, context)
 // One-shot HTTP trigger — fills `created` field for users missing it.
 // Uses Firebase Auth creationTime as ground truth; point-rank estimate as fallback.
 // ══════════════════════════════════════════════════════════════════════
-exports.backfillJoinDates = functions.https.onRequest(async (req, res) => {
+exports.backfillJoinDates = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const dryRun = req.query.dry === '1';
 
@@ -7032,7 +7032,7 @@ exports.refreshHotTopics = onScheduleV2({
 // Also expose as HTTP endpoint so you can trigger it manually
 // GET https://us-central1-bitcoin-education-archive.cloudfunctions.net/refreshHotTopicsHttp
 // Header: x-admin-token: $ADMIN_TOKEN
-exports.refreshHotTopicsHttp = functions.https.onRequest(async (req, res) => {
+exports.refreshHotTopicsHttp = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const topics = await buildHotTopics();
@@ -7049,7 +7049,7 @@ exports.refreshHotTopicsHttp = functions.https.onRequest(async (req, res) => {
 });
 
 // Manual force-refresh that bypasses the quality gate (admin use only)
-exports.refreshHotTopicsForce = functions.https.onRequest(async (req, res) => {
+exports.refreshHotTopicsForce = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const topics = await buildHotTopics();
@@ -7860,7 +7860,7 @@ exports.refreshBadgeDistribution = onScheduleV2({
     timeoutSeconds: 540,
 }, async () => { await _refreshBadgeDistribution(); });
 
-exports.refreshBadgeDistributionHttp = functions.https.onRequest(async (req, res) => {
+exports.refreshBadgeDistributionHttp = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const result = await _refreshBadgeDistribution();
