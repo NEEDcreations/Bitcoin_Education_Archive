@@ -99,6 +99,47 @@ async function verifyTurnstile(token, remoteip) {
     }
 }
 const bolt11 = require('bolt11');
+const dns = require('dns').promises;
+
+// ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
+// String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
+// Call this BEFORE any outbound fetch to a user-supplied Lightning Address domain.
+async function assertPublicHost(hostname) {
+    // Strip port if present
+    const host = hostname.split(':')[0].toLowerCase();
+    let addresses;
+    try {
+        addresses = await dns.resolve4(host);
+        // Also try IPv6 in case v4 resolves fine but v6 is private
+        try {
+            const v6 = await dns.resolve6(host);
+            addresses = addresses.concat(v6);
+        } catch (_) { /* no AAAA record — fine */ }
+    } catch (e) {
+        throw new Error('DNS resolution failed for hostname: ' + host);
+    }
+    if (!addresses || addresses.length === 0) throw new Error('No DNS records for hostname: ' + host);
+    for (const addr of addresses) {
+        const a = addr.toLowerCase();
+        if (
+            a === '127.0.0.1' ||
+            a === '::1' ||
+            /^127\./.test(a) ||
+            /^10\./.test(a) ||
+            /^192\.168\./.test(a) ||
+            /^172\.(1[6-9]|2[0-9]|3[01])\./.test(a) ||
+            /^169\.254\./.test(a) ||        // AWS/GCP instance metadata
+            /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(a) || // RFC 6598 CGNAT
+            /^fd[0-9a-f]{2}:/i.test(a) ||   // ULA IPv6
+            /^fe80:/i.test(a) ||             // link-local IPv6
+            /^::ffff:127\./.test(a) ||       // v4-mapped loopback
+            /^0\./.test(a)                   // "this" network
+        ) {
+            console.error('[SSRF-DNS] Blocked private IP ' + addr + ' for host ' + host);
+            throw new Error('Lightning Address domain resolves to a private/restricted IP address.');
+        }
+    }
+}
 
 // ===== VALID CHANNEL CATALOG (server-authoritative) =====
 // Extracted from channel_index.js — used to reject fake channelId values
@@ -1612,6 +1653,12 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         try {
             const nodeFetch = require('node-fetch');
             const [localPart, domain] = lnAddrRaw.split('@');
+
+            // SECURITY: DNS pre-resolution SSRF check — string-matching alone is bypassed by
+            // a public domain that resolves to a private/link-local IP (e.g. 169.254.169.254).
+            // Resolve first; reject if any returned address is private.
+            await assertPublicHost(domain);
+
             const lnurlPayUrl = 'https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart);
             const metaRes = await nodeFetch(lnurlPayUrl, { timeout: 8000, size: 65536 }); // 64KB max response
             if (!metaRes.ok) throw new Error('LNURL-pay metadata fetch failed (' + metaRes.status + ')');
@@ -5943,6 +5990,10 @@ async function fetchLnurlInvoice(lightningAddress, msats, comment) {
         console.error('[fetchLnurlInvoice] SSRF BLOCKED: host=' + host);
         throw new Error(`Invalid Lightning Address domain: ${host}`);
     }
+
+    // SECURITY: DNS pre-resolution SSRF check — string-matching alone is bypassed by
+    // a public domain that resolves to a private/link-local IP (e.g. 169.254.169.254).
+    await assertPublicHost(_lnHost);
 
     const lnurlRes   = await nodeFetch(`https://${host}/.well-known/lnurlp/${encodeURIComponent(user)}`, { timeout: 10000, size: 65536 });
     if (!lnurlRes.ok) throw new Error(`LNURL-pay lookup failed for ${lightningAddress}`);

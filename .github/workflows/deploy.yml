@@ -28,10 +28,23 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Stage static site (exclude sensitive dirs)
+        run: |
+          mkdir _site
+          rsync -a \
+            --exclude='functions/' \
+            --exclude='.wrangler/' \
+            --exclude='.firebase/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='_site/' \
+            --exclude='.git/' \
+            . _site/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '_site'
 
       - name: Deploy to GitHub Pages
         id: deployment
