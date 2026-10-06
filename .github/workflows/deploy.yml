@@ -39,6 +39,21 @@ jobs:
             --exclude='node_modules/' \
             --exclude='_site/' \
             --exclude='.git/' \
+            --exclude='*.sh' \
+            --exclude='*.py' \
+            --exclude='*.mjs' \
+            --exclude='*.bak' \
+            --exclude='*.src' \
+            --exclude='*.src.*' \
+            --exclude='tests/' \
+            --exclude='scripts/' \
+            --exclude='workers/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='firestore.rules' \
+            --exclude='storage.rules' \
+            --exclude='firestore.indexes.json' \
+            --exclude='*.md' \
             . _site/
 
       - name: Upload artifact

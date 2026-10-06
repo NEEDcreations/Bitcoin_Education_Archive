@@ -1016,9 +1016,9 @@ service cloud.firestore {
                         'replyTo','replyToName','replyToText',
                         'hasChatFlair','chatFlairEmoji','hasNachoSkin',
                         'isGif','caption','imageUrl','gifUrl'])
-                    // F-004: protocol validation for imageUrl/gifUrl (defense-in-depth)
-                    && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://.*'))
-                    && (!('gifUrl'   in request.resource.data) || request.resource.data.gifUrl.matches('^https://.*'))
+                    // F-004: imageUrl/gifUrl must come from Firebase Storage or Tenor CDN only
+                    && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://(firebasestorage\.googleapis\.com|[^/]+\.firebasestorage\.app|media\.tenor\.com|c\.tenor\.com)/.*'))
+                    && (!('gifUrl'   in request.resource.data) || request.resource.data.gifUrl.matches('^https://(firebasestorage\.googleapis\.com|[^/]+\.firebasestorage\.app|media\.tenor\.com|c\.tenor\.com)/.*'))
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username

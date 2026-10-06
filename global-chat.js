@@ -212,6 +212,16 @@ var REACT_EMOJIS_DEFAULT = ['👍','👎','❤️','😂','🔥','⚡','🤔','�
 var REACT_EMOJIS_EXPANDED = ['👍','👎','❤️','😂','🔥','⚡','🤔','👀','🙌','💯','🤙','🦌','🎉','😢','😡','🤣','💀','🙏','💪','🤯','😱','🥳','😎','🤡','💎','🚀','⛏️','🧡','₿','🫡','👑','🐋','❌','✅','⬆️','⬇️','🍿','☠️','🫂','🤝','💩','😅','😉'];
 var _reactExpanded = false;
 var IMG_REGEX = /https?:\/\/[^\s<]+\.(?:gif|png|jpg|jpeg|webp)(\?[^\s<]*)?/i;
+// Allowlist for externally-supplied media URLs (pasted GIFs, images).
+// Only Firebase Storage and the Tenor CDN (GIF search results) are permitted.
+// This blocks trackers, lookalike domains, and large/arbitrary hosts.
+var ALLOWED_MEDIA_HOSTS = /^https:\/\/(?:firebasestorage\.googleapis\.com|[^/]*\.firebasestorage\.app|media\.tenor\.com|c\.tenor\.com)\//i;
+function isAllowedChatMediaUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    if (!url.match(/^https:\/\//i)) return false;
+    return ALLOWED_MEDIA_HOSTS.test(url);
+}
+// Legacy regex kept for inline-image detection only (not security)
 var GIF_HOSTS = /tenor\.com|giphy\.com|media\.giphy\.com|media[0-9]\.giphy\.com|imgur\.com|gfycat\.com/i;
 
 // Known apps/pages for # autocomplete
@@ -2163,6 +2173,10 @@ window.enlargeChatImage = function(src) {
 
 window.sendGifMessage = function(url, caption) {
     if (!url) return;
+    if (!isAllowedChatMediaUrl(url)) {
+        if (typeof showToast === 'function') showToast('GIF source not allowed');
+        return;
+    }
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
         if (typeof showToast === 'function') showToast('Sign in to send GIFs!');
         return;
@@ -2216,6 +2230,10 @@ window.sendGifUrl = function() {
     var url = input.value.trim();
     if (!IMG_REGEX.test(url)) {
         if (typeof showToast === 'function') showToast('Must be a direct image URL (.gif, .png, .jpg, .webp)');
+        return;
+    }
+    if (!isAllowedChatMediaUrl(url)) {
+        if (typeof showToast === 'function') showToast('Only Firebase Storage and Tenor URLs are allowed');
         return;
     }
     previewGifBeforeSend(url);

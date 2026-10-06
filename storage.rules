@@ -61,13 +61,21 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
     // DM image uploads (private messages)
-    // Read: any authenticated user — recipients load via <img src="tokenUrl"> which
-    // hits storage rules even with rules_version='2'. Path security comes from the
-    // random filename + Firestore DM conversation access controls.
-    match /dm-images/{userId}/{fileName} {
-      allow read: if request.auth != null;
+    // Read: owner always; anyone else must have an existing DM conversation with the uploader.
+    // Conversation ID is deterministic: smaller_uid + '_' + larger_uid (mirrors getConversationId() in JS).
+    // This prevents a leaked URL from being loaded by arbitrary authenticated users.
+    match /dm-images/{uploaderId}/{fileName} {
+      allow read: if request.auth != null
+                  && (request.auth.uid == uploaderId
+                      || firestore.exists(
+                           /databases/(default)/documents/dm_conversations/$(
+                             uploaderId < request.auth.uid
+                               ? uploaderId + '_' + request.auth.uid
+                               : request.auth.uid + '_' + uploaderId
+                           )
+                         ));
       allow write: if request.auth != null
-                   && request.auth.uid == userId
+                   && request.auth.uid == uploaderId
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
