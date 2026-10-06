@@ -72,6 +72,23 @@ function requireAdmin(req, res) {
     return true;
 }
 
+// ── Admin audit log — writes to admin_audit_log collection ──────────────────
+// Called after requireAdmin passes. Records caller IP, action, and params.
+async function logAdminAction(req, action, params) {
+    try {
+        const ip = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown').split(',')[0].trim();
+        await db.collection('admin_audit_log').add({
+            action,
+            params: JSON.stringify(params || {}).substring(0, 500),
+            callerIp: ip,
+            userAgent: (req.headers['user-agent'] || '').substring(0, 200),
+            ts: admin.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) {
+        console.error('[logAdminAction] failed to write audit log:', e.message);
+    }
+}
+
 const { NWCClient } = require('@getalby/sdk');
 
 // ── Cloudflare Turnstile verification ───────────────────────────────────────
@@ -162,6 +179,43 @@ const FAUCET = {
     NWC_URL: process.env.NWC_URL || ''
 };
 
+// ── TOTP secret encryption (AES-256-GCM) ────────────────────────────────────
+// Secrets are stored encrypted at rest. Key is in TOTP_ENCRYPTION_KEY env var
+// (32-byte hex string). If key is absent, falls back to plaintext for backwards
+// compatibility, but logs a warning on startup.
+const TOTP_KEY_HEX = process.env.TOTP_ENCRYPTION_KEY || '';
+if (!TOTP_KEY_HEX) {
+    console.warn('[TOTP] TOTP_ENCRYPTION_KEY is not set — secrets stored plaintext. Set a 32-byte hex key in Firebase env config.');
+}
+function encryptTotpSecret(secret) {
+    if (!TOTP_KEY_HEX) return { enc: false, value: secret };
+    const key = Buffer.from(TOTP_KEY_HEX, 'hex');
+    const iv = require('crypto').randomBytes(12);
+    const cipher = require('crypto').createCipheriv('aes-256-gcm', key, iv);
+    const enc = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return {
+        enc: true,
+        value: iv.toString('hex') + ':' + enc.toString('hex') + ':' + tag.toString('hex')
+    };
+}
+function decryptTotpSecret(stored) {
+    if (!stored || !stored.enc) return stored ? stored.value : null;
+    if (!TOTP_KEY_HEX) {
+        // Key disappeared after storage — cannot decrypt
+        throw new Error('TOTP_ENCRYPTION_KEY not set but secret is encrypted');
+    }
+    const key = Buffer.from(TOTP_KEY_HEX, 'hex');
+    const parts = stored.value.split(':');
+    if (parts.length !== 3) throw new Error('Invalid encrypted TOTP format');
+    const iv = Buffer.from(parts[0], 'hex');
+    const encBuf = Buffer.from(parts[1], 'hex');
+    const tag = Buffer.from(parts[2], 'hex');
+    const decipher = require('crypto').createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(encBuf), decipher.final()]).toString('utf8');
+}
+
 // Generate TOTP secret and QR code for user
 exports.totpSetup = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
@@ -172,9 +226,11 @@ exports.totpSetup = functionsV1.https.onCall(async (data, context) => {
     // Generate secret
     const secret = authenticator.generateSecret();
 
-    // Store temporarily (not verified yet)
+    // Store temporarily (not verified yet), encrypted at rest
+    const encPending = encryptTotpSecret(secret);
     await db.collection('totp_pending').doc(uid).set({
-        secret: secret,
+        secretEnc: encPending.enc,
+        secret: encPending.value,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -214,15 +270,18 @@ exports.totpVerify = functionsV1.https.onCall(async (data, context) => {
     const pending = await db.collection('totp_pending').doc(uid).get();
     if (!pending.exists) throw new functionsV1.https.HttpsError('not-found', 'No pending TOTP setup. Start setup first.');
 
-    const secret = pending.data().secret;
+    const pd = pending.data();
+    const secret = decryptTotpSecret({ enc: pd.secretEnc === true, value: pd.secret });
 
     // Verify the code
     var isValid = authenticator.verify({ token: data.code, secret: secret });
     if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code. Try again.');
 
-    // Store verified secret
+    // Store verified secret encrypted at rest
+    const encSecret = encryptTotpSecret(secret);
     await db.collection('totp_secrets').doc(uid).set({
-        secret: secret,
+        secretEnc: encSecret.enc,
+        secret: encSecret.value,
         enabled: true,
         enabledAt: admin.firestore.FieldValue.serverTimestamp()
     });
@@ -267,7 +326,8 @@ exports.totpCheck = functionsV1.https.onCall(async (data, context) => {
         throw new functionsV1.https.HttpsError('not-found', 'TOTP not enabled');
     }
 
-    const secret = doc.data().secret;
+    const dd = doc.data();
+    const secret = decryptTotpSecret({ enc: dd.secretEnc === true, value: dd.secret });
     var isValid = authenticator.verify({ token: data.code, secret: secret });
 
     if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code');
@@ -313,7 +373,9 @@ exports.totpDisable = functionsV1.https.onCall(async (data, context) => {
     if (!doc.exists) throw new functionsV1.https.HttpsError('not-found', 'TOTP not enabled');
 
     // Verify code before disabling
-    var isValid = authenticator.verify({ token: data.code, secret: doc.data().secret });
+    const dd2 = doc.data();
+    const secretForDisable = decryptTotpSecret({ enc: dd2.secretEnc === true, value: dd2.secret });
+    var isValid = authenticator.verify({ token: data.code, secret: secretForDisable });
     if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code. Must verify to disable.');
 
     await db.collection('totp_secrets').doc(uid).delete();
@@ -1734,11 +1796,11 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
     }
 
     // 7. Invoice replay protection - full invoice SHA-256 hash (C3 fix)
+    // [AUDIT FIX] invoiceHash computed here; the actual existence check + atomic reservation
+    // are now performed INSIDE the transaction below to prevent TOCTOU: two concurrent requests
+    // both reading the doc before either writes it, allowing the same invoice to be paid twice.
     const invoiceHash = require('crypto').createHash('sha256').update(invoice).digest('hex').substring(0, 32);
-    const replayDoc = await db.collection('faucet_invoices').doc(invoiceHash).get();
-    if (replayDoc.exists) {
-        return { success: false, error: 'This invoice has already been used. Generate a new one.' };
-    }
+    const invoiceRef = db.collection('faucet_invoices').doc(invoiceHash);
 
     // 5. Check account age FIRST (cheap check, fail fast)
     let userRecord;
@@ -1799,9 +1861,12 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
     if (fpDoc.exists) {
         const fpData = fpDoc.data();
         const fpUids = fpData.uids || [];
+        // [AUDIT FIX] Fingerprint is a weak signal — proxies + new fingerprint bypass it easily.
+        // Treat as advisory only: log abuse for review but do NOT hard-block.
+        // The real controls are: server-side points ledger, LN-address dedup, global daily cap,
+        // IP rate limiting, account age, and email verification.
         if (fpUids.length >= 2 && !fpUids.includes(uid)) {
-            console.error('[FAUCET] FINGERPRINT ABUSE: fp=' + fingerprint.substring(0, 16) + ' used by ' + fpUids.length + ' accounts + uid=' + uid);
-            return { success: false, error: 'This device has been used by multiple accounts. Each person may only claim from one account.' };
+            console.warn('[FAUCET] FINGERPRINT_ADVISORY: fp=' + fingerprint.substring(0, 16) + ' seen from ' + fpUids.length + ' accounts + uid=' + uid + ' — logged for review, not blocked');
         }
     }
 
@@ -1842,8 +1907,8 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
         }
     }
 
-    // 7. ATOMIC TRANSACTION - All balance/limit checks + point deduction in one transaction
-    //    This prevents race conditions from concurrent requests
+    // 7. ATOMIC TRANSACTION - All balance/limit checks + point deduction + invoice reservation
+    //    in one transaction. This prevents race conditions from concurrent requests.
     const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
     const dailyRef = userRef.collection('sats_daily').doc(today);
@@ -1855,6 +1920,14 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
     let transactionPassed = false;
     try {
         await db.runTransaction(async (t) => {
+            // [AUDIT FIX] Read invoice doc atomically with all other checks.
+            // Reserving it here (before payInvoice) closes the TOCTOU window:
+            // two concurrent requests race here; only one commits the reservation.
+            const invoiceDoc = await t.get(invoiceRef);
+            if (invoiceDoc.exists) {
+                throw new Error('This invoice has already been used. Generate a new one.');
+            }
+
             const userDoc = await t.get(userRef);
             if (!userDoc.exists) throw new Error('User profile not found.');
             const user = userDoc.data();
@@ -2019,6 +2092,9 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
 
             t.set(dailyRef, { amount: admin.firestore.FieldValue.increment(amount) }, { merge: true });
             t.set(globalRef, { totalPaid: admin.firestore.FieldValue.increment(amount), claimCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
+            // [AUDIT FIX] Reserve the invoice atomically. If payment later fails, _rollbackClaim
+            // deletes this reservation so the user can retry with the same invoice.
+            t.set(invoiceRef, { uid, amount, status: 'pending', ts: admin.firestore.Timestamp.now() });
         });
         transactionPassed = true;
     } catch (e) {
@@ -2038,12 +2114,12 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
         const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) {
             // ROLLBACK: refund points since we already deducted
-            await _rollbackClaim(uid, amount, today);
+            await _rollbackClaim(uid, amount, today, invoiceRef);
             return { success: false, error: 'Faucet is being refilled. Try again later.' };
         }
     } catch (e) {
         console.error('[FAUCET] Balance check failed:', e.message);
-        await _rollbackClaim(uid, amount, today);
+        await _rollbackClaim(uid, amount, today, invoiceRef);
         const isTimeout = e.message && e.message.indexOf('[TIMEOUT]') === 0;
         return { success: false, error: isTimeout ? 'Payment wallet is not responding. Try again in a moment.' : 'Could not connect to payment wallet. Try again later.' };
     }
@@ -2051,7 +2127,7 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
     // FINAL SAFETY CHECK - absolute hard cap before touching the wallet
     if (amount > 200) {
         console.error('[FAUCET] BLOCKED: amount ' + amount + ' exceeds hard cap of 200 sats for uid=' + uid);
-        await _rollbackClaim(uid, amount, today);
+        await _rollbackClaim(uid, amount, today, invoiceRef);
         return { success: false, error: 'Claim exceeds maximum. Contact support.' };
     }
 
@@ -2059,7 +2135,7 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
     try {
         const payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) {
-            await _rollbackClaim(uid, amount, today);
+            await _rollbackClaim(uid, amount, today, invoiceRef);
             return { success: false, error: 'Payment failed. Check your invoice and try again.' };
         }
 
@@ -2074,10 +2150,11 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             uid: uid
         });
-        // Mark invoice as used (replay protection)
-        batch.set(db.collection('faucet_invoices').doc(invoiceHash), {
+        // Mark invoice as fully used (upgrade from 'pending' reservation set in transaction)
+        batch.set(invoiceRef, {
             uid: uid,
             amount: amount,
+            status: 'used',
             ts: admin.firestore.FieldValue.serverTimestamp()
         });
         // Log IP for multi-account detection (Fix #6)
@@ -2125,7 +2202,7 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
     } catch (e) {
         console.error('[FAUCET] Payment error:', e.message);
         // Payment failed - rollback the points deduction
-        await _rollbackClaim(uid, amount, today);
+        await _rollbackClaim(uid, amount, today, invoiceRef);
         const isTimeout = e.message && e.message.indexOf('[TIMEOUT]') === 0;
         return { success: false, error: isTimeout ? 'Payment timed out — your sats were not sent. Please try again.' : 'Payment failed. Please try again.' };
     }
@@ -2144,7 +2221,7 @@ function _withTimeout(promise, ms, label) {
 }
 
 // Rollback helper: refund points if payment fails after transaction
-async function _rollbackClaim(uid, amount, today) {
+async function _rollbackClaim(uid, amount, today, invoiceRef) {
     try {
         const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
         const batch = db.batch();
@@ -2166,6 +2243,11 @@ async function _rollbackClaim(uid, amount, today) {
             totalPaid: admin.firestore.FieldValue.increment(-amount),
             claimCount: admin.firestore.FieldValue.increment(-1)
         }, { merge: true });
+        // [AUDIT FIX] Delete the pending invoice reservation so the user can retry
+        // with the same invoice if payment failed before it was actually sent.
+        if (invoiceRef) {
+            batch.delete(invoiceRef);
+        }
         await batch.commit();
         console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
     } catch (e) {
@@ -4803,6 +4885,7 @@ exports.investigateUsers = functionsV1.https.onRequest(async (req, res) => {
     const uidsParam = req.query.uids || '';
     const uids = uidsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
     if (!uids.length) { res.status(400).json({ error: 'Pass ?uids=UID1,UID2,...' }); return; }
+    await logAdminAction(req, 'investigateUsers', { uids: uids.join(',') });
 
     try {
         const out = [];
@@ -5459,6 +5542,7 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
 });
 exports.adminLookupUser = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
+    await logAdminAction(req, 'adminLookupUser', { q: req.query.q });
     try {
         let q = req.query.q;
         let snap1 = await db.collection('users').where('email', '==', q).get();
@@ -5471,6 +5555,7 @@ exports.adminLookupUser = functionsV1.https.onRequest(async (req, res) => {
 });
 exports.adminQueryUsers = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
+    await logAdminAction(req, 'adminQueryUsers', { q: req.query.q });
     try {
         let snap = await db.collection('users').get();
         let matches = [];
@@ -5494,6 +5579,7 @@ exports.adminBanUser = functionsV1.https.onRequest(async (req, res) => {
         const uid = req.query.uid;
         const reason = (req.query.reason || 'admin ban').substring(0, 200);
         if (!uid) return res.status(400).json({error: 'uid required'});
+        await logAdminAction(req, 'adminBanUser', { uid, reason });
         const batch = db.batch();
         batch.update(db.collection('users').doc(uid), {
             withdrawals_disabled: true,
@@ -5518,6 +5604,7 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
     try {
         const uid = req.query.uid;
         if (!uid) return res.status(400).json({error: 'uid required'});
+        await logAdminAction(req, 'adminUnbanUser', { uid });
         // [VULN-7 FIX] Unban atomically in both user doc AND faucet_ledger.
         // Both must be cleared so a re-banned user can't exploit a stale ledger state.
         const batch = db.batch();

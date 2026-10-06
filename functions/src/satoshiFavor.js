@@ -517,7 +517,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
  * hashForFavor (onCall)
  * The mining/hashing function. Auth required.
  */
-exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
+exports.hashForFavor = onCall({ enforceAppCheck: true }, async (request) => {
   const data = request.data;
   const context = request;
   if (!context.auth) {
