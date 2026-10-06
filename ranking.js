@@ -1425,6 +1425,15 @@ function loadUserLocal(uid) {
 
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
+    // Resolve admin status from custom claim (not email allowlist)
+    try {
+        if (auth.currentUser && !auth.currentUser.isAnonymous) {
+            const tokenResult = await auth.currentUser.getIdTokenResult();
+            window._isAdminClaim = tokenResult.claims.admin === true;
+        } else {
+            window._isAdminClaim = false;
+        }
+    } catch(e) { window._isAdminClaim = false; }
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
         // Cache profile for instant next-load

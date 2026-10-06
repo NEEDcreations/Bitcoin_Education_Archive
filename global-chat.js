@@ -554,8 +554,7 @@ function renderChatMessages(msgs) {
     var hasMore = !window._chatReachedBeginning && (msgs.length >= CHAT_INITIAL_SHOW || msgs.length > showCount);
 
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    var _adminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
-    var isAdmin = myUid && typeof auth !== 'undefined' && auth.currentUser && _adminEmails.indexOf(auth.currentUser.email) !== -1;
+    var isAdmin = myUid && window._isAdminClaim === true;
     var wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
 
     if (msgs.length === 0) {
@@ -1108,8 +1107,7 @@ window.sendGlobalChat = function() {
     }
 
     // Admin bypass — admins skip all content restrictions
-    var _chatAdminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
-    var _isChatAdmin = typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email && _chatAdminEmails.indexOf(auth.currentUser.email) !== -1;
+    var _isChatAdmin = window._isAdminClaim === true;
 
     if (!_isChatAdmin) {
         // Profanity check
@@ -3954,9 +3952,7 @@ function _renderPinnedBanner(pin) {
     if (old) old.remove();
     if (!pin || !pin.text) return;
 
-    var _adminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
-    var isAdmin = typeof auth !== 'undefined' && auth && auth.currentUser &&
-        _adminEmails.indexOf(auth.currentUser.email) !== -1;
+    var isAdmin = window._isAdminClaim === true;
 
     var preview = (pin.text || '').substring(0, 80) + ((pin.text || '').length > 80 ? '...' : '');
     var author = typeof escapeHtml === 'function' ? escapeHtml(pin.authorName || 'Admin') : (pin.authorName || 'Admin');

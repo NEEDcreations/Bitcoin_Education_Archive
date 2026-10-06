@@ -230,9 +230,15 @@ service cloud.firestore {
                     && request.resource.data.total == resource.data.total + 1;
       allow create: if request.auth != null
                     && statId == 'visits';
-      // [AUDIT FIX] Require auth for analytics writes
+      // [AUDIT FIX S6 + LOW-4] nacho-analytics: non-anon auth + field allowlist to prevent junk data
+      // Only whitelisted increment fields accepted; no arbitrary keys.
       allow create, update: if statId == 'nacho-analytics'
-                            && request.auth != null;
+                            && request.auth != null
+                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                            && request.resource.data.keys().hasOnly([
+                                'totalQuestions', 'upvotes', 'downvotes', 'lastUpdated',
+                                'topics', 'sources'
+                            ]);
       // Global prediction stats — per-key +1 only, auth'd non-anon.
       // Mirrors stats/global pattern. Accepts either:
       //   • 1-key write: total += 1 (wrong prediction)
@@ -987,9 +993,10 @@ service cloud.firestore {
       // All announcements must now go through the nachoAnnounce Cloud Function
       // (Admin SDK write, non-anonymous auth required, link allowlist enforced).
       allow create: if false;
-      // Any signed-in user can toggle their own emoji reaction (only the reactions map is touched)
+      // Any signed-in user can toggle their own emoji reaction (only their own uid key within reactions)
       allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+                    && request.resource.data.reactions.diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([request.auth.uid]);
       // Admin-only delete and full update
       allow delete: if request.auth != null
                     && isAdmin();
@@ -1048,9 +1055,10 @@ service cloud.firestore {
       // Allow own message edit: only text/editCount/edited fields, max 2 edits, own message only
       allow update: if request.auth != null
                     && (
-                      // Reactions
+                      // Reactions: only the user's own uid key within the reactions map
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
-                       && request.resource.data.reactions is map)
+                       && request.resource.data.reactions is map
+                       && request.resource.data.reactions.diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([request.auth.uid]))
                       ||
                       // Message edit: own message, text only, max 2 edits
                       (resource.data.uid == request.auth.uid
@@ -1555,6 +1563,13 @@ service cloud.firestore {
                   && (resource.data.from == request.auth.uid
                       || resource.data.to == request.auth.uid);
       allow write: if false; // Cloud Function (Admin SDK) only
+    }
+
+    // =============================================
+    // ADMIN AUDIT LOG — server-write only, no client access
+    // =============================================
+    match /admin_audit_log/{logId} {
+      allow read, write: if false; // Cloud Function (Admin SDK) only
     }
 
     match /{document=**} {
