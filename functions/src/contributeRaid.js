@@ -8,7 +8,7 @@
  * DO NOT call admin.initializeApp() here — it's called in index.js.
  */
 
-const functions = require('firebase-functions/v1');
+const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 
 const db = admin.firestore();
