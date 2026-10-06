@@ -701,8 +701,25 @@ window.fbAsyncInit = function() {
     FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v19.0' });
 };
 
+// Lazy-load FB SDK on first click — avoids loading a third-party tracker on every page paint
+function _loadFBSDK() {
+    return new Promise(function(resolve) {
+        if (typeof FB !== 'undefined') { resolve(); return; }
+        var s = document.createElement('script');
+        s.src = 'https://connect.facebook.net/en_US/sdk.js';
+        s.integrity = 'sha384-3oqMa0wr/MCmsCFJBDgYA0AEWQ6whqOB0l3fAGZ8mfLLQDhXBWsV2YLdRxAFYqN';
+        s.crossOrigin = 'anonymous';
+        s.async = true;
+        s.defer = true;
+        s.onload = function() { resolve(); };
+        s.onerror = function() { resolve(); }; // fall through to popup flow
+        document.head.appendChild(s);
+    });
+}
+
 window.signInWithFacebook = async function() {
     window._captureSignupFormState();
+    await _loadFBSDK();
     if (typeof FB !== 'undefined') {
         try {
             await signInWithFBSDK();

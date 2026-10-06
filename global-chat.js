@@ -432,7 +432,7 @@ function renderGlobalChat() {
                 '<div style="position:relative;">' +
                     '<div id="chatAutocomplete" style="display:none;position:absolute;bottom:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);z-index:10;"></div>' +
                     '<div style="display:flex;gap:6px;align-items:center;">' +
-                        '<button onclick="sendGlobalChat()" style="padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
+                        '<button id="gcSendBtn" onclick="sendGlobalChat()" aria-label="Send message" style="padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
                         '<input type="text" id="globalChatInput" placeholder="Say something..." maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;min-width:0;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;" autocomplete="off">' +
                         '<button onclick="showEmojiPicker()" style="padding:6px;background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Emoji">😀</button>' +
                         '<button onclick="chatUploadImage()" style="padding:6px;background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Upload Image">📷</button>' +
@@ -1167,6 +1167,9 @@ window.sendGlobalChat = function() {
     input.value = '';
     var counter = _gcActiveEl('globalChatCharCount');
     if (counter) counter.textContent = '0';
+    // Optimistic UI: disable send button while in-flight so user knows it's working
+    var _sendBtn = document.getElementById('gcSendBtn');
+    if (_sendBtn) { _sendBtn.disabled = true; _sendBtn.textContent = '…'; }
 
     // Notify @mentioned users
     var mentionRegex = /@([a-zA-Z0-9_-]+)/g;
@@ -1207,6 +1210,9 @@ window.sendGlobalChat = function() {
         msgData.hasNachoSkin = true;
     }
     db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
+        // Restore send button on success
+        var _sb = document.getElementById('gcSendBtn');
+        if (_sb) { _sb.disabled = false; _sb.textContent = 'Send'; }
         // Track for daily challenge
         try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_chat_sent_' + _t, 'true'); } catch(e) {}
         // Increment global chat counter
@@ -1219,7 +1225,12 @@ window.sendGlobalChat = function() {
         }
     }).catch(function(err) {
         console.error('[CHAT] Send error:', err);
-        if (typeof showToast === 'function') showToast('Failed to send: ' + (err.message || 'Unknown error'));
+        // Restore button and return text to input so user can retry
+        var _sb = document.getElementById('gcSendBtn');
+        if (_sb) { _sb.disabled = false; _sb.textContent = 'Send'; }
+        var _inp = _gcActiveInput();
+        if (_inp && !_inp.value.trim()) _inp.value = text;
+        if (typeof showToast === 'function') showToast('⚠️ Failed to send — tap to retry. (' + (err.code || err.message || 'network error') + ')');
     });
 
     // Track total messages sent
@@ -1770,7 +1781,7 @@ function renderOverlayChat() {
                 '<div style="position:relative;">' +
                     '<div id="chatAutocomplete" style="display:none;position:absolute;bottom:100%;left:0;right:0;max-height:150px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);z-index:10;"></div>' +
                     '<div style="display:flex;gap:4px;align-items:center;">' +
-                        '<button onclick="sendGlobalChat()" style="padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
+                        '<button id="gcSendBtn" onclick="sendGlobalChat()" aria-label="Send message" style="padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
                         '<input type="text" id="globalChatInput" placeholder="Say something..." maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;min-width:0;padding:10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;" autocomplete="off">' +
                         '<button onclick="showEmojiPicker()" style="padding:6px;background:none;border:none;font-size:1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Emoji">😀</button>' +
                         '<button onclick="chatUploadImage()" style="padding:6px;background:none;border:none;font-size:1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);touch-action:manipulation;" title="Upload Image">📷</button>' +

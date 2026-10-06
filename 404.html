@@ -647,7 +647,7 @@
     </style>
     <!-- Google Sign-In (gsi/client) lazy-loaded on demand to avoid 2s reCAPTCHA CPU hit on every page load -->
     <script>window._loadGSI=function(){if(window._gsiLoaded)return;window._gsiLoaded=true;var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.integrity='sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM';s.crossOrigin='anonymous';s.async=true;document.head.appendChild(s);};</script>
-    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+    <!-- Facebook SDK loaded on-demand only when user clicks "Sign in with Facebook" -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -1274,15 +1274,15 @@
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
             <p>Pick a username to start earning XP as you explore the archive!</p>
-            <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" onkeydown="if(event.key==='Enter')submitUsername()">
-            <input type="email" id="emailInput" placeholder="📧 Email (optional)" style="margin-top:0;width:100%;box-sizing:border-box;">
+            <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" aria-label="Choose a username" onkeydown="if(event.key==='Enter')submitUsername()">
+            <input type="email" id="emailInput" placeholder="📧 Email (optional)" aria-label="Email address (optional)" style="margin-top:0;width:100%;box-sizing:border-box;">
             <p style="color:#475569;font-size:0.75rem;margin:-8px 0 16px;">We'll never spam you. Only used if we launch future Bitcoin education updates.</p>
             <div style="position:relative;margin-bottom:16px;" id="signupCountryAutocomplete">
-                <input type="text" id="signupCountryInput" placeholder="🌍 Country (optional)" autocomplete="off" style="width:100%;padding:14px 18px;background:#020617;border:1px solid var(--border);border-radius:10px;color:#fff;font-size:1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;" oninput="window._filterSignupCountry&&window._filterSignupCountry()" onfocus="window._filterSignupCountry&&window._filterSignupCountry()">
+                <input type="text" id="signupCountryInput" placeholder="🌍 Country (optional)" autocomplete="off" aria-label="Country (optional)" style="width:100%;padding:14px 18px;background:#020617;border:1px solid var(--border);border-radius:10px;color:#fff;font-size:1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;" oninput="window._filterSignupCountry&&window._filterSignupCountry()" onfocus="window._filterSignupCountry&&window._filterSignupCountry()">
                 <div id="signupCountryDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--bg-side,#0a0a0a);border:1px solid var(--accent);border-radius:0 0 10px 10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
             </div>
             <div id="signupLnSection" style="margin-bottom:16px;">
-                <input type="text" id="signupLnAddress" placeholder="⚡ Lightning address (recommended)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="200" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="this.style.borderColor='var(--border)'">
+                <input type="text" id="signupLnAddress" placeholder="⚡ Lightning address (recommended)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="200" aria-label="Lightning address for receiving sats" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" oninput="this.style.borderColor='var(--border)'">
                 <p style="color:var(--text-faint);font-size:0.72rem;margin:6px 0 0;line-height:1.5;">⚠️ <strong style="color:var(--text-muted);">You need a Lightning address to withdraw sats from this app.</strong> Other users can also tip you sats directly to your Lightning address! It's so easy once you're set up.</p>
                 <button type="button" onclick="window._signupGoGetLnAddress()" style="margin-top:8px;width:100%;padding:10px;background:none;border:1px dashed rgba(247,147,26,0.5);border-radius:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='rgba(247,147,26,0.08)'" onmouseout="this.style.background='none'">⚡ Here's how to get one →</button>
             </div>
@@ -1306,7 +1306,7 @@
             <button onclick="submitUsername()">Start Learning →</button>
             <div id="emailSignInSection" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Already have an account? Sign in with your email:</p>
-                <input type="email" id="returningEmailInput" placeholder="📧 Your email address" maxlength="100" onkeydown="if(event.key==='Enter')sendReturningMagicLink()" style="font-size:16px;padding:14px 18px;width:100%;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:var(--text,#fff);font-family:inherit;outline:none;box-sizing:border-box;">
+                <input type="email" id="returningEmailInput" placeholder="📧 Your email address" maxlength="100" aria-label="Email address for magic link sign-in" onkeydown="if(event.key==='Enter')sendReturningMagicLink()" style="font-size:16px;padding:14px 18px;width:100%;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:var(--text,#fff);font-family:inherit;outline:none;box-sizing:border-box;">
                 <button onclick="sendReturningMagicLink()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">📧 Send Magic Link</button>
                 <p style="color:var(--text-faint);font-size:0.7rem;margin:-6px 0 12px;">We'll email you a magic link — no password needed! ✨</p>
             </div>
