@@ -40,10 +40,10 @@ const METRIC_RULES = {
   streakUsers:          { maxAmount: 1,   dailyUserCap: 1   },  // once per day (fires at each 7-day streak milestone)
 };
 
-exports.contributeRaid = functions.https.onCall(async (data, context) => {
+exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
   // Auth required
   if (!context.auth) {
-    throw new functions.https.HttpsError(
+    throw new functionsV1.https.HttpsError(
       'unauthenticated',
       'You must be logged in to contribute to a Raid Boss.'
     );
@@ -51,7 +51,7 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
 
   // Anonymous users cannot contribute
   if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-    throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to Raid Bosses.');
+    throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to Raid Bosses.');
   }
 
   const uid = context.auth.uid;
@@ -59,18 +59,18 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
 
   // Validate metric
   if (!metric || typeof metric !== 'string') {
-    throw new functions.https.HttpsError('invalid-argument', 'metric is required and must be a string.');
+    throw new functionsV1.https.HttpsError('invalid-argument', 'metric is required and must be a string.');
   }
 
   const metricRules = METRIC_RULES[metric];
   if (!metricRules) {
-    throw new functions.https.HttpsError('invalid-argument', `Unknown metric: ${metric}`);
+    throw new functionsV1.https.HttpsError('invalid-argument', `Unknown metric: ${metric}`);
   }
 
   // Validate amount against per-metric max
   const parsedAmount = typeof amount === 'number' ? amount : parseFloat(amount);
   if (!parsedAmount || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-    throw new functions.https.HttpsError('invalid-argument', 'amount must be a positive number.');
+    throw new functionsV1.https.HttpsError('invalid-argument', 'amount must be a positive number.');
   }
   const clampedAmount = Math.min(parsedAmount, metricRules.maxAmount);
 
@@ -99,7 +99,7 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
   });
 
   if (!activeBoss) {
-    throw new functions.https.HttpsError('not-found', 'No active Raid Boss found.');
+    throw new functionsV1.https.HttpsError('not-found', 'No active Raid Boss found.');
   }
 
   // Damage scale: each raw metric unit = damageScale HP against the boss (target always 1000)
@@ -151,7 +151,7 @@ exports.contributeRaid = functions.https.onCall(async (data, context) => {
     const remaining = metricRules.dailyUserCap - usedToday;
 
     if (remaining <= 0) {
-      throw new functions.https.HttpsError(
+      throw new functionsV1.https.HttpsError(
         'resource-exhausted',
         `Daily contribution limit reached for ${metric}. Try again tomorrow.`
       );

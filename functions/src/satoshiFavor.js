@@ -6,6 +6,7 @@
  */
 
 const functions = require('firebase-functions');
+const functionsV1 = require('firebase-functions/v1');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
@@ -265,7 +266,7 @@ const MAX_POINTS = 42; // 2x activation threshold — prevents unbounded accumul
  * contributeFavor (onCall)
  * Called when community earns a Satoshi's Favor point.
  */
-exports.contributeFavor = functions.https.onCall(async (data, context) => {
+exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new HttpsError('unauthenticated', 'Must be signed in.');
   }
@@ -922,7 +923,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
  * checkFavorState (onCall) — lightweight
  * Returns current state. No auth required. Auto-resets if expired.
  */
-exports.checkFavorState = functions.https.onCall(async (data, context) => {
+exports.checkFavorState = functionsV1.https.onCall(async (data, context) => {
   const stateRef = db.collection('satoshiFavor').doc('current');
   const stateDoc = await stateRef.get();
 
@@ -1008,7 +1009,7 @@ exports.checkFavorState = functions.https.onCall(async (data, context) => {
  * getFavorHashes (onCall) — public
  * Returns recent hashes from subcollection, paginated.
  */
-exports.getFavorHashes = functions.https.onCall(async (data, context) => {
+exports.getFavorHashes = functionsV1.https.onCall(async (data, context) => {
   const limit = Math.min(Math.max((data && data.limit) || 50, 1), 100);
   const after = (data && data.after) || null;
 
@@ -1054,7 +1055,7 @@ exports.getFavorHashes = functions.https.onCall(async (data, context) => {
  * Syncs all hashes from a specific cycle to the all-time top 10.
  * Can be used to backfill missing hashes.
  */
-exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
+exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
   // Admin check - only specific UIDs can run this
   const ADMIN_UIDS = ['Rv2KwSy4flQmYMiHobV1V03KJDX2', 'ZVlpC6mfs1W7GlKsY9TQN3Jr8Hd4']; // Add admin UIDs here
   if (!context.auth || !ADMIN_UIDS.includes(context.auth.uid)) {
@@ -1133,7 +1134,7 @@ exports.syncCycleToTop10 = functions.https.onCall(async (data, context) => {
  * missing it, and rebuilds the factionTotals doc from scratch.
  * Safe to run multiple times — idempotent.
  */
-exports.backfillFactionTotals = functions.https.onCall(async (data, context) => {
+exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) => {
   if (!context.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
 
   // Admin-only: check email
@@ -1214,7 +1215,7 @@ exports.backfillFactionTotals = functions.https.onCall(async (data, context) => 
  * Does NOT retroactively change old contributor docs (only future contributions get new faction).
  * Safe to call multiple times — uses a per-user sync record to prevent double-counting.
  */
-exports.syncUserFactionPoints = functions.https.onCall(async (data, context) => {
+exports.syncUserFactionPoints = functionsV1.https.onCall(async (data, context) => {
   if (!context.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
   if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
     throw new HttpsError('permission-denied', 'Anonymous users cannot sync faction points.');
@@ -1291,7 +1292,7 @@ exports.syncUserFactionPoints = functions.https.onCall(async (data, context) => 
  * getFactionTotals (onCall)
  * Public read of factionTotals doc. Real-time updates handled client-side via Firestore listener.
  */
-exports.getFactionTotals = functions.https.onCall(async (data, context) => {
+exports.getFactionTotals = functionsV1.https.onCall(async (data, context) => {
   const doc = await db.collection('satoshiFavor').doc('factionTotals').get();
   if (!doc.exists) return { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 };
   const d = doc.data();

@@ -4,6 +4,7 @@
  */
 
 const functions = require('firebase-functions');
+const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 
@@ -53,7 +54,7 @@ function verifyWebhookSecret(req) {
  * Main webhook handler (HTTP)
  */
 // TG_BOT_TOKEN and ADMIN_TOKEN are plain .env vars; TG_WEBHOOK_SECRET is a Cloud Secret
-exports.handleTelegramReaction = functions.https.onRequest({ secrets: ['TG_WEBHOOK_SECRET'] }, async (req, res) => {
+exports.handleTelegramReaction = functionsV1.https.onRequest({ secrets: ['TG_WEBHOOK_SECRET'] }, async (req, res) => {
     // Only accept POST
     if (req.method !== 'POST') {
         res.status(405).send('Method not allowed');
@@ -192,7 +193,7 @@ function reactionToEmoji(reaction) {
  *   2. Passes secret_token in the setWebhook call so Telegram signs all
  *      future updates with X-Telegram-Bot-Api-Secret-Token
  */
-exports.setTelegramWebhook = functions.https.onRequest({ secrets: ['TG_WEBHOOK_SECRET'] }, async (req, res) => {
+exports.setTelegramWebhook = functionsV1.https.onRequest({ secrets: ['TG_WEBHOOK_SECRET'] }, async (req, res) => {
     // [VULN-6 FIX] Require admin token to prevent anyone from re-pointing the webhook
     const adminToken = req.headers['x-admin-token'] || req.query.token || '';
     // [SECURITY FIX] Timing-safe comparison — prevents timing oracle on admin token
