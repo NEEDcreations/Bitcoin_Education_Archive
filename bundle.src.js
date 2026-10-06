@@ -870,8 +870,25 @@ window.fbAsyncInit = function() {
     FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v19.0' });
 };
 
+// Lazy-load FB SDK on first click — avoids loading a third-party tracker on every page paint
+function _loadFBSDK() {
+    return new Promise(function(resolve) {
+        if (typeof FB !== 'undefined') { resolve(); return; }
+        var s = document.createElement('script');
+        s.src = 'https://connect.facebook.net/en_US/sdk.js';
+        s.integrity = 'sha384-3oqMa0wr/MCmsCFJBDgYA0AEWQ6whqOB0l3fAGZ8mfLLQDhXBWsV2YLdRxAFYqN';
+        s.crossOrigin = 'anonymous';
+        s.async = true;
+        s.defer = true;
+        s.onload = function() { resolve(); };
+        s.onerror = function() { resolve(); }; // fall through to popup flow
+        document.head.appendChild(s);
+    });
+}
+
 window.signInWithFacebook = async function() {
     window._captureSignupFormState();
+    await _loadFBSDK();
     if (typeof FB !== 'undefined') {
         try {
             await signInWithFBSDK();
@@ -22813,10 +22830,10 @@ window.forumViewPost = async function(postId, fromPopState) {
         if (p.body) {
             // Simple markdown-ish: newlines to <br>, **bold**, links
             var bodyHtml = fEsc(p.body).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-            // Auto-link URLs
-            bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
+            // Auto-link URLs — word-break:break-all prevents long URLs forcing horizontal scroll on mobile
+            bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">$1</a>');
             bodyHtml = forumRenderMentions(bodyHtml);
-            html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;">' + bodyHtml + '</div>';
+            html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;overflow-x:hidden;">' + bodyHtml + '</div>';
         }
 
         if (p.link) {
