@@ -3690,7 +3690,7 @@ function _renderNookShop() {
 
     function buyBtn(itemId, cost, qty, label, extraStyle) {
         var canAfford = tickets >= cost * (qty || 1);
-        var style = 'padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:'+(canAfford?'pointer':'not-allowed')+';font-family:inherit;background:'+(canAfford?'linear-gradient(135deg,#f7931a,#e8720c)':'rgba(255,255,255,0.05)')+';color:'+(canAfford?'#fff':'var(--text-faint)')+';opacity:'+(canAfford?'1':'0.5')+';transition:0.2s;'+(extraStyle||'');
+        var style = 'padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:'+(canAfford?'pointer':'not-allowed')+';font-family:inherit;background:'+(canAfford?'linear-gradient(135deg,#f7931a,#e8720c)':'rgba(255,255,255,0.05)')+';color:'+(canAfford?'#fff':'var(--text-faint)')+';opacity:'+(canAfford?'1':'0.5')+';transition:0.2s;margin-top:7px;display:block;'+(extraStyle||'');
         return '<button onclick="_nookBuyItem(\''+itemId+'\','+(qty||1)+',this)" '+(canAfford?'':'disabled')+'style="'+style+'">'+label+'</button>';
     }
 
