@@ -3944,9 +3944,10 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         }
 
         // Atomic update
-        const update = {
-            lastSpinDate: today,
-        };
+        const update = {};
+        // Only stamp lastSpinDate for the regular daily spin — bonus spins must NOT
+        // consume the user's daily spin slot.
+        if (!isBonusSpin) update.lastSpinDate = today;
         // Clear the one-time bonus spin flag if it was set
         if (isBonusSpin) update.bonusSpinGranted = admin.firestore.FieldValue.delete();
         if (totalPts > 0) update.points = admin.firestore.FieldValue.increment(totalPts);

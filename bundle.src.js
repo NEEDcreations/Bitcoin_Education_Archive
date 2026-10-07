@@ -16883,9 +16883,13 @@ document.addEventListener('btcProfileSaved', function() {
             localStorage.setItem('btc_spin_last_day', _dk);
             if (selected.value === 'rare_drop') { localStorage.setItem('btc_spin_hit_rare', 'true'); }
 
-            localStorage.setItem('btc_last_spin_date', _dk);
-            if (typeof currentUser !== 'undefined' && currentUser) {
-                currentUser.lastSpinDate = _dk;
+            // Only mark the daily spin as used for non-bonus spins.
+            // Bonus spins must not consume the user's regular daily spin slot.
+            if (!isBonusSpin) {
+                localStorage.setItem('btc_last_spin_date', _dk);
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    currentUser.lastSpinDate = _dk;
+                }
             }
             } // end doSpin
         });
