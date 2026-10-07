@@ -703,18 +703,18 @@ window.showUserProfile = function(uid) {
                     profileStat('🔥', ps.bestStreak || ps.streak || 0, 'Best Streak') +
                 '</div>';
             })() : '') +
-            // Lightning Address & Tip button
-            ((u.lightningAddress || u.lightning) ? (function() {
+            // Lightning Address & Tip button — always show for other signed-in users
+            ((!_isOwnProfile && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? (function() {
                 // Stash tip data on window to avoid inline-onclick escaping issues
                 window._profileTipData = { recipientName: u.username || 'Bitcoiner', recipientUid: uid, lightningAddress: u.lightningAddress || u.lightning || '', label: 'Tip ' + (u.username || 'Bitcoiner'), context: 'profile' };
-                var _lnAddr = escapeHtml(u.lightningAddress || u.lightning);
+                var _lnAddr = (u.lightningAddress || u.lightning) ? escapeHtml(u.lightningAddress || u.lightning) : '';
                 return '<div style="margin-bottom:12px;">' +
-                '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +
-                    '<span style="font-size:1rem;">\u26a1</span>' +
+                (_lnAddr ? '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +
+                    '<span style="font-size:1rem;">⚡</span>' +
                     '<span style="color:#eab308;font-size:0.78rem;font-weight:600;word-break:break-all;">' + _lnAddr + '</span>' +
-                    '<button onclick="event.stopPropagation();navigator.clipboard.writeText(window._profileTipData.lightningAddress);if(typeof showToast===\'function\')showToast(\'\u26a1 Lightning Address copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copy</button>' +
-                '</div>' +
-                '<button onclick="event.stopPropagation();window._tipFromProfile()" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'">' + '\u26a1 Tip ' + escapeHtml(u.username || 'Bitcoiner') + '</button>' +
+                    '<button onclick="event.stopPropagation();navigator.clipboard.writeText(window._profileTipData.lightningAddress);if(typeof showToast===\'function\')showToast(\'⚡ Lightning Address copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copy</button>' +
+                '</div>' : '') +
+                '<button onclick="event.stopPropagation();window._tipFromProfile()" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'>">⚡ Tip ' + escapeHtml(u.username || 'Bitcoiner') + '</button>' +
                 '</div>';
             })() : '') +
             // Message button
