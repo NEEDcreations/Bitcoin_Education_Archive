@@ -13946,7 +13946,6 @@ function renderCandleChart(candles, livePrice) {
         if (isLast) {
             var dotY = py(c.c).toFixed(1);
             svg += '<circle cx="' + x.toFixed(1) + '" cy="' + dotY + '" r="3" fill="' + col + '"/>';
-            svg += '<text x="' + (W - PR - 1) + '" y="' + (parseFloat(dotY) + 3.5).toFixed(1) + '" text-anchor="end" fill="' + col + '" font-size="12" font-weight="700" font-family="monospace">$' + Math.round(c.c).toLocaleString() + '</text>';
         }
     }
     // X-axis time labels
