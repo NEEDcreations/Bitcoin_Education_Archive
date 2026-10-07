@@ -24,6 +24,38 @@ if [ -f build.sh ]; then
     fi
 fi
 
+# ---- CSP frame-src check ----
+# Greps all JS files for iframe src= domains and verifies each one is
+# listed in the SEO router worker's frame-src. Catches missing entries
+# before they ever reach production.
+echo "🔒 Checking CSP frame-src coverage..."
+CSP_WORKER="workers/seo-router/worker.js"
+CSP_FAIL=0
+if [ -f "$CSP_WORKER" ]; then
+    # Extract all iframe src domains from JS source files
+    IFRAME_DOMAINS=$(grep -rhoE 'iframe[^>]+src=["'\''](https://[^/"'\'']+)' \
+        app.js bundle.js timechain-tv.js beats.js lightning.js 2>/dev/null \
+        | grep -oE 'https://[^/"'\'']+' | sort -u)
+    for DOMAIN in $IFRAME_DOMAINS; do
+        # Exact match OR wildcard match (e.g. *.needcreations.workers.dev covers sub.needcreations.workers.dev)
+        PARENT=$(echo "$DOMAIN" | sed 's|https://[^.]*\.|https://\*.|')
+        if grep -qF "$DOMAIN" "$CSP_WORKER" || grep -qF "$PARENT" "$CSP_WORKER"; then
+            echo "  ✅ $DOMAIN"
+        else
+            echo "  ❌ CSP MISSING: $DOMAIN is used in an iframe but not in frame-src"
+            echo "     Add it to the frame-src block in workers/seo-router/worker.js and redeploy the worker."
+            CSP_FAIL=1
+        fi
+    done
+    if [ $CSP_FAIL -eq 1 ]; then
+        echo "❌ CSP frame-src check FAILED — deploy blocked."
+        exit 1
+    fi
+    echo "CSP frame-src check passed."
+else
+    echo "  ⚠️  Worker file not found at $CSP_WORKER — skipping CSP check."
+fi
+
 # ---- Run tests first ----
 echo "🧪 Running pre-commit tests..."
 node tests/run-all.js

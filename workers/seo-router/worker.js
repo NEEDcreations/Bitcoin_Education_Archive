@@ -143,7 +143,16 @@ function buildCSP(nonce) {
             " https://ppq.ai" +                     // AI Tools panel
             " https://*.ppq.ai" +                   // PPQ subdomains
             " https://platform.twitter.com" +       // Embedded tweets
-            " https://603btc.com",                  // Pleb Shop merchant embed (app.js:4711)
+            " https://603btc.com" +                  // Pleb Shop merchant embed
+            " https://*.needcreations.workers.dev" + // embed-proxy, noderunners-proxy CF workers
+            " https://embed.wavlake.com" +           // Bitcoin Beats: Wavlake player
+            " https://lnbeats.com" +                 // Bitcoin Beats: LNbeats player
+            " https://player.twitch.tv" +            // Twitch stream embeds
+            " https://www.twitch.tv" +               // Twitch (alternate embed origin)
+            " https://plebeian.market" +             // Lightning Mart: Plebeian Market
+            " https://proofofink.com" +              // Lightning Mart: Proof of Ink
+            " https://scarce.city" +                 // Lightning Mart: Scarce City
+            " https://shop.conduit.market",          // Lightning Mart: Conduit Market
 
         "font-src 'self' https://fonts.gstatic.com",
 
