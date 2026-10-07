@@ -87,7 +87,7 @@ function injectMeetupBuilder() {
                 _mbResource('📅', 'Meetup.com', 'https://www.meetup.com', 'The largest event platform. Great for reaching normies who aren\'t on Bitcoin apps yet. Free to join, organizers pay ~$25/mo for groups.') +
                 _mbResource('⚡', 'Geyser Fund', 'https://geyser.fund', 'Bitcoin-native crowdfunding. Raise sats for your meetup via Lightning. Apply for Bitcoin education grants (up to 1 BTC). Non-custodial.') +
                 _mbResource('📣', 'Nostr', 'https://primal.net', 'Post meetup announcements on Nostr — the censorship-resistant social network Bitcoiners use. No algorithm, no gatekeeping.') +
-                _mbResource('🎟️', 'Evento', 'https://evento.so', 'Free event listing platform with ticketing and payments — including Bitcoin payments. Clean UI, no fees for free events.') +
+                _mbResource('🎫', 'Evento', 'https://evento.so', 'Free event listing platform with ticketing and payments — including Bitcoin payments. Clean UI, no fees for free events.') +
                 _mbResource('🗓️', 'Bitcoin Events', 'https://www.bitcoinevents.co.za', 'Bitcoin-focused event listing site. Submit your meetup to get visibility in the broader Bitcoin community.') +
                 _mbResource('𝕏', 'X (Twitter)', 'https://x.com', 'Post meetup announcements where Bitcoiners already hang out. Use hashtags like #Bitcoin and your city name. Great organic reach.') +
                 _mbResource('📸', 'Instagram', 'https://instagram.com', 'Share event photos, reels, and stories. Visual content drives attendance. Tag your venue and local Bitcoin community.') +

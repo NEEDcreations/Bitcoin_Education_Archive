@@ -2233,7 +2233,7 @@ async function awardVisitPoints() {
     if (bonusTickets > 0) {
         if (typeof notifySelfStreak === 'function') notifySelfStreak(newStreak);
         setTimeout(function() {
-            showToast('🔥 STREAK MILESTONE! Day ' + newStreak + ': Earned +' + bonusTickets + ' Bonus Tickets! 🎟️');
+            showToast('🔥 STREAK MILESTONE! Day ' + newStreak + ': Earned +' + bonusTickets + ' Bonus Tickets! 🎫');
         }, 3500);
     } else if (streakBonus) {
         showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' XP');
@@ -3838,7 +3838,7 @@ async function toggleLeaderboard() {
         });
         html += '</div>';
         // Prize banners for weekly/monthly
-        if (_lbPeriod === 'weekly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this week win 25 🎟️ Orange Tickets!</div>';
+        if (_lbPeriod === 'weekly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this week win 25 🎫 Orange Tickets!</div>';
         if (_lbPeriod === 'monthly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this month win 100 🏟️ Orange Tickets!</div>';
         html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
         html += '<div id="lbSearchResult"></div>';
@@ -5974,7 +5974,7 @@ function showSettingsPage(tab) {
             'The only data we store is your username, points, and progress - just enough to power your experience. No tracking, no ads, no third-party analytics. Your data is yours.</div></div>';
 
         // Orange Tickets section (collapsible)
-        html += '<button onclick="var p=document.getElementById(\'ticketsPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:10px;color:var(--accent);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;"><span style="filter:hue-rotate(30deg) saturate(1.5);">🎟️</span> Orange Tickets & Referrals <span>▼</span></button>';
+        html += '<button onclick="var p=document.getElementById(\'ticketsPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:10px;color:var(--accent);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;"><span style="filter:hue-rotate(30deg) saturate(1.5);">🎫</span> Orange Tickets & Referrals <span>▼</span></button>';
         html += '<div id="ticketsPanel" style="display:none;">';
         if (!user || user.isAnonymous) {
             html += '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Sign in to start earning Orange Tickets!</div>';
@@ -6108,7 +6108,7 @@ function showSettingsPage(tab) {
                     }
                     var badgeMsg = result.data && result.data.newBadges && result.data.newBadges.length > 0
                         ? ' +' + result.data.newBadges.length + ' badge' + (result.data.newBadges.length > 1 ? 's' : '') + ' unlocked!' : '';
-                    var ticketMsg = result.data && result.data.donationTicket > 0 ? ' 🎟️ +1 ticket!' : '';
+                    var ticketMsg = result.data && result.data.donationTicket > 0 ? ' 🎫 +1 ticket!' : '';
                     if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg + ticketMsg, 5000);
                     if (result.data && result.data.donationTicket > 0 && typeof currentUser !== 'undefined' && currentUser) {
                         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + 1;

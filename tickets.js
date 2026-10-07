@@ -76,7 +76,7 @@ async function awardDailyTicket() {
         // Award tickets + points through server-side Cloud Function (Fix permission error)
         // Cloud Function now handles 'lastTicketDate' update server-side for security
         if (typeof awardPoints === 'function') {
-            const result = await awardPoints(bonusPoints, '🎟️ Daily tickets', null, ticketsToAdd);
+            const result = await awardPoints(bonusPoints, '🎫 Daily tickets', null, ticketsToAdd);
             if (!result || !result.success) return; // Silent return if already claimed or error
         }
         
@@ -85,7 +85,7 @@ async function awardDailyTicket() {
 
         // Delay toast so page is settled and user can see it
         setTimeout(function() {
-            if (typeof showToast === 'function') showToast('🎟️ +1 Orange Ticket — Welcome back! (Total: ' + newTickets + ')');
+            if (typeof showToast === 'function') showToast('🎫 +1 Orange Ticket — Welcome back! (Total: ' + newTickets + ')');
         }, 2500);
 
         if (typeof updateRankUI === 'function') updateRankUI();
@@ -203,9 +203,9 @@ async function checkReferralQualifications() {
             const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
             const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
             // Award tickets + points through server-side Cloud Function
-            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Referral tickets', null, ticketsEarned);
+            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 Referral tickets', null, ticketsEarned);
             currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsEarned;
-            showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
+            showToast('🎫 +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
             if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
             updateRankUI();
 
@@ -366,12 +366,12 @@ window.awardTickets = async function(amount, reason) {
 
     try {
         // Award tickets + points through server-side Cloud Function
-        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ ' + (reason || 'Orange Tickets'), null, amount);
+        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
         if (typeof updateRankUI === 'function') updateRankUI();
     } catch(e) { console.warn('[tickets] Award error:', e); }
 
-    if (typeof showToast === 'function') showToast('🎟️ +' + amount + ' Orange Tickets! ' + (reason || ''));
+    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Tickets! ' + (reason || ''));
 };
 
 // Run on page load

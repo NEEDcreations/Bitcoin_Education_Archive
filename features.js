@@ -87,7 +87,7 @@ const HIDDEN_BADGES = [
         "🌱 A brand new user just earned their first 50 XP! Welcome!",
         // Spin & Tickets
         "🎡 Someone just spun the daily wheel and won 5 Orange Tickets!",
-        "🎟️ A pleb just earned bonus tickets from a referral!",
+        "🎫 A pleb just earned bonus tickets from a referral!",
         "🧊 Someone won a Streak Freeze on the daily spin — lucky!",
         "🎡 A Bitcoiner just won a closet item from the spin wheel!",
         // Community & Social
@@ -377,7 +377,7 @@ window.showNachoStory = function(chapterOverride) {
                     '<div style="font-size:1rem;color:#e2e8f0;margin-bottom:20px;line-height:1.6;">You\'ve followed Nacho\'s entire Bitcoin journey from the Genesis Block to his mission of education. You\'re officially a Story Master! 🏆</div>' +
                     '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:24px;">' +
                     '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#22c55e;">+100</div><div style="font-size:0.7rem;color:#94a3b8;">BONUS PTS</div></div>' +
-                    '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#f7931a;">+25</div><div style="font-size:0.7rem;color:#94a3b8;">🎟️ TICKETS</div></div>' +
+                    '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#f7931a;">+25</div><div style="font-size:0.7rem;color:#94a3b8;">🎫 TICKETS</div></div>' +
                     '</div>' +
                     '<button onclick="event.stopPropagation();this.closest(\'div[style*=fixed]\').remove()" style="padding:14px 40px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1.1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 30px rgba(247,147,26,0.4);">Amazing! 🎉</button>' +
                     '</div>';
@@ -1123,12 +1123,12 @@ window.awardOrangeTickets = function(amount, reason) {
         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
         // Award tickets through server-side Cloud Function (orangeTickets blocked in Firestore rules)
         if (!currentUser._isLocal && typeof awardPoints === 'function') {
-            awardPoints(0, '🎟️ ' + (reason || 'Orange Tickets'), null, amount);
+            awardPoints(0, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
         }
     }
     var local = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
     localStorage.setItem('btc_orange_tickets', (local + amount).toString());
-    if (typeof showToast === 'function') showToast('🎟️ +' + amount + ' Orange Ticket' + (amount > 1 ? 's' : '') + (reason ? ' — ' + reason : ''));
+    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Ticket' + (amount > 1 ? 's' : '') + (reason ? ' — ' + reason : ''));
 };
 
 // setFloatingElementsVisible — show/hide floating buttons when sidebar opens
@@ -1255,7 +1255,7 @@ window.showCelebration = function(opts) {
                         message: m.msg,
                         rewards: [
                             { label: m.pts.toString(), sub: 'PTS', color: '#22c55e' },
-                            { label: m.tickets.toString(), sub: '🎟️ TICKETS', color: '#f7931a' }
+                            { label: m.tickets.toString(), sub: '🎫 TICKETS', color: '#f7931a' }
                         ]
                     });
                 }, 800);

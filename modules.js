@@ -553,10 +553,10 @@ function renderTrailExamResults() {
 
             // Confetti!
             if (typeof launchConfetti === 'function') launchConfetti();
-            if (typeof showToast === 'function') showToast(mod.emoji + ' ' + mod.name + ' COMPLETE! +' + mod.pointsReward + ' pts + 🎟️' + mod.ticketReward + ' tickets!');
+            if (typeof showToast === 'function') showToast(mod.emoji + ' ' + mod.name + ' COMPLETE! +' + mod.pointsReward + ' pts + 🎫' + mod.ticketReward + ' tickets!');
             // Notify trail completion
             if (typeof sendNotification === 'function' && typeof auth !== 'undefined' && auth && auth.currentUser) {
-                var _trailNotifData = { recipientId: auth.currentUser.uid, senderId: 'system', senderName: 'System', type: 'quest', message: mod.emoji + ' Trail Complete: ' + mod.name + '! +' + mod.pointsReward + ' pts + 🎟️' + mod.ticketReward + ' tickets!', targetType: null, targetId: null, read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+                var _trailNotifData = { recipientId: auth.currentUser.uid, senderId: 'system', senderName: 'System', type: 'quest', message: mod.emoji + ' Trail Complete: ' + mod.name + '! +' + mod.pointsReward + ' pts + 🎫' + mod.ticketReward + ' tickets!', targetType: null, targetId: null, read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
                 db.collection('notifications').add(_trailNotifData).catch(function() {});
             }
         }
@@ -574,7 +574,7 @@ function renderTrailExamResults() {
     html += '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:24px;line-height:1.6;">';
     if (passed) {
         html += 'You\'ve earned the <strong style="color:' + mod.color + ';">' + mod.badgeName + '</strong> badge!<br>' +
-            '+' + mod.pointsReward + ' points · +🎟️ ' + mod.ticketReward + ' tickets';
+            '+' + mod.pointsReward + ' points · +🎫 ' + mod.ticketReward + ' tickets';
     } else {
         html += 'You need ' + mod.passingScore + '% to pass. Re-read the channels and try again!<br>' +
             'You got ' + pct + '% — so close! Review what you missed.';

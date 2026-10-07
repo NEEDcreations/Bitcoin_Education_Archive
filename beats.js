@@ -1720,7 +1720,7 @@ window.beatsRenderUpload = function() {
                 '<div style="color:var(--text-faint);font-size:0.75rem;line-height:1.5;">' +
                     '<p><strong>✅ Supported formats:</strong> MP3, WAV, FLAC, OGG, AAC (max 50MB each)</p>' +
                     '<p><strong>✅ Batch upload:</strong> Select up to 20 files and group as Album or EP</p>' +
-                    '<p><strong>✅ Rewards:</strong> +25 XP + 🎟️ 10 Orange Tickets per track</p>' +
+                    '<p><strong>✅ Rewards:</strong> +25 XP + 🎫 10 Orange Tickets per track</p>' +
                     '<p><strong>✅ Visibility:</strong> Your tracks will be publicly available to all users</p>' +
                     '<p><strong>⚠️ Copyright:</strong> Only upload music you own or have permission to share</p>' +
                 '</div>' +

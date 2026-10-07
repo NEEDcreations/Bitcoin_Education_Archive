@@ -3552,7 +3552,7 @@ function _renderNookTab(body) {
             '<div style="font-size:3rem;margin-bottom:12px;">🦌</div>' +
             '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">Nacho\'s Nook</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">Sign in to browse the shop and spend your Orange Tickets!</div>' +
-            '<div style="padding:12px 20px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;display:inline-block;font-size:0.85rem;color:#f7931a;">🎟️ Orange Tickets are earned by logging in, spinning the wheel, and completing quests.</div>' +
+            '<div style="padding:12px 20px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;display:inline-block;font-size:0.85rem;color:#f7931a;"><span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span> Orange Tickets are earned by logging in, spinning the wheel, and completing quests.</div>' +
             '</div>';
         return;
     }
@@ -3577,7 +3577,7 @@ function _renderNookSubTabs() {
 
     var balanceBar = '<div style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(234,179,8,0.06));border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:10px 14px;margin-bottom:14px;">' +
         '<div style="font-size:0.85rem;color:var(--text-muted);">Your balance</div>' +
-        '<div style="font-size:1.1rem;font-weight:800;color:#f7931a;">' + tickets + ' 🎟️</div>' +
+        '<div style="font-size:1.1rem;font-weight:800;color:#f7931a;">' + tickets + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></div>' +
     '</div>';
 
     root.innerHTML = '<div style="padding-top:4px;">' +
@@ -3627,7 +3627,7 @@ function _nookBuyItem(itemId, qty, btnEl) {
                 }
             }
             if (typeof updateRankUI === 'function') updateRankUI();
-            if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' 🎟️');
+            if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>');
             // Cosmetic post-purchase effects
             // second_rig is consumable (not cosmetic) but still gets a purchase tip toast
             var _postPurchaseTipIds = ['profile_frame','chat_flair','pinned_badge','nacho_skin_nook','second_rig'];
@@ -3668,7 +3668,7 @@ function _nookConvertXP(tickets, btnEl) {
                 currentUser.points = d.newPoints;
             }
             if (typeof updateRankUI === 'function') updateRankUI();
-            if (typeof showToast === 'function') showToast('💱 Converted! +' + tickets + ' 🎟️. Balance: ' + d.newTickets + ' tickets. ' + (d.remaining > 0 ? d.remaining + ' exchanges left today.' : 'Daily limit reached.'));
+            if (typeof showToast === 'function') showToast('💱 Converted! +' + tickets + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>. Balance: ' + d.newTickets + ' tickets. ' + (d.remaining > 0 ? d.remaining + ' exchanges left today.' : 'Daily limit reached.'));
             setTimeout(function() { _renderNookSubTabs(); }, 300);
         }
     }).catch(function(err) {
@@ -3699,14 +3699,14 @@ function _renderNookShop() {
             '<div style="font-size:1.4rem;flex-shrink:0;padding-top:2px;">'+icon+'</div>' +
             '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">'+name+'</div>' +
             '<div style="font-size:0.72rem;color:var(--text-muted);">'+desc+'</div><!--EXTRA_HTML--></div>' +
-            '<div style="flex-shrink:0;text-align:right;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;">'+cost+' 🎟️</div>' + btnHtml + '</div>' +
+            '<div style="flex-shrink:0;text-align:right;"><div style="font-size:0.78rem;color:#f7931a;font-weight:800;">'+cost+' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></div>' + btnHtml + '</div>' +
         '</div>';
     }
 
     // XP→Tickets exchange panel
     var xpPanel = '<div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(22,163,74,0.04));border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:14px 16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💱 XP → Tickets Exchange</div>' +
-        '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">500 XP = 1 🎟️ · Max 10/day · Your XP: <strong style="color:var(--text);">'+pts.toLocaleString()+'</strong></div>' +
+        '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">500 XP = 1 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span> · Max 10/day · Your XP: <strong style="color:var(--text);">'+pts.toLocaleString()+'</strong></div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
         [1,5,10].map(function(n) {
             var cost = n * 500;
@@ -3788,13 +3788,13 @@ function _renderNookShop() {
     html += '<div style="background:linear-gradient(135deg,rgba(234,179,8,0.1),rgba(247,147,26,0.05));border:1px solid rgba(234,179,8,0.3);border-radius:12px;padding:12px 14px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;">' +
         '<div style="flex:1;">' +
-        '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);">🎟️ Sats Raffle Entry</div>' +
+        '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);"><span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span> Sats Raffle Entry</div>' +
         '<div style="font-size:0.72rem;color:#f7931a;font-weight:800;margin-top:2px;">⚡ Prize: 21,000 sats</div>' +
         '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this month: <strong style="color:#eab308;">' + raffleEntries + '</strong></div>' +
-        '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">🎟️ Community entries this month: ...</div>' +
+        '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;"><span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span> Community entries this month: ...</div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;">' +
-        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="50" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 🎟️</span></div>' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="50" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></span></div>' +
         '<button id="raffleEnterBtn" onclick="window._buyRaffleQty(this)" style="padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#f7931a,#e8720c);color:#fff;transition:0.2s;">Enter</button>' +
         '</div>' +
         '</div>' +
@@ -3826,7 +3826,7 @@ window._updateRaffleCost = function() {
     var cost = qty * 10;
     var tickets = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.orangeTickets || 0) : 0;
     var canAfford = tickets >= cost;
-    lbl.textContent = cost + ' 🎟️';
+    lbl.innerHTML = cost + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>';
     if (btn) {
         btn.disabled = !canAfford;
         btn.style.opacity = canAfford ? '1' : '0.5';
@@ -3985,7 +3985,7 @@ function _renderNookInventoryContent(el) {
         html = '<div style="text-align:center;padding:32px 20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">Your inventory is empty.</div>' +
-            '<div style="font-size:0.78rem;color:var(--text-faint);">Visit the Shop to buy items with your Orange Tickets 🎟️</div>' +
+            '<div style="font-size:0.78rem;color:var(--text-faint);">Visit the Shop to buy items with your Orange Tickets <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></div>' +
         '</div>';
     }
 
@@ -4102,8 +4102,8 @@ function _renderNookHistory() {
                 var dateStr = ts.toLocaleDateString() + ' ' + ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 var costStr = p.costType === 'points'
                     ? (p.cost || 0).toLocaleString() + ' XP'
-                    : (p.cost || 0) + ' 🎟️';
-                var balStr = typeof p.ticketsAfter !== 'undefined' ? ' · Balance after: ' + p.ticketsAfter + ' 🎟️' : '';
+                    : (p.cost || 0) + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>';
+                var balStr = typeof p.ticketsAfter !== 'undefined' ? ' · Balance after: ' + p.ticketsAfter + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>' : '';
                 rows += '<div style="padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:10px;">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
                     '<div style="font-size:0.82rem;font-weight:700;color:var(--heading);">' + (p.itemName || p.itemId || '—') + '</div>' +

@@ -615,27 +615,27 @@
         // Wheel segments with prizes
         // Visible wheel segments (what you see on the canvas)
         var segments = [
-            { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
-            { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
+            { label: '🎫 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
+            { label: '🎫 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
             { label: '⭐ 25 XP', value: 'points_25', weight: 18, color: '#22c55e' },
-            { label: '🎟️ 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
+            { label: '🎫 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
             { label: '⭐ 50 XP', value: 'points_50', weight: 8, color: '#3b82f6' },
             { label: '👔 Closet!', value: 'closet_item', weight: 5, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
             { label: '⭐ 100 XP', value: 'points_100', weight: 3, color: '#8b5cf6' },
-            { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
+            { label: '🎫 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
             { label: '💎 RARE!', value: 'rare_drop', weight: 1.5, color: '#ef4444' }
         ];
 
         // Hidden ultra-rare jackpots (resolved AFTER the wheel lands on 💎 RARE!)
         var RARE_TABLE = [
-            { label: '🎟️ 10 Tickets', value: 'ticket_10', weight: 1000 },
-            { label: '🎟️ 25 Tickets', value: 'ticket_25', weight: 500 },
-            { label: '🎟️ 50 Tickets', value: 'ticket_50', weight: 100 },
-            { label: '🎟️ 100 Tickets!', value: 'ticket_100', weight: 50 },
-            { label: '🎟️ 500 Tickets!!', value: 'ticket_500', weight: 10 },
-            { label: '🎟️💎 1,000 Tickets!!!', value: 'ticket_1000', weight: 3 },
-            { label: '🎟️👑 10,000 TICKETS!!!!', value: 'ticket_10000', weight: 1 },
+            { label: '🎫 10 Tickets', value: 'ticket_10', weight: 1000 },
+            { label: '🎫 25 Tickets', value: 'ticket_25', weight: 500 },
+            { label: '🎫 50 Tickets', value: 'ticket_50', weight: 100 },
+            { label: '🎫 100 Tickets!', value: 'ticket_100', weight: 50 },
+            { label: '🎫 500 Tickets!!', value: 'ticket_500', weight: 10 },
+            { label: '💎 1,000 Tickets!!!', value: 'ticket_1000', weight: 3 },
+            { label: '👑 10,000 TICKETS!!!!', value: 'ticket_10000', weight: 1 },
             // 10,000 tickets: ~1.5% base × 1/1664 rare table = ~1 in 110,000 spins
             // To hit 1 in 10 million, we add a second roll:
         ];
@@ -886,7 +886,7 @@
                 var rareAmount = parseInt(rareSelected.value.split('_')[1]) || 10;
                 if (rareAmount === 10000 && Math.random() > 0.01) {
                     rareAmount = 100;
-                    rareSelected = { label: '🎟️ 100 Tickets!', value: 'ticket_100' };
+                    rareSelected = { label: '🎫 100 Tickets!', value: 'ticket_100' };
                 }
                 rewardText = '💎 RARE DROP! ' + rareSelected.label;
                 if (typeof awardOrangeTickets === 'function') {
@@ -925,7 +925,7 @@
                     currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
                 }
             } else if (rewardType === 'ticket') {
-                rewardText = '🎟️ You won ' + rewardAmount + ' Orange Ticket' + (rewardAmount > 1 ? 's' : '') + '!';
+                rewardText = '🎫 You won ' + rewardAmount + ' Orange Ticket' + (rewardAmount > 1 ? 's' : '') + '!';
                 if (typeof awardOrangeTickets === 'function') {
                     awardOrangeTickets(rewardAmount, 'Daily Spin');
                 } else {
@@ -4051,7 +4051,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_signal', title: '📡 The Signal', desc: 'Weekly curated Bitcoin insights newsletter', keywords: 'signal newsletter weekly email updates curated insights', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep memorize practice drill test', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
-        { id: '_tickets', title: '🎟️ Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
+        { id: '_tickets', title: '🎫 Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
         { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
         { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color hat scarf sunglasses crown hoodie accessories wardrobe', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals — chat, DJ, discovery, knowledge', keywords: 'badges achievement trophy unlock goal progress medal chat dj streak listener', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
@@ -5264,11 +5264,11 @@ window._tctvStartTracker = function() {
                 }
                 localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
                 if (typeof showToast === 'function') {
-                    showToast('📺 +10 XP & 🎟️ +1 Ticket — Thanks for watching Timechain TV!');
+                    showToast('📺 +10 XP & 🎫 +1 Ticket — Thanks for watching Timechain TV!');
                 }
             } else {
                 if (typeof showToast === 'function') {
-                    showToast('📺 🎟️ +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
+                    showToast('📺 🎫 +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
                 }
             }
         } else if (total === 1) {

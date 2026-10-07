@@ -1152,7 +1152,7 @@ exports.spinReminder = onSchedule({
                     token: tokenDoc.data().token,
                     notification: {
                         title: '🎡 Your daily spin is ready!',
-                        body: 'Spin the wheel for free Orange Tickets! 🎟️',
+                        body: 'Spin the wheel for free Orange Tickets! 🎫',
                     },
                     webpush: {
                         fcmOptions: {
@@ -2849,7 +2849,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         'lq_lesson': ['📖 learning quest:', 'lq_lesson'],
         'lq_quiz': ['lq_quiz'],
         'lq_graduate': ['📖 learning quest graduate', 'lq_graduate'],
-        'ticket_bonus': ['ticket', '🎟️'],
+        'ticket_bonus': ['ticket', '🎫'],
         'streak_freeze': ['streak freeze', 'streak_freeze', '🧊'],
         'tickets_only': ['tickets_only'],
         'feedback': ['feedback'],
@@ -3880,26 +3880,26 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
 
     // Spin outcomes with weights (server-determined)
     const outcomes = [
-        { label: '🎟️ 1 Ticket',     pts: 0,  tickets: 1,  freezes: 0, closet: false, rare: false, weight: 25 },
-        { label: '🎟️ 2 Tickets',    pts: 0,  tickets: 2,  freezes: 0, closet: false, rare: false, weight: 22 },
+        { label: '🎫 1 Ticket',     pts: 0,  tickets: 1,  freezes: 0, closet: false, rare: false, weight: 25 },
+        { label: '🎫 2 Tickets',    pts: 0,  tickets: 2,  freezes: 0, closet: false, rare: false, weight: 22 },
         { label: '⭐ 10 pts',        pts: 10, tickets: 0,  freezes: 0, closet: false, rare: false, weight: 18 },
-        { label: '🎟️ 3 Tickets',    pts: 0,  tickets: 3,  freezes: 0, closet: false, rare: false, weight: 12 },
+        { label: '🎫 3 Tickets',    pts: 0,  tickets: 3,  freezes: 0, closet: false, rare: false, weight: 12 },
         { label: '⭐ 25 pts',        pts: 25, tickets: 0,  freezes: 0, closet: false, rare: false, weight: 8 },
         { label: '👔 Closet!',       pts: 0,  tickets: 0,  freezes: 0, closet: true,  rare: false, weight: 5 },
         { label: '🧊 Freeze!',       pts: 0,  tickets: 0,  freezes: 1, closet: false, rare: false, weight: 4 },
         { label: '⭐ 50 pts',        pts: 50, tickets: 0,  freezes: 0, closet: false, rare: false, weight: 3 },
-        { label: '🎟️ 5 Tickets',    pts: 0,  tickets: 5,  freezes: 0, closet: false, rare: false, weight: 1.5 },
+        { label: '🎫 5 Tickets',    pts: 0,  tickets: 5,  freezes: 0, closet: false, rare: false, weight: 1.5 },
         { label: '💎 RARE!',         pts: 0,  tickets: 0,  freezes: 0, closet: false, rare: true,  weight: 1.5 },
     ];
 
     // Rare drop sub-table
     const rareOutcomes = [
-        { label: '🎟️ 10 Tickets',       tickets: 10,   weight: 1000 },
-        { label: '🎟️ 25 Tickets',       tickets: 25,   weight: 500 },
-        { label: '🎟️ 50 Tickets',       tickets: 50,   weight: 100 },
-        { label: '🎟️ 100 Tickets!',     tickets: 100,  weight: 50 },
-        { label: '🎟️ 500 Tickets!!',    tickets: 500,  weight: 10 },
-        { label: '🎟️💎 1,000 Tickets!!!', tickets: 1000, weight: 3 },
+        { label: '🎫 10 Tickets',       tickets: 10,   weight: 1000 },
+        { label: '🎫 25 Tickets',       tickets: 25,   weight: 500 },
+        { label: '🎫 50 Tickets',       tickets: 50,   weight: 100 },
+        { label: '🎫 100 Tickets!',     tickets: 100,  weight: 50 },
+        { label: '🎫 500 Tickets!!',    tickets: 500,  weight: 10 },
+        { label: '🎫💎 1,000 Tickets!!!', tickets: 1000, weight: 3 },
     ];
 
     function weightedRandom(table) {
@@ -6409,7 +6409,7 @@ exports.resetMonthlyXP = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC' }, 
 });
 
 // ══════════════════════════════════════════════════════════════════════
-// 🎟️ MONTHLY RAFFLE DRAW — runs 1pm ET (18:00 UTC) on the 1st of each month
+// 🎫 MONTHLY RAFFLE DRAW — runs 1pm ET (18:00 UTC) on the 1st of each month
 // Draws a winner from raffleEntries, posts as Nacho in global_chat,
 // archives snapshot, then resets all raffleEntries to 0 for the new month.
 // ══════════════════════════════════════════════════════════════════════
@@ -6797,7 +6797,7 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
         tx.set(notifRef, {
             type: 'shop_purchase',
             title: '🛒 Purchase Complete',
-            body: `You spent ${totalCost} 🎟️ on ${item.name}. Balance: ${currentTickets - totalCost} tickets.`,
+            body: `You spent ${totalCost} 🎫 on ${item.name}. Balance: ${currentTickets - totalCost} tickets.`,
             read: false,
             ts: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -6896,7 +6896,7 @@ exports.convertPointsToTickets = functionsV1.https.onCall(async (data, context) 
         tx.set(notifRef, {
             type: 'shop_exchange',
             title: '💱 XP Exchanged',
-            body: `Converted ${pointsCost.toLocaleString()} XP → ${tickets} 🎟️ ticket${tickets > 1 ? 's' : ''}. (${MAX_PER_DAY - todayCount - tickets} exchanges left today)`,
+            body: `Converted ${pointsCost.toLocaleString()} XP → ${tickets} 🎫 ticket${tickets > 1 ? 's' : ''}. (${MAX_PER_DAY - todayCount - tickets} exchanges left today)`,
             read: false,
             ts: admin.firestore.FieldValue.serverTimestamp(),
         });

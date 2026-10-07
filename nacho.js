@@ -112,9 +112,9 @@ const TIPS = [
     { pose: 'fire', text: "💡 Tip: Keep a daily streak going! Every 5 days in a row = bonus 100 points! 🔥" },
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
     // Tickets & Rewards
-    { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in and exploring! 🎟️" },
+    { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in and exploring! 🎫" },
     { pose: 'point', text: "💡 Tip: Share your referral link (Settings → Tickets) and earn 50 tickets for each verified friend!" },
-    { pose: 'celebrate', text: "💡 Tip: Each Orange Ticket also gives you 5 bonus XP! Tickets + points = double reward! 🎟️⭐" },
+    { pose: 'celebrate', text: "💡 Tip: Each Orange Ticket also gives you 5 bonus XP! Tickets + points = double reward! 🎫⭐" },
     // Quests & Scholar
     { pose: 'brain', text: "💡 Tip: Hit 'Start a Quest' in the sidebar to test your Bitcoin knowledge and earn XP! ⚡" },
     { pose: 'fire', text: "💡 Tip: The Bitcoin Scholar Certification Quest is the ultimate test — pass it to earn the 🎓 badge + 300 points!" },
@@ -1715,7 +1715,7 @@ window.showNacho = function() {
     if (visits > 2 && visits <= 10 && channelsVisited < 10) {
         var tips = [
             "Pro tip {name}: Use the ⚡ tab to check the Bitcoin price anytime! 📈",
-            "Did you know? Completing a Quest earns you bonus Orange Tickets! 🎟️",
+            "Did you know? Completing a Quest earns you bonus Orange Tickets! 🎫",
             "Try tapping the Menu (☰) to see your progress on the Exploration Map! 🗺️",
             "You can customize my outfit in Settings → Stats/Nacho → Closet! 👔"
         ];

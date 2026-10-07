@@ -2196,7 +2196,7 @@ async function awardDailyTicket() {
         // Award tickets + points through server-side Cloud Function (Fix permission error)
         // Cloud Function now handles 'lastTicketDate' update server-side for security
         if (typeof awardPoints === 'function') {
-            const result = await awardPoints(bonusPoints, '🎟️ Daily tickets', null, ticketsToAdd);
+            const result = await awardPoints(bonusPoints, '🎫 Daily tickets', null, ticketsToAdd);
             if (!result || !result.success) return; // Silent return if already claimed or error
         }
         
@@ -2205,7 +2205,7 @@ async function awardDailyTicket() {
 
         // Delay toast so page is settled and user can see it
         setTimeout(function() {
-            if (typeof showToast === 'function') showToast('🎟️ +1 Orange Ticket — Welcome back! (Total: ' + newTickets + ')');
+            if (typeof showToast === 'function') showToast('🎫 +1 Orange Ticket — Welcome back! (Total: ' + newTickets + ')');
         }, 2500);
 
         if (typeof updateRankUI === 'function') updateRankUI();
@@ -2323,9 +2323,9 @@ async function checkReferralQualifications() {
             const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
             const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
             // Award tickets + points through server-side Cloud Function
-            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Referral tickets', null, ticketsEarned);
+            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 Referral tickets', null, ticketsEarned);
             currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsEarned;
-            showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
+            showToast('🎫 +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
             if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
             updateRankUI();
 
@@ -2486,12 +2486,12 @@ window.awardTickets = async function(amount, reason) {
 
     try {
         // Award tickets + points through server-side Cloud Function
-        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ ' + (reason || 'Orange Tickets'), null, amount);
+        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
         if (typeof updateRankUI === 'function') updateRankUI();
     } catch(e) { console.warn('[tickets] Award error:', e); }
 
-    if (typeof showToast === 'function') showToast('🎟️ +' + amount + ' Orange Tickets! ' + (reason || ''));
+    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Tickets! ' + (reason || ''));
 };
 
 // Run on page load
@@ -3081,9 +3081,9 @@ const TIPS = [
     { pose: 'fire', text: "💡 Tip: Keep a daily streak going! Every 5 days in a row = bonus 100 points! 🔥" },
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
     // Tickets & Rewards
-    { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in and exploring! 🎟️" },
+    { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in and exploring! 🎫" },
     { pose: 'point', text: "💡 Tip: Share your referral link (Settings → Tickets) and earn 50 tickets for each verified friend!" },
-    { pose: 'celebrate', text: "💡 Tip: Each Orange Ticket also gives you 5 bonus XP! Tickets + points = double reward! 🎟️⭐" },
+    { pose: 'celebrate', text: "💡 Tip: Each Orange Ticket also gives you 5 bonus XP! Tickets + points = double reward! 🎫⭐" },
     // Quests & Scholar
     { pose: 'brain', text: "💡 Tip: Hit 'Start a Quest' in the sidebar to test your Bitcoin knowledge and earn XP! ⚡" },
     { pose: 'fire', text: "💡 Tip: The Bitcoin Scholar Certification Quest is the ultimate test — pass it to earn the 🎓 badge + 300 points!" },
@@ -4684,7 +4684,7 @@ window.showNacho = function() {
     if (visits > 2 && visits <= 10 && channelsVisited < 10) {
         var tips = [
             "Pro tip {name}: Use the ⚡ tab to check the Bitcoin price anytime! 📈",
-            "Did you know? Completing a Quest earns you bonus Orange Tickets! 🎟️",
+            "Did you know? Completing a Quest earns you bonus Orange Tickets! 🎫",
             "Try tapping the Menu (☰) to see your progress on the Exploration Map! 🗺️",
             "You can customize my outfit in Settings → Stats/Nacho → Closet! 👔"
         ];
@@ -6758,7 +6758,7 @@ window.forumSubmitPost = async function() {
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
         if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');  // matches forum_post_ticket
-        if (typeof showToast === 'function') setTimeout(function() { showToast('🎟️ +1 Orange Ticket for posting in PlebTalk!'); }, 800);
+        if (typeof showToast === 'function') setTimeout(function() { showToast('🎫 +1 Orange Ticket for posting in PlebTalk!'); }, 800);
         // Combo tracking
         if (typeof window._trackCombo === 'function') window._trackCombo('forum');
         // Notify @mentioned users
@@ -9376,7 +9376,7 @@ window.submitListing = function() {
         if (typeof showToast === 'function') showToast('🛒 Listing posted!');
         if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
         if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
-        if (typeof showToast === 'function') setTimeout(function(){ showToast('🎟️ +1 Orange Ticket for posting a listing!'); }, 800);
+        if (typeof showToast === 'function') setTimeout(function(){ showToast('🎫 +1 Orange Ticket for posting a listing!'); }, 800);
         // Track for badge
         if (auth && auth.currentUser) {
             db.collection('users').doc(auth.currentUser.uid).update({
@@ -10489,7 +10489,7 @@ window.showUserProfile = function(uid) {
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('🏅', badgeCount, 'Badges') +
                 profileStat('📖', (Array.isArray(u.visitedChannelsList) ? u.visitedChannelsList.length : (Array.isArray(u.readChannels) ? u.readChannels.length : 0)), 'Topics') +
-                profileStat('🎟️', u.orangeTickets || 0, 'Tickets') +
+                profileStat('🎫', u.orangeTickets || 0, 'Tickets') +
             '</div>' +
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('🗣️', u.forumPosts || 0, 'Posts') +
@@ -11623,7 +11623,7 @@ const HIDDEN_BADGES = [
         "🌱 A brand new user just earned their first 50 XP! Welcome!",
         // Spin & Tickets
         "🎡 Someone just spun the daily wheel and won 5 Orange Tickets!",
-        "🎟️ A pleb just earned bonus tickets from a referral!",
+        "🎫 A pleb just earned bonus tickets from a referral!",
         "🧊 Someone won a Streak Freeze on the daily spin — lucky!",
         "🎡 A Bitcoiner just won a closet item from the spin wheel!",
         // Community & Social
@@ -11913,7 +11913,7 @@ window.showNachoStory = function(chapterOverride) {
                     '<div style="font-size:1rem;color:#e2e8f0;margin-bottom:20px;line-height:1.6;">You\'ve followed Nacho\'s entire Bitcoin journey from the Genesis Block to his mission of education. You\'re officially a Story Master! 🏆</div>' +
                     '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:24px;">' +
                     '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#22c55e;">+100</div><div style="font-size:0.7rem;color:#94a3b8;">BONUS PTS</div></div>' +
-                    '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#f7931a;">+25</div><div style="font-size:0.7rem;color:#94a3b8;">🎟️ TICKETS</div></div>' +
+                    '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#f7931a;">+25</div><div style="font-size:0.7rem;color:#94a3b8;">🎫 TICKETS</div></div>' +
                     '</div>' +
                     '<button onclick="event.stopPropagation();this.closest(\'div[style*=fixed]\').remove()" style="padding:14px 40px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1.1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 30px rgba(247,147,26,0.4);">Amazing! 🎉</button>' +
                     '</div>';
@@ -12659,12 +12659,12 @@ window.awardOrangeTickets = function(amount, reason) {
         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
         // Award tickets through server-side Cloud Function (orangeTickets blocked in Firestore rules)
         if (!currentUser._isLocal && typeof awardPoints === 'function') {
-            awardPoints(0, '🎟️ ' + (reason || 'Orange Tickets'), null, amount);
+            awardPoints(0, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
         }
     }
     var local = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
     localStorage.setItem('btc_orange_tickets', (local + amount).toString());
-    if (typeof showToast === 'function') showToast('🎟️ +' + amount + ' Orange Ticket' + (amount > 1 ? 's' : '') + (reason ? ' — ' + reason : ''));
+    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Ticket' + (amount > 1 ? 's' : '') + (reason ? ' — ' + reason : ''));
 };
 
 // setFloatingElementsVisible — show/hide floating buttons when sidebar opens
@@ -12791,7 +12791,7 @@ window.showCelebration = function(opts) {
                         message: m.msg,
                         rewards: [
                             { label: m.pts.toString(), sub: 'PTS', color: '#22c55e' },
-                            { label: m.tickets.toString(), sub: '🎟️ TICKETS', color: '#f7931a' }
+                            { label: m.tickets.toString(), sub: '🎫 TICKETS', color: '#f7931a' }
                         ]
                     });
                 }, 800);
@@ -13118,7 +13118,7 @@ window.checkDailyChallenge = function() {
         localStorage.setItem('btc_challenge_done', today);
         if (typeof awardPoints === 'function') awardPoints(100, '🎯 Daily challenge!');
         if (typeof awardOrangeTickets === 'function') awardOrangeTickets(5, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 XP + 🎟️ 5 tickets!');
+        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 XP + 🎫 5 tickets!');
         haptic('success');
         renderDailyChallenge();
         // Pulse the card to draw attention
@@ -16532,27 +16532,27 @@ document.addEventListener('btcProfileSaved', function() {
         // Wheel segments with prizes
         // Visible wheel segments (what you see on the canvas)
         var segments = [
-            { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
-            { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
+            { label: '🎫 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
+            { label: '🎫 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
             { label: '⭐ 25 XP', value: 'points_25', weight: 18, color: '#22c55e' },
-            { label: '🎟️ 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
+            { label: '🎫 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
             { label: '⭐ 50 XP', value: 'points_50', weight: 8, color: '#3b82f6' },
             { label: '👔 Closet!', value: 'closet_item', weight: 5, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
             { label: '⭐ 100 XP', value: 'points_100', weight: 3, color: '#8b5cf6' },
-            { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
+            { label: '🎫 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
             { label: '💎 RARE!', value: 'rare_drop', weight: 1.5, color: '#ef4444' }
         ];
 
         // Hidden ultra-rare jackpots (resolved AFTER the wheel lands on 💎 RARE!)
         var RARE_TABLE = [
-            { label: '🎟️ 10 Tickets', value: 'ticket_10', weight: 1000 },
-            { label: '🎟️ 25 Tickets', value: 'ticket_25', weight: 500 },
-            { label: '🎟️ 50 Tickets', value: 'ticket_50', weight: 100 },
-            { label: '🎟️ 100 Tickets!', value: 'ticket_100', weight: 50 },
-            { label: '🎟️ 500 Tickets!!', value: 'ticket_500', weight: 10 },
-            { label: '🎟️💎 1,000 Tickets!!!', value: 'ticket_1000', weight: 3 },
-            { label: '🎟️👑 10,000 TICKETS!!!!', value: 'ticket_10000', weight: 1 },
+            { label: '🎫 10 Tickets', value: 'ticket_10', weight: 1000 },
+            { label: '🎫 25 Tickets', value: 'ticket_25', weight: 500 },
+            { label: '🎫 50 Tickets', value: 'ticket_50', weight: 100 },
+            { label: '🎫 100 Tickets!', value: 'ticket_100', weight: 50 },
+            { label: '🎫 500 Tickets!!', value: 'ticket_500', weight: 10 },
+            { label: '💎 1,000 Tickets!!!', value: 'ticket_1000', weight: 3 },
+            { label: '👑 10,000 TICKETS!!!!', value: 'ticket_10000', weight: 1 },
             // 10,000 tickets: ~1.5% base × 1/1664 rare table = ~1 in 110,000 spins
             // To hit 1 in 10 million, we add a second roll:
         ];
@@ -16803,7 +16803,7 @@ document.addEventListener('btcProfileSaved', function() {
                 var rareAmount = parseInt(rareSelected.value.split('_')[1]) || 10;
                 if (rareAmount === 10000 && Math.random() > 0.01) {
                     rareAmount = 100;
-                    rareSelected = { label: '🎟️ 100 Tickets!', value: 'ticket_100' };
+                    rareSelected = { label: '🎫 100 Tickets!', value: 'ticket_100' };
                 }
                 rewardText = '💎 RARE DROP! ' + rareSelected.label;
                 if (typeof awardOrangeTickets === 'function') {
@@ -16842,7 +16842,7 @@ document.addEventListener('btcProfileSaved', function() {
                     currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
                 }
             } else if (rewardType === 'ticket') {
-                rewardText = '🎟️ You won ' + rewardAmount + ' Orange Ticket' + (rewardAmount > 1 ? 's' : '') + '!';
+                rewardText = '🎫 You won ' + rewardAmount + ' Orange Ticket' + (rewardAmount > 1 ? 's' : '') + '!';
                 if (typeof awardOrangeTickets === 'function') {
                     awardOrangeTickets(rewardAmount, 'Daily Spin');
                 } else {
@@ -19968,7 +19968,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_signal', title: '📡 The Signal', desc: 'Weekly curated Bitcoin insights newsletter', keywords: 'signal newsletter weekly email updates curated insights', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep memorize practice drill test', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
-        { id: '_tickets', title: '🎟️ Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
+        { id: '_tickets', title: '🎫 Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
         { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
         { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color hat scarf sunglasses crown hoodie accessories wardrobe', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals — chat, DJ, discovery, knowledge', keywords: 'badges achievement trophy unlock goal progress medal chat dj streak listener', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
@@ -21181,11 +21181,11 @@ window._tctvStartTracker = function() {
                 }
                 localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
                 if (typeof showToast === 'function') {
-                    showToast('📺 +10 XP & 🎟️ +1 Ticket — Thanks for watching Timechain TV!');
+                    showToast('📺 +10 XP & 🎫 +1 Ticket — Thanks for watching Timechain TV!');
                 }
             } else {
                 if (typeof showToast === 'function') {
-                    showToast('📺 🎟️ +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
+                    showToast('📺 🎫 +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
                 }
             }
         } else if (total === 1) {
