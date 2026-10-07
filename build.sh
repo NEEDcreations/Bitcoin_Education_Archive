@@ -26,5 +26,8 @@ if [ $? -ne 0 ]; then
     cp bundle.src.js bundle.js
 fi
 
+# Keep bundle.min.js in sync — index.html loads bundle.min.js
+cp bundle.js bundle.min.js
+
 echo "✅ Bundle: $(wc -c < bundle.src.js | tr -d ' ') → $(wc -c < bundle.js | tr -d ' ') bytes"
 echo "✅ Gzipped: ~$(gzip -c bundle.js | wc -c | tr -d ' ') bytes"
