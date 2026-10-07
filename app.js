@@ -4648,18 +4648,13 @@ if (locked) {
             fc.style.display = 'block';
             fc.innerHTML = '<div id="explore-apps-grid" style="padding:20px;"></div>';
         }
-        history.pushState({ channel: 'proof-of-walk' }, '', '/app/proof-of-walk');
+        var fc = document.getElementById('forumContainer');
+        if (fc) {
+            fc.style.display = 'block';
+            fc.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:40px 20px;text-align:center;"><div style="font-size:3rem;margin-bottom:16px;">🚶</div><div style="font-size:1.3rem;font-weight:800;color:var(--text);margin-bottom:10px;">Proof of Walk is currently disabled</div><div style="color:var(--text-muted);font-size:0.95rem;">Check back soon!</div></div>';
+        }
         if (isMobile && isMobile()) { var sb = document.getElementById('sidebar'); if (sb) sb.classList.remove('open'); }
         if (typeof setFloatingElementsVisible === 'function') setFloatingElementsVisible(true);
-        if (window.renderProofOfWalk) {
-            window.renderProofOfWalk();
-        } else {
-            // Lazy-load proof-of-walk.js on demand
-            var _pow = document.createElement('script');
-            _pow.src = 'proof-of-walk.js?v=20260527_strava_comply';
-            _pow.onload = function() { if (window.renderProofOfWalk) window.renderProofOfWalk(); };
-            document.head.appendChild(_pow);
-        }
     };
     window.toggleSidebarMenu = function(id) {
         var menu = document.getElementById(id);
