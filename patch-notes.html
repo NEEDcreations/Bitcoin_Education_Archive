@@ -52,10 +52,33 @@
   <div class="patch">
     <div class="patch-header">
       <div>
+        <div class="patch-title">Performance &amp; Embed Reliability</div>
+        <div class="patch-date">October 7, 2026 · v2081</div>
+      </div>
+      <div class="patch-badge">Latest</div>
+    </div>
+    <div class="patch-body">
+
+      <div class="section-label">⚡ Speed &amp; Responsiveness</div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Timechain TV channel switching is now instant.</strong> Previously, every channel change destroyed and fully rebuilt the YouTube player from scratch — the IFrame API had to reinitialize, reconnect, and fire <code>onReady</code> before a single frame played. Channels now switch by calling <code>loadVideoById()</code> on the existing player, skipping the teardown entirely. Also eliminated a <code>postMessage</code> console error caused by the old player firing into its destroyed iframe.</div></div>
+
+      <div class="section-label">🛍️ Embeds</div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Pleb Shop merchant page now loads.</strong> The <code>603btc.com</code> embed was being silently blocked by the Content Security Policy — the domain was missing from <code>frame-src</code> in the Cloudflare Worker. Fixed and deployed.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">10 additional embed domains added to CSP.</strong> An audit found Wavlake, LNbeats, Twitch, Plebeian Market, Scarce City, Proof of Ink, Conduit Market, and two internal CF Workers proxies were missing from <code>frame-src</code> — meaning those tabs were silently broken for users. All added.</div></div>
+
+      <div class="section-label">🔧 Infrastructure</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Automatic CSP embed check on every deploy.</strong> <code>deploy.sh</code> now scans all JS files for <code>&lt;iframe src=&gt;</code> domains and verifies each one is covered in the worker's <code>frame-src</code> before the deploy is allowed to proceed. If anything is missing, the deploy is blocked with a clear error. Embed breakage from missing CSP entries can no longer silently reach production.</div></div>
+
+    </div>
+  </div>
+
+  <div class="patch">
+    <div class="patch-header">
+      <div>
         <div class="patch-title">Two-Factor Authentication &amp; Raid Intelligence</div>
         <div class="patch-date">October 4, 2026 · v2080</div>
       </div>
-      <div class="patch-badge">Latest</div>
+      <div class="patch-badge prev">Previous</div>
     </div>
     <div class="patch-body">
 
