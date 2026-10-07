@@ -4619,6 +4619,44 @@ exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) 
         return { success: true, count };
     });
 
+// ---- One-time backfill: copy lightning → lightningAddress for users missing it ----
+// Fixes users who saved their address before the dual-field save was deployed.
+// Each batch.update() triggers syncPublicProfile, keeping public_profiles in sync.
+exports.backfillLightningAddress = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.token.get('admin', false)) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const snap = await db.collection('users').get();
+    const BATCH_SIZE = 400;
+    let batch = db.batch();
+    let updated = 0;
+    let skipped = 0;
+    let batchCount = 0;
+    const commits = [];
+    snap.forEach(doc => {
+        const d = doc.data();
+        const lightning = d.lightning || '';
+        const lightningAddress = d.lightningAddress || '';
+        // Only update if they have a lightning field but lightningAddress is missing or out of sync
+        if (lightning && lightning.includes('@') && lightning !== lightningAddress) {
+            batch.update(doc.ref, { lightningAddress: lightning });
+            updated++;
+            batchCount++;
+            if (batchCount >= BATCH_SIZE) {
+                commits.push(batch.commit());
+                batch = db.batch();
+                batchCount = 0;
+            }
+        } else {
+            skipped++;
+        }
+    });
+    if (batchCount > 0) commits.push(batch.commit());
+    await Promise.all(commits);
+    console.log('[backfillLightningAddress] done:', updated, 'updated,', skipped, 'skipped, total:', snap.size);
+    return { success: true, updated, skipped, total: snap.size };
+});
+
 // ---- Live triggers for community stats: channelVisits, questsCompleted, watchTimeMinutes ----
 
 // Channel visit → bump global channelVisits (detects channelsVisited increment on user doc)
