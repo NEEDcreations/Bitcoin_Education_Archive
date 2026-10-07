@@ -17,7 +17,16 @@ var _wsOpenPrice = null;
 var _wsReconnectTimer = null;
 var _wsFailCount = 0;
 
+// Throttle DOM updates — only paint at most once per 10s regardless of WS message rate.
+// Coinbase WS fires on every trade (potentially hundreds/min); painting every message
+// burns CPU and competes with the user's other browser tabs/streams.
+var _wsDomThrottleTs = 0;
+var _WS_DOM_THROTTLE_MS = 10000; // 10 seconds
 function _wsUpdateDom() {
+    window._btcPriceCache = { price: _lastWsPrice, change: _lastWsChange, ts: Date.now() };
+    var now = Date.now();
+    if (now - _wsDomThrottleTs < _WS_DOM_THROTTLE_MS) return; // skip high-frequency trades
+    _wsDomThrottleTs = now;
     var priceEl = document.getElementById('dashLivePrice');
     if (priceEl && _lastWsPrice) priceEl.textContent = '$' + fmtNum(_lastWsPrice, 2);
     if (_lastWsChange !== null) {
@@ -28,7 +37,6 @@ function _wsUpdateDom() {
         var btnPrice = document.getElementById('dashBtnPrice');
         if (btnPrice) btnPrice.innerHTML = '$' + fmtNum(_lastWsPrice, 0) + ' <span style="color:' + color + ';font-size:0.6rem;">' + arrow + Math.abs(_lastWsChange).toFixed(1) + '%</span>';
     }
-    window._btcPriceCache = { price: _lastWsPrice, change: _lastWsChange, ts: Date.now() };
 }
 
 function startPriceWs() {
@@ -75,6 +83,9 @@ function startPriceWs() {
         _priceWs.onclose = function() {
             _priceWs = null;
             _wsFailCount++;
+            // Don't reconnect if tab is hidden — saves bandwidth for background tabs.
+            // The visibilitychange handler below will reconnect when tab becomes active.
+            if (document.hidden) { console.log('[Dashboard] WS closed, tab hidden — not reconnecting'); return; }
             var delay = Math.min(1000 * Math.pow(2, _wsFailCount), 30000);
             console.log('[Dashboard] WS closed, reconnecting in ' + delay + 'ms');
             _wsReconnectTimer = setTimeout(startPriceWs, delay);
@@ -340,7 +351,7 @@ function _loadCandleChart() {
     } else {
         fetchCandleData().then(function() { _updateCandleChart(); });
     }
-    _candleInterval = setInterval(_updateCandleChart, 1000);
+    _candleInterval = setInterval(_updateCandleChart, 5000); // 5s — data doesn't change faster than this
 }
 
 // Safety: always clear loading flag after 15s max
@@ -772,6 +783,23 @@ window.closeDashboard = function() {
     if (_dashInterval) { clearInterval(_dashInterval); _dashInterval = null; }
     if (_candleInterval) { clearInterval(_candleInterval); _candleInterval = null; }
 };
+
+// Pause WS when tab goes to background, resume when it comes back.
+// This prevents the app from consuming bandwidth while the user has another tab focused.
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // Tab hidden — close WS to free up the connection
+        if (_priceWs && _priceWs.readyState <= 1) {
+            _priceWs.onclose = null; // suppress reconnect
+            _priceWs.close();
+            _priceWs = null;
+        }
+        if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
+    } else {
+        // Tab visible again — reconnect
+        startPriceWs();
+    }
+});
 
 // ---- Auto-inject on page load ----
 function init() {
