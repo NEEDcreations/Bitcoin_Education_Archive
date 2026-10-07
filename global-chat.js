@@ -979,15 +979,14 @@ window._scrollToChatMsg = function(msgId) {
     if (!chatEl) return;
     var target = chatEl.querySelector('[data-msg-id="' + msgId + '"]');
     if (target) {
-        // Manually scroll the chat container so the message is centered
+        // Use live rects for pixel-accurate scroll within the chat container.
+        // getBoundingClientRect() is always correct regardless of DOM nesting depth.
         var containerRect = chatEl.getBoundingClientRect();
         var targetRect = target.getBoundingClientRect();
-        var targetOffsetTop = target.offsetTop;
-        // Walk up to find offset relative to chatEl
-        var el = target;
-        var offset = 0;
-        while (el && el !== chatEl) { offset += el.offsetTop; el = el.offsetParent; }
-        var scrollTarget = offset - (chatEl.clientHeight / 2) + (target.clientHeight / 2);
+        // target's top relative to the container's visible area
+        var relativeTop = targetRect.top - containerRect.top;
+        // scroll so the message lands centered in the container
+        var scrollTarget = chatEl.scrollTop + relativeTop - (chatEl.clientHeight / 2) + (target.offsetHeight / 2);
         chatEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
         // Flash highlight on the message bubble
         var bubble = target.querySelector('[style*="border-radius"]') || target.querySelector('div') || target;
@@ -4001,8 +4000,8 @@ function _renderPinnedBanner(pin) {
     banner.onclick = function(e) {
         if (e.target.tagName === 'BUTTON') return;
         if (pin.msgId) {
-            var target = el.querySelector('[data-msg-id="' + pin.msgId + '"]');
-            if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+            window._scrollToChatMsg(pin.msgId);
+            return;
         }
         el.scrollTop = 0;
     };
