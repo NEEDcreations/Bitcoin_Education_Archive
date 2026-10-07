@@ -3870,6 +3870,30 @@ function createNacho() {
         }, false);
     }
 
+    // Story button — same proper addEventListener pattern as closet (inline ontouchstart alone leaks to nachoClick on mobile)
+    function attachNachoStoryBtn() {
+        var storyBtn = document.getElementById('nachoStoryBtn');
+        if (!storyBtn) return;
+        var storyTouched = false;
+        storyBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); }, false);
+        storyBtn.addEventListener('touchstart', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); storyTouched = true; }, { passive: false });
+        storyBtn.addEventListener('touchend', function(e) {
+            e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();
+            if (storyTouched) {
+                storyTouched = false;
+                if (typeof showNachoStory === 'function') { showNachoStory(); nachoStoryNotifClear(); }
+            }
+        }, { passive: false });
+        storyBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); e.stopImmediatePropagation();
+            if (!storyTouched) {
+                if (typeof showNachoStory === 'function') { showNachoStory(); nachoStoryNotifClear(); }
+            }
+            storyTouched = false;
+        }, false);
+    }
+    attachNachoStoryBtn();
+
     // ===== NOTIFICATION DOTS =====
     // Check if there's a new story chapter available or new closet item
     window.updateNachoNotifs = function() {
@@ -4621,13 +4645,16 @@ window.nachoClick = function() {
 
     nachoClickCount++;
 
-    // Every 3rd click opens the Ask Nacho input
-    if (nachoClickCount % 3 === 0 && typeof showNachoInput === 'function') {
+    // Primary action: open Ask Nacho input
+    // On mobile especially, users tap Nacho expecting to ask a question.
+    // Show the ask prompt on the first tap (no bubble visible).
+    // Random messages are for auto-idle popups, not manual taps.
+    if (typeof showNachoInput === 'function') {
         showNachoInput();
         return;
     }
 
-    // Smart pool based on user tier (same logic as auto messages)
+    // Fallback: smart pool based on user tier (same logic as auto messages)
     var clickVisits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
     var clickTier = 'new';
     if (clickVisits >= 31) clickTier = 'veteran';
@@ -5474,6 +5501,8 @@ window.updateNachoAvatarForPage = function() {
             }
         }, { passive: false });
     }
+    // Re-attach story button listeners after avatar rebuild
+    if (typeof attachNachoStoryBtn === 'function') attachNachoStoryBtn();
 };
 
 // Hook into navigation to update avatar when page changes
