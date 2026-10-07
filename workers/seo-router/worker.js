@@ -127,6 +127,9 @@ function buildCSP(nonce) {
         "media-src 'self' blob: https:",             // Audio (Beats), image uploads
 
         // frame-src: iframes the app legitimately embeds
+        // *** ADDING A NEW EMBED? ADD IT HERE TOO or the browser will block it. ***
+        // Common sources of breakage: new sponsor/merchant tabs, new game embeds,
+        // new third-party widgets. Rule: if it's an <iframe>, it goes in frame-src.
         "frame-src 'self'" +
             " https://www.youtube.com" +
             " https://www.youtube-nocookie.com" +
@@ -139,7 +142,8 @@ function buildCSP(nonce) {
             " https://timechaincalendar.com" +      // Timechain Calendar iframe (dashboard)
             " https://ppq.ai" +                     // AI Tools panel
             " https://*.ppq.ai" +                   // PPQ subdomains
-            " https://platform.twitter.com",        // Embedded tweets
+            " https://platform.twitter.com" +       // Embedded tweets
+            " https://603btc.com",                  // Pleb Shop merchant embed (app.js:4711)
 
         "font-src 'self' https://fonts.gstatic.com",
 
