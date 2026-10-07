@@ -6724,7 +6724,7 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
 
     // For bundles (streak_freeze_3, hint_token_5), quantity is always 1 (bundle is the unit)
     const isBundle = ['streak_freeze_3', 'hint_token_5'].includes(itemId);
-    const qty = (item.type === 'consumable' && !isBundle) ? quantity : 1;
+    const qty = ((item.type === 'consumable' || item.type === 'raffle') && !isBundle) ? quantity : 1;
     const totalCost = item.cost * qty;
 
     const userRef = db.collection('users').doc(uid);

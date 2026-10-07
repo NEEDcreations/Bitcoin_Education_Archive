@@ -5947,6 +5947,35 @@ window._raidContribute = function(metric, amount, detail) {
                     var _rd = parseInt(localStorage.getItem('btc_raid_bosses_defeated') || '0') + 1;
                     localStorage.setItem('btc_raid_bosses_defeated', _rd.toString());
                 }
+                // Patch HP bar in real-time from response — works from any tab
+                if (r.data.success && r.data.damage > 0) {
+                    var _cur = r.data.current || 0;
+                    var _tgt = r.data.target || (window._currentRaidBoss && window._currentRaidBoss.target) || 1;
+                    var _pct = Math.min(100, Math.round((_cur / _tgt) * 100));
+                    var _hpPct = Math.max(0, 100 - _pct);
+                    var _remaining = Math.max(0, _tgt - _cur);
+                    var _bar = document.getElementById('raidProgressBar');
+                    var _hpLabel = _bar && _bar.closest && _bar.closest('div[style]') ? _bar.parentElement : null;
+                    if (_bar) {
+                        _bar.style.width = _hpPct + '%';
+                        _bar.style.background = _hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : _hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)';
+                    }
+                    // Update HP number label
+                    var _hpNum = document.querySelector('#raidProgressBar');
+                    if (_hpNum) {
+                        var _hpRow = _hpNum.closest && _hpNum.closest('[style]') ? _hpNum.parentElement && _hpNum.parentElement.previousElementSibling : null;
+                        if (_hpRow) {
+                            var _spans = _hpRow.querySelectorAll('span');
+                            if (_spans[1]) _spans[1].textContent = _remaining.toLocaleString() + ' / ' + _tgt.toLocaleString() + ' HP';
+                        }
+                        var _pctLabel = _hpNum.parentElement && _hpNum.parentElement.nextElementSibling;
+                        if (_pctLabel) _pctLabel.textContent = _pct + '% damage dealt';
+                    }
+                    // Update _currentRaidBoss so next contribute call has fresh values
+                    if (window._currentRaidBoss) window._currentRaidBoss.current = _cur;
+                    // Toast feedback
+                    if (typeof showToast === 'function') showToast('⚔️ ' + Math.round(r.data.damage) + ' dmg dealt to ' + (window._currentRaidBoss && window._currentRaidBoss.name ? window._currentRaidBoss.name : 'Raid Boss') + '! (' + _remaining.toLocaleString() + ' HP remaining)');
+                }
             }
         }).catch(function(e) { console.error('[RAID] Error:', e.message); });
     } catch(e) { console.error('[RAID] Exception:', e); }
