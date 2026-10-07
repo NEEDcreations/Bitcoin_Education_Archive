@@ -3808,7 +3808,7 @@ function _renderNookShop() {
             var el2 = document.getElementById('_raffleCommTotal');
             if (!el2) return;
             var tot = (snap.exists && snap.data() && snap.data().totalEntries) ? snap.data().totalEntries : 0;
-            el2.textContent = '🎟️ Community entries this month: ' + tot;
+            el2.innerHTML = '<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.62em;font-weight:900;padding:1px 6px;border-radius:4px;vertical-align:middle;line-height:1.7;letter-spacing:0.3px;margin-left:1px;">T</span> Community entries this month: ' + tot;
         }).catch(function() {});
     })();
 
