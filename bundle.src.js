@@ -20292,68 +20292,68 @@ window.nachoQuizAnswer = function(btn, correct) {
             const fdb = firebase.firestore();
             const today = new Date().toISOString().split('T')[0];
 
-            // Generate a fingerprint-based visitor ID (harder to spoof than random)
-            // Combines screen, timezone, language, platform — same device = same ID
-            var fp = [
-                screen.width, screen.height, screen.colorDepth,
-                Intl.DateTimeFormat().resolvedOptions().timeZone,
-                navigator.language, navigator.hardwareConcurrency || 0,
-                navigator.platform
-            ].join('|');
-            // Simple hash
-            var hash = 0;
-            for (var i = 0; i < fp.length; i++) {
-                hash = ((hash << 5) - hash) + fp.charCodeAt(i);
-                hash |= 0;
-            }
-            var fingerprintId = 'fp_' + Math.abs(hash).toString(36);
-
-            // Also keep localStorage ID for cross-session persistence
-            var storedId = localStorage.getItem('btc_visitor_id');
-            if (!storedId) {
-                storedId = fingerprintId;
-                localStorage.setItem('btc_visitor_id', storedId);
-            }
-
-            // Use both: if fingerprint matches an existing visitor, use that
-            // This prevents incognito/clear-storage from creating new visitors on the same device
-            var visitorId = fingerprintId;
-
             // Rate limit: don't count more than once per session
             if (window._visitCounted) {
                 fdb.collection('stats').doc('visits').get().then(function(d) {
-                    if (d.exists) vc.textContent = (d.data().total || 0).toLocaleString();
+                    if (d.exists && vc) vc.textContent = (d.data().total || 0).toLocaleString();
                 });
                 return;
             }
             window._visitCounted = true;
 
-            // Check if this visitor already counted today
-            var visitRef = fdb.collection('visits').doc(visitorId);
-            visitRef.get().then(function(doc) {
-                if (!doc.exists || doc.data().lastVisit !== today) {
-                    // New unique visit — increment counter and mark visitor
-                    var counterRef = fdb.collection('stats').doc('visits');
-                    fdb.runTransaction(function(t) {
-                        return t.get(counterRef).then(function(counterDoc) {
-                            var newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
-                            t.set(counterRef, { total: newCount });
-                            t.set(visitRef, { lastVisit: today, fp: fingerprintId });
-                            return newCount;
+            var authUser = firebase.auth && firebase.auth().currentUser;
+            var isRealUser = authUser && !authUser.isAnonymous;
+
+            if (isRealUser) {
+                // Signed-in real user: use their UID as the visitor doc ID.
+                // Firestore rule requires request.auth.uid == visitorId — this satisfies it.
+                var visitorId = authUser.uid;
+                var fingerprintId = visitorId; // store uid as fp for consistency
+                var visitRef = fdb.collection('visits').doc(visitorId);
+                var counterRef = fdb.collection('stats').doc('visits');
+                visitRef.get().then(function(doc) {
+                    if (!doc.exists || doc.data().lastVisit !== today) {
+                        fdb.runTransaction(function(t) {
+                            return t.get(counterRef).then(function(counterDoc) {
+                                var newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
+                                t.set(counterRef, { total: newCount });
+                                t.set(visitRef, { lastVisit: today, fp: fingerprintId });
+                                return newCount;
+                            });
+                        }).then(function(newCount) {
+                            if (vc) vc.textContent = newCount.toLocaleString();
+                        }).catch(function() {});
+                    } else {
+                        fdb.collection('stats').doc('visits').get().then(function(d) {
+                            if (d.exists && vc) vc.textContent = (d.data().total || 0).toLocaleString();
                         });
-                    }).then(function(newCount) {
-                        vc.textContent = newCount.toLocaleString();
-                    });
-                } else {
-                    // Already counted today — just display current total
-                    fdb.collection('stats').doc('visits').get().then(function(d) {
-                        if (d.exists) vc.textContent = (d.data().total || 0).toLocaleString();
-                    });
-                }
-            }).catch(function() { vc.textContent = '—'; });
+                    }
+                }).catch(function() {});
+            } else {
+                // Anonymous or not signed in: deduplicate locally, only increment the counter
+                // (no visits/{id} write — rule requires uid == visitorId which we don't have).
+                var _lsKey = 'btc_visit_counted_' + today;
+                fdb.collection('stats').doc('visits').get().then(function(d) {
+                    if (d.exists && vc) vc.textContent = (d.data().total || 0).toLocaleString();
+                    if (!localStorage.getItem(_lsKey)) {
+                        localStorage.setItem(_lsKey, '1');
+                        // Increment the global counter only (no per-user doc write)
+                        var counterRef2 = fdb.collection('stats').doc('visits');
+                        fdb.runTransaction(function(t) {
+                            return t.get(counterRef2).then(function(counterDoc) {
+                                var newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
+                                t.set(counterRef2, { total: newCount });
+                                return newCount;
+                            });
+                        }).then(function(newCount) {
+                            if (vc) vc.textContent = newCount.toLocaleString();
+                        }).catch(function() {});
+                    }
+                }).catch(function() { if (vc) vc.textContent = '—'; });
+            }
         }
-        // Wait a moment for Firebase to init
-        setTimeout(updateVisitDisplay, 2000);
+        // Wait for Firebase auth to settle before running
+        setTimeout(updateVisitDisplay, 2500);
     })();
 
     // Suggest a topic
