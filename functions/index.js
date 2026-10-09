@@ -4570,6 +4570,7 @@ const PUBLIC_PROFILE_FIELDS = [
     'predictions', 'plebNumber',
     'lastSeen', 'isOnline', 'ghostMode',
     'lightningAddress',   // display-only; tip button uses this
+    'lightning',           // alias saved by older clients; tip lookup checks both
     'created', 'createdAt',
     'earnedHidden',
     'peerCount', // peer network size (peers array stays server-only)

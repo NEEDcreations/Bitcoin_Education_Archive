@@ -680,10 +680,11 @@ window.saveLnAddress = async function() {
 
     try {
         if (status) status.innerHTML = '<span style="color:var(--accent);">Saving…</span>';
-        await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr });
+        await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr, lightningAddress: addr });
         // Update local user object
         if (typeof currentUser !== 'undefined' && currentUser) {
             currentUser.lightning = addr;
+            currentUser.lightningAddress = addr;
         }
         if (addr) {
             if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Lightning Address saved! You can now receive tips.</span>';

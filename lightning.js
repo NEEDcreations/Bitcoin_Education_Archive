@@ -1,1 +1,705 @@
-!function(){"use strict";var e={connected:!1,method:null,balance:null,walletName:null,nwcRelay:null,nwcPubkey:null,nwcSecret:null,error:null};function t(){return void 0!==window.webln}async function n(t,n){if(!e.nwcRelay||!e.nwcPubkey||!e.nwcSecret)throw new Error("NWC not connected");return void 0===window.NostrTools&&await new Promise(function(e,t){var n=document.createElement("script");n.src="https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js",n.integrity="sha384-GwmNxV/GnZt+zRBR/Hhtu5D4MKfbxeJSApW44ARryGYtj3MFheHMFgiEZ7tVnrln",n.crossOrigin="anonymous",n.onload=e,n.onerror=t,document.head.appendChild(n)}),new Promise(function(r,o){var i=setTimeout(function(){a.close(),o(new Error("NWC request timed out (15s). Check your wallet is online."))},15e3),a=new WebSocket(e.nwcRelay);a.onopen=async function(){try{var r=window.NostrTools,l=e.nwcSecret,d=r.getPublicKey(l),s=e.nwcPubkey,c={method:t,params:n||{}},p=JSON.stringify(c),g=await r.nip04.encrypt(l,s,p),u={pubkey:d,created_at:Math.floor(Date.now()/1e3),kind:23194,tags:[["p",s]],content:g};u.id=r.getEventHash(u),u.sig=r.getSignature(u,l);var m="nwc_"+Math.random().toString(36).substr(2,8);a.send(JSON.stringify(["REQ",m,{kinds:[23195],"#e":[u.id],limit:1}])),a.send(JSON.stringify(["EVENT",u]))}catch(e){clearTimeout(i),a.close(),o(e)}},a.onmessage=async function(t){try{var n=JSON.parse(t.data);if("EVENT"===n[0]&&n[2]){var l=window.NostrTools,d=n[2];try{var s=await l.nip04.decrypt(e.nwcSecret,e.nwcPubkey,d.content),c=JSON.parse(s);clearTimeout(i),a.close(),c.error?o(new Error(c.error.message||"NWC error")):r(c.result)}catch(e){console.error("[NWC] Decryption failed:",e),clearTimeout(i),a.close(),o(new Error("Failed to decrypt NWC response"))}}}catch(e){}},a.onerror=function(e){clearTimeout(i),o(new Error("WebSocket error connecting to relay"))}})}async function r(){if(e.connected)try{"webln"===e.method?e.balance=await async function(){if(!window.webln||!window.webln.getBalance)return null;try{return(await window.webln.getBalance()).balance||null}catch(e){return null}}():"nwc"===e.method&&(e.balance=await async function(){try{var e=await n("get_balance");return e.balance?Math.floor(e.balance/1e3):null}catch(e){return null}}())}catch(e){}}async function o(t){if("webln"===e.method)return async function(e){if(!window.webln)throw new Error("WebLN not available");return await window.webln.sendPayment(e)}(t);if("nwc"===e.method)return async function(e){return await n("pay_invoice",{invoice:e})}(t);throw new Error("No Lightning wallet connected")}function i(){var t={method:e.method,walletName:e.walletName};"nwc"===e.method&&(t.nwcRelay=e.nwcRelay,t.nwcPubkey=e.nwcPubkey),localStorage.setItem("btc_ln_state",JSON.stringify(t)),"nwc"===e.method&&e.nwcSecret&&sessionStorage.setItem("btc_ln_secret",e.nwcSecret)}window.renderLightning=function(){var n=document.getElementById("forumContainer");if(n){e.connected||function(){try{var n=localStorage.getItem("btc_ln_state");if(!n)return!1;var r=JSON.parse(n);if("nwc"===r.method&&r.nwcRelay&&r.nwcPubkey){var o=sessionStorage.getItem("btc_ln_secret");return!!o&&(e.method="nwc",e.walletName=r.walletName||"NWC Wallet",e.nwcRelay=r.nwcRelay,e.nwcPubkey=r.nwcPubkey,e.nwcSecret=o,e.connected=!0,!0)}if("webln"===r.method&&t())return e.method="webln",e.walletName=r.walletName||"WebLN Wallet",e.connected=!0,!0}catch(e){}}();var r='<div style="max-width:580px;margin:0 auto;padding:20px 16px 120px;">';r+='<div style="text-align:center;margin-bottom:22px;animation:fadeSlideIn 0.4s ease-out;"><div onclick="goHome()" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--text-muted);font-size:0.8rem;">← Back to Archive</div><div style="font-size:2.5rem;margin-bottom:6px;">⚡</div><h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0 0 4px;">Lightning Wallet</h2><p style="color:var(--text-muted);font-size:0.82rem;margin:0;">Connect your own wallet · Non-custodial · Instant payments</p></div>',e.connected?r+=function(){var t='<div style="animation:fadeSlideIn 0.5s ease-out;">';return t+='<div style="padding:16px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;"><div style="width:10px;height:10px;background:#22c55e;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px rgba(34,197,94,0.6);"></div><div style="flex:1;"><div style="color:#22c55e;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Connected</div><div style="color:var(--text);font-size:0.88rem;font-weight:600;">'+escapeHtml(e.walletName||"Lightning Wallet")+'</div><div style="color:var(--text-faint);font-size:0.7rem;">via '+("webln"===e.method?"WebLN":"Nostr Wallet Connect")+'</div></div><button onclick="lnDisconnect()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:6px 12px;border-radius:8px;font-size:0.72rem;cursor:pointer;font-family:inherit;flex-shrink:0;">Disconnect</button></div>',t+='<div style="padding:20px;background:linear-gradient(135deg,rgba(234,179,8,0.1),rgba(249,115,22,0.06));border:1px solid rgba(234,179,8,0.25);border-radius:18px;text-align:center;margin-bottom:14px;"><div style="color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px;">Lightning Balance</div><div style="color:var(--heading);font-size:1.8rem;font-weight:900;">'+(null!==e.balance?WalletBridge.formatSats(e.balance):'<span style="color:var(--text-faint);font-size:1rem;">Balance not available</span>')+'</div><button onclick="lnRefreshBalance()" style="background:none;border:none;color:var(--accent);font-size:0.72rem;cursor:pointer;font-family:inherit;margin-top:4px;">🔄 Refresh</button></div>',t+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;"><button onclick="lnShowReceive()" style="padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;transition:0.2s;touch-action:manipulation;"><span style="font-size:1.3rem;">📥</span>Receive</button><button onclick="lnShowSend()" style="padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;transition:0.2s;"><span style="font-size:1.3rem;">📤</span>Send</button></div>',t+='<div style="padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;"><h4 style="color:var(--heading);font-size:0.85rem;font-weight:700;margin:0 0 6px;">💡 Want a Lightning Address?</h4><p style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;margin:0;">Get a reusable address like <strong style="color:var(--accent);">you@getalby.com</strong> from your wallet provider. We recommend <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);">Alby</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);">Coinos</a>, or <a href="https://www.walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);">Wallet of Satoshi</a>.</p></div>',t+="</div>"}():r+=function(){var e='<div style="animation:fadeSlideIn 0.5s ease-out;">';e+='<div style="padding:18px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:40px;height:40px;background:linear-gradient(135deg,#f7931a,#eab308);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">⚡</div><div><h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin:0;">Connect via WebLN</h3><p style="color:var(--text-muted);font-size:0.78rem;margin:0;">Browser extension (Alby, etc.)</p></div></div><p style="color:var(--text);font-size:0.82rem;line-height:1.5;margin:0 0 12px;">If you have <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Alby</a> or another WebLN browser extension installed, click below to connect instantly.</p><button onclick="lnConnectWebLN()" style="width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">'+(t()?"⚡ Connect WebLN Wallet":"⚡ Connect (install Alby first)")+'</button><div id="weblnStatus" style="text-align:center;margin-top:6px;font-size:0.82rem;"></div></div>',e+='<div style="padding:18px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:40px;height:40px;background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🟣</div><div><h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin:0;">Connect via NWC</h3><p style="color:var(--text-muted);font-size:0.78rem;margin:0;">Nostr Wallet Connect — works on mobile!</p></div></div><p style="color:var(--text);font-size:0.82rem;line-height:1.5;margin:0 0 10px;">Paste your NWC connection string from <strong>Alby Hub</strong>, <strong>Umbrel</strong>, <strong>LNbits</strong>, or any NWC-compatible wallet.</p><textarea id="nwcUri" placeholder="nostr+walletconnect://pubkey?relay=wss://...&secret=..." rows="3" style="width:100%;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:10px;"></textarea><button onclick="lnConnectNWC()" style="width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🟣 Connect NWC Wallet</button><div id="nwcStatus" style="text-align:center;margin-top:6px;font-size:0.82rem;"></div></div>';var n="";return"undefined"!=typeof currentUser&&currentUser&&currentUser.lightning&&(n=currentUser.lightning),e+='<div style="padding:18px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:40px;height:40px;background:linear-gradient(135deg,#eab308,#f97316);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">⚡</div><div><h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin:0;">Lightning Address</h3><p style="color:var(--text-muted);font-size:0.78rem;margin:0;">So other users can tip you sats</p></div></div><p style="color:var(--text);font-size:0.82rem;line-height:1.5;margin:0 0 10px;">Enter your Lightning Address (looks like an email). Get one from <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Alby</a>, <a href="https://walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Wallet of Satoshi</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Coinos</a>, or <a href="https://strike.me" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Strike</a>.</p><div style="display:flex;gap:8px;align-items:center;"><input type="text" id="lnAddrInput" placeholder="you@walletofsatoshi.com" value="'+("function"==typeof escapeHtml?escapeHtml(n):n)+'" style="flex:1;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')saveLnAddress()"><button onclick="saveLnAddress()" style="padding:11px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Save</button></div><div id="lnAddrStatus" style="margin-top:6px;font-size:0.78rem;text-align:center;"></div>'+(n?'<div style="margin-top:6px;font-size:0.72rem;color:#22c55e;text-align:center;">✅ Your Lightning Address is set — you can receive tips!</div>':"")+"</div>",e+='<div style="padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;"><h4 style="color:var(--heading);font-size:0.82rem;font-weight:700;margin:0 0 8px;">Compatible Wallets</h4><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"><div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Alby</strong> — WebLN + NWC</div><div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Zeus</strong> — NWC</div><div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Umbrel</strong> — NWC</div><div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Phoenix</strong> — NWC</div><div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Mutiny</strong> — NWC</div><div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>LNbits</strong> — NWC</div></div></div>',e+="</div>"}(),r+='<div style="margin-top:22px;"><h3 style="color:var(--heading);font-size:0.9rem;font-weight:700;margin:0 0 10px;">How It Works</h3><div style="padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;"><p style="color:var(--text);font-size:0.82rem;line-height:1.55;margin:0;">This page connects to <strong>your own Lightning wallet</strong>. We never hold your keys or your sats. When you send or receive, your wallet handles everything — we\'re just the interface.</p></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;"><div style="padding:12px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;"><div style="font-size:1.1rem;margin-bottom:3px;">🔐</div><div style="color:var(--heading);font-size:0.72rem;font-weight:700;">Your Keys</div><div style="color:var(--text-muted);font-size:0.65rem;">We never see them</div></div><div style="padding:12px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;"><div style="font-size:1.1rem;margin-bottom:3px;">🏎️</div><div style="color:var(--heading);font-size:0.72rem;font-weight:700;">Instant</div><div style="color:var(--text-muted);font-size:0.65rem;">Millisecond settlement</div></div><div style="padding:12px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;"><div style="font-size:1.1rem;margin-bottom:3px;">💸</div><div style="color:var(--heading);font-size:0.72rem;font-weight:700;">Tiny Fees</div><div style="color:var(--text-muted);font-size:0.65rem;">Fractions of a cent</div></div></div></div>',r+="</div>",n.innerHTML=r}},window.lnConnectWebLN=async function(){var n=document.getElementById("weblnStatus");try{n.innerHTML='<span style="color:var(--accent);">⏳ Connecting…</span>',await async function(){if(!t())throw new Error("No WebLN provider found. Install Alby or another WebLN extension.");try{if(await window.webln.enable(),e.connected=!0,e.method="webln",e.error=null,window.webln.getInfo)try{var n=await window.webln.getInfo();e.walletName=n.node?n.node.alias:"WebLN Wallet"}catch(t){e.walletName="WebLN Wallet"}else e.walletName="WebLN Wallet";return await r(),i(),!0}catch(t){throw e.error=t.message||"Failed to connect WebLN",t}}(),"function"==typeof showToast&&showToast("⚡ Lightning wallet connected!"),renderLightning()}catch(e){n.innerHTML='<span style="color:#ef4444;">'+escapeHtml(e.message)+"</span>"}},window.lnConnectNWC=async function(){var t=document.getElementById("nwcUri"),n=document.getElementById("nwcStatus");if(t&&t.value.trim())try{n.innerHTML='<span style="color:var(--accent);">⏳ Connecting…</span>',await async function(t){var n=function(e){try{var t=e.trim();if(t.startsWith("nostr+walletconnect://"))t=t.replace("nostr+walletconnect://","");else{if(!t.startsWith("nostrwalletconnect://"))throw new Error("Invalid NWC URI format");t=t.replace("nostrwalletconnect://","")}var n=t.split("?"),r=n[0],o=new URLSearchParams(n[1]||""),i=o.get("relay"),a=o.get("secret");if(!r||!i||!a)throw new Error("Missing NWC parameters");return{pubkey:r,relay:i,secret:a}}catch(e){throw new Error("Invalid NWC URI. Make sure you copy the full connection string from your wallet.")}}(t);return e.nwcRelay=n.relay,e.nwcPubkey=n.pubkey,e.nwcSecret=n.secret,e.connected=!0,e.method="nwc",e.walletName="NWC Wallet",e.error=null,i(),await r(),!0}(t.value.trim()),"function"==typeof showToast&&showToast("🟣 NWC wallet connected!"),renderLightning()}catch(e){n.innerHTML='<span style="color:#ef4444;">'+escapeHtml(e.message)+"</span>"}else n.innerHTML='<span style="color:#ef4444;">Paste your NWC connection string</span>'},window.lnDisconnect=function(){e.connected=!1,e.method=null,e.balance=null,e.walletName=null,e.nwcRelay=null,e.nwcPubkey=null,e.nwcSecret=null,e.error=null,localStorage.removeItem("btc_ln_state"),sessionStorage.removeItem("btc_ln_secret"),"function"==typeof showToast&&showToast("⚡ Wallet disconnected"),renderLightning()},window.lnRefreshBalance=async function(){await r(),renderLightning()},window.lnShowReceive=function(){var e=document.createElement("div");e.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;",e.onclick=function(t){t.target===e&&e.remove()},e.innerHTML='<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:26px;max-width:380px;width:100%;animation:fadeSlideIn 0.3s;"><h3 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 14px;text-align:center;">⚡ Receive via Lightning</h3><div style="margin-bottom:10px;"><label style="color:var(--text-dim);font-size:0.78rem;font-weight:600;display:block;margin-bottom:3px;">Amount (sats)</label><input type="number" id="lnRecvAmt" placeholder="e.g., 1000" min="1" style="width:100%;padding:11px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;box-sizing:border-box;"></div><div style="margin-bottom:14px;"><label style="color:var(--text-dim);font-size:0.78rem;font-weight:600;display:block;margin-bottom:3px;">Memo (optional)</label><input type="text" id="lnRecvMemo" placeholder="What\'s this for?" style="width:100%;padding:11px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;"></div><button onclick="lnCreateInvoice()" id="lnRecvBtn" style="width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Create Invoice</button><div id="lnRecvResult" style="margin-top:10px;"></div><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;margin-top:6px;">Close</button></div>',document.body.appendChild(e)},window.lnCreateInvoice=async function(){var t=parseInt(document.getElementById("lnRecvAmt").value),r=document.getElementById("lnRecvMemo").value||"",o=document.getElementById("lnRecvResult"),i=document.getElementById("lnRecvBtn");if(!t||t<1)o.innerHTML='<span style="color:#ef4444;">Enter an amount</span>';else{i.disabled=!0,i.textContent="⏳ Creating…";try{var a=await async function(t,r){if("webln"===e.method)return async function(e,t){if(!window.webln)throw new Error("WebLN not available");return(await window.webln.makeInvoice({amount:e,defaultMemo:t||"Bitcoin Education Archive"})).paymentRequest}(t,r);if("nwc"===e.method)return async function(e,t){return(await n("make_invoice",{amount:1e3*e,description:t||"Bitcoin Education Archive"})).invoice}(t,r);throw new Error("No Lightning wallet connected")}(t,r),l=document.createElement("div");l.style.cssText="padding:10px;background:var(--input-bg);border:1px solid var(--accent);border-radius:10px;margin-top:6px;";var d=document.createElement("div");d.style.cssText="font-size:0.68rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:6px;",d.textContent="BOLT11 Invoice",l.appendChild(d);var s=document.createElement("div");s.id="lnRecvQR",s.style.cssText="width:180px;height:180px;margin:0 auto 8px;",l.appendChild(s);var c=document.createElement("div");c.style.cssText="font-family:monospace;font-size:0.62rem;color:var(--text);word-break:break-all;line-height:1.4;cursor:pointer;max-height:80px;overflow-y:auto;",c.textContent=a,c.addEventListener("click",function(){navigator.clipboard.writeText(a),"function"==typeof showToast&&showToast("📋 Invoice copied!")}),l.appendChild(c);var p=document.createElement("button");p.style.cssText="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;",p.textContent="📋 Copy Invoice",p.addEventListener("click",function(){navigator.clipboard.writeText(a),"function"==typeof showToast&&showToast("📋 Invoice copied!")}),l.appendChild(p),o.innerHTML="",o.appendChild(l),"function"==typeof window._renderQRCode&&window._renderQRCode(document.getElementById("lnRecvQR"),"lightning:"+a,180),i.textContent="✅ Created"}catch(e){o.innerHTML='<span style="color:#ef4444;">'+escapeHtml(e.message)+"</span>",i.disabled=!1,i.textContent="⚡ Create Invoice"}}},window.lnShowSend=function(){var e=document.createElement("div");e.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;",e.onclick=function(t){t.target===e&&e.remove()},e.innerHTML='<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:26px;max-width:380px;width:100%;animation:fadeSlideIn 0.3s;"><h3 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 14px;text-align:center;">📤 Send via Lightning</h3><div style="margin-bottom:14px;"><label style="color:var(--text-dim);font-size:0.78rem;font-weight:600;display:block;margin-bottom:3px;">Paste BOLT11 Invoice</label><textarea id="lnSendInvoice" placeholder="lnbc…" rows="4" style="width:100%;padding:11px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.82rem;font-family:monospace;outline:none;resize:vertical;box-sizing:border-box;"></textarea></div><button onclick="lnPayInvoice()" id="lnSendBtn" style="width:100%;padding:13px;background:#ef4444;color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Pay Invoice</button><div id="lnSendResult" style="margin-top:10px;"></div><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;margin-top:6px;">Close</button></div>',document.body.appendChild(e)},window.lnPayInvoice=async function(){var e=(document.getElementById("lnSendInvoice").value||"").trim(),t=document.getElementById("lnSendResult"),n=document.getElementById("lnSendBtn");if(e&&(e.startsWith("lnbc")||e.startsWith("lntb"))){n.disabled=!0,n.textContent="⏳ Sending…";try{await o(e),t.innerHTML='<div style="padding:12px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:10px;text-align:center;"><div style="font-size:1.3rem;margin-bottom:3px;">✅</div><div style="color:#22c55e;font-weight:700;">Payment Sent!</div></div>',n.textContent="✅ Paid",setTimeout(function(){r().then(renderLightning)},2e3)}catch(e){t.innerHTML='<span style="color:#ef4444;">'+escapeHtml(e.message)+"</span>",n.disabled=!1,n.textContent="⚡ Pay Invoice"}}else t.innerHTML='<span style="color:#ef4444;">Paste a valid Lightning invoice (starts with lnbc)</span>'},window.lnSendPaymentDirect=async function(e){return o(e)},window.saveLnAddress=async function(){var e=document.getElementById("lnAddrInput"),t=document.getElementById("lnAddrStatus");if(e){var n=e.value.trim();if(n&&(!n.includes("@")||n.length<5))t&&(t.innerHTML='<span style="color:#ef4444;">Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)</span>');else if("undefined"!=typeof auth&&auth.currentUser&&!auth.currentUser.isAnonymous)try{if(t&&(t.innerHTML='<span style="color:var(--accent);">Saving…</span>'),await db.collection("users").doc(auth.currentUser.uid).update({lightning:n,lightningAddress:n}),"undefined"!=typeof currentUser&&currentUser&&(currentUser.lightning=n),n){t&&(t.innerHTML='<span style="color:#22c55e;">✅ Lightning Address saved! You can now receive tips.</span>'),"function"==typeof showToast&&showToast("⚡ Lightning Address saved!"),localStorage.setItem("btc_ln_prompt_dismissed","1");var r=document.getElementById("lnAddressPrompt");r&&r.remove()}else t&&(t.innerHTML='<span style="color:var(--text-faint);">Lightning Address removed.</span>')}catch(e){t&&(t.innerHTML='<span style="color:#ef4444;">Error saving — try again</span>')}else t&&(t.innerHTML='<span style="color:#ef4444;">Sign in to save your Lightning Address</span>')}},console.log("[LIGHTNING] Non-custodial WebLN + NWC module loaded")}();
+// © 2024-2026 603BTC LLC. All rights reserved.
+// =============================================
+// ⚡ Non-Custodial Lightning Wallet
+// Route: go('lightning')
+//
+// Connects to the USER'S OWN Lightning wallet via:
+//   1. WebLN (browser extension — Alby, etc.)
+//   2. NWC  (Nostr Wallet Connect — any compatible wallet)
+//
+// YOUR SERVER NEVER TOUCHES FUNDS.
+// Zero custody. Zero regulatory risk.
+// =============================================
+
+(function() {
+'use strict';
+
+// ─── State ───────────────────────────────────────────────
+var _ln = {
+    connected: false,
+    method: null,      // 'webln' | 'nwc'
+    balance: null,     // sats (null = unknown)
+    walletName: null,
+    nwcRelay: null,
+    nwcPubkey: null,
+    nwcSecret: null,
+    error: null,
+};
+
+// ─── WebLN Detection ─────────────────────────────────────
+
+function hasWebLN() { return typeof window.webln !== 'undefined'; }
+
+async function connectWebLN() {
+    if (!hasWebLN()) throw new Error('No WebLN provider found. Install Alby or another WebLN extension.');
+    try {
+        await window.webln.enable();
+        _ln.connected = true;
+        _ln.method = 'webln';
+        _ln.error = null;
+        // Try to get wallet info
+        if (window.webln.getInfo) {
+            try {
+                var info = await window.webln.getInfo();
+                _ln.walletName = info.node ? info.node.alias : 'WebLN Wallet';
+            } catch(e) { _ln.walletName = 'WebLN Wallet'; }
+        } else {
+            _ln.walletName = 'WebLN Wallet';
+        }
+        // Try to get balance
+        await refreshLnBalance();
+        saveLnState();
+        return true;
+    } catch(e) {
+        _ln.error = e.message || 'Failed to connect WebLN';
+        throw e;
+    }
+}
+
+async function weblnGetBalance() {
+    if (!window.webln || !window.webln.getBalance) return null;
+    try {
+        var b = await window.webln.getBalance();
+        return b.balance || null; // sats
+    } catch(e) { return null; }
+}
+
+async function weblnMakeInvoice(amountSats, memo) {
+    if (!window.webln) throw new Error('WebLN not available');
+    var result = await window.webln.makeInvoice({
+        amount: amountSats,
+        defaultMemo: memo || 'Bitcoin Education Archive',
+    });
+    return result.paymentRequest;
+}
+
+async function weblnSendPayment(bolt11) {
+    if (!window.webln) throw new Error('WebLN not available');
+    var result = await window.webln.sendPayment(bolt11);
+    return result;
+}
+
+// ─── NWC (Nostr Wallet Connect — NIP-47) ─────────────────
+
+function parseNwcUri(uri) {
+    // Format: nostr+walletconnect://pubkey?relay=wss://...&secret=hex
+    try {
+        var cleaned = uri.trim();
+        if (cleaned.startsWith('nostr+walletconnect://')) {
+            cleaned = cleaned.replace('nostr+walletconnect://', '');
+        } else if (cleaned.startsWith('nostrwalletconnect://')) {
+            cleaned = cleaned.replace('nostrwalletconnect://', '');
+        } else {
+            throw new Error('Invalid NWC URI format');
+        }
+        var parts = cleaned.split('?');
+        var pubkey = parts[0];
+        var params = new URLSearchParams(parts[1] || '');
+        var relay = params.get('relay');
+        var secret = params.get('secret');
+        if (!pubkey || !relay || !secret) throw new Error('Missing NWC parameters');
+        return { pubkey: pubkey, relay: relay, secret: secret };
+    } catch(e) {
+        throw new Error('Invalid NWC URI. Make sure you copy the full connection string from your wallet.');
+    }
+}
+
+async function connectNWC(nwcUri) {
+    var parsed = parseNwcUri(nwcUri);
+    _ln.nwcRelay = parsed.relay;
+    _ln.nwcPubkey = parsed.pubkey;
+    _ln.nwcSecret = parsed.secret;
+    _ln.connected = true;
+    _ln.method = 'nwc';
+    _ln.walletName = 'NWC Wallet';
+    _ln.error = null;
+
+    // Store NWC connection for persistence across sessions
+    saveLnState();
+
+    // Try to get balance
+    await refreshLnBalance();
+    return true;
+}
+
+/**
+ * Send a NWC request via Nostr relay
+ * Implements NIP-47 and NIP-04 encryption/signing
+ */
+async function nwcRequest(method, params) {
+    if (!_ln.nwcRelay || !_ln.nwcPubkey || !_ln.nwcSecret) {
+        throw new Error('NWC not connected');
+    }
+
+    // Ensure nostr-tools is loaded for encryption and signing
+    if (typeof window.NostrTools === 'undefined') {
+        await new Promise(function(resolve, reject) {
+            var script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js';
+            // MED-5 FIX: SRI hash prevents CDN-compromise wallet theft
+            script.integrity = 'sha384-GwmNxV/GnZt+zRBR/Hhtu5D4MKfbxeJSApW44ARryGYtj3MFheHMFgiEZ7tVnrln';
+            script.crossOrigin = 'anonymous';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    return new Promise(function(resolve, reject) {
+        var timeout = setTimeout(function() {
+            ws.close();
+            reject(new Error('NWC request timed out (15s). Check your wallet is online.'));
+        }, 15000);
+
+        var ws = new WebSocket(_ln.nwcRelay);
+
+        ws.onopen = async function() {
+            try {
+                var nt = window.NostrTools;
+                var sk = _ln.nwcSecret;
+                var pk = nt.getPublicKey(sk);
+                var walletPk = _ln.nwcPubkey;
+
+                // Build NIP-47 request content
+                var contentObj = { method: method, params: params || {} };
+                var contentStr = JSON.stringify(contentObj);
+                
+                // NIP-04 Encryption (AES-256-CBC)
+                var encryptedContent = await nt.nip04.encrypt(sk, walletPk, contentStr);
+
+                // Create and sign event
+                var event = {
+                    pubkey: pk,
+                    created_at: Math.floor(Date.now() / 1000),
+                    kind: 23194, // NIP-47 request
+                    tags: [['p', walletPk]],
+                    content: encryptedContent,
+                };
+
+                event.id = nt.getEventHash(event);
+                event.sig = nt.getSignature(event, sk);
+
+                // Subscribe to responses
+                var subId = 'nwc_' + Math.random().toString(36).substr(2, 8);
+                ws.send(JSON.stringify(['REQ', subId, {
+                    kinds: [23195], // NIP-47 response
+                    '#e': [event.id],
+                    limit: 1,
+                }]));
+
+                // Send request
+                ws.send(JSON.stringify(['EVENT', event]));
+            } catch(e) {
+                clearTimeout(timeout);
+                ws.close();
+                reject(e);
+            }
+        };
+
+        ws.onmessage = async function(msg) {
+            try {
+                var data = JSON.parse(msg.data);
+                if (data[0] === 'EVENT' && data[2]) {
+                    var nt = window.NostrTools;
+                    var event = data[2];
+                    
+                    // Decrypt NIP-04 content
+                    try {
+                        var decrypted = await nt.nip04.decrypt(_ln.nwcSecret, _ln.nwcPubkey, event.content);
+                        var response = JSON.parse(decrypted);
+                        clearTimeout(timeout);
+                        ws.close();
+                        if (response.error) reject(new Error(response.error.message || 'NWC error'));
+                        else resolve(response.result);
+                    } catch(e) {
+                        console.error('[NWC] Decryption failed:', e);
+                        clearTimeout(timeout);
+                        ws.close();
+                        reject(new Error('Failed to decrypt NWC response'));
+                    }
+                }
+            } catch(e) { /* ignore parse errors on non-event messages */ }
+        };
+
+        ws.onerror = function(e) {
+            clearTimeout(timeout);
+            reject(new Error('WebSocket error connecting to relay'));
+        };
+    });
+}
+
+async function nwcGetBalance() {
+    try {
+        var result = await nwcRequest('get_balance');
+        return result.balance ? Math.floor(result.balance / 1000) : null; // msats → sats
+    } catch(e) { return null; }
+}
+
+async function nwcMakeInvoice(amountSats, memo) {
+    var result = await nwcRequest('make_invoice', {
+        amount: amountSats * 1000, // sats → msats
+        description: memo || 'Bitcoin Education Archive',
+    });
+    return result.invoice; // bolt11 string
+}
+
+async function nwcSendPayment(bolt11) {
+    var result = await nwcRequest('pay_invoice', { invoice: bolt11 });
+    return result;
+}
+
+// ─── Simple event ID generator ───────────────────────────
+function generateEventId() {
+    var arr = new Uint8Array(32);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+// ─── Unified Interface ───────────────────────────────────
+
+async function refreshLnBalance() {
+    if (!_ln.connected) return;
+    try {
+        if (_ln.method === 'webln') _ln.balance = await weblnGetBalance();
+        else if (_ln.method === 'nwc') _ln.balance = await nwcGetBalance();
+    } catch(e) { /* balance may not be supported */ }
+}
+
+async function lnMakeInvoice(amountSats, memo) {
+    if (_ln.method === 'webln') return weblnMakeInvoice(amountSats, memo);
+    if (_ln.method === 'nwc') return nwcMakeInvoice(amountSats, memo);
+    throw new Error('No Lightning wallet connected');
+}
+
+async function lnSendPayment(bolt11) {
+    if (_ln.method === 'webln') return weblnSendPayment(bolt11);
+    if (_ln.method === 'nwc') return nwcSendPayment(bolt11);
+    throw new Error('No Lightning wallet connected');
+}
+
+function disconnectLn() {
+    _ln.connected = false;
+    _ln.method = null;
+    _ln.balance = null;
+    _ln.walletName = null;
+    _ln.nwcRelay = null;
+    _ln.nwcPubkey = null;
+    _ln.nwcSecret = null;
+    _ln.error = null;
+    localStorage.removeItem('btc_ln_state');
+    sessionStorage.removeItem('btc_ln_secret');
+}
+
+// ─── Persistence ─────────────────────────────────────────
+function saveLnState() {
+    // Store non-secret connection info in localStorage (survives refresh)
+    var save = { method: _ln.method, walletName: _ln.walletName };
+    if (_ln.method === 'nwc') {
+        save.nwcRelay = _ln.nwcRelay;
+        save.nwcPubkey = _ln.nwcPubkey;
+        // nwcSecret intentionally NOT stored in localStorage (F-002 security fix)
+        // It goes to sessionStorage only — cleared when the tab/browser closes
+    }
+    localStorage.setItem('btc_ln_state', JSON.stringify(save));
+    // Secret stored separately in sessionStorage only
+    if (_ln.method === 'nwc' && _ln.nwcSecret) {
+        sessionStorage.setItem('btc_ln_secret', _ln.nwcSecret);
+    }
+}
+
+function restoreLnState() {
+    try {
+        var raw = localStorage.getItem('btc_ln_state');
+        if (!raw) return false;
+        var s = JSON.parse(raw);
+        if (s.method === 'nwc' && s.nwcRelay && s.nwcPubkey) {
+            // Secret lives in sessionStorage only (F-002: not persisted to localStorage)
+            var secret = sessionStorage.getItem('btc_ln_secret');
+            if (!secret) return false; // session expired — require re-entry
+            _ln.method = 'nwc';
+            _ln.walletName = s.walletName || 'NWC Wallet';
+            _ln.nwcRelay = s.nwcRelay;
+            _ln.nwcPubkey = s.nwcPubkey;
+            _ln.nwcSecret = secret;
+            _ln.connected = true;
+            return true;
+        }
+        if (s.method === 'webln' && hasWebLN()) {
+            // Re-enable WebLN
+            _ln.method = 'webln';
+            _ln.walletName = s.walletName || 'WebLN Wallet';
+            _ln.connected = true;
+            return true;
+        }
+    } catch(e) {}
+    return false;
+}
+
+// ─── MAIN RENDER ─────────────────────────────────────────
+
+window.renderLightning = function() {
+    var fc = document.getElementById('forumContainer');
+    if (!fc) return;
+
+    // Try restoring previous connection
+    if (!_ln.connected) restoreLnState();
+
+    var h = '<div style="max-width:580px;margin:0 auto;padding:20px 16px 120px;">';
+
+    // Header
+    h += '<div style="text-align:center;margin-bottom:22px;animation:fadeSlideIn 0.4s ease-out;">' +
+        '<div onclick="goHome()" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--text-muted);font-size:0.8rem;">← Back to Archive</div>' +
+        '<div style="font-size:2.5rem;margin-bottom:6px;">⚡</div>' +
+        '<h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0 0 4px;">Lightning Wallet</h2>' +
+        '<p style="color:var(--text-muted);font-size:0.82rem;margin:0;">Connect your own wallet · Non-custodial · Instant payments</p>' +
+    '</div>';
+
+    if (_ln.connected) {
+        h += renderConnected();
+    } else {
+        h += renderConnectionOptions();
+    }
+
+    // Educational info
+    h += '<div style="margin-top:22px;">' +
+        '<h3 style="color:var(--heading);font-size:0.9rem;font-weight:700;margin:0 0 10px;">How It Works</h3>' +
+        '<div style="padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;">' +
+            '<p style="color:var(--text);font-size:0.82rem;line-height:1.55;margin:0;">This page connects to <strong>your own Lightning wallet</strong>. We never hold your keys or your sats. When you send or receive, your wallet handles everything — we\'re just the interface.</p>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">' +
+            '<div style="padding:12px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">' +
+                '<div style="font-size:1.1rem;margin-bottom:3px;">🔐</div>' +
+                '<div style="color:var(--heading);font-size:0.72rem;font-weight:700;">Your Keys</div>' +
+                '<div style="color:var(--text-muted);font-size:0.65rem;">We never see them</div>' +
+            '</div>' +
+            '<div style="padding:12px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">' +
+                '<div style="font-size:1.1rem;margin-bottom:3px;">🏎️</div>' +
+                '<div style="color:var(--heading);font-size:0.72rem;font-weight:700;">Instant</div>' +
+                '<div style="color:var(--text-muted);font-size:0.65rem;">Millisecond settlement</div>' +
+            '</div>' +
+            '<div style="padding:12px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">' +
+                '<div style="font-size:1.1rem;margin-bottom:3px;">💸</div>' +
+                '<div style="color:var(--heading);font-size:0.72rem;font-weight:700;">Tiny Fees</div>' +
+                '<div style="color:var(--text-muted);font-size:0.65rem;">Fractions of a cent</div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+
+    // Link to on-chain wallet
+    // On-chain wallet removed — Lightning only
+
+    h += '</div>';
+    fc.innerHTML = h;
+};
+
+// ─── Connection Options (not connected) ──────────────────
+function renderConnectionOptions() {
+    var h = '<div style="animation:fadeSlideIn 0.5s ease-out;">';
+
+    // WebLN option
+    h += '<div style="padding:18px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+            '<div style="width:40px;height:40px;background:linear-gradient(135deg,#f7931a,#eab308);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">⚡</div>' +
+            '<div><h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin:0;">Connect via WebLN</h3>' +
+            '<p style="color:var(--text-muted);font-size:0.78rem;margin:0;">Browser extension (Alby, etc.)</p></div>' +
+        '</div>' +
+        '<p style="color:var(--text);font-size:0.82rem;line-height:1.5;margin:0 0 12px;">If you have <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Alby</a> or another WebLN browser extension installed, click below to connect instantly.</p>' +
+        '<button onclick="lnConnectWebLN()" style="width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">' +
+            (hasWebLN() ? '⚡ Connect WebLN Wallet' : '⚡ Connect (install Alby first)') +
+        '</button>' +
+        '<div id="weblnStatus" style="text-align:center;margin-top:6px;font-size:0.82rem;"></div>' +
+    '</div>';
+
+    // NWC option
+    h += '<div style="padding:18px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+            '<div style="width:40px;height:40px;background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🟣</div>' +
+            '<div><h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin:0;">Connect via NWC</h3>' +
+            '<p style="color:var(--text-muted);font-size:0.78rem;margin:0;">Nostr Wallet Connect — works on mobile!</p></div>' +
+        '</div>' +
+        '<p style="color:var(--text);font-size:0.82rem;line-height:1.5;margin:0 0 10px;">Paste your NWC connection string from <strong>Alby Hub</strong>, <strong>Umbrel</strong>, <strong>LNbits</strong>, or any NWC-compatible wallet.</p>' +
+        '<textarea id="nwcUri" placeholder="nostr+walletconnect://pubkey?relay=wss://...&secret=..." rows="3" style="width:100%;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:10px;"></textarea>' +
+        '<button onclick="lnConnectNWC()" style="width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🟣 Connect NWC Wallet</button>' +
+        '<div id="nwcStatus" style="text-align:center;margin-top:6px;font-size:0.82rem;"></div>' +
+    '</div>';
+
+    // Lightning Address section
+    var savedLnAddr = '';
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.lightning) {
+        savedLnAddr = currentUser.lightning;
+    }
+    h += '<div style="padding:18px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+            '<div style="width:40px;height:40px;background:linear-gradient(135deg,#eab308,#f97316);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">⚡</div>' +
+            '<div><h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin:0;">Lightning Address</h3>' +
+            '<p style="color:var(--text-muted);font-size:0.78rem;margin:0;">So other users can tip you sats</p></div>' +
+        '</div>' +
+        '<p style="color:var(--text);font-size:0.82rem;line-height:1.5;margin:0 0 10px;">Enter your Lightning Address (looks like an email). Get one from <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Alby</a>, <a href="https://walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Wallet of Satoshi</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Coinos</a>, or <a href="https://strike.me" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Strike</a>.</p>' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<input type="text" id="lnAddrInput" placeholder="you@walletofsatoshi.com" value="' + (typeof escapeHtml === 'function' ? escapeHtml(savedLnAddr) : savedLnAddr) + '" style="flex:1;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')saveLnAddress()">' +
+            '<button onclick="saveLnAddress()" style="padding:11px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Save</button>' +
+        '</div>' +
+        '<div id="lnAddrStatus" style="margin-top:6px;font-size:0.78rem;text-align:center;"></div>' +
+        (savedLnAddr ? '<div style="margin-top:6px;font-size:0.72rem;color:#22c55e;text-align:center;">✅ Your Lightning Address is set — you can receive tips!</div>' : '') +
+    '</div>';
+
+    // Compatible wallets
+    h += '<div style="padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;">' +
+        '<h4 style="color:var(--heading);font-size:0.82rem;font-weight:700;margin:0 0 8px;">Compatible Wallets</h4>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">' +
+            '<div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Alby</strong> — WebLN + NWC</div>' +
+            '<div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Zeus</strong> — NWC</div>' +
+            '<div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Umbrel</strong> — NWC</div>' +
+            '<div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Phoenix</strong> — NWC</div>' +
+            '<div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>Mutiny</strong> — NWC</div>' +
+            '<div style="padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-size:0.78rem;color:var(--text);"><strong>LNbits</strong> — NWC</div>' +
+        '</div>' +
+    '</div>';
+
+    h += '</div>';
+    return h;
+}
+
+// ─── Connected Dashboard ─────────────────────────────────
+function renderConnected() {
+    var h = '<div style="animation:fadeSlideIn 0.5s ease-out;">';
+
+    // Connection status
+    h += '<div style="padding:16px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">' +
+        '<div style="width:10px;height:10px;background:#22c55e;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px rgba(34,197,94,0.6);"></div>' +
+        '<div style="flex:1;">' +
+            '<div style="color:#22c55e;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Connected</div>' +
+            '<div style="color:var(--text);font-size:0.88rem;font-weight:600;">' + escapeHtml(_ln.walletName || 'Lightning Wallet') + '</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;">via ' + (_ln.method === 'webln' ? 'WebLN' : 'Nostr Wallet Connect') + '</div>' +
+        '</div>' +
+        '<button onclick="lnDisconnect()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:6px 12px;border-radius:8px;font-size:0.72rem;cursor:pointer;font-family:inherit;flex-shrink:0;">Disconnect</button>' +
+    '</div>';
+
+    // Balance
+    h += '<div style="padding:20px;background:linear-gradient(135deg,rgba(234,179,8,0.1),rgba(249,115,22,0.06));border:1px solid rgba(234,179,8,0.25);border-radius:18px;text-align:center;margin-bottom:14px;">' +
+        '<div style="color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px;">Lightning Balance</div>' +
+        '<div style="color:var(--heading);font-size:1.8rem;font-weight:900;">' +
+            (_ln.balance !== null ? WalletBridge.formatSats(_ln.balance) : '<span style="color:var(--text-faint);font-size:1rem;">Balance not available</span>') +
+        '</div>' +
+        '<button onclick="lnRefreshBalance()" style="background:none;border:none;color:var(--accent);font-size:0.72rem;cursor:pointer;font-family:inherit;margin-top:4px;">🔄 Refresh</button>' +
+    '</div>';
+
+    // Actions
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">' +
+        '<button onclick="lnShowReceive()" style="padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;transition:0.2s;touch-action:manipulation;"><span style="font-size:1.3rem;">📥</span>Receive</button>' +
+        '<button onclick="lnShowSend()" style="padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;transition:0.2s;"><span style="font-size:1.3rem;">📤</span>Send</button>' +
+    '</div>';
+
+    // Tip: Lightning Address
+    h += '<div style="padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;">' +
+        '<h4 style="color:var(--heading);font-size:0.85rem;font-weight:700;margin:0 0 6px;">💡 Want a Lightning Address?</h4>' +
+        '<p style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;margin:0;">Get a reusable address like <strong style="color:var(--accent);">you@getalby.com</strong> from your wallet provider. We recommend <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);">Alby</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);">Coinos</a>, or <a href="https://www.walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);">Wallet of Satoshi</a>.</p>' +
+    '</div>';
+
+    h += '</div>';
+    return h;
+}
+
+// ─── Connection Actions ──────────────────────────────────
+
+window.lnConnectWebLN = async function() {
+    var st = document.getElementById('weblnStatus');
+    try {
+        st.innerHTML = '<span style="color:var(--accent);">⏳ Connecting…</span>';
+        await connectWebLN();
+        if (typeof showToast === 'function') showToast('⚡ Lightning wallet connected!');
+        renderLightning();
+    } catch(e) {
+        st.innerHTML = '<span style="color:#ef4444;">' + escapeHtml(e.message) + '</span>';
+    }
+};
+
+window.lnConnectNWC = async function() {
+    var uri = document.getElementById('nwcUri');
+    var st = document.getElementById('nwcStatus');
+    if (!uri || !uri.value.trim()) { st.innerHTML = '<span style="color:#ef4444;">Paste your NWC connection string</span>'; return; }
+    try {
+        st.innerHTML = '<span style="color:var(--accent);">⏳ Connecting…</span>';
+        await connectNWC(uri.value.trim());
+        if (typeof showToast === 'function') showToast('🟣 NWC wallet connected!');
+        renderLightning();
+    } catch(e) {
+        st.innerHTML = '<span style="color:#ef4444;">' + escapeHtml(e.message) + '</span>';
+    }
+};
+
+window.lnDisconnect = function() {
+    disconnectLn();
+    if (typeof showToast === 'function') showToast('⚡ Wallet disconnected');
+    renderLightning();
+};
+
+window.lnRefreshBalance = async function() {
+    await refreshLnBalance();
+    renderLightning();
+};
+
+// ─── Receive (create invoice) ────────────────────────────
+window.lnShowReceive = function() {
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:26px;max-width:380px;width:100%;animation:fadeSlideIn 0.3s;">' +
+        '<h3 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 14px;text-align:center;">⚡ Receive via Lightning</h3>' +
+        '<div style="margin-bottom:10px;">' +
+            '<label style="color:var(--text-dim);font-size:0.78rem;font-weight:600;display:block;margin-bottom:3px;">Amount (sats)</label>' +
+            '<input type="number" id="lnRecvAmt" placeholder="e.g., 1000" min="1" style="width:100%;padding:11px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
+        '</div>' +
+        '<div style="margin-bottom:14px;">' +
+            '<label style="color:var(--text-dim);font-size:0.78rem;font-weight:600;display:block;margin-bottom:3px;">Memo (optional)</label>' +
+            '<input type="text" id="lnRecvMemo" placeholder="What\'s this for?" style="width:100%;padding:11px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
+        '</div>' +
+        '<button onclick="lnCreateInvoice()" id="lnRecvBtn" style="width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Create Invoice</button>' +
+        '<div id="lnRecvResult" style="margin-top:10px;"></div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;margin-top:6px;">Close</button>' +
+    '</div>';
+    document.body.appendChild(ov);
+};
+
+window.lnCreateInvoice = async function() {
+    var amt = parseInt(document.getElementById('lnRecvAmt').value);
+    var memo = document.getElementById('lnRecvMemo').value || '';
+    var res = document.getElementById('lnRecvResult');
+    var btn = document.getElementById('lnRecvBtn');
+    if (!amt || amt < 1) { res.innerHTML = '<span style="color:#ef4444;">Enter an amount</span>'; return; }
+    btn.disabled = true; btn.textContent = '⏳ Creating…';
+    try {
+        var invoice = await lnMakeInvoice(amt, memo);
+        // LOW-6 FIX: Build receive-invoice UI with createElement/textContent.
+        // Raw invoice strings must never be interpolated into innerHTML or onclick handlers.
+        var invWrap = document.createElement('div');
+        invWrap.style.cssText = 'padding:10px;background:var(--input-bg);border:1px solid var(--accent);border-radius:10px;margin-top:6px;';
+
+        var invLabel = document.createElement('div');
+        invLabel.style.cssText = 'font-size:0.68rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:6px;';
+        invLabel.textContent = 'BOLT11 Invoice';
+        invWrap.appendChild(invLabel);
+
+        var qrDiv = document.createElement('div');
+        qrDiv.id = 'lnRecvQR';
+        qrDiv.style.cssText = 'width:180px;height:180px;margin:0 auto 8px;';
+        invWrap.appendChild(qrDiv);
+
+        var invText = document.createElement('div');
+        invText.style.cssText = 'font-family:monospace;font-size:0.62rem;color:var(--text);word-break:break-all;line-height:1.4;cursor:pointer;max-height:80px;overflow-y:auto;';
+        invText.textContent = invoice; // textContent: safe by construction
+        invText.addEventListener('click', function() {
+            navigator.clipboard.writeText(invoice);
+            if (typeof showToast === 'function') showToast('📋 Invoice copied!');
+        });
+        invWrap.appendChild(invText);
+
+        var recvCopyBtn = document.createElement('button');
+        recvCopyBtn.style.cssText = 'width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;';
+        recvCopyBtn.textContent = '📋 Copy Invoice';
+        recvCopyBtn.addEventListener('click', function() {
+            navigator.clipboard.writeText(invoice);
+            if (typeof showToast === 'function') showToast('📋 Invoice copied!');
+        });
+        invWrap.appendChild(recvCopyBtn);
+
+        res.innerHTML = '';
+        res.appendChild(invWrap);
+
+        if (typeof window._renderQRCode === 'function') {
+            window._renderQRCode(document.getElementById('lnRecvQR'), 'lightning:' + invoice, 180);
+        }
+        btn.textContent = '✅ Created';
+    } catch(e) {
+        res.innerHTML = '<span style="color:#ef4444;">' + escapeHtml(e.message) + '</span>';
+        btn.disabled = false; btn.textContent = '⚡ Create Invoice';
+    }
+};
+
+// ─── Send (pay invoice) ──────────────────────────────────
+window.lnShowSend = function() {
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:26px;max-width:380px;width:100%;animation:fadeSlideIn 0.3s;">' +
+        '<h3 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 14px;text-align:center;">📤 Send via Lightning</h3>' +
+        '<div style="margin-bottom:14px;">' +
+            '<label style="color:var(--text-dim);font-size:0.78rem;font-weight:600;display:block;margin-bottom:3px;">Paste BOLT11 Invoice</label>' +
+            '<textarea id="lnSendInvoice" placeholder="lnbc…" rows="4" style="width:100%;padding:11px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.82rem;font-family:monospace;outline:none;resize:vertical;box-sizing:border-box;"></textarea>' +
+        '</div>' +
+        '<button onclick="lnPayInvoice()" id="lnSendBtn" style="width:100%;padding:13px;background:#ef4444;color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Pay Invoice</button>' +
+        '<div id="lnSendResult" style="margin-top:10px;"></div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;margin-top:6px;">Close</button>' +
+    '</div>';
+    document.body.appendChild(ov);
+};
+
+window.lnPayInvoice = async function() {
+    var bolt11 = (document.getElementById('lnSendInvoice').value || '').trim();
+    var res = document.getElementById('lnSendResult');
+    var btn = document.getElementById('lnSendBtn');
+    if (!bolt11 || (!bolt11.startsWith('lnbc') && !bolt11.startsWith('lntb'))) {
+        res.innerHTML = '<span style="color:#ef4444;">Paste a valid Lightning invoice (starts with lnbc)</span>'; return;
+    }
+    btn.disabled = true; btn.textContent = '⏳ Sending…';
+    try {
+        await lnSendPayment(bolt11);
+        res.innerHTML = '<div style="padding:12px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:10px;text-align:center;"><div style="font-size:1.3rem;margin-bottom:3px;">✅</div><div style="color:#22c55e;font-weight:700;">Payment Sent!</div></div>';
+        btn.textContent = '✅ Paid';
+        // Refresh balance
+        setTimeout(function() { refreshLnBalance().then(renderLightning); }, 2000);
+    } catch(e) {
+        res.innerHTML = '<span style="color:#ef4444;">' + escapeHtml(e.message) + '</span>';
+        btn.disabled = false; btn.textContent = '⚡ Pay Invoice';
+    }
+};
+
+// ─── Expose unified payment function for tips ───────────
+window.lnSendPaymentDirect = async function(bolt11) {
+    return lnSendPayment(bolt11);
+};
+
+// ─── Save Lightning Address to profile ───────────────────
+window.saveLnAddress = async function() {
+    var input = document.getElementById('lnAddrInput');
+    var status = document.getElementById('lnAddrStatus');
+    if (!input) return;
+    var addr = input.value.trim();
+
+    // Validate format
+    if (addr && (!addr.includes('@') || addr.length < 5)) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)</span>';
+        return;
+    }
+
+    // Must be signed in
+    if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Sign in to save your Lightning Address</span>';
+        return;
+    }
+
+    try {
+        if (status) status.innerHTML = '<span style="color:var(--accent);">Saving…</span>';
+        await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr, lightningAddress: addr });
+        // Update local user object
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.lightning = addr;
+            currentUser.lightningAddress = addr;
+        }
+        if (addr) {
+            if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Lightning Address saved! You can now receive tips.</span>';
+            if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');
+            // Dismiss the setup prompt if it exists
+            localStorage.setItem('btc_ln_prompt_dismissed', '1');
+            var prompt = document.getElementById('lnAddressPrompt');
+            if (prompt) prompt.remove();
+        } else {
+            if (status) status.innerHTML = '<span style="color:var(--text-faint);">Lightning Address removed.</span>';
+        }
+    } catch(e) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Error saving — try again</span>';
+    }
+};
+
+console.log('[LIGHTNING] Non-custodial WebLN + NWC module loaded');
+})();
