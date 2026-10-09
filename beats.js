@@ -2422,7 +2422,7 @@ window.beatsTipCurrentArtist = function() {
 // ================================================================
 // FEATURE 2: Smart Discovery Sorts + Genre Filters
 // ================================================================
-window._beatsDiscoverSort = 'newest';
+window._beatsDiscoverSort = 'most-played';
 window._beatsGenreFilter = '';
 
 window.beatsSetSort = function(sort) {
@@ -2462,11 +2462,11 @@ window.beatsSetGenre = function(genre) {
             var sortBtnStyle = 'padding:6px 12px;border-radius:16px;border:1px solid var(--border);background:none;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;transition:0.2s;';
             sortBar.innerHTML =
                 '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">' +
-                    '<button class="beats-sort-btn" data-sort="newest" onclick="beatsSetSort(\'newest\')" style="' + sortBtnStyle + 'border-color:var(--accent);color:var(--accent);">🆕 Newest</button>' +
-                    '<button class="beats-sort-btn" data-sort="trending" onclick="beatsSetSort(\'trending\')" style="' + sortBtnStyle + 'color:var(--text-muted);">🔥 Trending</button>' +
-                    '<button class="beats-sort-btn" data-sort="most-played" onclick="beatsSetSort(\'most-played\')" style="' + sortBtnStyle + 'color:var(--text-muted);">▶ Most Played</button>' +
-                    '<button class="beats-sort-btn" data-sort="most-liked" onclick="beatsSetSort(\'most-liked\')" style="' + sortBtnStyle + 'color:var(--text-muted);">❤️ Most Liked</button>' +
-                    '<button class="beats-sort-btn" data-sort="shuffle" onclick="beatsSetSort(\'shuffle\')" style="' + sortBtnStyle + 'color:var(--text-muted);">🎲 Shuffle</button>' +
+                    '<button class="beats-sort-btn" data-sort="newest" onclick="beatsSetSort(\'newest\')" style="' + sortBtnStyle + (window._beatsDiscoverSort === \'newest\' ? \'border-color:var(--accent);color:var(--accent);\' : \'color:var(--text-muted);\') + '">🆕 Newest</button>' +
+                    '<button class="beats-sort-btn" data-sort="trending" onclick="beatsSetSort(\'trending\')" style="' + sortBtnStyle + (window._beatsDiscoverSort === \'trending\' ? \'border-color:var(--accent);color:var(--accent);\' : \'color:var(--text-muted);\') + '">🔥 Trending</button>' +
+                    '<button class="beats-sort-btn" data-sort="most-played" onclick="beatsSetSort(\'most-played\')" style="' + sortBtnStyle + (window._beatsDiscoverSort === \'most-played\' ? \'border-color:var(--accent);color:var(--accent);\' : \'color:var(--text-muted);\') + '">▶ Most Played</button>' +
+                    '<button class="beats-sort-btn" data-sort="most-liked" onclick="beatsSetSort(\'most-liked\')" style="' + sortBtnStyle + (window._beatsDiscoverSort === \'most-liked\' ? \'border-color:var(--accent);color:var(--accent);\' : \'color:var(--text-muted);\') + '">❤️ Most Liked</button>' +
+                    '<button class="beats-sort-btn" data-sort="shuffle" onclick="beatsSetSort(\'shuffle\')" style="' + sortBtnStyle + (window._beatsDiscoverSort === \'shuffle\' ? \'border-color:var(--accent);color:var(--accent);\' : \'color:var(--text-muted);\') + '">🎲 Shuffle</button>' +
                 '</div>' +
                 '<div id="beatsGenreChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>';
             listEl.parentNode.insertBefore(sortBar, listEl);
