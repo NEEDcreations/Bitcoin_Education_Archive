@@ -6774,10 +6774,10 @@ window._acceptTos = async function() {
     if (btn) { btn.textContent = 'Saving...'; btn.classList.remove('ready'); }
     try {
         if (currentUser && auth.currentUser && !auth.currentUser.isAnonymous) {
-            await db.collection('users').doc(auth.currentUser.uid).update({
+            await db.collection('users').doc(auth.currentUser.uid).set({
                 tosVersion: TOS_CURRENT_VERSION,
                 tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            }, { merge: true });
             currentUser.tosVersion = TOS_CURRENT_VERSION;
             // Update local cache
             try {
