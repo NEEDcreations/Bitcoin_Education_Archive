@@ -76,6 +76,8 @@ service cloud.firestore {
                         // to toggle badge visibility preference (cosmetic, not gated).
                         // Social / gamification counters (CF)
                         'forumPosts', 'forumReplies', 'lastSpinDate',
+                        // Gifting system (CF-only)
+                        'lastGiftSpinDate', 'giftsOpenedToday', 'giftsOpenedDate',
                         'marketListings', 'marketMessages',
                         'referralTicketsEarned', 'referralCode',
                         'pointsDonated', 'donationBadges',
@@ -1017,8 +1019,8 @@ service cloud.firestore {
                         'hasChatFlair','chatFlairEmoji','hasNachoSkin',
                         'isGif','caption','imageUrl','gifUrl'])
                     // F-004: imageUrl/gifUrl must come from Firebase Storage or Tenor CDN only
-                    && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://(firebasestorage\.googleapis\.com|[^/]+\.firebasestorage\.app|media\.tenor\.com|c\.tenor\.com)/.*'))
-                    && (!('gifUrl'   in request.resource.data) || request.resource.data.gifUrl.matches('^https://(firebasestorage\.googleapis\.com|[^/]+\.firebasestorage\.app|media\.tenor\.com|c\.tenor\.com)/.*'))
+                    && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
+                    && (!('gifUrl'   in request.resource.data) || request.resource.data.gifUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
@@ -1550,6 +1552,29 @@ service cloud.firestore {
 
     // CSRF nonce store for Strava OAuth — server-side only, clients have zero access
     match /strava_nonces/{nonce} {
+      allow read, write: if false;
+    }
+
+    // =============================================
+    // GIFTS — peer-to-peer gifting system
+    // ticketCount lives in gift_secrets (CF-only), never in the gifts doc
+    // =============================================
+    match /gifts/{giftId} {
+      // Current owner (holding it or received it) and original sender can read
+      allow read: if request.auth != null
+                  && (resource.data.ownerId == request.auth.uid
+                      || resource.data.sentBy == request.auth.uid);
+      allow write: if false; // Cloud Function (Admin SDK) only
+    }
+
+    // Gift ticket secrets — never readable by clients, CF Admin SDK only
+    match /gift_secrets/{giftId} {
+      allow read, write: if false;
+    }
+
+    // One-pending-per-pair tracker — CF (Admin SDK) only
+    // docId = {senderUid}_{recipientUid}; set on send, deleted on open
+    match /gift_pending_pairs/{pairId} {
       allow read, write: if false;
     }
 

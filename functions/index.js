@@ -8415,3 +8415,227 @@ exports.nachoRadioTick = onSchedule({
 
     console.log(`[NachoRadio] ▶ "${track.title}" by ${track.artist || track.authorName} (${track.duration}s) | song #${songCount}`);
 });
+
+// =============================================
+// GIFTING SYSTEM
+// =============================================
+// Gift secrets stored in separate collection (gift_secrets/{giftId})
+// ticketCount never lives in the main gifts doc until revealed at open time
+
+exports.awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to earn gifts');
+    }
+    const uid = context.auth.uid;
+    const today = getOffsetDateKey();
+    const userRef = db.collection('users').doc(uid);
+
+    // Check if already awarded today (outside transaction for fast-fail)
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
+    if (userSnap.data().lastGiftSpinDate === today) {
+        return { alreadyAwarded: true };
+    }
+
+    // Check inventory cap (max 50 unsent gifts)
+    const invSnap = await db.collection('gifts')
+        .where('ownerId', '==', uid)
+        .where('status', '==', 'inventory')
+        .limit(51).get();
+    const currentInventory = invSnap.size;
+    const giftsToAdd = Math.min(5, Math.max(0, 50 - currentInventory));
+
+    if (giftsToAdd === 0) {
+        // Still mark date so they don't keep calling
+        await userRef.update({ lastGiftSpinDate: today });
+        return { alreadyAwarded: false, giftsAdded: 0, message: 'Inventory full (50 max)' };
+    }
+
+    // Roll ticket counts server-side (60% = 1, 30% = 2, 10% = 3)
+    function rollTickets() {
+        const r = Math.random();
+        return r < 0.6 ? 1 : r < 0.9 ? 2 : 3;
+    }
+
+    const batch = db.batch();
+    for (let i = 0; i < giftsToAdd; i++) {
+        const giftRef = db.collection('gifts').doc();
+        const secretRef = db.collection('gift_secrets').doc(giftRef.id);
+        batch.set(giftRef, {
+            ownerId: uid,
+            status: 'inventory',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdDateKey: today,
+            sentTo: null,
+            sentBy: null,
+            sentByName: null,
+            sentAt: null,
+            sentDateKey: null,
+            openedAt: null,
+            openedBy: null,
+        });
+        batch.set(secretRef, {
+            ticketCount: rollTickets(),
+            ownerId: uid,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+    batch.update(userRef, { lastGiftSpinDate: today });
+    await batch.commit();
+
+    return { success: true, giftsAdded: giftsToAdd };
+});
+
+exports.sendGift = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to send gifts');
+    }
+    const uid = context.auth.uid;
+    const giftId = (data.giftId || '').toString().trim();
+    const recipientUid = (data.recipientUid || '').toString().trim();
+
+    if (!giftId || giftId.length > 128) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid giftId');
+    if (!recipientUid || recipientUid.length > 128) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid recipientUid');
+    if (uid === recipientUid) throw new functionsV1.https.HttpsError('invalid-argument', 'Cannot send a gift to yourself');
+
+    const giftRef    = db.collection('gifts').doc(giftId);
+    const secretRef  = db.collection('gift_secrets').doc(giftId);
+    const senderRef  = db.collection('users').doc(uid);
+    const recipRef   = db.collection('users').doc(recipientUid);
+    const pairId     = uid + '_' + recipientUid; // one-pending-per-pair tracker
+    const pairRef    = db.collection('gift_pending_pairs').doc(pairId);
+    const today      = getOffsetDateKey();
+
+    await db.runTransaction(async (t) => {
+        const [giftDoc, secretDoc, senderDoc, recipDoc, pairDoc] = await Promise.all([
+            t.get(giftRef), t.get(secretRef), t.get(senderRef), t.get(recipRef), t.get(pairRef)
+        ]);
+
+        if (!giftDoc.exists)   throw new functionsV1.https.HttpsError('not-found',          'Gift not found');
+        if (!secretDoc.exists) throw new functionsV1.https.HttpsError('internal',            'Gift secret missing');
+        if (!senderDoc.exists) throw new functionsV1.https.HttpsError('not-found',           'Sender not found');
+        if (!recipDoc.exists)  throw new functionsV1.https.HttpsError('not-found',           'Recipient not found');
+
+        const gift   = giftDoc.data();
+        const sender = senderDoc.data();
+
+        if (gift.ownerId !== uid)          throw new functionsV1.https.HttpsError('permission-denied',   'Not your gift');
+        if (gift.status !== 'inventory')   throw new functionsV1.https.HttpsError('failed-precondition', 'Gift already sent or opened');
+
+        const peers = sender.peers || [];
+        if (!peers.includes(recipientUid)) throw new functionsV1.https.HttpsError('failed-precondition', 'You must be peers to send a gift');
+
+        // One-pending-per-pair check: block if a gift already awaits opening
+        if (pairDoc.exists) {
+            throw new functionsV1.https.HttpsError('failed-precondition',
+                'You already have a gift waiting for this person. They need to open it before you can send another! 🎁');
+        }
+
+        t.update(giftRef, {
+            ownerId:     recipientUid,
+            status:      'sent',
+            sentTo:      recipientUid,
+            sentBy:      uid,
+            sentByName:  sender.username || 'Bitcoiner',
+            sentAt:      admin.firestore.FieldValue.serverTimestamp(),
+            sentDateKey: today,
+        });
+        t.update(secretRef, { ownerId: recipientUid });
+        // Record the pending pair (blocks further sends until opened)
+        t.set(pairRef, {
+            senderUid:    uid,
+            recipientUid: recipientUid,
+            giftId:       giftId,
+            sentAt:       admin.firestore.FieldValue.serverTimestamp(),
+        });
+        // Award 25 XP to sender inside transaction (server-side direct increment)
+        t.update(senderRef, {
+            points:    admin.firestore.FieldValue.increment(25),
+            weeklyXP:  admin.firestore.FieldValue.increment(25),
+            monthlyXP: admin.firestore.FieldValue.increment(25),
+        });
+    });
+
+    // Notify recipient (outside transaction — non-critical)
+    try {
+        const senderSnap = await senderRef.get();
+        const sn = senderSnap.exists ? senderSnap.data() : {};
+        await db.collection('notifications').add({
+            recipientId: recipientUid,
+            senderId:    uid,
+            senderName:  sn.username || 'Bitcoiner',
+            type:        'gift_received',
+            message:     (sn.username || 'Someone') + ' sent you a gift! 🎁',
+            targetType:  'gift_received',
+            targetId:    giftId,
+            giftId:      giftId,
+            read:        false,
+            createdAt:   admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch(e) { console.warn('[sendGift] notification failed:', e.message); }
+
+    return { success: true };
+});
+
+exports.openGift = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to open gifts');
+    }
+    const uid    = context.auth.uid;
+    const giftId = (data.giftId || '').toString().trim();
+    if (!giftId || giftId.length > 128) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid giftId');
+
+    const giftRef   = db.collection('gifts').doc(giftId);
+    const secretRef = db.collection('gift_secrets').doc(giftId);
+    const userRef   = db.collection('users').doc(uid);
+    const today     = getOffsetDateKey();
+
+    let ticketCount = 0;
+    await db.runTransaction(async (t) => {
+        const [giftDoc, secretDoc, userDoc] = await Promise.all([
+            t.get(giftRef), t.get(secretRef), t.get(userRef)
+        ]);
+
+        if (!giftDoc.exists)   throw new functionsV1.https.HttpsError('not-found',          'Gift not found');
+        if (!secretDoc.exists) throw new functionsV1.https.HttpsError('internal',            'Gift secret missing');
+        if (!userDoc.exists)   throw new functionsV1.https.HttpsError('not-found',           'User not found');
+
+        const gift = giftDoc.data();
+        const user = userDoc.data();
+
+        if (gift.ownerId !== uid)        throw new functionsV1.https.HttpsError('permission-denied',   'Not your gift');
+        if (gift.status === 'opened')    throw new functionsV1.https.HttpsError('already-exists',      'Gift already opened');
+        if (gift.status !== 'sent')      throw new functionsV1.https.HttpsError('failed-precondition', 'Gift not in sent status');
+        if (gift.sentTo !== uid)         throw new functionsV1.https.HttpsError('permission-denied',   'Gift not addressed to you');
+
+        // Daily open cap (transaction-safe counter on user doc)
+        const openedDate  = user.giftsOpenedDate  || '';
+        const openedToday = openedDate === today ? (user.giftsOpenedToday || 0) : 0;
+        if (openedToday >= 20) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily gift open limit reached (20/day). Come back tomorrow!');
+        }
+
+        ticketCount = secretDoc.data().ticketCount || 1;
+
+        t.update(giftRef, {
+            status:    'opened',
+            openedAt:  admin.firestore.FieldValue.serverTimestamp(),
+            openedBy:  uid,
+        });
+        t.delete(secretRef);
+        t.update(userRef, {
+            orangeTickets:    admin.firestore.FieldValue.increment(ticketCount),
+            giftsOpenedToday: openedToday + 1,
+            giftsOpenedDate:  today,
+        });
+        // Clear the pending pair so sender can send again
+        const openPairId  = gift.sentBy + '_' + uid;
+        const openPairRef = db.collection('gift_pending_pairs').doc(openPairId);
+        t.delete(openPairRef);
+    });
+
+    return { success: true, ticketCount: ticketCount };
+});

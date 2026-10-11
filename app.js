@@ -950,6 +950,15 @@
 
             if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
 
+            // Award daily gifts after successful spin
+            if (!isBonusSpin) {
+                setTimeout(function() {
+                    if (typeof window.awardDailyGifts === 'function') {
+                        window.awardDailyGifts();
+                    }
+                }, 800);
+            }
+
             var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0') + 1; localStorage.setItem('btc_spin_count', String(_sc));
             // Persist spinCount to Firestore so badge dedup survives cache clears / new devices
             if (typeof firebase !== 'undefined' && firebase.firestore && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {

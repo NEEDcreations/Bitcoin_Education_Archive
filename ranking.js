@@ -4410,9 +4410,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'sats', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix' };
+    ['account', 'scholar', 'sats', 'gifts', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', scholar: '🎓', sats: '⚡', gifts: '🎁', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', gifts: 'Gifts', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:normal;text-align:center;line-height:1.2;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -4975,6 +4975,10 @@ function showSettingsPage(tab) {
         if (!isAnon && typeof loadReferralStatsUI === 'function') {
             setTimeout(loadReferralStatsUI, 100);
         }
+
+    } else if (settingsTab === 'gifts') {
+        // ===== GIFTS TAB =====
+        html += '<div id="giftsTabContent"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Loading gifts...</div></div>';
 
     } else if (settingsTab === 'sats') {
         // ===== SATS FAUCET TAB =====
@@ -6024,6 +6028,15 @@ function showSettingsPage(tab) {
     // Load sats history if on sats tab
     if (settingsTab === 'sats' && typeof loadSatsHistory === 'function') {
         setTimeout(loadSatsHistory, 100);
+    }
+
+    // Load gifts tab
+    if (settingsTab === 'gifts') {
+        setTimeout(function() {
+            if (typeof window.renderGiftsSettingsTab === 'function') {
+                window.renderGiftsSettingsTab();
+            }
+        }, 100);
     }
 
     // Wire up charity donate helpers for the Sats > Donate sub-tab
