@@ -136,6 +136,7 @@ function buildCSP(nonce) {
             " https://challenges.cloudflare.com" +   // Turnstile
             " https://ck121212195.github.io" +       // SAT-ARCADE game
             " https://bitcoin-education-archive.firebaseapp.com" + // Firebase Auth iframe
+            " https://auth.bitcoineducation.quest" +             // Custom auth domain (Safari ITP fix)
             " https://accounts.google.com" +          // Google Sign-In popup
             " https://www.google.com" +          // reCAPTCHA v3 hidden iframe (App Check)
             " https://leo-mattes.com" +           // Pump It! game (Bitcoin Beats tab)
