@@ -92,6 +92,7 @@ function buildCSP(nonce) {
             " https://challenges.cloudflare.com" +
             " https://accounts.google.com" +
             " https://apis.google.com" +           // Google Sign-In auth library (api.js)
+            " https://auth.bitcoineducation.quest" + // Custom auth domain (Safari ITP fix)
             " https://connect.facebook.net" +
             " https://platform.twitter.com" +
             " https://cdn.jsdelivr.net" +
@@ -107,6 +108,7 @@ function buildCSP(nonce) {
             " wss://*.googleapis.com" +            // Firestore real-time WebSocket (mobile)
             " https://*.google.com" +               // Google Sign-In
             " https://*.firebaseapp.com" +           // Firebase hosting / Auth redirect
+            " https://auth.bitcoineducation.quest" +    // Custom auth domain (Safari ITP fix)
             " https://fcm.googleapis.com" +          // Push notifications
             " wss://*.firebaseio.com" +              // Realtime DB WebSocket
             " https://api.binance.com" +             // BTC price
@@ -162,7 +164,7 @@ function buildCSP(nonce) {
         "object-src 'none'",    // No Flash/plugins
         "base-uri 'self'",      // No <base> tag hijacking
         "form-action 'self'",   // No phishing form submissions
-        "worker-src 'self' blob:", // Service worker + audio blob workers
+        "worker-src 'self' blob: https://auth.bitcoineducation.quest", // Service worker + audio blob workers
     ].join('; ');
 }
 
