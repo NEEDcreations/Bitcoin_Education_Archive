@@ -7196,6 +7196,7 @@ window._showMFASignInChallenge = async function(resolver) {
         var statusEl = document.getElementById('mfaSignInStatus');
         if (statusEl) statusEl.textContent = '⏳ Sending code...';
         try {
+            if (!window._mfaResolver) { if (statusEl) statusEl.textContent = '❌ Session expired — please sign in again'; return; }
             if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
             var rc = document.getElementById('mfaSignInRecaptcha') || document.createElement('div');
             rc.id = 'mfaSignInRecaptcha'; rc.style.display = 'none';
