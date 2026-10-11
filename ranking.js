@@ -222,6 +222,12 @@ function initRanking() {
             return user;
         }).catch(function(e) {
             redirectResultResolved = true;
+            // MFA required after redirect - show the 2FA challenge
+            if (e.code === 'auth/multi-factor-auth-required') {
+                console.log('[Auth] MFA required after redirect');
+                if (typeof window._showMFASignInChallenge === 'function') window._showMFASignInChallenge(e.resolver);
+                return null;
+            }
             if (e.code !== 'auth/popup-closed-by-user') {
                 console.log('Redirect result error:', e);
             }
