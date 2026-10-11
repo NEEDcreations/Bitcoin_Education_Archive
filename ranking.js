@@ -117,11 +117,16 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // Firebase App Check — must activate before db/auth init so token is ready for first Firestore reads
-        // Skip on Safari: ITP blocks the reCAPTCHA iframe so App Check always fails, causing 401s on all Firestore requests
-        var _isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
-        if (typeof firebase.appCheck === 'function' && !_isSafari) {
-            firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
+        // Firebase App Check — reCAPTCHA Enterprise (works on Safari/ITP unlike v3)
+        if (typeof firebase.appCheck === 'function') {
+            try {
+                firebase.appCheck().activate(
+                    new firebase.appCheck.ReCaptchaEnterpriseProvider('6LcLJ-otAAAAAB3yrnA-xXRe1TbvWSYuZubatwbd'),
+                    true
+                );
+            } catch(e) {
+                console.warn('[AppCheck] Failed to activate:', e.message);
+            }
         }
 
         db = firebase.firestore();
