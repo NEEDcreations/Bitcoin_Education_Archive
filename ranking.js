@@ -7266,6 +7266,8 @@ window._submitMFASignIn = async function() {
         window._mfaSignInVerificationId = null;
         var overlay = document.getElementById('mfaSignInOverlay');
         if (overlay) overlay.remove();
+        // Close the sign-in modal so user lands on app home
+        if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
         // Let the normal auth state change listener handle the rest
         loadUser(result.user.uid);
         showToast('✅ Signed in successfully!');

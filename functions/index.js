@@ -8614,8 +8614,8 @@ exports.openGift = functionsV1.https.onCall(async (data, context) => {
         // Daily open cap (transaction-safe counter on user doc)
         const openedDate  = user.giftsOpenedDate  || '';
         const openedToday = openedDate === today ? (user.giftsOpenedToday || 0) : 0;
-        if (openedToday >= 20) {
-            throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily gift open limit reached (20/day). Come back tomorrow!');
+        if (openedToday >= 21) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily gift open limit reached (21/day). Come back tomorrow!');
         }
 
         ticketCount = secretDoc.data().ticketCount || 1;

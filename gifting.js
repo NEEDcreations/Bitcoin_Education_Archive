@@ -5,7 +5,7 @@
 (function() {
 'use strict';
 
-var GIFT_OPEN_DAILY_MAX = 20;
+var GIFT_OPEN_DAILY_MAX = 21;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
