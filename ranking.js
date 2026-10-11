@@ -6,7 +6,7 @@
 
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk",
-    authDomain: "auth.bitcoineducation.quest",
+    authDomain: "bitcoineducation.quest", // Must match app origin — auth iframe proxied via seo-router worker (/__/auth/*) so Safari ITP allows postMessage
     projectId: "bitcoin-education-archive",
     storageBucket: "bitcoin-education-archive.firebasestorage.app",
     messagingSenderId: "1055248200518",

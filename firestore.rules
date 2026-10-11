@@ -39,7 +39,11 @@ service cloud.firestore {
                         'points', 'channelsVisited', 'totalVisits', 'streak', 'created',
                         // Preferences
                         'nachoNickname', 'ghostMode', 'newsletterOptIn', 'newsletterOptInDate',
-                        'celebratedState'
+                        'celebratedState',
+                        // TOS acceptance (written at signup)
+                        'tosVersion', 'tosAcceptedAt',
+                        // Signup attribution (written at signup)
+                        'signupSource'
                     ])
                     // points / streak / channelsVisited must be 0 on create (never pre-seeded)
                     && (!('points'          in request.resource.data) || request.resource.data.points          == 0)
