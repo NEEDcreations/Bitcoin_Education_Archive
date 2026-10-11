@@ -1271,8 +1271,10 @@ async function signInWithProvider(provider) {
     // Popup on Android PWA causes redirect_uri_mismatch errors.
     var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    // Safari on desktop blocks popup postMessage via ITP — must use redirect
+    var isSafariBrowser = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
 
-    if (isMobileDevice || isStandalone) {
+    if (isMobileDevice || isStandalone || isSafariBrowser) {
         // Mobile: try popup first (works on most modern mobile browsers),
         // fall back to redirect if popup fails.
         try {
