@@ -1287,9 +1287,10 @@ async function signInWithProvider(provider) {
     // Safari on desktop blocks popup postMessage via ITP — must use redirect
     var isSafariBrowser = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
 
-    if (isMobileDevice || isStandalone || isSafariBrowser) {
-        // Safari blocks popup postMessage via ITP - skip popup entirely and go straight to redirect.
-        // Mobile also prefers redirect for reliability.
+    // Android Chrome handles popups fine (no ITP) - only iOS Safari needs redirect
+    var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    if (isStandalone || isSafariBrowser || isIOS) {
+        // Safari/iOS blocks popup postMessage via ITP - skip popup entirely and go straight to redirect.
         try {
             showToast('⏳ Opening sign-in...');
             // Save anon data BEFORE redirect (page will reload on return)
@@ -7188,7 +7189,7 @@ window._showMFASignInChallenge = async function(resolver) {
         '<div id="mfaSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);margin-bottom:10px;">⏳ Sending code...</div>' +
         '<button onclick="window._submitMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
         '<button onclick="window._sendMFACode()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Resend Code</button>' +
-        '<button onclick="document.getElementById(\"mfaSignInOverlay\").remove();auth.signOut();" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     document.body.appendChild(overlay);
     // Send the code automatically
@@ -7226,6 +7227,15 @@ window._showMFASignInChallenge = async function(resolver) {
         var inp = document.getElementById('mfaSignInCode');
         if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') window._submitMFASignIn(); });
     }, 250);
+};
+
+window._cancelMFASignIn = function() {
+    var overlay = document.getElementById('mfaSignInOverlay');
+    if (overlay) overlay.remove();
+    window._mfaResolver = null;
+    window._mfaSignInVerificationId = null;
+    if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
+    if (typeof auth !== 'undefined') auth.signOut().catch(function(){});
 };
 
 window._submitMFASignIn = async function() {
