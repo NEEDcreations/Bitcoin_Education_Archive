@@ -7185,32 +7185,40 @@ window._showMFASignInChallenge = async function(resolver) {
         '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:6px;">Two-Factor Authentication</div>' +
         '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Enter the code sent to your phone</div>' +
         '<input id="mfaSignInCode" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="width:100%;padding:12px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.2rem;text-align:center;letter-spacing:4px;font-family:inherit;outline:none;margin-bottom:12px;box-sizing:border-box;">' +
-        '<div id="mfaSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);margin-bottom:10px;"></div>' +
+        '<div id="mfaSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);margin-bottom:10px;">⏳ Sending code...</div>' +
         '<button onclick="window._submitMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
+        '<button onclick="window._sendMFACode()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Resend Code</button>' +
         '<button onclick="document.getElementById(\"mfaSignInOverlay\").remove();auth.signOut();" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     document.body.appendChild(overlay);
     // Send the code automatically
-    try {
-        if (!window._mfaSignInRecaptcha) {
-            var rc = document.createElement('div'); rc.id = 'mfaSignInRecaptcha'; rc.style.display = 'none';
-            document.body.appendChild(rc);
+    window._sendMFACode = async function() {
+        var statusEl = document.getElementById('mfaSignInStatus');
+        if (statusEl) statusEl.textContent = '⏳ Sending code...';
+        try {
+            if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
+            var rc = document.getElementById('mfaSignInRecaptcha') || document.createElement('div');
+            rc.id = 'mfaSignInRecaptcha'; rc.style.display = 'none';
+            if (!rc.parentNode) document.body.appendChild(rc);
             window._mfaSignInRecaptcha = new firebase.auth.RecaptchaVerifier('mfaSignInRecaptcha', { size: 'invisible' });
+            var phoneHint = window._mfaResolver.hints.find(function(h) { return h.factorId === firebase.auth.PhoneMultiFactorGenerator.FACTOR_ID; });
+            if (phoneHint) {
+                var phoneProvider = new firebase.auth.PhoneAuthProvider();
+                window._mfaSignInVerificationId = await phoneProvider.verifyPhoneNumber(
+                    { multiFactorHint: phoneHint, session: window._mfaResolver.session },
+                    window._mfaSignInRecaptcha
+                );
+                if (statusEl) statusEl.textContent = '✅ Code sent to ' + (phoneHint.phoneNumber || 'your phone');
+            } else {
+                if (statusEl) statusEl.textContent = '❌ No phone 2FA found on this account';
+            }
+        } catch(e) {
+            console.error('[MFA Sign-in challenge]', e.code, e.message);
+            if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
+            if (statusEl) statusEl.textContent = '❌ ' + (e.message || e.code || 'Failed to send code') + ' — tap Resend';
         }
-        var phoneHint = resolver.hints.find(function(h) { return h.factorId === firebase.auth.PhoneMultiFactorGenerator.FACTOR_ID; });
-        if (phoneHint) {
-            var phoneProvider = new firebase.auth.PhoneAuthProvider();
-            window._mfaSignInVerificationId = await phoneProvider.verifyPhoneNumber(
-                { multiFactorHint: phoneHint, session: resolver.session },
-                window._mfaSignInRecaptcha
-            );
-            var statusEl = document.getElementById('mfaSignInStatus');
-            if (statusEl) statusEl.textContent = '✅ Code sent to ' + (phoneHint.phoneNumber || 'your phone');
-        }
-    } catch(e) {
-        console.error('[MFA Sign-in challenge]', e);
-        if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
-    }
+    };
+    window._sendMFACode();
     setTimeout(function() { var inp = document.getElementById('mfaSignInCode'); if (inp) inp.focus(); }, 200);
     // Allow Enter key
     setTimeout(function() {
