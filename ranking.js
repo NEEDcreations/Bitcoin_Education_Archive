@@ -117,12 +117,13 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // Firebase App Check — reCAPTCHA Enterprise (works on Safari/ITP unlike v3)
+        // Firebase App Check — disabled auto-refresh to prevent 401s from blocking auth operations
+        // (auto-refresh=true causes getRedirectResult() to hang when App Check enforcement is off)
         if (typeof firebase.appCheck === 'function') {
             try {
                 firebase.appCheck().activate(
                     new firebase.appCheck.ReCaptchaEnterpriseProvider('6LcLJ-otAAAAAB3yrnA-xXRe1TbvWSYuZubatwbd'),
-                    true
+                    false
                 );
             } catch(e) {
                 console.warn('[AppCheck] Failed to activate:', e.message);
@@ -145,7 +146,14 @@ function initRanking() {
         // Check if returning from provider redirect (in-app browser flow)
         // IMPORTANT: must resolve before we allow anonymous sign-in to avoid
         // clobbering the redirect auth state on mobile
-        redirectResultPromise = auth.getRedirectResult().then(async function(result) {
+        // Wrap getRedirectResult in a timeout — on Safari with App Check issues it can hang indefinitely
+        var _redirectTimeout = new Promise(function(resolve) {
+            setTimeout(function() {
+                console.warn('[Auth] getRedirectResult timeout — resolving null after 8s');
+                resolve(null);
+            }, 8000);
+        });
+        redirectResultPromise = Promise.race([auth.getRedirectResult(), _redirectTimeout]).then(async function(result) {
             redirectResultResolved = true;
             console.log('[Auth] getRedirectResult:', result ? (result.user ? result.user.uid : 'no user') : 'null');
             if (!result || !result.user) return null;
