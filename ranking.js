@@ -117,18 +117,10 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // Firebase App Check — disabled auto-refresh to prevent 401s from blocking auth operations
-        // (auto-refresh=true causes getRedirectResult() to hang when App Check enforcement is off)
-        if (typeof firebase.appCheck === 'function') {
-            try {
-                firebase.appCheck().activate(
-                    new firebase.appCheck.ReCaptchaEnterpriseProvider('6LcLJ-otAAAAAB3yrnA-xXRe1TbvWSYuZubatwbd'),
-                    false
-                );
-            } catch(e) {
-                console.warn('[AppCheck] Failed to activate:', e.message);
-            }
-        }
+        // Firebase App Check — NOT initialized.
+        // Initializing App Check (even with autoRefresh=false) causes Firebase phone auth to
+        // use reCAPTCHA Enterprise for attestation, which returns 401 when enforcement is off
+        // and hangs verifyPhoneNumber indefinitely. Remove entirely until enforcement is enabled.
 
         db = firebase.firestore();
         // Enable offline persistence - data survives connection loss
