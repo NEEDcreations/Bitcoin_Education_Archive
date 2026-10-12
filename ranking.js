@@ -7224,12 +7224,52 @@ window._showMFASignInChallenge = async function(resolver) {
         try {
             if (!window._mfaResolver) { if (statusEl) statusEl.textContent = '❌ Session expired — please sign in again'; return; }
             if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
+            // Use visible reCAPTCHA — invisible reCAPTCHA consistently hangs on Safari
+            // regardless of container visibility tricks. Show it inside the overlay.
             var rc = document.getElementById('mfaSignInRecaptcha') || document.createElement('div');
             rc.id = 'mfaSignInRecaptcha';
-            // Must NOT be display:none — Safari won't render reCAPTCHA iframe inside hidden element
-            rc.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1;';
-            if (!rc.parentNode) document.body.appendChild(rc);
-            window._mfaSignInRecaptcha = new firebase.auth.RecaptchaVerifier('mfaSignInRecaptcha', { size: 'invisible' });
+            rc.style.cssText = 'margin:0 auto 12px auto;display:flex;justify-content:center;';
+            // Insert before the Send Code button
+            var sendBtn2 = document.getElementById('mfaSendCodeBtn');
+            if (sendBtn2 && sendBtn2.parentNode && !rc.parentNode) sendBtn2.parentNode.insertBefore(rc, sendBtn2);
+            else if (!rc.parentNode) document.body.appendChild(rc);
+            window._mfaSignInRecaptcha = new firebase.auth.RecaptchaVerifier('mfaSignInRecaptcha', {
+                size: 'normal',
+                callback: function() {
+                    // reCAPTCHA solved — proceed with sending code
+                    window._sendMFACodeAfterRecaptcha();
+                },
+                'expired-callback': function() {
+                    var statusEl = document.getElementById('mfaSignInStatus');
+                    if (statusEl) statusEl.textContent = '⚠️ reCAPTCHA expired — tap Send Code again';
+                }
+            });
+            window._mfaSignInRecaptcha.render();
+            // Return early — _sendMFACodeAfterRecaptcha fires from the callback
+            if (statusEl) statusEl.textContent = 'Complete the reCAPTCHA above, then code will be sent';
+            // Stash phoneHint for use in callback
+            window._mfaPhoneHint = window._mfaResolver.hints.find(function(h) { return h.factorId === firebase.auth.PhoneMultiFactorGenerator.FACTOR_ID; });
+            window._sendMFACodeAfterRecaptcha = async function() {
+                var statusEl2 = document.getElementById('mfaSignInStatus');
+                if (statusEl2) statusEl2.textContent = '⏳ Sending code...';
+                try {
+                    var phoneProvider2 = new firebase.auth.PhoneAuthProvider();
+                    window._mfaSignInVerificationId = await phoneProvider2.verifyPhoneNumber(
+                        { multiFactorHint: window._mfaPhoneHint, session: window._mfaResolver.session },
+                        window._mfaSignInRecaptcha
+                    );
+                    if (statusEl2) statusEl2.textContent = '✅ Code sent to ' + (window._mfaPhoneHint.phoneNumber || 'your phone');
+                    var sendBtn3 = document.getElementById('mfaSendCodeBtn'); if (sendBtn3) sendBtn3.style.display = 'none';
+                    var resendBtn2 = document.getElementById('mfaResendBtn'); if (resendBtn2) { resendBtn2.style.cssText = 'width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;'; }
+                    var rcContainer = document.getElementById('mfaSignInRecaptcha'); if (rcContainer) rcContainer.style.display = 'none';
+                } catch(e2) {
+                    console.error('[MFA Sign-in challenge after recaptcha]', e2.code, e2.message);
+                    if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
+                    if (statusEl2) statusEl2.textContent = '❌ ' + (e2.message || e2.code || 'Failed') + ' — tap Send Code again';
+                }
+            };
+            return; // wait for reCAPTCHA callback
+            // (unreachable — kept for phoneHint fallback path below)
             var phoneHint = window._mfaResolver.hints.find(function(h) { return h.factorId === firebase.auth.PhoneMultiFactorGenerator.FACTOR_ID; });
             if (phoneHint) {
                 var phoneProvider = new firebase.auth.PhoneAuthProvider();
