@@ -7210,9 +7210,10 @@ window._showMFASignInChallenge = async function(resolver) {
         '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:6px;">Two-Factor Authentication</div>' +
         '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Enter the code sent to your phone</div>' +
         '<input id="mfaSignInCode" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="width:100%;padding:12px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.2rem;text-align:center;letter-spacing:4px;font-family:inherit;outline:none;margin-bottom:12px;box-sizing:border-box;">' +
-        '<div id="mfaSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);margin-bottom:10px;">⏳ Sending code...</div>' +
-        '<button onclick="window._submitMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
-        '<button onclick="window._sendMFACode()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Resend Code</button>' +
+        '<div id="mfaSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);margin-bottom:10px;">Tap \"Send Code\" to receive your verification code</div>' +
+        '<button onclick="window._sendMFACode()" id="mfaSendCodeBtn" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Send Code</button>' +
+        '<button onclick="window._submitMFASignIn()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
+        '<button onclick="window._sendMFACode()" style="display:none" id="mfaResendBtn">Resend Code</button>' +
         '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     document.body.appendChild(overlay);
@@ -7235,6 +7236,8 @@ window._showMFASignInChallenge = async function(resolver) {
                     window._mfaSignInRecaptcha
                 );
                 if (statusEl) statusEl.textContent = '✅ Code sent to ' + (phoneHint.phoneNumber || 'your phone');
+                var sendBtn = document.getElementById('mfaSendCodeBtn'); if (sendBtn) sendBtn.style.display = 'none';
+                var resendBtn = document.getElementById('mfaResendBtn'); if (resendBtn) { resendBtn.style.display = 'block'; resendBtn.style.cssText += ';width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;'; }
             } else {
                 if (statusEl) statusEl.textContent = '❌ No phone 2FA found on this account';
             }
@@ -7244,7 +7247,7 @@ window._showMFASignInChallenge = async function(resolver) {
             if (statusEl) statusEl.textContent = '❌ ' + (e.message || e.code || 'Failed to send code') + ' — tap Resend';
         }
     };
-    window._sendMFACode();
+    // Do NOT auto-call _sendMFACode() — Safari blocks invisible reCAPTCHA without a direct user gesture
     setTimeout(function() { var inp = document.getElementById('mfaSignInCode'); if (inp) inp.focus(); }, 200);
     // Allow Enter key
     setTimeout(function() {
