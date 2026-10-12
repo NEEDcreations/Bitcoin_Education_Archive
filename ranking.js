@@ -7225,7 +7225,9 @@ window._showMFASignInChallenge = async function(resolver) {
             if (!window._mfaResolver) { if (statusEl) statusEl.textContent = '❌ Session expired — please sign in again'; return; }
             if (window._mfaSignInRecaptcha) { try { window._mfaSignInRecaptcha.clear(); } catch(_) {} window._mfaSignInRecaptcha = null; }
             var rc = document.getElementById('mfaSignInRecaptcha') || document.createElement('div');
-            rc.id = 'mfaSignInRecaptcha'; rc.style.display = 'none';
+            rc.id = 'mfaSignInRecaptcha';
+            // Must NOT be display:none — Safari won't render reCAPTCHA iframe inside hidden element
+            rc.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1;';
             if (!rc.parentNode) document.body.appendChild(rc);
             window._mfaSignInRecaptcha = new firebase.auth.RecaptchaVerifier('mfaSignInRecaptcha', { size: 'invisible' });
             var phoneHint = window._mfaResolver.hints.find(function(h) { return h.factorId === firebase.auth.PhoneMultiFactorGenerator.FACTOR_ID; });
