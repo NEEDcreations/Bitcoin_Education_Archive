@@ -146,14 +146,25 @@ function initRanking() {
         // Check if returning from provider redirect (in-app browser flow)
         // IMPORTANT: must resolve before we allow anonymous sign-in to avoid
         // clobbering the redirect auth state on mobile
-        // Wrap getRedirectResult in a timeout — on Safari with App Check issues it can hang indefinitely
+        // Wrap getRedirectResult in a timeout — on Safari with App Check issues it can hang indefinitely.
+        // IMPORTANT: attach MFA catch to the ORIGINAL promise first, before the race.
+        // If the 8s timeout wins the race, Promise.race swallows the MFA rejection and
+        // e.resolver is lost — _mfaResolver ends up null and code can never be sent.
+        var _originalRedirectResult = auth.getRedirectResult();
+        _originalRedirectResult.catch(function(e) {
+            if (e.code === 'auth/multi-factor-auth-required') {
+                redirectResultResolved = true;
+                console.log('[Auth] MFA required after redirect (direct catch)');
+                if (typeof window._showMFASignInChallenge === 'function') window._showMFASignInChallenge(e.resolver);
+            }
+        });
         var _redirectTimeout = new Promise(function(resolve) {
             setTimeout(function() {
                 console.warn('[Auth] getRedirectResult timeout — resolving null after 8s');
                 resolve(null);
             }, 8000);
         });
-        redirectResultPromise = Promise.race([auth.getRedirectResult(), _redirectTimeout]).then(async function(result) {
+        redirectResultPromise = Promise.race([_originalRedirectResult, _redirectTimeout]).then(async function(result) {
             redirectResultResolved = true;
             console.log('[Auth] getRedirectResult:', result ? (result.user ? result.user.uid : 'no user') : 'null');
             if (!result || !result.user) return null;
