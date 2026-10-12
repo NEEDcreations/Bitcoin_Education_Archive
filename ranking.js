@@ -156,6 +156,7 @@ function initRanking() {
             if (e.code === 'auth/multi-factor-auth-required') {
                 redirectResultResolved = true;
                 console.log('[Auth] MFA required after redirect (direct catch)');
+                window._mfaPendingResolver = e.resolver; // stash so race .catch doesn't double-fire
                 if (typeof window._showMFASignInChallenge === 'function') window._showMFASignInChallenge(e.resolver);
             }
         });
@@ -249,11 +250,10 @@ function initRanking() {
             return user;
         }).catch(function(e) {
             redirectResultResolved = true;
-            // MFA required after redirect - show the 2FA challenge
+            // MFA required after redirect - already handled by direct catch above
             if (e.code === 'auth/multi-factor-auth-required') {
-                console.log('[Auth] MFA required after redirect');
-                if (typeof window._showMFASignInChallenge === 'function') window._showMFASignInChallenge(e.resolver);
-                return null;
+                console.log('[Auth] MFA required after redirect (race catch — skipping, direct catch handles it)');
+                return null; // do NOT call _showMFASignInChallenge again
             }
             if (e.code !== 'auth/popup-closed-by-user') {
                 console.log('Redirect result error:', e);
@@ -7210,6 +7210,8 @@ window.verifyMFACode = async function() {
 
 // Show MFA sign-in challenge when user with phone 2FA tries to sign in
 window._showMFASignInChallenge = async function(resolver) {
+    // Guard against double-fire (direct catch + race catch both triggering)
+    if (document.getElementById('mfaSignInOverlay')) return;
     window._mfaResolver = resolver;
     var overlay = document.createElement('div');
     overlay.id = 'mfaSignInOverlay';

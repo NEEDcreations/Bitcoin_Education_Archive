@@ -374,6 +374,26 @@ export default {
             return Response.redirect(PRIMARY_ORIGIN + '/#' + aliasPage, 302);
         }
 
+        // Firebase proxy: /__/auth/* and /__/firebase/* → bitcoin-education-archive.firebaseapp.com
+        // /__/firebase/pat is the App Check token endpoint — must be proxied same as auth
+        if (path.startsWith('/__/firebase/')) {
+            const targetUrl = 'https://bitcoin-education-archive.firebaseapp.com' + path + url.search;
+            try {
+                const proxyResp = await fetch(targetUrl, {
+                    method: request.method,
+                    headers: request.headers,
+                    body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+                    redirect: 'follow',
+                });
+                const headers = new Headers(proxyResp.headers);
+                headers.set('Access-Control-Allow-Origin', origin);
+                headers.set('Access-Control-Allow-Credentials', 'true');
+                return new Response(proxyResp.body, { status: proxyResp.status, statusText: proxyResp.statusText, headers });
+            } catch(e) {
+                return new Response('Firebase proxy error', { status: 502 });
+            }
+        }
+
         // Firebase Auth proxy: /__/auth/* → bitcoin-education-archive.firebaseapp.com
         // authDomain is set to "bitcoineducation.quest" so Firebase's auth iframe and handler
         // stay same-origin with the app. Without this, iOS ITP and Android cookie partitioning
