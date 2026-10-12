@@ -117,19 +117,10 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // Firebase App Check — re-enabled with autoRefresh=false.
-        // Required for verifyPhoneNumber on Firebase Identity Platform.
-        // autoRefresh=false prevents it from blocking getRedirectResult with 401s.
-        if (typeof firebase.appCheck === 'function') {
-            try {
-                firebase.appCheck().activate(
-                    new firebase.appCheck.ReCaptchaEnterpriseProvider('6LcLJ-otAAAAAB3yrnA-xXRe1TbvWSYuZubatwbd'),
-                    false // do not auto-refresh — avoids blocking auth operations
-                );
-            } catch(e) {
-                console.warn('[AppCheck] Failed to activate:', e.message);
-            }
-        }
+        // App Check NOT initialized.
+        // verifyPhoneNumber uses its own RecaptchaVerifier — App Check is separate and not required.
+        // App Check reCAPTCHA Enterprise 401s from Cloudflare's challenge platform were
+        // silently blocking phone auth. Remove entirely until properly configured.
 
         db = firebase.firestore();
         // Enable offline persistence - data survives connection loss
