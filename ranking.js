@@ -1525,9 +1525,10 @@ async function loadUser(uid, prefetchedDoc) {
 
         // TOTP challenge gate — custom server-side TOTP, not Firebase native MFA.
         // Firebase never throws auth/multi-factor-auth-required for this, so we gate manually.
-        // sessionStorage flag clears on tab close / sign-out (sessionStorage.clear() in signOutUser).
+        // localStorage flag keyed by UID persists across app reopens while user stays logged in.
+        // clearUserLocalStorage() on sign-out removes it so re-login requires re-verify.
         if (!auth.currentUser.isAnonymous && currentUser.totpEnabled) {
-            if (sessionStorage.getItem('btc_totp_verified') !== '1') {
+            if (localStorage.getItem('btc_totp_verified_' + auth.currentUser.uid) !== '1') {
                 _showTotpSignInChallenge();
                 return; // Block loadUser from completing until TOTP verified
             }
@@ -7358,8 +7359,8 @@ window._submitTotpSignIn = async function() {
     try {
         var checkFn = firebase.functions().httpsCallable('totpCheck');
         await checkFn({ code: code });
-        // Mark session as verified — clears on tab close / sign-out
-        sessionStorage.setItem('btc_totp_verified', '1');
+        // Mark as verified — persists across app reopens; cleared by clearUserLocalStorage() on sign-out
+        if (auth && auth.currentUser) localStorage.setItem('btc_totp_verified_' + auth.currentUser.uid, '1');
         // Remove overlay and complete loadUser
         var ov = document.getElementById('totpSignInOverlay');
         if (ov) ov.remove();
