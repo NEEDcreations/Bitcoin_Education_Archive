@@ -5556,7 +5556,7 @@ function _listenRaidParticipants(bossId) {
     window._raidParticipantsUnsub = db.collection('raid_bosses').doc(bossId)
         .collection('participants')
         .orderBy('contributed', 'desc')
-        .limit(20)
+        .limit(25)
         .onSnapshot(function(snapshot) {
             var el = document.getElementById('raidParticipants');
             if (!el) return;
@@ -5695,7 +5695,7 @@ function _listenAllTimeRaiders() {
     window._raidAllTimeUnsub = db.collection('public_profiles')
         .where('raidDamageAllTime', '>', 0)
         .orderBy('raidDamageAllTime', 'desc')
-        .limit(20)
+        .limit(25)
         .onSnapshot(function(snapshot) {
             var el = document.getElementById('raidParticipants');
             if (!el || window._raidActiveTab !== 'alltime') return;
