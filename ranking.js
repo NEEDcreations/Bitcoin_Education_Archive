@@ -7098,6 +7098,33 @@ if (document.readyState === 'loading') {
     initRanking();
 }
 
+// ---- Leaderboard pre-fetch: warm cache ~5s after page load so open is instant ----
+(function() {
+    var _prefetched = false;
+    function _prefetchLeaderboard() {
+        if (_prefetched) return;
+        if (!db) return;
+        var now = Date.now();
+        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
+        if (useCache) { _prefetched = true; return; }
+        _prefetched = true;
+        db.collection('public_profiles').orderBy('points', 'desc').limit(150).get().then(function(snap) {
+            var users = [];
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                if ((d.points || 0) > 0 && !d.ghostMode) {
+                    users.push(Object.assign({ id: doc.id }, d));
+                }
+            });
+            window._lbCache = users;
+            window._lbCacheTime = Date.now();
+        }).catch(function() { _prefetched = false; });
+    }
+    // Fire after 5s — well after Firebase init, without blocking critical path
+    setTimeout(_prefetchLeaderboard, 5000);
+    window._prefetchLeaderboard = _prefetchLeaderboard;
+})();
+
 // ---- OPENCLAW EXPORTS ----
 if (typeof toggleLeaderboard !== "undefined") window.toggleLeaderboard = toggleLeaderboard;
 if (typeof showUsernamePrompt !== "undefined") window.showUsernamePrompt = showUsernamePrompt;
