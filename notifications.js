@@ -98,10 +98,16 @@ window.initNotifications = function() {
             updateNotifBadge();
             // Track received tips for badge counter
             snap.docChanges().forEach(function(change) {
-                if (change.type === 'added' && change.doc.data().type === 'tip') {
+                if (change.type !== 'added') return;
+                var nd = change.doc.data();
+                if (nd.type === 'tip') {
                     var _tr = parseInt(localStorage.getItem('btc_tips_received') || '0'); localStorage.setItem('btc_tips_received', String(_tr + 1));
                     // Coin pickup sound for tip received
                     if (typeof window.playCoinSound === 'function') window.playCoinSound();
+                }
+                // Partnership level-up popup — fires live when CF writes the notification
+                if (nd.type === 'peer_level_up') {
+                    showPartnershipLevelUpPopup(nd);
                 }
             });
         }, function(err) { console.warn('[notif] Listener error:', err); });
@@ -244,6 +250,7 @@ window.showNotifications = async function() {
             if (n.type === 'peer_request') icon = '🧡';
             if (n.type === 'peer_accepted') icon = '🧡';
             if (n.type === 'gift_received') icon = '🎁';
+            if (n.type === 'peer_level_up') icon = '⚡';
 
             var extraHtml = '';
             if (n.type === 'peer_request' && n.fromUid) {
@@ -523,6 +530,7 @@ window.renderNotifList = async function() {
             if (n.type === 'peer_request') icon = '🧡';
             if (n.type === 'peer_accepted') icon = '🧡';
             if (n.type === 'gift_received') icon = '🎁';
+            if (n.type === 'peer_level_up') icon = '⚡';
 
             var extraHtml = '';
             if (n.type === 'peer_request' && n.fromUid) {
@@ -960,4 +968,103 @@ window.notifySelfExploration = function(channelCount, pct) {
         read: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(function() {});
+};
+
+// ── Partnership Level-Up Popup ─────────────────────────────────────────────
+// Triggered live when the CF writes a peer_level_up notification to Firestore.
+// Session-guarded so it only fires once per level-up event, not on every reload.
+var _shownPartnershipPopups = new Set();
+
+window.showPartnershipLevelUpPopup = function(notifData) {
+    if (!notifData) return;
+    var levelNum  = notifData.levelNum  || 1;
+    var levelName = notifData.levelName || 'Confirmed';
+    var peerId    = notifData.peerId    || '';
+
+    // Session guard — prevent double-fire on snapshot replay
+    var guardKey = peerId + '_lvl' + levelNum;
+    if (_shownPartnershipPopups.has(guardKey)) return;
+    _shownPartnershipPopups.add(guardKey);
+
+    var LEVEL_META = {
+        2: { emoji: '🟨', color: '#eab308', glow: 'rgba(234,179,8,0.35)',  xp: '3,000',   subtitle: 'Your first gift exchanged. It\'s on-chain now.' },
+        3: { emoji: '⚡', color: '#f7931a', glow: 'rgba(247,147,26,0.4)',  xp: '21,000',  subtitle: 'A Lightning channel is open between you.' },
+        4: { emoji: '🔗', color: '#3b82f6', glow: 'rgba(59,130,246,0.35)', xp: '50,000',  subtitle: 'Deep, trusted. You\'re routing value to each other.' },
+        5: { emoji: '🟠', color: '#f7931a', glow: 'rgba(247,147,26,0.5)',  xp: '100,000', subtitle: 'No limits. Big volume. Wumbo mode activated.' },
+    };
+    var meta = LEVEL_META[levelNum] || { emoji: '⚡', color: '#f7931a', glow: 'rgba(247,147,26,0.35)', xp: '', subtitle: '' };
+
+    // Fetch peer's username for the popup
+    var peerName = 'Your partner';
+    var fetchPromise = (peerId && typeof db !== 'undefined')
+        ? db.collection('public_profiles').doc(peerId).get().then(function(d) {
+            if (d.exists && d.data().username) peerName = d.data().username;
+          }).catch(function() {})
+        : Promise.resolve();
+
+    fetchPromise.then(function() {
+        // Remove any existing partnership popup
+        var existing = document.getElementById('partnershipLevelUpModal');
+        if (existing) existing.remove();
+
+        // Confetti burst
+        if (typeof launchConfetti === 'function') launchConfetti();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'partnershipLevelUpModal';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9000;display:flex;justify-content:center;align-items:center;padding:20px;animation:fadeIn 0.3s ease-out;';
+
+        overlay.innerHTML =
+            '<div style="background:var(--bg-side,#0f0f1a);border:1px solid ' + meta.color + ';border-radius:24px;padding:36px 28px;max-width:360px;width:100%;text-align:center;box-shadow:0 0 40px ' + meta.glow + ',0 20px 60px rgba(0,0,0,0.6);animation:fadeSlideIn 0.4s ease-out;position:relative;">' +
+
+            // Lightning streak decoration
+            '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,'+meta.color+',transparent);border-radius:24px 24px 0 0;"></div>' +
+
+            // Level badge
+            '<div style="font-size:4.5rem;margin-bottom:4px;animation:badgeBounce 0.6s ease-out;">' + meta.emoji + '</div>' +
+
+            // Eyebrow
+            '<div style="color:' + meta.color + ';font-size:0.7rem;text-transform:uppercase;letter-spacing:3px;font-weight:800;margin-bottom:10px;">⚡ Partnership Level Up</div>' +
+
+            // Level name
+            '<div style="color:var(--heading,#fff);font-size:1.7rem;font-weight:900;margin-bottom:6px;">' + escapeHtml(levelName) + '</div>' +
+
+            // Peer name
+            '<div style="color:var(--text-muted,#aaa);font-size:0.9rem;margin-bottom:4px;">with <strong style="color:var(--text,#eee);">' + escapeHtml(peerName) + '</strong></div>' +
+
+            // Subtitle / flavour
+            '<div style="color:var(--text-faint,#666);font-size:0.82rem;font-style:italic;margin-bottom:18px;line-height:1.5;">' + escapeHtml(meta.subtitle) + '</div>' +
+
+            // XP reward pill
+            (meta.xp ? '<div style="display:inline-block;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.08));border:1px solid rgba(247,147,26,0.3);border-radius:20px;padding:6px 18px;margin-bottom:22px;">' +
+                '<span style="color:#f7931a;font-weight:800;font-size:1rem;">+' + meta.xp + ' XP</span>' +
+                '<span style="color:var(--text-faint,#666);font-size:0.78rem;"> each</span>' +
+            '</div>' : '') +
+
+            // Progress dots
+            '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:24px;">' +
+                [1,2,3,4,5].map(function(i) {
+                    return '<div style="width:' + (i === levelNum ? '20px' : '8px') + ';height:8px;border-radius:4px;background:' + (i <= levelNum ? meta.color : 'var(--border,#333)') + ';transition:all 0.3s;"></div>';
+                }).join('') +
+            '</div>' +
+
+            // Close button
+            '<button onclick="document.getElementById(\'partnershipLevelUpModal\').remove()" style="width:100%;padding:12px;background:linear-gradient(135deg,' + meta.color + ','+meta.color+'cc);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;">Let\'s go! ⚡</button>' +
+            '</div>';
+
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        // Auto-dismiss after 12s
+        setTimeout(function() {
+            var m = document.getElementById('partnershipLevelUpModal');
+            if (m) m.style.animation = 'fadeOut 0.4s ease-in forwards';
+            setTimeout(function() {
+                var m2 = document.getElementById('partnershipLevelUpModal');
+                if (m2) m2.remove();
+            }, 400);
+        }, 12000);
+    });
 };

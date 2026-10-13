@@ -8101,6 +8101,9 @@ exports.nachoAnnounce = functionsV1.https.onCall(async (data, context) => {
 const { pvpResolveRound } = require('./src/pvpResolve');
 exports.pvpResolveRound = pvpResolveRound;
 
+// ── Peer Friendship Levels ───────────────────────────────────────────────────
+const { updatePeerLevelAfterGift } = require('./src/peerLevel');
+
 
 // ── Merge Anonymous Badges into Existing Account ────────────────────────────
 // Called once when an anonymous user signs in to an existing account.
@@ -8636,6 +8639,21 @@ exports.openGift = functionsV1.https.onCall(async (data, context) => {
         const openPairRef = db.collection('gift_pending_pairs').doc(openPairId);
         t.delete(openPairRef);
     });
+
+    // ── Peer level update (after transaction commits) ────────────────────────
+    // Triggered only when a gift is fully opened — both sides have exchanged.
+    // All writes (peerRelationships doc, user denorm, XP) happen server-side
+    // inside updatePeerLevelAfterGift's own transaction. Never client-triggered.
+    try {
+        const giftSnap = await giftRef.get();
+        const sentBy   = giftSnap.exists ? giftSnap.data().sentBy : null;
+        if (sentBy && sentBy !== uid) {
+            await updatePeerLevelAfterGift(sentBy, uid);
+        }
+    } catch (e) {
+        // Non-critical — log but don't fail the open
+        console.warn('[openGift] peerLevel update failed:', e.message);
+    }
 
     return { success: true, ticketCount: ticketCount };
 });

@@ -98,6 +98,8 @@ service cloud.firestore {
                         'known_ips', 'fingerprint', 'fraudScore',
                         // Peer network (CF-only via managePeer)
                         'peers', 'peerCount',
+                        // Peer partnership levels (CF-only via updatePeerLevelAfterGift)
+                        'peerData',
                         // Immutable identity
                         'created', 'createdAt', 'uid'
                     ]))
@@ -1591,6 +1593,20 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (resource.data.from == request.auth.uid
                       || resource.data.to == request.auth.uid);
+      allow write: if false; // Cloud Function (Admin SDK) only
+    }
+
+    // =============================================
+    // PEER RELATIONSHIPS — partnership levels
+    // Written exclusively by updatePeerLevelAfterGift (Admin SDK).
+    // Clients may only read their own pair docs (uid1 or uid2 match).
+    // No client writes — ever. XP, level, giftsExchanged are all CF-owned.
+    // =============================================
+    match /peerRelationships/{pairId} {
+      // Only participants of this pair can read it
+      allow read: if request.auth != null
+                  && (resource.data.uid1 == request.auth.uid
+                      || resource.data.uid2 == request.auth.uid);
       allow write: if false; // Cloud Function (Admin SDK) only
     }
 
