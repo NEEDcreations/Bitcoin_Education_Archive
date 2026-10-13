@@ -6734,19 +6734,21 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
 
 // Item catalog — server is the authority on all prices/types
 const NOOK_SHOP_ITEMS = {
-    'streak_freeze':    { cost: 5,  type: 'consumable', name: 'Streak Freeze',           gives: { streakFreezes: 1 } },
-    'hash_booster':     { cost: 10, type: 'consumable', name: 'Hash Booster',            gives: { hashBoosters: 1 } },
-    'hint_token':       { cost: 3,  type: 'consumable', name: 'Hint Token',              gives: { hintTokens: 1 } },
-    'double_xp':        { cost: 15, type: 'consumable', name: 'Double XP (60 min)',      gives: { doubleXP: 1 } },
-    'bonus_spin':       { cost: 5,  type: 'consumable', name: 'Bonus Spin',              gives: { bonusSpins: 1 } },
-    'profile_frame':    { cost: 50, type: 'cosmetic',   name: 'Profile Frame',           gives: { cosmetics: 'profile_frame' } },
-    'chat_flair':       { cost: 40, type: 'cosmetic',   name: 'Chat Flair',              gives: { cosmetics: 'chat_flair' } },
-    'pinned_badge':     { cost: 20, type: 'cosmetic',   name: 'Pinned Badge',            gives: { cosmetics: 'pinned_badge' } },
-    'nacho_skin_nook':  { cost: 60, type: 'cosmetic',   name: 'Exclusive Nacho Skin',    gives: { cosmetics: 'nacho_skin_nook' } },
-    'raffle_entry':     { cost: 10, type: 'raffle',     name: 'Sats Raffle Entry',       gives: { raffleEntries: 1 } },
-    'streak_freeze_3':  { cost: 12, type: 'consumable', name: '3× Streak Freezes',      gives: { streakFreezes: 3 } },
-    'hint_token_5':     { cost: 12, type: 'consumable', name: '5× Hint Tokens',         gives: { hintTokens: 5 } },
-    'second_rig':       { cost: 25, type: 'consumable', name: 'Second Mining Rig',       gives: { secondRigCharges: 1 } },
+    'streak_freeze':    { cost: 5,   type: 'consumable', name: 'Streak Freeze',           gives: { streakFreezes: 1 } },
+    'hash_booster':     { cost: 10,  type: 'consumable', name: 'Hash Booster',            gives: { hashBoosters: 1 } },
+    'hint_token':       { cost: 3,   type: 'consumable', name: 'Hint Token',              gives: { hintTokens: 1 } },
+    'double_xp':        { cost: 15,  type: 'consumable', name: 'Double XP (60 min)',      gives: { doubleXP: 1 } },
+    'bonus_spin':       { cost: 5,   type: 'consumable', name: 'Bonus Spin',              gives: { bonusSpins: 1 } },
+    'profile_frame':    { cost: 50,  type: 'cosmetic',   name: 'Profile Frame',           gives: { cosmetics: 'profile_frame' } },
+    'chat_flair':       { cost: 40,  type: 'cosmetic',   name: 'Chat Flair',              gives: { cosmetics: 'chat_flair' } },
+    'pinned_badge':     { cost: 20,  type: 'cosmetic',   name: 'Pinned Badge',            gives: { cosmetics: 'pinned_badge' } },
+    'nacho_skin_nook':  { cost: 60,  type: 'cosmetic',   name: 'Exclusive Nacho Skin',    gives: { cosmetics: 'nacho_skin_nook' } },
+    'raffle_entry':     { cost: 10,  type: 'raffle',     name: 'Sats Raffle Entry',       gives: { raffleEntries: 1 } },
+    'streak_freeze_3':  { cost: 12,  type: 'consumable', name: '3× Streak Freezes',      gives: { streakFreezes: 3 } },
+    'hint_token_5':     { cost: 12,  type: 'consumable', name: '5× Hint Tokens',         gives: { hintTokens: 5 } },
+    'second_rig':       { cost: 25,  type: 'consumable', name: 'Second Mining Rig',       gives: { secondRigCharges: 1 } },
+    // Gift Bag — permanent upgrade, increases gift inventory cap from 50 → 75
+    'gift_bag':         { cost: 100, type: 'cosmetic',   name: 'Gift Bag',                gives: { cosmetics: 'gift_bag' } },
 };
 
 exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
@@ -8441,13 +8443,17 @@ exports.awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
         return { alreadyAwarded: true };
     }
 
-    // Check inventory cap (max 50 unsent gifts)
+    // Check inventory cap: 75 if user owns gift_bag upgrade, else 50
+    const userSnap2 = await userRef.get(); // re-fetch to get ownedCosmetics
+    const userCosmetics = userSnap2.exists ? (userSnap2.data().ownedCosmetics || []) : [];
+    const giftCap = userCosmetics.includes('gift_bag') ? 75 : 50;
+
     const invSnap = await db.collection('gifts')
         .where('ownerId', '==', uid)
         .where('status', '==', 'inventory')
-        .limit(51).get();
+        .limit(76).get();
     const currentInventory = invSnap.size;
-    const giftsToAdd = Math.min(5, Math.max(0, 50 - currentInventory));
+    const giftsToAdd = Math.min(5, Math.max(0, giftCap - currentInventory));
 
     if (giftsToAdd === 0) {
         // Still mark date so they don't keep calling

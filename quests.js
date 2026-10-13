@@ -3742,6 +3742,33 @@ function _renderNookShop() {
     html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window — buy more charges to keep it active.', 25, rigBtnHtml);
     html += '</div>';
 
+    // ─── Gifts ───
+    html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── 🎁 Gifting ───</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    var giftOwnsGiftBag = ownedCosmetics.indexOf('gift_bag') !== -1;
+    var giftBagBtn = giftOwnsGiftBag
+        ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓ (75 gift cap)</div>'
+        : buyBtn('gift_bag', 100, 1, 'Buy');
+    html += itemRow('🎒', 'Gift Bag', 'Permanently increases your gift inventory from 50 → 75 slots', 100, giftBagBtn).replace('<!--EXTRA_HTML-->', '');
+    var invGifts = 0; // shown dynamically in inventory
+    var giftCap = giftOwnsGiftBag ? 75 : 50;
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
+        '<div style="font-size:1.4rem;">📦</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Gift Inventory</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);" id="nookGiftInvCount">Loading...</div></div>' +
+        '<button onclick="if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)" style="padding:7px 14px;border-radius:8px;border:1px solid #f7931a;background:rgba(247,147,26,0.1);color:#f7931a;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gifts</button>' +
+    '</div>';
+    html += '</div>';
+    // Load gift inventory count async
+    (function() {
+        if (typeof db === 'undefined' || typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        var uid = auth.currentUser.uid;
+        db.collection('gifts').where('ownerId','==',uid).where('status','==','inventory').limit(76).get().then(function(snap) {
+            var el2 = document.getElementById('nookGiftInvCount');
+            if (el2) el2.textContent = snap.size + ' / ' + giftCap + ' gifts in inventory';
+        }).catch(function() {});
+    })();
+
     // ─── Cosmetics ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Cosmetics (Permanent) ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
@@ -3940,6 +3967,10 @@ function _renderNookInventoryContent(el) {
     html += invRow('🎰', 'Bonus Spins', bonusSpins,
         '<button onclick="_nookUseBonusSpin(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#a855f7,#7c3aed);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Use</button>',
         'Spin the wheel without using your daily spin');
+
+    // ─── Gifts ───────────────────────────────────────────────────────────
+    // Loaded async below — placeholder first
+    html += '<div id="nookInvGiftRow"></div>';
 
     // Raffle entries
     html += invRow('🎲', 'Raffle Entries (this month)', raffleEntries,

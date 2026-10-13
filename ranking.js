@@ -6342,6 +6342,7 @@ function showSettingsPage(tab) {
                                 '</div>' +
                                 (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-faint);">' + pLastStr + '</div>' : '') +
                                 '<button onclick="document.getElementById(\'' + pDetailId + '\').previousElementSibling.querySelector(\'button\').click()" style="margin-top:8px;width:100%;padding:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.72rem;cursor:pointer;">View Full Profile →</button>' +
+                                '<button onclick="window._sendGiftToPeerFromDetail(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\')" style="margin-top:6px;width:100%;padding:8px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.06));border:1px solid rgba(247,147,26,0.35);border-radius:8px;color:#f7931a;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Send Gift to increase Partnership</button>' +
                             '</div>' +
                         '</div>';
                     });
@@ -7959,6 +7960,29 @@ window._buyStreakFreeze = async function(amount) {
         var msg = err.message || 'Purchase failed';
         if (err.code === 'resource-exhausted') msg = err.message;
         if (typeof showToast === 'function') showToast('\u274c ' + msg);
+    }
+};
+
+// Send gift to a specific peer from the peer detail panel
+window._sendGiftToPeerFromDetail = async function(peerUid, peerName) {
+    if (typeof window.loadGiftInventory !== 'function') {
+        if (typeof showToast === 'function') showToast('Loading gifting system...', 2000);
+        // Fallback: open peers/gifts section in settings
+        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+        return;
+    }
+    try {
+        var data = await window.loadGiftInventory();
+        if (!data.inventory || data.inventory.length === 0) {
+            if (typeof showToast === 'function') showToast('No gifts in inventory — earn them from the daily spin! 🎡', 4000);
+            return;
+        }
+        // Pick a gift and send directly to this peer
+        if (typeof window.sendGiftToPeer === 'function') {
+            window.sendGiftToPeer(data.inventory[0].id, peerUid, peerName, null);
+        }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('❌ Could not load gifts: ' + (e.message || 'error'), 3000);
     }
 };
 
