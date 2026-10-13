@@ -1522,6 +1522,16 @@ async function loadUser(uid, prefetchedDoc) {
         if (!auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
             _showTosModal();
         }
+
+        // TOTP challenge gate — custom server-side TOTP, not Firebase native MFA.
+        // Firebase never throws auth/multi-factor-auth-required for this, so we gate manually.
+        // sessionStorage flag clears on tab close / sign-out (sessionStorage.clear() in signOutUser).
+        if (!auth.currentUser.isAnonymous && currentUser.totpEnabled) {
+            if (sessionStorage.getItem('btc_totp_verified') !== '1') {
+                _showTotpSignInChallenge();
+                return; // Block loadUser from completing until TOTP verified
+            }
+        }
         window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
         if (currentUser.visitedChannelsList) {
@@ -7275,6 +7285,68 @@ window.verifyMFACode = async function() {
         } else {
             showToast('Verification failed: ' + (e.message || 'try again'));
         }
+    }
+};
+
+// TOTP sign-in challenge — shown when totpEnabled===true and session not yet verified.
+// Uses existing totpCheck Cloud Function. Calls loadUser again on success.
+window._showTotpSignInChallenge = function() {
+    if (document.getElementById('totpSignInOverlay')) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'totpSignInOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:700000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML =
+        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">' +
+            '<div style="font-size:2.5rem;margin-bottom:10px;">📱</div>' +
+            '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:6px;">Authenticator Code</div>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Open your authenticator app and enter the 6-digit code</div>' +
+            '<input id="totpSignInInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
+            '<div id="totpSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
+            '<button id="totpSignInBtn" onclick="window._submitTotpSignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
+            '<button onclick="signOutUser()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel (Sign out)</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    // Focus input and allow Enter key
+    setTimeout(function() {
+        var inp = document.getElementById('totpSignInInput');
+        if (inp) {
+            inp.focus();
+            inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') window._submitTotpSignIn(); });
+        }
+    }, 100);
+};
+
+window._submitTotpSignIn = async function() {
+    var inp = document.getElementById('totpSignInInput');
+    var statusEl = document.getElementById('totpSignInStatus');
+    var btn = document.getElementById('totpSignInBtn');
+    if (!inp) return;
+    var code = inp.value.trim();
+    if (code.length < 6) {
+        if (statusEl) statusEl.textContent = 'Enter the full 6-digit code';
+        return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
+    if (statusEl) statusEl.textContent = '';
+    try {
+        var checkFn = firebase.functions().httpsCallable('totpCheck');
+        await checkFn({ code: code });
+        // Mark session as verified — clears on tab close / sign-out
+        sessionStorage.setItem('btc_totp_verified', '1');
+        // Remove overlay and complete loadUser
+        var ov = document.getElementById('totpSignInOverlay');
+        if (ov) ov.remove();
+        // Resume — call loadUser again now that TOTP is verified
+        if (typeof loadUser === 'function' && auth && auth.currentUser) {
+            loadUser(auth.currentUser.uid).catch(function(e) { console.error('[TOTP] loadUser after verify failed:', e); });
+        }
+    } catch(e) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Verify'; }
+        var msg = (e.code === 'functions/invalid-argument') ? '❌ Wrong code — try again'
+                : (e.code === 'functions/resource-exhausted') ? '⏳ Too many attempts. Wait 2 minutes.'
+                : '❌ ' + (e.message || 'Verification failed');
+        if (statusEl) statusEl.textContent = msg;
+        if (inp) { inp.value = ''; inp.focus(); }
     }
 };
 
