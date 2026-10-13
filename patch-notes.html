@@ -49,13 +49,66 @@
 <div class="container">
 
   <!-- CURRENT PATCH -->
+  <div class="patch" style="border-color:rgba(247,147,26,0.4);box-shadow:0 0 32px rgba(247,147,26,0.08);">
+    <div class="patch-header" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),transparent);">
+      <div style="flex:1;">
+        <div class="patch-title" style="font-size:1.35rem;">⚡ Peers, Partnerships &amp; Gifting</div>
+        <div class="patch-date">October 13, 2026 · v2082</div>
+      </div>
+      <div class="patch-badge">Latest</div>
+    </div>
+    <div class="patch-body">
+
+      <!-- HERO CALLOUT -->
+      <div style="background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.04));border:1px solid rgba(247,147,26,0.35);border-radius:14px;padding:20px 22px;margin-bottom:20px;">
+        <div style="font-size:0.65rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">🟠 Big Update</div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:8px;">The Peer &amp; Partnership System is live.</div>
+        <div style="font-size:0.86rem;color:var(--muted);line-height:1.6;margin-bottom:14px;">Bitcoin Quest is no longer just a solo journey. Connect with other learners, send each other gifts, and build lasting partnerships that level up the more you interact. Think Pokémon Go friendship levels — but Bitcoin-native.</div>
+        <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px 16px;display:inline-block;">
+          <span style="color:#f7931a;font-weight:700;font-size:0.9rem;">👉 Add your friends as peers inside the app!</span>
+        </div>
+      </div>
+
+      <div class="section-label">🤝 Partnership Levels — New Feature</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">5 Bitcoin-themed partnership levels.</strong> As you and a peer exchange gifts, your partnership grows. Each level has a Lightning Network-inspired name and unlocks a big XP bonus for both of you:<br><br>
+        <span style="display:block;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:0.82rem;line-height:2;">
+          ⬜ <strong>Unconfirmed</strong> — just connected<br>
+          🟨 <strong>Confirmed</strong> — 1 gift exchanged · +3,000 XP each<br>
+          ⚡ <strong>Channel Partner</strong> — 21 gifts · +21,000 XP each<br>
+          🔗 <strong>Routing Node</strong> — 144 gifts · +50,000 XP each<br>
+          🟠 <strong>Wumbo</strong> — 210 gifts · +100,000 XP each
+        </span>
+      </div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Live level-up popup.</strong> The moment you and a peer reach a new level, both of you get a full-screen celebration card — with the level name, your partner's username, a flavour description, the XP reward, and a progress indicator across all 5 levels. Auto-dismisses after 12 seconds.</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Peer level badge in notifications.</strong> Partnership level-ups appear in your notification feed with a ⚡ icon so you can catch up if you missed the popup.</div></div>
+      <div class="item"><span class="tag sec">SEC</span><div class="item-text">All partnership data — levels, XP awards, gift counts — is written exclusively by server-side Cloud Functions. Clients can read their own partnership data but can never write it. Fully protected against replay and self-award attacks.</div></div>
+
+      <div class="section-label">🎁 Peer-to-Peer Gifting</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">Send gifts to your peers.</strong> Earn gift boxes from daily spins and streaks, then send them to any peer. They open the gift and reveal Orange Tickets inside. Sending a gift earns the sender +25 XP instantly.</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">One-pending-per-pair rule.</strong> You can only have one open gift waiting for a given peer at a time. They need to open it before you can send another — keeps things intentional.</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Gift notification with a tap-to-open button delivered directly to the recipient.</div></div>
+      <div class="item"><span class="tag sec">SEC</span><div class="item-text">Gift opens are rate-limited to 21/day. Ticket counts are stored server-side and revealed only at open time — the client never knows the value before opening.</div></div>
+
+      <div class="section-label">🔐 Two-Factor Authentication — Safari Fixes</div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text"><strong style="color:var(--text);">Phone 2FA now works on Safari &amp; iOS.</strong> Apple's ITP (Intelligent Tracking Prevention) was silently blocking the reCAPTCHA iframe used for SMS verification. Fixed with multiple targeted patches: same-origin authDomain proxy, visible reCAPTCHA on tap, and App Check disabled to eliminate Enterprise 401 errors. All sign-in methods now complete 2FA on Safari without hanging.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">Double 2FA overlay prevented — a race condition caused the SMS challenge modal to appear twice on some mobile redirects. Guard added so it only fires once.</div></div>
+      <div class="item"><span class="tag fix">FIX</span><div class="item-text">After 2FA success, the sign-in modal now closes and the user lands on home instead of seeing a stale form.</div></div>
+
+      <div class="section-label">🔑 Sign-In — New Recovery Flow</div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text"><strong style="color:var(--text);">"Trouble signing in?" link added to sign-in screen.</strong> Can't find your link? Tap it, enter your email, get a fresh one. No password needed — never was. The Bitcoin-native answer to "forgot password."</div></div>
+      <div class="item"><span class="tag feat">FEAT</span><div class="item-text">Sign-in button copy updated from "Send Magic Link" → "Send Sign-In Link" for clarity. Supporting text updated throughout to make the passwordless flow obvious to new users.</div></div>
+
+    </div>
+  </div>
+
+  <!-- PREVIOUS (was CURRENT) PATCH -->
   <div class="patch">
     <div class="patch-header">
       <div>
         <div class="patch-title">Performance &amp; Embed Reliability</div>
         <div class="patch-date">October 7, 2026 · v2081</div>
       </div>
-      <div class="patch-badge">Latest</div>
+      <div class="patch-badge prev">Previous</div>
     </div>
     <div class="patch-body">
 
