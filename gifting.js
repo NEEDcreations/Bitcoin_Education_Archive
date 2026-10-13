@@ -126,17 +126,81 @@ window.openGiftModal = async function(giftId) {
     }, 700);
 
     // Call CF
-    var ticketCount = null;
+    var reward = null;
     var cfError = null;
     try {
         var result = await _callCF('openGift', { giftId: giftId });
-        ticketCount = result.data && result.data.ticketCount ? result.data.ticketCount : 1;
-        // Update local currentUser
+        reward = (result.data && result.data.reward) ? result.data.reward
+               : { type: 'tickets', ticketCount: (result.data && result.data.ticketCount) ? result.data.ticketCount : 1 };
+        // Update local currentUser state
         if (typeof currentUser !== 'undefined' && currentUser) {
-            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketCount;
+            if (reward.type === 'tickets') {
+                currentUser.orangeTickets = (currentUser.orangeTickets || 0) + (reward.ticketCount || 1);
+            } else if (reward.type === 'xp_bonus') {
+                currentUser.points = (currentUser.points || 0) + (reward.xpAmount || 50);
+            } else if (reward.type === 'streak_shield') {
+                currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
+            } else if (reward.type === 'closet_item' && !reward.closetDupe) {
+                if (!currentUser.spinClosetItems) currentUser.spinClosetItems = [];
+                if (!currentUser.spinClosetItems.includes(reward.itemId)) currentUser.spinClosetItems.push(reward.itemId);
+            }
         }
     } catch(e) {
         cfError = e.message || 'Failed to open gift';
+    }
+
+    function _buildGiftRevealHtml(rw) {
+        var closeBtn = '<button onclick="document.getElementById(\'giftOpenOverlay\').remove()" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(247,147,26,0.4);">';
+        var wrap = '<div style="animation:giftReveal 0.4s ease-out;">';
+        if (rw.type === 'xp_bonus') {
+            return wrap +
+                '<div style="font-size:5rem;margin-bottom:8px;">⭐</div>' +
+                '<div style="font-size:3rem;font-weight:900;color:#f7931a;margin-bottom:4px;">+' + (rw.xpAmount || 50) + ' XP</div>' +
+                '<div style="color:#fff;font-weight:800;font-size:1.2rem;margin-bottom:6px;">XP Bonus!</div>' +
+                '<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:20px;">Added to your rank progress 🚀</div>' +
+                closeBtn + 'Level up! ⭐</button></div>';
+        } else if (rw.type === 'streak_shield') {
+            return wrap +
+                '<div style="font-size:5rem;margin-bottom:8px;">🧊</div>' +
+                '<div style="color:#fff;font-weight:800;font-size:1.3rem;margin-bottom:6px;">Streak Shield!</div>' +
+                '<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:20px;">Your streak is protected for one missed day 🛡️</div>' +
+                closeBtn + 'Protected! 🧊</button></div>';
+        } else if (rw.type === 'closet_item') {
+            var em = rw.itemEmoji || '👔';
+            var nm = typeof escapeHtml === 'function' ? escapeHtml(rw.itemName || 'Closet Item') : (rw.itemName || 'Closet Item');
+            var dupeNote = rw.closetDupe ? '<div style="color:#94a3b8;font-size:0.72rem;margin-top:2px;">(Already owned — got 1 ticket instead!)</div>' : '';
+            return wrap +
+                '<div style="font-size:5rem;margin-bottom:4px;">' + em + '</div>' +
+                '<div style="color:#f7931a;font-size:0.7rem;font-weight:800;letter-spacing:2px;margin-bottom:4px;">RARE UNLOCK!</div>' +
+                '<div style="color:#fff;font-weight:800;font-size:1.2rem;margin-bottom:4px;">' + nm + '</div>' +
+                '<div style="color:#94a3b8;font-size:0.82rem;margin-bottom:2px;">New Nacho closet item! 🦌</div>' + dupeNote +
+                '<div style="color:#94a3b8;font-size:0.75rem;margin-bottom:18px;">Settings → Nacho\'s Closet</div>' +
+                closeBtn + 'Dress up! 👔</button></div>';
+        } else if (rw.type === 'nacho_shoutout') {
+            return wrap +
+                '<div style="font-size:5rem;margin-bottom:4px;">🦌</div>' +
+                '<div style="color:#f7931a;font-size:0.7rem;font-weight:800;letter-spacing:2px;margin-bottom:4px;">ULTRA RARE!</div>' +
+                '<div style="color:#fff;font-weight:800;font-size:1.2rem;margin-bottom:6px;">Nacho Shoutout!</div>' +
+                '<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:20px;">Nacho is tagging you in Global Chat and telling everyone to add you as a peer! 🧡⚡</div>' +
+                closeBtn + 'Famous! 🦌</button></div>';
+        } else {
+            var tc = rw.ticketCount || 1;
+            return wrap +
+                '<div style="font-size:5rem;margin-bottom:8px;">🎫</div>' +
+                '<div style="font-size:3rem;font-weight:900;color:#f7931a;margin-bottom:4px;">' + tc + '</div>' +
+                '<div style="color:#fff;font-weight:800;font-size:1.2rem;margin-bottom:6px;">Orange Ticket' + (tc !== 1 ? 's' : '') + '!</div>' +
+                '<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:20px;">Added to your wallet 🧡</div>' +
+                closeBtn + 'Sweet! ✨</button></div>';
+        }
+    }
+
+    function _buildGiftToast(rw) {
+        if (rw.type === 'xp_bonus')       return '⭐ +' + (rw.xpAmount || 50) + ' XP Bonus from your gift!';
+        if (rw.type === 'streak_shield')  return '🧊 Streak Shield! Miss a day? You\'re covered.';
+        if (rw.type === 'closet_item')    return rw.closetDupe ? '🎫 +1 ticket (closet item already owned)' : '🦌 RARE! Closet item: ' + (rw.itemEmoji || '') + ' ' + (rw.itemName || '');
+        if (rw.type === 'nacho_shoutout') return '🦌 ULTRA RARE! Nacho Shoutout! Check Global Chat!';
+        var tc = rw.ticketCount || 1;
+        return '+' + tc + ' 🎫 Orange Ticket' + (tc !== 1 ? 's' : '') + ' added!';
     }
 
     // Wait for shake to finish, then reveal
@@ -146,13 +210,7 @@ window.openGiftModal = async function(giftId) {
             ? '<div style="font-size:3rem;margin-bottom:12px;">❌</div>' +
               '<div style="color:#ef4444;font-weight:700;font-size:1rem;margin-bottom:16px;">' + (typeof escapeHtml === 'function' ? escapeHtml(cfError) : cfError) + '</div>' +
               '<button onclick="document.getElementById(\'giftOpenOverlay\').remove()" style="padding:10px 24px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Close</button>'
-            : '<div style="animation:giftReveal 0.4s ease-out;">' +
-              '<div style="font-size:5rem;margin-bottom:8px;">🎫</div>' +
-              '<div style="font-size:3rem;font-weight:900;color:#f7931a;margin-bottom:4px;">' + ticketCount + '</div>' +
-              '<div style="color:#fff;font-weight:800;font-size:1.2rem;margin-bottom:6px;">Orange Ticket' + (ticketCount !== 1 ? 's' : '') + '!</div>' +
-              '<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:20px;">Added to your wallet 🧡</div>' +
-              '<button onclick="document.getElementById(\'giftOpenOverlay\').remove()" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(247,147,26,0.4);">Sweet! ✨</button>' +
-              '</div>';
+            : _buildGiftRevealHtml(reward);
 
         if (!cfError) {
             // Confetti
@@ -170,12 +228,12 @@ window.openGiftModal = async function(giftId) {
                 }
             }
             // Toast
-            if (typeof showToast === 'function') showToast('+' + ticketCount + ' 🎫 Orange Ticket' + (ticketCount !== 1 ? 's' : '') + ' added!', 3000);
+            if (typeof showToast === 'function') showToast(_buildGiftToast(reward), 3500);
             // Auto-close
             setTimeout(function() {
                 var ov = document.getElementById('giftOpenOverlay');
                 if (ov) ov.remove();
-            }, 3500);
+            }, 4000);
         }
     }, 1300);
 

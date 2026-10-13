@@ -6,11 +6,12 @@
  * and awards XP to BOTH peers on level-up — all server-side, never client-controlled.
  *
  * Levels:
- *   1 = Unconfirmed    (0 gifts)
- *   2 = Confirmed      (1 gift)     → 3,000 XP each
- *   3 = Channel Partner(21 gifts)   → 21,000 XP each
- *   4 = Routing Node   (144 gifts)  → 50,000 XP each
- *   5 = Wumbo          (210 gifts)  → 100,000 XP each
+ *   1 = Unconfirmed       (0 gifts)
+ *   2 = Opening Channel   (1 gift)    → 3,000 XP each
+ *   3 = Routing Nodes     (21 gifts)  → 21,000 XP each
+ *   4 = Adjusted Fees     (44 gifts)  → 44,000 XP each
+ *   5 = Balanced Liquidity(144 gifts) → 50,000 XP each
+ *   6 = Wumbo Channel     (210 gifts) → 100,000 XP each
  *
  * DO NOT call admin.initializeApp() here — it is called in index.js.
  */
@@ -20,11 +21,12 @@ const admin = require('firebase-admin');
 const db = admin.firestore();
 
 const PEER_LEVELS = [
-  { level: 1, name: 'Unconfirmed',     emoji: '⬜', giftsRequired: 0,   xp: 0      },
-  { level: 2, name: 'Confirmed',       emoji: '🟨', giftsRequired: 1,   xp: 3000   },
-  { level: 3, name: 'Channel Partner', emoji: '⚡', giftsRequired: 21,  xp: 21000  },
-  { level: 4, name: 'Routing Node',    emoji: '🔗', giftsRequired: 144, xp: 50000  },
-  { level: 5, name: 'Wumbo',           emoji: '🟠', giftsRequired: 210, xp: 100000 },
+  { level: 1, name: 'Unconfirmed',        emoji: '⬜', giftsRequired: 0,   xp: 0      },
+  { level: 2, name: 'Opening Channel',    emoji: '🟨', giftsRequired: 1,   xp: 3000   },
+  { level: 3, name: 'Routing Nodes',      emoji: '⚡', giftsRequired: 21,  xp: 21000  },
+  { level: 4, name: 'Adjusted Fees',      emoji: '⚙️', giftsRequired: 44,  xp: 44000  },
+  { level: 5, name: 'Balanced Liquidity', emoji: '🔗', giftsRequired: 144, xp: 50000  },
+  { level: 6, name: 'Wumbo Channel',      emoji: '🟠', giftsRequired: 210, xp: 100000 },
 ];
 
 /** Returns the highest level the given gift count qualifies for. */

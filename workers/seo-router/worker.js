@@ -105,6 +105,7 @@ function buildCSP(nonce) {
         "connect-src 'self'" +
             " https://www.gstatic.com" +              // Firebase source maps (firebase-*.js.map)
             " https://*.googleapis.com" +           // Firestore, Auth, FCM, Storage
+            " https://*.firebasestorage.app" +        // Firebase Storage (new domain)
             " wss://*.googleapis.com" +            // Firestore real-time WebSocket (mobile)
             " https://*.google.com" +               // Google Sign-In
             " https://*.firebaseapp.com" +           // Firebase hosting / Auth redirect

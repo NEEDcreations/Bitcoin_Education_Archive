@@ -978,7 +978,7 @@ var _shownPartnershipPopups = new Set();
 window.showPartnershipLevelUpPopup = function(notifData) {
     if (!notifData) return;
     var levelNum  = notifData.levelNum  || 1;
-    var levelName = notifData.levelName || 'Confirmed';
+    var levelName = notifData.levelName || 'Opening Channel';
     var peerId    = notifData.peerId    || '';
 
     // Session guard — prevent double-fire on snapshot replay
@@ -987,10 +987,11 @@ window.showPartnershipLevelUpPopup = function(notifData) {
     _shownPartnershipPopups.add(guardKey);
 
     var LEVEL_META = {
-        2: { emoji: '🟨', color: '#eab308', glow: 'rgba(234,179,8,0.35)',  xp: '3,000',   subtitle: 'Your first gift exchanged. It\'s on-chain now.' },
-        3: { emoji: '⚡', color: '#f7931a', glow: 'rgba(247,147,26,0.4)',  xp: '21,000',  subtitle: 'A Lightning channel is open between you.' },
-        4: { emoji: '🔗', color: '#3b82f6', glow: 'rgba(59,130,246,0.35)', xp: '50,000',  subtitle: 'Deep, trusted. You\'re routing value to each other.' },
-        5: { emoji: '🟠', color: '#f7931a', glow: 'rgba(247,147,26,0.5)',  xp: '100,000', subtitle: 'No limits. Big volume. Wumbo mode activated.' },
+        2: { emoji: '🟨', color: '#eab308', glow: 'rgba(234,179,8,0.35)',  xp: '3,000',   subtitle: 'First exchange. The channel is opening.' },
+        3: { emoji: '⚡', color: '#f7931a', glow: 'rgba(247,147,26,0.4)',  xp: '21,000',  subtitle: 'You\'re routing value to each other.' },
+        4: { emoji: '⚙️', color: '#94a3b8', glow: 'rgba(148,163,184,0.35)', xp: '44,000', subtitle: 'You\'ve dialled in the fee rate together.' },
+        5: { emoji: '🔗', color: '#3b82f6', glow: 'rgba(59,130,246,0.35)', xp: '50,000',  subtitle: 'Inbound and outbound, perfectly balanced.' },
+        6: { emoji: '🟠', color: '#f7931a', glow: 'rgba(247,147,26,0.5)',  xp: '100,000', subtitle: 'No limits. Big volume. Wumbo mode activated.' },
     };
     var meta = LEVEL_META[levelNum] || { emoji: '⚡', color: '#f7931a', glow: 'rgba(247,147,26,0.35)', xp: '', subtitle: '' };
 
@@ -1043,7 +1044,7 @@ window.showPartnershipLevelUpPopup = function(notifData) {
 
             // Progress dots
             '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:24px;">' +
-                [1,2,3,4,5].map(function(i) {
+                [1,2,3,4,5,6].map(function(i) {
                     return '<div style="width:' + (i === levelNum ? '20px' : '8px') + ';height:8px;border-radius:4px;background:' + (i <= levelNum ? meta.color : 'var(--border,#333)') + ';transition:all 0.3s;"></div>';
                 }).join('') +
             '</div>' +

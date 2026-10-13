@@ -117,10 +117,20 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // App Check NOT initialized.
-        // verifyPhoneNumber uses its own RecaptchaVerifier — App Check is separate and not required.
-        // App Check reCAPTCHA Enterprise 401s from Cloudflare's challenge platform were
-        // silently blocking phone auth. Remove entirely until properly configured.
+        // App Check — required for Firebase Storage (enforced in Firebase console).
+        // autoRefresh=false avoids token-refresh conflicts with the phone MFA flow.
+        // Initial reCAPTCHA Enterprise token lasts ~1h; sufficient for Storage uploads.
+        if (typeof firebase.appCheck === 'function') {
+            try {
+                firebase.appCheck().activate(
+                    new firebase.appCheck.ReCaptchaEnterpriseProvider('6LcLJ-otAAAAAB3yrnA-xXRe1TbvWSYuZubatwbd'),
+                    false // do not auto-refresh — avoids blocking auth operations
+                );
+                console.log('[AppCheck] Activated (autoRefresh=false)');
+            } catch(e) {
+                console.warn('[AppCheck] Failed to activate:', e.message);
+            }
+        }
 
         db = firebase.firestore();
         // Enable offline persistence - data survives connection loss
@@ -4717,11 +4727,12 @@ function showSettingsPage(tab) {
         html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚡ Partnership Levels</div>';
         html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">As you and a peer exchange gifts, your partnership grows. Both of you earn XP at each level.</div>';
         var _pLevels = [
-            { emoji: '⬜', name: 'Unconfirmed', gifts: '0 gifts', xp: '—', desc: 'Just connected.' },
-            { emoji: '🟨', name: 'Confirmed', gifts: '1 gift', xp: '+3,000 XP', desc: 'First exchange. It\'s on-chain now.' },
-            { emoji: '⚡', name: 'Channel Partner', gifts: '21 gifts', xp: '+21,000 XP', desc: 'A Lightning channel is open between you.' },
-            { emoji: '🔗', name: 'Routing Node', gifts: '144 gifts', xp: '+50,000 XP', desc: 'Deep, trusted. You route value to each other.' },
-            { emoji: '🟠', name: 'Wumbo', gifts: '210 gifts', xp: '+100,000 XP', desc: 'No limits. Big volume. Wumbo mode activated.' },
+            { emoji: '⬜', name: 'Unconfirmed',        gifts: '0 gifts',   xp: '—',           desc: 'Just connected.' },
+            { emoji: '🟨', name: 'Opening Channel',    gifts: '1 gift',    xp: '+3,000 XP',   desc: 'First exchange. The channel is opening.' },
+            { emoji: '⚡', name: 'Routing Nodes',      gifts: '21 gifts',  xp: '+21,000 XP',  desc: 'You\'re routing value to each other.' },
+            { emoji: '⚙️', name: 'Adjusted Fees',      gifts: '44 gifts',  xp: '+44,000 XP',  desc: 'You\'ve dialled in the fee rate together.' },
+            { emoji: '🔗', name: 'Balanced Liquidity', gifts: '144 gifts', xp: '+50,000 XP',  desc: 'Inbound and outbound, perfectly balanced.' },
+            { emoji: '🟠', name: 'Wumbo Channel',      gifts: '210 gifts', xp: '+100,000 XP', desc: 'No limits. Big volume. Wumbo mode activated.' },
         ];
         _pLevels.forEach(function(lvl) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';

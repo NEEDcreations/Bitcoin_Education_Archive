@@ -8425,6 +8425,48 @@ exports.nachoRadioTick = onSchedule({
 // GIFTING SYSTEM
 // =============================================
 // Gift secrets stored in separate collection (gift_secrets/{giftId})
+// ─── Gift reward types ───────────────────────────────────────────────────────
+// tickets 60% | xp_bonus 20% | streak_shield 8% | closet_item 10% | nacho_shoutout 2%
+const GIFT_CLOSET_ITEMS = [
+    { id: 'orange_scarf',    name: 'Bitcoin Scarf',    emoji: '🧣' },
+    { id: 'sunglasses',      name: 'Cool Shades',      emoji: '🕶️' },
+    { id: 'bowtie',          name: 'Fancy Bowtie',     emoji: '🎀' },
+    { id: 'mining_helmet',   name: 'Mining Helmet',    emoji: '⛑️' },
+    { id: 'lightning_chain', name: 'Lightning Chain',  emoji: '⚡' },
+    { id: 'party_hat',       name: 'Party Hat',        emoji: '🎉' },
+    { id: 'hodl_hoodie',     name: 'HODL Hoodie',      emoji: '🧥' },
+    { id: 'laser_eyes',      name: 'Laser Eyes',       emoji: '🔴' },
+    { id: 'wizard_hat',      name: 'Wizard Hat',       emoji: '🪄' },
+    { id: 'crown',           name: 'Royal Crown',      emoji: '👑' },
+    { id: 'steak',           name: 'Proof of Steak',   emoji: '🥩' },
+    { id: 'diamond_hooves',  name: 'Diamond Hooves',   emoji: '💎' },
+    { id: 'astronaut',       name: 'Moon Helmet',      emoji: '🪖' },
+    { id: 'cape_permanent',  name: 'Hero Cape',        emoji: '🦸' },
+];
+
+function rollGiftReward() {
+    const r = Math.random();
+    if (r < 0.60) {
+        // tickets — 60%
+        const t = Math.random();
+        return { rewardType: 'tickets', ticketCount: t < 0.6 ? 1 : t < 0.9 ? 2 : 3 };
+    } else if (r < 0.80) {
+        // xp_bonus — 20%
+        const x = Math.random();
+        return { rewardType: 'xp_bonus', xpAmount: x < 0.50 ? 50 : x < 0.85 ? 100 : 150 };
+    } else if (r < 0.88) {
+        // streak_shield — 8%
+        return { rewardType: 'streak_shield' };
+    } else if (r < 0.98) {
+        // closet_item — 10%
+        const item = GIFT_CLOSET_ITEMS[Math.floor(Math.random() * GIFT_CLOSET_ITEMS.length)];
+        return { rewardType: 'closet_item', itemId: item.id, itemName: item.name, itemEmoji: item.emoji };
+    } else {
+        // nacho_shoutout — 2% (ultra rare)
+        return { rewardType: 'nacho_shoutout' };
+    }
+}
+
 // ticketCount never lives in the main gifts doc until revealed at open time
 
 exports.awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
@@ -8461,12 +8503,6 @@ exports.awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
         return { alreadyAwarded: false, giftsAdded: 0, message: 'Inventory full (50 max)' };
     }
 
-    // Roll ticket counts server-side (60% = 1, 30% = 2, 10% = 3)
-    function rollTickets() {
-        const r = Math.random();
-        return r < 0.6 ? 1 : r < 0.9 ? 2 : 3;
-    }
-
     const batch = db.batch();
     for (let i = 0; i < giftsToAdd; i++) {
         const giftRef = db.collection('gifts').doc();
@@ -8484,8 +8520,9 @@ exports.awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
             openedAt: null,
             openedBy: null,
         });
+        const rewardData = rollGiftReward();
         batch.set(secretRef, {
-            ticketCount: rollTickets(),
+            ...rewardData,
             ownerId: uid,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -8603,6 +8640,7 @@ exports.openGift = functionsV1.https.onCall(async (data, context) => {
     const today     = getOffsetDateKey();
 
     let ticketCount = 0;
+    let openGiftRewardResult = null;
     await db.runTransaction(async (t) => {
         const [giftDoc, secretDoc, userDoc] = await Promise.all([
             t.get(giftRef), t.get(secretRef), t.get(userRef)
@@ -8627,29 +8665,65 @@ exports.openGift = functionsV1.https.onCall(async (data, context) => {
             throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily gift open limit reached (21/day). Come back tomorrow!');
         }
 
-        ticketCount = secretDoc.data().ticketCount || 1;
+        const secret = secretDoc.data();
+        const rewardType = secret.rewardType || 'tickets'; // backward compat: old gifts default to tickets
+        let rewardResult = { type: rewardType };
 
-        t.update(giftRef, {
-            status:    'opened',
-            openedAt:  admin.firestore.FieldValue.serverTimestamp(),
-            openedBy:  uid,
-        });
-        t.delete(secretRef);
-        t.update(userRef, {
-            orangeTickets:    admin.firestore.FieldValue.increment(ticketCount),
+        const userUpdate = {
             giftsOpenedToday: openedToday + 1,
             giftsOpenedDate:  today,
+        };
+
+        if (rewardType === 'tickets') {
+            const tc = secret.ticketCount || 1;
+            ticketCount = tc;
+            userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tc);
+            rewardResult.ticketCount = tc;
+        } else if (rewardType === 'xp_bonus') {
+            const xp = secret.xpAmount || 50;
+            userUpdate.points    = admin.firestore.FieldValue.increment(xp);
+            userUpdate.weeklyXP  = admin.firestore.FieldValue.increment(xp);
+            userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
+            rewardResult.xpAmount = xp;
+        } else if (rewardType === 'streak_shield') {
+            userUpdate.streakFreezes = admin.firestore.FieldValue.increment(1);
+        } else if (rewardType === 'closet_item') {
+            const itemId = secret.itemId;
+            const existing = userDoc.data().spinClosetItems || [];
+            if (!existing.includes(itemId)) {
+                userUpdate.spinClosetItems = admin.firestore.FieldValue.arrayUnion(itemId);
+            } else {
+                // Already owns it — fallback to 1 ticket
+                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(1);
+                ticketCount = 1;
+                rewardResult = { type: 'tickets', ticketCount: 1, closetDupe: true };
+            }
+            rewardResult.itemId    = secret.itemId;
+            rewardResult.itemName  = secret.itemName;
+            rewardResult.itemEmoji = secret.itemEmoji;
+        } else if (rewardType === 'nacho_shoutout') {
+            // post to chat handled after transaction
+        }
+
+        t.update(giftRef, {
+            status:   'opened',
+            openedAt: admin.firestore.FieldValue.serverTimestamp(),
+            openedBy: uid,
         });
+        t.delete(secretRef);
+        t.update(userRef, userUpdate);
         // Clear the pending pair so sender can send again
         const openPairId  = gift.sentBy + '_' + uid;
         const openPairRef = db.collection('gift_pending_pairs').doc(openPairId);
         t.delete(openPairRef);
+
+        // expose rewardResult to outer scope
+        Object.assign(rewardResult, { _resolved: true });
+        // store on outer var
+        openGiftRewardResult = rewardResult;
     });
 
     // ── Peer level update (after transaction commits) ────────────────────────
-    // Triggered only when a gift is fully opened — both sides have exchanged.
-    // All writes (peerRelationships doc, user denorm, XP) happen server-side
-    // inside updatePeerLevelAfterGift's own transaction. Never client-triggered.
     try {
         const giftSnap = await giftRef.get();
         const sentBy   = giftSnap.exists ? giftSnap.data().sentBy : null;
@@ -8657,9 +8731,25 @@ exports.openGift = functionsV1.https.onCall(async (data, context) => {
             await updatePeerLevelAfterGift(sentBy, uid);
         }
     } catch (e) {
-        // Non-critical — log but don't fail the open
         console.warn('[openGift] peerLevel update failed:', e.message);
     }
 
-    return { success: true, ticketCount: ticketCount };
+    // ── Nacho shoutout (after transaction + peer level) ───────────────────────
+    if (openGiftRewardResult && openGiftRewardResult.type === 'nacho_shoutout') {
+        try {
+            const uSnap = await userRef.get();
+            const uName = uSnap.exists ? (uSnap.data().username || 'a Bitcoiner') : 'a Bitcoiner';
+            await db.collection('global_chat').add({
+                uid:         'nacho-bot',
+                name:        'Nacho 🦌',
+                text:        '🎁✨ ULTRA RARE GIFT! @' + uName + ' just opened a gift and got the rarest prize in the archive — a Nacho Shoutout! 🦌⚡ They\'re a real one. Go add @' + uName + ' as a peer and show them some orange love! 🧡₿',
+                isNachoAuto: true,
+                ts:          admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch(e) {
+            console.warn('[openGift] Nacho shoutout failed:', e.message);
+        }
+    }
+
+    return { success: true, reward: openGiftRewardResult || { type: 'tickets', ticketCount: ticketCount }, ticketCount: ticketCount };
 });
