@@ -117,20 +117,9 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // App Check — required for Firebase Storage (enforced in Firebase console).
-        // autoRefresh=false avoids token-refresh conflicts with the phone MFA flow.
-        // Initial reCAPTCHA Enterprise token lasts ~1h; sufficient for Storage uploads.
-        if (typeof firebase.appCheck === 'function') {
-            try {
-                firebase.appCheck().activate(
-                    new firebase.appCheck.ReCaptchaEnterpriseProvider('6LcLJ-otAAAAAB3yrnA-xXRe1TbvWSYuZubatwbd'),
-                    false // do not auto-refresh — avoids blocking auth operations
-                );
-                console.log('[AppCheck] Activated (autoRefresh=false)');
-            } catch(e) {
-                console.warn('[AppCheck] Failed to activate:', e.message);
-            }
-        }
+        // App Check NOT initialized.
+        // Storage enforcement disabled in Firebase console — authenticated users upload freely.
+        // SMS 2FA on Safari blocked by ITP regardless of App Check; TOTP used instead on Safari.
 
         db = firebase.firestore();
         // Enable offline persistence - data survives connection loss
@@ -5655,14 +5644,23 @@ function showSettingsPage(tab) {
         } else if (!emailVerified) {
             html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:#f59e0b;font-size:1.2rem;">⚠️</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Verify your email first</div><div style="color:var(--text-muted);font-size:0.8rem;">You must verify your email address before you can enable 2FA.</div></div></div>';
         } else {
-            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔓</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is not enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Add phone verification for extra security</div></div></div>' +
-                '<div id="mfaSetup">' +
-                '<input type="tel" id="mfaPhone" placeholder="Your phone number" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;">' +
-                '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">US numbers auto-format. International: include country code (e.g. +44...)</div>' +
-                '<button onclick="startMFAEnroll()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Send Verification Code</button>' +
-                '<div id="mfaVerify" style="display:none;margin-top:8px;"><input type="text" id="mfaCode" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
-                '<button onclick="verifyMFACode()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Verify & Enable 2FA</button></div>' +
-                '<div id="mfaStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+            // On Safari, reCAPTCHA iframe required for phone auth is blocked by ITP — surface TOTP instead
+            var _isSafariCtx = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
+            if (_isSafariCtx) {
+                html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:10px;">' +
+                    '<span style="font-size:1.2rem;flex-shrink:0;">⚠️</span>' +
+                    '<div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;margin-bottom:4px;">SMS 2FA not supported on Safari</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;">Safari blocks the verification step required for SMS codes. Use an <strong>authenticator app</strong> instead \u2014 it\'s faster, more secure, and works everywhere. Set it up in the Authenticator App section below.</div></div></div>';
+            } else {
+                html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔓</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is not enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Add phone verification for extra security</div></div></div>' +
+                    '<div id="mfaSetup">' +
+                    '<input type="tel" id="mfaPhone" placeholder="Your phone number" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;">' +
+                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">US numbers auto-format. International: include country code (e.g. +44...)</div>' +
+                    '<button onclick="startMFAEnroll()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Send Verification Code</button>' +
+                    '<div id="mfaVerify" style="display:none;margin-top:8px;"><input type="text" id="mfaCode" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
+                    '<button onclick="verifyMFACode()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Verify & Enable 2FA</button></div>' +
+                    '<div id="mfaStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+            }
         }
         html += '</div>';
 
@@ -7288,6 +7286,23 @@ window._showMFASignInChallenge = async function(resolver) {
     var overlay = document.createElement('div');
     overlay.id = 'mfaSignInOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+
+    // On Safari, reCAPTCHA required for phone auth is blocked by ITP — show helpful message instead
+    var _isSafariMFA = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
+    if (_isSafariMFA) {
+        overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;">' +
+            '<div style="font-size:2.5rem;margin-bottom:10px;">⚠️</div>' +
+            '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:8px;">SMS 2FA unavailable on Safari</div>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;line-height:1.5;">Safari blocks the verification step required for SMS codes. To sign in, either:<br><br>' +
+            '① Use <strong style="color:#fff;">Chrome, Firefox, or another browser</strong><br><br>' +
+            '② Or sign in on another browser, go to <strong style="color:#fff;">Settings → Security</strong>, disable SMS 2FA, and switch to the authenticator app.</div>' +
+            '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">OK</button>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) window._cancelMFASignIn(); });
+        return;
+    }
+
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;">' +
         '<div style="font-size:2rem;margin-bottom:8px;">🔐</div>' +
         '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:6px;">Two-Factor Authentication</div>' +
