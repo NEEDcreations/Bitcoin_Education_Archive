@@ -4467,9 +4467,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'sats', 'gifts', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', sats: '⚡', gifts: '🎁', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', gifts: 'Gifts', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix' };
+    ['account', 'scholar', 'sats', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:normal;text-align:center;line-height:1.2;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -4708,10 +4708,37 @@ function showSettingsPage(tab) {
                 '<span style="color:var(--accent);font-size:1.1rem;margin-left:auto;">→</span></div>';
         }
 
-        // Peers section - collapsible, above Advanced Account
-        html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers <span>▼</span></button>';
+        // Peers / Gifts section - collapsible, above Advanced Account
+        html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span>▼</span></button>';
         html += '<div id="peersSectionContent" style="display:none;margin-bottom:12px;">';
         html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:20px 0;">Loading...</div>';
+        // Partnership levels info
+        html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
+        html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚡ Partnership Levels</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">As you and a peer exchange gifts, your partnership grows. Both of you earn XP at each level.</div>';
+        var _pLevels = [
+            { emoji: '⬜', name: 'Unconfirmed', gifts: '0 gifts', xp: '—', desc: 'Just connected.' },
+            { emoji: '🟨', name: 'Confirmed', gifts: '1 gift', xp: '+3,000 XP', desc: 'First exchange. It\'s on-chain now.' },
+            { emoji: '⚡', name: 'Channel Partner', gifts: '21 gifts', xp: '+21,000 XP', desc: 'A Lightning channel is open between you.' },
+            { emoji: '🔗', name: 'Routing Node', gifts: '144 gifts', xp: '+50,000 XP', desc: 'Deep, trusted. You route value to each other.' },
+            { emoji: '🟠', name: 'Wumbo', gifts: '210 gifts', xp: '+100,000 XP', desc: 'No limits. Big volume. Wumbo mode activated.' },
+        ];
+        _pLevels.forEach(function(lvl) {
+            html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
+            html += '<span style="font-size:1.4rem;flex-shrink:0;">' + lvl.emoji + '</span>';
+            html += '<div style="flex:1;min-width:0;">';
+            html += '<div style="font-size:0.82rem;font-weight:700;color:var(--heading);">' + lvl.name + ' <span style="font-size:0.7rem;font-weight:500;color:var(--text-faint);">' + lvl.gifts + '</span></div>';
+            html += '<div style="font-size:0.72rem;color:var(--text-muted);">' + lvl.desc + '</div>';
+            html += '</div>';
+            html += '<span style="font-size:0.72rem;font-weight:700;color:#f7931a;flex-shrink:0;">' + lvl.xp + '</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+        // Gifts sub-section
+        html += '<div style="margin-top:12px;">';
+        html += '<div style="font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎁 Gifts</div>';
+        html += '<div id="giftsTabContent"><div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;">Loading gifts...</div></div>';
+        html += '</div>';
         html += '</div>';
 
         // Advanced Account toggle - content renders BELOW this button
@@ -5032,10 +5059,6 @@ function showSettingsPage(tab) {
         if (!isAnon && typeof loadReferralStatsUI === 'function') {
             setTimeout(loadReferralStatsUI, 100);
         }
-
-    } else if (settingsTab === 'gifts') {
-        // ===== GIFTS TAB =====
-        html += '<div id="giftsTabContent"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Loading gifts...</div></div>';
 
     } else if (settingsTab === 'sats') {
         // ===== SATS FAUCET TAB =====
@@ -6087,8 +6110,8 @@ function showSettingsPage(tab) {
         setTimeout(loadSatsHistory, 100);
     }
 
-    // Load gifts tab
-    if (settingsTab === 'gifts') {
+    // Load gifts (now nested in Peers/Gifts under account tab)
+    if (settingsTab === 'account') {
         setTimeout(function() {
             if (typeof window.renderGiftsSettingsTab === 'function') {
                 window.renderGiftsSettingsTab();
