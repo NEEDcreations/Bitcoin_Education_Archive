@@ -1372,6 +1372,69 @@ async function signInWithProvider(provider) {
 }
 
 // Returning user: send magic link to sign back in
+// ── "Trouble signing in?" dedicated recovery modal ───────────────────────
+// Surfaces prominently below the sign-in form. Separate from the inline
+// returningEmailInput so it's always findable even when buried under the
+// sign-up fields.
+window.showTroubleSigningIn = function() {
+    var existing = document.getElementById('troubleSignInModal');
+    if (existing) { existing.remove(); return; }
+
+    var overlay = document.createElement('div');
+    overlay.id = 'troubleSignInModal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    overlay.innerHTML =
+        '<div style="background:var(--bg-side,#0f0f1a);border:1px solid var(--border);border-radius:20px;padding:32px 24px;max-width:360px;width:100%;text-align:center;">' +
+        '<div style="font-size:2.5rem;margin-bottom:8px;">🔑</div>' +
+        '<div style="color:var(--heading,#fff);font-size:1.2rem;font-weight:800;margin-bottom:6px;">Trouble signing in?</div>' +
+        '<div style="color:var(--text-muted,#aaa);font-size:0.875rem;line-height:1.5;margin-bottom:20px;">No worries — no password needed.<br>Enter your email and we\'ll send a fresh sign-in link instantly.</div>' +
+        '<input type="email" id="troubleSignInEmail" placeholder="your@email.com" maxlength="100" autocomplete="email" onkeydown="if(event.key===\'Enter\')window._submitTroubleSignIn()" style="font-size:16px;padding:14px 18px;width:100%;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:var(--text,#fff);font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px;">' +
+        '<button id="troubleSignInBtn" onclick="window._submitTroubleSignIn()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">📧 Send Sign-In Link</button>' +
+        '<div id="troubleSignInStatus" style="font-size:0.8rem;min-height:20px;color:var(--text-muted);"></div>' +
+        '<button onclick="document.getElementById(\'troubleSignInModal\').remove()" style="margin-top:12px;background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+    setTimeout(function() {
+        var inp = document.getElementById('troubleSignInEmail');
+        if (inp) inp.focus();
+    }, 100);
+};
+
+window._submitTroubleSignIn = async function() {
+    var input  = document.getElementById('troubleSignInEmail');
+    var btn    = document.getElementById('troubleSignInBtn');
+    var status = document.getElementById('troubleSignInStatus');
+    if (!input) return;
+    var email = input.value.trim();
+    if (!email || !email.includes('@') || !email.includes('.')) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Please enter a valid email address.</span>';
+        input.style.borderColor = '#ef4444';
+        return;
+    }
+    input.style.borderColor = '';
+    input.disabled = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+    if (status) status.innerHTML = '<span style="color:var(--accent);">Sending your link...</span>';
+
+    var sent = await sendMagicLink(email);
+    if (sent) {
+        if (btn) btn.textContent = '✅ Link sent!';
+        if (status) status.innerHTML = '<span style="color:#22c55e;">Check your inbox — tap the link to sign in. Check spam if you don\'t see it.</span>';
+        // Auto-close after 4s
+        setTimeout(function() {
+            var m = document.getElementById('troubleSignInModal');
+            if (m) m.remove();
+        }, 4000);
+    } else {
+        input.disabled = false;
+        if (btn) { btn.disabled = false; btn.textContent = '📧 Send Sign-In Link'; }
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Couldn\'t send — check the email and try again.</span>';
+    }
+};
+
 window.sendReturningMagicLink = async function() {
     window._captureSignupFormState();
     var input = document.getElementById('returningEmailInput');

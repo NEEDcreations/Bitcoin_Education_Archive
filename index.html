@@ -1365,10 +1365,10 @@
             </div>
             <button onclick="submitUsername()" style="opacity:0.45;pointer-events:none;">Start Learning →</button>
             <div id="emailSignInSection" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-                <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Already have an account? Sign in with your email:</p>
+                <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;font-weight:600;">Already have an account? Get a sign-in link:</p>
                 <input type="email" id="returningEmailInput" placeholder="📧 Your email address" maxlength="100" aria-label="Email address for magic link sign-in" onkeydown="if(event.key==='Enter')sendReturningMagicLink()" style="font-size:16px;padding:14px 18px;width:100%;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:var(--text,#fff);font-family:inherit;outline:none;box-sizing:border-box;">
-                <button onclick="sendReturningMagicLink()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">📧 Send Magic Link</button>
-                <p style="color:var(--text-faint);font-size:0.7rem;margin:-6px 0 12px;">We'll email you a magic link — no password needed! ✨</p>
+                <button onclick="sendReturningMagicLink()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">📧 Send Sign-In Link</button>
+                <p style="color:var(--text-faint);font-size:0.7rem;margin:-6px 0 12px;">No password needed — tap the link in your email and you're in. ✨</p>
             </div>
             <div style="padding-top:8px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or sign in with a provider:</p>
@@ -1394,6 +1394,9 @@
                         ⚡ Sign in with Lightning
                     </button>
                 </div>
+            </div>
+            <div style="text-align:center;margin-top:4px;margin-bottom:2px;">
+                <button onclick="showTroubleSigningIn()" style="background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;padding:4px 8px;text-decoration:underline;text-decoration-style:dotted;">🔑 Trouble signing in?</button>
             </div>
             <span class="skip" onclick="hideUsernamePrompt()">Skip for now</span>
         </div>
