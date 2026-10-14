@@ -622,9 +622,7 @@ function renderChatMessages(msgs) {
                 html += '<span onclick="editChatMsg(\'' + m._id + '\',\'' + esc((m.text||'').replace(/'/g,`\\'`)) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
             }
             if (isAdmin && !m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true) {
-                var _pt = esc((m.text||'').substring(0,200).replace(/'/g,"\\\\'"));
-                var _pa = esc((m.name||'Anon').replace(/'/g,"\\\\'"));
-                html += '<span onclick="pinChatMessage(\'' + m._id + '\',\'' + _pt + '\',\'' + _pa + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
+                html += '<span onclick="pinChatMessage(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
             }
             html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
@@ -4009,9 +4007,13 @@ function _renderPinnedBanner(pin) {
     el.insertBefore(banner, el.firstChild);
 }
 
-window.pinChatMessage = function(msgId, text, authorName) {
+window.pinChatMessage = function(msgId) {
     if (typeof db === 'undefined' || !db) return;
     if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Not signed in'); return; }
+    // Look up text and author from cached messages — avoids inline escaping issues with long/special-char messages
+    var _cachedMsg = (window._chatAllMsgs || []).find(function(m) { return m._id === msgId; });
+    var text = _cachedMsg ? (_cachedMsg.text || '') : '';
+    var authorName = _cachedMsg ? (_cachedMsg.name || 'Anon') : 'Anon';
     // Force-refresh token so admin claim is current — stale token silently fails Firestore rules
     auth.currentUser.getIdTokenResult(true).then(function(tokenResult) {
         window._isAdminClaim = tokenResult.claims.admin === true;

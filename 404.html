@@ -1438,7 +1438,7 @@
     (function(){
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
-            'global-chat.js?v=20261014_0554',
+            'global-chat.js?v=20261014_0630',
             'satoshi-favor.js?v=20261008_0211'
         ];
         var _lazyScripts = [
@@ -1504,10 +1504,10 @@
         var hash = (window.location.hash || '').replace('#', '').split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261014_0554'],
-            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261014_0554'],
-            'chat':          ['global-chat.js?v=20261014_0554'],
-            'dms':           ['global-chat.js?v=20261014_0554'],
+            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261014_0630'],
+            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261014_0630'],
+            'chat':          ['global-chat.js?v=20261014_0630'],
+            'dms':           ['global-chat.js?v=20261014_0630'],
             'irl-sync':      ['irl-sync.js?v=20260810_0418'],
             'lightning':     ['lightning.js?v=20261009_0544', 'lightning-tips.js?v=20261007_2124'],
             'pvp':           ['pvp.js?v=20260708_0427'],
