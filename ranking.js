@@ -1514,6 +1514,12 @@ async function loadUser(uid, prefetchedDoc) {
             window._isAdminClaim = false;
         }
     } catch(e) { window._isAdminClaim = false; }
+    // Re-render chat messages now that admin claim is resolved.
+    // Firestore's onSnapshot often fires from cache before loadUser() finishes,
+    // so own messages render with isAdmin=false and miss the pin button.
+    if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
+        renderChatMessages(window._chatAllMsgs);
+    }
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
         // Cache profile for instant next-load
