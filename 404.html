@@ -1070,7 +1070,7 @@
                     </div>
                     <div style="width:1px;height:50px;background:rgba(255,255,255,0.1);"></div>
                     <div style="opacity:0.8;display:flex;align-items:center;">
-                      <img src="https://www.stackchainmagazine.net/wp-content/uploads/2023/12/IMG_7842.png" alt="Stackchain Magazine" loading="lazy" style="height:clamp(80px,16vw,130px);width:auto;max-width:min(260px,50vw);object-fit:contain;border-radius:6px;filter:brightness(1.4) contrast(1.2);" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"><span style="display:none;color:var(--text-muted);font-size:1.1rem;font-weight:800;">Stackchain Magazine</span>
+                      <img src="stackchain-magazine-logo.jpg" alt="Stackchain Magazine" loading="lazy" style="height:clamp(160px,32vw,260px);width:auto;max-width:min(480px,90vw);object-fit:contain;border-radius:6px;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"><span style="display:none;color:var(--text-muted);font-size:1.1rem;font-weight:800;">Stackchain Magazine</span>
                     </div>
                   </div>
                 </div>
@@ -1431,14 +1431,14 @@
     <script src="bundle.min.js?v=20261007_0413" defer fetchpriority="high"></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
     <script src="onboarding.js?v=20261013_1908" defer></script>
-    <script src="learning-quests.js?v=20261013_2349" defer></script>
+    <script src="learning-quests.js?v=20261014_0554" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
     <script>
     (function(){
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
-            'global-chat.js?v=20261007_0000',
+            'global-chat.js?v=20261014_0554',
             'satoshi-favor.js?v=20261008_0211'
         ];
         var _lazyScripts = [
@@ -1453,7 +1453,7 @@
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20260810_0418',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602',
             'timechain-tv.js?v=20261007_2230',
-            'learning-quests.js?v=20261013_2349',
+            'learning-quests.js?v=20261014_0554',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
         ];
         function _injectScript(src) {
@@ -1504,17 +1504,17 @@
         var hash = (window.location.hash || '').replace('#', '').split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261007_0000'],
-            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261007_0000'],
-            'chat':          ['global-chat.js?v=20261007_0000'],
-            'dms':           ['global-chat.js?v=20261007_0000'],
+            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261014_0554'],
+            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261014_0554'],
+            'chat':          ['global-chat.js?v=20261014_0554'],
+            'dms':           ['global-chat.js?v=20261014_0554'],
             'irl-sync':      ['irl-sync.js?v=20260810_0418'],
             'lightning':     ['lightning.js?v=20261009_0544', 'lightning-tips.js?v=20261007_2124'],
             'pvp':           ['pvp.js?v=20260708_0427'],
             'proof-of-play': ['pvp.js?v=20260708_0427', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20260331'],
-            'learning-quests': ['learning-quests.js?v=20261013_2349'],
+            'learning-quests': ['learning-quests.js?v=20261014_0554'],
             'quests':        ['quests.js?v=20261007'],
             'timechain-tv':  ['timechain-tv.js?v=20261007_2230'],
             'tv':            ['timechain-tv.js?v=20261007_2230']

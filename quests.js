@@ -4021,6 +4021,42 @@ function _renderNookInventoryContent(el) {
     }
 
     el.innerHTML = html;
+
+    // Populate gift count row async (gifting.js may be lazy-loaded)
+    (function _fillNookGiftRow() {
+        var giftRow = document.getElementById('nookInvGiftRow');
+        if (!giftRow) return;
+        var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+        var ownedCosmetics2 = (typeof currentUser !== 'undefined' && currentUser ? currentUser.ownedCosmetics || [] : []);
+        var giftCap2 = ownedCosmetics2.indexOf('gift_bag') !== -1 ? 75 : 50;
+        if (!uid || typeof db === 'undefined') {
+            giftRow.innerHTML = '';
+            return;
+        }
+        giftRow.innerHTML = '<div style="opacity:0.5;padding:10px 12px;font-size:0.8rem;color:var(--text-faint);">🎁 Loading gifts...</div>';
+        db.collection('gifts').where('ownerId','==',uid).where('status','==','inventory').limit(giftCap2 + 1).get().then(function(snap) {
+            var count = snap.size;
+            var hasItems = count > 0;
+            var borderC = hasItems ? 'var(--border)' : 'rgba(255,255,255,0.06)';
+            var opC = hasItems ? '1' : '0.5';
+            var txtC = hasItems ? 'var(--heading)' : 'var(--text-faint)';
+            var icnC = hasItems ? '#f7931a' : 'var(--text-faint)';
+            var actionBtn = hasItems
+                ? '<button onclick="if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Gifts</button>'
+                : '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Spin daily wheel to earn gifts</div>';
+            giftRow.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid '+borderC+';border-radius:12px;opacity:'+opC+'">' +
+                '<div style="font-size:1.4rem;flex-shrink:0;">🎁</div>' +
+                '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Gifts</div>' +
+                '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Earned from spinning the wheel</div>' +
+                '</div>' +
+                '<div style="flex-shrink:0;text-align:right;"><div style="font-size:0.85rem;font-weight:800;color:'+txtC+';"><span style="color:'+icnC+';font-size:1rem;">×</span> '+count+' / '+giftCap2+'</div>' +
+                (hasItems ? actionBtn : '') +
+                '</div>' +
+            '</div>';
+        }).catch(function() {
+            giftRow.innerHTML = '';
+        });
+    }());
 }
 
 window._nookActivateHashBooster = function(btnEl) {

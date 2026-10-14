@@ -1508,7 +1508,7 @@ async function loadUser(uid, prefetchedDoc) {
     // Resolve admin status from custom claim (not email allowlist)
     try {
         if (auth.currentUser && !auth.currentUser.isAnonymous) {
-            const tokenResult = await auth.currentUser.getIdTokenResult();
+            const tokenResult = await auth.currentUser.getIdTokenResult(true); // forceRefresh — stale token won't carry admin claim
             window._isAdminClaim = tokenResult.claims.admin === true;
         } else {
             window._isAdminClaim = false;
@@ -4719,7 +4719,7 @@ function showSettingsPage(tab) {
         }
 
         // Peers / Gifts section - collapsible, above Advanced Account
-        html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span>▼</span></button>';
+        html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersGiftsBadge"></span> <span>▼</span></button>';
         html += '<div id="peersSectionContent" style="display:none;margin-bottom:12px;">';
         html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:20px 0;">Loading...</div>';
         // Partnership levels info
@@ -6136,6 +6136,19 @@ function showSettingsPage(tab) {
             if (typeof window.renderGiftsSettingsTab === 'function') {
                 window.renderGiftsSettingsTab();
             }
+            // Populate gift count badge on the Peers/Gifts button
+            var _giftBadge = document.getElementById('peersGiftsBadge');
+            if (_giftBadge && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous && typeof db !== 'undefined') {
+                var _uid = auth.currentUser.uid;
+                var _ownedC = (typeof currentUser !== 'undefined' && currentUser ? currentUser.ownedCosmetics || [] : []);
+                var _giftCap = _ownedC.indexOf('gift_bag') !== -1 ? 75 : 50;
+                db.collection('gifts').where('ownerId','==',_uid).where('status','==','inventory').limit(_giftCap + 1).get().then(function(snap) {
+                    var el = document.getElementById('peersGiftsBadge');
+                    if (el && snap.size > 0) {
+                        el.innerHTML = ' <span style="display:inline-block;background:rgba(247,147,26,0.2);border:1px solid rgba(247,147,26,0.4);border-radius:10px;padding:1px 7px;font-size:0.72rem;color:#f7931a;font-weight:800;">🎁 ' + snap.size + '</span>';
+                    }
+                }).catch(function(){});
+            }
         }, 100);
     }
 
@@ -6303,8 +6316,8 @@ function showSettingsPage(tab) {
                         reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
                             '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
                             '<div style="display:flex;gap:6px;">' +
-                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
-                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
+                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
                             '</div></div>';
                     });
                 }
@@ -6350,7 +6363,7 @@ function showSettingsPage(tab) {
                                 '<span style="flex:1;font-size:0.9rem;cursor:pointer;color:var(--text);" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
                                 '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">' + summaryText + '</span>' +
                                 '<button onclick="var el=document.getElementById(\'' + pDetailId + '\');var arr=this.querySelector(\'span\');if(el.style.display===\'none\'){el.style.display=\'block\';arr.textContent=\'▲\';}else{el.style.display=\'none\';arr.textContent=\'▼\';}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;"><span>▼</span></button>' +
-                                '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'peers\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
+                                '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
                             '</div>' +
                             // Expandable detail panel
                             '<div id="' + pDetailId + '" style="display:none;margin-top:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +

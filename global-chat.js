@@ -4011,6 +4011,17 @@ function _renderPinnedBanner(pin) {
 
 window.pinChatMessage = function(msgId, text, authorName) {
     if (typeof db === 'undefined' || !db) return;
+    if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Not signed in'); return; }
+    // Force-refresh token so admin claim is current — stale token silently fails Firestore rules
+    auth.currentUser.getIdTokenResult(true).then(function(tokenResult) {
+        window._isAdminClaim = tokenResult.claims.admin === true;
+        if (!window._isAdminClaim) { if (typeof showToast === 'function') showToast('\u274c Admin access required to pin messages'); return; }
+        _doPinChatMessage(msgId, text, authorName);
+    }).catch(function(e) {
+        if (typeof showToast === 'function') showToast('\u274c Token refresh failed: ' + (e.message || e));
+    });
+};
+window._doPinChatMessage = function(msgId, text, authorName) {
     db.collection('global_chat_meta').doc('pinned').get().then(function(doc) {
         if (doc.exists && doc.data() && doc.data().text) {
             if (!confirm('Replace the current pinned message?')) return Promise.reject('cancelled');
@@ -4032,7 +4043,14 @@ window.pinChatMessage = function(msgId, text, authorName) {
 window.unpinChatMessage = function() {
     if (!confirm('Unpin this message?')) return;
     if (typeof db === 'undefined' || !db) return;
-    db.collection('global_chat_meta').doc('pinned').delete()
-        .then(function() { if (typeof showToast === 'function') showToast('📌 Message unpinned.'); })
-        .catch(function(e) { if (typeof showToast === 'function') showToast('Failed to unpin: ' + (e.message || e.code)); });
+    if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Not signed in'); return; }
+    auth.currentUser.getIdTokenResult(true).then(function(tokenResult) {
+        window._isAdminClaim = tokenResult.claims.admin === true;
+        if (!window._isAdminClaim) { if (typeof showToast === 'function') showToast('\u274c Admin access required'); return; }
+        db.collection('global_chat_meta').doc('pinned').delete()
+            .then(function() { if (typeof showToast === 'function') showToast('📌 Message unpinned.'); })
+            .catch(function(e) { if (typeof showToast === 'function') showToast('Failed to unpin: ' + (e.message || e.code)); });
+    }).catch(function(e) {
+        if (typeof showToast === 'function') showToast('\u274c Token refresh failed: ' + (e.message || e));
+    });
 };
