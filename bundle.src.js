@@ -4194,6 +4194,79 @@ function startIdleCycle() {
     }, 8000);
 }
 
+// ---- Nacho Action Dispatcher ----
+// Centralises all bubble CTA navigation so lazy-loaded scripts are
+// guarded, mobile tap-through is prevented, and destinations are correct.
+window._nachoDispatch = function(key) {
+    switch (key) {
+        case 'irl-sync':      if (typeof go === 'function') go('irl-sync'); break;
+        case 'forum':         if (typeof go === 'function') go('forum'); break;
+        case 'marketplace':   if (typeof go === 'function') go('marketplace'); break;
+        case 'bitcoin-beats': if (typeof go === 'function') go('bitcoin-beats'); break;
+        case 'nacho-mode':    if (typeof enterNachoMode === 'function') enterNachoMode(); break;
+        case 'pvp':
+            if (typeof enterPVPMode === 'function') { enterPVPMode(); }
+            else if (typeof showToast === 'function') showToast('⏳ Loading PVP\u2026 try again in a second!');
+            break;
+        case 'leaderboard':
+            if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
+            break;
+        case 'scholar':
+            if (typeof startScholarQuest === 'function') {
+                startScholarQuest();
+            } else {
+                // scholar.js not yet loaded — inject it then call
+                if (typeof showToast === 'function') showToast('⏳ Loading exam\u2026 one moment!');
+                var _s = document.createElement('script');
+                _s.src = 'scholar.js?v=20260809_1846';
+                _s.onload = function() { if (typeof startScholarQuest === 'function') startScholarQuest(); };
+                document.body.appendChild(_s);
+            }
+            break;
+        case 'flashcards':
+            // Open the Learning Quests hub which contains the flashcard launcher
+            if (typeof window.showQuestHub === 'function') {
+                window.showQuestHub();
+                window._questHubTab = 'flashcards';
+                setTimeout(function() { if (typeof window._renderQuestHubTab === 'function') window._renderQuestHubTab(); }, 100);
+            } else if (typeof showToast === 'function') {
+                showToast('⏳ Loading\u2026 try again in a moment!');
+            }
+            break;
+        case 'spin':
+            if (typeof showSpinWheel === 'function') showSpinWheel();
+            break;
+        case 'story':
+            if (typeof showNachoStory === 'function') { showNachoStory(); if (typeof nachoStoryNotifClear === 'function') nachoStoryNotifClear(); }
+            break;
+        case 'closet':
+            if (typeof showSettings === 'function') {
+                showSettings();
+                setTimeout(function() {
+                    var t = document.querySelector('[onclick*="nacho"]');
+                    if (t) t.click();
+                }, 300);
+            }
+            break;
+        case 'sf':
+            if (typeof window.showQuestHub === 'function') {
+                window.showQuestHub();
+                window._questHubTab = 'favor';
+                setTimeout(function() { if (typeof window._renderQuestHubTab === 'function') window._renderQuestHubTab(); }, 50);
+            }
+            break;
+        case 'trails':
+            if (typeof go === 'function') go('trails');
+            break;
+        case 'quests':
+            if (typeof window.showQuestHub === 'function') window.showQuestHub();
+            else if (typeof startQuestManual === 'function') startQuestManual();
+            break;
+        default:
+            if (typeof showToast === 'function') showToast('⚠️ Action not found: ' + key);
+    }
+};
+
 // ---- Show/Hide Bubble ----
 function showBubble(text, pose) {
     var _nc = document.getElementById('nacho-container');
@@ -4260,23 +4333,25 @@ function _showBubble(text, pose) {
     var actionBtn = '';
     if (text.indexOf('<button') === -1) { // don't double-add to interactive content
         var _linkMap = [
-            { pattern: /IRL Sync/i, action: "go('irl-sync')", label: "🤝 Open IRL Sync" },
-            { pattern: /PlebTalk/i, action: "go('forum')", label: "🗣️ Open PlebTalk" },
-            { pattern: /LightningMart|Lightning Mart|Marketplace/i, action: "go('marketplace')", label: "⚡ Open LightningMart" },
-            { pattern: /Bitcoin Beats/i, action: "go('bitcoin-beats')", label: "🎸 Open Bitcoin Beats" },
-            { pattern: /Nacho Mode/i, action: "enterNachoMode()", label: "🦌 Enter Nacho Mode" },
-            { pattern: /PVP|trivia battle/i, action: "enterPVPMode()", label: "⚔️ Enter PVP" },
-            { pattern: /Leaderboard/i, action: "toggleLeaderboard()", label: "🏆 Open Leaderboard" },
-            { pattern: /Scholar Cert|Scholar Exam|certification/i, action: "startScholarQuest()", label: "🎓 Start Certification" },
-            { pattern: /Flashcard/i, action: "goHome()", label: "📚 Go to Flashcards" },
-            { pattern: /Daily Spin|spin the wheel/i, action: "showSpinWheel()", label: "🎡 Daily Spin" },
-            { pattern: /Nacho.s Story/i, action: "showNachoStory()", label: "📖 Read Story" },
-            { pattern: /Nacho.s Closet/i, action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)", label: "🎽 Open Closet" },
-            { pattern: /Satoshi.s Favor|mining|FAVOR.*ACTIVE/i, action: "window.showQuestHub&&window.showQuestHub();window._questHubTab='favor';setTimeout(function(){if(window._renderQuestHubTab)window._renderQuestHubTab()},50)", label: "⛏️ Open Satoshi's Favor" },
+            { pattern: /IRL Sync/i, key: 'irl-sync', label: "🤝 Open IRL Sync" },
+            { pattern: /PlebTalk/i, key: 'forum', label: "🗣️ Open PlebTalk" },
+            { pattern: /LightningMart|Lightning Mart|Marketplace/i, key: 'marketplace', label: "⚡ Open LightningMart" },
+            { pattern: /Bitcoin Beats/i, key: 'bitcoin-beats', label: "🎸 Open Bitcoin Beats" },
+            { pattern: /Nacho Mode/i, key: 'nacho-mode', label: "🦌 Enter Nacho Mode" },
+            { pattern: /PVP|trivia battle/i, key: 'pvp', label: "⚔️ Enter PVP" },
+            { pattern: /Leaderboard/i, key: 'leaderboard', label: "🏆 Open Leaderboard" },
+            { pattern: /Scholar Cert|Scholar Exam|certification/i, key: 'scholar', label: "🎓 Start Certification" },
+            { pattern: /Flashcard/i, key: 'flashcards', label: "📚 Study Flashcards" },
+            { pattern: /Daily Spin|spin the wheel/i, key: 'spin', label: "🎡 Daily Spin" },
+            { pattern: /Nacho.s Story/i, key: 'story', label: "📖 Read Story" },
+            { pattern: /Nacho.s Closet/i, key: 'closet', label: "🎽 Open Closet" },
+            { pattern: /Satoshi.s Favor|mining|FAVOR.*ACTIVE/i, key: 'sf', label: "⛏️ Open Satoshi's Favor" },
+            { pattern: /Trails|learning path/i, key: 'trails', label: "🗺️ Open Trails" },
+            { pattern: /Quest/i, key: 'quests', label: "⚡ Open Quests" },
         ];
         for (var _li = 0; _li < _linkMap.length; _li++) {
             if (_linkMap[_li].pattern.test(text)) {
-                actionBtn = '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;' + _linkMap[_li].action + ';hideBubble(true);" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + _linkMap[_li].label + '</button>';
+                actionBtn = '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" ontouchend="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;hideBubble(true);setTimeout(function(){window._nachoDispatch(\'' + _linkMap[_li].key + '\')},60);" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + _linkMap[_li].label + '</button>';
                 break;
             }
         }

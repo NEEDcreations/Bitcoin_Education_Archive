@@ -1063,10 +1063,13 @@ service cloud.firestore {
       // Allow own message edit: only text/editCount/edited fields, max 2 edits, own message only
       allow update: if request.auth != null
                     && (
-                      // Reactions: only the user's own uid key within the reactions map
+                      // Reactions: emoji-keyed map { emoji: [uid,...] }
+                      // We can only validate shape here; client enforces per-user logic.
+                      // Max 20 distinct emoji reactions to prevent runaway writes.
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
                        && request.resource.data.reactions is map
-                       && request.resource.data.reactions.diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([request.auth.uid]))
+                       && request.resource.data.reactions.size() <= 20
+                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous'))
                       ||
                       // Message edit: own message, text only, max 2 edits
                       (resource.data.uid == request.auth.uid
