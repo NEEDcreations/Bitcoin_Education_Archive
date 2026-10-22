@@ -97,6 +97,9 @@
         <li>Not use your account to harass, scam, or deceive other users</li>
     </ul>
     <p>If you register with an email address, a verification magic link will be sent to your inbox. Nostr sign-in requires a NIP-07 compatible browser extension (Alby, nos2x). Lightning sign-in uses LNURL-auth — scan a QR code with a compatible Lightning wallet. Accounts that violate these terms may be suspended or deleted.</p>
+    <p>Usernames are reserved on the server. A name must be unique, 3 to 20 characters, and may use letters, numbers, spaces, underscores, hyphens, and periods. Names that contain HTML or profanity are rejected. Names that impersonate the site are reserved, including Nacho, admin, moderator, support, official, Satoshi, NEEDcreations, Bitcoin Quest, and system, and look-alike spellings of those names. You can change your username once a day. A name you give up stays held for you for 30 days. Your browser cannot write the username onto your account by itself.</p>
+    <p>If you browse as a guest and then sign in with a login that is new, we upgrade that same guest account so you keep your XP, username, badges, and streak. If that login already belongs to another account, the server can copy the guest's progress once instead. The copy uses a code that expires after 30 minutes, works once, and only for that guest. An account can receive one guest copy. Guest sessions older than about 7 days are not copied. Copied points count toward the daily XP cap. After a copy, the guest's points, weekly XP, monthly XP, orange tickets, and channel visits are cleared. The browser cannot set those totals.</p>
+    <p>The welcome tour is shown once. For a signed-in account we store that you have seen it. For a guest, that fact stays in this browser only. You can open the tour again from Settings or Help. The first quest records each finished step and its XP and tickets on the server. Quest XP counts toward the daily points cap and the weekly and monthly totals. When that quest asks you to talk to Nacho, we store only that a question was asked, plus its length and the time. We do not store the question text for the quest.</p>
 
     <h2>4. Orange Tickets, Referral Program & Nacho's Nook</h2>
     <ul>
@@ -440,7 +443,7 @@
         <li>Signed-in users have a public profile visible to other signed-in users</li>
         <li>Profiles display: username, profile picture, level, points, badges, tickets, streak, channels visited, forum posts, and join date</li>
         <li>Profile pictures are optional (resized to 128px JPEG, stored in Firestore)</li>
-        <li>You may enable <strong>two-factor authentication (TOTP)</strong> in Settings → Security for additional account security</li>
+        <li>You may turn on an authenticator app or phone verification in Settings. If you lose the device, a one-time recovery code gets you back in and turns that verification off. Support can turn it off after confirming it is you, and that action is logged</li>
         <li>Online status is tracked by default: green (active in last 5 min), yellow (15 min), or offline</li>
         <li>Online status updates every 60 seconds while you're on the Site</li>
         <li>You can <strong>disable online status</strong> in Settings → Prefs → Online Status (you will appear offline to all users)</li>

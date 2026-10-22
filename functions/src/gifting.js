@@ -257,6 +257,8 @@ const awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
 const OPEN_STATUSES = { unopened: true, inventory: true, sent: true };
 
 const openGift = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const giftId = (data.giftId || '').toString().trim();
     if (!giftId || giftId.length > 128) throw httpsError('invalid-argument', 'Invalid giftId');
@@ -434,6 +436,8 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
 // ─── Send keys (no client bypass; 1 send of up to 3 per recipient per UTC day)
 
 const sendKeys = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const recipientUid = (data.recipientUid || '').toString().trim();
     const keyIds = Array.isArray(data.keyIds) ? data.keyIds.map(function(k) { return String(k).trim(); }).filter(Boolean) : [];
@@ -587,6 +591,8 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
 // ─── Open a cipher with a matching key (own or peer-sent) ────────────────────
 
 const decryptCipher = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const cipherId = (data.cipherId || '').toString().trim();
     const keyId = (data.keyId || '').toString().trim();
@@ -808,6 +814,8 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
 }
 
 const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');

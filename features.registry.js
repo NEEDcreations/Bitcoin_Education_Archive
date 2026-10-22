@@ -114,6 +114,7 @@
         if (k === 'keyshelp') return function () { if (typeof win.showKeyboardHelp === 'function') win.showKeyboardHelp(); };
         if (k === 'notif') return function () { if (typeof win.showNotifications === 'function') win.showNotifications(); };
         if (k === 'signin') return function () { if (typeof win.showUsernamePrompt === 'function') win.showUsernamePrompt(); };
+        if (k === 'onboarding') return function () { if (typeof win.showOnboardingIntro === 'function') win.showOnboardingIntro({ force: true }); };
         if (k === 'tip') return function () { if (typeof win.showTipOverlay === 'function') win.showTipOverlay(); };
         if (k === 'dash') return function () {
             if (typeof win.toggleDashboard === 'function') win.toggleDashboard();
@@ -652,6 +653,13 @@
             how: 'Open the donate window and pick a method. Donating XP to charity is a different screen in Quest Hub.',
             follow: 'Want the charity tab if you meant donating XP?',
             hash: 'app/donate', aliases: ['donate'], kind: 'donate', openFns: ['showDonateModal'] }),
+        R({ id: 'onboarding-intro', title: 'Welcome tour', group: 'Help', term: 'welcome tour', priority: 40,
+            kw: 'welcome tour onboarding intro replay tour',
+            desc: 'The welcome tour is a short summary of what you can do here.',
+            how: 'It shows once. Replay it from Settings or Help.',
+            follow: 'Want the FAQ instead?',
+            hash: 'app/welcome-tour', aliases: ['welcome-tour', 'onboarding-intro'], kind: 'onboarding',
+            openFns: ['showOnboardingIntro'] }),
         R({ id: 'faq', title: 'FAQ and guide', group: 'Help', term: 'faq', priority: 70,
             kw: 'faq guide help questions frequently asked',
             desc: 'The FAQ and the guide answer common questions about the app.',

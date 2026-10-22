@@ -537,9 +537,10 @@ test('rules keep XP, the bonus flag, and replyTo on the server', function () {
     assert.ok(createBlock.includes("!('created' in request.resource.data)"));
     assert.ok(createBlock.includes('request.resource.data.created == request.time'));
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
-    assert.strictEqual((ranking.match(/anonData\.created = firebase\.firestore\.FieldValue\.serverTimestamp\(\)/g) || []).length, 3);
+    assert.ok((ranking.match(/clientCreatePayload\(/g) || []).length >= 3);
+    assert.strictEqual((ranking.match(/anonData\.created = firebase\.firestore\.FieldValue\.serverTimestamp\(\)/g) || []).length, 0);
     const createdLines = ranking.match(/created:\s*[^\n]+/g) || [];
-    assert.ok(createdLines.length >= 5);
+    assert.ok(createdLines.length >= 2);
     createdLines.forEach(function (line) {
         assert.ok(line.indexOf('serverTimestamp()') !== -1, line);
     });
@@ -618,9 +619,9 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261022_acctdel'));
+    assert.ok(html.includes('ranking.js?v=20261022_v2302'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
-    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2299'"));
+    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2302'"));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 1600);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));

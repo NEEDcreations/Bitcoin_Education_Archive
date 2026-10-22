@@ -4,6 +4,7 @@ test.sh
 scripts/
 .keys/
 firebase-debug.log
+firestore-debug.log
 images/
 .firebase/
 .wrangler/

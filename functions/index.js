@@ -208,225 +208,29 @@ const FAUCET = {
     NWC_URL: process.env.NWC_URL || ''
 };
 
-// ── TOTP secret encryption (AES-256-GCM) ────────────────────────────────────
-// Secrets are stored encrypted at rest. Key is in TOTP_ENCRYPTION_KEY env var
-// (32-byte hex string). If key is absent, falls back to plaintext for backwards
-// compatibility, but logs a warning on startup.
-const TOTP_KEY_HEX = process.env.TOTP_ENCRYPTION_KEY || '';
-if (!TOTP_KEY_HEX) {
-    console.warn('[TOTP] TOTP_ENCRYPTION_KEY is not set — secrets stored plaintext. Set a 32-byte hex key in Firebase env config.');
-}
-function encryptTotpSecret(secret) {
-    if (!TOTP_KEY_HEX) return { enc: false, value: secret };
-    const key = Buffer.from(TOTP_KEY_HEX, 'hex');
-    const iv = require('crypto').randomBytes(12);
-    const cipher = require('crypto').createCipheriv('aes-256-gcm', key, iv);
-    const enc = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return {
-        enc: true,
-        value: iv.toString('hex') + ':' + enc.toString('hex') + ':' + tag.toString('hex')
-    };
-}
-function decryptTotpSecret(stored) {
-    if (!stored || !stored.enc) return stored ? stored.value : null;
-    if (!TOTP_KEY_HEX) {
-        // Key disappeared after storage — cannot decrypt
-        throw new Error('TOTP_ENCRYPTION_KEY not set but secret is encrypted');
-    }
-    const key = Buffer.from(TOTP_KEY_HEX, 'hex');
-    const parts = stored.value.split(':');
-    if (parts.length !== 3) throw new Error('Invalid encrypted TOTP format');
-    const iv = Buffer.from(parts[0], 'hex');
-    const encBuf = Buffer.from(parts[1], 'hex');
-    const tag = Buffer.from(parts[2], 'hex');
-    const decipher = require('crypto').createDecipheriv('aes-256-gcm', key, iv);
-    decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(encBuf), decipher.final()]).toString('utf8');
-}
-
-// Generate TOTP secret and QR code for user
-exports.totpSetup = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const uid = context.auth.uid;
-    const email = context.auth.token.email || 'user';
-
-    // Generate secret
-    const secret = authenticator.generateSecret();
-
-    // Store temporarily (not verified yet), encrypted at rest
-    const encPending = encryptTotpSecret(secret);
-    await db.collection('totp_pending').doc(uid).set({
-        secretEnc: encPending.enc,
-        secret: encPending.value,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    // Generate QR code
-    const otpauth = authenticator.keyuri(email, "Bitcoin Education Archive", secret);
-    const qrDataUrl = await QRCode.toDataURL(otpauth);
-
-    return { qr: qrDataUrl, secret: secret };
+// Authenticator sessions are totp_sessions/{uid}_{sessionId}.
+// New setups fail closed until TOTP_ENCRYPTION_KEY is a 64-hex secret.
+// Existing plaintext secrets still verify. Deploy the bound functions, then
+// run migrate-totp-secrets.js (dry run, then --apply).
+const { initSecondFactor } = require('./src/secondFactor');
+const secondFactor = initSecondFactor({
+    db: db,
+    admin: admin,
+    HttpsError: functionsV1.https.HttpsError,
+    authenticator: authenticator,
+    QRCode: QRCode,
 });
-
-// Verify TOTP code and enable it
-exports.totpVerify = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Code required');
-
-    const uid = context.auth.uid;
-
-    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction)
-    const rlRef = db.collection('totp_rate_limits').doc(uid + '_verify');
-    await db.runTransaction(async (tx) => {
-        const rlDoc = await tx.get(rlRef);
-        if (rlDoc.exists) {
-            const rd = rlDoc.data();
-            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-            if (ws && (Date.now() - ws.getTime()) < 120000) {
-                if ((rd.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
-                tx.update(rlRef, { attempts: (rd.attempts || 0) + 1 });
-            } else {
-                tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-            }
-        } else {
-            tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-        }
-    });
-
-    // Get pending secret
-    const pending = await db.collection('totp_pending').doc(uid).get();
-    if (!pending.exists) throw new functionsV1.https.HttpsError('not-found', 'No pending TOTP setup. Start setup first.');
-
-    const pd = pending.data();
-    const secret = decryptTotpSecret({ enc: pd.secretEnc === true, value: pd.secret });
-
-    // Verify the code
-    var isValid = authenticator.verify({ token: data.code, secret: secret });
-    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code. Try again.');
-
-    // Store verified secret encrypted at rest
-    const encSecret = encryptTotpSecret(secret);
-    await db.collection('totp_secrets').doc(uid).set({
-        secretEnc: encSecret.enc,
-        secret: encSecret.value,
-        enabled: true,
-        enabledAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    // Update user doc
-    await db.collection('users').doc(uid).update({ totpEnabled: true });
-
-    // Clean up pending
-    await db.collection('totp_pending').doc(uid).delete();
-
-    return { success: true };
-});
-
-// Validate TOTP code on sign-in
-exports.totpCheck = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Code required');
-
-    const uid = context.auth.uid;
-
-    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction to prevent race condition)
-    const totpRateRef = db.collection('totp_rate_limits').doc(uid);
-    await db.runTransaction(async (t) => {
-        const doc = await t.get(totpRateRef);
-        const now = Date.now();
-        if (doc.exists) {
-            const d = doc.data();
-            const ws = d.windowStart ? (d.windowStart.toDate ? d.windowStart.toDate() : new Date(d.windowStart)) : null;
-            if (ws && (now - ws.getTime()) < 120000) {
-                if ((d.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
-                t.set(totpRateRef, { attempts: (d.attempts || 0) + 1, windowStart: d.windowStart }, { merge: true });
-            } else {
-                t.set(totpRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-            }
-        } else {
-            t.set(totpRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-        }
-    });
-
-    const doc = await db.collection('totp_secrets').doc(uid).get();
-    if (!doc.exists || !doc.data().enabled) {
-        throw new functionsV1.https.HttpsError('not-found', 'TOTP not enabled');
-    }
-
-    const dd = doc.data();
-    const secret = decryptTotpSecret({ enc: dd.secretEnc === true, value: dd.secret });
-    var isValid = authenticator.verify({ token: data.code, secret: secret });
-
-    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code');
-
-    // Reset rate limit on success
-    await totpRateRef.delete().catch(function() {});
-
-    // Mark session as verified
-    await db.collection('totp_sessions').doc(uid).set({
-        verified: true,
-        verifiedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    return { success: true };
-});
-
-// Disable TOTP
-exports.totpDisable = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.code) throw new functionsV1.https.HttpsError('invalid-argument', 'Enter your current code to disable');
-
-    const uid = context.auth.uid;
-
-    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction)
-    const rlRef = db.collection('totp_rate_limits').doc(uid + '_disable');
-    await db.runTransaction(async (tx) => {
-        const rlDoc = await tx.get(rlRef);
-        if (rlDoc.exists) {
-            const rd = rlDoc.data();
-            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-            if (ws && (Date.now() - ws.getTime()) < 120000) {
-                if ((rd.attempts || 0) >= 5) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
-                tx.update(rlRef, { attempts: (rd.attempts || 0) + 1 });
-            } else {
-                tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-            }
-        } else {
-            tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-        }
-    });
-
-    const doc = await db.collection('totp_secrets').doc(uid).get();
-    if (!doc.exists) throw new functionsV1.https.HttpsError('not-found', 'TOTP not enabled');
-
-    // Verify code before disabling
-    const dd2 = doc.data();
-    const secretForDisable = decryptTotpSecret({ enc: dd2.secretEnc === true, value: dd2.secret });
-    var isValid = authenticator.verify({ token: data.code, secret: secretForDisable });
-    if (!isValid) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid code. Must verify to disable.');
-
-    await db.collection('totp_secrets').doc(uid).delete();
-    await db.collection('totp_sessions').doc(uid).delete();
-    await db.collection('users').doc(uid).update({ totpEnabled: false });
-
-    return { success: true };
-});
-
-// Check if user has TOTP enabled
-exports.totpStatus = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const uid = context.auth.uid;
-    const doc = await db.collection('totp_secrets').doc(uid).get();
-    const sessionDoc = await db.collection('totp_sessions').doc(uid).get();
-
-    return {
-        enabled: doc.exists && doc.data().enabled === true,
-        sessionVerified: sessionDoc.exists && sessionDoc.data().verified === true
-    };
-});
+exports.totpSetup = secondFactor.totpSetup;
+exports.totpVerify = secondFactor.totpVerify;
+exports.totpCheck = secondFactor.totpCheck;
+exports.totpDisable = secondFactor.totpDisable;
+exports.totpStatus = secondFactor.totpStatus;
+exports.totpRevokeSession = secondFactor.totpRevokeSession;
+exports.issueRecoveryCodes = secondFactor.issueRecoveryCodes;
+exports.regenerateRecoveryCodes = secondFactor.regenerateRecoveryCodes;
+exports.useRecoveryCode = secondFactor.useRecoveryCode;
+exports.phoneFactorRemoved = secondFactor.phoneFactorRemoved;
+exports.adminResetSecondFactor = secondFactor.adminResetSecondFactor;
 
 // =============================================
 // Streak Reminder Push Notifications
@@ -601,8 +405,8 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
 
     // Rate limiting: max 5 nostrAuth calls per IP per hour (atomic transaction).
     // The doc id is a keyed hash. The address is not stored.
-    const nostrIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
-    if (nostrIP !== 'unknown') {
+    const nostrIP = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+    if (nostrIP) {
         const { networkRateDocId } = require('./src/rateLimitSalt');
         const nostrNow = Date.now();
         const nostrRateRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'nostr_', nostrIP, nostrNow));
@@ -754,8 +558,8 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
 exports.lnAuthChallenge = functionsV1.https.onCall(async (data, context) => {
     // Rate limiting: max 10 challenges per IP per hour (atomic transaction).
     // The doc id is a keyed hash. The address is not stored.
-    const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
-    if (lnIP !== 'unknown') {
+    const lnIP = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+    if (lnIP) {
         const { networkRateDocId } = require('./src/rateLimitSalt');
         const lnNow = Date.now();
         const lnRateRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'lnauth_', lnIP, lnNow));
@@ -1845,6 +1649,7 @@ exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
 }).https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -3101,6 +2906,7 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
 exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -3407,6 +3213,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     // Keyword and substring matching used to let any client phrase containing
     // "ticket" collect Orange Tickets. Amounts, per-day limits, and dedup keys
     // now come from awardActions. Client ticket counts are ignored.
+    if (actionKey === 'onboarding_quest' || /nacho quest|onboarding quest/i.test(String(action || ''))) {
+        return { success: false, error: 'Unknown action', awarded: 0, tickets: 0 };
+    }
     const resolved = awardActions.resolveAction({
         actionKey: actionKey,
         action: action,
@@ -4224,6 +4033,7 @@ exports.pvpSubmitAnswer = functionsV1.https.onCall(async (data, context) => {
 
 // ---- Daily Spin (server-side validation + reward) ----
 exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
@@ -6289,6 +6099,7 @@ exports.setTelegramWebhook = setTelegramWebhook;
 
 // ===== DONATE XP FOR CHARITY =====
 exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth || !context.auth.uid) throw new functionsV1.https.HttpsError('unauthenticated', 'Sign in to donate.');
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Create an account to donate.');
@@ -6546,6 +6357,7 @@ exports.searchUsers = functionsV1.https.onCall(async (data, context) => {
 // Returns: { invoices: [{name, split, amountSats, invoice, qr}], totalSats }
 // ================================================================
 exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     // SECURITY: auth required — unauthenticated callers could use this as a free SSRF oracle
     // via fetchLnurlInvoice and read internal service responses from the reflected pr field.
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Sign in required.');
@@ -7145,6 +6957,7 @@ exports.monthlyRaffleDraw = onSchedule({ schedule: '0 18 1 * *', timeZone: 'UTC'
 // ══════════════════════════════════════════════════════════════════════
 
 exports.spendTicketsForFreeze = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot purchase freezes');
@@ -7356,6 +7169,7 @@ const NOOK_SHOP_ITEMS = {
 };
 
 exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use the shop');
@@ -7493,6 +7307,7 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.convertPointsToTickets = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot convert XP');
@@ -7590,6 +7405,7 @@ exports.convertPointsToTickets = functionsV1.https.onCall(async (data, context) 
 });
 
 exports.activateHashBooster = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
@@ -7637,6 +7453,7 @@ exports.activateHashBooster = functionsV1.https.onCall(async (data, context) => 
 });
 
 exports.useHintToken = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use hint tokens');
@@ -7676,6 +7493,7 @@ exports.useHintToken = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot activate Double XP');
@@ -7730,6 +7548,7 @@ exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.useBonusSpin = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot use bonus spins');
@@ -7987,6 +7806,22 @@ exports.raidBossWeeklyAnnouncement = onSchedule(
 // 60 seconds (2x the client heartbeat interval of 5s, well beyond the 30s
 // stale threshold). Prevents stale lobby docs from blocking matchmaking.
 exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 60 minutes', timeZone: 'UTC' }, async (ctx) => {
+    try {
+        const expiredSessions = await db.collection('totp_sessions').where('expireAt', '<', new Date()).limit(200).get();
+        if (!expiredSessions.empty) {
+            const sessionBatch = db.batch();
+            expiredSessions.docs.forEach(function (doc) { sessionBatch.delete(doc.ref); });
+            await sessionBatch.commit();
+        }
+        const expiredAttempts = await db.collection('totp_rate_limits').where('expireAt', '<', new Date()).limit(200).get();
+        if (!expiredAttempts.empty) {
+            const attemptBatch = db.batch();
+            expiredAttempts.docs.forEach(function (doc) { attemptBatch.delete(doc.ref); });
+            await attemptBatch.commit();
+        }
+    } catch (e) {
+        console.error('[MFA CLEANUP] Error:', e.message);
+    }
     const STALE_MS = 60 * 1000; // 60 seconds
     const cutoff = Date.now() - STALE_MS;
     try {
@@ -8288,6 +8123,7 @@ const { updatePeerLevelAfterGift } = require('./src/peerLevel');
 // visibleBadges (server-side, deduplicated, validated against BADGE_VALUES catalog).
 // No XP is re-awarded — badge records are written directly via Admin SDK.
 exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -8636,6 +8472,9 @@ exports.claimSayHi = sayHiFns.claimSayHi;
 const { bindReplyBonus } = require('./src/replyBonus');
 const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
 exports.claimReplyBonus = replyBonusFns.claimReplyBonus;
+// claimOnboardingQuestStep, prepareGuestLink, linkGuestAccount, and setUsername.
+const { registerOnboarding } = require('./src/onboardingApi');
+Object.assign(exports, registerOnboarding({ db: db, admin: admin, functionsV1: functionsV1 }));
 
 // Account deletion. Owner (recent sign-in) or admin. Admin SDK writes only.
 const { bindDeleteAccount } = require('./src/deleteAccount');

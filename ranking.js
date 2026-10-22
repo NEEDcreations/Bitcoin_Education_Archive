@@ -125,6 +125,114 @@ let lastLevelMin = 0;
 let levelUpReady = false; // Don't celebrate until initial load completes
 
 // Initialize Firebase
+function mfaSessionKey(uid) {
+    return 'btc_mfa_session_' + uid;
+}
+
+window._mfaSessionId = function () {
+    try {
+        if (typeof auth === 'undefined' || !auth || !auth.currentUser) return '';
+        return localStorage.getItem(mfaSessionKey(auth.currentUser.uid)) || '';
+    } catch (e) { return ''; }
+};
+
+window._rememberMfaSession = function (uid, sessionId) {
+    try {
+        if (uid && sessionId) localStorage.setItem(mfaSessionKey(uid), sessionId);
+        if (uid) localStorage.removeItem('btc_totp_verified_' + uid);
+    } catch (e) {}
+};
+
+function installMfaCallablePatch() {
+    if (typeof firebase === 'undefined' || !firebase.functions || window._mfaCallablePatched) return;
+    var probe;
+    try { probe = firebase.functions(); } catch (e) { return; }
+    var proto = Object.getPrototypeOf(probe);
+    if (!proto || typeof proto.httpsCallable !== 'function' || proto.httpsCallable._mfaPatched) return;
+    var orig = proto.httpsCallable;
+    function wrapped(name, options) {
+        var callable = orig.call(this, name, options);
+        return function (data) {
+            var payload = data;
+            if (payload == null) payload = {};
+            if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+                var sid = window._mfaSessionId ? window._mfaSessionId() : '';
+                if (sid && payload.mfaSessionId == null) payload.mfaSessionId = sid;
+            }
+            return callable(payload);
+        };
+    }
+    wrapped._mfaPatched = true;
+    proto.httpsCallable = wrapped;
+    window._mfaCallablePatched = true;
+}
+
+function _mfaFailure(e) {
+    var code = (e && e.code) || '';
+    var msg = (e && e.message) || '';
+    if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many attempts') !== -1) return 'Too many attempts. Wait 2 minutes.';
+    if (msg.indexOf('already used') !== -1) return 'That code was already used. Wait for the next one.';
+    if (msg.indexOf('Authenticator session required') !== -1) return 'Enter your authenticator code first.';
+    if (msg.indexOf('phone verification') !== -1) return 'Sign out and sign back in so your phone verification applies.';
+    if (msg.indexOf('Invalid recovery code') !== -1) return 'That recovery code is not valid.';
+    if (msg.indexOf('Invalid code') !== -1) return 'That code is not valid.';
+    if (msg.indexOf('unavailable') !== -1) return 'Authenticator setup is unavailable right now.';
+    return msg || 'Something went wrong.';
+}
+
+function _isMfaBlock(e) {
+    var msg = (e && e.message) || '';
+    return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
+}
+
+window._serverTotpAllows = async function (uid) {
+    if (!uid || typeof firebase === 'undefined' || !firebase.functions) return true;
+    try {
+        var sessionId = '';
+        try { sessionId = localStorage.getItem(mfaSessionKey(uid)) || ''; } catch (e1) {}
+        var statusFn = firebase.functions().httpsCallable('totpStatus');
+        var result = await statusFn({ sessionId: sessionId });
+        var data = (result && result.data) || {};
+        window._mfaStatus = data;
+        if (data.enabled && !data.sessionVerified) return false;
+        if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
+        return true;
+    } catch (e) {
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled) return false;
+        return true;
+    }
+};
+
+window._maybeOfferRecoveryCodes = async function () {
+    if (window._recoveryOfferStarted) return;
+    var status = window._mfaStatus || {};
+    if (!status.needsRecoveryCodes) return;
+    if (!status.sessionVerified && !status.phoneEnabled) return;
+    window._recoveryOfferStarted = true;
+    try {
+        var fn = firebase.functions().httpsCallable('issueRecoveryCodes');
+        var res = await fn({});
+        if (res && res.data && res.data.recoveryCodes) window._showRecoveryCodes(res.data.recoveryCodes);
+        else window._recoveryOfferStarted = false;
+    } catch (e) {
+        window._recoveryOfferStarted = false;
+    }
+};
+
+function _resumeAfterSecondFactor() {
+    if (window._pendingGuestLink && typeof tryLinkGuest === 'function') {
+        window._pendingGuestLink = false;
+        tryLinkGuest();
+    }
+    if (window._pendingAnonBadges && window._pendingAnonBadges.length && typeof firebase !== 'undefined') {
+        var badges = window._pendingAnonBadges;
+        window._pendingAnonBadges = null;
+        try {
+            firebase.functions().httpsCallable('mergeAnonBadges')({ anonBadges: badges }).catch(function () {});
+        } catch (e) {}
+    }
+}
+
 function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
@@ -147,6 +255,7 @@ function initRanking() {
         auth = firebase.auth();
         // Ensure auth persists across refreshes, tab closes, and app restarts
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function() {});
+        installMfaCallablePatch();
 
         // Check if returning from email magic link
         if (auth.isSignInWithEmailLink(window.location.href)) {
@@ -175,20 +284,17 @@ function initRanking() {
             localStorage.removeItem('btc_anon_uid');
             localStorage.removeItem('btc_anon_data');
 
+            var guestHold = false;
             if (!existingDoc.exists) {
-                if (anonData) {
-                    anonData.email = user.email || '';
-                    if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
-                    anonData.created = firebase.firestore.FieldValue.serverTimestamp();
-                    await db.collection('users').doc(user.uid).set(anonData);
-                } else {
-                    await db.collection('users').doc(user.uid).set({
-                        username: user.displayName || 'Bitcoiner',
-                        email: user.email || '',
-                        points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
-                        lastVisit: new Date().toISOString().split('T')[0],
-                        created: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                var _redirExtra = {};
+                if (user.email) _redirExtra.email = user.email;
+                await db.collection('users').doc(user.uid).set(clientCreatePayload(_redirExtra));
+                var _redirName = localStorage.getItem('btc_pending_username') || '';
+                if (_redirName) {
+                    try { await applyServerUsername(_redirName); }
+                    catch (nameErr) { if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400); }
+                } else if (typeof showUsernamePrompt === 'function') {
+                    setTimeout(showUsernamePrompt, 400);
                 }
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                 if (typeof attachReferral === 'function') attachReferral(user.uid);
@@ -197,13 +303,9 @@ function initRanking() {
                 // Anti-abuse: only merge anonymous data once per account
                 // Anonymous data merge now handled minimally (points/visits are server-managed)
                 if (!existData.mergedAnon) {
-                    await existingDoc.ref.update({
-                        mergedAnon: true,
-                    });
-                    // Award any anonymous points through the server-side Cloud Function
-                    var _mergedPts = Math.min(anonData.points || 0, 500);
-                    if (_mergedPts > 0 && typeof awardPoints === 'function') {
-                        await awardPoints(_mergedPts, '\uD83D\uDD17 Anonymous progress merged');
+                    try { await existingDoc.ref.update({ mergedAnon: true }); } catch (e) {}
+                    if (typeof tryLinkGuest === 'function') {
+                        try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
                     }
                     // Merge anonymous badges into existing account's visibleBadges.
                     // Anonymous users can't write to Firestore, so their badges are
@@ -218,27 +320,28 @@ function initRanking() {
                             await _mergeAnonBadgesFn({ anonBadges: _anonBadges });
                             console.log('[Auth] Merged', _anonBadges.length, 'anon badges into account');
                         } catch(e) {
-                            console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
+                            if (_isMfaBlock(e)) window._pendingAnonBadges = _anonBadges;
+                            else console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
                         }
                     }
                 }
             }
 
-            // Clean up old anonymous doc
-            if (anonUid && anonUid !== user.uid) {
+            if (!guestHold && typeof tryLinkGuest === 'function') {
+                try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+            }
+            // Clean up old anonymous doc once the merge is not waiting on 2FA.
+            if (anonUid && anonUid !== user.uid && !guestHold) {
                 try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
             }
 
             loadUser(user.uid);
             updateAuthButton();
             if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
-            showToast('\u2705 Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
-            // first_save badge: was anonymous, now signed in with real account
+            showToast('You are signed in.');
             if (anonUid && anonUid !== user.uid) {
                 setTimeout(function() {
                     if (typeof awardPoints === 'function') awardPoints(50, '\u2705 Saved your progress!', null, null, null, 'first_save');
-                    // Also show the pleb moment
-                    if (typeof window._showPlebMoment === 'function') setTimeout(window._showPlebMoment, 2000);
                 }, 1500);
             }
             return user;
@@ -248,6 +351,16 @@ function initRanking() {
             if (e.code === 'auth/multi-factor-auth-required') {
                 console.log('[Auth] MFA required after redirect (race catch — skipping, direct catch handles it)');
                 return null; // do NOT call _showMFASignInChallenge again
+            }
+            if ((e.code === 'auth/credential-already-in-use' || e.code === 'auth/email-already-in-use') && e.credential) {
+                var fallbackAnon = localStorage.getItem('btc_anon_uid');
+                auth.signInWithCredential(e.credential).then(function(signed) {
+                    return _handleSignInResultGlobal(signed.user, fallbackAnon, null);
+                }).catch(function(err) {
+                    if (surfaceMfaRequired(err)) return;
+                    console.log('Redirect link fallback failed:', err && err.code);
+                });
+                return null;
             }
             if (e.code !== 'auth/popup-closed-by-user') {
                 console.log('Redirect result error:', e);
@@ -272,7 +385,7 @@ function initRanking() {
                 var prevUid = localStorage.getItem('btc_last_auth_uid');
                 if (prevUid && prevUid !== user.uid) {
                     console.log('[Auth] Account switch detected:', prevUid, '->', user.uid, '- clearing localStorage');
-                    clearUserLocalStorage();
+                    clearUserLocalStorage({ keepGuest: !!localStorage.getItem('btc_guest_link') });
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
                 // Sync experienceMode from Firestore (cross-device continuity)
@@ -294,7 +407,9 @@ function initRanking() {
                         var _cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
                         if (_cp && _cp.uid === user.uid && (Date.now() - _cp.ts) < 86400000) _cachedProfile = _cp;
                     } catch(e) {}
-                    if (_cachedProfile) {
+                    if (_cachedProfile && _cachedProfile.data && _cachedProfile.data.totpEnabled) {
+                        loadUser(user.uid).catch(function(){});
+                    } else if (_cachedProfile) {
                         // Instant render from cache
                         currentUser = { uid: user.uid, ..._cachedProfile.data };
                         window._myPeers = new Set(currentUser.peers || []);
@@ -312,6 +427,7 @@ function initRanking() {
                         loadUser(user.uid).catch(function(){});
                     }
                 } else if (user && user.isAnonymous) {
+                    if (typeof stashGuestLink === 'function') stashGuestLink();
                     // If we're pending a redirect, DON'T load anon yet - wait longer for auth to resolve
                     if (_pendingRedirect) {
                         console.log('[Auth] Anon user but pending redirect - waiting 8s for real auth...');
@@ -372,6 +488,7 @@ function initRanking() {
                     return;
                 }
                 if (user.isAnonymous) {
+                    if (typeof stashGuestLink === 'function') stashGuestLink();
                     loadUserLocal(user.uid);
                 } else {
                     loadUser(user.uid);
@@ -445,7 +562,50 @@ async function handleEmailSignIn() {
     return finishEmailSignIn(email, _signInUrl);
 }
 
+function planEmailLinkFailure(code, hasCredential) {
+    if (code === 'auth/multi-factor-auth-required') return 'mfa';
+    if ((code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use') && hasCredential) return 'credential';
+    if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use' || code === 'auth/provider-already-linked') return 'email-link';
+    return 'throw';
+}
+
+function planEmailSignInFailure(code) {
+    if (code === 'auth/multi-factor-auth-required') return 'mfa';
+    if (code === 'auth/invalid-action-code' || code === 'auth/expired-action-code') return 'resend';
+    return 'toast';
+}
+
+function guestLinkShouldDrop(error) {
+    return error === 'expired' || error === 'one_guest' || error === 'guest_too_old' || error === 'already_linked' || error === 'bad_nonce';
+}
+
+function shouldSkipInPlaceLink(flagEmail, email) {
+    var flag = String(flagEmail || '').trim().toLowerCase();
+    var current = String(email || '').trim().toLowerCase();
+    return flag.length > 0 && flag === current;
+}
+
+function guestLinkIsMfaHold(message) {
+    var msg = String(message || '');
+    return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
+}
+
+function surfaceMfaRequired(err) {
+    if (!err || err.code !== 'auth/multi-factor-auth-required') return false;
+    try {
+        var em = document.getElementById('emailInput');
+        if (em && em.value) window._mfaRecoveryEmail = em.value.trim();
+    } catch (e) {}
+    if (typeof window._showMFASignInChallenge === 'function') {
+        window._showMFASignInChallenge(err.resolver);
+    } else if (typeof showToast === 'function') {
+        showToast('Two-factor authentication required. Please refresh and try again.');
+    }
+    return true;
+}
+
 async function finishEmailSignIn(email, _signInUrl) {
+    if (email) window._mfaRecoveryEmail = email;
     if (!email) {
         showToast('⚠️ Could not determine your email. Please sign in again from the app.');
         return;
@@ -468,14 +628,61 @@ async function finishEmailSignIn(email, _signInUrl) {
             }
         }
 
-        // Sign in with email link (use saved URL that still has Firebase params)
-        console.log('[Email Sign-In] Starting signInWithEmailLink for:', email);
-        const result = await auth.signInWithEmailLink(email, _signInUrl);
-        console.log('[Email Sign-In] Sign-in result:', result.user ? result.user.uid : 'no user');
+        // Upgrade the guest in place when this email is new. Merge is the fallback.
+        // A previous resend means this code must not be spent on linkWithCredential.
+        console.log('[Email Sign-In] Starting sign-in');
+        var resultUser = null;
+        var skipInPlaceLink = false;
+        try {
+            skipInPlaceLink = shouldSkipInPlaceLink(localStorage.getItem('btc_skip_email_link'), email);
+        } catch (flagRead) {}
+        if (!skipInPlaceLink && anonUser && anonUser.isAnonymous && firebase.auth.EmailAuthProvider && typeof anonUser.linkWithCredential === 'function') {
+            try {
+                var emailCred = firebase.auth.EmailAuthProvider.credentialWithLink(email, _signInUrl);
+                var linkedEmail = await anonUser.linkWithCredential(emailCred);
+                try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                resultUser = linkedEmail.user;
+            } catch (linkErr) {
+                var linkCode = linkErr && linkErr.code;
+                var linkPlan = planEmailLinkFailure(linkCode, !!(linkErr && linkErr.credential));
+                if (linkPlan === 'mfa') throw linkErr;
+                if (linkPlan === 'credential') {
+                    var signedEmail = await auth.signInWithCredential(linkErr.credential);
+                    resultUser = signedEmail.user;
+                } else if (linkPlan === 'throw') {
+                    throw linkErr;
+                }
+            }
+        }
+        if (!resultUser) {
+            try {
+                const result = await auth.signInWithEmailLink(email, _signInUrl);
+                resultUser = result.user;
+                try { localStorage.removeItem('btc_skip_email_link'); } catch (clearFlag) {}
+            } catch (signErr) {
+                var signPlan = planEmailSignInFailure(signErr && signErr.code);
+                if (signPlan === 'mfa') throw signErr;
+                if (signPlan === 'resend') {
+                    try { localStorage.setItem('btc_skip_email_link', String(email || '').trim().toLowerCase()); } catch (flagErr) {}
+                    var resent = false;
+                    try { resent = await sendMagicLink(email); } catch (sendErr) { resent = false; }
+                    var consumed = new Error(resent
+                        ? 'That sign-in link was already used. We emailed you a fresh link.'
+                        : 'That sign-in link was already used. Request a new one from the sign-in screen.');
+                    consumed.code = 'auth/link-consumed';
+                    throw consumed;
+                }
+                throw signErr;
+            }
+        }
+        if (resultUser) {
+            try { localStorage.removeItem('btc_skip_email_link'); } catch (clearFlag) {}
+        }
+        console.log('[Email Sign-In] Sign-in result:', resultUser ? resultUser.uid : 'no user');
         localStorage.removeItem('btc_signin_email');
 
         // Check if this email user already has data
-        const emailUid = result.user.uid;
+        const emailUid = resultUser.uid;
 
         // Wait for auth state to fully stabilize and db to get fresh token
         console.log('[Email Sign-In] Waiting for auth token propagation...');
@@ -497,66 +704,45 @@ async function finishEmailSignIn(email, _signInUrl) {
         const existingDoc = await db.collection('users').doc(emailUid).get();
         console.log('[Email Sign-In] Existing doc exists:', existingDoc.exists);
 
-        if (!existingDoc.exists && anonData) {
-            // Migrate anonymous data to email account
-            anonData.email = email;
-            anonData.created = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('users').doc(emailUid).set(anonData);
-        } else if (existingDoc.exists && anonData) {
-            // Existing email user - merge points if anon had more (one-time only)
-            const existData = existingDoc.data();
-            var _mergedPts = Math.min(anonData.points || 0, 500);
-                if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
-                await existingDoc.ref.update({
-                    points: Math.max(_mergedPts, existData.points || 0),
-                    channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
-                    totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
-                    mergedAnon: true,
-                });
+        const pendingUsername = localStorage.getItem('btc_pending_username');
+        const pendingLnAddress = localStorage.getItem('btc_pending_ln_address') || '';
+        const pendingFaction  = localStorage.getItem('btc_pending_faction')    || '';
+        const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
+        if (!existingDoc.exists) {
+            var extra = {
+                email: email,
+                tosVersion: TOS_CURRENT_VERSION,
+                tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            var _emailLn = normalizeClientLn(pendingLnAddress);
+            if (clientLnValid(_emailLn)) { extra.lightning = _emailLn; extra.lightningAddress = _emailLn; }
+            if (pendingFaction) extra.faction = pendingFaction;
+            if (pendingCountry) extra.country = pendingCountry;
+            var _emailSrc = localStorage.getItem('btc_signup_source');
+            if (_emailSrc) extra.signupSource = _emailSrc;
+            await db.collection('users').doc(emailUid).set(clientCreatePayload(extra));
+            try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+            if (typeof attachReferral === 'function') attachReferral(emailUid);
+            if (pendingUsername) {
+                try { await applyServerUsername(pendingUsername); }
+                catch (nameErr) {
+                    showToast(nameErr.message || 'Pick a different username.');
+                    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                }
             }
         }
+        var guestHold = false;
+        if (typeof tryLinkGuest === 'function') {
+            try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+        }
 
-        // Delete the old anonymous user document to prevent duplicates on leaderboard
-        if (anonUid && anonUid !== emailUid) {
+        // Keep the guest profile when the merge is waiting on the 2FA gate.
+        if (anonUid && anonUid !== emailUid && !guestHold) {
             try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
         }
 
         // Clean URL
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-
-        // Check if this was a new registration (pending username from signup form)
-        const pendingUsername = localStorage.getItem('btc_pending_username');
-        const pendingEmail = localStorage.getItem('btc_pending_email');
-        const pendingLnAddress = localStorage.getItem('btc_pending_ln_address') || '';
-        const pendingFaction  = localStorage.getItem('btc_pending_faction')    || '';
-        const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
-        if (pendingUsername && !existingDoc.exists) {
-            // New user verifying their email - create their full account now
-            const userData = {
-                username: pendingUsername,
-                email: email,
-                points: 0,
-                channelsVisited: 0,
-                totalVisits: 1,
-                streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            var _emailLn = normalizeClientLn(pendingLnAddress);
-            if (clientLnValid(_emailLn)) { userData.lightning = _emailLn; userData.lightningAddress = _emailLn; }
-            if (pendingFaction)   { userData.faction = pendingFaction; }
-            if (pendingCountry)   { userData.country = pendingCountry; }
-            var _emailSrc = localStorage.getItem('btc_signup_source');
-            if (_emailSrc) { userData.signupSource = _emailSrc; }
-            // TOS acceptance recorded at signup (email verification path)
-            userData.tosVersion = TOS_CURRENT_VERSION;
-            userData.tosAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('users').doc(emailUid).set(userData);
-            try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
-
-            // Attach referral if they came via referral link
-            if (typeof attachReferral === 'function') attachReferral(emailUid);
-        }
 
         // Clean up pending data
         localStorage.removeItem('btc_pending_username');
@@ -569,16 +755,14 @@ async function finishEmailSignIn(email, _signInUrl) {
         localStorage.removeItem('btc_wallet_addrs');
 
         loadUser(emailUid);
-        showToast('✅ Email verified! Signed in as ' + escapeHtml(pendingUsername || email));
+        showToast('Email verified. You\'re signed in.');
     } catch(e) {
         console.error('[Email Sign-In] Full error:', e.code, e.message, e.stack);
-        // MFA required
-        if (e.code === 'auth/multi-factor-auth-required') {
-            if (typeof window._showMFASignInChallenge === 'function') {
-                window._showMFASignInChallenge(e.resolver);
-            } else {
-                showToast('Two-factor authentication required. Please refresh and try again.');
-            }
+        // MFA required. Do not start a new guest session over the challenge.
+        if (surfaceMfaRequired(e)) return;
+        if (e.code === 'auth/link-consumed') {
+            showToast(e.message || 'That sign-in link was already used. Request a new one.');
+            window.history.replaceState(null, '', window.location.pathname + window.location.hash);
             return;
         }
         // Check if this is a Firestore permission error
@@ -624,6 +808,7 @@ window.signInWithGoogle = async function() {
                 await signInWithGIS();
                 return;
             } catch(gisErr) {
+                if (surfaceMfaRequired(gisErr)) return;
                 console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
                 try { google.accounts.id.cancel(); } catch(e) {}
                 document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
@@ -635,10 +820,8 @@ window.signInWithGoogle = async function() {
 };
 
 async function signInWithGIS() {
-    var saved = await _saveAnonDataGlobal();
+    var anonUid = (auth.currentUser && auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
     return new Promise(function(resolve, reject) {
-        var anonUid = saved.anonUid;
-        var anonData = saved.anonData;
 
         google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
@@ -649,15 +832,42 @@ async function signInWithGIS() {
                 }
                 try {
                     var credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                    var result = await auth.signInWithCredential(credential);
+                    var guest = auth.currentUser;
+                    var resultUser = null;
+                    if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
+                        try {
+                            var linked = await guest.linkWithCredential(credential);
+                            try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                            resultUser = linked.user;
+                            anonUid = null;
+                        } catch (linkErr) {
+                            if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                                var signed = await auth.signInWithCredential(linkErr.credential);
+                                resultUser = signed.user;
+                            } else {
+                                throw linkErr;
+                            }
+                        }
+                    }
+                    if (!resultUser) {
+                        var result = await auth.signInWithCredential(credential);
+                        resultUser = result.user;
+                    }
                     // Clean up ALL GIS UI elements
                     try { google.accounts.id.cancel(); } catch(e) {}
                     var _gsiBtn = document.getElementById('gsi-temp-btn');
                     if (_gsiBtn) { var _bd = _gsiBtn.closest('div[style*="position:fixed"]'); if (_bd) _bd.remove(); else _gsiBtn.remove(); }
                     document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
-                    await _handleSignInResultGlobal(result.user, anonUid, anonData);
-                    resolve(result.user);
+                    await _handleSignInResultGlobal(resultUser, anonUid, null);
+                    resolve(resultUser);
                 } catch(e) {
+                    if (e && e.code === 'auth/multi-factor-auth-required' && response && response.credential) {
+                        try {
+                            var part = String(response.credential).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                            var payload = JSON.parse(atob(part));
+                            if (payload && payload.email) window._mfaRecoveryEmail = String(payload.email).trim();
+                        } catch (ignore) {}
+                    }
                     reject(e);
                 }
             },
@@ -684,12 +894,11 @@ window.signInWithTwitter = async function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
-            var _ad = await _saveAnonDataGlobal();
-            var result = await auth.signInWithPopup(new firebase.auth.TwitterAuthProvider());
-            await _handleSignInResultGlobal(result.user, _ad.anonUid, _ad.anonData);
+            await linkOrSignInPopup(new firebase.auth.TwitterAuthProvider());
             return;
         } catch(e) {
-            if (e.code === 'auth/popup-closed-by-user') return;
+            if (e && e.code === 'auth/popup-closed-by-user') return;
+            if (surfaceMfaRequired(e)) return;
             showPWAAuthFallback('Twitter');
             return;
         }
@@ -703,12 +912,11 @@ window.signInWithGithub = async function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
-            var _ad = await _saveAnonDataGlobal();
-            var result = await auth.signInWithPopup(new firebase.auth.GithubAuthProvider());
-            await _handleSignInResultGlobal(result.user, _ad.anonUid, _ad.anonData);
+            await linkOrSignInPopup(new firebase.auth.GithubAuthProvider());
             return;
         } catch(e) {
-            if (e.code === 'auth/popup-closed-by-user') return;
+            if (e && e.code === 'auth/popup-closed-by-user') return;
+            if (surfaceMfaRequired(e)) return;
             showPWAAuthFallback('GitHub');
             return;
         }
@@ -762,7 +970,8 @@ window.signInWithFacebook = async function() {
             await signInWithFBSDK();
             return;
         } catch(fbErr) {
-            if (fbErr.message === 'Facebook login cancelled') return;
+            if (fbErr && fbErr.message === 'Facebook login cancelled') return;
+            if (surfaceMfaRequired(fbErr)) return;
             console.warn('[Auth] FB SDK failed:', fbErr);
         }
     }
@@ -770,15 +979,31 @@ window.signInWithFacebook = async function() {
 }
 
 async function signInWithFBSDK() {
-    var saved = await _saveAnonDataGlobal();
+    var anonUid = (auth.currentUser && auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
     return new Promise(function(resolve, reject) {
         FB.login(function(response) {
             if (!response.authResponse) { reject(new Error('Facebook login cancelled')); return; }
             var credential = firebase.auth.FacebookAuthProvider.credential(response.authResponse.accessToken);
-            auth.signInWithCredential(credential).then(async function(result) {
-                await _handleSignInResultGlobal(result.user, saved.anonUid, saved.anonData);
-                resolve(result.user);
-            }).catch(reject);
+            var guest = auth.currentUser;
+            var chain;
+            if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
+                chain = guest.linkWithCredential(credential).then(function(linked) {
+                    try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                    return _handleSignInResultGlobal(linked.user, null, null).then(function() { return linked.user; });
+                }).catch(function(linkErr) {
+                    if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                        return auth.signInWithCredential(linkErr.credential).then(function(signed) {
+                            return _handleSignInResultGlobal(signed.user, anonUid, null).then(function() { return signed.user; });
+                        });
+                    }
+                    throw linkErr;
+                });
+            } else {
+                chain = auth.signInWithCredential(credential).then(function(result) {
+                    return _handleSignInResultGlobal(result.user, anonUid, null).then(function() { return result.user; });
+                });
+            }
+            chain.then(resolve).catch(reject);
         }, { scope: 'email,public_profile' });
     });
 }
@@ -927,18 +1152,30 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             if (!userDoc.exists || !userDoc.data().created) {
                 await db.collection('users').doc(uid).set({ created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
             }
-            if (!userDoc.exists || !userDoc.data().username) {
-                var npubShort = 'npub...' + pubkey.substring(0, 8);
-                var _nostrUserData = { username: npubShort, nostr: pubkey, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
-                if (!userDoc.exists) { _nostrUserData.points = 0; _nostrUserData.channelsVisited = 0; }
-                await db.collection('users').doc(uid).set(_nostrUserData, { merge: true });
+            if (!userDoc.exists) {
+                await db.collection('users').doc(uid).set(clientCreatePayload({ nostr: pubkey }), { merge: true });
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+            } else if (pubkey) {
+                try { await db.collection('users').doc(uid).set({ nostr: pubkey }, { merge: true }); } catch (e) {}
+            }
+            if (!userDoc.exists || !userDoc.data() || !userDoc.data().username) {
+                var npubShort = 'npub' + String(pubkey || '').replace(/[^a-f0-9]/gi, '').substring(0, 8);
+                try { await applyServerUsername(npubShort); }
+                catch (nameErr) { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }
             }
             loadUser(uid); hideUsernamePrompt();
             var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
             showToast('🟣 Signed in with Nostr!');
         } else { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed - no token received</span>'; }
-    } catch(e) { console.error('Nostr auth error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>'; }
+    } catch(e) {
+        if (surfaceMfaRequired(e)) {
+            var overlay = document.getElementById('nostrAuthOverlay');
+            if (overlay) overlay.remove();
+            return;
+        }
+        console.error('Nostr auth error:', e);
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>';
+    }
 };
 
 // Apple Sign-In removed
@@ -1004,7 +1241,18 @@ window.signInWithLightning = async function() {
         var copyWrap = document.getElementById('lnAuthCopyWrap');
         if (copyWrap) {
             copyWrap.style.display = 'block';
-            copyWrap.innerHTML = '<button onclick="navigator.clipboard.writeText(\'' + lnurlEncoded + '\').then(function(){showToast(\'Copied!\');})" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;">📋 Copy LNURL</button>';
+            copyWrap.textContent = '';
+            var copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.textContent = 'Copy LNURL';
+            copyBtn.style.cssText = 'padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;cursor:pointer;font-family:inherit;';
+            copyBtn.addEventListener('click', function () {
+                var text = String(lnurlEncoded || '');
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(function () { if (typeof showToast === 'function') showToast('Copied'); }).catch(function () {});
+                }
+            });
+            copyWrap.appendChild(copyBtn);
         }
 
         // Update status
@@ -1033,12 +1281,14 @@ window.signInWithLightning = async function() {
                     // Set up user doc if needed
                     var uid = verifyResult.data.uid;
                     var userDoc = await db.collection('users').doc(uid).get();
-                    if (!userDoc.exists || !userDoc.data().username) {
-                        var lnName = '⚡anon-' + k1.substring(0, 8);
-                        var _lnUserData = { username: lnName, authMethod: 'lightning', totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
-                        if (!userDoc.exists) { _lnUserData.points = 0; _lnUserData.channelsVisited = 0; _lnUserData.created = firebase.firestore.FieldValue.serverTimestamp(); }
-                        await db.collection('users').doc(uid).set(_lnUserData, { merge: true });
+                    if (!userDoc.exists) {
+                        await db.collection('users').doc(uid).set(clientCreatePayload({}));
                         try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+                    }
+                    if (!userDoc.exists || !userDoc.data() || !userDoc.data().username) {
+                        var lnName = 'ln' + String(k1 || '').replace(/[^a-f0-9]/gi, '').substring(0, 8);
+                        try { await applyServerUsername(lnName); }
+                        catch (nameErr) { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }
                     }
 
                     loadUser(uid);
@@ -1050,6 +1300,12 @@ window.signInWithLightning = async function() {
                     if (typeof showToast === 'function') showToast('⚡ Signed in with Lightning!');
                 }
             } catch(e) {
+                if (surfaceMfaRequired(e)) {
+                    clearInterval(pollInterval);
+                    var mfaModal = document.getElementById('lnAuthModal');
+                    if (mfaModal) mfaModal.remove();
+                    return;
+                }
                 // Not ready yet, keep polling
                 if (e.code !== 'not-found') console.log('LN auth poll:', e.message);
             }
@@ -1118,30 +1374,22 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
 
     var existingDoc = await db.collection('users').doc(user.uid).get();
     if (!existingDoc.exists) {
-        if (anonData) {
-            anonData.email = user.email || '';
-            if (!anonData.username) anonData.username = _pendingUN || user.displayName || 'Bitcoiner';
-            var _anonLn = normalizeClientLn(_pendingLn);
-            if (clientLnValid(_anonLn)) { anonData.lightning = _anonLn; anonData.lightningAddress = _anonLn; }
-            if (_pendingFaction) { anonData.faction = _pendingFaction; }
-            if (_pendingCountry) { anonData.country = _pendingCountry; }
-            anonData.created = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('users').doc(user.uid).set(anonData);
-        } else {
-            var _newUN = _pendingUN || user.displayName || 'Bitcoiner';
-            var _newProviderDoc = {
-                username: _newUN,
-                username_lower: _newUN.toLowerCase(),
-                email: user.email || '',
-                points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            var _provLn = normalizeClientLn(_pendingLn);
-            if (clientLnValid(_provLn)) { _newProviderDoc.lightning = _provLn; _newProviderDoc.lightningAddress = _provLn; }
-            if (_pendingFaction) { _newProviderDoc.faction = _pendingFaction; }
-            if (_pendingCountry) { _newProviderDoc.country = _pendingCountry; }
-            await db.collection('users').doc(user.uid).set(_newProviderDoc);
+        var _provExtra = {};
+        if (user.email) _provExtra.email = user.email;
+        var _provLn = normalizeClientLn(_pendingLn);
+        if (clientLnValid(_provLn)) { _provExtra.lightning = _provLn; _provExtra.lightningAddress = _provLn; }
+        if (_pendingFaction) _provExtra.faction = _pendingFaction;
+        if (_pendingCountry) _provExtra.country = _pendingCountry;
+        await db.collection('users').doc(user.uid).set(clientCreatePayload(_provExtra));
+        var _nameTry = _pendingUN || '';
+        if (_nameTry) {
+            try { await applyServerUsername(_nameTry); }
+            catch (nameErr) {
+                showToast(nameErr.message || 'Pick a different username.');
+                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            }
+        } else if (typeof showUsernamePrompt === 'function') {
+            showUsernamePrompt();
         }
     } else {
         // Returning user - apply fields they typed only if not already set
@@ -1160,38 +1408,24 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
         if (Object.keys(_returnUpdates).length) {
             try { await existingDoc.ref.update(_returnUpdates); } catch(e) {}
         }
-        if (anonData) {
-            var existData = existingDoc.data();
-            var _mergedPts = Math.min(anonData.points || 0, 500);
-            // NOTE: points/channelsVisited/totalVisits are server-only fields (Firestore rules denylist).
-            // Client cannot update them — skip silently. mergedAnon flag is allowed.
-            if (!existData.mergedAnon) {
-                try { await existingDoc.ref.update({ mergedAnon: true }); } catch(e) {}
-            }
-        }
         if (!existingDoc.data().email && user.email) {
             try { await existingDoc.ref.update({ email: user.email }); } catch(e) {}
         }
     }
-    if (anonUid && anonUid !== user.uid) {
+    var guestHold = false;
+    if (typeof tryLinkGuest === 'function') {
+        try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+    }
+    if (anonUid && anonUid !== user.uid && !guestHold) {
         try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
     }
     loadUser(user.uid);
     if (!existingDoc.exists) {
         if (typeof attachReferral === 'function') attachReferral(user.uid);
-        hideUsernamePrompt();
-        showToast('✅ Welcome, ' + escapeHtml(user.displayName || user.email || 'Bitcoiner') + '!');
-        // Show Quest Guide for brand new provider sign-ups
-        try {
-            localStorage.removeItem('guide_dismissed');
-            localStorage.removeItem('guide_seen');
-            if (typeof showGuide === 'function') {
-                setTimeout(function() { showGuide(); }, 1500);
-            }
-        } catch(e) {}
+        showToast('Welcome. You are signed in.');
     } else {
         hideUsernamePrompt();
-        showToast('✅ Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
+        showToast('You are signed in.');
     }
 }
 
@@ -1282,6 +1516,48 @@ window._iabSendMagicLink = async function() {
     }
 };
 
+function rememberAnonForRedirect(anonUser) {
+    if (!anonUser || !anonUser.isAnonymous) return;
+    localStorage.setItem('btc_anon_uid', anonUser.uid);
+    db.collection('users').doc(anonUser.uid).get().then(function(doc) {
+        if (doc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(doc.data()));
+    }).catch(function() {});
+}
+
+async function linkOrSignInPopup(provider) {
+    var guest = auth.currentUser;
+    if (guest && guest.isAnonymous && typeof guest.linkWithPopup === 'function') {
+        try {
+            var linked = await guest.linkWithPopup(provider);
+            try { localStorage.removeItem('btc_guest_link'); } catch (e0) {}
+            await _handleSignInResultGlobal(linked.user, null, null);
+            return linked.user;
+        } catch (linkErr) {
+            if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                var signed = await auth.signInWithCredential(linkErr.credential);
+                await _handleSignInResultGlobal(signed.user, guest.uid, null);
+                return signed.user;
+            }
+            throw linkErr;
+        }
+    }
+    var result = await auth.signInWithPopup(provider);
+    await _handleSignInResultGlobal(result.user, null, null);
+    return result.user;
+}
+
+async function redirectForProvider(provider) {
+    var anonUser = auth.currentUser;
+    rememberAnonForRedirect(anonUser);
+    sessionStorage.setItem('btc_redirect_pending', '1');
+    localStorage.setItem('btc_pwa_auth_pending', '1');
+    if (anonUser && anonUser.isAnonymous && typeof anonUser.linkWithRedirect === 'function') {
+        await anonUser.linkWithRedirect(provider);
+        return;
+    }
+    await auth.signInWithRedirect(provider);
+}
+
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
 
@@ -1291,18 +1567,9 @@ async function signInWithProvider(provider) {
         return;
     }
 
-    // Delegate to module-scope helper
-    async function handleSignInResult(user, anonUid, anonData) {
-        return _handleSignInResultGlobal(user, anonUid, anonData);
-    }
-    async function saveAnonData() {
-        return _saveAnonDataGlobal();
-    }
-
     // Strategy: Use popup on desktop (reliable), redirect on mobile/PWA.
     // Redirect loses session cross-domain but at least shows the Google sign-in page.
     // Popup on Android PWA causes redirect_uri_mismatch errors.
-    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     // Safari on desktop blocks popup postMessage via ITP — must use redirect
     var isSafariBrowser = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
@@ -1313,17 +1580,7 @@ async function signInWithProvider(provider) {
         // Safari/iOS blocks popup postMessage via ITP - skip popup entirely and go straight to redirect.
         try {
             showToast('⏳ Opening sign-in...');
-            // Save anon data BEFORE redirect (page will reload on return)
-            const anonUser = auth.currentUser;
-            if (anonUser && anonUser.isAnonymous) {
-                localStorage.setItem('btc_anon_uid', anonUser.uid);
-                db.collection('users').doc(anonUser.uid).get().then(function(doc) {
-                    if (doc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(doc.data()));
-                }).catch(function() {});
-            }
-            sessionStorage.setItem('btc_redirect_pending', '1');
-            localStorage.setItem('btc_pwa_auth_pending', '1');
-            await auth.signInWithRedirect(provider);
+            await redirectForProvider(provider);
             return;
         } catch(e) {
             console.error('Mobile/Safari sign-in error:', e);
@@ -1332,24 +1589,15 @@ async function signInWithProvider(provider) {
         }
     }
 
-    // Desktop: try popup first
+    // Desktop: link the guest in place, then fall back to a popup sign-in.
+    // Nothing is awaited before the popup, so the browser still allows it.
     try {
-        const { anonUid, anonData } = await saveAnonData();
-
-        const result = await auth.signInWithPopup(provider);
-        await handleSignInResult(result.user, anonUid, anonData);
+        await linkOrSignInPopup(provider);
     } catch(e) {
         console.error('Provider sign-in error:', e.code, e.message, e);
 
-        // MFA required - user has phone 2FA enabled
-        if (e.code === 'auth/multi-factor-auth-required') {
-            if (typeof window._showMFASignInChallenge === 'function') {
-                window._showMFASignInChallenge(e.resolver);
-            } else {
-                showToast('Two-factor authentication required. Please refresh and try again.');
-            }
-            return;
-        }
+        // MFA required - user has phone 2FA enabled. Do not fall through to redirect.
+        if (surfaceMfaRequired(e)) return;
 
         // Popup blocked, closed, or failed - fallback to redirect
         if (e.code === 'auth/popup-blocked' ||
@@ -1358,19 +1606,7 @@ async function signInWithProvider(provider) {
             e.code === 'auth/internal-error') {
             try {
                 showToast('⏳ Opening sign-in page...');
-                // Save anon data to localStorage so redirect return can recover it
-                const anonUser = auth.currentUser;
-                if (anonUser && anonUser.isAnonymous) {
-                    localStorage.setItem('btc_anon_uid', anonUser.uid);
-                    try {
-                        const anonDoc = await db.collection('users').doc(anonUser.uid).get();
-                        if (anonDoc.exists) {
-                            localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-                        }
-                    } catch(e2) {}
-                }
-                localStorage.setItem('btc_pwa_auth_pending', '1');
-                await auth.signInWithRedirect(provider);
+                await redirectForProvider(provider);
                 return;
             } catch(redirectErr) {
                 console.error('Redirect fallback also failed:', redirectErr);
@@ -1556,14 +1792,13 @@ async function loadUser(uid, prefetchedDoc) {
             _showTosModal();
         }
 
-        // TOTP challenge gate — custom server-side TOTP, not Firebase native MFA.
-        // Firebase never throws auth/multi-factor-auth-required for this, so we gate manually.
-        // localStorage flag keyed by UID persists across app reopens while user stays logged in.
-        // clearUserLocalStorage() on sign-out removes it so re-login requires re-verify.
-        if (!auth.currentUser.isAnonymous && currentUser.totpEnabled) {
-            if (localStorage.getItem('btc_totp_verified_' + auth.currentUser.uid) !== '1') {
+        // Authenticator gate. The server, not a localStorage flag, decides.
+        // Phone sign-in is enforced by Firebase before we get here.
+        if (!auth.currentUser.isAnonymous) {
+            var gateOpen = await window._serverTotpAllows(auth.currentUser.uid);
+            if (!gateOpen) {
                 _showTotpSignInChallenge();
-                return; // Block loadUser from completing until TOTP verified
+                return;
             }
         }
         window._myPeers = new Set(currentUser.peers || []);
@@ -1691,15 +1926,20 @@ async function loadUser(uid, prefetchedDoc) {
             // Mark onboarding complete for existing users on new devices.
             // An existing user has a username in Firestore - they clearly already onboarded.
             // This prevents the onboarding wizard from firing on every new device login.
-            if (currentUser.username) {
-                try { localStorage.setItem('btc_onboarding_done', 'true'); } catch(e) {}
+            if (currentUser.username || currentUser.introSeen) {
+                try {
+                    localStorage.setItem('btc_onboarding_done', 'true');
+                    localStorage.setItem('btc_intro_seen', '1');
+                } catch(e) {}
             }
+            if (typeof tryLinkGuest === 'function') { tryLinkGuest().catch(function () {}); }
+            if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
             // Restore SF window streak from Firestore so speed boost survives new-device login
             if (typeof currentUser.sfWindowStreak === 'number') {
                 try { localStorage.setItem('btc_sf_window_streak', String(currentUser.sfWindowStreak)); } catch(e) {}
             }
             // Restore Nacho Quest state from Firestore so mid-quest progress survives new-device login
-            if (currentUser.nachoQuestDone) {
+            if (currentUser.nachoQuestDone || (currentUser.onboardingQuest && currentUser.onboardingQuest.complete)) {
                 try {
                     localStorage.setItem('btc_onboarding_quest_done', '1');
                     localStorage.removeItem('btc_onboarding_active');
@@ -1987,17 +2227,9 @@ async function loadUser(uid, prefetchedDoc) {
         // User exists in auth but not in Firestore - recreate their doc
         const user = auth.currentUser;
         if (user && !user.isAnonymous) {
-            const newData = {
-                username: user.displayName || 'Bitcoiner',
-                email: user.email || '',
-                points: 0,
-                channelsVisited: 0,
-                totalVisits: 1,
-                streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
+            const newData = clientCreatePayload({ email: user.email || '' });
             await db.collection('users').doc(uid).set(newData);
+            if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400);
             currentUser = { uid, ...newData };
             rankingReady = true;
             window._badgesReady = true;
@@ -2124,6 +2356,85 @@ function containsProfanity(str) {
     return false;
 }
 
+function clientCreatePayload(extra) {
+    var data = {
+        points: 0,
+        channelsVisited: 0,
+        totalVisits: 1,
+        streak: 1,
+        lastVisit: new Date().toISOString().split('T')[0],
+        created: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    var allow = { email: 1, profilePic: 1, displayName: 1, faction: 1, country: 1, lightning: 1, lightningAddress: 1, nostr: 1, lastLogin: 1, signupSource: 1, tosVersion: 1, tosAcceptedAt: 1 };
+    var src = extra || {};
+    Object.keys(src).forEach(function (k) {
+        if (allow[k] && src[k] !== undefined && src[k] !== '') data[k] = src[k];
+    });
+    return data;
+}
+
+async function applyServerUsername(name) {
+    var fn = firebase.functions().httpsCallable('setUsername');
+    var res = await fn({ name: name });
+    var data = res && res.data ? res.data : {};
+    if (!data.ok || !data.username) throw new Error('Could not save that username.');
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.username = data.username;
+    try { localStorage.setItem('btc_username', data.username); } catch (e) {}
+    return data.username;
+}
+window.applyServerUsername = applyServerUsername;
+
+async function stashGuestLink() {
+    if (!auth || !auth.currentUser || !auth.currentUser.isAnonymous) return;
+    var uid = auth.currentUser.uid;
+    try {
+        var raw = localStorage.getItem('btc_guest_link');
+        if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && parsed.anonUid === uid && parsed.nonce && parsed.at && (Date.now() - Number(parsed.at)) < 20 * 60 * 1000) return;
+        }
+    } catch (e) {}
+    var fn = firebase.functions().httpsCallable('prepareGuestLink');
+    var res = await fn({});
+    if (res && res.data && res.data.nonce) {
+        localStorage.setItem('btc_guest_link', JSON.stringify({ anonUid: uid, nonce: res.data.nonce, at: Date.now() }));
+    }
+}
+window.stashGuestLink = stashGuestLink;
+
+async function tryLinkGuest() {
+    var raw = localStorage.getItem('btc_guest_link');
+    if (!raw || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return '';
+    var parsed = null;
+    try { parsed = JSON.parse(raw); } catch (e) { return ''; }
+    if (!parsed || !parsed.anonUid || parsed.anonUid === auth.currentUser.uid) return '';
+    var fn = firebase.functions().httpsCallable('linkGuestAccount');
+    var res = null;
+    try {
+        res = await fn({ anonUid: parsed.anonUid, nonce: parsed.nonce });
+    } catch (e) {
+        var code = e && e.code;
+        // #59's linkGuestAccount calls requireSecondFactor before it writes.
+        // Hold the token so that gate can merge after the session exists.
+        if (guestLinkIsMfaHold(e && e.message)) {
+            window._pendingGuestLink = true;
+            return 'mfa';
+        }
+        if (code === 'functions/invalid-argument' || code === 'functions/permission-denied' || code === 'functions/not-found' || code === 'functions/failed-precondition' || code === 'functions/unauthenticated') {
+            try { localStorage.removeItem('btc_guest_link'); } catch (dropErr) {}
+        }
+        return '';
+    }
+    var data = res && res.data ? res.data : {};
+    if ((data.error && guestLinkShouldDrop(data.error)) || data.ok) {
+        try { localStorage.removeItem('btc_guest_link'); } catch (dropOk) {}
+    }
+    if (data.ok && typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
+    window._pendingGuestLink = false;
+    return data.ok ? 'ok' : '';
+}
+window.tryLinkGuest = tryLinkGuest;
+
 async function createUser(username, email, enteredGiveaway, giveawayLnAddress, country) { // giveaway params kept for call-site compat; giveawayLnAddress now used as lightningAddress
     // Wait for auth to be ready if not yet
     if (typeof auth === 'undefined' || !auth) {
@@ -2155,13 +2466,11 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     const uid = auth.currentUser.uid;
-    // Clear any leftover data from previous users on this browser
-    clearUserData();
     username = sanitizeInput(username);
     // Strip non-ASCII characters (prevents Unicode/homoglyph bypass)
     username = username.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
-    if (!username || username.length < 2) {
-        showToast('⚠️ Username must be at least 2 characters (letters, numbers, basic symbols only).');
+    if (!username || username.length < 3) {
+        showToast('Username must be at least 3 characters.');
         return;
     }
     // Only allow English letters, digits, spaces, underscores, hyphens, and dots
@@ -2180,16 +2489,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     if (email) email = sanitizeInput(email);
-    const userData = {
-        username: username,
-        username_lower: username.toLowerCase(),
-        points: 0,
-        channelsVisited: 0,
-        totalVisits: 1,
-        streak: 1,
-        lastVisit: new Date().toISOString().split('T')[0],
-        created: firebase.firestore.FieldValue.serverTimestamp()
-    };
+    const userData = clientCreatePayload({});
     if (email) userData.email = email;
     if (country) userData.country = country;
     // Lightning address from signup field
@@ -2215,7 +2515,14 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     userData.tosVersion = TOS_CURRENT_VERSION;
     userData.tosAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
 
-    await db.collection('users').doc(uid).set(userData);
+    var _existingAccount = await db.collection('users').doc(uid).get();
+    if (!_existingAccount.exists) await db.collection('users').doc(uid).set(userData);
+    try { await applyServerUsername(username); }
+    catch (nameErr) {
+        showToast(nameErr.message || 'Pick a different username.');
+        return;
+    }
+    userData.username = username;
     // Increment global registered user count
     try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
     currentUser = { uid, ...userData };
@@ -2227,17 +2534,8 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
-    // Confirm LN address was saved
-    if (_signupLn) setTimeout(function() { showToast('⚡ Lightning address saved to your profile!'); }, 1200);
-    // Show Quest Guide for new accounts (reset dismiss so they see it fresh)
-    try {
-        localStorage.removeItem('guide_dismissed');
-        localStorage.removeItem('guide_seen');
-        if (typeof showGuide === 'function') {
-            setTimeout(function() { showGuide(); }, 800);
-        }
-    } catch(e) {}
-
+    if (_signupLn) setTimeout(function() { showToast('Lightning address saved to your profile.'); }, 1200);
+    if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
 
     // Attach referral if user came via referral link
     if (typeof attachReferral === 'function') attachReferral(uid);
@@ -3672,9 +3970,16 @@ window.confirmDeleteAccount = async function() {
         console.error('Account deletion error:', e);
         var code = (e && e.code) || '';
         var msg = (e && e.message) || '';
-        if (/2FA code/i.test(msg)) {
+        if (typeof _isMfaBlock === 'function' && _isMfaBlock(e)) {
+            showToast(_mfaFailure(e));
+            if (typeof _showTotpSignInChallenge === 'function') _showTotpSignInChallenge();
             if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
-            window._promptDeleteAccountTotp();
+            return;
+        }
+        if (/2FA code/i.test(msg)) {
+            showToast('Enter your authenticator code first.');
+            if (typeof _showTotpSignInChallenge === 'function') _showTotpSignInChallenge();
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
             return;
         }
         if (code === 'auth/requires-recent-login' || code === 'functions/failed-precondition' || code === 'failed-precondition' || /sign in again/i.test(msg) || /recent login/i.test(msg)) {
@@ -3683,55 +3988,6 @@ window.confirmDeleteAccount = async function() {
             showToast('Error deleting account: ' + (e.message || 'Unknown error'));
         }
         if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
-    }
-};
-
-// Shown when deleteAccount asks for the authenticator code. totpCheck writes
-// the server session, then the same deletion is tried again.
-window._promptDeleteAccountTotp = function() {
-    if (document.getElementById('deleteTotpOverlay')) return;
-    var overlay = document.createElement('div');
-    overlay.id = 'deleteTotpOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100020;display:flex;align-items:center;justify-content:center;padding:16px;';
-    overlay.innerHTML =
-        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid #ef4444;border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">' +
-            '<div style="font-size:2.2rem;margin-bottom:10px;">📱</div>' +
-            '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;">Enter your 2FA code</div>' +
-            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Enter your 2FA code, then try again.</div>' +
-            '<input id="deleteTotpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
-            '<div id="deleteTotpStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
-            '<button id="deleteTotpBtn" type="button" style="width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify and delete</button>' +
-            '<button type="button" id="deleteTotpCancel" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
-        '</div>';
-    document.body.appendChild(overlay);
-    document.getElementById('deleteTotpCancel').onclick = function() { overlay.remove(); };
-    var submit = async function() {
-        var inp = document.getElementById('deleteTotpInput');
-        var statusEl = document.getElementById('deleteTotpStatus');
-        var verifyBtn = document.getElementById('deleteTotpBtn');
-        if (!inp) return;
-        var code = inp.value.trim();
-        if (code.length < 6) {
-            if (statusEl) statusEl.textContent = 'Enter the full 6-digit code';
-            return;
-        }
-        if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
-        try {
-            var checkFn = firebase.functions().httpsCallable('totpCheck');
-            await checkFn({ code: code });
-            overlay.remove();
-            window.confirmDeleteAccount();
-        } catch (err) {
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify and delete'; }
-            if (statusEl) statusEl.textContent = (err && err.message) ? err.message : 'Verification failed';
-            if (inp) { inp.value = ''; inp.focus(); }
-        }
-    };
-    document.getElementById('deleteTotpBtn').onclick = submit;
-    var inp = document.getElementById('deleteTotpInput');
-    if (inp) {
-        inp.focus();
-        inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') submit(); });
     }
 };
 
@@ -6110,6 +6366,7 @@ function showSettingsPage(tab) {
                 (sel?'<span style="color:var(--accent);font-size:1rem;flex-shrink:0;margin-top:2px;">✓</span>':'') +
             '</button>';
         });
+        html += '<button type="button" onclick="if(window.showOnboardingIntro)window.showOnboardingIntro({force:true})" style="width:100%;margin-top:8px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--heading);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Replay welcome tour</button>';
         html += '</div>';
 
         // Delete Account - Danger Zone
@@ -7322,14 +7579,17 @@ window.minimizeSignUpBanner = function() {
     }
 };
 
-function clearUserLocalStorage() {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
+function clearUserLocalStorage(opts) {
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
         // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
         // a cold-start race where checkBadges() fires before Firestore restores
         // visibleBadges, causing duplicate toast/celebration modals.
         // These are always safely overwritten by markVisibleBadgesReady() on sign-in.
         'btc_badges', 'btc_hidden_badges'
     ];
+    if (opts && opts.keepGuest) {
+        preserve = preserve.concat(['btc_visited_channels', 'btc_experience_mode', 'btc_intro_seen', 'btc_onboarding_done', 'btc_onboarding_active', 'btc_onboarding_step', 'btc_onboarding_quest_done', 'btc_quest_pending', 'btc_guest_link', 'btc_nacho_quest_channel', 'btc_nacho_quest_nacho', 'btc_nacho_quest_quiz']);
+    }
     var toRemove = [];
     for (var i = 0; i < localStorage.length; i++) {
         var key = localStorage.key(i);
@@ -7454,7 +7714,7 @@ window.submitUsername = async function() {
     if (!input) { console.error('[submitUsername] No input found'); return; }
     var name = input.value.trim();
     if (!name) { showToast('Please enter a username!'); return; }
-    if (name.length < 2) { showToast('Username must be at least 2 characters'); return; }
+    if (name.length < 3) { showToast('Username must be at least 3 characters'); return; }
     if (name.length > 20) { showToast('Username must be 20 characters or less'); return; }
     if (/[^A-Za-z0-9 _\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
@@ -7525,12 +7785,11 @@ window.submitUsername = async function() {
     }
     if (status) status.innerHTML = 'Saving...';
     try {
-        await db.collection('users').doc(currentUser.uid).update({ username: name, username_lower: name.toLowerCase() });
-        currentUser.username = name;
+        await applyServerUsername(name);
         updateAuthButton();
         updateRankUI();
-        if (status) status.innerHTML = '✅ Username updated!';
-        showToast('✅ Username changed to ' + name);
+        if (status) status.textContent = 'Username updated';
+        showToast('Username updated');
     } catch(e) {
         if (status) status.innerHTML = '❌ Error saving';
         showToast('Error updating username. Try again.');
@@ -7644,19 +7903,19 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
     if (!name) { var inp = document.getElementById('newUsername'); if (inp) name = inp.value.trim(); }
     // Strip non-ASCII (prevent Unicode/homoglyph bypass)
     if (name) name = name.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
-    if (!name || name.length < 2) { showToast('Username must be at least 2 characters (ASCII only)'); return; }
+    if (!name || name.length < 3) { showToast('Username must be at least 3 characters'); return; }
     if (name.length > 20) { showToast('Username max 20 characters'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
     if (typeof isCleanText === 'function' && !isCleanText(name)) { showToast('Username contains inappropriate language'); return; }
-    // Save locally always (works for anon too)
-    localStorage.setItem('btc_username', name);
-    if (currentUser) { currentUser.username = name; }
-    updateAuthButton(); updateRankUI();
-    // Save to Firestore if signed in
     if (auth && auth.currentUser && db) {
-        try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name, username_lower: name.toLowerCase() }); } catch(e) { console.warn('Username Firestore save failed:', e); }
+        try { await applyServerUsername(name); }
+        catch (e) { showToast(e.message || 'Could not save that username.'); return; }
+    } else {
+        showToast('Sign in before choosing a username.');
+        return;
     }
-    showToast('✅ Username updated to ' + name);
+    updateAuthButton(); updateRankUI();
+    showToast('Username updated');
     // Update the "Current username" label and button to confirm
     var curLabel = document.querySelector('[id="currentUsernameLabel"]');
     if (!curLabel) {
@@ -7690,7 +7949,8 @@ window.disable2FA = async function() {
             await auth.currentUser.multiFactor.unenroll(f);
         }
         await db.collection('users').doc(auth.currentUser.uid).update({ phoneVerified: false }).catch(function() {});
-        showToast('✅ 2FA disabled');
+        try { await firebase.functions().httpsCallable('phoneFactorRemoved')({}); } catch (e) {}
+        showToast('Phone verification is off');
         showSettingsPage('security');
     } catch(e) {
         if (e.code === 'auth/requires-recent-login') {
@@ -7771,9 +8031,12 @@ window.verifyMFACode = async function() {
         var cred = firebase.auth.PhoneAuthProvider.credential(window._mfaVerificationId, code);
         var multiFactorAssertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
         await auth.currentUser.multiFactor.enroll(multiFactorAssertion, 'Phone Number');
-        await db.collection('users').doc(auth.currentUser.uid).update({ phoneVerified: true }).catch(function() {});
         window._mfaVerificationId = null;
-        showToast('✅ 2FA enabled! Your account is now protected.');
+        try {
+            var issued = await firebase.functions().httpsCallable('issueRecoveryCodes')({});
+            if (issued && issued.data && issued.data.recoveryCodes) window._showRecoveryCodes(issued.data.recoveryCodes);
+        } catch (codeErr) {}
+        showToast('Phone verification is on. Sign out and back in once so it covers withdrawals and gifts.');
         showSettingsPage('security');
     } catch(e) {
         console.error('[MFA Verify]', e.code, e.message);
@@ -7804,6 +8067,12 @@ window._showTotpSignInChallenge = function() {
             '<input id="totpSignInInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
             '<div id="totpSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
             '<button id="totpSignInBtn" onclick="window._submitTotpSignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
+            '<button onclick="window._toggleRecoveryEntry()" style="width:100%;padding:10px;background:none;border:none;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Use a recovery code</button>' +
+            '<div id="totpRecoveryBox" style="display:none;margin-bottom:8px;">' +
+            '<input id="totpRecoveryInput" type="text" autocomplete="one-time-code" placeholder="XXXX-XXXX" style="width:100%;padding:12px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1rem;text-align:center;letter-spacing:2px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+            '<button onclick="window._submitRecoveryCode(\'totp\')" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;">Turn off 2FA with this code</button>' +
+            '</div>' +
+            '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted,#aaa);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:4px;">Lost your device?</button>' +
             '<button onclick="signOutUser()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel (Sign out)</button>' +
         '</div>';
     document.body.appendChild(overlay);
@@ -7831,21 +8100,19 @@ window._submitTotpSignIn = async function() {
     if (statusEl) statusEl.textContent = '';
     try {
         var checkFn = firebase.functions().httpsCallable('totpCheck');
-        await checkFn({ code: code });
-        // Mark as verified — persists across app reopens; cleared by clearUserLocalStorage() on sign-out
-        if (auth && auth.currentUser) localStorage.setItem('btc_totp_verified_' + auth.currentUser.uid, '1');
-        // Remove overlay and complete loadUser
+        var checked = await checkFn({ code: code });
+        var checkedData = (checked && checked.data) || {};
+        if (auth && auth.currentUser && checkedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, checkedData.sessionId);
         var ov = document.getElementById('totpSignInOverlay');
         if (ov) ov.remove();
-        // Resume — call loadUser again now that TOTP is verified
+        if (checkedData.recoveryCodes) window._showRecoveryCodes(checkedData.recoveryCodes);
+        _resumeAfterSecondFactor();
         if (typeof loadUser === 'function' && auth && auth.currentUser) {
             loadUser(auth.currentUser.uid).catch(function(e) { console.error('[TOTP] loadUser after verify failed:', e); });
         }
     } catch(e) {
         if (btn) { btn.disabled = false; btn.textContent = 'Verify'; }
-        var msg = (e.code === 'functions/invalid-argument') ? '❌ Wrong code — try again'
-                : (e.code === 'functions/resource-exhausted') ? '⏳ Too many attempts. Wait 2 minutes.'
-                : '❌ ' + (e.message || 'Verification failed');
+        var msg = _mfaFailure(e);
         if (statusEl) statusEl.textContent = msg;
         if (inp) { inp.value = ''; inp.focus(); }
     }
@@ -7866,13 +8133,20 @@ window._showMFASignInChallenge = async function(resolver) {
         overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;">' +
             '<div style="font-size:2.5rem;margin-bottom:10px;">⚠️</div>' +
             '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:8px;">SMS 2FA unavailable on Safari</div>' +
-            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;line-height:1.5;">Safari blocks the verification step required for SMS codes. To sign in, either:<br><br>' +
-            '① Use <strong style="color:#fff;">Chrome, Firefox, or another browser</strong><br><br>' +
-            '② Or sign in on another browser, go to <strong style="color:#fff;">Settings → Security</strong>, disable SMS 2FA, and switch to the authenticator app.</div>' +
-            '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">OK</button>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;line-height:1.5;">Safari blocks the text-message step. Use Chrome or Firefox to enter the phone code, or use a recovery code below. That turns two-factor authentication off so you can sign in and switch to an authenticator app.</div>' +
+            '<button onclick="window._toggleRecoveryEntry()" style="width:100%;padding:10px;background:none;border:none;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Use a recovery code</button>' +
+            '<div id="totpRecoveryBox" style="display:none;text-align:left;margin-bottom:8px;">' +
+            '<input id="mfaRecoveryEmail" type="email" placeholder="Email on the account" style="width:100%;padding:10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+            '<input id="totpRecoveryInput" type="text" autocomplete="one-time-code" placeholder="XXXX-XXXX" style="width:100%;padding:10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1rem;text-align:center;letter-spacing:2px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+            '<button onclick="window._submitRecoveryCode(\'phone\')" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;">Turn off 2FA with this code</button>' +
+            '</div>' +
+            '<div id="mfaSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:8px;"></div>' +
+            '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted,#aaa);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:4px;">Lost your device?</button>' +
+            '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
             '</div>';
         document.body.appendChild(overlay);
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) window._cancelMFASignIn(); });
+        var safariEmail = document.getElementById('mfaRecoveryEmail');
+        if (safariEmail && window._mfaRecoveryEmail) safariEmail.value = window._mfaRecoveryEmail;
         return;
     }
 
@@ -7885,9 +8159,18 @@ window._showMFASignInChallenge = async function(resolver) {
         '<button onclick="window._sendMFACode()" id="mfaSendCodeBtn" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Send Code</button>' +
         '<button onclick="window._submitMFASignIn()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
         '<button onclick="window._sendMFACode()" style="display:none" id="mfaResendBtn">Resend Code</button>' +
+        '<button onclick="window._toggleRecoveryEntry()" style="width:100%;padding:8px;background:none;border:none;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Use a recovery code</button>' +
+        '<div id="totpRecoveryBox" style="display:none;text-align:left;margin-bottom:8px;">' +
+        '<input id="mfaRecoveryEmail" type="email" placeholder="Email on the account" style="width:100%;padding:10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+        '<input id="totpRecoveryInput" type="text" autocomplete="one-time-code" placeholder="XXXX-XXXX" style="width:100%;padding:10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1rem;text-align:center;letter-spacing:2px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+        '<button onclick="window._submitRecoveryCode(\'phone\')" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;">Turn off 2FA with this code</button>' +
+        '</div>' +
+        '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted,#aaa);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:4px;">Lost your device?</button>' +
         '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     document.body.appendChild(overlay);
+    var recoveryEmail = document.getElementById('mfaRecoveryEmail');
+    if (recoveryEmail && window._mfaRecoveryEmail) recoveryEmail.value = window._mfaRecoveryEmail;
     // Send the code automatically
     window._sendMFACode = async function() {
         var statusEl = document.getElementById('mfaSignInStatus');
@@ -8011,30 +8294,169 @@ window._submitMFASignIn = async function() {
     }
 };
 if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
-if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (typeof showToast === 'function') showToast('Reload the page, then try deleting your account again.'); };
+if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function () { if (typeof showToast === 'function') showToast('Open Settings and confirm deletion there.'); };
+window._toggleRecoveryEntry = function () {
+    var box = document.getElementById('totpRecoveryBox');
+    if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+};
+
+window._showLostAccess = function () {
+    if (document.getElementById('lostAccessOverlay')) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'lostAccessOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:700001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
+        '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;">Lost your device?</div>' +
+        '<div style="color:var(--text-muted,#aaa);font-size:0.88rem;line-height:1.55;margin-bottom:14px;">Enter one of the recovery codes you saved when you turned on two-factor authentication. That code works once and turns two-factor authentication off, so you can sign in and set it up again. If you lost those codes too, contact support. After they confirm it is you, they can turn it off.</div>' +
+        '<button onclick="document.getElementById(\'lostAccessOverlay\').remove()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">OK</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+};
+
+window._showRecoveryCodes = function (codes) {
+    window._recoveryCodesPlain = (codes || []).slice();
+    var old = document.getElementById('recoveryCodesOverlay');
+    if (old) old.remove();
+    var lines = window._recoveryCodesPlain.map(function (c) {
+        return '<div style="font-family:ui-monospace,monospace;font-size:1rem;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--border,#333);">' + c + '</div>';
+    }).join('');
+    var overlay = document.createElement('div');
+    overlay.id = 'recoveryCodesOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:700002;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:22px;max-width:420px;width:100%;max-height:90vh;overflow:auto;">' +
+        '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;">Save your recovery codes</div>' +
+        '<div style="color:var(--text-muted,#aaa);font-size:0.82rem;line-height:1.5;margin-bottom:12px;">These are shown once. Each code works one time and turns two-factor authentication off. Store them somewhere safe.</div>' +
+        '<div style="background:rgba(0,0,0,0.25);border-radius:10px;padding:8px 12px;margin-bottom:12px;">' + lines + '</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
+        '<button onclick="window._copyRecoveryCodes()" style="flex:1;padding:10px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Copy</button>' +
+        '<button onclick="window._downloadRecoveryCodes()" style="flex:1;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-weight:700;cursor:pointer;font-family:inherit;">Download</button>' +
+        '</div>' +
+        '<button onclick="document.getElementById(\'recoveryCodesOverlay\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#aaa);cursor:pointer;font-family:inherit;">I saved these codes</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+};
+
+window._copyRecoveryCodes = function () {
+    var text = (window._recoveryCodesPlain || []).join('\n');
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { if (typeof showToast === 'function') showToast('Recovery codes copied'); });
+    }
+};
+
+window._downloadRecoveryCodes = function () {
+    var text = (window._recoveryCodesPlain || []).join('\n');
+    if (!text) return;
+    var blob = new Blob([text + '\n'], { type: 'text/plain' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bitcoin-quest-recovery-codes.txt';
+    a.click();
+};
+
+window._submitRecoveryCode = async function (kind) {
+    var codeEl = document.getElementById('totpRecoveryInput');
+    var emailEl = document.getElementById('mfaRecoveryEmail');
+    var statusEl = document.getElementById(kind === 'phone' ? 'mfaSignInStatus' : 'totpSignInStatus');
+    var code = codeEl ? codeEl.value.trim() : '';
+    if (!code) { if (statusEl) statusEl.textContent = 'Enter a recovery code'; return; }
+    try {
+        var payload = { code: code };
+        if (kind === 'phone') {
+            payload.email = (emailEl && emailEl.value.trim()) || window._mfaRecoveryEmail || '';
+            if (!payload.email) { if (statusEl) statusEl.textContent = 'Enter the email on the account'; return; }
+        }
+        await firebase.functions().httpsCallable('useRecoveryCode')(payload);
+        var ov1 = document.getElementById('totpSignInOverlay'); if (ov1) ov1.remove();
+        var ov2 = document.getElementById('mfaSignInOverlay'); if (ov2) ov2.remove();
+        if (kind === 'phone') {
+            if (typeof showToast === 'function') showToast('Two-factor authentication is off. Sign in again.');
+            if (typeof auth !== 'undefined') auth.signOut().catch(function () {});
+            return;
+        }
+        if (auth && auth.currentUser) {
+            try { localStorage.removeItem('btc_mfa_session_' + auth.currentUser.uid); } catch (e) {}
+        }
+        if (typeof showToast === 'function') showToast('Two-factor authentication is off. You can turn it on again in Settings.');
+        if (typeof loadUser === 'function' && auth && auth.currentUser) loadUser(auth.currentUser.uid);
+    } catch (e) {
+        if (statusEl) statusEl.textContent = _mfaFailure(e);
+    }
+};
+
+window._regenerateRecoveryCodes = async function () {
+    var codeEl = document.getElementById('totpRegenCode');
+    var code = codeEl ? codeEl.value.trim() : '';
+    try {
+        var res = await firebase.functions().httpsCallable('regenerateRecoveryCodes')({ code: code });
+        if (res && res.data && res.data.recoveryCodes) window._showRecoveryCodes(res.data.recoveryCodes);
+        else if (typeof showToast === 'function') showToast('Could not create new codes');
+    } catch (e) {
+        if (typeof showToast === 'function') showToast(_mfaFailure(e));
+    }
+};
+
 async function loadTotpStatus() {
-    var section = document.getElementById('totpSection');
+    var section = document.getElementById('twoFactorPanel') || document.getElementById('totpSection');
     if (!section) return;
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.85rem;">Sign in to enable authenticator app.</div>';
+        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.85rem;">Sign in to turn on two-factor authentication.</div>';
         return;
     }
+    var user = auth.currentUser;
+    var phoneEnrolled = user.multiFactor && user.multiFactor.enrolledFactors && user.multiFactor.enrolledFactors.length > 0;
+    var hasEmail = !!(user.email);
+    var emailVerified = !!user.emailVerified;
+    var safari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
     try {
-        var totpStatusFn = firebase.functions().httpsCallable('totpStatus');
-        var result = await totpStatusFn();
-        if (result.data.enabled) {
-            section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Authenticator app enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Google Authenticator, Authy, etc.</div></div></div>' +
-                '<div style="display:flex;gap:8px;"><input type="text" id="totpDisableCode" placeholder="Enter code to disable" maxlength="6" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;">' +
-                '<button onclick="disableTotp()" style="padding:10px 16px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">Disable</button></div>';
+        var sessionId = '';
+        try { sessionId = localStorage.getItem('btc_mfa_session_' + user.uid) || ''; } catch (e) {}
+        var result = await firebase.functions().httpsCallable('totpStatus')({ sessionId: sessionId });
+        var data = (result && result.data) || {};
+        var totpOn = !!data.enabled;
+        var phoneOn = phoneEnrolled || !!data.phoneEnabled;
+        var status = totpOn && phoneOn ? 'Authenticator and phone are on' : (totpOn ? 'Authenticator app is on' : (phoneOn ? 'Phone verification is on' : 'Two-factor authentication is off'));
+        var html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Two-factor authentication</div>' +
+            '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:6px;">' + status + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">Works with email, Google, Facebook, Twitter, GitHub, Nostr, Lightning, and a guest who signs in. Phone texts need email, Google, Facebook, Twitter, or GitHub. Nostr and Lightning use an authenticator app.</div>';
+        if (totpOn) {
+            html += '<div style="display:flex;gap:8px;margin-bottom:8px;"><input id="totpDisableCode" inputmode="numeric" maxlength="6" placeholder="Code to turn off" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;text-align:center;">' +
+                '<button onclick="disableTotp()" style="padding:10px 14px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-family:inherit;">Turn off</button></div>';
         } else {
-            section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">📱</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Not configured</div><div style="color:var(--text-muted);font-size:0.8rem;">Use Google Authenticator, Authy, or any TOTP app</div></div></div>' +
-                '<button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Set Up Authenticator App</button>';
+            html += '<div id="totpSection"><button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Set up authenticator app</button></div>';
         }
-    } catch(e) {
-        console.error('[TOTP Status] error:', e.code, e.message, e);
-        var errMsg = (e.code || e.message || 'unknown error');
-        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;padding:8px;background:var(--bg-side);border-radius:6px;margin-bottom:8px;">⚠️ Could not load authenticator status (' + errMsg + ')</div>' +
-            '<button onclick="loadTotpStatus()" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🔄 Try Again</button>';
+        if (phoneOn) {
+            html += '<button onclick="disable2FA()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-family:inherit;margin-bottom:8px;">Turn off phone verification</button>';
+        } else if (!hasEmail || !emailVerified) {
+            html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Verify an email to turn on phone texts. You can still use an authenticator app.</div>';
+        } else if (safari) {
+            html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Safari blocks phone texts. Use an authenticator app on this browser.</div>';
+        } else {
+            html += '<div id="mfaSetup" style="margin-bottom:8px;">' +
+                '<input type="tel" id="mfaPhone" placeholder="Phone number" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;margin-bottom:8px;box-sizing:border-box;">' +
+                '<button onclick="startMFAEnroll()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;">Send phone code</button>' +
+                '<div id="mfaVerify" style="display:none;margin-top:8px;"><input id="mfaCode" maxlength="6" placeholder="6-digit code" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);text-align:center;margin-bottom:8px;box-sizing:border-box;">' +
+                '<button onclick="verifyMFACode()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Verify phone</button></div>' +
+                '<div id="mfaStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+        }
+        if (totpOn || phoneOn) {
+            html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">' +
+                '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">Recovery codes</div>' +
+                '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">Create a new set if you lost the ones you saved. This asks for a current code.</div>' +
+                '<input id="totpRegenCode" maxlength="6" placeholder="Current authenticator code" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);text-align:center;margin-bottom:8px;box-sizing:border-box;font-family:inherit;">' +
+                '<button onclick="window._regenerateRecoveryCodes()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-family:inherit;margin-bottom:8px;">Create new recovery codes</button>' +
+                '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;">Lost your device?</button>' +
+                '</div>';
+        } else {
+            html += '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-family:inherit;">Lost your device?</button>';
+        }
+        html += '</div>';
+        section.innerHTML = html;
+        if (data.needsRecoveryCodes && (data.sessionVerified || data.phoneEnabled)) window._maybeOfferRecoveryCodes();
+    } catch (e) {
+        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;padding:8px;">Could not load two-factor settings (' + _mfaFailure(e) + ')</div>' +
+            '<button onclick="loadTotpStatus()" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Try again</button>';
     }
 }
 
@@ -8044,7 +8466,7 @@ async function startTotpSetup() {
         var result = await totpSetupFn();
         var qrDataUrl = result.data && (result.data.qr || result.data.qrUrl || result.data.qrDataUrl);
         if (qrDataUrl) {
-            var area = document.getElementById('totpSetupArea') || document.getElementById('totpSection');
+            var area = document.getElementById('totpSetupArea') || document.getElementById('totpSection') || document.getElementById('twoFactorPanel');
             if (area) {
                 area.style.display = 'block';
                 area.innerHTML = '<div style="text-align:center;margin:12px 0;">' +
@@ -8068,11 +8490,14 @@ async function verifyTotpSetup() {
     if (!code || code.value.trim().length !== 6) { showToast('Enter a 6-digit code'); return; }
     try {
         var verifyFn = firebase.functions().httpsCallable('totpVerify');
-        await verifyFn({ code: code.value.trim() });
-        showToast('✅ Authenticator app enabled!');
+        var verified = await verifyFn({ code: code.value.trim() });
+        var verifiedData = (verified && verified.data) || {};
+        if (auth && auth.currentUser && verifiedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, verifiedData.sessionId);
+        if (verifiedData.recoveryCodes) window._showRecoveryCodes(verifiedData.recoveryCodes);
+        showToast('Authenticator app is on');
         showSettingsPage('security');
     } catch(e) {
-        showToast('Invalid code. Try again.');
+        showToast(_mfaFailure(e));
     }
 }
 
@@ -8082,14 +8507,17 @@ async function disableTotp() {
     try {
         var disableFn = firebase.functions().httpsCallable('totpDisable');
         await disableFn({ code: code.value.trim() });
-        showToast('Authenticator app disabled');
+        if (auth && auth.currentUser) {
+            try { localStorage.removeItem('btc_mfa_session_' + auth.currentUser.uid); } catch (err) {}
+        }
+        showToast('Authenticator app is off');
         showSettingsPage('security');
     } catch(e) {
-        showToast('Invalid code');
+        showToast(_mfaFailure(e));
     }
 }
 
-// ---- RESTORED: clearUserData ----
+
 function clearUserData() {
     var userKeys = [
         'btc_visited_channels', 'btc_favs', 'btc_hidden_badges',

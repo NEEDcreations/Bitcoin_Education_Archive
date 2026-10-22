@@ -206,9 +206,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: 'Uploaded 1 track to Bitcoin Beats!', pts: 25 }, 25],
         [{ action: 'Uploaded 1 track to Bitcoin Beats!', pts: 50 }, 50],
         [{ action: 'Uploaded 3 tracks to Bitcoin Beats!', pts: 75 }, 50],
-        [{ action: '🦌 Nacho Quest: pick_topic', pts: 25 }, 25],
-        [{ action: '🦌 Nacho Quest: first_quiz', pts: 50 }, 50],
-        [{ action: '🦌 Nacho Quest: first_quiz', pts: 100 }, 100],
         [{ action: '🧠 PVP Practice', pts: 10 }, 10],
         [{ action: '⚔️ PVP Draw', pts: 5 }, 5],
         [{ action: '⚔️ PVP Victory!', pts: 30 }, 30],
@@ -240,6 +237,10 @@ test('legit client phrases keep today amounts', function () {
     assert.strictEqual(doubleFlex.xp, 10);
     const badQuest = awardActions.resolveAction({ action: '🦌 Nacho Quest: invented', pts: 100 });
     assert.strictEqual(badQuest.ok, false);
+    ['🦌 Nacho Quest: pick_topic', '🦌 Nacho Quest: first_quiz', 'onboarding quest'].forEach(function (action) {
+        const refused = awardActions.resolveAction({ action: action, pts: 50 });
+        assert.strictEqual(refused.ok, false, action);
+    });
     const badSpin = awardActions.resolveAction({ action: 'Daily Spin', pts: 40 });
     assert.strictEqual(badSpin.ok, false);
 });

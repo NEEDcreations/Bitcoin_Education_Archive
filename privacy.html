@@ -45,7 +45,11 @@
     <h3>Account Data (stored in Firebase)</h3>
     <table>
         <tr><th>Data</th><th>Purpose</th></tr>
-        <tr><td>Username</td><td>Display on leaderboard, PlebTalk forum, LightningMart, and direct messages</td></tr>
+        <tr><td>Username</td><td>Display on leaderboard, PlebTalk forum, LightningMart, and direct messages. The name is checked and reserved on the server (unique, no HTML, no profanity, and not a reserved impersonation). A lowercase copy is stored so two people cannot claim the same name. You can rename once a day. A released name is held for you for 30 days (usernameChangedAt).</td></tr>
+        <tr><td>Welcome tour seen (introSeen, introSeenAt)</td><td>Remember that a signed-in user has already seen the welcome tour, so it is not shown again. Guests store this only in this browser.</td></tr>
+        <tr><td>First-quest progress (onboardingQuest)</td><td>Which first-quest steps are done, and the XP and orange tickets the server granted for them. The browser cannot mark the quest complete or set the reward.</td></tr>
+        <tr><td>Nacho quest note (onboarding evidence)</td><td>For the first quest only: that you asked Nacho something, the length of that question, and the time. The question text is not stored in this record.</td></tr>
+        <tr><td>Guest link (guestLinkNonce, guestLinkNonceAt, mergedInto, mergedFromGuest)</td><td>A single-use code, valid for 30 minutes, that lets the server copy a guest session onto an existing account when that login is already in use. Signing in with a new login upgrades the guest account itself instead. An account can receive one guest copy. The code and the time it was issued are removed after a link or when it expires.</td></tr>
         <tr><td>Email (if provided)</td><td>Account verification via magic link sign-in</td></tr>
         <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, Facebook, Nostr (NIP-07), Lightning (LNURL-auth), email link, or a guest (anonymous) session</td></tr>
         <tr><td>Profile picture</td><td>Optional avatar upload (resized to 128px JPEG, stored in Firestore)</td></tr>
@@ -443,6 +447,8 @@
     <p>The majority of your in-app state is stored in your browser&apos;s localStorage — entirely on your device, never transmitted to us unless you create an account. Examples of what we store locally:</p>
     <ul>
         <li><strong>Preferences:</strong> theme (dark/light), audio settings, language, visited channels, notification preferences</li>
+        <li><strong>Welcome tour:</strong> guests store <code>btc_intro_seen</code> in this browser so the tour is not repeated. Signed-in users store that on the account instead.</li>
+        <li><strong>Guest link:</strong> <code>btc_guest_link</code> holds a single-use code, the guest id, and the time it was fetched, so a later sign-in can ask the server to keep guest progress if the login is already in use. The code expires after 30 minutes and is refreshed while you stay a guest. It does not contain your email.</li>
         <li><strong>Session state:</strong> anonymous user ID (<code>btc_anon_uid</code>), pending username/email during sign-up, streak data</li>
         <li><strong>Game &amp; progress state:</strong> badges earned, PVP win history, daily spin timestamps, Satoshi&apos;s Favor data, quiz answers</li>
         <li><strong>Lightning wallet:</strong> your wallet connection method and NWC relay URL (if provided) in localStorage. The NWC secret, if you connect one, stays in sessionStorage and is cleared when the tab closes. We do not store that secret. It is sent to your own wallet or relay when you pay</li>
@@ -467,7 +473,7 @@
     </ul>
 
     <h2>9. Content Moderation & Filtering</h2>
-    <p>All user-generated content (Global Chat messages, forum posts, DMs, usernames, articles) is filtered <strong>client-side</strong> before submission. No content is sent to external moderation services. Filters include:</p>
+    <p>All user-generated content (Global Chat messages, forum posts, DMs, usernames, articles) is filtered <strong>client-side</strong> before submission. No content is sent to external moderation services. Usernames are checked again on the server before they are reserved. Filters include:</p>
     <ul>
         <li><strong>Profanity filter</strong> — 100+ blocked words with leet-speak normalization (e.g., "f*ck", "sh1t" detected)</li>
         <li><strong>Hate speech & racial slurs</strong> — 27+ racial/ethnic slurs blocked across all surfaces</li>
@@ -538,7 +544,7 @@
         <li><strong>Admin audit logs and reports</strong> filed for moderation, including suspicious-activity notes, watchlist snapshots, and Beats reports. Those can hold an email address or the id of the person who filed the report</li>
         <li><strong>Prediction payout and prediction record ledgers</strong></li>
         <li><strong>Satoshi's Favor hash records and cooldowns.</strong> The name on the hash record is replaced with <code>[deleted]</code>. The hash and the cooldown stay so the game limits cannot be reset</li>
-        <li><strong>Shared rate-limit rows keyed by network address, including the global shoutout limit, and public topic summaries.</strong> The account-deletion limit for a network, and the Nostr and Lightning sign-in limits, are stored as a keyed hash, not the address itself. The hash key is a random daily salt kept in a server-only record that this site cannot read, or a server secret. That row expires after about a day, and a scheduled cleanup deletes it if the database expiry policy is not on yet. Deleting one account does not erase those shared rows</li>
+        <li><strong>Shared rate-limit rows keyed by network address, including the global shoutout limit, and public topic summaries.</strong> The account-deletion limit for a network, and the Nostr and Lightning sign-in limits, are stored as a keyed hash, not the address itself. The hash key is a random daily salt kept in a server-only record that this site cannot read, or a server secret. That row expires after about a day, and a scheduled cleanup deletes it if the database expiry policy is not on yet. Deleting one account does not erase those shared rows. Authenticator attempt counters, including a recovery attempt, live in totp_rate_limits. Each row has an expiry and the hourly cleanup deletes it. The recovery counter is a salted hash, not the email address</li>
     </ul>
     <p>A Global Chat message may already have been copied to the linked Telegram group. Deleting the account does not remove that Telegram copy. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> if something of yours is still visible and should not be.</p>
 

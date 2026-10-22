@@ -41,6 +41,8 @@ const METRIC_RULES = {
 };
 
 exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
   // Auth required
   if (!context.auth) {
     throw new functionsV1.https.HttpsError(

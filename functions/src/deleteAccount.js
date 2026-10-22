@@ -34,7 +34,6 @@
 // Per-day caps and other user-keyed limit docs are removed only after the
 // Firebase Auth user is deleted in this same call.
 
-const { requireSecondFactor } = require('./requireSecondFactor');
 const {
     deletionIpDocId,
     isUsableSecret,
@@ -966,6 +965,8 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField, opts) {
         ['totp_rate_limits', uid],
         ['totp_rate_limits', uid + '_verify'],
         ['totp_rate_limits', uid + '_disable'],
+        ['totp_rate_limits', uid + '_regen'],
+        ['recovery_codes', uid],
     ];
     for (let i = 0; i < exact.length; i++) {
         await deleteExactIfPresent(db, batcher, exact[i][0], exact[i][1]);
@@ -988,6 +989,9 @@ async function deleteStorageForUser(bucket, uid) {
         } catch (err) {
             const code = err && (err.code || err.statusCode);
             if (code === 404 || code === '404') continue;
+            // Auth and Firestore emulators do not run Storage. Production
+            // still deletes every prefix and still fails closed on other errors.
+            if (process.env.FIRESTORE_EMULATOR_HOST && !process.env.FIREBASE_STORAGE_EMULATOR_HOST) continue;
             throw err;
         }
     }
@@ -1055,12 +1059,16 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['totp_secrets', uid, []],
         ['totp_pending', uid, []],
         ['totp_sessions', uid, []],
+        ['recovery_codes', uid, []],
         ['suggestions', uid, []],
     ];
     for (let i = 0; i < direct.length; i++) {
         await deleteDocTree(batcher, db.collection(direct[i][0]).doc(direct[i][1]), direct[i][2], documentIdField, false);
         deletedDocs++;
     }
+    // Session ids are uid + '_' + sessionId, so the single doc above is only
+    // the legacy row. Every live session is stored under its own id.
+    await deleteWhere(db, batcher, 'totp_sessions', 'uid', '==', uid, [], documentIdField);
     await deleteDocTree(
         batcher,
         db.collection('global_chat_meta').doc('live_dj').collection('dj_queue').doc(uid),
@@ -1107,8 +1115,10 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                 : (typeof nowSec === 'number' ? nowSec : Math.floor(Date.now() / 1000));
             const decision = authorizeDeleteAccount(context && context.auth, data || {}, now);
             if (!decision.ok) throw new HttpsError(decision.code, decision.message);
-            const second = await requireSecondFactor(context, { db: db, skip: decision.byAdmin === true });
-            if (!second.ok) throw new HttpsError(second.code, second.message);
+            if (!decision.byAdmin) {
+                const secondFactor = require('./secondFactor');
+                await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+            }
             const clock = typeof nowMs === 'function'
                 ? nowMs()
                 : (typeof nowMs === 'number' ? nowMs : Date.now());

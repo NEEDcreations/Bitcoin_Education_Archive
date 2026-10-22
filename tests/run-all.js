@@ -35,6 +35,10 @@ const TESTS = [
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
+    { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
+    { name: 'Email link and guest merge', file: 'test-email-link.js' },
+    { name: 'Two-factor auth', file: 'test-totp.js' },
+    { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
 ];
 
 let allPassed = true;
