@@ -222,6 +222,122 @@ function notifIcon(n) {
     return icon;
 }
 
+var NOTIF_TARGET_TYPES = {
+    forum_post: 1, article: 1, dm: 1, peer_request: 1,
+    beats_track: 1, marketplace: 1, song: 1, chat: 1, pvp: 1, buddy: 1
+};
+
+function notifSafeId(value, max) {
+    max = max || 64;
+    return typeof value === 'string' && value.length >= 1 && value.length <= max && /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+function notifSafeTarget(targetType, targetId) {
+    if (!targetType || !NOTIF_TARGET_TYPES[targetType]) return { type: '', id: '' };
+    if (targetType === 'peer_request' || targetType === 'chat') {
+        return { type: targetType, id: notifSafeId(targetId, 64) ? targetId : '' };
+    }
+    if (!notifSafeId(targetId, 64)) return { type: '', id: '' };
+    return { type: targetType, id: targetId };
+}
+
+function notifEscape(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function notifCardHtml(docId, n, variant) {
+    n = n || {};
+    var safeDoc = notifSafeId(docId, 128) ? docId : '';
+    var target = notifSafeTarget(n.targetType, n.targetId);
+    var giftId = (n.type === 'gift_received' && notifSafeId(n.giftId, 64)) ? n.giftId : '';
+    var fromUid = (n.type === 'peer_request' && notifSafeId(n.fromUid, 64)) ? n.fromUid : '';
+    var isUnread = !n.read;
+    var sheet = variant === 'sheet';
+    var timeStr = '';
+    if (n.createdAt && n.createdAt.toDate) {
+        var ts = n.createdAt.toDate();
+        timeStr = sheet
+            ? formatNotifTime(ts)
+            : (typeof timeAgo === 'function' ? timeAgo(ts) : ts.toLocaleDateString());
+    }
+    var extra = '';
+    if (fromUid && safeDoc) {
+        extra = '<div style="display:flex;gap:6px;margin-top:6px;">' +
+            '<button type="button" class="notif-peer-btn" data-peer-action="accept" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
+            '<button type="button" class="notif-peer-btn" data-peer-action="decline" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+            '</div>';
+    }
+    if (n.type === 'keys_received') {
+        extra = '<div style="margin-top:6px;"><button type="button" class="notif-keys-btn" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
+    }
+    if (giftId && safeDoc) {
+        extra = '<div style="margin-top:6px;">' +
+            '<button type="button" class="notif-open-gift" data-gift-id="' + notifEscape(giftId) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
+            '</div>';
+    }
+    return '<div class="notif-card" data-notif-id="' + notifEscape(safeDoc) + '" data-target-type="' + notifEscape(target.type) + '" data-target-id="' + notifEscape(target.id) + '" data-unread="' + (isUnread ? '1' : '0') + '" style="padding:' + (sheet ? '12px 16px' : '10px') + ';border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;">' +
+        '<div style="display:flex;gap:' + (sheet ? '10px' : '8px') + ';align-items:flex-start;">' +
+            '<span style="font-size:' + (sheet ? '1.2rem' : '1.1rem') + ';flex-shrink:0;">' + notifEscape(notifIcon(n)) + '</span>' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifEscape(n.message || '') + '</div>' +
+                notifAmountChips(n) +
+                '<div style="font-size:' + (sheet ? '0.65rem' : '0.7rem') + ';color:var(--text-faint);margin-top:' + (sheet ? '3px' : '2px') + ';">' + notifEscape(timeStr) + '</div>' +
+            '</div>' +
+            (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
+        '</div>' + extra +
+    '</div>';
+}
+
+function bindNotifCards(root, closeAfter) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('.notif-card').forEach(function(row) {
+        row.addEventListener('click', function() {
+            var id = row.getAttribute('data-notif-id') || '';
+            var safe = notifSafeTarget(row.getAttribute('data-target-type') || '', row.getAttribute('data-target-id') || '');
+            if (!notifSafeId(id, 128)) return;
+            handleNotifClick(id, safe.type, safe.id);
+            if (closeAfter && typeof toggleNotifOverlay === 'function') toggleNotifOverlay();
+        });
+        row.addEventListener('mouseover', function() { row.style.background = 'rgba(255,255,255,0.03)'; });
+        row.addEventListener('mouseout', function() {
+            row.style.background = row.getAttribute('data-unread') === '1' ? 'rgba(247,147,26,0.04)' : 'none';
+        });
+    });
+    root.querySelectorAll('.notif-open-gift').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var giftId = btn.getAttribute('data-gift-id') || '';
+            var id = btn.getAttribute('data-notif-id') || '';
+            if (!notifSafeId(giftId, 64) || !notifSafeId(id, 128)) return;
+            if (typeof window.openGiftModal === 'function') {
+                window.openGiftModal(giftId);
+                try { db.collection('notifications').doc(id).update({ read: true }); } catch (err) {}
+            } else if (typeof showToast === 'function') showToast('Loading gifts...');
+        });
+    });
+    root.querySelectorAll('.notif-peer-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var action = btn.getAttribute('data-peer-action') || '';
+            var fromUid = btn.getAttribute('data-from-uid') || '';
+            var id = btn.getAttribute('data-notif-id') || '';
+            if ((action !== 'accept' && action !== 'decline') || !notifSafeId(fromUid, 64) || !notifSafeId(id, 128)) return;
+            handlePeerNotifAction(action, fromUid, id, btn);
+        });
+    });
+    root.querySelectorAll('.notif-keys-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (typeof window.openNookInventory === 'function') window.openNookInventory();
+        });
+    });
+}
+
 function notifAmountChips(n) {
     if (!n) return '';
     var chips = [];
@@ -339,43 +455,10 @@ window.showNotifications = async function() {
 
         var html = _localRewardHtml();
         snap.forEach(function(doc) {
-            var n = doc.data();
-            var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
-            var timeStr = n.createdAt && n.createdAt.toDate ? (typeof timeAgo === 'function' ? timeAgo(n.createdAt.toDate()) : n.createdAt.toDate().toLocaleDateString()) : '';
-            var isUnread = !n.read;
-            var icon = notifIcon(n);
-
-            var extraHtml = '';
-            if (n.type === 'peer_request' && n.fromUid) {
-                extraHtml = '<div style="display:flex;gap:6px;margin-top:6px;">' +
-                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'accept\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
-                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'decline\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
-                    '</div>';
-            }
-            if (n.type === 'keys_received') {
-                extraHtml = '<div style="margin-top:6px;"><button type="button" onclick="event.stopPropagation();if(typeof window.openNookInventory===\'function\')window.openNookInventory();" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
-            }
-            if (n.type === 'gift_received' && n.giftId) {
-                var _gGiftId = n.giftId || '';
-                var _gNotifId = doc.id || '';
-                extraHtml = '<div style="margin-top:6px;">' +
-                    '<button onclick="event.stopPropagation();if(typeof window.openGiftModal===\'function\'){window.openGiftModal(\'' + _gGiftId + '\');try{db.collection(\'notifications\').doc(\'' + _gNotifId + '\').update({read:true})}catch(_e){}}else{if(typeof showToast===\'function\')showToast(\'Loading gifts...\');}" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
-                    '</div>';
-            }
-
-            html += '<div data-notif-id="' + doc.id + '" style="padding:10px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\')">' +
-                '<div style="display:flex;gap:8px;align-items:flex-start;">' +
-                    '<span style="font-size:1.1rem;flex-shrink:0;">' + icon + '</span>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + esc(n.message || '') + '</div>' +
-                        notifAmountChips(n) +
-                        '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">' + timeStr + '</div>' +
-                    '</div>' +
-                    (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
-                '</div>' + extraHtml +
-            '</div>';
+            html += notifCardHtml(doc.id, doc.data(), 'panel');
         });
         list.innerHTML = html;
+        bindNotifCards(list, false);
     } catch(e) {
         var list = document.getElementById('notifList');
         if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.82rem;">Could not load notifications</div>';
@@ -413,15 +496,14 @@ window.handlePeerNotifAction = async function(action, fromUid, notifId, btnEl) {
 
 // Handle notification click — navigate to content
 window.handleNotifClick = async function(notifId, targetType, targetId) {
-    // Mark as read
+    if (!notifSafeId(notifId, 128)) return;
+    var safe = notifSafeTarget(targetType, targetId);
     try { await db.collection('notifications').doc(notifId).update({ read: true }); } catch(e) {}
-    // Close overlay
     var ov = document.getElementById('notifOverlay');
     if (ov) ov.remove();
-    // Navigate
-    if (targetType === 'forum_post' && targetId) { if (typeof forumViewPost === 'function') forumViewPost(targetId); }
-    else if (targetType === 'article' && targetId) { if (typeof articleView === 'function') articleView(targetId); }
-    else if (targetType === 'dm' && targetId) {
+    if (safe.type === 'forum_post' && safe.id) { if (typeof forumViewPost === 'function') forumViewPost(safe.id); }
+    else if (safe.type === 'article' && safe.id) { if (typeof articleView === 'function') articleView(safe.id); }
+    else if (safe.type === 'dm' && safe.id) {
         // targetId is convoId (uid1_uid2). Extract the other user's UID and open their DM directly.
         try {
             var notifDoc = await db.collection('notifications').doc(notifId).get();
@@ -435,7 +517,7 @@ window.handleNotifClick = async function(notifId, targetType, targetId) {
             if (typeof showInbox === 'function') showInbox();
         }
     }
-    else if (targetType === 'peer_request') {
+    else if (safe.type === 'peer_request') {
         if (typeof showSettingsPage === 'function') showSettingsPage('peers');
         return;
     }
@@ -464,14 +546,15 @@ window.sendNotification = async function(recipientId, type, message, targetType,
     if (!recipientId || !auth || !auth.currentUser) return;
     if (recipientId === auth.currentUser.uid) return; // don't notify yourself
     try {
+        var safeTarget = notifSafeTarget(targetType, targetId);
         await db.collection('notifications').add({
             recipientId: recipientId,
             senderId: auth.currentUser.uid,
             senderName: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone',
             type: type,
             message: message,
-            targetType: targetType || null,
-            targetId: targetId || null,
+            targetType: safeTarget.type || null,
+            targetId: safeTarget.id || null,
             read: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -618,44 +701,10 @@ window.renderNotifList = async function() {
 
         var html = _localRewardHtml();
         snap.forEach(function(doc) {
-            var n = doc.data();
-            var e = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };
-            var ts = n.createdAt && n.createdAt.toDate ? n.createdAt.toDate() : null;
-            var timeStr = ts ? formatNotifTime(ts) : '';
-            var isUnread = !n.read;
-            var icon = notifIcon(n);
-
-            var extraHtml = '';
-            if (n.type === 'peer_request' && n.fromUid) {
-                extraHtml = '<div style="display:flex;gap:6px;margin-top:6px;">' +
-                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'accept\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
-                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'decline\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
-                    '</div>';
-            }
-            if (n.type === 'keys_received') {
-                extraHtml = '<div style="margin-top:6px;"><button type="button" onclick="event.stopPropagation();if(typeof window.openNookInventory===\'function\')window.openNookInventory();" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
-            }
-            if (n.type === 'gift_received' && n.giftId) {
-                var _gGiftId = n.giftId || '';
-                var _gNotifId = doc.id || '';
-                extraHtml = '<div style="margin-top:6px;">' +
-                    '<button onclick="event.stopPropagation();if(typeof window.openGiftModal===\'function\'){window.openGiftModal(\'' + _gGiftId + '\');try{db.collection(\'notifications\').doc(\'' + _gNotifId + '\').update({read:true})}catch(_e){}}else{if(typeof showToast===\'function\')showToast(\'Loading gifts...\');}" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
-                    '</div>';
-            }
-
-            html += '<div data-notif-id="' + doc.id + '" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\');toggleNotifOverlay()" style="padding:12px 16px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.03)\'" onmouseout="this.style.background=\'' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + '\'">' +
-                '<div style="display:flex;gap:10px;align-items:flex-start;">' +
-                    '<span style="font-size:1.2rem;flex-shrink:0;">' + icon + '</span>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + e(n.message || '') + '</div>' +
-                        notifAmountChips(n) +
-                        '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + timeStr + '</div>' +
-                    '</div>' +
-                    (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
-                '</div>' + extraHtml +
-            '</div>';
+            html += notifCardHtml(doc.id, doc.data(), 'sheet');
         });
         body.innerHTML = html;
+        bindNotifCards(body, true);
     } catch(e) {
         console.warn('[notif] renderNotifList error:', e);
         body.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.82rem;">No notifications yet</div></div>';

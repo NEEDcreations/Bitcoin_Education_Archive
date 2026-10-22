@@ -7,6 +7,11 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.get('admin', false) == true;
     }
 
+    // Client-created notification ids. Server Admin SDK writes are not checked here.
+    function notifIdOk(v) {
+      return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
+    }
+
     function lnShape(v) {
       return v is string && v.size() >= 5 && v.size() <= 320
         && v.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
@@ -1157,19 +1162,36 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && request.auth.uid == resource.data.recipientId;
       // Display-only. Clients may create social notices (mention, tip, DM).
-      // Reward, badge, rank, quest, and streak notices are Cloud Function writes.
-      // Grant fields are rejected so a notification can never be treated as a payout.
+      // Reward, badge, rank, quest, and streak notices are Cloud Function writes
+      // and never pass through this create rule.
+      // targetType is a fixed list. targetId, giftId, fromUid, and the doc id
+      // must match ^[A-Za-z0-9_-]{1,64}$. senderId must be the signed-in user.
       allow create: if request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.recipientId is string
-                    && request.resource.data.recipientId.size() > 0
+                    && notifIdOk(notifId)
+                    && request.resource.data.keys().hasOnly(['recipientId', 'senderId', 'senderName', 'type', 'message', 'targetType', 'targetId', 'giftId', 'fromUid', 'read', 'createdAt'])
+                    && notifIdOk(request.resource.data.recipientId)
+                    && request.resource.data.senderId == request.auth.uid
+                    && request.resource.data.senderName is string
+                    && request.resource.data.senderName.size() > 0
+                    && request.resource.data.senderName.size() <= 40
                     && request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
                     && request.resource.data.message.size() <= 200
                     && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy', 'comment', 'upvote', 'security', 'chat_mention', 'article', 'forum_post']
-                    && !request.resource.data.keys().hasAny(['xp', 'tickets', 'sats', 'points', 'orangeTickets', 'badgeId', 'freezes'])
-                    && (request.resource.data.senderId == request.auth.uid
-                        || (request.resource.data.senderId == 'system'
-                            && isAdmin()));
+                    && (request.resource.data.targetType == null
+                        || request.resource.data.targetType in ['dm', 'forum_post', 'article', 'beats_track', 'marketplace', 'song', 'chat', 'pvp', 'buddy'])
+                    && (request.resource.data.targetId == null
+                        || notifIdOk(request.resource.data.targetId))
+                    && (!('giftId' in request.resource.data)
+                        || request.resource.data.giftId == null
+                        || notifIdOk(request.resource.data.giftId))
+                    && (!('fromUid' in request.resource.data)
+                        || notifIdOk(request.resource.data.fromUid))
+                    && request.resource.data.read == false
+                    && (!('createdAt' in request.resource.data)
+                        || request.resource.data.createdAt == request.time)
+                    && !request.resource.data.keys().hasAny(['xp', 'tickets', 'sats', 'points', 'orangeTickets', 'badgeId', 'freezes']);
       allow update: if request.auth != null
                     && request.auth.uid == resource.data.recipientId
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
