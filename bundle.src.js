@@ -2494,22 +2494,23 @@ function copyReferFriendLink() {
         clearTimeout(window._referFriendCopiedTimer);
         window._referFriendCopiedTimer = setTimeout(function() {
             if (btn) btn.textContent = 'Copy';
-        }, 1500);
+        }, 2500);
     }
-    function fallback() {
-        var ok = false;
-        if (input) {
-            input.focus();
-            input.select();
-            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-        }
-        if (ok) mark();
-        else if (typeof showToast === 'function') showToast('Select the link and copy it');
+    // execCommand has to run inside the click. The clipboard promise often
+    // resolves after that gesture is over, so a later fallback cannot copy.
+    var copied = false;
+    if (input) {
+        if (input.focus) input.focus({ preventScroll: true });
+        input.select();
+        try { copied = document.execCommand('copy'); } catch (e) { copied = false; }
     }
+    if (copied) mark();
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(mark).catch(fallback);
-    } else {
-        fallback();
+        navigator.clipboard.writeText(text).then(mark).catch(function() {
+            if (!copied && typeof showToast === 'function') showToast('Select the link and copy it');
+        });
+    } else if (!copied && typeof showToast === 'function') {
+        showToast('Select the link and copy it');
     }
 }
 

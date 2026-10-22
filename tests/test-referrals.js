@@ -209,6 +209,11 @@ test('home card uses the stored referral code and does not query referrals', () 
     const openBody = tickets.slice(openStart, openEnd);
     assert.ok(openBody.indexOf('getReferralStats') === -1);
     assert.ok(openBody.indexOf('getReferralLink') !== -1);
+    const copyStart = tickets.indexOf('function copyReferFriendLink');
+    const copyEnd = tickets.indexOf('function shareReferFriendLink');
+    const copyBody = tickets.slice(copyStart, copyEnd);
+    assert.ok(copyBody.indexOf("execCommand('copy')") !== -1);
+    assert.ok(copyBody.indexOf("execCommand('copy')") < copyBody.indexOf('navigator.clipboard.writeText'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
