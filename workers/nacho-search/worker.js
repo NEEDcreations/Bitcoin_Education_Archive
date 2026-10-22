@@ -389,7 +389,7 @@ async function handleAI(request, env, corsHeaders) {
     const mode = body.mode === "eli5" || body.mode === "chat" ? body.mode : "chat";
     const eli5 = !!body.eli5 || mode === "eli5";
     const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
-    const kbContext = (body.kbContext || "").trim().slice(0, 400);
+    const kbContext = (body.kbContext || "").trim().slice(0, 1500);
     const appKnowledge = String(body.appKnowledge || "").slice(0, 9000);
     const userCtx = body.userContext && typeof body.userContext === "object" ? body.userContext : null;
     const ctxName = String(userCtx && userCtx.name || userName || "").slice(0, 40);

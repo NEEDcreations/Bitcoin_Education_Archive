@@ -227,7 +227,7 @@ const NACHO_KB = [
       answer: "Bitcoin is open-source code that anyone can audit. No CEO, no company, no promises of returns. It's the opposite of a scam — it's the most transparent financial system ever built.",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
-    { keys: ['not physical','can\'t hold','cant hold','not real','not tangible','can\'t touch','cant touch','why would i want','no intrinsic value','intrinsic value','backed by nothing','what backs bitcoin'],
+    { keys: ['not physical','can\'t hold','cant hold','not real','not tangible','can\'t touch','cant touch','why would i want','no intrinsic value'],
       answer: "You can't hold an email either, but it replaced letters! 📬 Bitcoin is digital, but it's backed by something powerful: math, energy, and the most secure computer network ever built. It's scarcer than gold (only 21 million), can't be faked, can't be seized, and can be sent anywhere instantly. The dollar isn't backed by anything physical either — just government promises. Bitcoin is backed by proof-of-work. Which would you trust more?",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
@@ -592,7 +592,7 @@ const NACHO_KB = [
     // EXPANDED KB — The Bitcoin Standard + The Fiat Standard (full books)
     // ========================================
 
-    { keys: ['fiat standard','fiat standard book','debt slavery','what is the fiat standard','ammous fiat'],
+    { keys: ['fiat standard','fiat standard book','what is the fiat standard book','debt slavery','what is the fiat standard','ammous fiat'],
       answer: "The Fiat Standard by Saifedean Ammous is the devastating sequel to The Bitcoin Standard, {name}! 📚🦌 Subtitle: 'The Debt Slavery Alternative to Human Civilization.' While The Bitcoin Standard shows what sound money IS, The Fiat Standard shows what fiat money DOES — and it's ugly. Key insight: fiat money doesn't just lose value. It restructures ALL of society around debt, short-term thinking, and government dependency. Housing, education, food, energy, family — everything gets distorted when money is broken. The book traces how the gold standard's fatal flaw (low spatial salability — gold is expensive to move) opened the door for governments to take control. Bitcoin fixes both: salability across time AND space. 🔥",
       channel: 'books', channelName: 'Books' },
 
@@ -608,7 +608,7 @@ const NACHO_KB = [
       answer: "From The Bitcoin Standard: 'It is no exaggeration to say that our modern world was invented in the gold standard years preceding World War I.' 🏗️🦌 The majority of technology we use in modern life was invented in the 19th century, under the gold standard, financed with evergrowing capital accumulated by people who could SAVE in sound money. Electricity, automobiles, telephones, radio, aviation — all born in the era of hard money. When money holds value, people invest in the future. When money is debased, they consume today and let infrastructure rot. The gold standard proved it. Bitcoin is bringing it back. 🧡",
       channel: 'history', channelName: 'History' },
 
-    { keys: ['fiat distortion','fiat food','fiat family','fiat education','fiat housing','fiat destroys','everything is broken','what fiat broke','how fiat broke society'],
+    { keys: ['fiat distortion','what is fiat distortion','fiat food','fiat family','fiat education','fiat housing','fiat destroys','everything is broken','what fiat broke','what did fiat break','how fiat broke society'],
       answer: "The Fiat Standard reveals how broken money distorts EVERYTHING, {name}! 🏚️🦌 Housing: 100 years ago people saved up and bought homes outright. Now everyone needs 30-year mortgages because prices are inflated by easy credit. Education: universities charge insane tuition because student loans create infinite demand. Food: fiat incentivizes industrial farming and processed food over natural nutrition. Family: both parents must work because one income can't cover inflated costs anymore. 'Whereas 100 years ago most people would pay for their house, education, or marriage from their own labor or accumulated savings, such a notion seems ridiculous to people today.' Fiat broke everything. Bitcoin fixes this. 🔧",
       channel: 'problems-of-money', channelName: 'Problems of Money' },
 
@@ -648,7 +648,7 @@ const NACHO_KB = [
       answer: "Gigi explains the fundamental problem Bitcoin solved, {name}: 'In the digital realm, we can ONLY use ledgers.' 💻🦌 Physical money (coins, shells, gold) exists as TOKENS — you hand it over, it's gone. But digital information can be PERFECTLY COPIED. That's the double-spend problem — how do you stop someone from spending the same digital money twice? Before Bitcoin, the only solution was a CENTRAL authority keeping the ledger (banks, PayPal). Satoshi's genius was creating a decentralized ledger where EVERYONE agrees on the state without trusting anyone. The secret ingredient? Time, enforced through proof of work. Each block timestamp is unforgeable. That's why Bitcoin took 30 years of cryptographic research to invent. 🧠🔥",
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
-    { keys: ['satoshi treasure','legendary treasure','satoshi sacrifice','satoshi noble','satoshi didn\'t spend','satoshi coins unmoved','why satoshi didn\'t sell','heroic sacrifice'],
+    { keys: ['satoshi treasure','legendary treasure','what is the legendary treasure','legendary treasure of satoshi','satoshi sacrifice','satoshi noble','satoshi didn\'t spend','satoshi coins unmoved','why satoshi didn\'t sell','heroic sacrifice'],
       answer: "Tomer Strolight's 'The Legendary Treasure of Satoshi Nakamoto' is one of the most profound pieces ever written about Bitcoin, {name}! 👑🦌 Satoshi left behind ~1 million Bitcoin — visible on the blockchain to everyone, yet untouchable. As Bitcoin grows, this treasure will 'drive mad with lust and greed' those who hunger for wealth. But here's Tomer's revelation: those coins are NOT the real treasure. They are 'an incorruptible monument paying tribute to the real treasure.' The REAL legendary treasure of Satoshi Nakamoto? 'The discoveries you will arrive at on your personal journey of finding out what is true, what is pure, who you are, and what you will do with your precious time because you judge it valuable and good.' Satoshi chose not to buy anything, not to become famous, not to become powerful. He chose to make his fortune into an eternal monument to the human spirit — proving that one person CAN sacrifice wealth and fame to create something morally good. 🧡🔥",
       channel: 'satoshi-nakamoto', channelName: 'Satoshi Nakamoto' },
 
@@ -780,7 +780,7 @@ const NACHO_KB = [
       answer: "CBDCs are the OPPOSITE of Bitcoin, {name} — don't let anyone tell you otherwise! 🚨🦌 A Central Bank Digital Currency gives governments unprecedented surveillance power over every transaction you make. No more cash. Every purchase tracked. And the most troubling part: the government could CONTROL how you spend your money — expiration dates on your savings, restrictions on purchases, negative interest rates, account freezes. As one article from our site puts it: 'The most troubling aspect of a centrally managed digital currency is the potential for the government to control its use.' Bitcoin is the escape hatch. Self-custody, pseudonymous, uncensorable. CBDCs enslave. Bitcoin liberates. 🗽",
       channel: 'regulation', channelName: 'Regulation' },
 
-    { keys: ['ethereum cloud','ethereum nodes cloud','aws ethereum','amazon ethereum','ethereum centralized nodes','60 percent ethereum'],
+    { keys: ['ethereum cloud','ethereum nodes cloud','ethereum nodes in the cloud','aws ethereum','amazon ethereum','ethereum centralized nodes','60 percent ethereum','61.6 percent of ethereum nodes','what percent of ethereum nodes'],
       answer: "Here's a damning fact from The Next Web, {name}: as of research, 61.6% of ALL Ethereum nodes run in the cloud — with Amazon Web Services ALONE hosting nearly 25% of them! 🏢🦌 That means Jeff Bezos's company could theoretically disrupt a quarter of the Ethereum network with one policy change. Compare that to Bitcoin: nodes run on Raspberry Pis, old laptops, and home servers worldwide. No single cloud provider, no single country, no single company controls a significant portion. THAT is real decentralization vs. marketing decentralization. Ethereum is DINO: Decentralized In Name Only. 🎭",
       channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
 
@@ -796,7 +796,7 @@ const NACHO_KB = [
       answer: "Parker Lewis's 'Bitcoin is the Great Definancialization' is essential reading, {name}! 📖🦌 The thesis: because fiat money constantly loses value, people are FORCED to become investors. You can't just save — your savings rot. So Wall Street sells you stocks, bonds, 401ks, index funds, real estate as 'investments.' The entire financial industry exists because money is BROKEN. Bitcoin fixes this. If your money holds or gains value over time, you don't NEED Wall Street. You just... save. In hard money. Bitcoin makes most of the financial industry obsolete by fixing the money itself. Save in sats, not stocks. 📈🧡",
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
-    { keys: ['glacier protocol','high security','large amount','cold storage protocol','serious security','institutional security','multisig setup'],
+    { keys: ['glacier protocol','what is the glacier protocol','high security','large amount','cold storage protocol','serious security','institutional security','multisig setup'],
       answer: "For serious Bitcoin security, check out the Glacier Protocol, {name}! 🏔️🦌 From our Self-Custody channel: it's a step-by-step guide for storing large amounts ($100K+) that thoroughly considers obscure attack vectors, malware infection paths, estate planning, and human error. Key principles: air-gapped computers, multisig setups, geographically distributed backups, and detailed procedures that minimize the chance of mistakes. Even if your holdings are modest NOW, consider this: if Bitcoin 10x's, your security needs change dramatically. Plan your custody like your future self will thank you! 🔐",
       channel: 'self-custody', channelName: 'Self Custody' },
 
@@ -812,7 +812,7 @@ const NACHO_KB = [
       answer: "Lyn Alden is one of the most respected macro analysts who became a Bitcoiner, {name}! 📊🦌 Her article 'Misconceptions About Bitcoin' dismantled every major critique: energy FUD, volatility concerns, 'backed by nothing' claims. She showed that MicroStrategy became the first major public company to put Bitcoin on its balance sheet — and the CEO's analysis drove the decision. Her book 'Broken Money' lays out the macro case: the global monetary system is literally broken, and Bitcoin is the most credible fix. When Wall Street analysts do the math honestly, they arrive at Bitcoin. 📈",
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
-    { keys: ['nakamoto effect','reverse cantillon','bitcoin distribution','fair distribution','bitcoin fairness','equitable money'],
+    { keys: ['nakamoto effect','what is the nakamoto effect','reverse cantillon','bitcoin distribution','fair distribution','bitcoin fairness','equitable money'],
       answer: "Bitcoin has what some call the 'Nakamoto Effect' — the OPPOSITE of the Cantillon Effect, {name}! ⚖️🦌 While fiat money printing benefits those closest to the money printer (banks, corporations, insiders), Bitcoin distributes new coins through WORK — mining. Anyone can mine. Anyone can buy. No insider access, no pre-allocation, no special deals. The rules are the same for a teenager in Nigeria and a billionaire in New York. And as Bitcoin appreciates, early believers who took the risk are rewarded — not political insiders who printed money for themselves. Fair money. Fair rules. Fair distribution. 🧡",
       channel: 'problems-of-money', channelName: 'Problems of Money' },
 
@@ -947,7 +947,7 @@ const NACHO_KB = [
       answer: "Oh {name}, the Bitcoin rabbit hole has INCREDIBLE books! 📚🦌 The must-reads: 'The Bitcoin Standard' by Saifedean Ammous — the history of money and why Bitcoin is the next evolution (this is THE book that orange-pills economists). '21 Lessons' by Gigi — philosophical journey down the rabbit hole (free at 21lessons.com!). 'The Internet of Money' by Andreas Antonopoulos — the WHY of Bitcoin. 'Layered Money' by Nik Bhatia — why Bitcoin is the evolution of the monetary system. 'The Blocksize War' by Jonathan Bier — the governance battle that proved Bitcoin's decentralization. And 'Broken Money' by Lyn Alden — the macro case for Bitcoin. Check our Books channel for the complete list! 📖🧡",
       channel: 'books', channelName: 'Books' },
 
-    { keys: ['milton friedman','friedman predicted','predicted bitcoin','who predicted bitcoin','bitcoin prediction old'],
+    { keys: ['milton friedman','friedman bitcoin prediction','milton friedman bitcoin prediction','what is milton friedman','friedman predicted','predicted bitcoin','who predicted bitcoin','bitcoin prediction old'],
       answer: "Nobel Prize-winning economist Milton Friedman predicted Bitcoin in 1999 — 10 years before it existed! 🤯🦌 In an interview, he described needing a 'reliable e-cash' where you could transfer funds on the Internet 'without A knowing B or B knowing A.' He basically described Bitcoin's pseudonymous, peer-to-peer nature before it was invented. The video is on YouTube and it's mind-blowing. Friedman, Hayek, and the Austrian economists all understood that sound money needed to be free from government control. Satoshi made it real. Check our Videos channel! 📺",
       channel: 'videos', channelName: 'Videos' },
 
@@ -3036,8 +3036,61 @@ function matchSiteNavigation(input) {
 }
 
 // Internal check for altcoins to bypass AI
+// Question frames like "what is the" are not topics. They must not outscore a real name.
+var NACHO_MATCH_STOP = { what:1, is:1, the:1, a:1, an:1, of:1, about:1, how:1, does:1, do:1, did:1, are:1, was:1, were:1, who:1, why:1, when:1, where:1, which:1, tell:1, you:1, your:1, can:1, this:1, that:1, with:1, from:1, for:1, and:1, but:1, its:1 };
+var NACHO_ALT_WORDS = { ethereum:1, ether:1, eth:1, vitalik:1, solana:1, cardano:1, dogecoin:1, doge:1, xrp:1, ripple:1, kaspa:1, bnb:1, binance:1, polkadot:1, avalanche:1, polygon:1, tron:1, altcoin:1, shitcoin:1, shiba:1 };
+
+function nachoContentWords(text) {
+    return String(text || '').toLowerCase().split(/[^a-z0-9.%]+/).filter(function (w) {
+        return w.length >= 4 && !NACHO_MATCH_STOP[w];
+    });
+}
+
+function nachoGramUseful(gram) {
+    var parts = String(gram || '').split(/\s+/);
+    for (var i = 0; i < parts.length; i++) {
+        var w = parts[i].replace(/[^a-z0-9.%]/g, '');
+        if (w.length >= 4 && !NACHO_MATCH_STOP[w]) return true;
+    }
+    return false;
+}
+
+// A named fact ("61.6% of Ethereum nodes are in the cloud") should beat the generic altcoin roast.
+function namedFactMatch(input) {
+    var low = String(input || '').toLowerCase();
+    var qWords = nachoContentWords(low);
+    if (qWords.length < 2) return null;
+    var qSet = {};
+    for (var qi = 0; qi < qWords.length; qi++) qSet[qWords[qi]] = 1;
+    var best = null;
+    var bestScore = 0;
+    for (var i = 0; i < NACHO_KB.length; i++) {
+        var entry = NACHO_KB[i];
+        if (!entry || !entry.keys) continue;
+        for (var k = 0; k < entry.keys.length; k++) {
+            var key = String(entry.keys[k] || '').toLowerCase();
+            var words = nachoContentWords(key);
+            if (words.length < 2) continue;
+            var alt = 0;
+            var extra = 0;
+            var all = true;
+            for (var w = 0; w < words.length; w++) {
+                if (!qSet[words[w]] && low.indexOf(words[w]) === -1) { all = false; break; }
+                if (NACHO_ALT_WORDS[words[w]]) alt++;
+                else extra++;
+            }
+            if (!all || !alt || !extra) continue;
+            var score = words.length * 10 + (low.indexOf(key) !== -1 ? 40 + key.length : 0);
+            if (score > bestScore) { bestScore = score; best = entry; }
+        }
+    }
+    return best;
+}
+
 function checkAltcoin(input) {
     if (!input) return null;
+    var fact = namedFactMatch(input);
+    if (fact) return fact;
     var lowInput = input.toLowerCase();
     
     var altcoinPatterns = [
@@ -3205,6 +3258,8 @@ function _levenshtein(a, b) {
 function findAnswer(input) {
     var _rawQ = String(input || '');
     input = fixTypos(_rawQ.toLowerCase().trim());
+    // Trailing "?" used to glue onto the last word and hide the real key.
+    input = input.replace(/[?!.,;:()"]/g, ' ').replace(/['’]s\b/g, '').replace(/['’]/g, ' ').replace(/\s+/g, ' ').trim();
     if (input.length < 2) return null;
     // Feature registry wins before synonym expansion (which maps "keys" to "private key")
     // and before the fuzzy KB matcher.
@@ -3233,6 +3288,10 @@ function findAnswer(input) {
     // produce false matches on random non-Bitcoin questions
     if (typeof checkOffTopic === 'function' && checkOffTopic(input)) return null;
 
+    // A named altcoin fact ("61.6% of Ethereum nodes are in the cloud") beats the generic node/altcoin route.
+    var _namedEarly = namedFactMatch(input);
+    if (_namedEarly) return _namedEarly;
+
     // NOTE: Current event detection moved AFTER KB topic matching.
     // This ensures questions like "What happened when China banned Bitcoin?"
     // get a KB answer instead of being routed to web search.
@@ -3259,11 +3318,12 @@ function findAnswer(input) {
         { pattern: /cbdc|central bank digital|digital dollar|digital euro|digital yuan/, key: 'cbdc' },
         { pattern: /softwar|jason lowery|bitcoin.*warfare/, key: 'softwar' },
         { pattern: /executive order 6102|gold confiscation|6102/, key: 'executive order 6102' },
+        { pattern: /stock.to.flow ratio|monetary hardness|hardness of money|stock and flow/, key: 'stock to flow ratio' },
         { pattern: /stock.to.flow|s2f model|planb|plan.b model/, key: 'stock to flow' },
         { pattern: /bitcoin.*freedom|freedom.*bitcoin|financial freedom|monetary freedom|rally cry/, key: 'bitcoin rally cry' },
         { pattern: /time is money|money is time|bitcoin.*time|time.*bitcoin/, key: 'bitcoin is time' },
         { pattern: /gold standard era|golden age|nineteenth century|19th century.*gold|gold.*prosper/, key: 'gold standard era' },
-        { pattern: /gold.*fail|gold.*problem|why not gold|gold.*flaw|gold.*transport|shipping gold|moving gold/, key: 'gold spatial salability' },
+        { pattern: /spatial salability|gold.*spatial|gold.*fail|gold.*problem|why not gold|gold.*flaw|gold.*transport|shipping gold|moving gold/, key: 'gold spatial salability' },
         { pattern: /el salvador|legal tender|bukele|bitcoin.*country|first country.*bitcoin/, key: 'nayib bukele' },
         { pattern: /boom.*bust|business cycle|why.*recession|credit cycle|financial crisis.*cause/, key: 'business cycle' },
         { pattern: /fiat.*distort|fiat.*broke|fiat.*destroy|fiat.*food|fiat.*housing|fiat.*family|everything.*broken/, key: 'fiat distortion' },
@@ -3293,6 +3353,8 @@ function findAnswer(input) {
     ];
     for (var ai = 0; ai < altcoinPatterns.length; ai++) {
         if (altcoinPatterns[ai].pattern.test(input)) {
+            var _namedFact = namedFactMatch(input);
+            if (_namedFact) return _namedFact;
             for (var ei = 0; ei < NACHO_KB.length; ei++) {
                 if (NACHO_KB[ei].keys && NACHO_KB[ei].keys.indexOf(altcoinPatterns[ai].key) !== -1) {
                     return NACHO_KB[ei];
@@ -3340,7 +3402,7 @@ function findAnswer(input) {
 
     var inputBigrams = getNgrams(input, 2);
     var inputTrigrams = getNgrams(input, 3);
-    var inputWords = input.split(/\s+/).filter(function(w) { return w.length >= 3; });
+    var inputWords = input.split(/\s+/).filter(function(w) { return w.length >= 3 && !NACHO_MATCH_STOP[w.replace(/[^a-z0-9]/g, '')]; });
 
     let bestMatch = null;
     let bestScore = 0;
@@ -3352,19 +3414,30 @@ function findAnswer(input) {
             // Exact match
             if (input === key) { score = 100; break; }
             // Contains full key phrase
-            if (input.includes(key)) { score = Math.max(score, 50 + key.length); continue; }
+            var _at = key ? input.indexOf(key) : -1;
+            if (_at !== -1) {
+                // Apostrophes stay inside the word, so "bitcoin" does not eat "bitcoin's".
+                var _beforeOk = _at === 0 || /[^a-z0-9']/.test(input.charAt(_at - 1));
+                var _afterCh = input.charAt(_at + key.length);
+                var _afterOk = !_afterCh || /[^a-z0-9']/.test(_afterCh);
+                if (_beforeOk && _afterOk) {
+                    var _cw = key.split(/\s+/).filter(function (w) { return w.length >= 3 && !NACHO_MATCH_STOP[w.replace(/[^a-z0-9]/g, '')]; });
+                    score = Math.max(score, 30 + _cw.length * 22 + key.length);
+                    continue;
+                }
+            }
             // Key contains full input
             if (key.includes(input) && input.length >= 4) { score = Math.max(score, 45 + input.length); continue; }
 
-            var keyWords = key.split(/\s+/).filter(function(w) { return w.length >= 3; });
+            var keyWords = key.split(/\s+/).filter(function(w) { return w.length >= 3 && !NACHO_MATCH_STOP[w.replace(/[^a-z0-9]/g, '')]; });
 
-            // N-gram overlap: check if 2-word or 3-word phrases from input match within the key
+            // N-gram overlap. Skip frames like "what is" / "what is the" — they are not a topic.
             var ngramScore = 0;
             for (var bi = 0; bi < inputBigrams.length; bi++) {
-                if (key.includes(inputBigrams[bi])) ngramScore += 25;
+                if (nachoGramUseful(inputBigrams[bi]) && key.includes(inputBigrams[bi])) ngramScore += 25;
             }
             for (var ti = 0; ti < inputTrigrams.length; ti++) {
-                if (key.includes(inputTrigrams[ti])) ngramScore += 35;
+                if (nachoGramUseful(inputTrigrams[ti]) && key.includes(inputTrigrams[ti])) ngramScore += 35;
             }
             if (ngramScore > 0) { score = Math.max(score, ngramScore); continue; }
 
@@ -3807,7 +3880,7 @@ async function nachoAIAnswer(question, callback) {
         var kbMatch = findAnswer(question);
         if (kbMatch) {
             var kbAnswerText = typeof kbMatch.answer === 'function' ? kbMatch.answer('') : kbMatch.answer;
-            kbContext = (kbAnswerText || '').substring(0, 300);
+            kbContext = (kbAnswerText || '').substring(0, 1200);
             if (kbMatch.channelName) kbContext += ' (The site has a dedicated "' + kbMatch.channelName + '" channel the user can explore.)';
         }
     }
@@ -5012,6 +5085,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
 // Expose IIFE functions to window
 window.findAnswer = findAnswer;
+window.checkAltcoin = checkAltcoin;
 window.nachoRemember = nachoRemember;
 window.nachoRestoreConvo = nachoRestoreConvo;
 window._nachoConvoHistory = _nachoConvoHistory;

@@ -23,6 +23,7 @@ const TESTS = [
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
+    { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
 ];
 
 let allPassed = true;

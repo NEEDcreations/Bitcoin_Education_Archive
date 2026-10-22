@@ -836,7 +836,9 @@
         if (/inventory/.test(s)) return 'inventory';
         if (/nook|what can i buy/.test(s)) return 'nook';
 
-        if (/price prediction|predict the price|prediction game|up or down/.test(s) || /\bpredictions?\b/.test(s)) return 'predictions';
+        if (/price prediction|predict the price|prediction game|up or down/.test(s)) return 'predictions';
+        // "Milton Friedman's Bitcoin prediction" is a history fact, not the 24-hour game.
+        if (/\bpredictions?\b/.test(s) && !/friedman|milton|who predicted|predicted bitcoin/.test(s)) return 'predictions';
         if (/raid boss|\braid\b/.test(s)) return 'raid';
         if (/citadel/.test(s)) return 'citadel';
         if (/donate xp|xp to charity|\bcharity\b/.test(s)) return 'charity';
@@ -897,7 +899,18 @@
         if (!hits.length) return null;
         var top = hits[0];
         var second = hits[1] ? hits[1].score : 0;
-        if (top.score >= 18 && (top.score - second >= 6 || qIntent(s))) return top.feature.id;
+        if (top.score < 18) return null;
+        // "Satoshi" alone is not the Satoshi's Favor feature. A fuzzy hit needs a
+        // distinctive title word, or two title words, before it steals a fact question.
+        var qTokens = tokens(s);
+        var titleHits = tokens(top.feature.title).filter(function (t) { return qTokens.indexOf(t) !== -1; });
+        var genericTitle = { bitcoin: 1, satoshi: 1, nacho: 1 };
+        var distinctive = titleHits.filter(function (t) { return !genericTitle[t]; });
+        var featTokens = tokens(top.feature.title + ' ' + (top.feature.kw || ''));
+        var outside = qTokens.filter(function (t) { return t.length >= 4 && featTokens.indexOf(t) === -1; });
+        // Extra names ("Milton Friedman", "genesis block") mean this is a fact, not the feature.
+        if (outside.length > 1) return null;
+        if ((distinctive.length >= 1 || titleHits.length >= 2) && (top.score - second >= 6 || qIntent(s))) return top.feature.id;
         return null;
     }
     function qIntent(s) {
