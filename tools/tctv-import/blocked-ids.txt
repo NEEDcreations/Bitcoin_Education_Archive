@@ -1,2 +1,87 @@
 # YouTube ids the Timechain TV importer must refuse.
 # One 11-character id per line. Blank lines and # comments are ignored.
+# The 76 ids flagged in the PR #48 content review.
+# remove_age_restricted
+bK95lWHl7js
+MoDpuhMUEG8
+XaNNNp6JuYI
+# remove_explicit
+IXd8ZeGqvBM
+eWaLX7xdqCA
+Ot1AePdlvm0
+LhT3hTjPaLE
+lc29W5PkM30
+1XH2I1vh2Co
+oNuionfkJFQ
+_dXyepZKWus
+EWh0y1JxGXw
+eSB4VJliyww
+# remove_altcoin_shill_or_ad
+qRLTWkSrkis
+Wwhc-qoQKyg
+2hCd_N8RXmc
+Rre611QshYc
+eFNhsTOsbwY
+exRCX38tHks
+EyUK27Q1fqY
+qP6jaxf0NmM
+uWz5AZ98s_Q
+ousmgm_bSY8
+cuRxL23rriU
+bBcICCbPgVM
+1Be-LaYNqWA
+vwCTKvtJLC8
+bETnqg63K1g
+ORANe0B5Gag
+dB10EUmjHyc
+97S-wCB9DbM
+# remove_no_bitcoin_tie
+lN0EiabqlRA
+rnpAo5-ONjU
+8RJGdQt8jOA
+Viyr2TyKb5c
+rRZ0c8xZe0k
+3E2n445u88s
+2yhVOkNw0FU
+i1bmrsDbBGE
+QWVQ-_frxCA
+T1KdT4ZCVGY
+FY-R_JzB_M8
+yopk-PCPG8c
+9u6chbstIVI
+impvXxBT70g
+zAQPUTCkaX4
+QoXxKuNbazQ
+Ff7ISuYjeI0
+w95MtH5IfeU
+2LhW6_FxF5s
+JliHJbHITME
+f728M2enaz0
+O-o6y1pTVPo
+# phil_decision_ftx_sbf
+2xL2utZf25w
+yIQnkYDmEsU
+6nuBbuwkxAE
+xs2e56mawos
+oDE242Pfl8I
+hz7M8aoAdlo
+bqbxUFalFNY
+9VZaka-QdCA
+# phil_decision_generic_crypto_parody
+L0gauY57Cdg
+iUvyiuEBUT8
+b0q3KD0N3W0
+-aPo4ee_pac
+enHYqFMfJSc
+cTkVOaq2nDM
+DiPBxJHnzBE
+OY4d0INKkFQ
+aJm8DjP5rI4
+# phil_decision_partisan_news
+OOtxGTEQcnk
+# mask_title_profanity
+UiaJtzFkGxc
+sHdRT9t1V2E
+t9gaq8u3olE
+ys0huoM8xAI
+aDrNFlw96Lo
