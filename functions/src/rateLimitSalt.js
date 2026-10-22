@@ -11,6 +11,13 @@ const SALT_COLLECTION = 'rate_limit_salts';
 const PUBLIC_RATE_KEY = /^delete-rate-\d{4}-\d{2}-\d{2}$/;
 const SALT_TTL_MS = 48 * 60 * 60 * 1000;
 const HASH_ID_RE = /^[a-f0-9]{40}$/;
+// One salt per UTC day. lnAuthVerify polls about 20 times a minute, so the
+// function instance keeps the salt instead of opening a transaction per poll.
+let cachedSalt = null;
+
+function clearRateLimitSaltCache() {
+    cachedSalt = null;
+}
 
 function utcDay(nowMs) {
     return new Date(nowMs).toISOString().slice(0, 10);
@@ -49,15 +56,18 @@ function networkRateDocIdFromSecret(prefix, ip, nowMs, secret) {
 async function loadRateLimitSecret(db, nowMs) {
     const fromEnv = process.env.DELETE_RATE_IP_SECRET;
     if (isServerSecret(fromEnv)) return fromEnv;
+    const day = utcDay(nowMs);
+    if (cachedSalt && cachedSalt.day === day && isServerSecret(cachedSalt.salt)) {
+        return cachedSalt.salt;
+    }
     if (!db || typeof db.runTransaction !== 'function' || typeof db.collection !== 'function') {
         const err = new Error('Deletion rate-limit secret is missing');
         err.code = 'failed-precondition';
         throw err;
     }
-    const day = utcDay(nowMs);
     const ref = db.collection(SALT_COLLECTION).doc(day);
     const created = crypto.randomBytes(32).toString('hex');
-    return db.runTransaction(async function(tx) {
+    const salt = await db.runTransaction(async function(tx) {
         const snap = await tx.get(ref);
         const existing = snap && snap.exists ? String((snap.data() || {}).salt || '') : '';
         if (isServerSecret(existing)) return existing;
@@ -67,6 +77,8 @@ async function loadRateLimitSecret(db, nowMs) {
         });
         return created;
     });
+    cachedSalt = { day: day, salt: salt };
+    return salt;
 }
 
 async function networkRateDocId(db, prefix, ip, nowMs) {
@@ -107,7 +119,7 @@ async function deleteExpiredRateRows(db, nowMs, options) {
     salts = await commitDeletes(db, (oldSalts.docs || []).map(function(doc) { return doc.ref; }));
 
     if (documentIdField) {
-        const prefixes = ['nostr_', 'lnauth_'];
+        const prefixes = ['nostr_', 'lnauth_', 'lnverify_'];
         for (let i = 0; i < prefixes.length; i++) {
             const prefix = prefixes[i];
             const snap = await db.collection('rate_limits')
@@ -135,6 +147,7 @@ module.exports = {
     deletionIpDocId: deletionIpDocId,
     networkRateDocIdFromSecret: networkRateDocIdFromSecret,
     loadRateLimitSecret: loadRateLimitSecret,
+    clearRateLimitSaltCache: clearRateLimitSaltCache,
     networkRateDocId: networkRateDocId,
     deleteExpiredRateRows: deleteExpiredRateRows,
 };

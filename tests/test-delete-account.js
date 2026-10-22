@@ -1274,9 +1274,10 @@ function auth(uid, extras) {
 
     await testAsync('a missing secret never uses the public daily string', async function() {
         const crypto = require('crypto');
-        const saltMod = require(path.join(root, 'functions', 'src', 'rateLimitSalt'));
         const prev = process.env.DELETE_RATE_IP_SECRET;
         delete process.env.DELETE_RATE_IP_SECRET;
+        const saltMod = require(path.join(root, 'functions', 'src', 'rateLimitSalt'));
+        saltMod.clearRateLimitSaltCache();
         try {
             assert.throws(function() { del.deletionIpDocId('203.0.113.9', 5000, ''); }, /missing/);
             assert.throws(function() { del.deletionIpDocId('203.0.113.9', 5000, 'delete-rate-1970-01-01'); }, /missing/);
@@ -1311,6 +1312,7 @@ function auth(uid, extras) {
             assert.strictEqual(db.docs.get('rate_limit_salts/1970-01-01').salt, saltDoc.salt);
             assert.strictEqual(db.docs.get('rate_limits/' + ipDoc).count, 2);
 
+            saltMod.clearRateLimitSaltCache();
             process.env.DELETE_RATE_IP_SECRET = 'delete-rate-1970-01-01';
             const ignored = createFakeDb({ 'users/u9': { username: 'Nine' } });
             const ignoredHandlers = del.createDeleteAccountHandlers({
@@ -1332,6 +1334,7 @@ function auth(uid, extras) {
             assert.notStrictEqual(ignoredId, publicId);
             assert.ok(ignored.docs.has('rate_limits/' + ignoredId));
 
+            saltMod.clearRateLimitSaltCache();
             const broken = createFakeDb({ 'users/u8': { username: 'Eight' } });
             broken.runTransaction = async function() { throw new Error('salt store down'); };
             const brokenHandlers = del.createDeleteAccountHandlers({
@@ -1366,6 +1369,7 @@ function auth(uid, extras) {
             assert.ok(!accountSrc.includes('delete-rate-'));
             assert.ok(!indexSrc.includes("nostr_' + nostrIP.replace"));
             assert.ok(!indexSrc.includes("lnauth_' + lnIP.replace"));
+            assert.ok(!indexSrc.includes("lnverify_' + verifyIP.replace"));
             assert.ok(indexSrc.includes('networkRateDocId'));
             assert.ok(indexSrc.includes('deleteExpiredRateRows'));
             assert.ok(rules.includes('match /rate_limit_salts/{docId}'));
@@ -1385,20 +1389,66 @@ function auth(uid, extras) {
             'rate_limits/deleteip_fresh': { count: 1, expireAt: new Date(Date.now() + 86400000) },
             'rate_limits/nostr_203_0_113_8': { n: 1 },
             'rate_limits/lnauth_198_51_100_7': { n: 1 },
+            'rate_limits/lnverify_203_0_113_9': { n: 1 },
             ['rate_limits/nostr_' + hashed]: { attempts: 1, expireAt: new Date(Date.now() + 86400000) },
+            ['rate_limits/lnverify_' + hashed]: { attempts: 1, expireAt: new Date(Date.now() + 86400000) },
             'rate_limit_salts/1970-01-01': { salt: 'b'.repeat(64), expireAt: new Date(1000) },
             'rate_limit_salts/2099-01-01': { salt: 'c'.repeat(64), expireAt: new Date(Date.now() + 86400000) },
         });
         const swept = await saltMod.deleteExpiredRateRows(db, Date.now(), { documentIdField: '__name__' });
         assert.ok(swept.rateLimits >= 1);
-        assert.ok(swept.legacy >= 2);
+        assert.ok(swept.legacy >= 3);
         assert.strictEqual(db.docs.has('rate_limits/deleteip_expired'), false);
         assert.ok(db.docs.has('rate_limits/deleteip_fresh'));
         assert.strictEqual(db.docs.has('rate_limits/nostr_203_0_113_8'), false);
         assert.strictEqual(db.docs.has('rate_limits/lnauth_198_51_100_7'), false);
+        assert.strictEqual(db.docs.has('rate_limits/lnverify_203_0_113_9'), false);
         assert.ok(db.docs.has('rate_limits/nostr_' + hashed));
+        assert.ok(db.docs.has('rate_limits/lnverify_' + hashed));
         assert.strictEqual(db.docs.has('rate_limit_salts/1970-01-01'), false);
         assert.ok(db.docs.has('rate_limit_salts/2099-01-01'));
+    });
+
+    await testAsync('the daily salt is cached and Lightning verify rows are hashed', async function() {
+        const saltMod = require(path.join(root, 'functions', 'src', 'rateLimitSalt'));
+        const prev = process.env.DELETE_RATE_IP_SECRET;
+        delete process.env.DELETE_RATE_IP_SECRET;
+        saltMod.clearRateLimitSaltCache();
+        try {
+            const db = createFakeDb({});
+            let txns = 0;
+            const orig = db.runTransaction.bind(db);
+            db.runTransaction = async function(fn) {
+                txns++;
+                return orig(fn);
+            };
+            const now = Date.UTC(2026, 0, 2);
+            const id1 = await saltMod.networkRateDocId(db, 'lnverify_', '203.0.113.9', now);
+            assert.strictEqual(txns, 1);
+            const id2 = await saltMod.networkRateDocId(db, 'lnverify_', '203.0.113.9', now);
+            assert.strictEqual(txns, 1);
+            assert.strictEqual(id1, id2);
+            assert.ok(/^lnverify_[a-f0-9]{40}$/.test(id1));
+            assert.strictEqual(id1.indexOf('203.0.113.9'), -1);
+            assert.strictEqual(id1.indexOf('203_0_113'), -1);
+            const next = Date.UTC(2026, 0, 3);
+            const id3 = await saltMod.networkRateDocId(db, 'lnverify_', '203.0.113.9', next);
+            assert.strictEqual(txns, 2);
+            assert.notStrictEqual(id1, id3);
+            const indexSrc = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+            const verifyBlock = indexSrc.slice(indexSrc.indexOf('exports.lnAuthVerify'), indexSrc.indexOf('exports.lnAuthVerify') + 2200);
+            assert.ok(verifyBlock.includes("networkRateDocId(db, 'lnverify_'"));
+            assert.ok(!verifyBlock.includes("lnverify_' + verifyIP"));
+            const rateTx = verifyBlock.slice(0, verifyBlock.indexOf('Atomic consume'));
+            assert.strictEqual((rateTx.match(/expireAt:/g) || []).length, 3);
+            const saltSrc = fs.readFileSync(path.join(root, 'functions', 'src', 'rateLimitSalt.js'), 'utf8');
+            assert.ok(saltSrc.includes("'lnverify_'"));
+            assert.ok(saltSrc.includes('cachedSalt'));
+        } finally {
+            saltMod.clearRateLimitSaltCache();
+            if (prev == null) delete process.env.DELETE_RATE_IP_SECRET;
+            else process.env.DELETE_RATE_IP_SECRET = prev;
+        }
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

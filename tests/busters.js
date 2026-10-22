@@ -1,5 +1,5 @@
 // Cache-buster pin. Live gh-pages is btc-archive-v2272.
-// This branch is btc-archive-v2278. bundle.min.js stays on v2271.
+// This branch is btc-archive-v2279. bundle.min.js stays on v2271.
 // global-chat.js is 20261022_acctdel. features.registry.js stays on v2266.
 // notifications.js stays on v2262. ranking.js is 20261022_acctdel.
 // index.html and 404.html must stay identical.
@@ -20,12 +20,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2278', () => {
+test('service worker cache is v2279', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2278'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2279'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2278', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });

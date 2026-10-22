@@ -923,10 +923,14 @@ exports.lnAuthVerify = functionsV1.https.onCall(async (data, context) => {
     const { k1 } = data;
     if (!k1) throw new functionsV1.https.HttpsError('invalid-argument', 'Missing k1');
 
-    // Rate limiting: max 20 polls per IP per minute (atomic transaction)
+    // Rate limiting: max 20 polls per IP per minute (atomic transaction).
+    // The doc id is a keyed hash. The address is not stored.
     const verifyIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (verifyIP !== 'unknown') {
-        const vrRef = db.collection('rate_limits').doc('lnverify_' + verifyIP.replace(/[./]/g, '_'));
+        const { networkRateDocId } = require('./src/rateLimitSalt');
+        const verifyNow = Date.now();
+        const vrRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'lnverify_', verifyIP, verifyNow));
+        const verifyExpire = new Date(verifyNow + 24 * 60 * 60 * 1000);
         await db.runTransaction(async (tx) => {
             const vrDoc = await tx.get(vrRef);
             if (vrDoc.exists) {
@@ -934,12 +938,12 @@ exports.lnAuthVerify = functionsV1.https.onCall(async (data, context) => {
                 const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
                 if (ws && (Date.now() - ws.getTime()) < 60000) {
                     if ((rd.attempts || 0) >= 20) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many requests');
-                    tx.update(vrRef, { attempts: (rd.attempts || 0) + 1 });
+                    tx.update(vrRef, { attempts: (rd.attempts || 0) + 1, expireAt: verifyExpire });
                 } else {
-                    tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                    tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: verifyExpire });
                 }
             } else {
-                tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: verifyExpire });
             }
         });
     }
