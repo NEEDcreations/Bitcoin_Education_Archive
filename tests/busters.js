@@ -1,6 +1,6 @@
-// Cache-buster pin. Live gh-pages after #49 is btc-archive-v2271.
-// This branch is btc-archive-v2272. global-chat.js is v2272.
-// bundle.min.js stays on v2271. features.registry.js stays on v2266.
+// Cache-buster pin. Previous branch was btc-archive-v2293.
+// This branch is btc-archive-v2296. bundle.min.js moves to v2296.
+// global-chat.js is v2272. features.registry.js stays on v2266.
 // notifications.js stays on v2262. ranking.js is v2269.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
@@ -20,12 +20,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2287', () => {
+test('service worker cache is v2296', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2287'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2296'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2295', 'v2293', 'v2272', 'v2271', 'v2270', 'v2269', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
@@ -33,7 +33,9 @@ test('service worker cache is v2287', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261022_v2287/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261022_v2296/g) || []).length, 2);
+    assert.ok(!html.includes('bundle.min.js?v=20261022_v2295'));
+    assert.ok(!html.includes('bundle.min.js?v=20261022_v2293'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2271'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2268'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2266'));

@@ -1,0 +1,497 @@
+{
+  "asOf": "2026-10-22",
+  "unique": 65,
+  "restored": 32,
+  "captioned": 33,
+  "items": [
+    {
+      "old": "https://cdn.discordapp.com/attachments/1016427344954675404/1016865700536664196/Kayjii_satoshi_nakamoto_with_bitcoins_fork_plate_black_tunic_yo_72e3c1d1-2943-4ffe-bc6a-274324c6f23f.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Illustration: Satoshi Nakamoto with bitcoins, a fork, a plate, and a black tunic. The picture itself is no longer available.",
+      "bytes": 0
+    },
+    {
+      "old": "https://cdn.discordapp.com/attachments/1016427344954675404/1016868453711368193/Kayjii_promptsatoshi_nakamoto_with_bitcoins_around_him_meditati_f0c10452-e929-488a-91c3-e514a169f054.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Illustration: Satoshi Nakamoto with bitcoins around him, meditating. The picture itself is no longer available.",
+      "bytes": 0
+    },
+    {
+      "old": "https://cdn.discordapp.com/attachments/1016427344954675404/1016868488540864612/Kayjii_satoshi_nakamoto_with_bitcoin_around_him_meditating_bitc_dcdf0aa2-269b-4092-a30d-39ae01bec9b2.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Illustration: Satoshi Nakamoto with bitcoin around him, meditating. The picture itself is no longer available.",
+      "bytes": 0
+    },
+    {
+      "old": "https://proxy.irismessengers.wtf/insecure/plain/https://nostr.build/i/nostr.build_3fd0e97ffb1e25f17ba20cfaaa67b5fb92d1a1e74ee19df7f619d0667725658c.jpg",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Meme: a tweet saying \"I just want to be my own bank,\" and the reply \"Bitcoin fixes this.\"",
+      "bytes": 0,
+      "note": "Image still exists on image.nostr.build. It is a suggestive meme of the kind removed in the cleanup, so it is described instead of re-hosted."
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_002_0.jpg",
+      "new": "images/discord-may2026/discord_002_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 61377
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_003_0.jpg",
+      "new": "images/discord-may2026/discord_003_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 101713
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_013_0.png",
+      "new": "images/discord-may2026/discord_013_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 131938
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_041_0.jpg",
+      "new": "images/discord-may2026/discord_041_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 76486
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_048_0.png",
+      "new": "images/discord-may2026/discord_048_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 124046
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_011_0.jpg",
+      "new": "images/discord-may2026/discord_011_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 308843
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_006_0.jpg",
+      "new": "images/discord-may2026/discord_006_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 190827
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_017_0.png",
+      "new": "images/discord-may2026/discord_017_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 172927
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_017_1.jpg",
+      "new": "images/discord-may2026/discord_017_1.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 67998
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_015_0.jpg",
+      "new": "images/discord-may2026/discord_015_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 65081
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_051_0.png",
+      "new": "images/discord-may2026/discord_051_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 103645
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_009_0.png",
+      "new": "images/discord-may2026/discord_009_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 106070
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_019_0.jpg",
+      "new": "images/discord-may2026/discord_019_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 308843
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_022_0.jpg",
+      "new": "images/discord-may2026/discord_022_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 195315
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_002_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Self hosted VPN (tools)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_020_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Rizful bitcoin and lightning service",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_037_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Bitcoin collection /collectors website",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_032_0.png",
+      "new": "images/discord-may2026/discord_032_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 112519
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_012_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Pizza day",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_021_0.jpg",
+      "new": "images/discord-may2026/discord_021_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 49731
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/resources/graphics_0069_years_to_one_trillion_dollar_assets...BITCOIN_WINS.png",
+      "new": "images/resources/graphics_0069_years_to_one_trillion_dollar_assets...BITCOIN_WINS.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 32159
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/resources/graphics_0626_Screen_Capture_107_-_Thiers_Law_and_hyperinflation_-_Google_Search_-_www.google..jpg",
+      "new": "images/resources/graphics_0626_Screen_Capture_107_-_Thiers_Law_and_hyperinflation_-_Google_Search_-_www.google..jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 96068
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_028_0.jpg",
+      "new": "images/discord-may2026/discord_028_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 45230
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_029_0.png",
+      "new": "images/discord-may2026/discord_029_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 58477
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_042_0.jpg",
+      "new": "images/discord-may2026/discord_042_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 22280
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_053_0.png",
+      "new": "images/discord-may2026/discord_053_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 13336
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_017_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Bitcoin yearly lows (updated) (graphic)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_018_0.jpg",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "yearly lows (more accurte, log scale) (graphic)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_019_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Bitcoin vs Top 100 cryptos since 2020 (graphic)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_022_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Buying Bitcoin's drawdowns (graphic)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_031_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "bitcoin forks map (graphic)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_001_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Today in Bitcoin history X account (history)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_020_0.png",
+      "new": "images/discord-may2026/discord_020_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 73364
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_039_0.png",
+      "new": "images/discord-may2026/discord_039_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 59710
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/resources/memes-funny_0485_hodl_is_the_game..png",
+      "new": "images/resources/memes-funny_0485_hodl_is_the_game..png",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 468007
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/resources/memes-funny_0966_Bitcoin_Mining_Critics_Bingo._A_very_easy_game_to_win..png",
+      "new": "images/resources/memes-funny_0966_Bitcoin_Mining_Critics_Bingo._A_very_easy_game_to_win..jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 171499
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_026_0.jpg",
+      "new": "images/discord-may2026/discord_026_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 338938
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_027_0.jpg",
+      "new": "images/discord-may2026/discord_027_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 111764
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_033_0.png",
+      "new": "images/discord-may2026/discord_033_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 103597
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_052_0.png",
+      "new": "images/discord-may2026/discord_052_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 74768
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_003_0.jpg",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Spare some hash (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_006_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "laughing compilation (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_008_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Now that's what I call Pleb Slop (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_009_0.jpg",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Basically risk free Raul Paul",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_014_0.jpg",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Satoshi Nahtgonnamake it paper hands (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_015_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "honey badgers, cheap sats (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_023_0.jpg",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Wen Moon (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_024_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "give me something for the cringe (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_025_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Elizabeth Warren (memes)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_025_1.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Elizabeth Warren (memes)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_028_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "fiat car company tweet",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_029_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Guy lying down legs crossed text bubble (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_030_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "cigarette (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_034_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "I don't care that governments aren't adopting bitcoin (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_036_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Unilateral exit (joke)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_039_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Firstly, let me wish you good luck. Second, let me tell you how much of an idiot you are. (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_043_0.png",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "come down and tell us about today's little bull run (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_047_0.jpg",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "The 4-year slop cycle (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_056_0.jpg",
+      "new": "",
+      "method": "caption",
+      "status": "caption",
+      "caption": "Luke's pants (meme)",
+      "bytes": 0
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_035_0.png",
+      "new": "images/discord-may2026/discord_035_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 40055
+    },
+    {
+      "old": "https://assets.bitcoineducation.quest/images/discord-may2026/discord_043_0.png",
+      "new": "images/discord-may2026/discord_043_0.jpg",
+      "method": "git-history",
+      "status": "restored",
+      "bytes": 163760
+    }
+  ]
+}

@@ -618,7 +618,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(html.includes('ranking.js?v=20261022_v2269'));
-    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2287'"));
+    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2296'"));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 1600);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));

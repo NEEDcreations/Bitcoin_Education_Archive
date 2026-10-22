@@ -4,8 +4,11 @@
   "desc": "Why every altcoin fails against Bitcoin — premines, centralization, broken promises, and the evidence.",
   "msgs": [
     {
-      "text": "<i>(under construction)</i>\n\n<b>ETHEREUM IS A POOR LONG TERM INVESTMENT</b>\n\n<b>ETHEREUM IS NOT DECENTRALIZED</b>\nDespite what Ethereum maxis say, and despite all the flashy marketing behind defi (\"decentralized\" finance), Ethereum is not actually decentralized. Ethereum is DINO (decentralized in name only). Here is why. Ethereum had a 70% premine. This means that 70% of the market supply is controlled by a handful of its early adopters who were given the opportunity to purchase thousands of Ether for exchange of 1 bitcoin. Roughly 31,000 bitcoin were exchanged (unconfirmed number). This happened before the network and mining went online, hence, a premine. More on the premine: https://www.coindesk.com/sale-of-the-century-the-inside-story-of-ethereums-2014-premine\nHere is a thread of arguments over the premine, if you're interested: https://twitter.com/hasufl/status/1280140252737343488\n\n30% of Ethereum nodes are essentially controlled by three CEOs. Amazon, Alibaba, and Google control more Ethereum nodes than any other group on the planet. Venture Capitalists flock to Ethereum because they love control. \n\n99.9% of ERC-20 tokens built on the Ethereum network are scams, pump-and-dumps, rug pulls and Ponzi schemes. History of dead coins prove this. See the list that grows every day: https://99bitcoins.com/deadcoins/\n\nAny token built on top of the Ethereum network is not decentralized, despite what you're told. How can something be decentralized when its base layer, Ethereum, isn't decentralized itself? This just isn't possible. This is another reason why Bitcoin is so valuable. Any layer built on top of Bitcoin will be decentralized because its base layer is decentralized. This is VERY important!",
-      "link": "https://www.coindesk.com/sale-of-the-century-the-inside-story-of-ethereums-2014-premine"
+      "text": "Bitcoin's own issuance is set in the protocol and published in the whitepaper. The notes below about other projects are this page's original arguments, not a new measurement.\n\n<b>ETHEREUM IS A POOR LONG TERM INVESTMENT</b>\n\n<b>ETHEREUM IS NOT DECENTRALIZED</b>\nDespite what Ethereum maxis say, and despite all the flashy marketing behind defi (\"decentralized\" finance), Ethereum is not actually decentralized. Ethereum is DINO (decentralized in name only). Here is why. Ethereum had a 70% premine. This means that 70% of the market supply is controlled by a handful of its early adopters who were given the opportunity to purchase thousands of Ether for exchange of 1 bitcoin. Roughly 31,000 bitcoin were exchanged (unconfirmed number). This happened before the network and mining went online, hence, a premine. More on the premine: https://web.archive.org/web/20210301164752/https://www.coindesk.com/sale-of-the-century-the-inside-story-of-ethereums-2014-premine\nHere is a thread of arguments over the premine, if you're interested: https://twitter.com/hasufl/status/1280140252737343488\n\n30% of Ethereum nodes are essentially controlled by three CEOs. Amazon, Alibaba, and Google control more Ethereum nodes than any other group on the planet. Venture Capitalists flock to Ethereum because they love control. \n\n99.9% of ERC-20 tokens built on the Ethereum network are scams, pump-and-dumps, rug pulls and Ponzi schemes. History of dead coins prove this. See the list that grows every day: https://99bitcoins.com/deadcoins/\n\nAny token built on top of the Ethereum network is not decentralized, despite what you're told. How can something be decentralized when its base layer, Ethereum, isn't decentralized itself? This just isn't possible. This is another reason why Bitcoin is so valuable. Any layer built on top of Bitcoin will be decentralized because its base layer is decentralized. This is VERY important!",
+      "link": "https://web.archive.org/web/20210301164752/https://www.coindesk.com/sale-of-the-century-the-inside-story-of-ethereums-2014-premine",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://bitcoin.org/bitcoin.pdf",
+      "sourceLabel": "Bitcoin whitepaper"
     },
     {
       "text": "<b>CENSORSHIP</b>\nVitalik and his coder friends have ultimate say and control over the Ethereum code and protocol. They have changed Ethereum's monetary policy multiple times already since its inception in 2015 without permission or even the consideration of the voice of the rest of its users. First ETH was supposed to be a \"world computer,\" and then it became \"Ultra-sound Money,\" next ETH was supposed to be a gaming platform, after that it became home to NFTs and Web3...what's next? And I probably missed some of the narratives...Let's compare that to Bitcoin --Bitcoin's monetary policy hasn't changed since its inception in 2009. Bitcoin is a peer-to-peer electronic cash system as originally intended by Satoshi. End of story."
@@ -126,7 +129,7 @@
       ]
     },
     {
-      "text": "https://twitter.com/bergealex4/status/1410761639226318852?s=20\n\nBitcoin Liquid sidechain and RSK layer - these will enable Bitcoin to do everything Ethereum can. The fact that eth has a monetary token attached to it means that's in competition with bitcoin EVEN if it's not trying to. Then it comes down to if BTC can do everything ETH does at an equivelent level, with rsk and liquid, then all the applications will move to btc.\n10,000 years of monetary history on Bitcoin's side.\nTranscribe info from audio of Luke/Houdinii debate\nTranscribe info from audio of Dennis Porter/David Hoffman debate: Full debate: http://web.archive.org/web/20210828173102/https://drive.google.com/file/d/1oUUGs-pESwZZ_AO28jQ4tUKlPsR7LLiy/view\n\nhttps://www.rsk.co/",
+      "text": "https://twitter.com/bergealex4/status/1410761639226318852?s=20\n\nBitcoin Liquid sidechain and RSK layer - these will enable Bitcoin to do everything Ethereum can. The fact that eth has a monetary token attached to it means that's in competition with bitcoin EVEN if it's not trying to. Then it comes down to if BTC can do everything ETH does at an equivelent level, with rsk and liquid, then all the applications will move to btc.\n10,000 years of monetary history on Bitcoin's side.\nTranscribe info from audio of Luke/Houdinii debate\nTranscribe info from audio of Dennis Porter/David Hoffman debate: Full debate: https://web.archive.org/web/20210828173102/https://drive.google.com/file/d/1oUUGs-pESwZZ_AO28jQ4tUKlPsR7LLiy/view\n\nhttps://www.rsk.co/",
       "link": "https://twitter.com/bergealex4/status/1410761639226318852?s=20"
     },
     {
@@ -144,7 +147,7 @@
       "link": "https://bitcoinmagazine.com/technical/unannounced-ethereum-hard-fork-proves-not-all-blockchain-networks-are-built-the-same"
     },
     {
-      "text": "Ethereum Dumpster Fire, an article by the highly acclaimed Dennis Porter: \nhttps://dennisporter.substack.com/p/ethereum-dumpster-fire",
+      "text": "Ethereum Dumpster Fire, an article by the highly acclaimed Dennis Porter: \nhttps://web.archive.org/web/20210629023611/https://dennisporter.substack.com/p/ethereum-dumpster-fire",
       "link": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/experienced/evidence-against-alts_0015_eth_ha.jpg"
@@ -202,7 +205,7 @@
       "link": "https://twitter.com/iTruth84/status/1443746876893765632?s=20"
     },
     {
-      "text": "Dumb thing you can apparently do with NFTs...dumb but kind of cool:\nhttps://darthcoin.substack.com/p/hide-bitcoin-inside-nft-aka-dumb",
+      "text": "Dumb thing you can apparently do with NFTs...dumb but kind of cool:",
       "link": ""
     },
     {
@@ -545,8 +548,8 @@
       "text": "Thousands of people fly from Europe to America every day, but that doesn’t make those people as historically significant as Christopher Columbus. Nor will any social network coin, petro-dollar or altcoin ever be as significant as Bitcoin.\n- Bitcoin: Sovereignty through Mathematics"
     },
     {
-      "text": "% share of fees over time: \n\n$ETH green, $BTC red. https://t.co/Oy0ybi1K1U\nhttps://twitter.com/cburniske/status/1488346430271934467?t=ZOpaoUvNk-8UMIlx6ER58w&s=19",
-      "link": "https://t.co/Oy0ybi1K1U"
+      "text": "% share of fees over time: \n\n$ETH green, $BTC red. https://x.com/cburniske/status/1488346430271934467\nhttps://twitter.com/cburniske/status/1488346430271934467?t=ZOpaoUvNk-8UMIlx6ER58w&s=19",
+      "link": "https://x.com/cburniske/status/1488346430271934467"
     },
     {
       "text": "Nft logic. NFTs started on Bitcoin!\nhttps://twitter.com/tip_nz/status/1488620770951630850?t=jazEwLg3nwVXPZw_j9E2-w&s=19",
@@ -617,8 +620,7 @@
       ]
     },
     {
-      "text": "Scam of the Century: The Inside Story of Ethereum’s 2014 Premine\nhttp://supercool.info/scam-of-the-century-the-inside-story-of-ethereums-2014-premine/",
-      "link": "http://supercool.info/scam-of-the-century-the-inside-story-of-ethereums-2014-premine/"
+      "text": "Scam of the Century: The Inside Story of Ethereum’s 2014 Premine"
     },
     {
       "text": "Former lead dev/maintainer for monero",
@@ -784,8 +786,7 @@
       "link": "https://www.swanbitcoin.com/stop-fooling-around-in-crypto/"
     },
     {
-      "text": "Say no to eth and crypto \nhttps://bmpro.substack.com/p/bm-pro-daily-bitcoin-and-crypto?s=r",
-      "link": "https://bmpro.substack.com/p/bm-pro-daily-bitcoin-and-crypto?s=r"
+      "text": "Say no to eth and crypto"
     },
     {
       "text": "Don't buy xrp \nhttps://www.google.com/amp/s/www.gobankingrates.com/investing/crypto/what-is-ripple-xrp/amp/",
