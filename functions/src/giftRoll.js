@@ -1,7 +1,7 @@
 'use strict';
 
-// Gift odds, rolled with crypto.randomInt (exclusive max).
-// keys 30% | ciphers 20% | tickets 25% | xp 12% | shield 5% | nacho 5% | closet 3%
+// Gift odds, rolled with crypto.randomInt (exclusive max) when a gift is created.
+// keys 30% | ciphers 20% | tickets 29.5% | xp 12% | shield 5% | nacho 0.5% | closet 3%
 // Gift count: 2 (15%) | 3 (40%) | 4 (30%) | 5 (15%)
 
 const crypto = require('crypto');
@@ -38,15 +38,15 @@ function rollGiftReward(opts) {
         for (let i = 0; i < count; i++) ciphers.push(labels[next(0, labels.length)]);
         return { rewardType: 'locked_ciphers', cipherLabels: ciphers };
     }
-    if (r < 7500) {
+    if (r < 7950) {
         const t = next(0, 10000);
         return { rewardType: 'tickets', ticketCount: t < 5500 ? 1 : t < 8500 ? 2 : 3 };
     }
-    if (r < 8700) {
+    if (r < 9150) {
         const x = next(0, 10000);
         return { rewardType: 'xp_bonus', xpAmount: x < 5000 ? 50 : x < 8500 ? 100 : 150 };
     }
-    if (r < 9200) return { rewardType: 'streak_shield' };
+    if (r < 9650) return { rewardType: 'streak_shield' };
     if (r < 9700) return { rewardType: 'nacho_shoutout' };
     const item = closet[next(0, closet.length)];
     return { rewardType: 'closet_item', itemId: item.id, itemName: item.name, itemEmoji: item.emoji };

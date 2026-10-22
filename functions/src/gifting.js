@@ -23,7 +23,7 @@ const {
     lookupSettlement,
     adminClaimFlag,
 } = require('./cipherClaim');
-const { planShoutout } = require('./shoutout');
+const { planShoutout, applyShoutoutCap } = require('./shoutout');
 
 const db = admin.firestore();
 
@@ -104,6 +104,8 @@ function publicReward(reward) {
     if (reward.satsAmount) out.satsAmount = reward.satsAmount;
     if (reward.winId) out.winId = reward.winId;
     if (reward.satsStatus) out.satsStatus = reward.satsStatus;
+    if (reward.shoutoutConverted) out.shoutoutConverted = true;
+    if (reward.conversionMessage) out.conversionMessage = reward.conversionMessage;
     return out;
 }
 
@@ -280,6 +282,20 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         const now = admin.firestore.FieldValue.serverTimestamp();
         const keyIds = [];
         const cipherIds = [];
+
+        // The reward was rolled when the gift was created. Apply the weekly
+        // cap here, on the stored reward, so older 5% shoutouts convert too.
+        // lastShoutoutAt is written in this same transaction; a concurrent
+        // open retries, sees the stamp, and converts instead of posting.
+        if (reward && reward.rewardType === 'nacho_shoutout') {
+            const cap = applyShoutoutCap({
+                reward: reward,
+                lastShoutoutAt: user.lastShoutoutAt,
+                nowMs: Date.now(),
+            });
+            reward = cap.reward;
+            if (cap.awarded) userUpdate.lastShoutoutAt = now;
+        }
 
         if (reward.rewardType === 'tickets') {
             userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount || 1);
