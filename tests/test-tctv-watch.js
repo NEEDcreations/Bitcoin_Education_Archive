@@ -277,9 +277,9 @@ test('xp uses the 1000 daily cap and redeems yesterday overflow', () => {
 });
 
 test('button text shows minutes, then done', () => {
-    assert.deepStrictEqual(watch.watchButtonText(0, false), { emoji: '📺', label: 'Watch TV' });
-    assert.deepStrictEqual(watch.watchButtonText(240, false), { emoji: '📺', label: '4/10 min' });
-    assert.deepStrictEqual(watch.watchButtonText(600, true), { emoji: '✅', label: 'Done' });
+    assert.deepStrictEqual(watch.watchButtonText(0, false), { emoji: '📺', label: 'Watch TV', sub: '0/10 min' });
+    assert.deepStrictEqual(watch.watchButtonText(240, false), { emoji: '📺', label: 'Watch TV', sub: '4/10 min' });
+    assert.deepStrictEqual(watch.watchButtonText(600, true), { emoji: '📺', label: 'Watch TV', sub: 'Done ✓' });
 });
 
 test('rate limit allows four calls a minute and rejects the fifth', () => {
@@ -376,7 +376,17 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('startTctvDailyWatch()'));
     assert.ok(html.includes('#em-quick-actions { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }'));
     assert.strictEqual(html.includes('.em-quick-actions {'), false);
-    assert.ok(html.includes('tctv-watch.js?v=20261022_v2266'));
+    assert.ok(html.includes('tctv-watch.js?v=20261022_v2267'));
+    assert.ok(html.includes('id="tctvWatchSub"'));
+    assert.ok(html.includes('>0/10 min</span>'));
+    const watchTag = html.slice(html.indexOf('id="tctvWatchBtn"'), html.indexOf('id="tctvWatchBtn"') + 900);
+    const spinTag = html.slice(html.indexOf('id="nqSpinBtn"'), html.indexOf('id="nqSpinBtn"') + 500);
+    const watchStyle = watchTag.slice(watchTag.indexOf('style="'), watchTag.indexOf('">'));
+    const spinStyle = spinTag.slice(spinTag.indexOf('style="'), spinTag.indexOf('">'));
+    assert.strictEqual(watchStyle, spinStyle);
+    assert.ok(watchTag.includes('color:var(--text-faint)'));
+    assert.strictEqual(client.includes('borderColor'), false);
+    assert.strictEqual(client.includes('style.color'), false);
     assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
     assert.ok(html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(client.includes('getDailyKey'));

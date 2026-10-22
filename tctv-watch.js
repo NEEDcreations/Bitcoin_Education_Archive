@@ -63,32 +63,13 @@
         var btn = document.getElementById('tctvWatchBtn');
         var emoji = document.getElementById('tctvWatchEmoji');
         var label = document.getElementById('tctvWatchLabel');
-        if (done) {
-            if (emoji) emoji.textContent = '✅';
-            if (label) label.textContent = 'Done';
-            if (btn) {
-                btn.style.borderColor = 'var(--accent)';
-                btn.style.color = 'var(--accent)';
-                btn.setAttribute('aria-label', 'Watch Timechain TV, done for today');
-            }
-        } else if (seconds > 0) {
-            var mins = Math.min(10, Math.floor(seconds / 60));
-            if (emoji) emoji.textContent = '📺';
-            if (label) label.textContent = mins + '/10 min';
-            if (btn) {
-                btn.style.borderColor = '';
-                btn.style.color = '';
-                btn.setAttribute('aria-label', '📺 ' + mins + '/10 min');
-            }
-        } else {
-            if (emoji) emoji.textContent = '📺';
-            if (label) label.textContent = 'Watch TV';
-            if (btn) {
-                btn.style.borderColor = '';
-                btn.style.color = '';
-                btn.setAttribute('aria-label', 'Watch 10 minutes of Timechain TV');
-            }
-        }
+        var sub = document.getElementById('tctvWatchSub');
+        var mins = Math.min(10, Math.floor((done ? 600 : Math.max(0, seconds)) / 60));
+        var subText = done ? 'Done ✓' : (mins + '/10 min');
+        if (emoji) emoji.textContent = '📺';
+        if (label) label.textContent = 'Watch TV';
+        if (sub) sub.textContent = subText;
+        if (btn) btn.setAttribute('aria-label', done ? 'Watch Timechain TV, done for today' : ('Watch TV, ' + subText));
         placeChip();
     }
 

@@ -291,12 +291,11 @@ function nextWatchRate(prev, nowMs) {
     return { ok: true, count: 1, windowStartMs: now };
 }
 
-// Button label. "4/10 min" once the server has credited time today.
+// The card title stays "Watch TV". Progress lives in the subtitle.
 function watchButtonText(seconds, done) {
-    if (done) return { emoji: '✅', label: 'Done' };
+    if (done) return { emoji: '📺', label: 'Watch TV', sub: 'Done ✓' };
     const s = clampSeconds(seconds);
-    if (s <= 0) return { emoji: '📺', label: 'Watch TV' };
-    return { emoji: '📺', label: Math.min(10, Math.floor(s / 60)) + '/10 min' };
+    return { emoji: '📺', label: 'Watch TV', sub: Math.min(10, Math.floor(s / 60)) + '/10 min' };
 }
 
 module.exports = {
