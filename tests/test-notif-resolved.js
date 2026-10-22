@@ -145,14 +145,14 @@ test('the panel updates a row before the call and restores it if the call fails'
     const gift = src.slice(src.indexOf('async function notifOpenGift'), src.indexOf('function notifAmountChips') === -1 ? src.length : src.indexOf('// Show notifications panel'));
     assert.ok(src.indexOf('async function notifOpenGift') !== -1);
     assert.ok(src.indexOf("notifOptimistic(notifId, 'opened')") < src.indexOf("httpsCallable('openGift')"));
-    assert.ok(src.indexOf('window.openGiftFromNotice') < src.indexOf("httpsCallable('openGift')"));
+    assert.ok(src.indexOf('window.revealNotifGift') < src.indexOf("httpsCallable('openGift')"));
     assert.ok(src.indexOf('notifRewardLabel(rw)') !== -1);
     assert.ok(src.indexOf('notifRollback(notifId)') !== -1);
     assert.ok(src.indexOf('openGiftModal(\'') === -1);
     assert.strictEqual(sandbox.notifRewardLabel({ rewardType: 'tickets', ticketCount: 3 }), '+3 Orange Tickets');
     assert.strictEqual(sandbox.notifRewardLabel({ rewardType: 'xp_bonus', xpAmount: 50 }), '+50 XP');
     const gifting = read('gifting.js');
-    assert.ok(gifting.indexOf('window.openGiftFromNotice') !== -1);
+    assert.ok(gifting.indexOf('window.revealNotifGift') !== -1);
     assert.ok(gifting.indexOf("_toast('🎁 ' + _rewardLabel(rw)") !== -1);
 });
 

@@ -837,8 +837,8 @@ async function notifOpenGift(giftId, notifId) {
     notifOptimistic(notifId, 'opened');
     notifMarkReadBatch([notifId]);
     try {
-        if (typeof window.openGiftFromNotice === 'function') {
-            await window.openGiftFromNotice(giftId);
+        if (typeof window.revealNotifGift === 'function') {
+            await window.revealNotifGift(giftId);
         } else {
             var fn = firebase.functions().httpsCallable('openGift');
             var res = await fn({ giftId: giftId });

@@ -531,7 +531,7 @@ async function _openGiftRequest(giftId) {
 
 // Notifications call this so the same reveal, sound, and reward label
 // run when a gift is opened from the panel.
-window.openGiftFromNotice = async function(giftId) {
+window.revealNotifGift = async function(giftId) {
     var rw = await _openGiftRequest(giftId);
     _playGiftChime();
     _confetti();
