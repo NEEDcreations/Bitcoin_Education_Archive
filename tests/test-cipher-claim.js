@@ -4,6 +4,8 @@ const {
     assessCipherClaim,
     lookupRequestFromDecoded,
     shouldLookupPay,
+    payErrorAction,
+    EXPLICIT_PAY_REFUSALS,
     classifyLookup,
     decideAfterLookups,
     lookupSettlement,
@@ -86,13 +88,20 @@ later('payment hash is read from the decoded invoice', function() {
     assert.strictEqual(lookupRequestFromDecoded({ tags: [] }), null);
 });
 
-later('only a pay timeout or a missing preimage is looked up', function() {
+later('only an explicit wallet refusal skips the lookup and releases', function() {
+    assert.strictEqual(payErrorAction({ phase: 'balance', error: new Error('[TIMEOUT] getBalance') }), 'release');
     assert.strictEqual(shouldLookupPay({ phase: 'balance', error: new Error('[TIMEOUT] getBalance') }), false);
-    assert.strictEqual(shouldLookupPay({ phase: 'pay', error: new Error('route not found') }), false);
-    assert.strictEqual(shouldLookupPay({ phase: 'pay', error: new Error('[TIMEOUT] payInvoice') }), true);
-    assert.strictEqual(shouldLookupPay({ phase: 'pay', error: new Error('NO_PREIMAGE') }), true);
-    assert.strictEqual(shouldLookupPay({ phase: 'pay', payResult: null }), true);
-    assert.strictEqual(shouldLookupPay({ phase: 'pay', payResult: { preimage: 'ee' } }), false);
+    assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error('[TIMEOUT] payInvoice') }), 'lookup');
+    assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error('NO_PREIMAGE') }), 'lookup');
+    assert.strictEqual(payErrorAction({ phase: 'pay', payResult: null }), 'lookup');
+    assert.strictEqual(payErrorAction({ phase: 'pay', payResult: { preimage: 'ee' } }), 'paid');
+    EXPLICIT_PAY_REFUSALS.forEach(function(code) {
+        const err = Object.assign(new Error('wallet refused'), { code: code });
+        assert.strictEqual(payErrorAction({ phase: 'pay', error: err }), 'release', code);
+        assert.strictEqual(shouldLookupPay({ phase: 'pay', error: err }), false, code);
+        assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error(code) }), 'release', code);
+    });
+    assert.deepStrictEqual(EXPLICIT_PAY_REFUSALS, ['PAYMENT_FAILED', 'INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED']);
 });
 
 later('settled lookup is paid, failed lookup releases, pending holds', function() {
@@ -103,7 +112,10 @@ later('settled lookup is paid, failed lookup releases, pending holds', function(
     assert.deepStrictEqual(decideAfterLookups([{ kind: 'pending' }, { kind: 'paid', preimage: 'abc' }]), { action: 'paid', preimage: 'abc' });
     assert.strictEqual(decideAfterLookups([{ kind: 'pending' }, { kind: 'failed' }]).action, 'release');
     assert.strictEqual(decideAfterLookups([{ kind: 'pending' }, { kind: 'pending' }]).action, 'hold');
-    assert.strictEqual(decideAfterLookups([{ kind: 'error' }, { kind: 'unknown' }, { kind: 'error' }]).action, 'release');
+    assert.strictEqual(decideAfterLookups([{ kind: 'error' }, { kind: 'unknown' }, { kind: 'error' }]).action, 'hold');
+    assert.strictEqual(decideAfterLookups([]).action, 'hold');
+    assert.notStrictEqual(classifyLookup({ state: 'expired', payment_hash: 'abc' }).kind, 'failed');
+    assert.notStrictEqual(classifyLookup({ state: 'failure' }).kind, 'failed');
     assert.strictEqual(decideAfterLookups([{ kind: 'pending' }, { kind: 'error' }]).action, 'hold');
 });
 
@@ -140,14 +152,67 @@ later('lookup stops when the payment has settled and returns the preimage', asyn
     assert.deepStrictEqual(sleeps, [LOOKUP_INTERVAL_MS]);
 });
 
-later('unknown lookups with no preimage release the prize', async function() {
+later('unknown lookups with no preimage hold the prize', async function() {
     const decision = await lookupSettlement({
         lookup: async function() { throw new Error('[TIMEOUT] lookupInvoice'); },
         sleep: async function() {},
         attempts: 3,
         intervalMs: 0,
     });
-    assert.strictEqual(decision.action, 'release');
+    assert.strictEqual(decision.action, 'hold');
+});
+
+later('an expired invoice is not treated as a failed payment', async function() {
+    const decision = await lookupSettlement({
+        lookup: async function() { return { state: 'expired', payment_hash: 'abc', invoice: 'lnbc1' }; },
+        sleep: async function() {},
+        attempts: 2,
+        intervalMs: 0,
+    });
+    assert.strictEqual(classifyLookup({ state: 'expired' }).kind !== 'failed', true);
+    assert.strictEqual(decision.action, 'hold');
+});
+
+later('NOT_FOUND lookups hold the prize', async function() {
+    const decision = await lookupSettlement({
+        lookup: async function() {
+            const err = new Error('NOT_FOUND');
+            err.code = 'NOT_FOUND';
+            throw err;
+        },
+        sleep: async function() {},
+        attempts: 3,
+        intervalMs: 0,
+    });
+    assert.strictEqual(decision.action, 'hold');
+    const empty = await lookupSettlement({
+        lookup: async function() { return null; },
+        sleep: async function() {},
+        attempts: 2,
+        intervalMs: 0,
+    });
+    assert.strictEqual(empty.action, 'hold');
+    const blank = await lookupSettlement({
+        lookup: async function() { return {}; },
+        sleep: async function() {},
+        attempts: 1,
+        intervalMs: 0,
+    });
+    assert.strictEqual(blank.action, 'hold');
+});
+
+later('a connection drop is looked up and then held', async function() {
+    const dropped = new Error('websocket closed');
+    assert.strictEqual(payErrorAction({ phase: 'pay', error: dropped }), 'lookup');
+    assert.strictEqual(payErrorAction({ phase: 'pay', error: Object.assign(new Error('wallet'), { code: 'INTERNAL' }) }), 'lookup');
+    assert.strictEqual(payErrorAction({ phase: 'pay', error: Object.assign(new Error('wallet'), { code: 'OTHER' }) }), 'lookup');
+    const decision = await lookupSettlement({
+        lookup: async function() { throw new Error('connect ECONNRESET'); },
+        sleep: async function() {},
+        attempts: 2,
+        intervalMs: 0,
+    });
+    assert.strictEqual(decision.action, 'hold');
 });
 
 later('a 1,000+ win for a banned account is flagged for admin', function() {

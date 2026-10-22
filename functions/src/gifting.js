@@ -758,8 +758,11 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
 
     if (payResult && payResult.preimage) return markPaid(payResult.preimage);
 
+    // Balance-check failures never reached the wallet. Explicit refusals
+    // (PAYMENT_FAILED, INSUFFICIENT_BALANCE, QUOTA_EXCEEDED, RATE_LIMITED)
+    // prove nothing was sent. Anything else is looked up below.
     if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
-        console.error('[claimCipherWin] pay failed:', payError && payError.message);
+        console.error('[claimCipherWin] pay refused before send:', payError && payError.message);
         await releaseUnpaid();
         if (payError && payError.message === 'WALLET_LOW') {
             return { success: false, error: 'The prize wallet is being refilled. Try again later, or Phil can mark it paid.' };
@@ -792,14 +795,14 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
     });
 
     if (settlement.action === 'paid') return markPaid(settlement.preimage || '');
-    if (settlement.action === 'hold') {
-        try { await holdUnknown(lookupReq.payment_hash); }
-        catch (e) { console.error('[claimCipherWin] could not hold win:', e.message); }
-        return { success: false, error: holdMessage };
+    if (settlement.action === 'release') {
+        await releaseUnpaid();
+        return { success: false, error: 'Payment failed. Your prize is still waiting.' };
     }
 
-    await releaseUnpaid();
-    return { success: false, error: 'Payment failed. Your prize is still waiting.' };
+    try { await holdUnknown(lookupReq.payment_hash); }
+    catch (e) { console.error('[claimCipherWin] could not hold win:', e.message); }
+    return { success: false, error: holdMessage };
 });
 
 function winForUser(id, data) {

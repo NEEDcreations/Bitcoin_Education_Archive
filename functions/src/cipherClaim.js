@@ -52,15 +52,33 @@ function lookupRequestFromDecoded(decoded) {
     return { payment_hash: paymentHash };
 }
 
-// A payInvoice timeout, or a result with no preimage, may still have settled.
-// Balance-check failures happen before any payment and must not be looked up.
-function shouldLookupPay(info) {
+// These NWC codes are an explicit refusal: the wallet did not send the payment.
+const EXPLICIT_PAY_REFUSALS = ['PAYMENT_FAILED', 'INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED'];
+
+function explicitPayRefusal(error) {
+    if (!error) return false;
+    const code = String(error.code || '').toUpperCase();
+    if (EXPLICIT_PAY_REFUSALS.indexOf(code) !== -1) return true;
+    const msg = String(error.message || error).toUpperCase();
+    for (let i = 0; i < EXPLICIT_PAY_REFUSALS.length; i++) {
+        if (msg.indexOf(EXPLICIT_PAY_REFUSALS[i]) !== -1) return true;
+    }
+    return false;
+}
+
+// Release only when nothing was sent (still on the balance check) or the wallet
+// explicitly refused. Every other pay-phase error, including timeouts, relay
+// drops, and INTERNAL/OTHER, must be looked up.
+function payErrorAction(info) {
     const src = info || {};
-    if (src.phase !== 'pay') return false;
-    if (src.payResult && src.payResult.preimage) return false;
-    if (!src.error) return true;
-    const msg = String(src.error.message || src.error);
-    return msg.indexOf('[TIMEOUT]') === 0 || msg === 'NO_PREIMAGE';
+    if (src.payResult && src.payResult.preimage) return 'paid';
+    if (src.phase !== 'pay') return 'release';
+    if (explicitPayRefusal(src.error)) return 'release';
+    return 'lookup';
+}
+
+function shouldLookupPay(info) {
+    return payErrorAction(info) === 'lookup';
 }
 
 function classifyLookup(res) {
@@ -75,12 +93,9 @@ function classifyLookup(res) {
     ) {
         return { kind: 'paid', preimage: preimage };
     }
-    if (
-        state === 'failed' || state === 'failure' || state === 'expired' ||
-        state === 'cancelled' || state === 'canceled'
-    ) {
-        return { kind: 'failed' };
-    }
+    // Only an explicit failed state proves nothing was paid.
+    // An expired invoice can still settle after expiry, so it is not a failure.
+    if (state === 'failed') return { kind: 'failed' };
     if (state === 'pending' || state === 'in_flight' || state === 'inflight' || state === 'processing') {
         return { kind: 'pending' };
     }
@@ -90,20 +105,16 @@ function classifyLookup(res) {
 }
 
 // steps: { kind: 'paid'|'failed'|'pending'|'unknown'|'error', preimage? }
-// paid → mark paid. failed, or unknown with no preimage after the retries → release.
-// still pending → hold as status 'unknown' and keep the invoice reservation.
+// paid → mark paid. An explicit failed lookup → release back to claimable.
+// Errors (NOT_FOUND, timeouts), empty results, and anything unclassified hold
+// as status 'unknown' and keep the invoice reservation.
 function decideAfterLookups(steps) {
     const list = Array.isArray(steps) ? steps : [];
     for (let i = 0; i < list.length; i++) {
         if (list[i].kind === 'paid') return { action: 'paid', preimage: list[i].preimage || '' };
         if (list[i].kind === 'failed') return { action: 'release' };
     }
-    let lastNonError = null;
-    for (let i = 0; i < list.length; i++) {
-        if (list[i].kind !== 'error') lastNonError = list[i];
-    }
-    if (lastNonError && lastNonError.kind === 'pending') return { action: 'hold' };
-    return { action: 'release' };
+    return { action: 'hold' };
 }
 
 async function lookupSettlement(opts) {
@@ -153,6 +164,9 @@ module.exports = {
     assessCipherClaim: assessCipherClaim,
     paymentHashFromDecoded: paymentHashFromDecoded,
     lookupRequestFromDecoded: lookupRequestFromDecoded,
+    EXPLICIT_PAY_REFUSALS: EXPLICIT_PAY_REFUSALS,
+    explicitPayRefusal: explicitPayRefusal,
+    payErrorAction: payErrorAction,
     shouldLookupPay: shouldLookupPay,
     classifyLookup: classifyLookup,
     decideAfterLookups: decideAfterLookups,
