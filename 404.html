@@ -26,6 +26,7 @@
 })();
 // One-time cache nuke for the SW strategy change (April 2026)
 (function(){
+    var _href = location.href;
     if (!sessionStorage.getItem('_cnuke')) {
         var v = localStorage.getItem('btc_build');
         if (v !== '20260405e') {
@@ -41,7 +42,7 @@
                     r.forEach(function(reg){ reg.unregister(); });
                 });
             }
-            setTimeout(function(){ location.reload(); }, 500);
+            setTimeout(function(){ location.replace(_href); }, 500);
             return;
         }
     }
@@ -1476,7 +1477,7 @@
             'satoshi-favor.js?v=20261022_v2250'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261022_v2251',
+            'quests.js?v=20261022_v2252',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20261022_v2252',
             'scholar.js?v=20260809_1846','beats.js?v=20261013_2307',
@@ -1550,9 +1551,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261022_v2252'],
             'learning-quests': ['learning-quests.js?v=20261014_0554'],
-            'quests':        ['quests.js?v=20261022_v2251'],
-            'questhub':      ['quests.js?v=20261022_v2251'],
-            'app':           ['quests.js?v=20261022_v2251'],
+            'quests':        ['quests.js?v=20261022_v2252'],
+            'questhub':      ['quests.js?v=20261022_v2252'],
+            'app':           ['quests.js?v=20261022_v2252'],
             'timechain-tv':  ['timechain-tv.js?v=20261022_tctv3'],
             'tv':            ['timechain-tv.js?v=20261022_tctv3']
         };

@@ -375,7 +375,7 @@
             desc: 'Gifts come from the spin wheel. You open them for keys, locked ciphers, tickets, XP, or a rare prize.',
             how: 'Spin the wheel, then open the gift on the post-spin screen. You can also open gifts from Settings → Account → Peers.',
             follow: 'Want to know what a Nacho shoutout prize is?',
-            hash: 'app/gifts', aliases: ['gifts'], kind: 'gifts',
+            hash: 'app/gifts', aliases: ['gifts', 'open gifts', 'open-gifts'], kind: 'gifts',
             openFns: ['openAllPostSpinGifts', 'openGift', 'openSingleGift', 'showSpinWheel'] }),
         R({ id: 'ciphers', title: 'Locked ciphers', group: 'Rewards', term: 'cipher', priority: 90,
             kw: 'cipher ciphers locked cipher decrypt unlock puzzle',
@@ -988,11 +988,11 @@
     }
 
     function bqRouteHash(hash, attempt) {
-        // Already opening a feature. Returning true stops handleHash from retrying
-        // this hash after the suppress window and landing on a different tab.
-        if (win._bqSuppressRoute) return true;
         var f = featureByHash(hash);
         if (!f) return false;
+        // Already opening a feature. Swallow only this feature hash so a channel
+        // hashtag tapped during the window still falls through to handleHash.
+        if (win._bqSuppressRoute) return true;
         // Don't steal a real education-channel hash (for example #predictions).
         var bare = String(hash || '').replace(/^#/, '');
         if (bare.indexOf('app/') !== 0 && bare.indexOf('/') === -1 && typeof win.CHANNELS === 'object' && win.CHANNELS && win.CHANNELS[bare] && f.hash !== bare && f.aliases.indexOf(bare) === -1) {
@@ -1084,11 +1084,22 @@
     function dropDuplicateAppRows(sr) {
         if (!sr || !sr.querySelectorAll) return;
         var keys = {};
+        function addKey(s) {
+            var k = titleKey(s);
+            if (k) keys[k] = 1;
+            var spaced = titleKey(String(s || '').replace(/[-_]/g, ' '));
+            if (spaced) keys[spaced] = 1;
+        }
         var cards = sr.querySelectorAll('[data-bq-feature]');
         var ci;
         for (ci = 0; ci < cards.length; ci++) {
             var label = cards[ci].querySelectorAll('div')[1];
-            if (label) keys[titleKey(label.textContent)] = 1;
+            if (label) addKey(label.textContent);
+            var feat = BY_ID[cards[ci].getAttribute('data-bq-feature')];
+            if (!feat) continue;
+            addKey(feat.title);
+            var aliases = feat.aliases || [];
+            for (var a = 0; a < aliases.length; a++) addKey(aliases[a]);
         }
         var rows = sr.querySelectorAll('.sr-item');
         for (ci = 0; ci < rows.length; ci++) {

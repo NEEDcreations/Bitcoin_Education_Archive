@@ -293,6 +293,20 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
     assert.ok(fast.indexOf("hash !== 'questhub'") !== -1, fast);
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     assert.strictEqual((quests.match(/if \(window\._bqDeepLinkHandled\) return;/g) || []).length, 2);
+    assert.ok(html.indexOf('var _href = location.href') !== -1);
+    assert.ok(html.indexOf('location.replace(_href)') !== -1);
+    assert.ok(html.indexOf('location.reload()') === -1);
+});
+
+test('suppress swallows feature hashes and leaves channel taps alone', function () {
+    global._bqSuppressRoute = true;
+    try {
+        assert.strictEqual(global.bqRouteHash('mining'), false);
+        assert.strictEqual(global.bqRouteHash('self-custody'), false);
+        assert.strictEqual(global.bqRouteHash('questhub'), true);
+    } finally {
+        global._bqSuppressRoute = false;
+    }
 });
 
 test('search drops duplicate app rows and linked answers skip the generic tip', function () {
@@ -346,9 +360,25 @@ test('search drops duplicate app rows and linked answers skip the generic tip', 
     nest(channel, div('sr-cat', 'Channel'));
     nest(channel, div('', 'Exploration Map'));
     nest(sr, channel);
+    const raffle = div('sr-item', '', { 'data-bq-feature': 'raffle' });
+    nest(raffle, div('sr-cat', 'Feature'));
+    nest(raffle, div('', 'Orange ticket raffle'));
+    nest(sr, raffle);
+    const raffleDup = div('sr-item', '');
+    nest(raffleDup, div('sr-cat', '⚡ App'));
+    nest(raffleDup, div('', '🍒 Raffle'));
+    nest(sr, raffleDup);
+    const gifts = div('sr-item', '', { 'data-bq-feature': 'gifts' });
+    nest(gifts, div('sr-cat', 'Feature'));
+    nest(gifts, div('', 'Gifts'));
+    nest(sr, gifts);
+    const giftsDup = div('sr-item', '');
+    nest(giftsDup, div('sr-cat', '⚡ App'));
+    nest(giftsDup, div('', '📬 Open gifts'));
+    nest(sr, giftsDup);
     reg.dropDuplicateAppRows(sr);
     const left = sr.kids.map(function (row) { return row.kids[1].textContent; });
-    assert.deepStrictEqual(left, ['Exploration Map', 'Leaderboard', 'Exploration Map']);
+    assert.deepStrictEqual(left, ['Exploration Map', 'Leaderboard', 'Exploration Map', 'Orange ticket raffle', 'Gifts']);
 
     function answer(question, result) {
         let got = null;

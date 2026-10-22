@@ -397,7 +397,8 @@ queue.push(test('cache busters are v2252 and index.html matches 404.html', funct
     assert.ok(html.includes('bundle.min.js?v=20261022_v2252'));
     assert.ok(html.includes('global-chat.js?v=20261022_v2252'));
     assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));
-    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2251/g) || []).length, 4);
+    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2252/g) || []).length, 4);
+    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2251/g) || []).length, 0);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2246'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2245'), false);

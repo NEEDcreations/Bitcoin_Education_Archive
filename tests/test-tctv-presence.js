@@ -272,7 +272,8 @@ test('cache name is v2252 and the TV script cache-buster moved', () => {
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('timechain-tv.js?v=20261022_tctv3'));
     assert.ok(html.includes('gifting.js?v=20261022_lightfix'));
-    assert.ok(html.includes('quests.js?v=20261022_v2251'));
+    assert.ok(html.includes('quests.js?v=20261022_v2252'));
+    assert.ok(!html.includes('quests.js?v=20261022_v2251'));
     assert.ok(html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2251'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2251'));
