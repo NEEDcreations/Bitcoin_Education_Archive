@@ -1,10 +1,8 @@
 'use strict';
 
-// Tipping daily challenge. The invoice is usually someone else's LNURL, so
-// payment often cannot be observed. A signed-in user may confirm "I sent the
-// tip" once per UTC day. When that day’s challenge is a tip, the server awards
-// its XP. LUD-21 / our NWC lookup can mark the row verified first; a failed
-// lookup still falls back to the confirmation.
+// Tipping daily challenge. Tip-day XP is awarded only after the server
+// matches the recipient Lightning domain and the payment hash. An unverified
+// confirmation does not lock the day and does not award XP.
 
 const TIP_CHALLENGE_XP = 100;
 
@@ -136,19 +134,31 @@ function safeVerifyUrl(raw) {
     return url.toString();
 }
 
-function interpretLud21(status, body) {
+function interpretLud21(status, body, expectedHash) {
     if (status !== 200 || !body || typeof body !== 'object') {
         return { verified: false, reason: 'lud21-unverified' };
     }
-    if (body.settled === true || body.settled === 'true') {
-        return { verified: true, reason: 'lud21' };
+    if (body.settled !== true && body.settled !== 'true') {
+        return { verified: false, reason: 'lud21-not-settled' };
     }
-    return { verified: false, reason: 'lud21-not-settled' };
+    const expected = normalizePaymentHash(expectedHash);
+    const got = normalizePaymentHash(body.prHash || body.payment_hash || body.paymentHash || body.pr);
+    if (!expected || !got || expected !== got) {
+        return { verified: false, reason: 'lud21-hash-mismatch' };
+    }
+    return { verified: true, reason: 'lud21' };
 }
 
-function interpretNwcLookup(invoice) {
+function interpretNwcLookup(invoice, expectedHash) {
     if (!invoice || typeof invoice !== 'object') {
         return { verified: false, reason: 'nwc-not-found' };
+    }
+    const type = String(invoice.type || invoice.direction || '').toLowerCase();
+    if (type !== 'incoming') return { verified: false, reason: 'nwc-not-incoming' };
+    const expected = normalizePaymentHash(expectedHash);
+    const got = normalizePaymentHash(invoice.payment_hash || invoice.paymentHash);
+    if (!expected || !got || expected !== got) {
+        return { verified: false, reason: 'nwc-hash-mismatch' };
     }
     const state = String(invoice.state || invoice.status || '').toLowerCase();
     if (invoice.preimage || invoice.settled === true || state === 'settled' || state === 'paid') {

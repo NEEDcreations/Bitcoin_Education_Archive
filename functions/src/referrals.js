@@ -10,6 +10,12 @@ const CODE_LENGTH = 8;
 
 const SIGNUP_WINDOW_MS = 72 * 60 * 60 * 1000;
 const SIGNUP_MAX_POINTS = 100;
+const PAYOUT_MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const MIN_ACTIVE_DAYS = 3;
+const REFERRAL_PAY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const REFERRAL_PAY_CAP = 5;
+const SIGNAL_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const EMAIL_PROVIDERS = { password: 1, 'google.com': 1, 'apple.com': 1, 'facebook.com': 1 };
 
 const BLOCKING_FLAGS = {
     'self': 'rejected',
@@ -118,6 +124,41 @@ function statusForFlags(flags) {
     return status;
 }
 
+function activityPoints(user) {
+    const points = Number(user && user.points) || 0;
+    const scholar = Number(user && user.scholarPoints) || 0;
+    return Math.max(0, points - scholar);
+}
+
+function serverDayKey(nowMs) {
+    const shifted = new Date((Number(nowMs) || Date.now()) - 5 * 3600 * 1000);
+    return shifted.toISOString().split('T')[0];
+}
+
+function touchActiveDays(existing, nowMs) {
+    const day = serverDayKey(nowMs);
+    const list = Array.isArray(existing) ? existing.filter(function(item) { return !!item; }) : [];
+    if (list.indexOf(day) === -1) list.push(day);
+    return list.slice(-40);
+}
+
+function countRecentPays(paidAtMs, nowMs) {
+    const now = Number(nowMs) || 0;
+    return (Array.isArray(paidAtMs) ? paidAtMs : []).filter(function(ms) {
+        const n = Number(ms) || 0;
+        return n > 0 && now >= n && now - n < REFERRAL_PAY_WINDOW_MS;
+    }).length;
+}
+
+function emailOk(user) {
+    const providers = Array.isArray(user && user.providers) ? user.providers : [];
+    const nonEmailOnly = providers.length > 0 && providers.every(function(provider) {
+        return !EMAIL_PROVIDERS[provider];
+    });
+    if (nonEmailOnly) return true;
+    return !!(user && user.emailVerified === true);
+}
+
 function assessReferralPayout(input) {
     const src = input || {};
     const referral = src.referral;
@@ -125,19 +166,32 @@ function assessReferralPayout(input) {
     const referrer = src.referrer;
     if (!referral) return { action: 'skip', reason: 'no-referral' };
     if (alreadyPaid(referral)) return { action: 'skip', reason: 'already-paid' };
-    if (referral.status === 'flagged') return { action: 'skip', reason: 'flagged' };
-    if (referral.status === 'rejected') return { action: 'skip', reason: 'rejected' };
-    if (referral.status === 'late' || referral.status === 'untrusted') {
+    if (referral.status === 'flagged' || referral.status === 'rejected' || referral.status === 'late' || referral.status === 'untrusted' || referral.status === 'legacy') {
         return { action: 'skip', reason: referral.status };
     }
+    // Client-written docs have no server signal. They are never auto-paid.
+    if (!src.hasSignal) return { action: 'legacy', reason: 'legacy' };
     if (!referred || !referrer || !referred.uid || !referrer.uid) return { action: 'skip', reason: 'missing-user' };
     if (referred.uid === referrer.uid) return { action: 'reject', reason: 'self', flags: ['self'] };
-    if ((Number(referred.points) || 0) < MAXI_POINTS) return { action: 'skip', reason: 'below-maxi' };
-    const flags = fraudFlags(referred, referrer, src.signupIp);
+    if (activityPoints(referred) < MAXI_POINTS) return { action: 'skip', reason: 'below-maxi' };
+    const now = Number(src.nowMs) || 0;
+    const created = referred.createdMs == null ? null : Number(referred.createdMs);
+    if (created == null || !isFinite(created)) return { action: 'skip', reason: 'age-unknown' };
+    if (now - created < PAYOUT_MIN_AGE_MS) return { action: 'skip', reason: 'too-new' };
+    const days = {};
+    (Array.isArray(referred.activeDayKeys) ? referred.activeDayKeys : []).forEach(function(day) {
+        if (day) days[day] = 1;
+    });
+    if (Object.keys(days).length < MIN_ACTIVE_DAYS) return { action: 'skip', reason: 'inactive' };
+    if (!emailOk(referred)) return { action: 'skip', reason: 'email-unverified' };
+    const flags = fraudFlags(referred, referrer, src.signupIpHmac || src.signupIp || '');
     const blocking = flags.filter(function(flag) { return !!BLOCKING_FLAGS[flag]; });
     if (blocking.length) {
         const status = statusForFlags(blocking);
         return { action: status === 'rejected' ? 'reject' : 'flag', reason: blocking[0], flags: blocking };
+    }
+    if (countRecentPays(src.recentPaidAt, now) >= REFERRAL_PAY_CAP) {
+        return { action: 'flag', reason: 'referral-cap', flags: ['referral-cap'] };
     }
     return {
         action: 'pay',
@@ -209,6 +263,28 @@ function referredIdOf(referral) {
     return referral.referredUserUid || referral.referredUid || referral.referredUser || referral.id || '';
 }
 
+const REGISTER_RATE_MS = 10 * 1000;
+const REGISTER_RATE_HOUR_MS = 60 * 60 * 1000;
+const REGISTER_RATE_HOUR_MAX = 8;
+
+function registerRateDecision(prev, nowMs) {
+    const src = prev || {};
+    const now = Number(nowMs) || 0;
+    const last = Number(src.lastMs) || 0;
+    const windowStart = Number(src.windowStart) || 0;
+    const count = Number(src.count) || 0;
+    if (last && now - last < REGISTER_RATE_MS) return { ok: false, reason: 'rate' };
+    const sameHour = windowStart && now - windowStart < REGISTER_RATE_HOUR_MS;
+    if (sameHour && count >= REGISTER_RATE_HOUR_MAX) return { ok: false, reason: 'rate-hour' };
+    return {
+        ok: true,
+        reason: 'ok',
+        lastMs: now,
+        windowStart: sameHour ? windowStart : now,
+        count: sameHour ? count + 1 : 1,
+    };
+}
+
 function planBackfill(input) {
     const src = input || {};
     const users = src.users || [];
@@ -222,6 +298,8 @@ function planBackfill(input) {
         const id = referredIdOf(referral);
         if (id) referralByReferred[id] = referral;
     });
+    const signalSet = {};
+    (src.signals || []).forEach(function(id) { if (id) signalSet[id] = true; });
     const codeIndex = buildCodeIndex(users);
 
     const codesToWrite = [];
@@ -262,7 +340,8 @@ function planBackfill(input) {
         if (!id) return;
         const row = Object.assign({}, referral, { referredUid: id });
         if (alreadyPaid(row)) return;
-        if (row.status === 'flagged' || row.status === 'rejected' || row.status === 'late' || row.status === 'untrusted') return;
+        if (row.status === 'flagged' || row.status === 'rejected' || row.status === 'late' || row.status === 'untrusted' || row.status === 'legacy') return;
+        if (!signalSet[id] && !row.hasSignal) return;
         const referred = byUid[row.referredUid];
         if (!referred) return;
         let referrerUid = row.referrerUid || '';
@@ -274,6 +353,9 @@ function planBackfill(input) {
         const referrer = byUid[referrerUid];
         if (!referrer) return;
         const decision = assessReferralPayout({
+            hasSignal: true,
+            nowMs: src.nowMs || 0,
+            recentPaidAt: referrer.recentPaidAt || [],
             referral: referral,
             referred: Object.assign({ uid: referral.referredUid }, referred),
             referrer: Object.assign({ uid: referrerUid }, referrer),
@@ -306,6 +388,17 @@ module.exports = {
     REFERRAL_TICKETS: REFERRAL_TICKETS,
     SIGNUP_WINDOW_MS: SIGNUP_WINDOW_MS,
     SIGNUP_MAX_POINTS: SIGNUP_MAX_POINTS,
+    PAYOUT_MIN_AGE_MS: PAYOUT_MIN_AGE_MS,
+    MIN_ACTIVE_DAYS: MIN_ACTIVE_DAYS,
+    REFERRAL_PAY_CAP: REFERRAL_PAY_CAP,
+    REFERRAL_PAY_WINDOW_MS: REFERRAL_PAY_WINDOW_MS,
+    SIGNAL_TTL_MS: SIGNAL_TTL_MS,
+    REGISTER_RATE_MS: REGISTER_RATE_MS,
+    activityPoints: activityPoints,
+    registerRateDecision: registerRateDecision,
+    touchActiveDays: touchActiveDays,
+    emailOk: emailOk,
+    countRecentPays: countRecentPays,
     BLOCKING_FLAGS: BLOCKING_FLAGS,
     referralCodeForUid: referralCodeForUid,
     normalizeCode: normalizeCode,

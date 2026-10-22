@@ -8,6 +8,7 @@ const admin = require('firebase-admin');
 const referrals = require('./referrals');
 const rewardNotify = require('./rewardNotify');
 const faucetGuard = require('./faucetGuard');
+const ipHmac = require('./ipHmac');
 
 function db() {
     return admin.firestore();
@@ -37,14 +38,22 @@ function millisOf(value) {
     return 0;
 }
 
-async function authCreatedMs(uid) {
+async function authProfile(uid) {
     try {
         const record = await admin.auth().getUser(uid);
         const raw = record && record.metadata && record.metadata.creationTime;
         const ms = Date.parse(raw || '');
-        return isFinite(ms) ? ms : null;
+        const providers = [];
+        ((record && record.providerData) || []).forEach(function(row) {
+            if (row && row.providerId) providers.push(String(row.providerId));
+        });
+        return {
+            createdMs: isFinite(ms) ? ms : null,
+            emailVerified: !!(record && record.emailVerified),
+            providers: providers,
+        };
     } catch (e) {
-        return null;
+        return { createdMs: null, emailVerified: false, providers: [] };
     }
 }
 
@@ -162,9 +171,39 @@ function referralPayload(referredUid, referrerUid, code, status, flags) {
         status: status,
         verified: false,
         ticketsAwarded: false,
-        rejectionFlags: flags || [],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
+}
+
+async function takeRegisterRate(uid, now) {
+    const ref = db().collection('rate_limits').doc('referral_' + uid);
+    let decision = { ok: false, reason: 'rate' };
+    await db().runTransaction(async function(t) {
+        const snap = await t.get(ref);
+        const prev = snap.exists ? snap.data() : {};
+        decision = referrals.registerRateDecision({
+            lastMs: prev.lastCall,
+            windowStart: prev.windowStart,
+            count: prev.count || 0,
+        }, now);
+        if (!decision.ok) return;
+        t.set(ref, {
+            lastCall: decision.lastMs,
+            windowStart: decision.windowStart,
+            count: decision.count,
+        });
+    });
+    return decision;
+}
+
+function hmacIps(list) {
+    const raw = Array.isArray(list) ? list : String(list || '').split(/[,\s]+/);
+    const out = [];
+    raw.forEach(function(ip) {
+        const mac = ipHmac.hmacIp(ip);
+        if (mac) out.push(mac);
+    });
+    return out;
 }
 
 async function registerReferral(data, context) {
@@ -173,13 +212,20 @@ async function registerReferral(data, context) {
     if (!code) throw httpsError('invalid-argument', 'Referral code is missing');
     if (referrals.isSelfReferral(uid, code)) return { success: false, reason: 'self' };
 
+    const existingRef = await db().collection('referrals').doc(uid).get();
+    if (existingRef.exists) return { success: false, reason: 'exists' };
+
     const now = Date.now();
-    const createdMs = await authCreatedMs(uid);
+    const rate = await takeRegisterRate(uid, now);
+    if (!rate.ok) throw httpsError('resource-exhausted', 'Too many referral attempts. Wait a moment and try again.');
+
+    const profile = await authProfile(uid);
+    const createdMs = profile.createdMs;
     const referredSnap = await db().collection('users').doc(uid).get();
     if (!referredSnap.exists) throw httpsError('not-found', 'User not found');
     const referred = userView(uid, referredSnap.data());
-    const signupIp = requestIp(context);
-    const linked = await linkedAccount(uid, referred, signupIp, now);
+    const rawIp = requestIp(context);
+    const linked = await linkedAccount(uid, referred, rawIp, now);
     const gate = referrals.registrationGate({
         nowMs: now,
         createdMs: createdMs,
@@ -201,7 +247,13 @@ async function registerReferral(data, context) {
         const referrerSnap = await db().collection('users').doc(referrerUid).get();
         if (referrerSnap.exists) referrer = userView(referrerUid, referrerSnap.data());
     }
-    const flags = referrer ? referrals.fraudFlags(referred, referrer, signupIp) : [];
+    let signupIpHmac = '';
+    try {
+        signupIpHmac = ipHmac.hmacIp(rawIp);
+    } catch (e) {
+        throw httpsError('failed-precondition', 'Referral signup cannot be recorded right now');
+    }
+    const flags = referrer ? referrals.fraudFlags(referred, referrer, rawIp) : [];
     linked.forEach(function(reason) {
         if (flags.indexOf('linked-account') === -1) flags.push('linked-account');
         if (flags.indexOf(reason) === -1) flags.push(reason);
@@ -221,10 +273,12 @@ async function registerReferral(data, context) {
         const fresh = await t.get(userRef);
         if (!fresh.exists) return;
         if (fresh.data().referredBy && fresh.data().referredBy !== code) return;
-        t.set(refRef, referralPayload(uid, referrer ? referrer.uid : '', code, status, flags));
+        t.set(refRef, referralPayload(uid, referrer ? referrer.uid : '', code, status));
         t.set(signalRef, {
-            signupIp: signupIp || '',
+            signupIpHmac: signupIpHmac,
+            expireAt: admin.firestore.Timestamp.fromMillis(now + referrals.SIGNAL_TTL_MS),
             referrerUid: referrer ? referrer.uid : '',
+            flags: flags,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         const userUpdate = { referredBy: code, referralVerified: false };
@@ -258,55 +312,96 @@ async function payIfQualified(referredUid) {
     const signalRef = db().collection('referral_signals').doc(uid);
     const pre = await refRef.get();
     if (!pre.exists) return { paid: false, reason: 'no-referral' };
+    try {
+        ipHmac.hmacIp('');
+    } catch (e) {
+        throw httpsError('failed-precondition', 'Referral payout cannot be checked right now');
+    }
 
     const current = pre;
     const referrerUid = current.data().referrerUid || await lookupReferrerUid(current.data().referrerCode, uid);
     if (!referrerUid) return { paid: false, reason: 'missing-user' };
+    const profile = await authProfile(uid);
     const referrerRef = db().collection('users').doc(referrerUid);
     const referredLedgerRef = db().collection('faucet_ledger').doc(uid);
     const referrerLedgerRef = db().collection('faucet_ledger').doc(referrerUid);
+    const limitRef = db().collection('referral_pay_limits').doc(referrerUid);
 
     let outcome = { paid: false, reason: 'skip' };
     await db().runTransaction(async function(t) {
-        const [referralDoc, referredDoc, referrerDoc, signalDoc, referredLedger, referrerLedger] = await Promise.all([
+        const [referralDoc, referredDoc, referrerDoc, signalDoc, referredLedger, referrerLedger, limitDoc] = await Promise.all([
             t.get(refRef),
             t.get(referredRef),
             t.get(referrerRef),
             t.get(signalRef),
             t.get(referredLedgerRef),
             t.get(referrerLedgerRef),
+            t.get(limitRef),
         ]);
         if (!referralDoc.exists || !referredDoc.exists || !referrerDoc.exists) {
             outcome = { paid: false, reason: 'missing-user' };
+            return;
+        }
+        if (!signalDoc.exists) {
+            t.update(refRef, {
+                status: 'legacy',
+                rejectionFlags: admin.firestore.FieldValue.delete(),
+            });
+            outcome = { paid: false, reason: 'legacy' };
             return;
         }
         const referredView = userView(uid, referredDoc.data());
         const referrerView = userView(referrerUid, referrerDoc.data());
         referredView.ledgerBanned = referredLedger.exists && referredLedger.data().banned === true;
         referrerView.ledgerBanned = referrerLedger.exists && referrerLedger.data().banned === true;
-        const signupIp = signalDoc.exists ? (signalDoc.data().signupIp || '') : '';
+        referredView.createdMs = profile.createdMs;
+        referredView.emailVerified = profile.emailVerified;
+        referredView.providers = profile.providers;
+        const signal = signalDoc.data() || {};
+        const exp = millisOf(signal.expireAt);
+        const fresh = !exp || exp > Date.now();
+        const storedHmac = fresh ? String(signal.signupIpHmac || '') : '';
+        referredView.known_ips = fresh ? hmacIps(referredView.known_ips) : [];
+        referrerView.known_ips = fresh ? hmacIps(referrerView.known_ips) : [];
+        const recentPaidAt = limitDoc.exists ? (limitDoc.data().paidAtMs || []) : [];
         const decision = referrals.assessReferralPayout({
+            hasSignal: true,
+            nowMs: Date.now(),
+            recentPaidAt: recentPaidAt,
             referral: referralDoc.data(),
             referred: referredView,
             referrer: referrerView,
-            signupIp: signupIp,
+            signupIpHmac: storedHmac,
         });
+        const clearFlags = { rejectionFlags: admin.firestore.FieldValue.delete() };
+        if (decision.action === 'legacy') {
+            t.update(refRef, Object.assign({ status: 'legacy' }, clearFlags));
+            outcome = { paid: false, reason: 'legacy' };
+            return;
+        }
         if (decision.action === 'skip') {
+            if (referralDoc.data().rejectionFlags) t.update(refRef, clearFlags);
             outcome = { paid: false, reason: decision.reason };
             return;
         }
         if (decision.action === 'flag' || decision.action === 'reject') {
-            t.update(refRef, {
+            t.update(refRef, Object.assign({
                 status: decision.action === 'reject' ? 'rejected' : 'flagged',
-                rejectionFlags: decision.flags || [],
                 ticketsAwarded: false,
                 verified: false,
-            });
+            }, clearFlags));
+            t.set(signalRef, { flags: decision.flags || [] }, { merge: true });
             outcome = { paid: false, reason: decision.reason };
             return;
         }
         const tickets = referrals.REFERRAL_TICKETS;
-        t.update(refRef, {
+        const nowMs = Date.now();
+        const kept = (Array.isArray(recentPaidAt) ? recentPaidAt : []).filter(function(ms) {
+            const n = Number(ms) || 0;
+            return n > 0 && nowMs - n < referrals.REFERRAL_PAY_WINDOW_MS;
+        });
+        kept.push(nowMs);
+        t.update(refRef, Object.assign({
             status: 'paid',
             verified: true,
             ticketsAwarded: true,
@@ -316,6 +411,10 @@ async function payIfQualified(referredUid) {
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
             ticketsEach: tickets,
+        }, clearFlags));
+        t.set(limitRef, {
+            paidAtMs: kept.slice(-40),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         t.update(referrerRef, {
             orangeTickets: admin.firestore.FieldValue.increment(tickets),
@@ -399,6 +498,12 @@ async function scanPending(limit) {
     return { scanned: snap.size, paid: paid, cursor: next };
 }
 
+async function deleteMyReferralSignal(data, context) {
+    const uid = requireUser(context);
+    await db().collection('referral_signals').doc(uid).delete();
+    return { success: true };
+}
+
 module.exports = {
     registerReferral: registerReferral,
     payIfQualified: payIfQualified,
@@ -406,4 +511,5 @@ module.exports = {
     scanPending: scanPending,
     ensureReferralCode: ensureReferralCode,
     lookupReferrerUid: lookupReferrerUid,
+    deleteMyReferralSignal: deleteMyReferralSignal,
 };

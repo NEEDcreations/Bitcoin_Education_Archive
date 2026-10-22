@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const referrals = require('../functions/src/referrals');
+const ipHmac = require('../functions/src/ipHmac');
 
 let passed = 0;
 let failed = 0;
@@ -20,6 +21,30 @@ function test(name, fn) {
 
 function user(uid, extra) {
     return Object.assign({ uid: uid, points: 0, referralCode: '', satsDisabled: false }, extra || {});
+}
+
+const NOW = 1_700_000_000_000;
+
+function qualified(uid, extra) {
+    return user(uid, Object.assign({
+        points: 2140,
+        scholarPoints: 0,
+        createdMs: NOW - 8 * 24 * 60 * 60 * 1000,
+        emailVerified: true,
+        providers: ['password'],
+        activeDayKeys: ['2026-10-01', '2026-10-02', '2026-10-03'],
+    }, extra || {}));
+}
+
+function payoutInput(referred, referrer, referral, extra) {
+    return Object.assign({
+        hasSignal: true,
+        nowMs: NOW,
+        recentPaidAt: [],
+        referral: referral || { status: 'pending', ticketsAwarded: false, referrerUid: referrer.uid },
+        referred: referred,
+        referrer: referrer,
+    }, extra || {});
 }
 
 test('crossing Maxi is only the upward threshold', () => {
@@ -50,70 +75,104 @@ test('a paid referral is not paid again', () => {
 });
 
 test('Maxi pays 50 to each side once, and fraud blocks payment', () => {
-    const referred = user('pleb0001XXXX', { points: 2140 });
+    const referred = qualified('pleb0001XXXX');
     const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
     const pending = { status: 'pending', ticketsAwarded: false, referrerUid: referrer.uid };
-    const pay = referrals.assessReferralPayout({ referral: pending, referred: referred, referrer: referrer });
+    const pay = referrals.assessReferralPayout(payoutInput(referred, referrer, pending));
     assert.strictEqual(pay.action, 'pay');
     assert.strictEqual(pay.ticketsEach, 50);
 
-    const flagged = referrals.assessReferralPayout({
-        referral: Object.assign({}, pending, { status: 'flagged' }),
-        referred: referred,
-        referrer: referrer,
-    });
+    const flagged = referrals.assessReferralPayout(payoutInput(referred, referrer, Object.assign({}, pending, { status: 'flagged' })));
     assert.strictEqual(flagged.action, 'skip');
 
-    const sameDevice = referrals.assessReferralPayout({
-        referral: pending,
-        referred: Object.assign({}, referred, { fingerprint: 'device-1' }),
-        referrer: Object.assign({}, referrer, { fingerprint: 'device-1' }),
-    });
+    const sameDevice = referrals.assessReferralPayout(payoutInput(
+        Object.assign({}, referred, { fingerprint: 'device-1' }),
+        Object.assign({}, referrer, { fingerprint: 'device-1' }),
+        pending
+    ));
     assert.strictEqual(sameDevice.action, 'flag');
     assert.notStrictEqual(sameDevice.action, 'pay');
 
-    const self = referrals.assessReferralPayout({
-        referral: pending,
-        referred: referred,
-        referrer: Object.assign({}, referrer, { uid: referred.uid }),
-    });
+    const self = referrals.assessReferralPayout(payoutInput(referred, Object.assign({}, referrer, { uid: referred.uid }), pending));
     assert.strictEqual(self.action, 'reject');
 
-    const banned = referrals.assessReferralPayout({
-        referral: pending,
-        referred: Object.assign({}, referred, { satsDisabled: true }),
-        referrer: referrer,
-    });
+    const banned = referrals.assessReferralPayout(payoutInput(Object.assign({}, referred, { satsDisabled: true }), referrer, pending));
     assert.strictEqual(banned.action, 'reject');
 
-    const userBanned = referrals.assessReferralPayout({
-        referral: pending,
-        referred: Object.assign({}, referred, { banned: true }),
-        referrer: referrer,
-    });
+    const userBanned = referrals.assessReferralPayout(payoutInput(Object.assign({}, referred, { banned: true }), referrer, pending));
     assert.strictEqual(userBanned.action, 'reject');
     assert.ok(userBanned.flags.indexOf('banned') !== -1);
 
-    const ledgerBanned = referrals.assessReferralPayout({
-        referral: pending,
-        referred: referred,
-        referrer: Object.assign({}, referrer, { ledgerBanned: true }),
-    });
+    const ledgerBanned = referrals.assessReferralPayout(payoutInput(referred, Object.assign({}, referrer, { ledgerBanned: true }), pending));
     assert.strictEqual(ledgerBanned.action, 'reject');
     assert.ok(ledgerBanned.flags.indexOf('ledger-banned') !== -1);
 
-    const late = referrals.assessReferralPayout({
-        referral: Object.assign({}, pending, { status: 'late' }),
-        referred: referred,
-        referrer: referrer,
-    });
+    const late = referrals.assessReferralPayout(payoutInput(referred, referrer, Object.assign({}, pending, { status: 'late' })));
     assert.strictEqual(late.action, 'skip');
-    const untrusted = referrals.assessReferralPayout({
-        referral: Object.assign({}, pending, { status: 'untrusted' }),
-        referred: referred,
-        referrer: referrer,
-    });
+    const untrusted = referrals.assessReferralPayout(payoutInput(referred, referrer, Object.assign({}, pending, { status: 'untrusted' })));
     assert.strictEqual(untrusted.action, 'skip');
+});
+
+test('payout requires a signal, age, activity, email, and stays under the cap', () => {
+    const referred = qualified('pleb0001XXXX');
+    const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
+    const pending = { status: 'pending', ticketsAwarded: false, referrerUid: referrer.uid };
+    const legacy = referrals.assessReferralPayout(payoutInput(referred, referrer, pending, { hasSignal: false }));
+    assert.strictEqual(legacy.action, 'legacy');
+    const scholarOnly = referrals.assessReferralPayout(payoutInput(
+        qualified(referred.uid, { points: 4200, scholarPoints: 4200 }),
+        referrer,
+        pending
+    ));
+    assert.strictEqual(scholarOnly.reason, 'below-maxi');
+    const activity = referrals.assessReferralPayout(payoutInput(
+        qualified(referred.uid, { points: 4240, scholarPoints: 2100 }),
+        referrer,
+        pending
+    ));
+    assert.strictEqual(activity.action, 'pay');
+    const young = referrals.assessReferralPayout(payoutInput(
+        qualified(referred.uid, { createdMs: NOW - 2 * 24 * 60 * 60 * 1000 }),
+        referrer,
+        pending
+    ));
+    assert.strictEqual(young.reason, 'too-new');
+    const inactive = referrals.assessReferralPayout(payoutInput(
+        qualified(referred.uid, { activeDayKeys: ['2026-10-01'] }),
+        referrer,
+        pending
+    ));
+    assert.strictEqual(inactive.reason, 'inactive');
+    const unverified = referrals.assessReferralPayout(payoutInput(
+        qualified(referred.uid, { emailVerified: false, providers: ['password'] }),
+        referrer,
+        pending
+    ));
+    assert.strictEqual(unverified.reason, 'email-unverified');
+    const phone = referrals.assessReferralPayout(payoutInput(
+        qualified(referred.uid, { emailVerified: false, providers: ['phone'] }),
+        referrer,
+        pending
+    ));
+    assert.strictEqual(phone.action, 'pay');
+    const recent = [];
+    for (let i = 0; i < 5; i++) recent.push(NOW - i * 1000);
+    const capped = referrals.assessReferralPayout(payoutInput(referred, referrer, pending, { recentPaidAt: recent }));
+    assert.strictEqual(capped.action, 'flag');
+    assert.strictEqual(capped.reason, 'referral-cap');
+    assert.strictEqual(referrals.emailOk({ emailVerified: false, providers: [] }), false);
+    const days = referrals.touchActiveDays(['2026-10-01', '2026-10-02'], Date.parse('2026-10-03T12:00:00Z'));
+    assert.ok(days.length >= 3);
+});
+
+test('referral IP HMAC fails closed without a long secret', () => {
+    assert.throws(function() { ipHmac.hmacIp('1.2.3.4', 'short'); });
+    const secret = '0123456789abcdef';
+    const a = ipHmac.hmacIp('1.2.3.4', secret);
+    assert.strictEqual(a, ipHmac.hmacIp('1.2.3.4', secret));
+    assert.notStrictEqual(a, ipHmac.hmacIp('5.6.7.8', secret));
+    assert.strictEqual(a.length, 64);
+    assert.strictEqual(ipHmac.hmacIp('', secret), '');
 });
 
 test('a referral is accepted only for a new account under the points cap', () => {
@@ -191,29 +250,47 @@ test('backfill lists the 7 referredBy-only records and does not pay them', () =>
     assert.ok(plan.counts.referralCodesToBackfill > 0);
 });
 
-test('backfill pays a referral doc that already exists and is at Maxi', () => {
-    const referred = user('plebpay1XXXX', { points: 2140, referredBy: 'refcode0' });
+test('backfill pays a signaled Maxi referral and never pays a legacy doc', () => {
+    const referred = qualified('plebpay1XXXX', { referredBy: 'refcode0' });
     const referrer = user('refcode0REFR', { referralCode: 'refcode0', points: 5000 });
+    const row = {
+        id: referred.uid,
+        referredUserUid: referred.uid,
+        referrerUid: referrer.uid,
+        referrerCode: 'refcode0',
+        status: 'pending',
+        ticketsAwarded: false,
+    };
+    const legacy = referrals.planBackfill({
+        users: [referred, referrer],
+        referrals: [row],
+        nowMs: NOW,
+    });
+    assert.strictEqual(legacy.counts.maxiPayouts, 0);
     const plan = referrals.planBackfill({
         users: [referred, referrer],
-        referrals: [{
-            id: referred.uid,
-            referredUserUid: referred.uid,
-            referrerUid: referrer.uid,
-            referrerCode: 'refcode0',
-            status: 'pending',
-            ticketsAwarded: false,
-        }],
+        referrals: [row],
+        signals: [referred.uid],
+        nowMs: NOW,
     });
     assert.strictEqual(plan.counts.referralRecordsToCreate, 0);
     assert.strictEqual(plan.counts.maxiPayouts, 1);
     assert.strictEqual(plan.counts.ticketGrants, 2);
+    const noClock = referrals.planBackfill({
+        users: [referred, referrer],
+        referrals: [row],
+        signals: [referred.uid],
+    });
+    assert.strictEqual(noClock.counts.maxiPayouts, 0);
     const onlyReferredBy = referrals.planBackfill({
         users: [referred, referrer],
         referrals: [],
+        signals: [referred.uid],
+        nowMs: NOW,
     });
     assert.strictEqual(onlyReferredBy.counts.maxiPayouts, 0);
     assert.strictEqual(onlyReferredBy.counts.referralRecordsToCreate, 1);
+    assert.strictEqual(onlyReferredBy.recordsToCreate[0].status, 'untrusted');
 });
 
 test('planning again after the writes is a no-op', () => {
@@ -264,6 +341,9 @@ test('backfill script defaults to dry-run and prints counts only', () => {
     assert.ok(src.indexOf("process.argv.indexOf('--approved')") !== -1);
     assert.ok(src.indexOf('dry-run only') !== -1);
     assert.ok(src.indexOf('untrusted') !== -1);
+    assert.ok(src.indexOf('legacy') !== -1);
+    assert.ok(src.indexOf('signals') !== -1);
+    assert.ok(src.indexOf('rejectionFlags') === -1);
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.ok(rules.indexOf("'referredBy'") !== -1);
     assert.ok(rules.indexOf("'doubleXpUntil'") !== -1);
@@ -315,20 +395,50 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(service.includes('registrationGate'));
     assert.ok(service.includes('assessFingerprint'));
     assert.ok(service.includes('faucet_ledger'));
-    assert.ok(service.indexOf('signupIp:') !== -1);
-    const payload = service.slice(service.indexOf('function referralPayload'), service.indexOf('async function registerReferral'));
+    assert.ok(service.indexOf('signupIpHmac:') !== -1);
+    assert.ok(service.indexOf('signupIp:') === -1);
+    assert.ok(service.indexOf('expireAt:') !== -1);
+    assert.ok(service.indexOf("status: 'legacy'") !== -1);
+    assert.ok(service.indexOf('referral_pay_limits') !== -1);
+    assert.ok(service.indexOf('deleteMyReferralSignal') !== -1);
+    const reg = service.slice(service.indexOf('async function registerReferral'), service.indexOf('async function payIfQualified'));
+    assert.ok(reg.indexOf("reason: 'exists'") !== -1);
+    assert.ok(reg.indexOf("reason: 'exists'") < reg.indexOf('linkedAccount'));
+    assert.ok(reg.indexOf('takeRegisterRate') < reg.indexOf('linkedAccount'));
+    const payload = service.slice(service.indexOf('function referralPayload'), service.indexOf('async function takeRegisterRate'));
     assert.ok(payload.indexOf('signupIp') === -1);
+    assert.ok(payload.indexOf('rejectionFlags') === -1);
+    const ranking = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
+    assert.ok(ranking.indexOf('deleteMyReferralSignal') !== -1);
+    const indexJs = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    const scholar = indexJs.slice(indexJs.indexOf('exports.gradeScholarExam'), indexJs.indexOf('exports.startQuest'));
+    assert.ok(scholar.indexOf('pointsAwarded = 2100') !== -1);
+    assert.ok(scholar.indexOf('scholarPoints') !== -1);
+    assert.ok(indexJs.indexOf('activeDayKeys') !== -1);
     assert.ok(rules.includes('resource.data.referrerUid == request.auth.uid'));
     assert.ok(rules.includes('resource.data.referredUserUid == request.auth.uid'));
     assert.ok(rules.includes('match /referral_signals/{signalId}'));
     assert.ok(rules.includes('match /referral_scan/{docId}'));
+    assert.ok(rules.includes('match /tip_hashes/{hashId}'));
+    assert.ok(rules.includes('match /referral_pay_limits/{uid}'));
+    assert.ok(rules.includes("'scholarPoints'"));
+    assert.ok(rules.includes("'activeDayKeys'"));
+    const refRules = rules.slice(rules.indexOf('match /referrals/'), rules.indexOf('match /referral_signals/'));
+    assert.ok(refRules.includes('allow create, update, delete: if false'));
+    assert.ok(refRules.indexOf('isAdmin()') === -1);
     const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
     assert.ok(privacy.includes('server-only'));
     assert.ok(privacy.includes('referral signup'));
+    assert.ok(privacy.includes('HMAC'));
+    assert.ok(privacy.includes('90-day'));
     assert.ok(service.indexOf("collection('notifications')") === -1);
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
     assert.ok(terms.includes('2,140 points'));
     assert.ok(terms.includes('50 Orange Tickets'));
+    assert.ok(terms.includes('72 hours'));
+    assert.ok(terms.includes('7 days'));
+    assert.ok(terms.includes('3 different days'));
+    assert.ok(terms.includes('5 referrals'));
     assert.ok(!terms.includes('2,100+ points'));
     assert.ok(!terms.includes('Double XP Charges'));
     const notes = fs.readFileSync(path.join(__dirname, '..', 'patch-notes.html'), 'utf8');

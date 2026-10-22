@@ -4,7 +4,9 @@
 // Dry-run is the default and prints counts only. --apply does nothing unless
 // the owner has reviewed those counts and also passes --approved.
 // Records that exist only because users.referredBy was set are created as
-// untrusted and are not paid. Only referral docs that already exist can be paid.
+// untrusted and are not paid. A referral doc is paid only when
+// referral_signals/{uid} exists and the anti-alt gates pass. Docs with no
+// signal are legacy and are never paid, including with --apply --approved.
 // Do not point this at production until the referral functions and rules
 // from this change are deployed.
 //
@@ -55,6 +57,8 @@ async function loadUsers(db, admin) {
                 known_ips: data.known_ips || [],
                 email: data.email || '',
                 lightningAddress: data.lightningAddress || data.lightning || '',
+                scholarPoints: data.scholarPoints || 0,
+                activeDayKeys: data.activeDayKeys || [],
             });
         });
         last = snap.docs[snap.docs.length - 1];
@@ -79,6 +83,58 @@ async function loadReferrals(db, admin) {
         if (snap.size < PAGE) break;
     }
     return referralsOut;
+}
+
+async function loadSignalIds(db, admin) {
+    const ids = [];
+    let last = null;
+    for (;;) {
+        let q = db.collection('referral_signals').orderBy(admin.firestore.FieldPath.documentId()).limit(PAGE);
+        if (last) q = q.startAfter(last);
+        const snap = await q.get();
+        if (snap.empty) break;
+        snap.docs.forEach(function(doc) { ids.push(doc.id); });
+        last = snap.docs[snap.docs.length - 1];
+        if (snap.size < PAGE) break;
+    }
+    return ids;
+}
+
+async function attachAuth(admin, users, signalSet) {
+    for (let i = 0; i < users.length; i++) {
+        const user = users[i];
+        if (!signalSet[user.uid]) continue;
+        try {
+            const record = await admin.auth().getUser(user.uid);
+            const ms = Date.parse(record && record.metadata && record.metadata.creationTime || '');
+            user.createdMs = isFinite(ms) ? ms : null;
+            user.emailVerified = !!(record && record.emailVerified);
+            user.providers = ((record && record.providerData) || []).map(function(row) {
+                return row && row.providerId ? String(row.providerId) : '';
+            }).filter(Boolean);
+        } catch (e) {
+            user.createdMs = null;
+            user.emailVerified = false;
+            user.providers = [];
+        }
+    }
+}
+
+async function attachPayLimits(db, admin, users) {
+    const limits = {};
+    let last = null;
+    for (;;) {
+        let q = db.collection('referral_pay_limits').orderBy(admin.firestore.FieldPath.documentId()).limit(PAGE);
+        if (last) q = q.startAfter(last);
+        const snap = await q.get();
+        if (snap.empty) break;
+        snap.docs.forEach(function(doc) { limits[doc.id] = (doc.data() || {}).paidAtMs || []; });
+        last = snap.docs[snap.docs.length - 1];
+        if (snap.size < PAGE) break;
+    }
+    users.forEach(function(user) {
+        if (limits[user.uid]) user.recentPaidAt = limits[user.uid];
+    });
 }
 
 async function attachLedgerBans(db, admin, users) {
@@ -115,8 +171,18 @@ async function main() {
     const db = admin.firestore();
     const users = await loadUsers(db, admin);
     await attachLedgerBans(db, admin, users);
+    const signalIds = await loadSignalIds(db, admin);
+    const signalSet = {};
+    signalIds.forEach(function(id) { signalSet[id] = true; });
+    await attachAuth(admin, users, signalSet);
+    await attachPayLimits(db, admin, users);
     const existing = await loadReferrals(db, admin);
-    const plan = referrals.planBackfill({ users: users, referrals: existing });
+    const plan = referrals.planBackfill({
+        users: users,
+        referrals: existing,
+        signals: signalIds,
+        nowMs: Date.now(),
+    });
     printCounts(plan.counts, apply && approved ? 'apply' : 'dry-run');
     if (!apply || !approved) {
         console.log('[referral-backfill] dry-run only. The owner reviews these counts, then re-runs with --apply --approved.');
@@ -142,7 +208,6 @@ async function main() {
             status: 'untrusted',
             verified: false,
             ticketsAwarded: false,
-            rejectionFlags: record.flags || [],
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             backfill: true,
         });

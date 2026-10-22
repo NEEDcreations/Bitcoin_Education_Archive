@@ -11,6 +11,7 @@ const fetch = require('node-fetch');
 const bolt11 = require('bolt11');
 const tipConfirm = require('./tipConfirm');
 const doubleXp = require('./doubleXp');
+const referrals = require('./referrals');
 const { assertPublicHost } = require('./publicHost');
 const { splitDailyXp } = require('./dailyXp');
 const { paymentHashFromDecoded } = require('./cipherClaim');
@@ -48,14 +49,15 @@ function hashFromInvoice(invoice) {
     }
 }
 
-async function tryLud21(verifyUrl) {
+async function tryLud21(verifyUrl, expectedHash) {
     const safe = String(verifyUrl || '');
     if (safe.indexOf('https://') !== 0) return { verified: false, reason: 'no-verify-url' };
     try {
         const res = await fetch(safe, { timeout: 4000, size: 65536, redirect: 'manual' });
         if (res.status !== 200) return { verified: false, reason: 'lud21-unverified' };
         const body = await res.json();
-        return tipConfirm.interpretLud21(200, body);
+        const prHash = hashFromInvoice(body && body.pr) || tipConfirm.normalizePaymentHash(body && (body.prHash || body.payment_hash || body.paymentHash || body.pr));
+        return tipConfirm.interpretLud21(200, Object.assign({}, body, { prHash: prHash }), expectedHash);
     } catch (e) {
         return { verified: false, reason: 'lud21-unverified' };
     }
@@ -74,37 +76,79 @@ async function tryNwc(paymentHash) {
                 setTimeout(function() { reject(new Error('nwc-timeout')); }, 4000);
             }),
         ]);
-        return tipConfirm.interpretNwcLookup(invoice);
+        return tipConfirm.interpretNwcLookup(invoice, hash);
     } catch (e) {
         return { verified: false, reason: 'nwc-not-found' };
     }
 }
 
-async function verifyPayment(data) {
+function domainOfAddress(address) {
+    const text = String(address || '').trim().toLowerCase();
+    const at = text.lastIndexOf('@');
+    if (at < 1 || at === text.length - 1) return '';
+    const host = text.slice(at + 1);
+    if (!/^[a-z0-9.-]+$/.test(host) || host.indexOf('..') !== -1) return '';
+    return host;
+}
+
+async function recipientLightning(recipientUid) {
+    const pub = await db().collection('public_profiles').doc(recipientUid).get();
+    if (!pub.exists) return '';
+    const data = pub.data() || {};
+    return String(data.lightningAddress || data.lightning || data.lnAddress || '').trim().toLowerCase();
+}
+
+async function linkedTip(callerUid, recipientUid) {
+    const [leftDoc, rightDoc] = await Promise.all([
+        db().collection('users').doc(callerUid).get(),
+        db().collection('users').doc(recipientUid).get(),
+    ]);
+    const left = Object.assign({ uid: callerUid }, leftDoc.exists ? leftDoc.data() : {});
+    const right = Object.assign({ uid: recipientUid }, rightDoc.exists ? rightDoc.data() : {});
+    const flags = referrals.fraudFlags(left, right, '');
+    return flags.some(function(flag) {
+        return flag === 'self' || flag === 'same-fingerprint' || flag === 'same-email' || flag === 'same-lightning';
+    });
+}
+
+async function verifyPayment(data, callerUid) {
     const decodedHash = hashFromInvoice(data && data.invoice);
     const clientHash = tipConfirm.normalizePaymentHash(data && data.paymentHash);
-    const paymentHash = decodedHash || clientHash;
-    const rawUrl = data && data.verifyUrl;
-    const supplied = String(rawUrl || '').trim();
-    let ludReason = 'no-verify-url';
-    if (supplied) {
-        const safe = tipConfirm.safeVerifyUrl(rawUrl);
-        if (!safe) return { verified: false, reason: 'bad-verify-url', paymentHash: paymentHash };
-        try {
-            await assertPublicHost(new URL(safe).hostname);
-        } catch (e) {
-            return { verified: false, reason: 'verify-host-blocked', paymentHash: paymentHash };
-        }
-        const lud = await tryLud21(safe);
-        if (lud.verified) return Object.assign({ paymentHash: paymentHash }, lud);
-        ludReason = lud.reason || 'lud21-unverified';
+    if (decodedHash && clientHash && decodedHash !== clientHash) {
+        return { verified: false, reason: 'hash-mismatch', paymentHash: '' };
     }
+    const paymentHash = decodedHash || clientHash;
+    const recipientUid = String((data && data.recipientUid) || '').trim();
+    if (!recipientUid || recipientUid === callerUid) {
+        return { verified: false, reason: recipientUid ? 'self-tip' : 'no-recipient', paymentHash: paymentHash };
+    }
+    const domain = domainOfAddress(await recipientLightning(recipientUid));
+    if (!domain) return { verified: false, reason: 'no-lightning-address', paymentHash: paymentHash };
+    if (await linkedTip(callerUid, recipientUid)) {
+        return { verified: false, reason: 'linked-account', paymentHash: paymentHash };
+    }
+    const supplied = String((data && data.verifyUrl) || '').trim();
+    if (!supplied) return { verified: false, reason: 'no-verify-url', paymentHash: paymentHash };
+    const safe = tipConfirm.safeVerifyUrl(data.verifyUrl);
+    if (!safe) return { verified: false, reason: 'bad-verify-url', paymentHash: paymentHash };
+    let host = '';
+    try { host = new URL(safe).hostname.toLowerCase(); } catch (e) {
+        return { verified: false, reason: 'bad-verify-url', paymentHash: paymentHash };
+    }
+    if (host !== domain) return { verified: false, reason: 'verify-host-mismatch', paymentHash: paymentHash };
+    try {
+        await assertPublicHost(host);
+    } catch (e) {
+        return { verified: false, reason: 'verify-host-blocked', paymentHash: paymentHash };
+    }
+    const lud = await tryLud21(safe, paymentHash);
+    if (lud.verified) return Object.assign({ paymentHash: paymentHash }, lud);
     if (paymentHash) {
         const nwc = await tryNwc(paymentHash);
         if (nwc.verified) return Object.assign({ paymentHash: paymentHash }, nwc);
-        return { verified: false, reason: ludReason === 'no-verify-url' ? nwc.reason : ludReason, paymentHash: paymentHash };
+        return { verified: false, reason: lud.reason || nwc.reason || 'lud21-unverified', paymentHash: paymentHash };
     }
-    return { verified: false, reason: ludReason, paymentHash: '' };
+    return { verified: false, reason: lud.reason || 'lud21-unverified', paymentHash: '' };
 }
 
 async function takeTipRate(uid, now) {
@@ -163,7 +207,21 @@ async function confirmTipSent(data, context) {
 
     let verification = { verified: false, reason: 'not-tip-day', paymentHash: '' };
     if (tipConfirm.isTippingChallenge(challengeId)) {
-        verification = await verifyPayment(data || {});
+        verification = await verifyPayment(data || {}, uid);
+    }
+    if (verification.verified && verification.paymentHash) {
+        const used = await db().collection('tip_hashes').doc(verification.paymentHash).get();
+        if (used.exists) {
+            return {
+                success: false,
+                already: false,
+                awarded: 0,
+                verified: false,
+                verifyReason: 'hash-used',
+                challengeCompleted: false,
+                challengeId: challengeId,
+            };
+        }
     }
     const call = tipConfirm.decideTipConfirm({
         today: today,
@@ -184,14 +242,31 @@ async function confirmTipSent(data, context) {
     }
 
     const dailyRef = userRef.collection('daily_points').doc(capDay);
+    const hashRef = (verification.verified && verification.paymentHash)
+        ? db().collection('tip_hashes').doc(verification.paymentHash)
+        : null;
     let result = null;
 
     await db().runTransaction(async function(t) {
-        const [userDoc, lockDoc, dailyDoc] = await Promise.all([
-            t.get(userRef),
-            t.get(lockRef),
-            t.get(dailyRef),
-        ]);
+        const reads = [t.get(userRef), t.get(lockRef), t.get(dailyRef)];
+        if (hashRef) reads.push(t.get(hashRef));
+        const docs = await Promise.all(reads);
+        const userDoc = docs[0];
+        const lockDoc = docs[1];
+        const dailyDoc = docs[2];
+        const hashDoc = hashRef ? docs[3] : null;
+        if (hashDoc && hashDoc.exists) {
+            result = {
+                success: false,
+                already: false,
+                awarded: 0,
+                verified: false,
+                verifyReason: 'hash-used',
+                challengeCompleted: false,
+                challengeId: challengeId,
+            };
+            return;
+        }
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
         const user = userDoc.data() || {};
         const confirmedDate = lockDoc.exists ? today : (user.tipConfirmedDate || '');
@@ -225,6 +300,13 @@ async function confirmTipSent(data, context) {
             userUpdate.lastOverflowDate = capDay;
         }
         t.update(userRef, userUpdate);
+        if (hashRef) {
+            t.set(hashRef, {
+                uid: uid,
+                recipientUid: String((data && data.recipientUid) || ''),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
         t.set(lockRef, {
             uid: uid,
             date: today,

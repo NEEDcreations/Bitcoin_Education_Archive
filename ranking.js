@@ -3612,6 +3612,7 @@ window.showDeleteAccountConfirm = function() {
                     '<div>❌ Nacho chat history</div>' +
                     '<div>❌ Leaderboard ranking</div>' +
                     '<div>❌ Orange Tickets and quest progress</div>' +
+                    '<div>❌ Referral signup record</div>' +
                 '</div>' +
             '</div>' +
             '<div style="color:#ef4444;font-weight:700;font-size:0.85rem;text-align:center;margin-bottom:16px;">⚠️ This action is IRREVERSIBLE. There is no undo.</div>' +
@@ -3694,7 +3695,8 @@ window.confirmDeleteAccount = async function() {
         // [AUDIT FIX M5] Clear SW caches on account deletion
         if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
-        // 8. Delete Firebase Auth account
+        // 8. Delete the server-only referral signup record, then the Auth account.
+        try { await firebase.functions().httpsCallable('deleteMyReferralSignal')({}); } catch (e) { console.warn('Referral signal delete failed:', e); }
         await user.delete();
 
         // 9. Close overlay and show confirmation

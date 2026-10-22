@@ -1,5 +1,5 @@
 // Cache-buster pin. This branch ships btc-archive-v2286.
-// global-chat.js stays on v2272. ranking.js stays on v2269.
+// global-chat.js stays on v2272. ranking.js is v2286.
 // bundle.min.js and features.registry.js are v2279. notifications.js stays on v2262.
 // index.html and 404.html must stay identical. The precache keeps the
 // classic Nacho deer and does not include nacho-fly.svg.
@@ -37,7 +37,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2266'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2265'));
     assert.ok(html.includes('notifications.js?v=20261022_v2262'));
-    assert.ok(html.includes('ranking.js?v=20261022_v2269'));
+    assert.ok(html.includes('ranking.js?v=20261022_v2286'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));

@@ -140,7 +140,7 @@ service cloud.firestore {
                         'keysSentDate', 'keysSentTo',
                         'marketListings', 'marketMessages',
                         'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited',
-                        'referredBy', 'referralVerified',
+                        'referredBy', 'referralVerified', 'scholarPoints', 'activeDayKeys',
                         'tipChallengeDate', 'tipConfirmedDate',
                         'pointsDonated', 'donationBadges',
                         // Anonymous badge merge (CF-only, one-time guard)
@@ -470,8 +470,7 @@ service cloud.firestore {
                       || resource.data.referredUserUid == request.auth.uid);
       // Created and paid only by Cloud Functions. Clients cannot write a
       // referral, verify it, or award tickets.
-      allow create: if false;
-      allow update: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     // Signup IP and other fraud signals. Admin SDK only.
@@ -491,6 +490,16 @@ service cloud.firestore {
     }
 
     match /tip_confirmations/{docId} {
+      allow read, write: if false;
+    }
+
+    // Payment hashes that already earned tip XP. Admin SDK only.
+    match /tip_hashes/{hashId} {
+      allow read, write: if false;
+    }
+
+    // Paid-referral timestamps used for the per-referrer cap. Admin SDK only.
+    match /referral_pay_limits/{uid} {
       allow read, write: if false;
     }
 

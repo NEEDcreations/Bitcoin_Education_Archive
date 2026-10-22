@@ -148,6 +148,7 @@ const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
 const doubleXp = require('./src/doubleXp');
 const referralService = require('./src/referralService');
+const referralDecisions = require('./src/referrals');
 const tipService = require('./src/tipService');
 // DNS check shared with confirmTipSent. String-only host checks are not enough.
 const { assertPublicHost } = require('./src/publicHost');
@@ -1426,6 +1427,10 @@ exports.verifyReferral = functionsV1.https.onCall(async (data, context) => {
 
 exports.registerReferral = functionsV1.https.onCall(async (data, context) => {
     return referralService.registerReferral(data, context);
+});
+
+exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) => {
+    return referralService.deleteMyReferralSignal(data, context);
 });
 
 exports.confirmTipSent = functionsV1.https.onCall(async (data, context) => {
@@ -3406,6 +3411,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 userUpdate.points = admin.firestore.FieldValue.increment(totalPointsOut);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(awarded);
                 userUpdate.monthlyXP = admin.firestore.FieldValue.increment(awarded);
+                userUpdate.activeDayKeys = referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now());
             }
 
             const rankPrevById = await rewardNotify.readRankPrev(t, db, uid, userData.points || 0, totalPointsOut);
@@ -4483,6 +4489,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             // but now limited to ONCE per cert type thanks to the alreadyPassed gate above.
             pointsAwarded = 2100;
             update.points = admin.firestore.FieldValue.increment(pointsAwarded);
+            update.scholarPoints = admin.firestore.FieldValue.increment(pointsAwarded);
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
@@ -4637,6 +4644,7 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
                 if (awarded > 0) {
                     tx.update(userRef, {
                         points: admin.firestore.FieldValue.increment(awarded),
+                        activeDayKeys: referralDecisions.touchActiveDays(userData.activeDayKeys, Date.now()),
                     });
                     tx.set(dailyPtsRef, {
                         total: dailyUsed + awarded,

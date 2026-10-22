@@ -71,7 +71,10 @@ test('a non-tip day is recorded with no XP', () => {
 });
 
 test('LUD-21 settled verifies, and private or http URLs are refused', () => {
-    assert.strictEqual(tip.interpretLud21(200, { settled: true }).verified, true);
+    const hash = 'ab'.repeat(32);
+    assert.strictEqual(tip.interpretLud21(200, { settled: true }).verified, false);
+    assert.strictEqual(tip.interpretLud21(200, { settled: true, pr: hash }, hash).verified, true);
+    assert.strictEqual(tip.interpretLud21(200, { settled: true, pr: 'cd'.repeat(32) }, hash).reason, 'lud21-hash-mismatch');
     assert.strictEqual(tip.interpretLud21(200, { settled: false }).reason, 'lud21-not-settled');
     assert.strictEqual(tip.safeVerifyUrl('http://example.com/verify'), '');
     assert.strictEqual(tip.safeVerifyUrl('https://127.0.0.1/verify'), '');
@@ -79,8 +82,10 @@ test('LUD-21 settled verifies, and private or http URLs are refused', () => {
     assert.ok(tip.safeVerifyUrl('https://example.com/lnurl/verify').indexOf('https://example.com/') === 0);
     assert.strictEqual(tip.normalizePaymentHash('AA'.repeat(32)).length, 64);
     assert.strictEqual(tip.normalizePaymentHash('not-a-hash'), '');
-    assert.strictEqual(tip.interpretNwcLookup({ state: 'settled' }).verified, true);
-    assert.strictEqual(tip.interpretNwcLookup({}).reason, 'nwc-not-settled');
+    assert.strictEqual(tip.interpretNwcLookup({ state: 'settled', type: 'outgoing', payment_hash: hash }, hash).reason, 'nwc-not-incoming');
+    assert.strictEqual(tip.interpretNwcLookup({ state: 'settled' }).verified, false);
+    assert.strictEqual(tip.interpretNwcLookup({ state: 'settled', type: 'incoming', payment_hash: hash }, hash).verified, true);
+    assert.strictEqual(tip.interpretNwcLookup({}).reason, 'nwc-not-incoming');
     const limited = tip.tipRateDecision({ lastMs: 1000, windowStart: 1000, count: 1 }, 1000 + tip.TIP_RATE_MS - 1);
     assert.strictEqual(limited.ok, false);
     const allowed = tip.tipRateDecision({ lastMs: 1000, windowStart: 1000, count: 1 }, 1000 + tip.TIP_RATE_MS);
@@ -91,8 +96,13 @@ test('LUD-21 settled verifies, and private or http URLs are refused', () => {
     const verify = service.slice(service.indexOf('async function verifyPayment'), service.indexOf('async function takeTipRate'));
     assert.ok(verify.indexOf('assertPublicHost') !== -1);
     assert.ok(verify.indexOf('assertPublicHost') < verify.indexOf('tryLud21'));
+    assert.ok(verify.indexOf('verify-host-mismatch') < verify.indexOf('tryNwc'));
     assert.ok(verify.indexOf('verify-host-blocked') < verify.indexOf('tryNwc'));
+    assert.ok(verify.indexOf("'self-tip'") < verify.indexOf('tryLud21'));
+    assert.ok(service.indexOf("collection('public_profiles')") !== -1);
+    assert.ok(service.indexOf("collection('tip_hashes')") !== -1);
     assert.ok(service.indexOf('lookupInvoice') !== -1);
+    assert.ok(service.indexOf('interpretNwcLookup(invoice, hash)') !== -1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
