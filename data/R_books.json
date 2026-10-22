@@ -4,8 +4,7 @@
   "desc": "The essential Bitcoin reading list: The Bitcoin Standard, 21 Lessons, Mastering Bitcoin, and more.",
   "msgs": [
     {
-      "text": "<b>\"The Bitcoin Standard\"</b> is a must read for all Bitcoiners. It goes through the history of money throughout mankind, the process of qualitative easing and debasement, and Bitcoin's solution to these problems. \nFree PDF: https://t.co/BEfe27oxor\nhttps://amzn.to/3mx4PCu",
-      "link": "https://t.co/BEfe27oxor",
+      "text": "<b>\"The Bitcoin Standard\"</b> is a must read for all Bitcoiners. It goes through the history of money throughout mankind, the process of qualitative easing and debasement, and Bitcoin's solution to these problems. \nFree PDF: \nhttps://amzn.to/3mx4PCu",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0268_books_41x6NvXWekS._SR600_2c315_PIWhiteStrip_2cBottomLeft_2c0_2c35_PIStarRatingFO.jpg"
       ]
@@ -85,8 +84,8 @@
       ]
     },
     {
-      "text": "Children's book (also good for skeptical adults):\nhttps://bitcoinforkiddos.com/",
-      "link": "https://bitcoinforkiddos.com/",
+      "text": "Children's book (also good for skeptical adults):\nhttps://web.archive.org/web/20220121075601/https://bitcoinforkiddos.com/",
+      "link": "https://web.archive.org/web/20220121075601/https://bitcoinforkiddos.com/",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0256_books_bitcoin_for_kiddos_image_web_e1392437-f17a-4110-beba-e56ebba2720f_1200x120.jpg"
       ]
@@ -216,10 +215,10 @@
       "link": "https://amzn.to/3Er7CVg"
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0240_20220419_091643.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "<b>\"The Bitcoin Dog: Following the Scent to the Bitcoin C++ Source Code\"</b>:\nhttps://amzn.to/39LE6xZ",
@@ -287,7 +286,7 @@
       "link": "https://twitter.com/saifedean/status/1541200940124049408?t=SnH8SVoqUu86Vk5U9G74sw&s=19"
     },
     {
-      "text": "Bitcoin is venice now free \nhttps://twitter.com/allenf32/status/1543159802163040260?t=MFOMS5dC6CU-BTVF8lVE4Q&s=19\n\nhttp://web.archive.org/web/20220818052825/https://www.uncerto.com/book-pdf",
+      "text": "Bitcoin is venice now free \nhttps://twitter.com/allenf32/status/1543159802163040260?t=MFOMS5dC6CU-BTVF8lVE4Q&s=19",
       "link": "https://twitter.com/allenf32/status/1543159802163040260?t=MFOMS5dC6CU-BTVF8lVE4Q&s=19"
     },
     {
@@ -313,7 +312,7 @@
       ]
     },
     {
-      "text": "Bitcoin is Venice free pdf\nhttps://www.uncerto.com/book-pdf",
+      "text": "Bitcoin is Venice free pdf\nhttps://web.archive.org/web/20220702091018/https://www.uncerto.com/book-pdf",
       "link": ""
     },
     {
@@ -329,8 +328,8 @@
       "text": "I also know the author pretty well from interacting with him a lot on twitter. I can connect you with him if you want,"
     },
     {
-      "text": "Inventing Bitcoin for free including audio option\nhttp://Swan.com/freebook",
-      "link": "http://Swan.com/freebook"
+      "text": "Inventing Bitcoin for free including audio option\nhttps://www.swanbitcoin.com/inventing-bitcoin/",
+      "link": "https://www.swanbitcoin.com/inventing-bitcoin/"
     },
     {
       "text": "https://twitter.com/jackleepv/status/1561279706342703106?t=Ngl7HQDybJ2Ku6rc9cKfFA&s=19",
@@ -389,8 +388,8 @@
       ]
     },
     {
-      "text": "You can now download a PDF of The Bitcoin Effect. Feel free to repurpose and share. #Bitcoin https://thebitcoineffect.com. This is what Bitcoin has mentally done for me.\nBy https://twitter.com/BitcoinPoems",
-      "link": "https://thebitcoineffect.com."
+      "text": "You can now download a PDF of The Bitcoin Effect. Feel free to repurpose and share. #Bitcoin . This is what Bitcoin has mentally done for me.\nBy https://twitter.com/BitcoinPoems",
+      "link": "."
     },
     {
       "text": "List of books\nhttps://twitter.com/gopal_bharvad/status/1659486337295056896?s=20",
@@ -507,8 +506,8 @@
       "link": "https://twitter.com/BitcoinMagEDU/status/1588189330023108610?t=ePWrH4bT6F7hMfuFJ0MVxQ&s=19"
     },
     {
-      "text": "You can now download a PDF of The Bitcoin Effect.  Feel free to repurpose and share.  #Bitcoin  https://thebitcoineffect.com.  This is what Bitcoin has mentally done for me.\nBy https://twitter.com/BitcoinPoems",
-      "link": "https://thebitcoineffect.com."
+      "text": "You can now download a PDF of The Bitcoin Effect.  Feel free to repurpose and share.  #Bitcoin  .  This is what Bitcoin has mentally done for me.\nBy https://twitter.com/BitcoinPoems",
+      "link": "."
     },
     {
       "text": "The Bitcoin Miners Almanac  https://store.bitcoinmagazine.com/collections/books/products/the-bitcoin-miners-almanac-pre-order\n\nwill buy this eventually",
@@ -525,7 +524,7 @@
     {
       "text": "Bitcoin books",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_032_0.png"
+        "images/discord-may2026/discord_032_0.jpg"
       ]
     }
   ]
