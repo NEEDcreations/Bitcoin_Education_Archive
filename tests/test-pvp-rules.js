@@ -1,19 +1,58 @@
 #!/usr/bin/env node
-// Firestore rules proof for the PvP review. Runs against the emulator.
+// Firestore rules proof for the PvP review.
+// Modules come from tests/rules (cd tests/rules && npm ci). Without that
+// install, or without the firebase CLI, this prints "skipped (no emulator)"
+// and exits 0 so a plain checkout can still run tests/run-all.js.
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
+const rulesDir = path.join(__dirname, 'rules');
+const rulesModules = path.join(rulesDir, 'node_modules');
+
+function skip() {
+    console.log('skipped (no emulator)');
+    process.exit(0);
+}
+
+function hasModule(name) {
+    try {
+        require.resolve(name, { paths: [rulesDir] });
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function firebaseCli() {
+    const candidates = [];
+    if (process.env.FIREBASE_BIN) candidates.push(process.env.FIREBASE_BIN);
+    candidates.push(path.join(rulesModules, '.bin', 'firebase'));
+    for (let i = 0; i < candidates.length; i++) {
+        if (candidates[i] && fs.existsSync(candidates[i])) return candidates[i];
+    }
+    const found = spawnSync('sh', ['-c', 'command -v firebase'], { encoding: 'utf8' });
+    const bin = (found.stdout || '').trim();
+    if (found.status === 0 && bin && fs.existsSync(bin)) return bin;
+    return '';
+}
+
+if (!hasModule('@firebase/rules-unit-testing') || !hasModule('firebase/firestore')) skip();
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
-    const firebase = process.env.FIREBASE_BIN || 'firebase';
+    const firebase = firebaseCli();
+    if (!firebase) skip();
+    const env = Object.assign({}, process.env);
+    env.NODE_PATH = env.NODE_PATH ? rulesModules + path.delimiter + env.NODE_PATH : rulesModules;
     const result = spawnSync(firebase, [
         'emulators:exec', '--only', 'firestore', '--project', 'demo-pvp-rules',
         'node tests/test-pvp-rules.js',
-    ], { cwd: root, stdio: 'inherit' });
+    ], { cwd: root, stdio: 'inherit', env: env });
     process.exit(result.status == null ? 1 : result.status);
 }
+
+module.paths.unshift(rulesModules);
 
 const {
     initializeTestEnvironment,

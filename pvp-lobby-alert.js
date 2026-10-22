@@ -160,6 +160,7 @@
             + '#pvpLobbyAlertMenu{margin-top:8px;}'
             + '#pvpLobbyAlertMute{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border,rgba(255,255,255,.14));'
             + 'background:var(--bg-side,transparent);color:var(--text,#fff);font-weight:700;}'
+            + '@media (max-width:899px){#pvpLobbyAlert{bottom:min(calc(env(safe-area-inset-bottom,0px) + 168px + 40vh), calc(100vh - 230px));}}'
             + '@media (min-width:900px){#pvpLobbyAlert{left:auto;right:24px;bottom:24px;width:380px;}}'
             + '[data-theme="light"] #pvpLobbyAlert{background:#ffffff;color:#0f172a;border-color:rgba(15,23,42,.12);}';
         document.head.appendChild(style);
