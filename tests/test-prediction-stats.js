@@ -44,21 +44,21 @@ test('month flips at 00:00 UTC on the 1st, not at 05:00', function() {
 
 test('a resolution in a new week or month resets that period only', function() {
     const t1 = new Date('2026-10-25T12:00:00.000Z').getTime();
-    let out = ps.applyResolution(null, { direction: 'up', price: 100, time: t1 - ps.WINDOW_MS }, 110, t1);
+    let out = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 100, time: t1 - ps.WINDOW_MS }, 110, t1);
     assert.strictEqual(out.correct, true);
     assert.strictEqual(out.stats.weekTotal, 1);
     assert.strictEqual(out.stats.weekCorrect, 1);
     assert.strictEqual(out.stats.predTotal, 1);
     assert.strictEqual(out.stats.monthKey, '2026-M10');
     const sameWeek = new Date('2026-10-26T04:00:00.000Z').getTime();
-    out = ps.applyResolution(out.stats, { direction: 'down', price: 110, time: sameWeek - ps.WINDOW_MS }, 120, sameWeek);
+    out = ps.applyResolution(out.stats, { direction: 'down', price: 1, serverStartPrice: 110, time: sameWeek - ps.WINDOW_MS }, 120, sameWeek);
     assert.strictEqual(out.correct, false);
     assert.strictEqual(out.stats.weekTotal, 2);
     assert.strictEqual(out.stats.weekCorrect, 1);
     assert.strictEqual(out.stats.predTotal, 2);
     assert.strictEqual(out.stats.predStreak, 0);
     const newWeek = new Date('2026-10-26T05:30:00.000Z').getTime();
-    out = ps.applyResolution(out.stats, { direction: 'up', price: 120, time: newWeek - ps.WINDOW_MS }, 130, newWeek);
+    out = ps.applyResolution(out.stats, { direction: 'up', price: 1, serverStartPrice: 120, time: newWeek - ps.WINDOW_MS }, 130, newWeek);
     assert.strictEqual(out.stats.weekKey, ps.weekKey(newWeek));
     assert.notStrictEqual(out.stats.weekKey, ps.weekKey(t1));
     assert.strictEqual(out.stats.weekTotal, 1);
@@ -66,7 +66,7 @@ test('a resolution in a new week or month resets that period only', function() {
     assert.strictEqual(out.stats.predTotal, 3);
     assert.strictEqual(out.stats.monthTotal, 3);
     const newMonth = new Date('2026-11-01T00:05:00.000Z').getTime();
-    out = ps.applyResolution(out.stats, { direction: 'down', price: 130, time: newMonth - ps.WINDOW_MS }, 120, newMonth);
+    out = ps.applyResolution(out.stats, { direction: 'down', price: 1, serverStartPrice: 130, time: newMonth - ps.WINDOW_MS }, 120, newMonth);
     assert.strictEqual(out.stats.monthKey, '2026-M11');
     assert.strictEqual(out.stats.monthTotal, 1);
     assert.strictEqual(out.stats.monthCorrect, 1);
@@ -82,10 +82,47 @@ test('a resolution in a new week or month resets that period only', function() {
 
 test('flat price is wrong and a bad direction does not score correct', function() {
     const now = new Date('2026-10-20T12:00:00.000Z').getTime();
-    const flat = ps.applyResolution(null, { direction: 'up', price: 50, time: now - ps.WINDOW_MS }, 50, now);
+    const flat = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 50, time: now - ps.WINDOW_MS }, 50, now);
     assert.strictEqual(flat.correct, false);
-    const bad = ps.applyResolution(null, { direction: 'sideways', price: 50, time: now - ps.WINDOW_MS }, 80, now);
+    assert.strictEqual(flat.void, undefined);
+    const bad = ps.applyResolution(null, { direction: 'sideways', price: 1, serverStartPrice: 50, time: now - ps.WINDOW_MS }, 80, now);
     assert.strictEqual(bad.correct, false);
+});
+
+test('scoring uses only the server start price and voids the rest', function() {
+    const now = new Date('2026-10-20T12:00:00.000Z').getTime();
+    const when = now - ps.WINDOW_MS;
+    const farm = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 100, time: when }, 90, now);
+    assert.strictEqual(farm.void, undefined);
+    assert.strictEqual(farm.correct, false);
+    assert.strictEqual(farm.stats.predTotal, 1);
+    assert.strictEqual(farm.stats.predCorrect, 0);
+    assert.strictEqual(farm.stats.predLastResult.startPrice, 100);
+    assert.strictEqual(farm.stats.predLastResult.outcome, 'wrong');
+    const honest = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 100, time: when }, 110, now);
+    assert.strictEqual(honest.correct, true);
+    assert.strictEqual(honest.stats.predLastResult.startPrice, 100);
+
+    const prior = ps.applyResolution(null, { direction: 'up', serverStartPrice: 100, time: when - ps.WINDOW_MS }, 110, when).stats;
+    assert.strictEqual(prior.predTotal, 1);
+    const missing = ps.applyResolution(prior, { direction: 'up', price: 1, time: when }, 2, now);
+    assert.strictEqual(missing.void, true);
+    assert.strictEqual(missing.reason, 'missing_server_start_price');
+    assert.strictEqual(missing.stats.predTotal, 1);
+    assert.strictEqual(missing.stats.predCorrect, 1);
+    assert.strictEqual(missing.stats.weekTotal, prior.weekTotal);
+    assert.strictEqual(missing.stats.predLastResult.outcome, 'void');
+    const flagged = ps.applyResolution(prior, { direction: 'up', price: 1, serverStartPrice: 100, void: true, voidReason: 'no_server_price', time: when }, 200, now);
+    assert.strictEqual(flagged.void, true);
+    assert.strictEqual(flagged.stats.predTotal, 1);
+    assert.strictEqual(flagged.stats.predCorrect, 1);
+
+    const pending = ps.setPending(null, { direction: 'up', price: 1, serverStartPrice: 42000, time: now });
+    assert.strictEqual(pending.predPending.startPrice, 42000);
+    const ignored = ps.setPending(null, { direction: 'up', price: 1, time: now });
+    assert.strictEqual(ignored.predPending, null);
+    assert.strictEqual(ps.resolutionDecision({ price: 1, direction: 'up' }).action, 'void');
+    assert.strictEqual(ps.resolutionDecision({ price: 1, serverStartPrice: 100 }).action, 'score');
 });
 
 test('minimums are weekly 5, monthly 15, all-time 10', function() {
@@ -103,6 +140,39 @@ test('minimums are weekly 5, monthly 15, all-time 10', function() {
     assert.strictEqual(ps.selectBoard([row(14, 14), row(15, 8)], 'monthly').length, 1);
     assert.strictEqual(ps.selectBoard([row(9, 9), row(10, 6)], 'alltime').length, 1);
     assert.strictEqual(ps.selectBoard([row(10, 6)], 'alltime')[0].uid, 'u10x6');
+});
+
+test('banned users are dropped from the board and the next user moves up', function() {
+    function row(uid, correct, extra) {
+        return Object.assign({
+            uid: uid,
+            username: uid,
+            correct: correct,
+            total: 20,
+            accuracy: ps.accuracyOf(correct, 20),
+            reachedAt: 1000,
+            satsDisabled: false,
+            ledgerBanned: false
+        }, extra || {});
+    }
+    const rows = [
+        row('sats', 20, { satsDisabled: true }),
+        row('ledger', 19, { ledgerBanned: true }),
+        row('next', 18),
+        row('after', 10)
+    ];
+    const board = ps.selectBoard(rows, 'alltime');
+    assert.deepStrictEqual(board.map(function(r) { return r.uid; }), ['next', 'after']);
+    assert.strictEqual(board[0].rank, 1);
+    assert.strictEqual(board[1].rank, 2);
+    const paid = ps.payoutPlan(null, rows, 'weekly');
+    assert.deepStrictEqual(paid.due.map(function(d) { return d.uid; }), ['next', 'after']);
+    assert.strictEqual(ps.winnerSkipReason(false, null, null), 'missing_user');
+    assert.strictEqual(ps.winnerSkipReason(true, { satsDisabled: true }, { banned: false }), 'sats_banned');
+    assert.strictEqual(ps.winnerSkipReason(true, { satsDisabled: false }, { banned: true }), 'sats_banned');
+    assert.strictEqual(ps.winnerSkipReason(true, { satsDisabled: false }, null), '');
+    assert.strictEqual(ps.isSatsBanned({ satsDisabled: true }, null), true);
+    assert.strictEqual(ps.isSatsBanned(null, { banned: true }), true);
 });
 
 test('tie-break is more correct, then more total, then earliest reached', function() {
@@ -144,12 +214,14 @@ test('payout is idempotent per period and skips users already paid', function() 
     }
     const winners = [1, 2, 3, 4, 5, 6].map(winner);
     winners.push({ uid: 'banned', username: 'B', correct: 20, total: 20, accuracy: 10000, reachedAt: 1, satsDisabled: true });
+    winners.push({ uid: 'ledger', username: 'L', correct: 20, total: 20, accuracy: 10000, reachedAt: 1, ledgerBanned: true, satsDisabled: false });
     const first = ps.payoutPlan(null, winners, 'weekly');
     assert.strictEqual(first.action, 'pay');
     assert.strictEqual(first.needsReset, true);
     assert.strictEqual(first.due.length, 5);
     first.due.forEach(function(d) { assert.strictEqual(d.tickets, 25); });
-    assert.ok(first.due.every(function(d) { return d.uid !== 'banned' && d.uid !== 'w6'; }));
+    assert.ok(first.due.every(function(d) { return d.uid !== 'banned' && d.uid !== 'ledger' && d.uid !== 'w6'; }));
+    assert.deepStrictEqual(first.due.map(function(d) { return d.uid; }), ['w1', 'w2', 'w3', 'w4', 'w5']);
     assert.deepStrictEqual(first.due.map(function(d) { return d.rank; }), [1, 2, 3, 4, 5]);
 
     const partial = ps.payoutPlan({ status: 'pending', awardedUids: ['w1', 'w2'], resetDone: false }, winners, 'monthly');
@@ -172,7 +244,7 @@ test('payout is idempotent per period and skips users already paid', function() 
 
 test('period reset zeroes the closed period and qualification follows', function() {
     const now = new Date('2026-10-26T06:00:00.000Z').getTime();
-    let stats = ps.applyResolution(null, { direction: 'up', price: 1, time: now - ps.WINDOW_MS }, 2, now).stats;
+    let stats = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 1, time: now - ps.WINDOW_MS }, 2, now).stats;
     assert.strictEqual(stats.weekTotal, 1);
     assert.strictEqual(stats.qualifiesWeek, false);
     const ended = stats.weekKey;
@@ -303,6 +375,18 @@ test('client copy, aria hook, and server-only scoring are wired', function() {
     assert.ok(script.indexOf('recomputeUser') !== -1);
     assert.ok(script.indexOf('refreshLeaderboard') !== -1);
     assert.ok(script.indexOf('dry-run') !== -1);
+    const jobs = fs.readFileSync(path.join(root, 'functions/src/predictionJobs.js'), 'utf8');
+    const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+    assert.ok(jobs.indexOf('serverStartPrice') !== -1);
+    assert.ok(jobs.indexOf('faucet_ledger') !== -1);
+    assert.ok(jobs.indexOf('winnerSkipReason') !== -1);
+    assert.ok(jobs.indexOf('price: live.price') === -1);
+    assert.ok(jobs.indexOf('startPrice: Number(live.price)') === -1);
+    assert.ok(index.indexOf('syncPending(uid, after.data() || {}, _btcUsd)') !== -1);
+    assert.ok(index.indexOf("actionKey === 'prediction_correct'") !== -1);
+    assert.ok(index.indexOf("'prediction_correct': 25") === -1);
+    assert.ok(index.indexOf("'prediction_correct': ['prediction_correct', 'correct prediction']") === -1);
+    assert.ok(index.indexOf("'prediction': 5") !== -1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

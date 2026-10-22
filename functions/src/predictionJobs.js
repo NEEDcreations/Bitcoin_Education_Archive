@@ -34,18 +34,27 @@ function createPredictionJobs(db, admin) {
     async function loadRows(period, key) {
         const snap = await statsQuery(period, key).get();
         if (snap.empty) return [];
-        const refs = snap.docs.map(function(d) { return db.collection('users').doc(d.id); });
-        const users = [];
-        for (let i = 0; i < refs.length; i += 10) {
-            const part = refs.slice(i, i + 10);
-            const rows = await db.getAll.apply(db, part);
-            rows.forEach(function(row) { users.push(row); });
+        const userRefs = snap.docs.map(function(d) { return db.collection('users').doc(d.id); });
+        const ledgerRefs = snap.docs.map(function(d) { return db.collection('faucet_ledger').doc(d.id); });
+        async function readChunked(refs) {
+            const out = [];
+            for (let i = 0; i < refs.length; i += 10) {
+                const part = refs.slice(i, i + 10);
+                const rows = await db.getAll.apply(db, part);
+                rows.forEach(function(row) { out.push(row); });
+            }
+            return out;
         }
+        const users = await readChunked(userRefs);
+        const ledgers = await readChunked(ledgerRefs);
         const byId = {};
+        const ledgerById = {};
         users.forEach(function(u) { byId[u.id] = u.exists ? (u.data() || {}) : {}; });
+        ledgers.forEach(function(u) { ledgerById[u.id] = u.exists ? (u.data() || {}) : {}; });
         return snap.docs.map(function(d) {
             const view = ps.viewOf(d.data(), period);
             const user = byId[d.id] || {};
+            const ledger = ledgerById[d.id] || {};
             let pic = typeof user.profilePic === 'string' ? user.profilePic : '';
             if (pic.length > 8000) pic = '';
             return {
@@ -56,7 +65,8 @@ function createPredictionJobs(db, admin) {
                 total: view.total,
                 accuracy: view.accuracy,
                 reachedAt: view.reachedAt,
-                satsDisabled: user.satsDisabled === true
+                satsDisabled: user.satsDisabled === true,
+                ledgerBanned: ledger.banned === true
             };
         });
     }
@@ -125,16 +135,26 @@ function createPredictionJobs(db, admin) {
                 tx.delete(activeRef);
                 return { duplicate: true };
             }
+            const decision = ps.resolutionDecision(live);
+            if (decision.action === 'void') {
+                const applied = ps.applyResolution(statsSnap.exists ? statsSnap.data() : null, live, 0, now);
+                tx.set(statsRef, {
+                    predLastResult: applied.stats.predLastResult,
+                    predPending: applied.stats.predPending
+                }, { merge: true });
+                tx.delete(activeRef);
+                return { void: true, reason: decision.reason };
+            }
             const applied = ps.applyResolution(statsSnap.exists ? statsSnap.data() : null, {
                 direction: live.direction,
-                price: live.price,
+                serverStartPrice: decision.startPrice,
                 time: liveTime
             }, price, now);
             tx.set(statsRef, applied.stats);
             tx.set(recordRef, {
                 uid: uid,
                 direction: live.direction === 'down' ? 'down' : 'up',
-                startPrice: Number(live.price),
+                startPrice: decision.startPrice,
                 resolvedPrice: Number(price),
                 correct: applied.correct === true,
                 outcome: applied.correct ? 'correct' : 'wrong',
@@ -169,29 +189,57 @@ function createPredictionJobs(db, admin) {
             }
             return { resolved: 0 };
         }
-        const price = await getPrice();
-        if (!(Number(price) > 0)) return { resolved: 0, error: 'no_price' };
+        let price = 0;
+        try { price = Number(await getPrice()); } catch (e) { price = 0; }
+        const voids = [];
+        const scoreable = [];
+        due.forEach(function(doc) {
+            const decision = ps.resolutionDecision(doc.data() || {});
+            if (decision.action === 'void') voids.push(doc);
+            else scoreable.push(doc);
+        });
+        let voided = 0;
         let correct = 0;
         let total = 0;
-        let cursor = 0;
-        async function worker() {
-            while (cursor < due.length) {
-                const doc = due[cursor++];
-                try {
-                    const result = await resolveOne(doc, price, now);
-                    if (result && !result.duplicate) {
-                        total++;
-                        if (result.correct) correct++;
-                    }
-                } catch (e) {
-                    console.error('[resolvePredictions]', doc.id, e.message);
+        async function runPool(list, worker) {
+            let cursor = 0;
+            async function loop() {
+                while (cursor < list.length) {
+                    const doc = list[cursor++];
+                    await worker(doc);
                 }
             }
+            const pool = Math.min(8, list.length);
+            const runners = [];
+            for (let i = 0; i < pool; i++) runners.push(loop());
+            await Promise.all(runners);
         }
-        const pool = Math.min(8, due.length);
-        const runners = [];
-        for (let i = 0; i < pool; i++) runners.push(worker());
-        await Promise.all(runners);
+        await runPool(voids, async function(doc) {
+            try {
+                const result = await resolveOne(doc, 0, now);
+                if (result && result.void) voided++;
+            } catch (e) {
+                console.error('[resolvePredictions] void', doc.id, e.message);
+            }
+        });
+        if (!(price > 0)) {
+            try { await refreshLeaderboard(new Date(now)); } catch (e) {
+                console.error('[predict] leaderboard refresh failed:', e.message);
+            }
+            return { resolved: 0, voided: voided, error: scoreable.length ? 'no_price' : undefined };
+        }
+        await runPool(scoreable, async function(doc) {
+            try {
+                const result = await resolveOne(doc, price, now);
+                if (result && result.void) voided++;
+                else if (result && !result.duplicate) {
+                    total++;
+                    if (result.correct) correct++;
+                }
+            } catch (e) {
+                console.error('[resolvePredictions]', doc.id, e.message);
+            }
+        });
         if (total > 0) {
             const inc = admin.firestore.FieldValue.increment;
             const globalUpdate = { total: inc(total) };
@@ -201,21 +249,28 @@ function createPredictionJobs(db, admin) {
         try { await refreshLeaderboard(new Date(now)); } catch (e) {
             console.error('[predict] leaderboard refresh failed:', e.message);
         }
-        return { resolved: total, correct: correct, price: price };
+        return { resolved: total, correct: correct, voided: voided, price: price };
     }
 
     async function awardWinner(periodId, period, winner) {
         const winnerRef = db.collection('prediction_payouts').doc(periodId).collection('winners').doc(winner.uid);
         const notifRef = db.collection('notifications').doc('pred_' + periodId + '_' + winner.uid);
         const userRef = db.collection('users').doc(winner.uid);
+        const ledgerRef = db.collection('faucet_ledger').doc(winner.uid);
         const label = (period === 'weekly' ? 'This Week' : 'This Month') + ' Top Predictors #' + winner.rank;
         await db.runTransaction(async function(tx) {
             const existing = await tx.get(winnerRef);
-            if (existing.exists) return;
             const userSnap = await tx.get(userRef);
-            if (!userSnap.exists || userSnap.data().satsDisabled === true) {
+            const ledgerSnap = await tx.get(ledgerRef);
+            if (existing.exists) return;
+            const skip = ps.winnerSkipReason(
+                userSnap.exists,
+                userSnap.exists ? userSnap.data() : null,
+                ledgerSnap.exists ? ledgerSnap.data() : null
+            );
+            if (skip) {
                 tx.set(winnerRef, {
-                    skipped: !userSnap.exists ? 'missing_user' : 'satsDisabled',
+                    skipped: skip,
                     rank: winner.rank,
                     tickets: 0,
                     awardedAt: Date.now()
@@ -322,17 +377,60 @@ function createPredictionJobs(db, admin) {
         return Object.assign({ periodId: endedKey, reset: reset }, plan);
     }
 
-    async function syncPending(uid, data) {
-        if (!uid || !data) return;
+    async function writeVoidStats(uid, data, reason) {
+        const statsRef = db.collection('prediction_stats').doc(uid);
+        const snap = await statsRef.get();
+        const next = ps.applyResolution(snap.exists ? snap.data() : null, {
+            direction: data.direction,
+            time: ps.timeMs(data.time),
+            void: true,
+            voidReason: reason || 'no_server_price'
+        }, 0, Date.now());
+        await statsRef.set({
+            predLastResult: next.stats.predLastResult,
+            predPending: next.stats.predPending
+        }, { merge: true });
+    }
+
+    async function syncPending(uid, data, getPrice) {
+        if (!uid || !data) return { skipped: true };
+        const activeRef = db.collection('active_predictions').doc(uid);
+        if (data.void === true) {
+            await writeVoidStats(uid, data, data.voidReason || 'void');
+            return { void: true, reason: data.voidReason || 'void' };
+        }
+        let serverPrice = ps.serverStartPriceOf(data);
+        if (serverPrice == null) {
+            let fetched = 0;
+            try {
+                if (typeof getPrice === 'function') fetched = Number(await getPrice());
+            } catch (e) {
+                fetched = 0;
+            }
+            if (!(fetched > 0)) {
+                await writeVoidStats(uid, data, 'no_server_price');
+                try { await activeRef.delete(); } catch (e) { /* resolve will void it again */ }
+                return { void: true, reason: 'no_server_price' };
+            }
+            await db.runTransaction(async function(tx) {
+                const snap = await tx.get(activeRef);
+                if (!snap.exists) return;
+                const live = snap.data() || {};
+                if (live.void === true || ps.serverStartPriceOf(live)) return;
+                tx.set(activeRef, { serverStartPrice: fetched }, { merge: true });
+            });
+            return { priced: true, serverStartPrice: fetched };
+        }
         const statsRef = db.collection('prediction_stats').doc(uid);
         const snap = await statsRef.get();
         const next = ps.setPending(snap.exists ? snap.data() : null, {
             direction: data.direction,
-            price: data.price,
+            serverStartPrice: serverPrice,
             time: ps.timeMs(data.time)
         });
-        if (!next.predPending) return;
+        if (!next.predPending) return { pending: false };
         await statsRef.set({ predPending: next.predPending }, { merge: true });
+        return { pending: true, serverStartPrice: serverPrice };
     }
 
     return {

@@ -3885,7 +3885,7 @@ exports.syncPredictionPending = onDocumentWritten('active_predictions/{uid}', as
     const after = event.data.after;
     if (!after.exists) return null;
     try {
-        await predictionJobs.syncPending(uid, after.data() || {});
+        await predictionJobs.syncPending(uid, after.data() || {}, _btcUsd);
     } catch (e) {
         console.error('[syncPredictionPending]', uid, e.message);
     }
@@ -3893,7 +3893,7 @@ exports.syncPredictionPending = onDocumentWritten('active_predictions/{uid}', as
 });
 
 // Monday 05:00 UTC — same boundary as resetWeeklyXP.
-// Each of the top 5 (min 5 resolved, not satsDisabled) gets 25 orange tickets.
+// Each of the top 5 (min 5 resolved, not isSatsBanned) gets 25 orange tickets.
 exports.payWeeklyPredictors = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     try {
         const result = await predictionJobs.payout('weekly', new Date());
@@ -3905,7 +3905,7 @@ exports.payWeeklyPredictors = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC
 });
 
 // 1st of the month 00:00 UTC — same boundary as resetMonthlyXP.
-// Each of the top 5 (min 15 resolved, not satsDisabled) gets 50 orange tickets.
+// Each of the top 5 (min 15 resolved, not isSatsBanned) gets 50 orange tickets.
 exports.payMonthlyPredictors = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     try {
         const result = await predictionJobs.payout('monthly', new Date());

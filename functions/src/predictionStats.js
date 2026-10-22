@@ -7,6 +7,8 @@
  *   month — 1st 00:00 UTC   (resetMonthlyXP: "0 0 1 * *")
  */
 
+const { isSatsBanned } = require('./cipherClaim');
+
 const WEEK_RESET_HOUR_UTC = 5;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const CORRECT_XP = 25;
@@ -204,11 +206,43 @@ function refreshFlags(stats) {
     return stats;
 }
 
+function serverStartPriceOf(prediction) {
+    const n = Number(prediction && prediction.serverStartPrice);
+    return n > 0 ? n : null;
+}
+
+// Scoring never reads the client-supplied price. A missing server price, or an
+// explicit void, is not a result: totals stay unchanged.
+function resolutionDecision(prediction) {
+    if (!prediction || prediction.void === true) {
+        return { action: 'void', reason: (prediction && prediction.voidReason) || 'void' };
+    }
+    const startPrice = serverStartPriceOf(prediction);
+    if (startPrice == null) return { action: 'void', reason: 'missing_server_start_price' };
+    return { action: 'score', startPrice: startPrice };
+}
+
 function applyResolution(prev, prediction, resolvedPrice, nowMs) {
-    const stats = cloneStats(prev);
+    const decision = resolutionDecision(prediction);
     const predTime = timeMs(prediction && prediction.time);
+    if (decision.action === 'void') {
+        const stats = cloneStats(prev);
+        stats.predLastResult = {
+            direction: prediction && prediction.direction === 'down' ? 'down' : 'up',
+            startPrice: null,
+            resolvedPrice: null,
+            outcome: 'void',
+            reason: decision.reason,
+            resolvedAt: nowMs,
+            time: predTime
+        };
+        const pendingTime = stats.predPending ? timeMs(stats.predPending.time) : 0;
+        if (!stats.predPending || !pendingTime || !predTime || pendingTime === predTime) stats.predPending = null;
+        return { stats: stats, correct: false, void: true, reason: decision.reason };
+    }
+    const stats = cloneStats(prev);
     const direction = prediction && prediction.direction;
-    const startPrice = prediction && (prediction.price != null ? prediction.price : prediction.startPrice);
+    const startPrice = decision.startPrice;
     rollPeriods(stats, nowMs);
     const correct = isCorrect(direction, startPrice, resolvedPrice);
     stats.predTotal += 1;
@@ -244,10 +278,24 @@ function setPending(prev, prediction) {
     const stats = cloneStats(prev);
     const time = timeMs(prediction && prediction.time);
     const direction = prediction && prediction.direction;
-    const price = Number(prediction && (prediction.price != null ? prediction.price : prediction.startPrice));
-    if (!time || (direction !== 'up' && direction !== 'down') || !(price > 0)) return stats;
+    const price = serverStartPriceOf(prediction);
+    if (!time || (direction !== 'up' && direction !== 'down') || price == null) return stats;
     stats.predPending = { direction: direction, startPrice: price, time: time };
     return stats;
+}
+
+function winnerSkipReason(userExists, user, ledger) {
+    if (!userExists) return 'missing_user';
+    if (isSatsBanned(user, ledger)) return 'sats_banned';
+    return '';
+}
+
+function rowIsBanned(row) {
+    if (!row) return false;
+    return isSatsBanned(
+        { satsDisabled: row.satsDisabled === true },
+        { banned: row.ledgerBanned === true }
+    );
 }
 
 function minimumFor(period) {
@@ -339,7 +387,7 @@ function comparePredictors(a, b) {
 function selectBoard(rows, period) {
     const min = minimumFor(period);
     const qualified = (rows || []).filter(function(r) {
-        return r && r.satsDisabled !== true && (Number(r.total) || 0) >= min;
+        return r && !rowIsBanned(r) && (Number(r.total) || 0) >= min;
     });
     qualified.sort(comparePredictors);
     return qualified.slice(0, BOARD_SIZE).map(function(r, i) {
@@ -541,6 +589,10 @@ module.exports = {
     accuracyOf: accuracyOf,
     displayPct: displayPct,
     isCorrect: isCorrect,
+    isSatsBanned: isSatsBanned,
+    serverStartPriceOf: serverStartPriceOf,
+    resolutionDecision: resolutionDecision,
+    winnerSkipReason: winnerSkipReason,
     emptyStats: emptyStats,
     applyResolution: applyResolution,
     setPending: setPending,

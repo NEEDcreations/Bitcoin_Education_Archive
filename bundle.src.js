@@ -12139,7 +12139,8 @@ function _localPredModel(saved, currentPrice) {
 
 function _mergePredModel(saved, currentPrice, stats) {
     var model = _localPredModel(saved, currentPrice);
-    var last = stats && stats.predLastResult && stats.predLastResult.resolvedPrice != null ? stats.predLastResult : null;
+    var lastRaw = stats && stats.predLastResult;
+    var last = lastRaw && (lastRaw.outcome === 'void' || lastRaw.resolvedPrice != null) ? lastRaw : null;
     var serverPending = stats && stats.predPending && stats.predPending.time ? stats.predPending : null;
     if (serverPending && !model.pending) {
         var elapsed = Date.now() - serverPending.time;
@@ -12152,6 +12153,9 @@ function _mergePredModel(saved, currentPrice, stats) {
             awaiting: awaiting
         };
         model.mode = awaiting ? 'awaiting' : 'pending';
+    }
+    if (serverPending && serverPending.startPrice > 0 && model.pending && model.pending.direction === serverPending.direction) {
+        model.pending.startPrice = serverPending.startPrice;
     }
     if (last && model.pending && Number(last.time) && Number(last.time) === Number(model.pending.time)) {
         model.pending = null;
@@ -12168,6 +12172,11 @@ function _mergePredModel(saved, currentPrice, stats) {
 
 function _lastResultHtml(last) {
     if (!last) return '';
+    if (last.outcome === 'void') {
+        return '<div style="margin-top:14px;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.25);border-radius:10px;text-align:left;">' +
+            '<div style="font-size:0.72rem;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-muted,#94a3b8);margin-bottom:6px;">Last result</div>' +
+            '<div style="font-size:0.95rem;">Void — the server could not record a start price, so this one was not scored.</div></div>';
+    }
     var ok = last.outcome === 'correct';
     return '<div style="margin-top:14px;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(247,147,26,0.2);border-radius:10px;text-align:left;">' +
         '<div style="font-size:0.72rem;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-muted,#94a3b8);margin-bottom:6px;">Last result</div>' +
