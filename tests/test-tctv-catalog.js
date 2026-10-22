@@ -48,6 +48,26 @@ test('station shells match the allow-list and the video files', () => {
     assert.strictEqual(shorts, 695);
     assert.ok(src.includes('function tctvFitShort'));
     assert.ok(src.includes('data/tctv/'));
+    assert.ok(src.includes('function tctvRouteOk'));
+    assert.ok(src.includes('if(!tctvRouteOk())return'));
+    assert.ok(src.includes('function tctvEsc'));
+    assert.ok(src.includes('tctvEsc(l.title)'));
+    assert.ok(src.includes('function tctvIdOk'));
+    assert.ok(src.includes('tctvOnEnded'));
+    assert.ok(src.includes('tctvFollow'));
+    assert.ok(src.includes('_tctvCatalogPromise=null'));
+    assert.ok(src.includes('Array.isArray(v)'));
+    const sw = read('sw.js');
+    const tctvAt = sw.indexOf("url.pathname.includes('data/tctv/')");
+    const emptyAt = sw.indexOf("new Response('{}'");
+    assert.ok(tctvAt > 0 && emptyAt > tctvAt, 'station lists must fail instead of returning {}');
+    assert.ok(sw.includes('status: 504'));
+    const apply = read('tools/tctv-import/apply_tctv_import.js');
+    assert.ok(apply.includes('Number.isInteger(v.duration)'));
+    assert.ok(apply.includes('contentDetails'));
+    const shuffle = read('tools/tctv-import/shuffle_tctv_stations.js');
+    assert.ok(shuffle.includes('Number.isInteger(v.duration)'));
+    assert.ok(shuffle.includes('process.exit(1)'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
