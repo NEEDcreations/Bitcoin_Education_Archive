@@ -1,0 +1,1290 @@
+// Bitcoin Quest feature registry — single source of truth for search, Nacho, and deep links.
+// Loaded after bundle.min.js. Also usable from Node (require).
+(function (root) {
+    'use strict';
+    var win = (typeof window !== 'undefined') ? window : root;
+
+    function questOpen(tab, sub) {
+        return function () {
+            if (typeof win.showQuestHub === 'function') win.showQuestHub();
+            win._questHubTab = tab;
+            if (sub) win._nookSubTab = sub;
+            setTimeout(function () {
+                if (typeof win._renderQuestHubTab === 'function') win._renderQuestHubTab();
+            }, 80);
+        };
+    }
+    function settingsOpen(page) {
+        return function () {
+            if (page === 'peers') {
+                if (typeof win.showSettings === 'function') win.showSettings();
+                setTimeout(function () {
+                    if (typeof win.showSettingsPage === 'function') win.showSettingsPage('account');
+                    setTimeout(function () {
+                        var p = document.getElementById('peersSectionContent');
+                        if (p) { p.style.display = 'block'; try { p.scrollIntoView({ block: 'center' }); } catch (e) {} }
+                    }, 220);
+                }, 80);
+                return;
+            }
+            if (typeof win.showSettings === 'function') win.showSettings();
+            if (page) setTimeout(function () {
+                if (typeof win.showSettingsPage === 'function') win.showSettingsPage(page);
+            }, 90);
+        };
+    }
+    function goOpen(id) {
+        return function () { if (typeof win.go === 'function') win.go(id); };
+    }
+
+    // kind -> opener. Each function body names a real app function so tests can see the call.
+    function makeOpen(f) {
+        var k = f.kind;
+        if (k === 'home') return function () { if (typeof win.goHome === 'function') win.goHome(); };
+        if (k === 'go') return goOpen(f.arg);
+        if (k === 'quest') return questOpen(f.arg, f.arg2 || '');
+        if (k === 'settings') return settingsOpen(f.arg || '');
+        if (k === 'spin') return function () { if (typeof win.showSpinWheel === 'function') win.showSpinWheel(); };
+        if (k === 'story') return function () { if (typeof win.showNachoStory === 'function') win.showNachoStory(); };
+        if (k === 'nacho') return function () { if (typeof win.enterNachoMode === 'function') win.enterNachoMode(); };
+        if (k === 'mini') return function () { if (typeof win.showNachoInput === 'function') win.showNachoInput(); };
+        if (k === 'quiz') return function () { if (typeof win.nachoQuizMe === 'function') win.nachoQuizMe(); };
+        if (k === 'eli5') return function () {
+            if (typeof win.enterNachoMode === 'function') win.enterNachoMode();
+            setTimeout(function () { if (typeof win.showEli5Prompt === 'function') win.showEli5Prompt(); }, 200);
+        };
+        if (k === 'closet') return function () {
+            if (typeof win.openNachoCloset === 'function') { win.openNachoCloset(); return; }
+            if (typeof win.showSettings === 'function') win.showSettings();
+            setTimeout(function () {
+                if (typeof win.showSettingsPage === 'function') win.showSettingsPage('prefs');
+                var t = document.querySelector('[onclick*="nacho"]');
+                if (t && t.click) t.click();
+            }, 200);
+        };
+        if (k === 'lb') return function () {
+            if (typeof win.toggleLeaderboard === 'function') win.toggleLeaderboard();
+            else if (typeof win.showLeaderboardAuto === 'function') win.showLeaderboardAuto();
+        };
+        if (k === 'predict') return function () { if (typeof win.showPricePrediction === 'function') win.showPricePrediction(); };
+        if (k === 'pvp') return function () { if (typeof win.enterPVPMode === 'function') win.enterPVPMode(); };
+        if (k === 'pop') return function () { if (typeof win.enterProofOfPlay === 'function') win.enterProofOfPlay(); };
+        if (k === 'pow') return function () {
+            if (typeof win.renderProofOfWalk === 'function') win.renderProofOfWalk();
+            else if (typeof win.showProofOfWalk === 'function') win.showProofOfWalk();
+        };
+        if (k === 'powsupport') return function () { if (typeof win.renderPOWSupport === 'function') win.renderPOWSupport(); };
+        if (k === 'chat') return function () {
+            if (typeof win.renderChatHub === 'function') win.renderChatHub('global');
+            else if (typeof win.toggleChatOverlay === 'function') win.toggleChatOverlay();
+        };
+        if (k === 'dms') return function () {
+            if (typeof win.showInbox === 'function') win.showInbox();
+            else if (typeof win.renderChatHub === 'function') win.renderChatHub('dms');
+            else if (typeof win.openDM === 'function') win.openDM();
+        };
+        if (k === 'buddy') return function () {
+            if (typeof win.showBuddyFinder === 'function') win.showBuddyFinder();
+            else if (typeof win.renderChatHub === 'function') win.renderChatHub('global');
+        };
+        if (k === 'donate') return function () { if (typeof win.showDonateModal === 'function') win.showDonateModal(); };
+        if (k === 'faq') return function () {
+            if (typeof win.showFAQ === 'function') win.showFAQ();
+            else if (typeof win.showGuide === 'function') win.showGuide();
+        };
+        if (k === 'guide') return function () { if (typeof win.showGuide === 'function') win.showGuide(); };
+        if (k === 'keyshelp') return function () { if (typeof win.showKeyboardHelp === 'function') win.showKeyboardHelp(); };
+        if (k === 'notif') return function () { if (typeof win.showNotifications === 'function') win.showNotifications(); };
+        if (k === 'signin') return function () { if (typeof win.showUsernamePrompt === 'function') win.showUsernamePrompt(); };
+        if (k === 'tip') return function () { if (typeof win.showTipOverlay === 'function') win.showTipOverlay(); };
+        if (k === 'dash') return function () {
+            if (typeof win.toggleDashboard === 'function') win.toggleDashboard();
+            else if (typeof win.go === 'function') win.go('bitcoin-dashboard');
+        };
+        if (k === 'meme') return function () {
+            if (typeof win.goRandomMeme === 'function') win.goRandomMeme();
+            else if (typeof win.goRandom === 'function') win.goRandom();
+        };
+        if (k === 'random') return function () { if (typeof win.goRandom === 'function') win.goRandom(); };
+        if (k === 'art') return function () { if (typeof win.goRandomArt === 'function') win.goRandomArt(); };
+        if (k === 'graphic') return function () { if (typeof win.goRandomGraphic === 'function') win.goRandomGraphic(); };
+        if (k === 'favor') return function () {
+            if (typeof win.openSatoshiFavorMiner === 'function') win.openSatoshiFavorMiner();
+            if (typeof win.showQuestHub === 'function') win.showQuestHub();
+            win._questHubTab = 'favor';
+            setTimeout(function () { if (typeof win._renderQuestHubTab === 'function') win._renderQuestHubTab(); }, 80);
+        };
+        if (k === 'gifts') return function () {
+            if (typeof win.openAllPostSpinGifts === 'function') win.openAllPostSpinGifts();
+            else if (typeof win.showSpinWheel === 'function') win.showSpinWheel();
+        };
+        if (k === 'hot') return function () {
+            if (typeof win.goHome === 'function') win.goHome();
+            setTimeout(function () {
+                var el = document.getElementById('hotTopicsSection') || document.getElementById('hotTopicsSectionWrapper');
+                if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 250);
+        };
+        if (k === 'inventory') return function () {
+            if (typeof win.openNookInventory === 'function') win.openNookInventory();
+            else questOpen('nook', 'inventory')();
+        };
+        if (k === 'cipher') return function () {
+            if (typeof win.openNookInventory === 'function') win.openNookInventory();
+            else questOpen('nook', 'inventory')();
+        };
+        if (k === 'audio') return function () { if (typeof win.toggleAudio === 'function') win.toggleAudio(); };
+        if (k === 'tv') return function () {
+            if (typeof win.showTCTV === 'function') win.showTCTV();
+            else if (typeof win.go === 'function') win.go('timechain-tv');
+        };
+        return goOpen(f.arg || f.id);
+    }
+
+    // id, title, group, keywords, desc, how, follow, hash, aliases, kind, arg, arg2, priority, term, settingsPages, questTab, aux
+    function R(p) { return p; }
+
+    var RAW = [
+        R({ id: 'home', title: 'Home page', group: 'Core', term: 'home', priority: 40,
+            kw: 'home homepage main start back beginning logo',
+            desc: 'Home is the front page where the sidebar, search, and main features live.',
+            how: 'Tap the Bitcoin logo or use the Home control to get back to the home page.',
+            follow: 'Want a brand-new starting point in the One Stop Shop channel?',
+            hash: 'app/home', aliases: ['home'], kind: 'home' }),
+        R({ id: 'channels', title: 'Education channels', group: 'Learn', term: 'lightning', priority: 30,
+            kw: 'channels education sidebar topics lightning network learn read',
+            desc: 'The sidebar lists the education channels, including the Lightning Network.',
+            how: 'Open the sidebar and tap a channel. The Lightning Network channel covers instant Bitcoin payments.',
+            follow: 'Want the brand-new One Stop Shop, or a guided trail?',
+            hash: 'app/channels', aliases: ['channels'], kind: 'home', arg: 'layer-2-lightning' }),
+        R({ id: 'one-stop-shop', title: 'Brand new? One Stop Shop', group: 'Learn', term: 'beginner', priority: 70,
+            kw: 'beginner brand new one stop shop start newbie where do i start new to bitcoin',
+            desc: 'One Stop Shop is the brand-new starting channel.',
+            how: 'Open the One Stop Shop channel when you are brand new and want one place to start.',
+            follow: 'After that, want Nacho\'s Trails for a guided path?',
+            hash: 'one-stop-shop', aliases: ['one-stop-shop', 'newbie'], kind: 'go', arg: 'one-stop-shop' }),
+        R({ id: 'random', title: 'Random meme', group: 'Learn', term: 'meme', priority: 55,
+            kw: 'random meme memes art graphic surprise funny',
+            desc: 'Jump to a random channel, meme, art piece, or graphic.',
+            how: 'Ask for a random meme and Nacho opens one. Random channel, art, and graphic work the same way.',
+            follow: 'Want a random Bitcoin channel instead of a meme?',
+            hash: 'app/random', aliases: ['random', 'meme'], kind: 'meme',
+            openFns: ['goRandomMeme', 'goRandom', 'goRandomArt', 'goRandomGraphic'] }),
+        R({ id: 'trails', title: "Nacho's Trails", group: 'Learn', term: 'trails', priority: 60,
+            kw: 'trails trail guided path meadow mountain summit modules learn',
+            desc: "Nacho's Trails are guided learning paths: Meadow, Mountain, and Summit.",
+            how: 'Open Trails and start a trail. Read the topics, then take the exam at the end.',
+            follow: 'Want the shorter Learning Quests slideshows instead?',
+            hash: 'trails', aliases: ['trails', 'learn', 'modules'], kind: 'go', arg: 'trails' }),
+        R({ id: 'learning-quests', title: 'Learning Quests', group: 'Learn', term: 'learning quest', priority: 60,
+            kw: 'learning quest lesson slideshow lessons',
+            desc: 'Learning Quests are short lesson slideshows with a quiz at the end.',
+            how: 'Open Learning Quests and pick a lesson. Each one is a slideshow plus a quiz.',
+            follow: 'Want the longer guided Trails after the lesson?',
+            hash: 'learning-quests', aliases: ['learning-quests'], kind: 'go', arg: 'learning-quests' }),
+        R({ id: 'first-purchase', title: 'Your First Bitcoin Purchase', group: 'Learn', term: 'buy bitcoin', priority: 65,
+            kw: 'buy bitcoin first purchase purchase guide how to buy',
+            desc: 'A step-by-step guide for your first Bitcoin purchase.',
+            how: 'Open Your First Bitcoin Purchase. It walks through how to buy, region by region. This is education, not financial advice.',
+            follow: 'Once you have some, want to see how a Lightning wallet page works in the app?',
+            hash: 'first-purchase', aliases: ['first-purchase', 'buy'], kind: 'go', arg: 'first-purchase' }),
+        R({ id: 'flashcards', title: 'Flashcards', group: 'Learn', term: 'flashcards', priority: 60,
+            kw: 'flashcard flashcards study cards',
+            desc: 'Flashcards help you study Bitcoin topics.',
+            how: 'Open Settings, then the Scholar page, and start the flashcards.',
+            follow: 'Want the Scholar certification after you study?',
+            hash: 'app/flashcards', aliases: ['flashcards'], kind: 'settings', arg: 'scholar', questTab: 'flashcards',
+            openFns: ['showSettings', 'showSettingsPage'] }),
+        R({ id: 'scholar', title: 'Scholar certification', group: 'Learn', term: 'scholar', priority: 60,
+            kw: 'scholar certification certificate exam diploma shareable cert',
+            desc: 'The Scholar and technical certifications, plus shareable certificates.',
+            how: 'Open Settings → Scholar and take the exam. A passing certificate gets a public #cert link.',
+            follow: 'Want flashcards to study first?',
+            hash: 'app/scholar', aliases: ['scholar', 'cert'], kind: 'settings', arg: 'scholar',
+            settingsPages: ['scholar'] }),
+        R({ id: 'signal', title: 'The Signal newsletter', group: 'Learn', term: 'newsletter', priority: 60,
+            kw: 'signal newsletter weekly',
+            desc: 'The Signal is the weekly newsletter of curated Bitcoin reading.',
+            how: 'Open Settings → Scholar. The Signal newsletter lives on that page.',
+            follow: 'Want this week\'s Hot Topics in the sidebar too?',
+            hash: 'app/signal', aliases: ['signal', 'newsletter'], kind: 'settings', arg: 'scholar' }),
+        R({ id: 'story', title: "Nacho's Story", group: 'Nacho', term: 'story', priority: 50,
+            kw: 'story chapter chapters adventure',
+            desc: "Nacho's Story unlocks one new chapter a day.",
+            how: "Open Nacho's Story from Nacho and read today's chapter.",
+            follow: 'Want to dress Nacho up in the Closet after the chapter?',
+            hash: 'app/story', aliases: ['story'], kind: 'story', openFns: ['showNachoStory'] }),
+        R({ id: 'nacho-mode', title: 'Nacho Mode', group: 'Nacho', term: 'nacho mode', priority: 80,
+            kw: 'nacho mode full screen chat tutor',
+            desc: 'Nacho Mode is the full-screen chat with Nacho.',
+            how: 'Open Nacho Mode with the button or by pressing N. The little bubble is a smaller version of the same chat.',
+            follow: 'Want ELI5 answers in simpler words?',
+            hash: 'nacho', aliases: ['nacho', 'nacho-mode'], kind: 'nacho', openFns: ['enterNachoMode'] }),
+        R({ id: 'mini-nacho', title: 'Mini Nacho bubble', group: 'Nacho', term: 'ask nacho', priority: 75,
+            kw: 'ask nacho mini bubble question tap nacho',
+            desc: 'Mini Nacho is the bubble you tap to ask a question without leaving the page.',
+            how: 'Tap Nacho, then ask. The same answers show up here and in Nacho Mode.',
+            follow: 'Want the bigger Nacho Mode window?',
+            hash: 'app/mini-nacho', aliases: ['mini-nacho', 'ask-nacho'], kind: 'mini', openFns: ['showNachoInput'] }),
+        R({ id: 'quiz-me', title: 'Quiz Me', group: 'Nacho', term: 'quiz me', priority: 85,
+            kw: 'quiz me pop quiz test me nacho quiz',
+            desc: 'Quiz Me is Nacho\'s quick Bitcoin quiz.',
+            how: 'Say "quiz me" and Nacho starts a short quiz.',
+            follow: 'Want the daily quiz in Quest Hub instead?',
+            hash: 'app/quiz-me', aliases: ['quiz-me'], kind: 'quiz', openFns: ['nachoQuizMe'] }),
+        R({ id: 'closet', title: "Nacho's Closet", group: 'Nacho', term: 'closet', priority: 55,
+            kw: 'closet outfit dress clothes wardrobe customize',
+            desc: "Nacho's Closet is where you dress Nacho in outfits you unlock.",
+            how: 'Open Settings and the Nacho section to change the outfit.',
+            follow: 'Want to know how gifts can drop closet items?',
+            hash: 'app/closet', aliases: ['closet'], kind: 'closet', openFns: ['openNachoCloset', 'showSettings', 'showSettingsPage'] }),
+        R({ id: 'eli5', title: 'ELI5 mode', group: 'Nacho', term: 'eli5', priority: 70,
+            kw: 'eli5 explain like im 5 five simple',
+            desc: 'ELI5 mode makes Nacho explain like you are five.',
+            how: 'In Nacho Mode, open ELI5 and turn it on. Answers stay short and simple.',
+            follow: 'Want a normal explanation of the Quest Hub after that?',
+            hash: 'app/eli5', aliases: ['eli5'], kind: 'eli5', openFns: ['showEli5Prompt', 'enterNachoMode'] }),
+        R({ id: 'quest-hub', title: 'Quest Hub', group: 'Quests', term: 'quest hub', priority: 50,
+            kw: 'quest hub quests hub',
+            desc: 'Quest Hub holds the daily quiz, trivia, poll, Flex, Favor, raid, charity, community challenge, and the Nook.',
+            how: 'Open Quest Hub from the menu. Pick a tab along the top.',
+            follow: 'Want the daily quiz tab first?',
+            hash: 'quests', aliases: ['quests', 'questhub', 'quest-hub'], kind: 'quest', arg: 'quiz', questTab: 'quests',
+            openFns: ['showQuestHub'] }),
+        R({ id: 'qh-quiz', title: 'Daily quiz', group: 'Quests', term: 'daily quiz', priority: 80,
+            kw: 'daily quiz quest quiz',
+            desc: 'The daily quiz is a Quest Hub tab.',
+            how: 'Open Quest Hub and choose the Quiz tab. You get one scored run a day.',
+            follow: 'Want the Trivia tab next to it?',
+            hash: 'app/quiz', aliases: ['daily-quiz', 'qh-quiz'], kind: 'quest', arg: 'quiz', questTab: 'quiz' }),
+        R({ id: 'qh-trivia', title: 'Daily trivia', group: 'Quests', term: 'trivia', priority: 80,
+            kw: 'trivia daily trivia',
+            desc: 'Daily trivia lives in Quest Hub.',
+            how: 'Open Quest Hub and choose the Trivia tab.',
+            follow: 'Want the Poll tab after trivia?',
+            hash: 'app/trivia', aliases: ['trivia', 'qh-trivia'], kind: 'quest', arg: 'trivia', questTab: 'trivia' }),
+        R({ id: 'qh-poll', title: 'Daily poll', group: 'Quests', term: 'poll', priority: 80,
+            kw: 'poll daily poll vote',
+            desc: 'The daily poll is a Quest Hub tab.',
+            how: 'Open Quest Hub and choose the Poll tab to cast today\'s vote.',
+            follow: 'Want Flex, the healthy-habits tab, next?',
+            hash: 'app/poll', aliases: ['poll', 'qh-poll'], kind: 'quest', arg: 'poll', questTab: 'poll' }),
+        R({ id: 'qh-flex', title: 'Flex', group: 'Quests', term: 'flex', priority: 75,
+            kw: 'flex healthy habits lifestyle',
+            desc: 'Flex is the Quest Hub tab of healthy Bitcoiner habits.',
+            how: 'Open Quest Hub → Flex. Each habit is a small action worth XP, and the list resets on the daily schedule.',
+            follow: 'Want the Community Challenge after Flex?',
+            hash: 'app/flex', aliases: ['flex', 'qh-flex'], kind: 'quest', arg: 'flex', questTab: 'flex' }),
+        R({ id: 'favor', title: "Satoshi's Favor", group: 'Quests', term: "satoshi's favor", priority: 70,
+            kw: "satoshi's favor satoshis favor mining game hash mine",
+            desc: "Satoshi's Favor is the community mining game. You contribute points, then hash during a window.",
+            how: "Open Quest Hub → Favor, or open the miner. Hash during the window for a chance at the prize.",
+            follow: 'Want a hash booster from the Nook for more hashes?',
+            hash: 'favor', aliases: ['favor', 'sf', 'satoshi-favor'], kind: 'favor', questTab: 'favor',
+            openFns: ['openSatoshiFavorMiner', 'showQuestHub'] }),
+        R({ id: 'raid', title: 'Raid Boss', group: 'Quests', term: 'raid', priority: 80,
+            kw: 'raid boss battle damage',
+            desc: 'The raid boss is a community fight. You deal damage by earning badges and doing activities.',
+            how: 'Open Quest Hub → Raid to see the boss, your damage, and the prize.',
+            follow: 'Want the leaderboard of raiders next?',
+            hash: 'app/raid', aliases: ['raid', 'raid-boss'], kind: 'quest', arg: 'raid', questTab: 'raid' }),
+        R({ id: 'citadel', title: 'Citadel', group: 'Quests', term: 'citadel', priority: 80,
+            kw: 'citadel coming soon spend xp',
+            desc: 'The Citadel is the coming-soon place to spend XP.',
+            how: 'Open Quest Hub → Citadel. It is marked coming soon, so you can look but not spend yet.',
+            follow: 'Want to spend tickets in the Nook today instead?',
+            hash: 'app/citadel', aliases: ['citadel'], kind: 'quest', arg: 'citadel', questTab: 'citadel' }),
+        R({ id: 'charity', title: 'Charity', group: 'Quests', term: 'charity', priority: 75,
+            kw: 'charity donate xp donation faction',
+            desc: 'Charity lets you donate XP. Your faction (Honey Badger or Cyber Hornet) is on the same screen.',
+            how: 'Open Quest Hub → Charity, pick an amount of XP, and donate. This is separate from donating to the site.',
+            follow: 'Want to choose your faction in Settings first?',
+            hash: 'app/charity', aliases: ['charity'], kind: 'quest', arg: 'charity', questTab: 'charity' }),
+        R({ id: 'community', title: 'Community Challenge', group: 'Quests', term: 'community challenge', priority: 70,
+            kw: 'community challenge weekly goal',
+            desc: 'The community challenge is a shared weekly goal in Quest Hub.',
+            how: 'Open Quest Hub → Community to see the goal and chip in.',
+            follow: 'Want Satoshi\'s Favor, which the challenge can speed up?',
+            hash: 'app/community', aliases: ['community', 'community-challenge'], kind: 'quest', arg: 'community', questTab: 'community' }),
+        R({ id: 'nook', title: "Nacho's Nook", group: 'Shop & items', term: 'nook', priority: 60,
+            kw: 'nook shop buy tickets streak freeze hint double xp',
+            desc: "Nacho's Nook is the shop inside Quest Hub. You spend Orange Tickets there.",
+            how: 'Open Quest Hub → Nook/Inventory and use the shop side to buy items.',
+            follow: 'Want your Inventory, where the items wait to be used?',
+            hash: 'app/nook', aliases: ['nook'], kind: 'quest', arg: 'nook', questTab: 'nook' }),
+        R({ id: 'inventory', title: 'Inventory', group: 'Shop & items', term: 'inventory', priority: 70,
+            kw: 'inventory items bag owned',
+            desc: 'Inventory is the Nook tab that holds items you own, including keys and locked ciphers.',
+            how: 'Open Quest Hub → Nook/Inventory and switch to Inventory.',
+            follow: 'Want to know how a locked cipher opens?',
+            hash: 'app/inventory', aliases: ['inventory'], kind: 'inventory', questTab: 'nook',
+            openFns: ['openNookInventory', 'showQuestHub'] }),
+        R({ id: 'double-xp', title: 'Double XP charge', group: 'Shop & items', term: 'double xp', priority: 70,
+            kw: 'double xp 2x multiplier charge',
+            desc: 'A Double XP charge doubles XP for a while after you use it.',
+            how: 'Buy it in the Nook, then use it from Inventory.',
+            follow: 'Want to see your XP and the daily cap on the Sats page?',
+            hash: 'app/double-xp', aliases: ['double-xp'], kind: 'quest', arg: 'nook' }),
+        R({ id: 'hint-token', title: 'Hint tokens', group: 'Shop & items', term: 'hint token', priority: 70,
+            kw: 'hint token hints quiz help',
+            desc: 'Hint tokens remove a wrong answer during a quiz.',
+            how: 'Buy hint tokens in the Nook, then use one on a quiz question.',
+            follow: 'Want the daily quiz, where a hint helps most?',
+            hash: 'app/hint-token', aliases: ['hint-token', 'hints'], kind: 'quest', arg: 'nook' }),
+        R({ id: 'streak-freeze', title: 'Streak freeze', group: 'Shop & items', term: 'streak freeze', priority: 70,
+            kw: 'streak freeze protect streak',
+            desc: 'A streak freeze protects your visit streak if you miss a day.',
+            how: 'Buy a streak freeze in the Nook. You can see whether one is saved under Settings → Data.',
+            follow: 'Want the daily spin, which also helps a streak?',
+            hash: 'app/streak-freeze', aliases: ['streak-freeze'], kind: 'quest', arg: 'nook' }),
+        R({ id: 'hash-booster', title: 'Hash booster', group: 'Shop & items', term: 'hash booster', priority: 70,
+            kw: 'hash booster second rig hashes extra hash',
+            desc: 'A hash booster grants extra hashes in Satoshi\'s Favor. A second rig is the bigger version in the same shop.',
+            how: 'Buy a hash booster or second rig in the Nook, then use it when a Favor window is open.',
+            follow: 'Want to open Satoshi\'s Favor now?',
+            hash: 'app/hash-booster', aliases: ['hash-booster', 'second-rig'], kind: 'quest', arg: 'nook' }),
+        R({ id: 'raffle', title: 'Orange ticket raffle', group: 'Shop & items', term: 'raffle', priority: 65,
+            kw: 'raffle entries lottery',
+            desc: 'The raffle takes Orange Ticket entries from the Nook. A winner is drawn on the 1st.',
+            how: 'Open the Nook and buy raffle entries. More entries, better odds.',
+            follow: 'Want to know how to earn the Orange Tickets you spend?',
+            hash: 'app/raffle', aliases: ['raffle'], kind: 'quest', arg: 'nook' }),
+        R({ id: 'gift-bag', title: 'Gift bag', group: 'Shop & items', term: 'gift bag', priority: 75,
+            kw: 'gift bag shop keepsake',
+            desc: 'The gift bag is a shop keepsake in the Nook. It is not the same as opening a gift from the wheel.',
+            how: 'Open the Nook to see the gift bag. Gifts from the wheel open right away, and keys live in Inventory.',
+            follow: 'Want to open gifts from the daily spin instead?',
+            hash: 'app/gift-bag', aliases: ['gift-bag'], kind: 'quest', arg: 'nook' }),
+        R({ id: 'wheel', title: 'Daily spin wheel', group: 'Rewards', term: 'spin', priority: 60,
+            kw: 'spin wheel daily spin prize',
+            desc: 'The daily spin wheel gives a free spin for tickets, XP, or a gift.',
+            how: 'Open the daily spin wheel and take today\'s spin.',
+            follow: 'If you land a gift, want to know how to open it?',
+            hash: 'app/wheel', aliases: ['wheel', 'spin'], kind: 'spin', openFns: ['showSpinWheel'] }),
+        R({ id: 'gifts', title: 'Gifts', group: 'Rewards', term: 'gifts', priority: 70,
+            kw: 'gifts gift open present prize wheel',
+            desc: 'Gifts come from the spin wheel. You open them for keys, locked ciphers, tickets, XP, or a rare prize.',
+            how: 'Spin the wheel, then open the gift on the post-spin screen. You can also open gifts from Settings → Account → Peers.',
+            follow: 'Want to know what a Nacho shoutout prize is?',
+            hash: 'app/gifts', aliases: ['gifts'], kind: 'gifts',
+            openFns: ['openAllPostSpinGifts', 'openGift', 'openSingleGift', 'showSpinWheel'] }),
+        R({ id: 'ciphers', title: 'Locked ciphers', group: 'Rewards', term: 'cipher', priority: 90,
+            kw: 'cipher ciphers locked cipher decrypt unlock puzzle',
+            desc: 'A locked cipher opens when you use a key that has the same label.',
+            how: 'Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key.',
+            follow: 'How do I get a key for my cipher?',
+            hash: 'app/ciphers', aliases: ['ciphers', 'cipher', 'locked-cipher'], kind: 'cipher',
+            openFns: ['openNookInventory', 'openCipherWithMatch', 'showQuestHub'] }),
+        R({ id: 'keys', title: 'Cipher keys', group: 'Rewards', term: 'keys', priority: 100,
+            kw: 'key keys cipher key send key peer label',
+            desc: 'Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day.',
+            how: 'Open Inventory, or Settings → Account → Peers, and send a key to a peer. A matching key opens their cipher, and theirs can open yours.',
+            follow: 'Want to add a peer so you have someone to trade keys with?',
+            hash: 'app/keys', aliases: ['keys', 'cipher-keys'], kind: 'cipher',
+            openFns: ['openNookInventory', 'showPeerPickerForKeys', 'showKeyPickerForPeer'] }),
+        R({ id: 'peers', title: 'Peers', group: 'Rewards', term: 'peers', priority: 60,
+            kw: 'peers peer request add a peer friend',
+            desc: 'Peers are people you connect with so you can send keys and grow a partnership.',
+            how: 'Open Settings → Account → Peers. Send a peer request, and accept the ones you want.',
+            follow: 'Want to know how partnership levels work?',
+            hash: 'app/peers', aliases: ['peers'], kind: 'settings', arg: 'peers', settingsPages: ['peers'],
+            openFns: ['showSettings', 'showSettingsPage'] }),
+        R({ id: 'partnership', title: 'Partnership levels', group: 'Rewards', term: 'partnership', priority: 65,
+            kw: 'partnership levels wumbo channel opening routing',
+            desc: 'Partnership levels grow when you open a cipher with a key a peer sent you, from Opening Channel up to Wumbo.',
+            how: 'Open Settings → Account → Peers to see the partnership level with each peer.',
+            follow: 'Want to send that peer a key?',
+            hash: 'app/partnership', aliases: ['partnership'], kind: 'settings', arg: 'peers' }),
+        R({ id: 'shoutout', title: 'Nacho shoutout', group: 'Rewards', term: 'shoutout', priority: 80,
+            kw: 'shoutout shoutouts rare prize global chat',
+            desc: 'A Nacho shoutout is a rare gift prize. Nacho posts it in Global Chat.',
+            how: 'Win one by opening gifts from the wheel. If it hits, the shoutout shows up in Global Chat.',
+            follow: 'Want to open Global Chat and look?',
+            hash: 'app/shoutout', aliases: ['shoutout'], kind: 'chat' }),
+        R({ id: 'tickets', title: 'Orange tickets', group: 'Rewards', term: 'orange tickets', priority: 55,
+            kw: 'orange tickets ticket balance earn tickets',
+            desc: 'Orange Tickets are the shop currency. You earn them from the daily spin, activity, and referrals.',
+            how: 'Your balance is in Settings → Account. Spend tickets in the Nook.',
+            follow: 'Want the referral rule for earning 50 tickets?',
+            hash: 'app/tickets', aliases: ['tickets', 'orange-tickets'], kind: 'settings', arg: 'account' }),
+        R({ id: 'xp', title: 'XP and points', group: 'Rewards', term: 'overflow', priority: 50,
+            kw: 'xp points experience overflow daily cap earn points',
+            desc: 'XP (points) is how you rank up. There is a daily cap, and overflow XP drips back on later visits.',
+            how: 'Earn points by reading, quests, chat, and badges. See the cap and overflow on Settings → Sats.',
+            follow: 'Want a Double XP charge from the Nook?',
+            hash: 'app/xp', aliases: ['xp', 'points'], kind: 'settings', arg: 'sats' }),
+        R({ id: 'badges', title: 'Badges', group: 'Rewards', term: 'badges', priority: 55,
+            kw: 'badges badge achievements',
+            desc: 'Badges mark things you have done, from chat to quests to hidden goals.',
+            how: 'Open the leaderboard to see badge progress, and the Nacho section of Settings for what you have equipped.',
+            follow: 'Want the leaderboard standings too?',
+            hash: 'app/badges', aliases: ['badges'], kind: 'lb', openFns: ['toggleLeaderboard'] }),
+        R({ id: 'referral', title: 'Referral program', group: 'Rewards', term: 'referral', priority: 70,
+            kw: 'referral refer a friend invite referral link maxi',
+            desc: 'When a friend you referred reaches Maxi rank, you both get 50 Orange Tickets.',
+            how: 'Copy your referral link in Settings → Account and share it. The 50 tickets land for both of you at Maxi rank, not when they merely sign up.',
+            follow: 'Want to check your Orange Ticket balance?',
+            hash: 'app/referral', aliases: ['referral', 'refer'], kind: 'settings', arg: 'account' }),
+        R({ id: 'sats', title: 'Claim sats', group: 'Rewards', term: 'faucet', priority: 70,
+            kw: 'faucet claim sats withdraw payout sats',
+            desc: 'The faucet lets you claim sats. Payouts go to the Lightning address saved on your account.',
+            how: 'Add a Lightning address in Settings → Account, then open Settings → Sats and claim. The faucet keeps a few quiet checks so it stays fair. Those details stay vague on purpose.',
+            follow: 'Want to add or change your Lightning address first?',
+            hash: 'sats', aliases: ['sats', 'wallet', 'faucet'], kind: 'settings', arg: 'sats', settingsPages: ['sats'],
+            openFns: ['showSettings', 'showSettingsPage'] }),
+        R({ id: 'ln-address', title: 'Lightning address', group: 'Rewards', term: 'lightning address', priority: 75,
+            kw: 'lightning address payout tips receive',
+            desc: 'Your Lightning address is where faucet payouts and tips are sent.',
+            how: 'Open Settings → Account and save a Lightning address that looks like an email (name@wallet).',
+            follow: 'Want to claim sats to that address?',
+            hash: 'app/lightning-address', aliases: ['lightning-address', 'ln-address'], kind: 'settings', arg: 'account',
+            settingsPages: ['account', 'profile'] }),
+        R({ id: 'predictions', title: 'Price prediction', group: 'Games', term: 'prediction', priority: 80,
+            kw: 'prediction predictions price prediction up down 24h forecast',
+            desc: 'Price prediction is a 24-hour game: you guess whether Bitcoin goes up or down.',
+            how: 'Open Price Prediction, pick up or down, and check back in 24 hours. It is a game, not financial advice.',
+            follow: 'Want the Bitcoin dashboard if you want mempool and fees instead of a guess?',
+            hash: 'app/predictions', aliases: ['price-prediction', 'predict'], kind: 'predict',
+            openFns: ['showPricePrediction'] }),
+        R({ id: 'pvp', title: 'PvP trivia battles', group: 'Games', term: 'pvp', priority: 70,
+            kw: 'pvp battle trivia duel versus',
+            desc: 'PvP is a live trivia battle against another player.',
+            how: 'Open PvP, join a match, and answer faster than your opponent.',
+            follow: 'Want the Proof of Play arcade as well?',
+            hash: 'pvp', aliases: ['pvp'], kind: 'pvp', openFns: ['enterPVPMode'] }),
+        R({ id: 'proof-of-play', title: 'Proof of Play arcade', group: 'Games', term: 'arcade', priority: 70,
+            kw: 'arcade proof of play games play',
+            desc: 'Proof of Play is the arcade of Bitcoin games, plus a PvP corner.',
+            how: 'Open the arcade from the menu or the Proof of Play page.',
+            follow: 'Want a PvP trivia battle instead of the arcade?',
+            hash: 'proof-of-play', aliases: ['proof-of-play', 'proof-of-play-pvp', 'arcade'], kind: 'pop',
+            openFns: ['enterProofOfPlay'] }),
+        R({ id: 'proof-of-walk', title: 'Proof of Walk', group: 'Games', term: 'proof of walk', priority: 70,
+            kw: 'proof of walk strava walking steps',
+            desc: 'Proof of Walk connects Strava so a walk can earn XP. The support page is separate.',
+            how: 'Open Proof of Walk and connect Strava. If the feature is paused, the page says so.',
+            follow: 'Want Flex, the in-app healthy habits, while you wait?',
+            hash: 'app/proof-of-walk', aliases: ['proof-of-walk', 'walk'], kind: 'pow',
+            openFns: ['renderProofOfWalk', 'showProofOfWalk'] }),
+        R({ id: 'pow-support', title: 'Proof of Walk support', group: 'Games', term: 'pow support', priority: 40, aux: true,
+            kw: 'pow support proof of walk support',
+            desc: 'The Proof of Walk support page explains the Strava connection.',
+            how: 'Open the support page from its link. The walk feature itself is Proof of Walk.',
+            follow: 'Want the Proof of Walk feature page?',
+            hash: 'pow-support', aliases: ['pow-support'], kind: 'powsupport', openFns: ['renderPOWSupport'] }),
+        R({ id: 'leaderboard', title: 'Leaderboard', group: 'Games', term: 'leaderboard', priority: 60,
+            kw: 'leaderboard ranking all-time weekly monthly',
+            desc: 'The leaderboard ranks players all-time, weekly, and monthly.',
+            how: 'Open the leaderboard and switch the period tab.',
+            follow: 'Want to see badges next to the ranks?',
+            hash: 'app/leaderboard', aliases: ['leaderboard'], kind: 'lb', openFns: ['toggleLeaderboard', 'showLeaderboardAuto'] }),
+        R({ id: 'global-chat', title: 'Global chat', group: 'Community', term: 'chat', priority: 70,
+            kw: 'global chat chatroom live chat telegram',
+            desc: 'Global chat is the live room, with a Telegram bridge.',
+            how: 'Open the chat button and stay on the Global tab.',
+            follow: 'Want direct messages instead of the public room?',
+            hash: 'chat', aliases: ['chat', 'global-chat'], kind: 'chat', openFns: ['renderChatHub', 'toggleChatOverlay'] }),
+        R({ id: 'dms', title: 'Direct messages', group: 'Community', term: 'messages', priority: 65,
+            kw: 'messages dms dm inbox direct message',
+            desc: 'Direct messages are private chats.',
+            how: 'Open the inbox, or the DMs tab in the chat hub. New accounts need a little XP and time before sending, to slow down scammers.',
+            follow: 'Want to find a Bitcoin buddy to message?',
+            hash: 'dms', aliases: ['dms', 'messages', 'inbox'], kind: 'dms', openFns: ['showInbox', 'openDM', 'renderChatHub'] }),
+        R({ id: 'buddy', title: 'Bitcoin Buddy', group: 'Community', term: 'buddy', priority: 60,
+            kw: 'buddy bitcoin buddy finder mentor',
+            desc: 'Bitcoin Buddy matches you with a learning partner.',
+            how: 'Open the buddy finder from the chat hub.',
+            follow: 'Want IRL meetups if you would rather meet in person?',
+            hash: 'app/buddy', aliases: ['buddy'], kind: 'buddy', openFns: ['showBuddyFinder'] }),
+        R({ id: 'forum', title: 'PlebTalk forum', group: 'Community', term: 'forum', priority: 55,
+            kw: 'forum plebtalk articles discuss',
+            desc: 'PlebTalk is the forum. Articles are the long-form tab inside it.',
+            how: 'Open PlebTalk. Switch to Articles to read or write a long post.',
+            follow: 'Want Global Chat if you want something live instead?',
+            hash: 'forum', aliases: ['forum', 'plebtalk'], kind: 'go', arg: 'forum' }),
+        R({ id: 'marketplace', title: 'LightningMart marketplace', group: 'Community', term: 'marketplace', priority: 60,
+            kw: 'marketplace market lightningmart buy sell',
+            desc: 'LightningMart is the marketplace for buying and selling with sats.',
+            how: 'Open the marketplace to browse listings or post one.',
+            follow: 'Want to add a Lightning address so people can pay you?',
+            hash: 'marketplace', aliases: ['marketplace'], kind: 'go', arg: 'marketplace' }),
+        R({ id: 'irl', title: 'IRL Sync meetups', group: 'Community', term: 'meetup', priority: 50,
+            kw: 'meetup irl sync meetups meetup in a box events',
+            desc: 'IRL Sync lists Bitcoin meetups, and Meetup-in-a-Box has ready-made agendas.',
+            how: 'Open IRL Sync to find a meetup or host one.',
+            follow: 'Want the Meetup Builder to plan the details?',
+            hash: 'irl-sync', aliases: ['irl-sync', 'meet', 'irl'], kind: 'go', arg: 'irl-sync' }),
+        R({ id: 'meetup-builder', title: 'Meetup Builder', group: 'Community', term: 'meetup builder', priority: 75,
+            kw: 'meetup builder plan venue',
+            desc: 'Meetup Builder helps you plan, share, and discover Bitcoin meetups.',
+            how: 'Open Meetup Builder, add the details, and share the plan.',
+            follow: 'Want IRL Sync to see meetups other people posted?',
+            hash: 'meetup-builder', aliases: ['meetup-builder'], kind: 'go', arg: 'meetup-builder' }),
+        R({ id: 'sats-vs-bits', title: 'Sats vs Bits', group: 'Community', term: 'sats vs bits', priority: 70,
+            kw: 'sats vs bits denomination vote bits',
+            desc: 'Sats vs Bits is the live vote on what to call the small unit.',
+            how: 'Open the chat hub and vote sats or bits.',
+            follow: 'Want Global Chat after you vote?',
+            hash: 'app/sats-vs-bits', aliases: ['sats-vs-bits'], kind: 'chat' }),
+        R({ id: 'tips', title: 'Lightning tips', group: 'Community', term: 'tip', priority: 70,
+            kw: 'tip tips zap send sats to a user',
+            desc: 'You can tip another user with Lightning sats if they have an address.',
+            how: 'Open a profile and use Tip. This is a tip to a person, not a donation to the site.',
+            follow: 'Want to save your own Lightning address so people can tip you back?',
+            hash: 'app/tips', aliases: ['tips', 'tip'], kind: 'tip', openFns: ['showTipOverlay'] }),
+        R({ id: 'lightning-wallet', title: 'Lightning wallet page', group: 'Community', term: 'wallet', priority: 55,
+            kw: 'lightning wallet connect wallet webln nwc',
+            desc: 'The Lightning wallet page is where you connect a wallet for tips and payments.',
+            how: 'Open the Lightning page and connect with a Lightning address, WebLN, or NWC.',
+            follow: 'Want to save just an address in Settings instead?',
+            hash: 'lightning', aliases: ['lightning', 'lightning-wallet'], kind: 'go', arg: 'lightning' }),
+        R({ id: 'tv', title: 'Timechain TV', group: 'Media', term: 'tv', priority: 60,
+            kw: 'tv timechain television watch video',
+            desc: 'Timechain TV plays Bitcoin videos around the clock.',
+            how: 'Open Timechain TV and pick a channel.',
+            follow: 'Want Bitcoin Beats if you would rather listen to music?',
+            hash: 'timechain-tv', aliases: ['timechain-tv', 'tv'], kind: 'tv', openFns: ['showTCTV', 'go'] }),
+        R({ id: 'beats', title: 'Bitcoin Beats', group: 'Media', term: 'music', priority: 55,
+            kw: 'music beats dj songs radio listen upload',
+            desc: 'Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio.',
+            how: 'Open Bitcoin Beats. Use the upload tab for tracks and the livestream tab for DJ mode.',
+            follow: 'Want Timechain TV if you want video instead?',
+            hash: 'bitcoin-beats', aliases: ['bitcoin-beats', 'beats'], kind: 'go', arg: 'bitcoin-beats',
+            openFns: ['go', 'beatsTab'] }),
+        R({ id: 'hot-topics', title: 'Hot Topics', group: 'Media', term: 'hot topics', priority: 80,
+            kw: 'hot topics weekly sidebar',
+            desc: 'Hot Topics is the weekly list in the sidebar.',
+            how: 'Go home and scroll the sidebar to the Hot Topics section.',
+            follow: 'Want The Signal newsletter for a longer weekly read?',
+            hash: 'app/hot-topics', aliases: ['hot-topics', 'hottopics'], kind: 'hot' }),
+        R({ id: 'dashboard', title: 'Bitcoin dashboard', group: 'Media', term: 'mempool', priority: 60,
+            kw: 'mempool dashboard network fees hashrate indicators',
+            desc: 'The dashboard shows mempool, fees, hashrate, and other network stats.',
+            how: 'Open the Bitcoin dashboard from the menu or the network link.',
+            follow: 'Want price prediction if you want a 24-hour up-or-down game?',
+            hash: 'dashboard', aliases: ['dashboard', 'bitcoin-dashboard', 'metrics', 'network'], kind: 'dash',
+            openFns: ['toggleDashboard', 'go'] }),
+        R({ id: 'notifications', title: 'Notifications', group: 'Account', term: 'notifications', priority: 70,
+            kw: 'notifications notification bell alerts',
+            desc: 'The bell opens your notifications.',
+            how: 'Tap the bell icon to open the notifications panel.',
+            follow: 'Want Settings if you are looking for account controls instead?',
+            hash: 'app/notifications', aliases: ['notifications'], kind: 'notif', openFns: ['showNotifications'] }),
+        R({ id: 'settings', title: 'Settings', group: 'Account', term: 'settings', priority: 40,
+            kw: 'settings account preferences security',
+            desc: 'Settings has Account, Scholar, Sats, Prefs, Security, and Data.',
+            how: 'Open Settings and pick a page along the top.',
+            follow: 'Want the Security page for 2FA?',
+            hash: 'app/settings', aliases: ['settings'], kind: 'settings', arg: '',
+            openFns: ['showSettings', 'showSettingsPage'] }),
+        R({ id: 'faction', title: 'Faction', group: 'Account', term: 'faction', priority: 70,
+            kw: 'faction honey badger cyber hornet badger hornet team',
+            desc: 'Your faction is Honey Badger or Cyber Hornet. It shows on the leaderboard and on charity.',
+            how: 'Open Settings → Account and pick a faction.',
+            follow: 'Want the charity tab, where the faction pools XP?',
+            hash: 'app/faction', aliases: ['faction'], kind: 'settings', arg: 'account' }),
+        R({ id: 'security', title: 'Security and 2FA', group: 'Account', term: '2fa', priority: 80,
+            kw: '2fa two-factor two factor password authenticator block delete account',
+            desc: 'The Security page has 2FA, your password, linked accounts, blocking, and account deletion.',
+            how: 'Open Settings → Security and turn on 2FA with an authenticator app or the phone option.',
+            follow: 'Want Preferences if you meant theme or dark mode?',
+            hash: 'app/security', aliases: ['security', '2fa'], kind: 'settings', arg: 'security', settingsPages: ['security'] }),
+        R({ id: 'prefs', title: 'Preferences', group: 'Account', term: 'dark mode', priority: 60,
+            kw: 'dark mode theme oled font language ticker preferences prefs experience mode',
+            desc: 'Preferences cover theme, dark mode, OLED, font size, language, the price ticker, Nacho, and experience mode.',
+            how: 'Open Settings → Prefs and switch the theme to dark mode or light mode.',
+            follow: 'Want keyboard shortcuts for the keys that do the same thing?',
+            hash: 'app/prefs', aliases: ['prefs', 'preferences', 'dark-mode'], kind: 'settings', arg: 'prefs', settingsPages: ['prefs'] }),
+        R({ id: 'export', title: 'Export my data', group: 'Account', term: 'export', priority: 70,
+            kw: 'export download my data backup',
+            desc: 'Export downloads a copy of your data.',
+            how: 'Open Settings → Data and use Export.',
+            follow: 'Want the Security page if you meant deleting the account?',
+            hash: 'app/export', aliases: ['export'], kind: 'settings', arg: 'data', settingsPages: ['data'] }),
+        R({ id: 'signin', title: 'Sign in', group: 'Account', term: 'sign in', priority: 55,
+            kw: 'sign in login log in register account nostr email',
+            desc: 'Sign in with email, a social account, or Nostr so progress syncs.',
+            how: 'Open the sign-in window and pick email, Google, or Nostr.',
+            follow: 'Want Settings after you are in?',
+            hash: 'app/signin', aliases: ['signin', 'login'], kind: 'signin', openFns: ['showUsernamePrompt'] }),
+        R({ id: 'donate', title: 'Donate to the archive', group: 'Account', term: 'donate', priority: 50,
+            kw: 'donate donation support the archive contribute',
+            desc: 'Donate sends sats to the archive itself.',
+            how: 'Open the donate window and pick a method. Donating XP to charity is a different screen in Quest Hub.',
+            follow: 'Want the charity tab if you meant donating XP?',
+            hash: 'app/donate', aliases: ['donate'], kind: 'donate', openFns: ['showDonateModal'] }),
+        R({ id: 'faq', title: 'FAQ and guide', group: 'Help', term: 'faq', priority: 70,
+            kw: 'faq guide help questions frequently asked',
+            desc: 'The FAQ and the guide answer common questions about the app.',
+            how: 'Open the FAQ for short answers, or the guide for the walkthrough.',
+            follow: 'Want me to open a specific feature instead?',
+            hash: 'faq', aliases: ['faq', 'guide'], kind: 'faq', openFns: ['showFAQ', 'showGuide'] }),
+        R({ id: 'shortcuts', title: 'Keyboard shortcuts', group: 'Help', term: 'shortcuts', priority: 20,
+            kw: 'keyboard shortcuts shortcut hotkey hotkeys',
+            desc: 'Keyboard shortcuts: press ? for the full list. H is home, N is Nacho Mode.',
+            how: 'Open the shortcut help, or press ? on your keyboard.',
+            follow: 'Want cipher keys? Those are a different "keys," in Inventory.',
+            hash: 'app/shortcuts', aliases: ['shortcuts', 'keyboard'], kind: 'keyshelp',
+            openFns: ['showKeyboardHelp'] }),
+        R({ id: 'audio', title: 'Sound effects', group: 'Help', term: 'audio', priority: 30, aux: true,
+            kw: 'audio sound mute volume',
+            desc: 'Sound effects can be turned on or off.',
+            how: 'Use the sound toggle or press M.',
+            follow: 'Want Preferences for the rest of the display options?',
+            hash: 'app/audio', aliases: ['audio'], kind: 'audio', openFns: ['toggleAudio'] })
+    ];
+
+    var FEATURES = RAW.map(function (f) {
+        f.keywords = (f.kw || '').split(/\s+/).filter(Boolean);
+        f.aliases = f.aliases || [];
+        f.open = makeOpen(f);
+        f.openFns = f.openFns || [];
+        f.hash = f.hash || ('app/' + f.id);
+        f.priority = f.priority || 10;
+        return f;
+    });
+
+    var BY_ID = {};
+    FEATURES.forEach(function (f) { BY_ID[f.id] = f; });
+
+    function answerText(f) {
+        return f.desc + ' ' + f.how + (f.follow ? ' ' + f.follow : '');
+    }
+
+    function pack(id) {
+        var f = BY_ID[id];
+        if (!f) return null;
+        return {
+            featureId: f.id,
+            id: f.id,
+            title: f.title,
+            answer: answerText(f),
+            followUp: f.follow,
+            siteAction: "window.bqOpenFeature('" + f.id + "')",
+            siteLabel: 'Open it',
+            isSiteNav: true,
+            hash: f.hash
+        };
+    }
+
+    var TYPOS = {
+        ciper: 'cipher', cypher: 'cipher', ciphur: 'cipher',
+        prediciton: 'prediction', predicition: 'prediction', predition: 'prediction', forcast: 'forecast',
+        referal: 'referral', refferal: 'referral', referrral: 'referral',
+        qest: 'quest', questt: 'quest',
+        leaderbord: 'leaderboard', leadeboard: 'leaderboard', leaderbaord: 'leaderboard',
+        notifcations: 'notifications', notificaton: 'notification', notifcation: 'notification',
+        setings: 'settings', settigns: 'settings',
+        inventroy: 'inventory', invetory: 'inventory', inventry: 'inventory',
+        lightening: 'lightning', lightining: 'lightning', ligtning: 'lightning',
+        fuacet: 'faucet', facuet: 'faucet',
+        triva: 'trivia', trivai: 'trivia',
+        schollar: 'scholar', schoar: 'scholar',
+        keybord: 'keyboard', keybaord: 'keyboard',
+        shorcut: 'shortcut', shortuct: 'shortcut',
+        donaton: 'donation',
+        mesage: 'message', messge: 'message',
+        foram: 'forum',
+        marketpalce: 'marketplace', marketplce: 'marketplace',
+        dashbord: 'dashboard',
+        tiket: 'ticket', tikcet: 'ticket',
+        raffel: 'raffle',
+        citidel: 'citadel', citadell: 'citadel',
+        satosi: 'satoshi', satoshis: 'satoshi',
+        favour: 'favor',
+        whell: 'wheel',
+        freind: 'friend', frend: 'friend',
+        partneship: 'partnership',
+        badeg: 'badge',
+        shoutuot: 'shoutout',
+        memepool: 'mempool', memepol: 'mempool',
+        begginer: 'beginner', beginer: 'beginner',
+        crytpo: 'crypto'
+    };
+
+    function fixTypos(s) {
+        return String(s || '').split(/\s+/).map(function (w) {
+            var bare = w.replace(/[^a-z0-9']/gi, '');
+            var low = bare.toLowerCase();
+            if (TYPOS[low]) return w.replace(bare, TYPOS[low]);
+            return w;
+        }).join(' ');
+    }
+
+    var STOP = { how: 1, do: 1, does: 1, i: 1, me: 1, my: 1, the: 1, a: 1, an: 1, to: 1, of: 1, is: 1, are: 1, was: 1, where: 1, what: 1, can: 1, for: 1, in: 1, on: 1, it: 1, this: 1, please: 1, want: 1, with: 1, you: 1, your: 1, and: 1, or: 1, from: 1, about: 1, should: 1, would: 1, could: 1, there: 1, that: 1, have: 1, get: 1, open: 1 };
+
+    function stem(w) {
+        if (w.length > 4 && w.slice(-3) === 'ies') return w.slice(0, -3) + 'y';
+        if (w.length > 3 && w.slice(-1) === 's' && w.slice(-2) !== 'ss') return w.slice(0, -1);
+        return w;
+    }
+    function norm(s) {
+        return fixTypos(String(s || '').toLowerCase()).replace(/['’]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function tokens(s) {
+        return norm(s).split(' ').filter(Boolean).map(stem).filter(function (w) { return !STOP[w] && w.length > 1; });
+    }
+    function lev(a, b) {
+        if (a === b) return 0;
+        if (!a.length) return b.length;
+        if (!b.length) return a.length;
+        var prev = [];
+        var cur = [];
+        var i, j;
+        for (j = 0; j <= b.length; j++) prev[j] = j;
+        for (i = 1; i <= a.length; i++) {
+            cur[0] = i;
+            for (j = 1; j <= b.length; j++) {
+                var cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+                cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+            }
+            var tmp = prev; prev = cur; cur = tmp;
+        }
+        return prev[b.length];
+    }
+    function tokenSim(q, t) {
+        if (q === t) return 1;
+        if (q.length >= 4 && t.length >= 4 && (t.indexOf(q) === 0 || q.indexOf(t) === 0)) return 0.82;
+        if (q.length >= 5 && t.length >= 5) {
+            var d = lev(q, t);
+            var max = q.length >= 8 ? 2 : 1;
+            if (d > 0 && d <= max && d / Math.max(q.length, t.length) <= 0.34) return 0.7;
+        }
+        return 0;
+    }
+    function bestSim(qt, list) {
+        var best = 0;
+        for (var i = 0; i < list.length; i++) {
+            var s = tokenSim(qt, list[i]);
+            if (s > best) best = s;
+        }
+        return best;
+    }
+
+    function scoreFeature(f, qTokens, phrase) {
+        var titleT = tokens(f.title);
+        var kwT = f.keywords.map(stem);
+        var descT = tokens(f.desc + ' ' + f.how);
+        var score = 0;
+        for (var i = 0; i < qTokens.length; i++) {
+            var qt = qTokens[i];
+            var ts = bestSim(qt, titleT);
+            var ks = bestSim(qt, kwT);
+            var ds = bestSim(qt, descT);
+            score += ts * 14 + ks * 11 + ds * 4;
+        }
+        if (phrase && norm(f.title + ' ' + f.kw).indexOf(phrase) !== -1) score += 18;
+        if (qTokens.length === 1 && qTokens[0] === 'key') {
+            if (f.id === 'keys') score += 40;
+            if (f.id === 'shortcuts') score -= 30;
+        }
+        score += (f.priority || 0) * 0.02;
+        return score;
+    }
+
+    function searchFeatures(query) {
+        var phrase = norm(query);
+        var qTokens = tokens(query);
+        if (!phrase || phrase.length < 2) return [];
+        if (!qTokens.length) qTokens = phrase.split(' ').map(stem);
+        var rows = [];
+        for (var i = 0; i < FEATURES.length; i++) {
+            var f = FEATURES[i];
+            var s = scoreFeature(f, qTokens, phrase);
+            if (s >= 8) rows.push({ feature: f, score: s });
+        }
+        rows.sort(function (a, b) {
+            if (b.score !== a.score) return b.score - a.score;
+            return (b.feature.priority || 0) - (a.feature.priority || 0);
+        });
+        return rows;
+    }
+
+    // Ordered, specific-first. First hit wins. null means "let the Bitcoin KB answer".
+    function resolveId(raw) {
+        var s = norm(raw);
+        if (!s || s.length < 2) return null;
+        if (/bitcoin price|current price|price now|price of bitcoin|how much is bitcoin/.test(s) && !/predict/.test(s)) return null;
+        if (/what is bitcoin\b|how does bitcoin work|who is satoshi nakamoto/.test(s) && !/favor|story|nook|raid|citadel/.test(s)) return null;
+
+        if (/locked cipher|open (a |the |my )?(locked )?cipher|\bcipher\b/.test(s)) {
+            if (/\bkey\b/.test(s) && /get|send|need|for my|from a peer|give/.test(s) && !/open (a |the |my )?locked|how do i open/.test(s)) return 'keys';
+            return 'ciphers';
+        }
+        if (/keyboard shortcut|hotkey|what are the shortcuts|shortcut help/.test(s)) return 'shortcuts';
+        if (/\bkey\b/.test(s) && /cipher|peer|inventory|send/.test(s)) return 'keys';
+        if (/^keys?$|cipher keys|get a key|need a key/.test(s)) return 'keys';
+
+        if (/2fa|two factor|two-factor|authenticator|turn on 2 ?fa|change (my )?password|delete (my )?account|block users/.test(s)) return 'security';
+        if (/dark mode|oled|font size|light mode|theme|preferences|experience mode/.test(s)) return 'prefs';
+        if (/export (my )?data|download my data/.test(s)) return 'export';
+        if (/honey badger|cyber hornet|pick a faction|choose a faction|\bfaction\b/.test(s)) return 'faction';
+        if (/lightning address|add my lightning|payout address/.test(s)) return 'ln-address';
+        if (/claim sats|faucet|how do i claim|withdraw sats|cash out/.test(s)) return 'sats';
+        if (/referral|refer a friend|referr|invite (a )?friend/.test(s)) return 'referral';
+
+        if (/shout ?out/.test(s)) return 'shoutout';
+        if (/gift bag/.test(s)) return 'gift-bag';
+        if (/open (my |the |a )?gifts?|how do i open (my )?gift/.test(s)) return 'gifts';
+        if (/partnership|wumbo/.test(s)) return 'partnership';
+        if (/add a peer|\bpeers?\b|peer request/.test(s)) return 'peers';
+        if (/double xp|2x xp/.test(s)) return 'double-xp';
+        if (/hint token|\bhints?\b/.test(s) && /token|quiz|nook|what are hint/.test(s)) return 'hint-token';
+        if (/streak freeze|freeze (my )?streak/.test(s)) return 'streak-freeze';
+        if (/hash booster|second rig/.test(s)) return 'hash-booster';
+        if (/raffle/.test(s)) return 'raffle';
+        if (/inventory/.test(s)) return 'inventory';
+        if (/nook|what can i buy/.test(s)) return 'nook';
+
+        if (/price prediction|predict the price|prediction game|up or down/.test(s) || /\bpredictions?\b/.test(s)) return 'predictions';
+        if (/raid boss|\braid\b/.test(s)) return 'raid';
+        if (/citadel/.test(s)) return 'citadel';
+        if (/donate xp|xp to charity|\bcharity\b/.test(s)) return 'charity';
+        if (/how do i donate|donate to (the )?(archive|site|app)|support the archive/.test(s)) return 'donate';
+        if (/tip (another|a|other) user|how do i tip|lightning tip|send a tip/.test(s)) return 'tips';
+        if (/community challenge/.test(s)) return 'community';
+        if (/satoshi'?s favor|satoshi favor/.test(s)) return 'favor';
+        if (/what is flex|flex in quest|flex tab|healthy habit/.test(s)) return 'qh-flex';
+        if (/daily poll|where is the poll|\bpoll\b/.test(s)) return 'qh-poll';
+        if (/daily trivia|where is the trivia|\btrivia\b/.test(s) && !/pvp|battle/.test(s)) return 'qh-trivia';
+        if (/quiz me|^quiz me\b|pop quiz/.test(s)) return 'quiz-me';
+        if (/daily quiz|where is the quiz|quest hub quiz/.test(s)) return 'qh-quiz';
+        if (/quest hub|\bquesthub\b/.test(s)) return 'quest-hub';
+
+        if (/hot topics?/.test(s)) return 'hot-topics';
+        if (/where is the faq|\bfaq\b|the guide|show me the guide/.test(s)) return 'faq';
+        if (/sats vs bits|sats or bits/.test(s)) return 'sats-vs-bits';
+        if (/meetup builder/.test(s)) return 'meetup-builder';
+        if (/proof of walk|\bstrava\b|\bwalk\b/.test(s) && !/proof of work/.test(s)) return 'proof-of-walk';
+        if (/arcade|proof of play/.test(s)) return 'proof-of-play';
+        if (/\bpvp\b|trivia battle/.test(s)) return 'pvp';
+        if (/global chat/.test(s)) return 'global-chat';
+        if (/direct message|\bdms?\b|\binbox\b/.test(s)) return 'dms';
+        if (/bitcoin buddy|\bbuddy\b/.test(s)) return 'buddy';
+        if (/plebtalk|\bforum\b/.test(s)) return 'forum';
+        if (/marketplace|lightningmart|\bmarket\b/.test(s) && !/cap|stock/.test(s)) return 'marketplace';
+        if (/timechain tv|\btv\b/.test(s)) return 'tv';
+        if (/bitcoin music|bitcoin beats|\bbeats\b|dj mode|where can i listen/.test(s)) return 'beats';
+        if (/mempool|network stats|bitcoin dashboard|\bdashboard\b/.test(s)) return 'dashboard';
+        if (/notification/.test(s)) return 'notifications';
+        if (/where are the settings|open settings|\bsettings\b/.test(s) && !/nacho/.test(s)) return 'settings';
+        if (/sign in|log in|login|create an account|how do i sign/.test(s)) return 'signin';
+        if (/orange ticket/.test(s)) return 'tickets';
+        if (/\bbadges?\b/.test(s)) return 'badges';
+        if (/earn points|earn xp|overflow|how do i earn points|how do i earn xp|what are points|daily cap/.test(s)) return 'xp';
+        if (/leaderboard/.test(s)) return 'leaderboard';
+        if (/spin wheel|daily spin|\bwheel\b|\bspin\b/.test(s)) return 'wheel';
+        if (/flashcard/.test(s)) return 'flashcards';
+        if (/scholar|certification/.test(s)) return 'scholar';
+        if (/signal|newsletter/.test(s)) return 'signal';
+        if (/nacho'?s story|where is nacho/.test(s) && /story|chapter/.test(s)) return 'story';
+        if (/dress|closet|outfit/.test(s)) return 'closet';
+        if (/eli5|explain like i/.test(s)) return 'eli5';
+        if (/nacho mode/.test(s)) return 'nacho-mode';
+        if (/how do i ask you|ask nacho|mini nacho|ask you a question/.test(s)) return 'mini-nacho';
+        if (/learning quest/.test(s)) return 'learning-quests';
+        if (/nacho'?s trails|\btrails?\b/.test(s)) return 'trails';
+        if (/brand new|where do i start|one stop|i am new|channels should i start|what channels should/.test(s)) return 'one-stop-shop';
+        if (/first bitcoin|buy my first|how do i buy/.test(s)) return 'first-purchase';
+        if (/random meme|show me a meme|\bmemes?\b/.test(s)) return 'random';
+        if (/what is the lightning network|lightning network channel|education channels/.test(s)) return 'channels';
+        if (/lightning wallet|connect a (lightning )?wallet|connect a lightning/.test(s)) return 'lightning-wallet';
+        if (/home page|back to (the )?home|go home|get back to the home/.test(s)) return 'home';
+        if (/find a (bitcoin )?meetup|irl sync|\bmeetup\b/.test(s)) return 'irl';
+        if (/where is the (global )?chat|\bchat\b/.test(s) && !/nacho/.test(s)) return 'global-chat';
+
+        var hits = searchFeatures(s).filter(function (h) { return !h.feature.aux; });
+        if (!hits.length) return null;
+        var top = hits[0];
+        var second = hits[1] ? hits[1].score : 0;
+        if (top.score >= 18 && (top.score - second >= 6 || qIntent(s))) return top.feature.id;
+        return null;
+    }
+    function qIntent(s) {
+        return /how|where|open|find|show|earn|claim|turn|add|send|unlock|start|play|watch|listen|what is|what are/.test(s);
+    }
+
+    function resolveNachoFeature(input) {
+        var id = resolveId(input);
+        return id ? pack(id) : null;
+    }
+
+    function featureByHash(hash) {
+        var h = String(hash || '').replace(/^#/, '').replace(/^\/app\//, 'app/').split('?')[0];
+        if (!h) return null;
+        if (h.indexOf('beats/') === 0 || h.indexOf('cert/') === 0) return null;
+        if (h.indexOf('app/') === 0) {
+            var id = h.slice(4);
+            return BY_ID[id] || null;
+        }
+        for (var i = 0; i < FEATURES.length; i++) {
+            var f = FEATURES[i];
+            if (f.hash === h) return f;
+            if (f.aliases.indexOf(h) !== -1) return f;
+        }
+        return null;
+    }
+
+    function bqRouteHash(hash) {
+        if (win._bqSuppressRoute) return false;
+        var f = featureByHash(hash);
+        if (!f) return false;
+        // Don't steal a real education-channel hash (for example #predictions).
+        var bare = String(hash || '').replace(/^#/, '');
+        if (bare.indexOf('app/') !== 0 && bare.indexOf('/') === -1 && typeof win.CHANNELS === 'object' && win.CHANNELS && win.CHANNELS[bare] && f.hash !== bare && f.aliases.indexOf(bare) === -1) {
+            return false;
+        }
+        try { f.open(); } catch (e) {}
+        return true;
+    }
+
+    function bqOpenFeature(id) {
+        var f = BY_ID[id];
+        if (!f) return;
+        var hash = f.hash || ('app/' + f.id);
+        win._bqSuppressRoute = true;
+        try {
+            if (win.history && win.history.pushState) win.history.pushState({ feature: f.id }, '', '#' + hash);
+            else win.location.hash = hash;
+        } catch (e) {}
+        setTimeout(function () { win._bqSuppressRoute = false; }, 400);
+        try { f.open(); } catch (e2) {}
+    }
+
+    function esc(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function renderNachoAnswerCard(hit) {
+        var f = BY_ID[hit.featureId || hit.id];
+        var text = hit.answer || (f ? answerText(f) : '');
+        var follow = hit.followUp || (f && f.follow) || '';
+        var id = (f && f.id) || hit.featureId || '';
+        var chip = follow
+            ? '<button type="button" data-bq-chip="1" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();window.bqAskFollowUp(this.getAttribute(\'data-q\'))" data-q="' + esc(follow) + '" style="display:block;width:100%;margin-top:6px;padding:7px 8px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#aaa);font-size:0.78rem;cursor:pointer;font-family:inherit;text-align:left;">' + esc(follow) + '</button>'
+            : '';
+        return '<div class="bq-nacho-card" data-bq-card="1" data-bq-chip="1" style="color:var(--text,#eee);line-height:1.55;">' +
+            '<div>' + esc(text).replace(/\n/g, '<br>') + '</div>' +
+            '<button type="button" data-bq-open="1" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();window.bqOpenFeature(\'' + id + '\')" style="width:100%;margin-top:10px;padding:10px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Open it</button>' +
+            '<a href="#' + esc(f ? f.hash : ('app/' + id)) + '" onclick="event.preventDefault();window.bqOpenFeature(\'' + id + '\')" style="display:block;margin-top:4px;text-align:center;font-size:0.72rem;color:var(--text-faint,#888);">#' + esc(f ? f.hash : id) + '</a>' +
+            chip +
+            '</div>';
+    }
+
+    function pickTip(q) {
+        var s = norm(q || '');
+        if (/price|buy|invest|sell/.test(s)) return 'Want the education page for your first Bitcoin purchase? It is not financial advice.';
+        if (/wallet|seed|custody/.test(s)) return 'Want the self-custody channel, or the in-app Lightning wallet page?';
+        if (/mining|hash/.test(s)) return 'Want Satoshi\'s Favor, the in-app hashing game?';
+        if (/hello|how are you|thanks|thank/.test(s)) return 'Want me to open Quest Hub so you can earn a little XP today?';
+        return 'Want me to open Quest Hub, or show you how Orange Tickets work?';
+    }
+
+    function bqAskFollowUp(text) {
+        text = String(text || '');
+        var mode = document.getElementById('nachoModeScreen');
+        var modeInp = document.getElementById('nachoModeInput');
+        if (mode && modeInp && typeof win.nachoModeSend === 'function') {
+            modeInp.value = text;
+            win.nachoModeSend();
+            return;
+        }
+        if (typeof win.showNachoInput === 'function') win.showNachoInput();
+        setTimeout(function () {
+            var inp = document.getElementById('nachoInput');
+            if (inp) {
+                inp.value = text;
+                if (typeof win.nachoAnswer === 'function') win.nachoAnswer();
+            }
+        }, 60);
+    }
+
+    function bqAskNacho(q) {
+        win._bqSearchQuery = q || '';
+        if (typeof win.showNachoInput === 'function') win.showNachoInput();
+        setTimeout(function () {
+            var inp = document.getElementById('nachoInput');
+            if (inp) {
+                inp.value = win._bqSearchQuery || '';
+                if (inp.value && typeof win.nachoAnswer === 'function') win.nachoAnswer();
+            }
+        }, 80);
+    }
+
+    function appKnowledge() {
+        var lines = [];
+        for (var i = 0; i < FEATURES.length; i++) {
+            var f = FEATURES[i];
+            if (f.aux) continue;
+            lines.push(f.title + ': ' + f.desc + ' ' + f.how);
+        }
+        var text = lines.join('\n');
+        if (text.length > 9000) text = text.slice(0, 9000);
+        return text;
+    }
+
+    function userContext() {
+        var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+        var name = (u && u.username) || '';
+        try {
+            if (!name) name = win.localStorage.getItem('btc_username') || '';
+        } catch (e) {}
+        var points = (u && u.points) || 0;
+        var rank = '';
+        try { if (typeof getLevel === 'function') rank = (getLevel(points) || {}).name || ''; } catch (e2) {}
+        return { name: String(name).slice(0, 40), rank: String(rank).slice(0, 40), points: points | 0 };
+    }
+
+    function toAppPages() {
+        return FEATURES.map(function (f) {
+            return {
+                id: '_' + f.id,
+                featureId: f.id,
+                title: f.title,
+                desc: f.desc,
+                keywords: f.keywords.join(' '),
+                action: "window.bqOpenFeature('" + f.id + "')"
+            };
+        });
+    }
+    function toHashTargets() {
+        var out = [];
+        FEATURES.forEach(function (f) {
+            var tags = [f.hash].concat(f.aliases);
+            tags.forEach(function (tag) {
+                if (!tag || tag.indexOf('/') !== -1) return;
+                out.push({ tag: tag, label: f.title, featureId: f.id });
+            });
+        });
+        return out;
+    }
+    function toSeoPages() {
+        var ids = [];
+        FEATURES.forEach(function (f) {
+            if (f.hash && f.hash.indexOf('/') === -1 && ids.indexOf(f.hash) === -1) ids.push(f.hash);
+        });
+        return ids;
+    }
+
+    function installSearch(orig) {
+        function bqCloseSearch() {
+            var ov = document.getElementById('searchOverlay');
+            if (ov) ov.style.display = 'none';
+            var sr = document.getElementById('searchResults');
+            if (sr) { sr.classList.remove('active'); sr.innerHTML = ''; }
+            var side = document.getElementById('sidebarSearchResults');
+            if (side && side !== sr) { side.classList.remove('active'); side.innerHTML = ''; }
+            var cl = document.getElementById('channelList');
+            if (cl) cl.style.display = '';
+            ['searchInput', 'searchOverlayInput'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            if (typeof win.isMobile === 'function' && win.isMobile()) {
+                var sb = document.getElementById('sidebar');
+                if (sb) sb.classList.remove('open');
+            }
+        }
+        win.bqCloseSearch = bqCloseSearch;
+        function render(q) {
+            var overlay = document.getElementById('searchOverlay');
+            var overlayOpen = overlay && (overlay.getAttribute('data-open') === '1' || overlay.style.display === 'flex');
+            var sr = overlayOpen ? document.getElementById('searchResults') : (document.getElementById('sidebarSearchResults') || document.getElementById('searchResults'));
+            if (!sr) return;
+            var cl = document.getElementById('channelList');
+            var feats = searchFeatures(q);
+            var chans = [];
+            if (typeof CHANNELS === 'object' && CHANNELS) {
+                var phrase = norm(q);
+                Object.keys(CHANNELS).forEach(function (key) {
+                    var meta = CHANNELS[key];
+                    if (!meta) return;
+                    var blob = norm((meta.title || '') + ' ' + (meta.desc || ''));
+                    if (phrase && blob.indexOf(phrase) !== -1) chans.push({ key: key, title: meta.title, cat: meta.cat || 'Channel' });
+                    else {
+                        var ts = tokens(q);
+                        var blobT = tokens((meta.title || '') + ' ' + (meta.desc || ''));
+                        var ok = ts.length && ts.every(function (t) { return bestSim(t, blobT) >= 0.82; });
+                        if (ok) chans.push({ key: key, title: meta.title, cat: meta.cat || 'Channel' });
+                    }
+                });
+            }
+            if (!feats.length && !chans.length) {
+                sr.classList.add('active');
+                if (cl) cl.style.display = 'none';
+                sr.innerHTML = '<div style="padding:20px;text-align:center;">' +
+                    '<div style="color:var(--text-faint);margin-bottom:12px;">No results for “' + esc(q) + '”</div>' +
+                    '<button type="button" onclick="window.bqAskNacho(window._bqSearchQuery||\'\')" style="padding:10px 16px;background:var(--accent,#f7931a);border:none;border-radius:10px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Ask Nacho</button>' +
+                    '</div>';
+                win._bqSearchQuery = q;
+                return;
+            }
+            var html = '<div style="padding:8px 16px 4px;font-size:0.7rem;color:var(--text-faint);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">' +
+                (feats.length ? feats.length + ' feature' + (feats.length === 1 ? '' : 's') : '') +
+                (feats.length && chans.length ? ' · ' : '') +
+                (chans.length ? chans.length + ' channel' + (chans.length === 1 ? '' : 's') : '') +
+                '</div><div>';
+            feats.slice(0, 12).forEach(function (row) {
+                var f = row.feature;
+                html += '<div class="sr-item" data-bq-feature="' + f.id + '" style="border-left:3px solid var(--accent);cursor:pointer;" onclick="window.bqOpenFeature(\'' + f.id + '\');window.bqCloseSearch&&window.bqCloseSearch();">' +
+                    '<div class="sr-cat">Feature</div>' +
+                    '<div>' + esc(f.title) + '</div>' +
+                    '<div class="sr-match">' + esc(f.desc) + '</div>' +
+                    '<button type="button" onclick="event.stopPropagation();event.preventDefault();window.bqOpenFeature(\'' + f.id + '\');window.bqCloseSearch&&window.bqCloseSearch();" style="margin-top:6px;padding:6px 12px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Open</button>' +
+                    '</div>';
+            });
+            chans.slice(0, 12).forEach(function (c) {
+                html += '<div class="sr-item" style="cursor:pointer;" onclick="if(window.selectResult)window.selectResult(\'' + c.key + '\',-1);">' +
+                    '<div class="sr-cat">' + esc(c.cat) + '</div><div>' + esc(c.title) + '</div></div>';
+            });
+            html += '</div>';
+            sr.innerHTML = html;
+            sr.classList.add('active');
+            if (cl) cl.style.display = 'none';
+            win._bqSearchQuery = q;
+        }
+        var wrapped = function (q) {
+            var text = (q == null) ? '' : String(q);
+            ['searchInput', 'searchOverlayInput'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el && el.value !== text) el.value = text;
+            });
+            if (!text || text.length < 2 || text.toLowerCase() === 'satoshi' || text.toLowerCase() === 'deer') {
+                if (typeof orig === 'function') return orig(text);
+                return;
+            }
+            render(text);
+        };
+        wrapped._bq = true;
+        win.doSearch = wrapped;
+    }
+
+    function decorateResult(result, q) {
+        if (!result || result.rendered || !result.answer) return result;
+        var plain = String(result.answer).replace(/<[^>]+>/g, '');
+        if (/\?\s*$/.test(plain.trim()) || /data-bq-chip/.test(result.answer)) return result;
+        var tip = (result.followUp) || pickTip(q);
+        result.followUp = tip;
+        result.answer += '<div data-bq-chip="1" style="margin-top:8px;font-size:0.84rem;color:var(--text-muted,#bbb);">' + esc(tip) + '</div>';
+        win._bqLastFollowUp = tip;
+        return result;
+    }
+
+    function wrapUnified(orig) {
+        var wrapped = function (question, cb) {
+            var hit = resolveNachoFeature(question);
+            if (hit) {
+                win._bqLastFollowUp = hit.followUp;
+                var card = renderNachoAnswerCard(hit);
+                if (typeof win.nachoRemember === 'function') {
+                    try { win.nachoRemember(question, hit.answer); } catch (e) {}
+                }
+                cb({ type: 'site', answer: card, rendered: true, featureId: hit.featureId, followUp: hit.followUp, siteLabel: 'Open it' });
+                return;
+            }
+            return orig(question, function (result) {
+                try { result = decorateResult(result, question); } catch (e) {}
+                cb(result);
+            });
+        };
+        wrapped._bq = true;
+        wrapped._bqOrig = orig;
+        return wrapped;
+    }
+
+    function installNacho() {
+        if (typeof win.nachoUnifiedAnswer === 'function' && !win.nachoUnifiedAnswer._bq) {
+            win.nachoUnifiedAnswer = wrapUnified(win.nachoUnifiedAnswer);
+        }
+        if (typeof win.nachoFollowUps === 'function' && !win.nachoFollowUps._bq) {
+            var prev = win.nachoFollowUps;
+            var wrapped = function (answerText) {
+                var a = String(answerText || '');
+                if (a.indexOf('data-bq-chip') !== -1) return [];
+                if (win._bqLastFollowUp && a.indexOf(String(win._bqLastFollowUp).slice(0, 24)) !== -1) return [win._bqLastFollowUp];
+                var list = [];
+                try { list = prev(a) || []; } catch (e) {}
+                return list.slice(0, 1);
+            };
+            wrapped._bq = true;
+            win.nachoFollowUps = wrapped;
+        }
+    }
+
+    function installRouter() {
+        if (win._bqRouter) return;
+        win._bqRouter = true;
+        function go() {
+            var h = (win.location && win.location.hash || '').replace(/^#/, '');
+            if (!h && win.location && /\/app\/[^/]+/.test(win.location.pathname || '')) {
+                h = 'app/' + win.location.pathname.split('/app/')[1];
+            }
+            if (h) bqRouteHash(h);
+        }
+        if (win.addEventListener) {
+            win.addEventListener('hashchange', go);
+            win.addEventListener('load', function () { setTimeout(go, 600); });
+        }
+    }
+
+    function patchSettingsPeers() {
+        if (typeof win.showSettingsPage !== 'function' || win.showSettingsPage._bqPeers) return;
+        var orig = win.showSettingsPage;
+        var wrapped = function (tab) {
+            if (tab === 'peers') return settingsOpen('peers')();
+            if (tab === 'profile') return settingsOpen('account')();
+            return orig.apply(this, arguments);
+        };
+        wrapped._bqPeers = true;
+        try { win.showSettingsPage = wrapped; } catch (e) {}
+    }
+
+    var api = {
+        FEATURES: FEATURES,
+        BY_ID: BY_ID,
+        searchFeatures: searchFeatures,
+        resolveNachoFeature: resolveNachoFeature,
+        featureByHash: featureByHash,
+        toAppPages: toAppPages,
+        toHashTargets: toHashTargets,
+        toSeoPages: toSeoPages,
+        answerText: answerText,
+        renderNachoAnswerCard: renderNachoAnswerCard,
+        appKnowledge: appKnowledge,
+        userContext: userContext
+    };
+
+    win.FEATURE_REGISTRY = FEATURES;
+    win.bqSearchFeatures = searchFeatures;
+    win.resolveNachoFeature = resolveNachoFeature;
+    win.bqOpenFeature = bqOpenFeature;
+    win.bqRouteHash = bqRouteHash;
+    win.bqOpenByHash = function (tag) { return bqRouteHash(tag); };
+    win.bqHashTargets = toHashTargets;
+    win.bqToAppPages = toAppPages;
+    win.bqSeoPages = toSeoPages;
+    win.bqAppKnowledge = appKnowledge;
+    win.bqUserContext = userContext;
+    win.renderNachoAnswerCard = renderNachoAnswerCard;
+    win.bqAskFollowUp = bqAskFollowUp;
+    win.bqAskNacho = bqAskNacho;
+    win.APP_PAGES = toAppPages();
+    win._SEO_APP_PAGES = toSeoPages();
+
+    if (typeof document !== 'undefined') {
+        installSearch(win.doSearch);
+        installNacho();
+        installRouter();
+        patchSettingsPeers();
+        var tries = 0;
+        var timer = setInterval(function () {
+            tries++;
+            installNacho();
+            if (typeof win.doSearch === 'function' && !win.doSearch._bq) installSearch(win.doSearch);
+            patchSettingsPeers();
+            if (tries > 40) clearInterval(timer);
+        }, 500);
+    }
+
+    if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);

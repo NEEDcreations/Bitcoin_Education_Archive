@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const JS_FILES = [
-    'ranking.js', 'app.js', 'nacho-qa.js', 'nacho.js', 'nacho-engage.js',
+    'ranking.js', 'app.js', 'nacho-qa.js', 'features.registry.js', 'nacho.js', 'nacho-engage.js',
     'nacho-closet.js', 'nacho-live.js', 'bitcoin-dashboard.js', 'mobile-ux.js', 'forum.js',
     'marketplace.js', 'messaging.js', 'engagement.js', 'badges.js',
     'tickets.js', 'features.js', 'quests.js', 'scholar.js', 'sw.js',

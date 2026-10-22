@@ -4185,7 +4185,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw cashout bitcoin lightning faucet earn XP convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
         { id: '_tips', title: '⚡ Lightning Tips', desc: 'Tip other users with Lightning sats', keywords: 'tip tips lightning send sats zap reward give appreciation', action: "if(typeof showTipOverlay==='function')showTipOverlay()" },
         { id: '_network', title: '📡 Bitcoin Network', desc: 'Live mempool, hashrate, difficulty, fees, and block explorer', keywords: 'network mempool hashrate difficulty fees block explorer transaction confirmations bitcoin network stats', action: "go('bitcoin-dashboard')" },
-        { id: '_notifications', title: '🔔 Notifications', desc: 'Enable push notifications for updates and alerts', keywords: 'notifications push alerts notify bell updates permission enable disable', action: "if(typeof requestNotificationPermission==='function')requestNotificationPermission();else showSettings()" },
+        { id: '_notifications', title: '🔔 Notifications', desc: 'Enable push notifications for updates and alerts', keywords: 'notifications push alerts notify bell updates permission enable disable', action: "if(typeof showNotifications==='function')showNotifications()" },
         { id: '_streakfreeze', title: '🧊 Streak Freeze', desc: 'Protect your visit streak with freeze tickets', keywords: 'streak freeze ticket protect miss save guard insurance ice', action: "showSettings();setTimeout(function(){showSettingsPage('data')},100)" },
         { id: '_cotd', title: '📅 Channel of the Day', desc: 'Today\'s featured Bitcoin education channel', keywords: 'channel of the day daily featured recommendation today pick spotlight', action: 'goHome()' },
         { id: '_nostr', title: '🟣 Nostr Login', desc: 'Sign in with Nostr — extension, nsec, or npub', keywords: 'nostr login sign in nip npub nsec extension relay decentralized identity', action: 'showUsernamePrompt()' },
@@ -5236,6 +5236,8 @@ if (locked) {
                     if (typeof toggleDashboard === 'function') { history.replaceState({ home: true }, '', window.location.pathname); toggleDashboard(); return; }
                     break;
                 default:
+                    // Feature registry deep links (#app/<id>, #questhub, and other feature hashes).
+                    if (typeof window.bqRouteHash === 'function' && window.bqRouteHash(hash)) return;
                     // Beats deep links (#beats/trackId, #beats/playlist/uid/id) — route to Beats, deep link handler in beats.js takes over
                     // Skip if initial handler already routed (prevents double go() wiping deep link state)
                     if (hash.indexOf('beats/') === 0 && typeof go === 'function' && !window._beatsRouted) {

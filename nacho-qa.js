@@ -476,8 +476,8 @@ const NACHO_KB = [
       answer: "Earn XP by: visiting daily (+5), opening new channels (+10), reading for 30sec (+15), quest bonuses, badges (25-1000), and Orange Tickets (5 XP each)! Check the leaderboard!",
       channel: null, channelName: null },
 
-    { keys: ['ticket','tickets','orange ticket','giveaway','referral','refer','sats giveaway'],
-      answer: "Earn Orange Tickets by logging in daily (+1) and referring friends (+5). The more tickets you have, the higher your chances in future events! Check Settings → Tickets for your referral link!",
+    { keys: ['ticket','tickets','orange ticket','giveaway','sats giveaway'],
+      answer: "Orange Tickets come from the daily spin, activity, and referrals. When a friend you referred reaches Maxi rank, you both get 50 Orange Tickets. Your link is in Settings → Account.",
       channel: null, channelName: null },
 
     { keys: ['badge','badges','hidden badge','achievements','unlock'],
@@ -2355,22 +2355,22 @@ const NACHO_KB = [
 
 // ---- Sats Faucet / Claim Sats ----
 { keys: ['earn real sats','earn bitcoin','earn real bitcoin','can i earn bitcoin','get free sats','earn sats on this site','free bitcoin','earn btc','how to earn sats','earn sats here','get sats','get bitcoin'],
-  answer: "Yes, {name} — you can earn REAL sats (Bitcoin) on this site! ⚡🦌 Earn points by reading channels, completing quests, chatting, and more. Then convert your points into real sats at a rate of 10 points = 1 sat. Go to Settings → ⚡ Sats tab to claim. You'll need at least 1,000 points to claim 100 sats (the minimum). Payouts are instant via Lightning Network! 🧡",
+  answer: "Yes, {name} — you can claim real sats from the faucet. ⚡🦌 Earn points by reading, quests, and chat, then open Settings → Sats. Payouts go to the Lightning address saved on your account. The faucet keeps a few quiet checks so it stays fair — those details stay vague on purpose.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Go to Sats Tab', isSiteNav: true },
 
 { keys: ['claim sats','how to claim sats','withdraw sats','withdraw bitcoin','how to withdraw','cash out points','convert points','redeem points','redeem sats','claim bitcoin','how do i claim','sats tab','get my sats'],
-  answer: "Here's how to claim your sats, {name}! ⚡🦌\n\n1️⃣ Go to **Settings → ⚡ Sats** tab\n2️⃣ Check your point balance (10 points = 1 sat)\n3️⃣ Enter the amount of sats you want to claim (min 100, max 500/day)\n4️⃣ Paste a **Lightning invoice** from your wallet for that amount\n5️⃣ Hit Claim — sats are sent instantly via Lightning! ⚡\n\nYou'll need a Lightning wallet like Wallet of Satoshi, Phoenix, or Alby to generate an invoice. 🧡",
-  siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Claim Sats Now', isSiteNav: true },
+  answer: "You can claim sats from the faucet, {name}. ⚡🦌 Open Settings → Sats. Payouts go to the Lightning address saved on your account (Settings → Account). The faucet has a few quiet checks so it stays fair for real learners — those details stay vague on purpose.",
+  siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: 'Open it', isSiteNav: true },
 
 { keys: ['requirements to claim sats','sats requirements','claim requirements','who can claim sats','eligible for sats','qualify for sats','sats eligibility','requirements for sats'],
-  answer: "To claim sats you need to meet these requirements, {name}: 📋🦌\n\n✅ Account at least **7 days old**\n✅ Read at least **10 channels**\n✅ **Verified email** on your account\n✅ Minimum **1,000 points** (= 100 sats)\n\nThese requirements help prevent abuse and reward genuine learners. Once you qualify, head to Settings → ⚡ Sats to claim! ⚡",
+  answer: "The faucet has a few quiet checks so it stays fair for real learners, {name}. 📋🦌 I don't publish the exact rules. Payouts go to the Lightning address saved on your account. Open Settings → Sats when you want to claim.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Check Eligibility', isSiteNav: true },
 
-{ keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','daily cap','claim limit','200 sats','15000 sats','sats per day','cooldown','how often can i claim'],
-  answer: "Here are the sats claim limits, {name}: 📊🦌\n\n⚡ **Minimum claim**: 100 sats (1,000 points)\n⚡ **Maximum per day**: 200 sats (2,000 points)\n⚡ **Lifetime cap**: 15,000 sats per user\n⏰ **Cooldown**: 1 claim every 24 hours\n📈 **Points earned per day**: up to 500 points\n\nThe faucet rewards consistent learning over time. Stack sats by stacking knowledge! 🧡" },
+{ keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','claim limit','200 sats','15000 sats','sats per day','cooldown','how often can i claim'],
+  answer: "The faucet pays out to the Lightning address saved on your account, {name}. ⚡🦌 I don't publish the claim limits or the anti-abuse rules — they stay vague so the faucet stays fair. Open Settings → Sats to claim when you're eligible." },
 
 { keys: ['locked points','release points','unlock points','when release','when unlock','points locked','claimed points','pointsClaimed','my points are locked','why are my points locked','redeem points','how to redeem','release my points','when can i claim','how to unlock points'],
-  answer: "Your points aren't locked, {name} — they're waiting to be claimed as real sats! ⚡🦌\n\nHere's how it works:\n1️⃣ Go to **Settings → ⚡ Sats** tab\n2️⃣ Check the **requirements**: verified email, 7+ day account, 10+ channels read\n3️⃣ Once you have **1,000+ points**, you can claim **100+ sats**\n4️⃣ Paste a Lightning invoice and claim — we even pay the network fees! 💚\n\nYour points never expire and they keep growing. Head to Settings → ⚡ Sats to see exactly where you stand! 🧡" },
+  answer: "Your points are waiting to be claimed as sats, {name}. ⚡🦌 Open Settings → Sats. Payouts go to the Lightning address saved on your account (Settings → Account). The faucet keeps a few quiet checks so it stays fair — those details stay vague on purpose." },
 
 { keys: ['points to sats','sats conversion','conversion rate','how many points per sat','points per sat','exchange rate points','10 points','points ratio','points equal sats'],
   answer: "The conversion rate is simple, {name}: **10 points = 1 sat**! 🔢🦌\n\nSo 1,000 points = 100 sats, 2,000 points = 200 sats. You earn points by reading channels (+15), daily visits (+5), quests, badges, chatting, and more. Points cap at 500 per day. Think of it as earning Bitcoin by learning about Bitcoin — how cool is that? ⚡🧡" },
@@ -2495,13 +2495,40 @@ function isCurrentEventQuestion(input) {
     return false;
 }
 
-// ---- Conversation memory ----
+// ---- Conversation memory (last 8 turns, per user, survives refresh) ----
 var _nachoConvoHistory = [];
-
+function nachoConvoStorageKey() {
+    var uid = 'guest';
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.uid) uid = auth.currentUser.uid;
+        else if (localStorage.getItem('btc_uid')) uid = localStorage.getItem('btc_uid');
+    } catch (e) {}
+    return 'btc_nacho_convo_' + uid;
+}
+function nachoPersistConvo() {
+    try {
+        var slim = _nachoConvoHistory.slice(-8).map(function (t) {
+            return { q: t.q, a: String(t.a || '').slice(0, 500), t: t.t || Date.now() };
+        });
+        localStorage.setItem(nachoConvoStorageKey(), JSON.stringify(slim));
+    } catch (e) {}
+    window._nachoConvoHistory = _nachoConvoHistory;
+}
+function nachoRestoreConvo() {
+    try {
+        var stored = JSON.parse(localStorage.getItem(nachoConvoStorageKey()) || '[]');
+        if (Array.isArray(stored) && stored.length && _nachoConvoHistory.length === 0) {
+            stored.slice(-8).forEach(function (t) { _nachoConvoHistory.push(t); });
+        }
+    } catch (e) {}
+    window._nachoConvoHistory = _nachoConvoHistory;
+}
 function nachoRemember(q, a) {
     _nachoConvoHistory.push({ q: q, a: a, t: Date.now() });
-    if (_nachoConvoHistory.length > 8) _nachoConvoHistory.shift();
+    while (_nachoConvoHistory.length > 8) _nachoConvoHistory.shift();
+    nachoPersistConvo();
 }
+nachoRestoreConvo();
 
 function nachoLastQ() {
     return _nachoConvoHistory.length > 0 ? _nachoConvoHistory[_nachoConvoHistory.length - 1].q : '';
@@ -2919,23 +2946,23 @@ function matchSiteNavigation(input) {
           answer: "Nacho's Closet is where you dress up your favorite deer with items you unlock! 👔🦌",
           action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)", label: "🎽 Open Closet" },
         { patterns: /where.*(referral|invite|share.*link)|referral|invite.*friend|share.*link|how.*refer/,
-          answer: "Your referral link is in Settings → you earn 50 Orange Tickets for each friend who joins! 🔗",
-          action: "showSettings()", label: "🔗 Open Settings" },
+          answer: "When a friend you referred reaches Maxi rank, you both get 50 Orange Tickets. Your link is in Settings → Account. 🔗",
+          action: "window.bqOpenFeature?window.bqOpenFeature('referral'):showSettings()", label: "Open it" },
         { patterns: /where.*(story|chapter|adventure|tale)|nacho.*story|read.*story/,
           answer: "Nacho's Story is a daily Bitcoin adventure — one chapter unlocks each day! 📖",
           action: "showNachoStory()", label: "📖 Read Story" },
         { patterns: /where.*(predict|forecast|price predict)|price prediction|predict.*price/,
           answer: "Price Prediction lets you guess if Bitcoin goes up or down in 24 hours! 📈",
-          action: "showPrediction()", label: "📈 Predict Price" },
+          action: "if(typeof showPricePrediction==='function')showPricePrediction()", label: "Open it" },
         { patterns: /where.*(home|main|start|beginning)|go.*home|back.*home|main.*page|home.*page/,
           answer: "Home is where all the main features live — let me take you there! 🏠",
           action: "goHome()", label: "🏠 Go Home" },
-        { patterns: /where.*(donate|support|tip|contribute)|how.*(donate|support|tip)|donate|support.*archive/,
-          answer: "You can support the archive with a Lightning donation — every sat helps! 💛",
-          action: "showDonateModal()", label: "💛 Donate" },
+        { patterns: /where.*(donate|support the archive|contribute)|how do i donate|donate to (the )?(archive|site)|support.*archive/,
+          answer: "You can support the archive with a Lightning donation — every sat helps! 💛 Donating XP to charity is a different screen, in Quest Hub.",
+          action: "showDonateModal()", label: "Open it" },
         { patterns: /where.*(flashcard|study|study card)|flashcard|study card|how.*study/,
-          answer: "Flashcards are on the homepage — pick a topic and study to prepare for quests! 👩‍🎓",
-          action: "goHome()", label: "🏠 Go to Flashcards" },
+          answer: "Flashcards are in Settings → Scholar. Pick a topic and study for quests! 👩‍🎓",
+          action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)", label: "Open it" },
         { patterns: /where.*(map|exploration|progress|visited)|exploration.*map|which.*channel.*visited|my.*progress/,
           answer: "The Exploration Map is on the homepage — it shows which topics you've visited! 🗺️",
           action: "goHome()", label: "🗺️ View Map" },
@@ -3176,9 +3203,16 @@ function _levenshtein(a, b) {
 }
 
 function findAnswer(input) {
-    input = fixTypos(input.toLowerCase().trim());
-    input = (typeof expandSynonyms === 'function') ? expandSynonyms(input) : input;
+    var _rawQ = String(input || '');
+    input = fixTypos(_rawQ.toLowerCase().trim());
     if (input.length < 2) return null;
+    // Feature registry wins before synonym expansion (which maps "keys" to "private key")
+    // and before the fuzzy KB matcher.
+    if (typeof window.resolveNachoFeature === 'function') {
+        var _feat = window.resolveNachoFeature(_rawQ) || window.resolveNachoFeature(input);
+        if (_feat && _feat.answer) return _feat;
+    }
+    input = (typeof expandSynonyms === 'function') ? expandSynonyms(input) : input;
 
     // ---- EMERGENCY PRIORITY: Live Data Awareness ----
     if (/bitcoin price|current price|price now|how much is bitcoin|price of bitcoin/.test(input)) {
@@ -3811,8 +3845,9 @@ async function nachoAIAnswer(question, callback) {
             eli5: eli5,
             history: history,
             kbContext: kbContext,
-            maxi: true,
-            forceMaxi: NACHO_SYSTEM_PROMPT 
+            appKnowledge: (typeof window.bqAppKnowledge === 'function' ? window.bqAppKnowledge() : '').slice(0, 9000),
+            userContext: (typeof window.bqUserContext === 'function' ? window.bqUserContext() : { name: userName }),
+            mode: eli5 ? 'eli5' : 'chat'
         })
     };
 
@@ -3831,12 +3866,10 @@ async function nachoAIAnswer(question, callback) {
         .then(function(data) {
             if (timeoutId) clearTimeout(timeoutId);
             if (data && data.answer && !data.error) {
-                // Make AI answer more conversational by adding follow-up when appropriate
                 var conversationalAnswer = data.answer;
-                var lowerQ = question.toLowerCase();
-                if (data.answer.length < 300 && !lowerQ.includes('?') && !lowerQ.includes('how') && !lowerQ.includes('why') && !lowerQ.includes('what') && !lowerQ.includes('when') && !lowerQ.includes('where') && !lowerQ.includes('who')) {
-                    // User made a statement — add a warm closing
-                    conversationalAnswer += " What do you think about that?";
+                if (data.followUp) {
+                    window._bqLastFollowUp = data.followUp;
+                    if (conversationalAnswer.indexOf(data.followUp) === -1) conversationalAnswer += '\n\n' + data.followUp;
                 }
                 callback(conversationalAnswer);
             } else {
@@ -3875,8 +3908,9 @@ async function nachoConvoAIAnswer(question, callback) {
             eli5: false,
             history: history,
             kbContext: '',
-            maxi: false,
-            forceMaxi: NACHO_CONVO_PROMPT
+            appKnowledge: (typeof window.bqAppKnowledge === 'function' ? window.bqAppKnowledge() : '').slice(0, 9000),
+            userContext: (typeof window.bqUserContext === 'function' ? window.bqUserContext() : { name: userName }),
+            mode: 'chat'
         })
     };
 
@@ -4978,6 +5012,9 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
 // Expose IIFE functions to window
 window.findAnswer = findAnswer;
+window.nachoRemember = nachoRemember;
+window.nachoRestoreConvo = nachoRestoreConvo;
+window._nachoConvoHistory = _nachoConvoHistory;
 window.checkOffTopic = checkOffTopic;
 window.nachoAIAnswer = nachoAIAnswer;
 window.nachoConvoAIAnswer = nachoConvoAIAnswer;
@@ -5165,6 +5202,10 @@ if (typeof NACHO_KB !== 'undefined') {
 // Every topic funnels toward Bitcoin maximalism — scarcity, sovereignty, sound money.
 window.nachoFollowUps = function(answerText) {
     if (!answerText) return [];
+    if (String(answerText).indexOf('data-bq-chip') !== -1) return [];
+    if (window._bqLastFollowUp && String(answerText).indexOf(String(window._bqLastFollowUp).slice(0, 24)) !== -1) {
+        return [window._bqLastFollowUp];
+    }
     var a = answerText.toLowerCase();
     var suggestions = [];
 
@@ -5249,7 +5290,7 @@ window.nachoFollowUps = function(answerText) {
         { keywords: ['nostr','decentralized social','zap'], suggestions: ['What is Nostr?','How does Nostr use Lightning?','Why are Bitcoiners building on Nostr?'] },
 
         // --- SITE FEATURES → guide engagement ---
-        { keywords: ['nacho','this site','archive','channel','leaderboard'], suggestions: ['What channels should I start with?','How do I earn points?','What are Bitcoin Quests?'] },
+        { keywords: ['nacho','this site','archive','channel','leaderboard'], suggestions: ['I am brand new, where do I start?','How do I earn points?','What is the Quest Hub?'] },
     ];
 
     for (var i = 0; i < topicMap.length; i++) {
@@ -5294,5 +5335,5 @@ window.nachoFollowUps = function(answerText) {
         suggestions[j] = suggestions[r];
         suggestions[r] = tmp;
     }
-    return suggestions.slice(0, 3);
+    return suggestions.slice(0, 1);
 };

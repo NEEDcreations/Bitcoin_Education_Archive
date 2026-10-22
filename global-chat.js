@@ -246,6 +246,13 @@ var HASH_TARGETS = [
 // Add channels dynamically from CHANNELS if available
 function getHashTargets() {
     var targets = HASH_TARGETS.slice();
+    if (typeof window.bqHashTargets === 'function') {
+        try {
+            window.bqHashTargets().forEach(function (t) {
+                if (t && t.tag && !targets.some(function (x) { return x.tag === t.tag; })) targets.push(t);
+            });
+        } catch (e) {}
+    }
     if (typeof CHANNELS === 'object' && CHANNELS) {
         for (var k in CHANNELS) {
             if (CHANNELS[k] && CHANNELS[k].title) {
@@ -823,7 +830,7 @@ function formatChatText(text, mentionUid) {
         } else if (tag === 'questhub' || tag === 'raid' || tag === 'raid-hub') {
             onclick = "event.preventDefault();if(typeof openRaidHub==='function')openRaidHub();";
         } else {
-            onclick = "event.preventDefault();if(typeof go==='function')go('" + tag + "');";
+            onclick = "event.preventDefault();if(typeof window.bqRouteHash==='function'&&window.bqRouteHash('" + tag + "')){}else if(typeof go==='function')go('" + tag + "');";
         }
         // Look up friendly label from HASH_TARGETS
         var friendly = null;
