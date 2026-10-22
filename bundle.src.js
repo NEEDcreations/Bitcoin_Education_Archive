@@ -167,6 +167,48 @@ var PREMIUM_CONFIG = {
     LIFETIME_SATS: 210000,
     TIER_NAME: 'Bitcoin Maxi'
 };
+
+// ---- Education topic cache buster ----
+// Appended to channel JSON fetches so a data edit is not stuck in the SW cache.
+var DATA_CACHE_BUSTER = '20261022a';
+function withDataCacheBuster(url) {
+    if (!url || typeof url !== 'string') return url;
+    if (/[?&]v=/.test(url)) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + DATA_CACHE_BUSTER;
+}
+
+// ---- Display-time strong-language mask ----
+// Shared helper in the same role as a Beats beatsCensor: captions stay intact
+// in the data files, and the reader sees the first and last letter (F**k).
+// URLs are left untouched here so links keep working; censorUrlLabel masks
+// the visible label only.
+function maskStrongWord(word) {
+    if (!word) return word;
+    if (word.length <= 2) return word.charAt(0) + '*';
+    var stars = '';
+    for (var i = 0; i < word.length - 2; i++) stars += '*';
+    return word.charAt(0) + stars + word.charAt(word.length - 1);
+}
+function censorUrlLabel(url) {
+    if (!url) return url;
+    return String(url).replace(/motherfuck(?:ing|ed|ers|er|s)?|fuck(?:ing|ed|ers|er|s)?/gi, function(w) {
+        return maskStrongWord(w);
+    });
+}
+function censorText(text) {
+    if (!text || typeof text !== 'string') return text || '';
+    var urls = [];
+    var protectedText = text.replace(/https?:\/\/[^\s<>"']+/gi, function(u) {
+        urls.push(u);
+        return '\u0000URL' + (urls.length - 1) + '\u0000';
+    });
+    protectedText = protectedText.replace(/\b(?:motherfuck(?:ing|ed|ers|er|s)?|fuck(?:ing|ed|ers|er|s)?)\b/gi, function(w) {
+        return maskStrongWord(w);
+    });
+    return protectedText.replace(/\u0000URL(\d+)\u0000/g, function(_, i) {
+        return urls[Number(i)];
+    });
+}
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -16465,6 +16507,11 @@ document.addEventListener('btcProfileSaved', function() {
         renderContent(id);
     }
 
+    function ageNoteBadge(m) {
+        if (!m || m.ageNote == null || m.ageNote === '') return '';
+        return '<div class="age-note" style="display:inline-block;margin:0 0 8px;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.16);color:#fecaca;border:1px solid rgba(248,113,113,0.45);font-size:0.68rem;font-weight:800;letter-spacing:0.06em;">' + escapeHtml(String(m.ageNote)) + '</div>';
+    }
+
     function renderContent(id) {
         const d = currentChannelData;
         if (!d) return;
@@ -16515,8 +16562,9 @@ document.addEventListener('btcProfileSaved', function() {
 
                 batch.forEach((m, bi) => {
                     html += '<div class="msg" id="msg-' + (startIdx + bi) + '">';
+                    html += ageNoteBadge(m);
                     if (m.text) {
-                        let t = m.text;
+                        let t = (typeof censorText === 'function') ? censorText(m.text) : m.text;
                         // Embed YouTube videos — extract them first, replace with placeholders
                         let ytEmbeds = [];
                         t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g, function(match, id) {
@@ -16535,7 +16583,7 @@ document.addEventListener('btcProfileSaved', function() {
                             return '%%TW' + (twEmbeds.length - 1) + '%%';
                         });
                         // Now linkify remaining URLs
-                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + eu + '</a>'; });
+                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); var label = escapeHtml(typeof censorUrlLabel === 'function' ? censorUrlLabel(url) : url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + label + '</a>'; });
                         // Restore YouTube embeds
                         t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
                             return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
@@ -16693,7 +16741,7 @@ document.addEventListener('btcProfileSaved', function() {
             d = channelCache[channelId];
         } else {
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 d = await resp.json();
                 channelCache[channelId] = d;
             } catch(e) { return; }
@@ -20215,7 +20263,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             d = channelCache[id];
         } else {
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 d = await resp.json();
                 channelCache[id] = d;
             } catch(e) {
@@ -20306,7 +20354,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             let html = '';
             nextBatch.forEach((m, bi) => {
                 html += '<div class="msg" id="msg-' + (offset + bi) + '">';
-                if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                html += ageNoteBadge(m);
+                if (m.text) { let t = (typeof censorText==='function'?censorText(m.text):m.text); let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,function(_,url){var label=(typeof censorUrlLabel==='function'?censorUrlLabel(url):url);return '<a class="msg-link" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+'</a>';}); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
                 if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
                 html += '</div>';
             });
@@ -20386,7 +20435,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const promises = Object.entries(CHANNELS).map(async ([key, meta]) => {
             if (channelCache[key]) { searchFullData[key] = channelCache[key]; return; }
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 const d = await resp.json();
                 channelCache[key] = d;
                 searchFullData[key] = d;
@@ -20615,6 +20664,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                         let idx = m.text.toLowerCase().indexOf(scheduledQ);
                         let start = Math.max(0, idx - 30);
                         let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + scheduledQ.length + 30).replace(/<[^>]+>/g, '') + '...';
+                        if (typeof censorText === 'function') snippet = censorText(snippet);
                         deepResults.push({key, title: meta.title, cat: meta.cat, match: snippet, msgIdx: mi});
                         break;
                     }
@@ -23177,7 +23227,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                 // Store channel JSON URL for SW to cache
                 if ('caches' in window) {
                     caches.open('btc-offline-channels').then(function(cache) {
-                        cache.add(ch.file).catch(function() {});
+                        cache.add(typeof withDataCacheBuster === 'function' ? withDataCacheBuster(ch.file) : ch.file).catch(function() {});
                     });
                 }
                 cached[window.currentChannelId] = { ts: Date.now() };
@@ -23189,7 +23239,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                         delete cached[keys[i]];
                         if ('caches' in window) {
                             var file = CHANNELS[keys[i]] && CHANNELS[keys[i]].file;
-                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(file).catch(function() {}); });
+                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(typeof withDataCacheBuster === 'function' ? withDataCacheBuster(file) : file).catch(function() {}); });
                         }
                     }
                 }
