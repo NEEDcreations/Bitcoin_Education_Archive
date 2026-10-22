@@ -1683,6 +1683,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Quiz part completions. Cloud Functions only — not the client-editable
+    // completedQuests array on the user doc.
+    match /users/{userId}/quest_completions/{docId} {
+      allow read, write: if false;
+    }
+
     // Server-side badge award deduplication (Cloud Function only)
     match /users/{userId}/badge_awards/{docId} {
       allow read, write: if false;
