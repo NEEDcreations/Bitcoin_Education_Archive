@@ -17,6 +17,7 @@ const TESTS = [
     { name: 'Nacho Shoutout', file: 'test-shoutout.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
+    { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
 ];
 
 let allPassed = true;

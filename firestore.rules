@@ -1261,35 +1261,23 @@ service cloud.firestore {
       allow write: if false; // deprecated — use tctv_presence
     }
 
+    // UTC calendar day as YYYYMMDD. Timestamp parts are UTC.
+    function tctvUtcDay() {
+      return string(request.time.year())
+        + (request.time.month() < 10 ? '0' : '') + string(request.time.month())
+        + (request.time.day() < 10 ? '0' : '') + string(request.time.day());
+    }
+
+    function tctvStationOk(id) {
+      return id is string && id.matches('^(pleb-underground|ai-nostr|art-philosophy|orange-pill|conferences-events|culture-travel|dev-privacy-nodes|economics-money|freedom-sovereignty|health-fitness|history|kids-family|lightning|memes-comedy|mining|music|news|podcasts-debates|politics-regulation|saylor|future-predictions|tutorials)$');
+    }
+
     // TCTV public stats — 'views' (cumulative tune-ins) + 'peak' (all-time concurrent).
-    // Open to both signed-in and anonymous clients (the rules assert the value shape).
-    //   views: starts at 0 on create, +1 per update
-    //   peak:  starts at >=0 on create, monotonically increasing on update (capped 100k)
+    // Clients may read. Only tctvAggregatePresence (Admin SDK) writes them.
+    // view_cursor is the fold watermark for tctv_view_days and is server-only too.
     match /tctv_stats/{docId} {
       allow read: if true;
-      // views
-      allow create: if docId == 'views'
-                    && request.resource.data.keys().hasOnly(['count', 'ts'])
-                    && request.resource.data.count is int
-                    && request.resource.data.count >= 0
-                    && request.resource.data.count <= 5;
-      allow update: if docId == 'views'
-                    && request.resource.data.keys().hasOnly(['count', 'ts'])
-                    && request.resource.data.count is int
-                    && request.resource.data.count == resource.data.get('count', 0) + 1;
-      // peak
-      // F-006: require auth to prevent anonymous cosmetic inflation
-      allow create: if docId == 'peak'
-                    && request.auth != null
-                    && request.resource.data.keys().hasOnly(['peak', 'ts'])
-                    && request.resource.data.peak is int
-                    && request.resource.data.peak >= 0
-                    && request.resource.data.peak <= 100000;
-      allow update: if docId == 'peak'
-                    && request.resource.data.keys().hasOnly(['peak', 'ts'])
-                    && request.resource.data.peak is int
-                    && request.resource.data.peak > resource.data.get('peak', 0)
-                    && request.resource.data.peak <= 100000;
+      allow write: if false;
     }
 
     match /tctv_presence/{viewerId} {
@@ -1339,6 +1327,32 @@ service cloud.firestore {
       allow get: if docId == 'live';
       allow list: if false;
       allow write: if false;
+    }
+
+    // One manual tune per viewer, channel, and UTC day.
+    // Doc id is day_viewerId_station. Create only; the minute job increments
+    // tctv_stats/views from these docs. Clients cannot update or delete, so
+    // they cannot clear `counted` or move `ts` to be counted again.
+    // Block-surf does not write here. Presence rules are unchanged.
+    match /tctv_view_days/{docId} {
+      allow get, list: if false;
+      allow create: if
+        request.resource.data.keys().hasOnly(['viewerId', 'station', 'day', 'ts'])
+        && request.resource.data.day == tctvUtcDay()
+        && request.resource.data.day is string
+        && request.resource.data.ts == request.time
+        && tctvStationOk(request.resource.data.station)
+        && request.resource.data.viewerId is string
+        && docId == request.resource.data.day + '_' + request.resource.data.viewerId + '_' + request.resource.data.station
+        && (
+          (request.auth != null
+            && request.resource.data.viewerId == request.auth.uid
+            && docId.matches('^[0-9]{8}_[A-Za-z0-9_-]{1,128}_[a-z0-9-]{1,48}$'))
+          || (request.auth == null
+            && request.resource.data.viewerId.matches('^v_[a-z0-9]{5,40}$')
+            && docId.matches('^[0-9]{8}_v_[a-z0-9]{5,40}_[a-z0-9-]{1,48}$'))
+        );
+      allow update, delete: if false;
     }
 
     // AI Tools open tracking — anyone can create, no reads/updates/deletes

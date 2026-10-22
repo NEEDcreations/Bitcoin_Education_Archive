@@ -5748,11 +5748,18 @@ exports.auditWithdrawals = functionsV1.https.onRequest(async (req, res) => {
 
 // =============================================
 // TCTV Presence Aggregation - Scalable Live Viewer Counter
-// Once a minute. Reads only presence docs whose server timestamp `ts`
-// is inside the last 90 seconds (single-field range on tctv_presence.ts),
-// writes one aggregate doc at tctv_counts/live, and skips that write when
-// the per-station counts did not change. Deletes up to 100 docs older than
-// 10 minutes per run. Does not scan the collection.
+// Once a minute.
+//   Live count: presence docs whose server timestamp `ts` is inside the last
+//   90 seconds (single-field range). One aggregate doc at tctv_counts/live.
+//   That write is skipped when the per-station counts did not change.
+//   Peak: max of this run's concurrent total, stored on tctv_stats/peak.
+//   A stored peak is never lowered and never replaced with a smaller total.
+//   Views: manual tune docs in tctv_view_days (deterministic id, one per
+//   viewer + channel + UTC day). This job folds only docs with `ts` after
+//   the saved cursor, marks them counted, and increments tctv_stats/views.
+//   It does not scan either collection and does not reset a stored total.
+//   Deletes up to 100 stale presence docs and, once an hour, up to 100 tune
+//   docs older than 3 days.
 // =============================================
 exports.tctvAggregatePresence = onSchedule({
     schedule: 'every 1 minutes',
@@ -5810,7 +5817,108 @@ exports.tctvAggregatePresence = onSchedule({
             await batch.commit();
         }
 
-        console.log('[TCTV] fresh=' + presenceSnap.size + ' stations=' + Object.keys(counts).length + ' viewers=' + total + ' wrote=' + wrote + ' deleted=' + deleted);
+        let viewsAdded = 0;
+        let peakWrote = false;
+        try {
+            const peakRef = db.collection('tctv_stats').doc('peak');
+            const peakPayloadTs = admin.firestore.FieldValue.serverTimestamp();
+            peakWrote = await db.runTransaction(async (tx) => {
+                const peakSnap = await tx.get(peakRef);
+                const storedPeak = peakSnap.exists && peakSnap.data() ? peakSnap.data().peak : null;
+                const peakNext = tctvPresence.nextPeak(peakSnap.exists ? storedPeak : null, total);
+                if (peakNext == null) return false;
+                const peakPayload = { peak: peakNext, ts: peakPayloadTs };
+                if (peakSnap.exists) tx.update(peakRef, peakPayload);
+                else tx.set(peakRef, peakPayload);
+                return true;
+            });
+        } catch (peakErr) {
+            console.error('[TCTV] peak error:', peakErr.message);
+        }
+
+        try {
+            const cursorRef = db.collection('tctv_stats').doc('view_cursor');
+            const cursorSnap = await cursorRef.get();
+            const savedCursor = cursorSnap.exists && cursorSnap.data() && typeof cursorSnap.data().ms === 'number'
+                ? cursorSnap.data().ms
+                : null;
+            const cursorMs = savedCursor == null ? now - tctvPresence.VIEW_LOOKBACK_MS : savedCursor;
+            const tuneSnap = await db.collection('tctv_view_days')
+                .where('ts', '>', admin.firestore.Timestamp.fromMillis(cursorMs))
+                .orderBy('ts', 'asc')
+                .limit(tctvPresence.VIEW_FOLD_LIMIT)
+                .get();
+
+            const tuneDocs = tuneSnap.docs;
+            let newestMs = null;
+            if (tuneDocs.length) {
+                const viewRef = db.collection('tctv_stats').doc('views');
+                const expiresAt = admin.firestore.Timestamp.fromMillis(now + tctvPresence.VIEW_TTL_MS);
+                viewsAdded = await db.runTransaction(async (tx) => {
+                    const viewsSnap = await tx.get(viewRef);
+                    const freshRefs = [];
+                    for (let i = 0; i < tuneDocs.length; i++) {
+                        const fresh = await tx.get(tuneDocs[i].ref);
+                        const data = fresh.exists ? (fresh.data() || {}) : null;
+                        if (!tctvPresence.validViewDoc(data, tuneDocs[i].id, now)) continue;
+                        freshRefs.push(tuneDocs[i].ref);
+                    }
+                    const storedCount = viewsSnap.exists && viewsSnap.data() ? viewsSnap.data().count : null;
+                    const next = tctvPresence.addedViews(viewsSnap.exists ? storedCount : null, freshRefs.length);
+                    if (next == null) return 0;
+                    for (let i = 0; i < freshRefs.length; i++) {
+                        tx.update(freshRefs[i], { counted: true, expiresAt: expiresAt });
+                    }
+                    const viewPayload = {
+                        count: admin.firestore.FieldValue.increment(freshRefs.length),
+                        ts: admin.firestore.FieldValue.serverTimestamp(),
+                    };
+                    // increment keeps an admin-corrected total and only adds
+                    // new tunes. A missing doc is created at the new-tune count.
+                    if (viewsSnap.exists) tx.update(viewRef, viewPayload);
+                    else tx.set(viewRef, {
+                        count: next,
+                        ts: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                    return freshRefs.length;
+                });
+                newestMs = tctvPresence.timestampMillis(tuneDocs[tuneDocs.length - 1].data() && tuneDocs[tuneDocs.length - 1].data().ts);
+            }
+
+            const nextCursor = tctvPresence.advanceViewCursor(
+                savedCursor,
+                now,
+                newestMs,
+                tuneDocs.length,
+                tctvPresence.VIEW_FOLD_LIMIT
+            );
+            if (savedCursor == null || nextCursor !== savedCursor) {
+                await cursorRef.set({
+                    ms: nextCursor,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+
+            // Hourly. Tune docs older than the retain window are deleted by
+            // the same ts index. Missing or non-timestamp ts is left alone.
+            if (new Date(now).getUTCMinutes() === 0) {
+                const oldBefore = admin.firestore.Timestamp.fromMillis(now - tctvPresence.VIEW_RETAIN_MS);
+                const oldSnap = await db.collection('tctv_view_days')
+                    .where('ts', '<', oldBefore)
+                    .orderBy('ts', 'asc')
+                    .limit(tctvPresence.STALE_DELETE_LIMIT)
+                    .get();
+                if (!oldSnap.empty) {
+                    const batch = db.batch();
+                    oldSnap.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+            }
+        } catch (viewErr) {
+            console.error('[TCTV] views error:', viewErr.message);
+        }
+
+        console.log('[TCTV] fresh=' + presenceSnap.size + ' stations=' + Object.keys(counts).length + ' viewers=' + total + ' wrote=' + wrote + ' deleted=' + deleted + ' viewsAdded=' + viewsAdded + ' peakWrote=' + peakWrote);
         return null;
     } catch (e) {
         console.error('[TCTV] Aggregation error:', e.message);
