@@ -43,6 +43,57 @@ function hasHtml(raw) {
     return /[<>]/.test(raw) || /&(?:#x?[0-9a-f]+|[a-z]+);/i.test(raw) || /<\/?[a-z!]/i.test(raw);
 }
 
+// Exact impersonation names. "mod" is exact-only so "modern" stays available.
+const RESERVED_EXACT = [
+    'nacho', 'admin', 'moderator', 'mod', 'support', 'official',
+    'satoshi', 'needcreations', 'bitcoinquest', 'system'
+];
+// Substrings that still impersonate even with a suffix (NachoBot, Admin_).
+const RESERVED_CONTAINS = ['nacho', 'admin', 'moderator', 'official', 'support', 'staff'];
+
+const HOLD_MS = 30 * 24 * 60 * 60 * 1000;
+const RENAME_MS = 24 * 60 * 60 * 1000;
+const ANON_SQUAT_MS = 30 * 24 * 60 * 60 * 1000;
+
+function normalizeReserved(name) {
+    return String(name || '').toLowerCase()
+        .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
+        .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't')
+        .replace(/\$/g, 's').replace(/@/g, 'a').replace(/!/g, 'i')
+        .replace(/[\s._\-]/g, '');
+}
+
+function reservedName(name) {
+    const n = normalizeReserved(name);
+    if (!n) return false;
+    if (RESERVED_EXACT.indexOf(n) !== -1) return true;
+    for (let i = 0; i < RESERVED_CONTAINS.length; i++) {
+        if (n.indexOf(RESERVED_CONTAINS[i]) !== -1) return true;
+    }
+    return false;
+}
+
+// doc fields are milliseconds. Owner can keep or reclaim. A released name stays
+// with holdUid for 30 days. An anon reservation older than 30 days is free.
+function reservationBlocks(doc, uid, nowMs) {
+    if (!doc || !doc.uid) return false;
+    const now = Number(nowMs);
+    const clock = Number.isFinite(now) ? now : 0;
+    if (doc.releasedAt != null && doc.releasedAt !== '') {
+        const released = Number(doc.releasedAt);
+        if (!Number.isFinite(released)) return true;
+        if (clock - released >= HOLD_MS) return false;
+        if (doc.holdUid === uid || doc.uid === uid) return false;
+        return true;
+    }
+    if (doc.uid === uid) return false;
+    if (doc.anon === true) {
+        const at = Number(doc.at);
+        if (Number.isFinite(at) && clock - at > ANON_SQUAT_MS) return false;
+    }
+    return true;
+}
+
 // ctx.taken: some other account already has this name.
 // ctx.selfHasSame: this account already uses this exact name (idempotent save).
 function assessUsername(name, ctx) {
@@ -54,6 +105,12 @@ function assessUsername(name, ctx) {
     if (!NAME_RE.test(trimmed)) return { ok: false, error: 'charset' };
     if (containsProfanity(trimmed)) return { ok: false, error: 'profanity' };
     const info = ctx || {};
+    if (reservedName(trimmed) && info.allowReserved !== true && info.selfHasSame !== true) {
+        return { ok: false, error: 'reserved' };
+    }
+    if (info.renameTooSoon === true && info.selfHasSame !== true) {
+        return { ok: false, error: 'rename_limit' };
+    }
     if (info.taken === true && info.selfHasSame !== true) return { ok: false, error: 'taken' };
     return { ok: true, username: trimmed, username_lower: trimmed.toLowerCase() };
 }
@@ -64,6 +121,8 @@ const USERNAME_MESSAGES = {
     long: 'Username must be 20 characters or less.',
     charset: 'Use letters, numbers, spaces, underscores, hyphens, or dots.',
     profanity: 'That username is not allowed.',
+    reserved: 'That name is reserved.',
+    rename_limit: 'You can change your username once a day.',
     taken: 'That username is already taken.',
 };
 
@@ -75,6 +134,12 @@ module.exports = {
     assessUsername,
     containsProfanity,
     usernameMessage,
+    normalizeReserved,
+    reservedName,
+    reservationBlocks,
     MIN_LEN,
     MAX_LEN,
+    HOLD_MS,
+    RENAME_MS,
+    ANON_SQUAT_MS,
 };

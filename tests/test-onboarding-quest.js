@@ -5,10 +5,16 @@ const path = require('path');
 const {
     decideGrant,
     planGuestMerge,
+    planDailyGrant,
     catalogTotals,
     stepsForMode,
+    NONCE_MAX_AGE_MS,
+    GUEST_MAX_AGE_MS,
 } = require('../functions/src/onboardingQuest');
-const { assessUsername } = require('../functions/src/usernamePolicy');
+const { assessUsername, reservationBlocks, HOLD_MS, ANON_SQUAT_MS } = require('../functions/src/usernamePolicy');
+const { groupUsernames } = require('../functions/scripts/backfill_usernames');
+
+const FRESH = { nonceAgeMs: 1000, guestAgeMs: 1000 };
 
 let passed = 0;
 let failed = 0;
@@ -98,7 +104,7 @@ test('quiz evidence grants 50 XP and 2 tickets and can complete beginner', funct
 });
 
 test('guest merge ignores client points and caps server points', function () {
-    const spoof = planGuestMerge({
+    const spoof = planGuestMerge(Object.assign({
         nonce: 'a'.repeat(32),
         storedNonce: 'a'.repeat(32),
         callerUid: 'realUser123456',
@@ -106,27 +112,59 @@ test('guest merge ignores client points and caps server points', function () {
         serverTickets: 3,
         serverChannels: 2,
         clientPoints: 99999,
-    });
+    }, FRESH));
     assert.strictEqual(spoof.points, 40);
     assert.strictEqual(spoof.tickets, 3);
-    const capped = planGuestMerge({
+    const capped = planGuestMerge(Object.assign({
         nonce: 'b'.repeat(32),
         storedNonce: 'b'.repeat(32),
         callerUid: 'realUser123456',
         serverPoints: 9000,
         clientPoints: 1,
-    });
+    }, FRESH));
     assert.strictEqual(capped.points, 500);
-    assert.strictEqual(planGuestMerge({ nonce: 'nope', storedNonce: 'other-value-long-enough' }).ok, false);
+    assert.strictEqual(planGuestMerge(Object.assign({ nonce: 'nope', storedNonce: 'other-value-long-enough' }, FRESH)).ok, false);
     const again = planGuestMerge({
         nonce: 'c'.repeat(32),
         storedNonce: 'c'.repeat(32),
         callerUid: 'realUser123456',
         mergedInto: 'realUser123456',
         serverPoints: 100,
+        nonceAgeMs: NONCE_MAX_AGE_MS + 5000,
     });
     assert.strictEqual(again.already, true);
     assert.strictEqual(again.points, 0);
+});
+
+test('guest link expires, allows one merge, and rejects an old guest', function () {
+    const base = {
+        nonce: 'd'.repeat(32),
+        storedNonce: 'd'.repeat(32),
+        callerUid: 'realUser123456',
+        serverPoints: 10,
+    };
+    assert.strictEqual(planGuestMerge(Object.assign({}, base, { nonceAgeMs: NONCE_MAX_AGE_MS + 1, guestAgeMs: 1000 })).error, 'expired');
+    assert.strictEqual(planGuestMerge(Object.assign({}, base, { guestAgeMs: 1000 })).error, 'expired');
+    assert.strictEqual(planGuestMerge(Object.assign({}, base, { nonceAgeMs: -1, guestAgeMs: 1000 })).error, 'expired');
+    assert.strictEqual(planGuestMerge(Object.assign({}, base, FRESH, { guestAgeMs: GUEST_MAX_AGE_MS + 1 })).error, 'guest_too_old');
+    assert.strictEqual(planGuestMerge(Object.assign({}, base, { nonceAgeMs: 1000 })).error, 'guest_too_old');
+    assert.strictEqual(planGuestMerge(Object.assign({}, base, FRESH, { destMergedFromGuest: true })).error, 'one_guest');
+    assert.strictEqual(planGuestMerge(Object.assign({}, base, FRESH)).ok, true);
+});
+
+test('quest and merge XP split through the 500 point daily cap', function () {
+    const split = planDailyGrant({ dailyUsed: 490, amount: 25, pendingOverflow: 0, lastOverflowDate: '', today: '2026-10-22' });
+    assert.strictEqual(split.awarded, 10);
+    assert.strictEqual(split.overflowAdded, 15);
+    assert.strictEqual(split.pointsOut, 10);
+    const redeem = planDailyGrant({ dailyUsed: 0, amount: 25, pendingOverflow: 40, lastOverflowDate: '2026-10-21', today: '2026-10-22' });
+    assert.strictEqual(redeem.overflowRedeemed, 40);
+    assert.strictEqual(redeem.awarded, 25);
+    assert.strictEqual(redeem.pointsOut, 65);
+    const full = planDailyGrant({ dailyUsed: 500, amount: 500, pendingOverflow: 0, today: '2026-10-22' });
+    assert.strictEqual(full.awarded, 0);
+    assert.strictEqual(full.overflowAdded, 500);
+    assert.strictEqual(full.pointsOut, 0);
 });
 
 test('usernames reject html, profanity, short names, and duplicates', function () {
@@ -140,12 +178,47 @@ test('usernames reject html, profanity, short names, and duplicates', function (
     assert.strictEqual(same.username_lower, 'satoshi');
 });
 
+test('reserved names catch leetspeak, separators, and lookalikes', function () {
+    ['N4cho', 'nacho.', 'Admin_', 'n.a.c.h.o', 'NachoBot', 'Satoshi', 'mod', 'm.o.d'].forEach(function (name) {
+        const out = assessUsername(name, {});
+        assert.strictEqual(out.ok, false, name);
+        assert.strictEqual(out.error, 'reserved', name);
+    });
+    assert.strictEqual(assessUsername('N4cho', {}).ok, false);
+    const msg = require('../functions/src/usernamePolicy').usernameMessage('reserved');
+    assert.strictEqual(msg, 'That name is reserved.');
+    assert.strictEqual(assessUsername('modern', {}).ok, true);
+    assert.strictEqual(assessUsername('Nacho', { allowReserved: true }).ok, true);
+    assert.strictEqual(assessUsername('Satoshi', { selfHasSame: true }).ok, true);
+    const held = reservationBlocks({ uid: 'other', releasedAt: Date.now() - 1000, holdUid: 'other' }, 'me', Date.now());
+    assert.strictEqual(held, true);
+    const reclaim = reservationBlocks({ uid: 'me', releasedAt: Date.now() - 1000, holdUid: 'me' }, 'me', Date.now());
+    assert.strictEqual(reclaim, false);
+    const expiredHold = reservationBlocks({ uid: 'other', releasedAt: Date.now() - HOLD_MS - 1000, holdUid: 'other' }, 'me', Date.now());
+    assert.strictEqual(expiredHold, false);
+    const squat = reservationBlocks({ uid: 'anon1', anon: true, at: Date.now() - ANON_SQUAT_MS - 1000 }, 'me', Date.now());
+    assert.strictEqual(squat, false);
+    assert.strictEqual(assessUsername('bob', { renameTooSoon: true }).error, 'rename_limit');
+});
+
+test('backfill groups collisions by uid and skips the name', function () {
+    const grouped = groupUsernames([
+        { uid: 'u1', lower: 'alice' },
+        { uid: 'u2', lower: 'alice' },
+        { uid: 'u3', lower: 'bob' },
+    ]);
+    assert.strictEqual(grouped.unique.get('bob'), 'u3');
+    assert.strictEqual(grouped.unique.has('alice'), false);
+    assert.strictEqual(grouped.collisions.length, 1);
+    assert.deepStrictEqual(grouped.collisions[0].slice().sort(), ['u1', 'u2']);
+});
+
 test('rules block client writes to reward and onboarding fields', function () {
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     const create = rules.split('allow create:')[1].split('allow update:')[0];
     const update = rules.split('allow update:')[1].split('allow delete:')[0];
     assert.ok(!create.includes("'username'"), 'create still allows username');
-    ['username', 'username_lower', 'onboardingQuest', 'nachoQuestDone', 'introSeen', 'guestLinkNonce', 'mergedInto', 'orangeTickets', 'points'].forEach(function (field) {
+    ['username', 'username_lower', 'onboardingQuest', 'nachoQuestDone', 'introSeen', 'guestLinkNonce', 'guestLinkNonceAt', 'usernameChangedAt', 'mergedInto', 'orangeTickets', 'points'].forEach(function (field) {
         assert.ok(update.includes("'" + field + "'"), 'update denylist missing ' + field);
     });
     assert.ok(rules.includes('match /users/{userId}/onboarding_evidence/{docId}'));
@@ -165,6 +238,33 @@ test('the client quest list matches the server modes', function () {
     });
     assert.ok(src.includes('claimOnboardingQuestStep'));
     assert.ok(!src.includes('awardPoints'));
+    assert.ok(src.includes("beacon: '#onboardingQuizEntry'"));
+    assert.ok(src.includes('z-index:2100001'));
+    assert.ok(src.includes('id = \'onboardingQuizEntry\''));
+});
+
+test('guest merge never writes daily action counts and usernames survive a missing app check', function () {
+    const api = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'onboardingApi.js'), 'utf8');
+    assert.ok(!api.includes('copied: true'));
+    assert.ok(!api.includes("daily_action_counts').doc"));
+    assert.ok(api.includes("doc('quiz')"));
+    assert.ok(api.includes('done: true'));
+    assert.ok(api.includes('guestLinkNonceAt'));
+    assert.ok(api.includes('mergedFromGuest'));
+    assert.ok(api.includes('points: 0'));
+    assert.ok(api.includes('splitDailyXp') === false);
+    assert.ok(api.includes('planDailyGrant'));
+    assert.ok(api.includes('enforceAppCheck: false'));
+    assert.ok(api.includes('username_'));
+    assert.ok(api.includes('scanLegacyNames'));
+    const client = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
+    assert.ok(client.includes('linkWithPopup'));
+    assert.ok(client.includes('linkWithCredential'));
+    assert.ok(client.includes('linkWithRedirect'));
+    assert.ok(!client.includes('await stashGuestLink'));
+    const quests = fs.readFileSync(path.join(__dirname, '..', 'quests.js'), 'utf8');
+    assert.ok(!quests.includes('p.displayName || p.username'));
+    assert.ok(!quests.includes('u.displayName || u.username'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

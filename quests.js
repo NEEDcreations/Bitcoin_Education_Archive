@@ -3337,7 +3337,7 @@ function _loadFavorLeaderboards() {
                 var d = doc.data();
                 users.push({
                     id: doc.id,
-                    username: d.username || d.displayName || 'Anon',
+                    username: d.username || 'Anon',
                     sfTotalHashes: d.sfTotalHashes || 0,
                     sfBlocksFound: d.sfBlocksFound || 0,
                     sfBestHash: d.sfBestHash != null ? d.sfBestHash : null,
@@ -5591,7 +5591,7 @@ function _listenRaidParticipants(bossId) {
             snapshot.docs.forEach(function(doc) {
                 rank++;
                 var p = doc.data();
-                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.displayName || p.username || 'Anonymous') : (p.displayName || p.username || 'Anonymous');
+                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.username || 'Anonymous') : (p.username || 'Anonymous');
                 var contributed = p.contributed || 0;
                 var rankIcon = rank === 1 ? '👑' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
@@ -5656,7 +5656,7 @@ window._toggleRaidDamageDealers = function() {
             snapshot.docs.forEach(function(doc) {
                 rank++;
                 var p = doc.data();
-                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.displayName || p.username || 'Anonymous') : (p.displayName || p.username || 'Anonymous');
+                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.username || 'Anonymous') : (p.username || 'Anonymous');
                 var contributed = p.contributed || 0;
                 var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
@@ -5730,7 +5730,7 @@ function _listenAllTimeRaiders() {
             snapshot.docs.forEach(function(doc) {
                 rank++;
                 var u = doc.data();
-                var displayName = typeof escapeHtml === 'function' ? escapeHtml(u.displayName || u.username || 'Anonymous') : (u.displayName || u.username || 'Anonymous');
+                var displayName = typeof escapeHtml === 'function' ? escapeHtml(u.username || 'Anonymous') : (u.username || 'Anonymous');
                 var dmg = u.raidDamageAllTime || 0;
                 var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;

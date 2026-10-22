@@ -20,6 +20,10 @@ const STEPS = {
 const GUEST_POINT_CAP = 500;
 const GUEST_TICKET_CAP = 50;
 const GUEST_CHANNEL_CAP = 200;
+const NONCE_MAX_AGE_MS = 30 * 60 * 1000;
+const GUEST_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
 
 function normalizeMode(mode) {
     if (mode === 'beginner' || mode === 'intermediate' || mode === 'advanced') return mode;
@@ -90,7 +94,16 @@ function capInt(value, cap) {
     return Math.min(cap, n);
 }
 
+function freshAge(value, max) {
+    if (value == null || value === '') return false;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return false;
+    return n <= max;
+}
+
 // Copies only server-side guest totals. clientPoints is ignored.
+// A matching nonce that is too old, a guest older than about 7 days, or a
+// destination that already absorbed a guest all fail closed.
 function planGuestMerge(input) {
     const src = input || {};
     const nonce = String(src.nonce || '');
@@ -100,12 +113,39 @@ function planGuestMerge(input) {
     if (src.alreadyMerged === true || (src.mergedInto && src.mergedInto === src.callerUid)) {
         return { ok: true, already: true, points: 0, tickets: 0, channelsVisited: 0 };
     }
+    if (!freshAge(src.nonceAgeMs, NONCE_MAX_AGE_MS)) return { ok: false, error: 'expired' };
+    if (!freshAge(src.guestAgeMs, GUEST_MAX_AGE_MS)) return { ok: false, error: 'guest_too_old' };
+    if (src.destMergedFromGuest === true) return { ok: false, error: 'one_guest' };
     return {
         ok: true,
         already: false,
         points: capInt(src.serverPoints, GUEST_POINT_CAP),
         tickets: capInt(src.serverTickets, GUEST_TICKET_CAP),
         channelsVisited: capInt(src.serverChannels, GUEST_CHANNEL_CAP),
+    };
+}
+
+// Same daily cap as gradeQuest and say-hi: 500 XP on the 5 AM UTC day.
+// Overflow stays on the user so a later claim can pay it. Weekly and monthly
+// totals use the awarded part only, matching claimSayHi.
+function planDailyGrant(input) {
+    const src = input || {};
+    const today = src.today || '';
+    let pending = Number(src.pendingOverflow) || 0;
+    if (pending < 0) pending = 0;
+    let redeemed = 0;
+    if (pending > 0 && src.lastOverflowDate && src.lastOverflowDate !== today) {
+        redeemed = Math.min(pending, DAILY_POINTS_CAP);
+        pending -= redeemed;
+    }
+    const split = splitDailyXp(Number(src.dailyUsed) || 0, Number(src.amount) || 0, DAILY_POINTS_CAP);
+    return {
+        awarded: split.awarded,
+        overflowAdded: split.overflowAdded,
+        overflowRedeemed: redeemed,
+        pendingOverflow: pending + split.overflowAdded,
+        touchOverflow: split.overflowAdded > 0 || redeemed > 0,
+        pointsOut: split.awarded + redeemed,
     };
 }
 
@@ -118,6 +158,11 @@ module.exports = {
     decideGrant,
     isComplete,
     planGuestMerge,
+    planDailyGrant,
     GUEST_POINT_CAP,
     GUEST_TICKET_CAP,
+    GUEST_CHANNEL_CAP,
+    NONCE_MAX_AGE_MS,
+    GUEST_MAX_AGE_MS,
+    DAILY_POINTS_CAP,
 };

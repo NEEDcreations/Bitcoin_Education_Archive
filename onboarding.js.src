@@ -18,7 +18,7 @@
         send_chat: { title: 'Say hello in chat', detail: 'Send a message in Global Chat.', signal: 'chat', beacon: '#chatOverlayBtn' },
         spin_wheel: { title: 'Take the daily spin', detail: 'Open the daily spin and spin once.', signal: 'spin', beacon: '#nqSpinBtn' },
         find_nacho: { title: 'Ask Nacho', detail: 'Ask Nacho a Bitcoin question.', signal: 'nacho', beacon: '#nacho-container' },
-        first_quiz: { title: 'Try a quiz', detail: 'Finish a quiz, a trivia question, or a poll.', signal: 'quiz', beacon: '#homeAppsBtn' }
+        first_quiz: { title: 'Try a quiz', detail: 'Finish a quiz, a trivia question, or a poll.', signal: 'quiz', beacon: '#onboardingQuizEntry' }
     };
 
     function esc(s) {
@@ -292,7 +292,11 @@
         var btn = document.createElement('button');
         btn.id = 'nachoQuestPill';
         btn.type = 'button';
-        btn.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:8999;background:var(--accent,#f97316);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,0.25);touch-action:manipulation;';
+        var narrow = window.innerWidth <= 480;
+        btn.style.cssText = (narrow
+            ? 'position:fixed;top:72px;left:12px;right:auto;transform:none;'
+            : 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);')
+            + 'z-index:2100001;background:var(--accent,#f97316);color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,0.25);touch-action:manipulation;';
         btn.textContent = 'Quest · ' + (window.getNachoQuestStep() + 1) + '/' + list.length;
         btn.addEventListener('click', function () { window._showNachoQuestOverlay(); });
         document.body.appendChild(btn);
@@ -660,6 +664,17 @@
         heading.textContent = level === 'beginner' ? 'Start here' : 'Picked for you';
         heading.style.cssText = 'font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);font-weight:800;margin-bottom:8px;';
         box.appendChild(heading);
+        if (level === 'beginner') {
+            var quizBtn = document.createElement('button');
+            quizBtn.id = 'onboardingQuizEntry';
+            quizBtn.type = 'button';
+            quizBtn.textContent = 'Try a quiz';
+            quizBtn.style.cssText = 'display:block;width:100%;text-align:left;padding:14px;margin-bottom:8px;border-radius:12px;border:1px solid var(--accent,#f97316);background:var(--bg-side);color:var(--heading);font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;';
+            quizBtn.addEventListener('click', function () {
+                if (typeof window.showQuestHub === 'function') window.showQuestHub();
+            });
+            box.appendChild(quizBtn);
+        }
         ids.forEach(function (id) {
             if (!CHANNELS[id]) return;
             var btn = document.createElement('button');

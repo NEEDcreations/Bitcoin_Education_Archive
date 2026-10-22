@@ -237,6 +237,15 @@ function initRanking() {
                 console.log('[Auth] MFA required after redirect (race catch — skipping, direct catch handles it)');
                 return null; // do NOT call _showMFASignInChallenge again
             }
+            if ((e.code === 'auth/credential-already-in-use' || e.code === 'auth/email-already-in-use') && e.credential) {
+                var fallbackAnon = localStorage.getItem('btc_anon_uid');
+                auth.signInWithCredential(e.credential).then(function(signed) {
+                    return _handleSignInResultGlobal(signed.user, fallbackAnon, null);
+                }).catch(function(err) {
+                    console.log('Redirect link fallback failed:', err && err.code);
+                });
+                return null;
+            }
             if (e.code !== 'auth/popup-closed-by-user') {
                 console.log('Redirect result error:', e);
             }
@@ -300,6 +309,7 @@ function initRanking() {
                         loadUser(user.uid).catch(function(){});
                     }
                 } else if (user && user.isAnonymous) {
+                    if (typeof stashGuestLink === 'function') stashGuestLink();
                     // If we're pending a redirect, DON'T load anon yet - wait longer for auth to resolve
                     if (_pendingRedirect) {
                         console.log('[Auth] Anon user but pending redirect - waiting 8s for real auth...');
@@ -360,6 +370,7 @@ function initRanking() {
                     return;
                 }
                 if (user.isAnonymous) {
+                    if (typeof stashGuestLink === 'function') stashGuestLink();
                     loadUserLocal(user.uid);
                 } else {
                     loadUser(user.uid);
@@ -456,15 +467,34 @@ async function finishEmailSignIn(email, _signInUrl) {
             }
         }
 
-        // Sign in with email link (use saved URL that still has Firebase params)
-        if (typeof stashGuestLink === 'function') { try { await stashGuestLink(); } catch (e) {} }
+        // Upgrade the guest in place when this email is new. Merge is the fallback.
         console.log('[Email Sign-In] Starting sign-in');
-        const result = await auth.signInWithEmailLink(email, _signInUrl);
-        console.log('[Email Sign-In] Sign-in result:', result.user ? result.user.uid : 'no user');
+        var resultUser = null;
+        if (anonUser && anonUser.isAnonymous && firebase.auth.EmailAuthProvider && typeof anonUser.linkWithCredential === 'function') {
+            try {
+                var emailCred = firebase.auth.EmailAuthProvider.credentialWithLink(email, _signInUrl);
+                var linkedEmail = await anonUser.linkWithCredential(emailCred);
+                try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                resultUser = linkedEmail.user;
+            } catch (linkErr) {
+                var linkCode = linkErr && linkErr.code;
+                if ((linkCode === 'auth/credential-already-in-use' || linkCode === 'auth/email-already-in-use') && linkErr.credential) {
+                    var signedEmail = await auth.signInWithCredential(linkErr.credential);
+                    resultUser = signedEmail.user;
+                } else if (linkCode !== 'auth/provider-already-linked') {
+                    throw linkErr;
+                }
+            }
+        }
+        if (!resultUser) {
+            const result = await auth.signInWithEmailLink(email, _signInUrl);
+            resultUser = result.user;
+        }
+        console.log('[Email Sign-In] Sign-in result:', resultUser ? resultUser.uid : 'no user');
         localStorage.removeItem('btc_signin_email');
 
         // Check if this email user already has data
-        const emailUid = result.user.uid;
+        const emailUid = resultUser.uid;
 
         // Wait for auth state to fully stabilize and db to get fresh token
         console.log('[Email Sign-In] Waiting for auth token propagation...');
@@ -600,10 +630,8 @@ window.signInWithGoogle = async function() {
 };
 
 async function signInWithGIS() {
-    var saved = await _saveAnonDataGlobal();
+    var anonUid = (auth.currentUser && auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
     return new Promise(function(resolve, reject) {
-        var anonUid = saved.anonUid;
-        var anonData = saved.anonData;
 
         google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
@@ -614,14 +642,34 @@ async function signInWithGIS() {
                 }
                 try {
                     var credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                    var result = await auth.signInWithCredential(credential);
+                    var guest = auth.currentUser;
+                    var resultUser = null;
+                    if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
+                        try {
+                            var linked = await guest.linkWithCredential(credential);
+                            try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                            resultUser = linked.user;
+                            anonUid = null;
+                        } catch (linkErr) {
+                            if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                                var signed = await auth.signInWithCredential(linkErr.credential);
+                                resultUser = signed.user;
+                            } else {
+                                throw linkErr;
+                            }
+                        }
+                    }
+                    if (!resultUser) {
+                        var result = await auth.signInWithCredential(credential);
+                        resultUser = result.user;
+                    }
                     // Clean up ALL GIS UI elements
                     try { google.accounts.id.cancel(); } catch(e) {}
                     var _gsiBtn = document.getElementById('gsi-temp-btn');
                     if (_gsiBtn) { var _bd = _gsiBtn.closest('div[style*="position:fixed"]'); if (_bd) _bd.remove(); else _gsiBtn.remove(); }
                     document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
-                    await _handleSignInResultGlobal(result.user, anonUid, anonData);
-                    resolve(result.user);
+                    await _handleSignInResultGlobal(resultUser, anonUid, null);
+                    resolve(resultUser);
                 } catch(e) {
                     reject(e);
                 }
@@ -649,9 +697,7 @@ window.signInWithTwitter = async function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
-            var _ad = await _saveAnonDataGlobal();
-            var result = await auth.signInWithPopup(new firebase.auth.TwitterAuthProvider());
-            await _handleSignInResultGlobal(result.user, _ad.anonUid, _ad.anonData);
+            await linkOrSignInPopup(new firebase.auth.TwitterAuthProvider());
             return;
         } catch(e) {
             if (e.code === 'auth/popup-closed-by-user') return;
@@ -668,9 +714,7 @@ window.signInWithGithub = async function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
-            var _ad = await _saveAnonDataGlobal();
-            var result = await auth.signInWithPopup(new firebase.auth.GithubAuthProvider());
-            await _handleSignInResultGlobal(result.user, _ad.anonUid, _ad.anonData);
+            await linkOrSignInPopup(new firebase.auth.GithubAuthProvider());
             return;
         } catch(e) {
             if (e.code === 'auth/popup-closed-by-user') return;
@@ -735,15 +779,31 @@ window.signInWithFacebook = async function() {
 }
 
 async function signInWithFBSDK() {
-    var saved = await _saveAnonDataGlobal();
+    var anonUid = (auth.currentUser && auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
     return new Promise(function(resolve, reject) {
         FB.login(function(response) {
             if (!response.authResponse) { reject(new Error('Facebook login cancelled')); return; }
             var credential = firebase.auth.FacebookAuthProvider.credential(response.authResponse.accessToken);
-            auth.signInWithCredential(credential).then(async function(result) {
-                await _handleSignInResultGlobal(result.user, saved.anonUid, saved.anonData);
-                resolve(result.user);
-            }).catch(reject);
+            var guest = auth.currentUser;
+            var chain;
+            if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
+                chain = guest.linkWithCredential(credential).then(function(linked) {
+                    try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                    return _handleSignInResultGlobal(linked.user, null, null).then(function() { return linked.user; });
+                }).catch(function(linkErr) {
+                    if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                        return auth.signInWithCredential(linkErr.credential).then(function(signed) {
+                            return _handleSignInResultGlobal(signed.user, anonUid, null).then(function() { return signed.user; });
+                        });
+                    }
+                    throw linkErr;
+                });
+            } else {
+                chain = auth.signInWithCredential(credential).then(function(result) {
+                    return _handleSignInResultGlobal(result.user, anonUid, null).then(function() { return result.user; });
+                });
+            }
+            chain.then(resolve).catch(reject);
         }, { scope: 'email,public_profile' });
     });
 }
@@ -1078,7 +1138,6 @@ async function _saveAnonDataGlobal() {
     var anonUid = null, anonData = null;
     if (anonUser && anonUser.isAnonymous) {
         anonUid = anonUser.uid;
-        try { await stashGuestLink(); } catch (e) {}
         try {
             var anonDoc = await db.collection('users').doc(anonUid).get();
             if (anonDoc.exists) anonData = anonDoc.data();
@@ -1241,6 +1300,48 @@ window._iabSendMagicLink = async function() {
     }
 };
 
+function rememberAnonForRedirect(anonUser) {
+    if (!anonUser || !anonUser.isAnonymous) return;
+    localStorage.setItem('btc_anon_uid', anonUser.uid);
+    db.collection('users').doc(anonUser.uid).get().then(function(doc) {
+        if (doc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(doc.data()));
+    }).catch(function() {});
+}
+
+async function linkOrSignInPopup(provider) {
+    var guest = auth.currentUser;
+    if (guest && guest.isAnonymous && typeof guest.linkWithPopup === 'function') {
+        try {
+            var linked = await guest.linkWithPopup(provider);
+            try { localStorage.removeItem('btc_guest_link'); } catch (e0) {}
+            await _handleSignInResultGlobal(linked.user, null, null);
+            return linked.user;
+        } catch (linkErr) {
+            if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                var signed = await auth.signInWithCredential(linkErr.credential);
+                await _handleSignInResultGlobal(signed.user, guest.uid, null);
+                return signed.user;
+            }
+            throw linkErr;
+        }
+    }
+    var result = await auth.signInWithPopup(provider);
+    await _handleSignInResultGlobal(result.user, null, null);
+    return result.user;
+}
+
+async function redirectForProvider(provider) {
+    var anonUser = auth.currentUser;
+    rememberAnonForRedirect(anonUser);
+    sessionStorage.setItem('btc_redirect_pending', '1');
+    localStorage.setItem('btc_pwa_auth_pending', '1');
+    if (anonUser && anonUser.isAnonymous && typeof anonUser.linkWithRedirect === 'function') {
+        await anonUser.linkWithRedirect(provider);
+        return;
+    }
+    await auth.signInWithRedirect(provider);
+}
+
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
 
@@ -1250,18 +1351,9 @@ async function signInWithProvider(provider) {
         return;
     }
 
-    // Delegate to module-scope helper
-    async function handleSignInResult(user, anonUid, anonData) {
-        return _handleSignInResultGlobal(user, anonUid, anonData);
-    }
-    async function saveAnonData() {
-        return _saveAnonDataGlobal();
-    }
-
     // Strategy: Use popup on desktop (reliable), redirect on mobile/PWA.
     // Redirect loses session cross-domain but at least shows the Google sign-in page.
     // Popup on Android PWA causes redirect_uri_mismatch errors.
-    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     // Safari on desktop blocks popup postMessage via ITP — must use redirect
     var isSafariBrowser = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
@@ -1272,18 +1364,7 @@ async function signInWithProvider(provider) {
         // Safari/iOS blocks popup postMessage via ITP - skip popup entirely and go straight to redirect.
         try {
             showToast('⏳ Opening sign-in...');
-            // Save anon data BEFORE redirect (page will reload on return)
-            const anonUser = auth.currentUser;
-            if (anonUser && anonUser.isAnonymous) {
-                localStorage.setItem('btc_anon_uid', anonUser.uid);
-                try { await stashGuestLink(); } catch (e) {}
-                db.collection('users').doc(anonUser.uid).get().then(function(doc) {
-                    if (doc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(doc.data()));
-                }).catch(function() {});
-            }
-            sessionStorage.setItem('btc_redirect_pending', '1');
-            localStorage.setItem('btc_pwa_auth_pending', '1');
-            await auth.signInWithRedirect(provider);
+            await redirectForProvider(provider);
             return;
         } catch(e) {
             console.error('Mobile/Safari sign-in error:', e);
@@ -1292,12 +1373,10 @@ async function signInWithProvider(provider) {
         }
     }
 
-    // Desktop: try popup first
+    // Desktop: link the guest in place, then fall back to a popup sign-in.
+    // Nothing is awaited before the popup, so the browser still allows it.
     try {
-        const { anonUid, anonData } = await saveAnonData();
-
-        const result = await auth.signInWithPopup(provider);
-        await handleSignInResult(result.user, anonUid, anonData);
+        await linkOrSignInPopup(provider);
     } catch(e) {
         console.error('Provider sign-in error:', e.code, e.message, e);
 
@@ -1318,20 +1397,7 @@ async function signInWithProvider(provider) {
             e.code === 'auth/internal-error') {
             try {
                 showToast('⏳ Opening sign-in page...');
-                // Save anon data to localStorage so redirect return can recover it
-                const anonUser = auth.currentUser;
-                if (anonUser && anonUser.isAnonymous) {
-                    localStorage.setItem('btc_anon_uid', anonUser.uid);
-                    try { await stashGuestLink(); } catch (e) {}
-                    try {
-                        const anonDoc = await db.collection('users').doc(anonUser.uid).get();
-                        if (anonDoc.exists) {
-                            localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-                        }
-                    } catch(e2) {}
-                }
-                localStorage.setItem('btc_pwa_auth_pending', '1');
-                await auth.signInWithRedirect(provider);
+                await redirectForProvider(provider);
                 return;
             } catch(redirectErr) {
                 console.error('Redirect fallback also failed:', redirectErr);
@@ -2112,11 +2178,18 @@ window.applyServerUsername = applyServerUsername;
 
 async function stashGuestLink() {
     if (!auth || !auth.currentUser || !auth.currentUser.isAnonymous) return;
-    if (localStorage.getItem('btc_guest_link')) return;
+    var uid = auth.currentUser.uid;
+    try {
+        var raw = localStorage.getItem('btc_guest_link');
+        if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && parsed.anonUid === uid && parsed.nonce && parsed.at && (Date.now() - Number(parsed.at)) < 20 * 60 * 1000) return;
+        }
+    } catch (e) {}
     var fn = firebase.functions().httpsCallable('prepareGuestLink');
     var res = await fn({});
     if (res && res.data && res.data.nonce) {
-        localStorage.setItem('btc_guest_link', JSON.stringify({ anonUid: auth.currentUser.uid, nonce: res.data.nonce }));
+        localStorage.setItem('btc_guest_link', JSON.stringify({ anonUid: uid, nonce: res.data.nonce, at: Date.now() }));
     }
 }
 window.stashGuestLink = stashGuestLink;

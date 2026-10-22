@@ -172,7 +172,8 @@ service cloud.firestore {
                         'onboardingQuest', 'nachoQuestDone', 'nachoQuestActive', 'nachoQuestStep',
                         'introSeen', 'introSeenAt',
                         // Guest-link nonce and the one-time merge marker.
-                        'guestLinkNonce', 'mergedInto', 'mergedFromGuest'
+                        'guestLinkNonce', 'guestLinkNonceAt', 'mergedInto', 'mergedFromGuest',
+                        'usernameChangedAt'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
