@@ -4,6 +4,8 @@
 // Firestore is used only when GOOGLE_APPLICATION_CREDENTIALS is set and
 // --fixture is not. This script does not print credentials, paths, or track bodies.
 // The owner runs --apply after merge. Do not point it at production from CI.
+// Owner decision: keep the existing NC archive.org tracks visible.
+// --hide-nc stays available and is never the default.
 const fs = require('fs');
 const path = require('path');
 

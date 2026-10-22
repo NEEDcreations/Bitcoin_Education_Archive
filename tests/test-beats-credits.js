@@ -42,7 +42,21 @@ test('terms credit Kevin MacLeod and the open licenses', function () {
     assert.ok(terms.includes('https://creativecommons.org/licenses/by/4.0/'));
     assert.ok(terms.includes('https://zine.wavlake.com/open-music/'));
     assert.ok(terms.includes('https://archive.org/'));
-    assert.ok(terms.includes('including NonCommercial licenses'));
+    assert.ok(terms.includes('NonCommercial and NoDerivatives'));
+    assert.ok(terms.includes('id="copyright-takedown"'));
+    assert.ok(terms.includes('mailto:info.603btc@gmail.com'));
+    assert.ok(terms.includes('48 hours'));
+});
+
+test('Beats links to music credits and the takedown process', function () {
+    const beats = read('beats.js');
+    assert.ok(beats.includes('href="/terms.html#open-music-credits"'));
+    assert.ok(beats.includes('href="/terms.html#copyright-takedown"'));
+    assert.ok(beats.includes('mailto:info.603btc@gmail.com'));
+    assert.ok(beats.includes('href="/dmca.html"'));
+    const header = beats.slice(beats.indexOf('id="beatsApp"'), beats.indexOf('beatsTabDiscover'));
+    assert.ok(header.includes('#open-music-credits'));
+    assert.ok(header.includes('#copyright-takedown'));
 });
 
 test('archive.org tracks get a credit line from the stored license', function () {
@@ -89,6 +103,12 @@ test('archive.org tracks get a credit line from the stored license', function ()
     assert.ok(html.indexOf('CC BY-NC-ND 3.0') !== -1);
     assert.ok(html.indexOf('https://creativecommons.org/licenses/by-nc-nd/3.0/') !== -1);
     assert.ok(html.indexOf('Internet Archive') !== -1);
+    assert.ok(html.indexOf('https://archive.org/details/TFR100-VA-TornFleshRecordsPresentsVestigialSickness') !== -1);
+    const licenseAt = html.indexOf('CC BY-NC-ND 3.0');
+    const sourceAt = html.indexOf('Internet Archive');
+    assert.ok(html.indexOf('Vestigial') < html.indexOf('Torn Flesh Records'));
+    assert.ok(html.indexOf('Torn Flesh Records') < licenseAt);
+    assert.ok(licenseAt < sourceAt);
     assert.strictEqual(context._beatsShortCredit(track), '');
     const by = context._beatsShortCredit({
         title: 'Aces High', artist: 'Kevin MacLeod', source: 'incompetech', license: 'CC BY 4.0'

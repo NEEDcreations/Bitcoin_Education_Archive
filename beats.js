@@ -19,7 +19,10 @@ window.renderBitcoinBeats = function() {
             <div style="flex:1;">
                 <h2 style="color:var(--heading);font-weight:900;font-size:1.6rem;margin:0;letter-spacing:-0.5px;">🎸 Bitcoin Beats</h2>
                 <div style="color:var(--text-muted);font-size:0.75rem;">Community Music · Powered by Lightning</div>
-                <a href="/terms.html#open-music-credits" style="color:var(--accent);font-size:0.72rem;font-weight:700;text-decoration:none;">Open music credits</a>
+                <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:2px;">
+                    <a href="/terms.html#open-music-credits" style="color:var(--accent);font-size:0.72rem;font-weight:700;text-decoration:none;">Open music credits</a>
+                    <a href="/terms.html#copyright-takedown" style="color:var(--accent);font-size:0.72rem;font-weight:700;text-decoration:none;">Copyright takedown</a>
+                </div>
             </div>
         </div>
 
@@ -266,14 +269,27 @@ function _beatsSourceName(track) {
     return '';
 }
 
+function _beatsPublicHttps(url) {
+    if (!url || typeof url !== 'string') return '';
+    var upgraded = url.trim()
+        .replace(/^http:\/\/((?:www\.)?creativecommons\.org\/)/i, 'https://$1')
+        .replace(/^http:\/\/((?:www\.)?archive\.org\/)/i, 'https://$1');
+    return _beatsCreditUrl(upgraded);
+}
+
+function _beatsArchiveDetailsUrl(track) {
+    var blob = [track && track.pageUrl, track && track.sourceUrl, track && track.audioUrl, track && track.feedUrl].join(' ');
+    var match = blob.match(/archive\.org\/(?:details|download)\/([^\/?#\s]+)/i);
+    if (!match) return '';
+    return _beatsCreditUrl('https://archive.org/details/' + match[1]);
+}
+
 function _beatsSourceLink(track) {
-    return _beatsCreditUrl(track && track.pageUrl) || _beatsCreditUrl(track && track.sourceUrl) || '';
+    return _beatsPublicHttps(track && track.pageUrl) || _beatsPublicHttps(track && track.sourceUrl) || _beatsArchiveDetailsUrl(track) || '';
 }
 
 function _beatsDeedUrl(url) {
-    if (!url || typeof url !== 'string') return '';
-    var upgraded = url.trim().replace(/^http:\/\/((?:www\.)?creativecommons\.org\/)/i, 'https://$1');
-    return _beatsCreditUrl(upgraded);
+    return _beatsPublicHttps(url);
 }
 
 function _beatsLicenseLink(track) {
@@ -1814,6 +1830,8 @@ window.beatsShowDMCA = function() {
                 '• A statement under penalty of perjury that the information is accurate</p>' +
                 '<p><strong style="color:var(--heading);">Response</strong><br>We will review and remove infringing content within 48 hours of receiving a valid takedown notice. Repeat infringers will have their accounts suspended.</p>' +
                 '<p><strong style="color:var(--heading);">Counter-Notice</strong><br>If you believe your content was removed in error, you may submit a counter-notice to the same email address with evidence of your rights.</p>' +
+                '<p><a href="/terms.html#open-music-credits" style="color:var(--accent);">Open music credits</a><br>' +
+                '<a href="/terms.html#copyright-takedown" style="color:var(--accent);">Copyright takedown</a> · <a href="/dmca.html" style="color:var(--accent);">DMCA policy</a></p>' +
             '</div>' +
             '<button onclick="document.getElementById(\'beatsDMCAOverlay\').remove()" style="width:100%;margin-top:16px;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Got It</button>' +
         '</div>';
@@ -1917,8 +1935,9 @@ window.beatsRenderUpload = function() {
                 '<div id="beatsCopyrightDetails" style="display:none;padding:10px 14px;margin-top:4px;background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:0 0 10px 10px;font-size:0.73rem;color:#eab308;line-height:1.5;">' +
                     'By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content.' +
                     '<div style="margin-top:6px;">' +
-                        '<a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;text-decoration:underline;">Full Terms</a> · ' +
-                        '<a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>' +
+                        '<a href="/terms.html#open-music-credits" target="_blank" rel="noopener" style="color:#eab308;text-decoration:underline;">Open music credits</a> · ' +
+                        '<a href="/terms.html#copyright-takedown" target="_blank" rel="noopener" style="color:#eab308;text-decoration:underline;">Copyright takedown</a> · ' +
+                        '<a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">Takedown steps</a>' +
                     '</div>' +
                 '</div>' +
             '</div>' +
