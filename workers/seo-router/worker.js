@@ -140,7 +140,10 @@ function buildCSP(nonce) {
             " https://incompetech.com" +
             " https://www.incompetech.com" +
             " https://wavlake.com" +
-            " https://www.wavlake.com",
+            " https://www.wavlake.com" +
+            " https://assets.bitcoineducation.quest" +
+            " https://*.tenor.com" +
+            " https://*.giphy.com",
 
         // frame-src: iframes the app legitimately embeds
         // *** ADDING A NEW EMBED? ADD IT HERE TOO or the browser will block it. ***

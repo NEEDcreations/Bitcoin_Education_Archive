@@ -6,8 +6,14 @@
 // The owner runs --apply after merge. Do not point it at production from CI.
 // Owner decision: keep the existing NC archive.org tracks visible.
 // --hide-nc stays available and is never the default.
+// Falz is flagged needsReview by default. A later import never clears
+// hidden or hiddenReason except a previous license-nc hide when --hide-nc is off.
+// --takedown hides a track and deletes its Storage audio object.
 const fs = require('fs');
+const https = require('https');
 const path = require('path');
+
+const DEFAULT_FLAG_ARTISTS = ['Falz'];
 
 const TRACK_FIELDS = [
     'title', 'artist', 'artistDocId', 'genre', 'duration', 'source', 'feedTitle',
@@ -89,7 +95,52 @@ function enclosureFromItem(item) {
     return '';
 }
 
-function buildEnclosureMap(tracks, feeds) {
+function decodeXml(text) {
+    return String(text || '')
+        .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;|&apos;/g, "'")
+        .trim();
+}
+
+// Pull guid -> enclosure from a Wavlake (or Podcasting 2.0) RSS document.
+// The op3.dev pg= prefix is per feed, so it has to come from the feed itself.
+function parseRssEnclosures(xml) {
+    const map = Object.create(null);
+    if (typeof xml !== 'string' || !xml) return map;
+    xml.split(/<item\b/i).slice(1).forEach(function (chunk) {
+        const item = chunk.split(/<\/item>/i)[0];
+        const encMatch = item.match(/<enclosure\b[^>]*\burl\s*=\s*["']([^"']+)["']/i);
+        if (!encMatch) return;
+        const url = httpsUrl(decodeXml(encMatch[1]));
+        if (!url || isStorageAudio(url)) return;
+        const guids = [];
+        const guidRe = /<guid\b[^>]*>([\s\S]*?)<\/guid>/gi;
+        let match;
+        while ((match = guidRe.exec(item))) guids.push(decodeXml(match[1]));
+        const podcastGuid = item.match(/<podcast:guid\b[^>]*>([\s\S]*?)<\/podcast:guid>/i);
+        if (podcastGuid) guids.push(decodeXml(podcastGuid[1]));
+        const fromCdn = url.match(/\/track\/([0-9a-f-]{8,})\.[a-z0-9]+/i);
+        if (fromCdn) guids.push(fromCdn[1]);
+        guids.forEach(function (guid) {
+            if (guid && !map[guid]) map[guid] = url;
+        });
+    });
+    return map;
+}
+
+function wavlakeFeedUrl(value) {
+    const safe = httpsUrl(value);
+    if (!safe) return '';
+    const host = hostOf(safe);
+    if (host !== 'wavlake.com' && host !== 'www.wavlake.com') return '';
+    return safe.split('#')[0];
+}
+
+function buildEnclosureMap(tracks, feeds, extra) {
     const map = Object.create(null);
     (feeds || []).forEach(function (feed) {
         const items = (feed && (feed.items || feed.entries)) || [];
@@ -104,7 +155,159 @@ function buildEnclosureMap(tracks, feeds) {
         const enc = httpsUrl(track.audioUrl);
         if (enc && !isStorageAudio(enc)) map[String(track.v4vGuid)] = enc;
     });
+    if (extra && typeof extra === 'object') {
+        Object.keys(extra).forEach(function (guid) {
+            const enc = httpsUrl(extra[guid]);
+            if (guid && enc && !isStorageAudio(enc)) map[String(guid)] = enc;
+        });
+    }
     return map;
+}
+
+function mergeFlagArtists(extra) {
+    const out = [];
+    const seen = Object.create(null);
+    DEFAULT_FLAG_ARTISTS.concat(extra || []).forEach(function (name) {
+        const trimmed = String(name || '').trim();
+        const key = trimmed.toLowerCase();
+        if (!key || seen[key]) return;
+        seen[key] = 1;
+        out.push(trimmed);
+    });
+    return out;
+}
+
+function storageObjectFromUrl(url) {
+    const safe = httpsUrl(url);
+    if (!safe || !isStorageAudio(safe)) return null;
+    const host = hostOf(safe);
+    if (host === 'storage.googleapis.com') {
+        const rest = safe.slice('https://'.length + host.length + 1);
+        const slash = rest.indexOf('/');
+        if (slash <= 0) return null;
+        const filePath = decodeURIComponent(rest.slice(slash + 1).split('?')[0]);
+        if (!filePath || filePath.indexOf('..') !== -1) return null;
+        return { bucket: rest.slice(0, slash), path: filePath };
+    }
+    const match = safe.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
+    if (!match) return null;
+    const filePath = decodeURIComponent(match[2]);
+    if (!filePath || filePath.indexOf('..') !== -1) return null;
+    return { bucket: decodeURIComponent(match[1]), path: filePath };
+}
+
+function planTakedown(track) {
+    if (!track || !track.id) return { found: false, hide: false, deleteStorage: false };
+    const storage = storageObjectFromUrl(track.audioUrl) || storageObjectFromUrl(track.streamUrl);
+    return {
+        found: true,
+        hide: true,
+        deleteStorage: !!storage,
+        bucket: storage ? storage.bucket : '',
+        path: storage ? storage.path : ''
+    };
+}
+
+function hiddenFieldCleared(before, after) {
+    if (!before || !after) return false;
+    const hiddenGone = Object.prototype.hasOwnProperty.call(before, 'hidden') &&
+        !Object.prototype.hasOwnProperty.call(after, 'hidden');
+    const reasonGone = Object.prototype.hasOwnProperty.call(before, 'hiddenReason') &&
+        !Object.prototype.hasOwnProperty.call(after, 'hiddenReason');
+    return hiddenGone || reasonGone;
+}
+
+function fetchText(url, redirectsLeft) {
+    return new Promise(function (resolve, reject) {
+        if (!httpsUrl(url)) {
+            reject(new Error('bad url'));
+            return;
+        }
+        const req = https.get(url, {
+            headers: {
+                'User-Agent': 'BitcoinBeatsCatalogImport/1.0',
+                'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+            },
+            timeout: 20000
+        }, function (res) {
+            const code = res.statusCode || 0;
+            if (code >= 300 && code < 400 && res.headers.location) {
+                res.resume();
+                if (!redirectsLeft) {
+                    reject(new Error('redirect'));
+                    return;
+                }
+                let next = '';
+                try { next = new URL(res.headers.location, url).href; }
+                catch (e) { next = ''; }
+                if (!wavlakeFeedUrl(next) && hostOf(next) !== 'wavlake.com' && hostOf(next) !== 'www.wavlake.com') {
+                    reject(new Error('redirect'));
+                    return;
+                }
+                resolve(fetchText(next, redirectsLeft - 1));
+                return;
+            }
+            if (code !== 200) {
+                res.resume();
+                reject(new Error('status'));
+                return;
+            }
+            const chunks = [];
+            let size = 0;
+            res.on('data', function (chunk) {
+                size += chunk.length;
+                if (size > 8 * 1024 * 1024) {
+                    req.destroy();
+                    reject(new Error('too large'));
+                    return;
+                }
+                chunks.push(chunk);
+            });
+            res.on('end', function () { resolve(Buffer.concat(chunks).toString('utf8')); });
+        });
+        req.on('error', function () { reject(new Error('fetch')); });
+        req.on('timeout', function () { req.destroy(); reject(new Error('timeout')); });
+    });
+}
+
+async function resolveEnclosuresFromFeeds(existingTracks, feeds) {
+    const urls = Object.create(null);
+    function add(url) {
+        const safe = wavlakeFeedUrl(url);
+        if (safe) urls[safe] = 1;
+    }
+    (feeds || []).forEach(function (feed) { add(feed && (feed.feedUrl || feed.url)); });
+    (existingTracks || []).forEach(function (track) {
+        if (!isWavlake(track)) return;
+        add(track.feedUrl);
+        add(track.sourceUrl);
+    });
+    const list = Object.keys(urls);
+    const map = Object.create(null);
+    let fetched = 0;
+    let failed = 0;
+    let cursor = 0;
+    async function worker() {
+        for (;;) {
+            const index = cursor++;
+            if (index >= list.length) return;
+            try {
+                const xml = await fetchText(list[index], 3);
+                const parsed = parseRssEnclosures(xml);
+                Object.keys(parsed).forEach(function (guid) {
+                    if (!map[guid]) map[guid] = parsed[guid];
+                });
+                fetched++;
+            } catch (e) {
+                failed++;
+            }
+        }
+    }
+    const workers = [];
+    const n = Math.min(6, list.length);
+    for (let i = 0; i < n; i++) workers.push(worker());
+    await Promise.all(workers);
+    return { map: map, feedsFetched: fetched, feedsFailed: failed };
 }
 
 function sanitizeId(guid) {
@@ -166,8 +369,8 @@ function planCatalog(input) {
     const audit = (input && input.audit) || [];
     const existingTracks = (input && input.existingTracks) || [];
     const existingArtists = (input && input.existingArtists) || [];
-    const flagArtists = (input && input.flagArtists) || [];
-    const enclosures = buildEnclosureMap(incoming, feeds);
+    const flagArtists = mergeFlagArtists(input && input.flagArtists);
+    const enclosures = buildEnclosureMap(incoming, feeds, input && input.enclosures);
 
     const counts = {
         tracksUpsert: 0,
@@ -180,6 +383,9 @@ function planCatalog(input) {
         wouldHideNc: 0,
         wouldHideGrindcore: 0,
         streamUrlExisting: 0,
+        streamUrlUnresolved: 0,
+        feedsFetched: 0,
+        feedsFailed: 0,
         needsReview: 0,
         auditTracksListed: 0,
         auditGrindcoreListed: 0,
@@ -253,8 +459,18 @@ function planCatalog(input) {
                 if (Object.prototype.hasOwnProperty.call(existing, key)) target[key] = existing[key];
             });
             if (existing.authorId) target.authorId = existing.authorId;
-            delete target.hidden;
-            delete target.hiddenReason;
+            // A takedown or any other moderation hide stays. license-nc is the
+            // only reason a re-import may clear, and only when --hide-nc is off.
+            const reason = existing.hiddenReason;
+            const clearLicenseNc = existing.hidden === true && reason === 'license-nc' && !hideNc;
+            if (existing.hidden === true && !clearLicenseNc) {
+                target.hidden = true;
+                if (reason) target.hiddenReason = reason;
+            } else {
+                delete target.hidden;
+                delete target.hiddenReason;
+            }
+            if (existing.needsReview === true) target.needsReview = true;
         } else {
             if (target.plays == null) target.plays = 0;
             if (target.likes == null) target.likes = 0;
@@ -288,6 +504,13 @@ function planCatalog(input) {
         if (!flagged(track, flagArtists)) return;
         track.needsReview = true;
         counts.needsReview++;
+    });
+
+    finalTracks.forEach(function (track) {
+        const before = originals[track.id];
+        if (!before || !isWavlake(before)) return;
+        const stream = httpsUrl(track.streamUrl);
+        if (!stream || isStorageAudio(stream)) counts.streamUrlUnresolved++;
     });
 
     const artistOriginals = Object.create(null);
@@ -373,6 +596,9 @@ function printCounts(mode, counts) {
         'would_hide_grindcore: ' + counts.wouldHideGrindcore,
         'hidden_license_nc: ' + counts.hidden,
         'stream_url_existing: ' + counts.streamUrlExisting,
+        'stream_url_unresolved: ' + (counts.streamUrlUnresolved || 0),
+        'feeds_fetched: ' + (counts.feedsFetched || 0),
+        'feeds_failed: ' + (counts.feedsFailed || 0),
         'needs_review: ' + counts.needsReview,
         'audit_tracks_listed: ' + counts.auditTracksListed,
         'audit_grindcore_listed: ' + counts.auditGrindcoreListed,
@@ -408,6 +634,8 @@ function parseArgs(argv) {
         else if (arg === '--hide-nc') out.hideNc = true;
         else if (arg.indexOf('--hide-nc=') === 0) out.hideNc = arg.slice('--hide-nc='.length) || true;
         else if (arg === '--flag-artist') out.flagArtists.push(argv[++i] || '');
+        else if (arg === '--enclosures') out.enclosures = argv[++i];
+        else if (arg === '--takedown') out.takedown = argv[++i] || '';
         else if (arg.indexOf('--') === 0) {
             console.error('Unknown argument');
             process.exit(1);
@@ -446,6 +674,10 @@ function payloadFrom(after, admin, isNew, before) {
     }
     if (before && Object.prototype.hasOwnProperty.call(before, 'hiddenReason') && !Object.prototype.hasOwnProperty.call(after, 'hiddenReason')) {
         data.hiddenReason = admin.firestore.FieldValue.delete();
+    }
+    if (before && before.hidden === true && before.hiddenReason && before.hiddenReason !== 'license-nc') {
+        data.hidden = true;
+        data.hiddenReason = before.hiddenReason;
     }
     return data;
 }
@@ -487,11 +719,17 @@ async function main() {
             '--fixture FILE   existing tracks JSON',
             '--fixture-artists FILE',
             '--out FILE       JSON result for --fixture --apply',
-            '--flag-artist NAME   set needsReview, do not hide (repeatable)',
+            '--flag-artist NAME   also set needsReview (Falz is already the default)',
+            '--enclosures FILE    guid -> https enclosure JSON, merged with fetched feeds',
             '--hide-nc            opt in: hide every audited NC archive.org track',
             '--hide-nc=grindcore  opt in: hide only the 42 Torn Flesh Records tracks',
+            '--takedown ID        hide that track and delete its Storage audio file',
             '--apply'
         ].join('\n'));
+        return;
+    }
+    if (args.takedown) {
+        await runTakedown(args);
         return;
     }
     const dataDir = args.dataDir || process.env.BEATS_DATA_DIR;
@@ -522,6 +760,13 @@ async function main() {
         existingArtists = await readCollection(db, admin, 'beats_artists');
     }
 
+    let enclosureMap = null;
+    if (args.enclosures) enclosureMap = readJson(args.enclosures);
+    let feedStats = { feedsFetched: 0, feedsFailed: 0, map: null };
+    if (!args.fixture) {
+        feedStats = await resolveEnclosuresFromFeeds(existingTracks, feeds);
+        enclosureMap = Object.assign({}, enclosureMap || {}, feedStats.map || {});
+    }
     const plan = planCatalog({
         tracks: tracks,
         artists: artists,
@@ -530,8 +775,11 @@ async function main() {
         existingTracks: existingTracks,
         existingArtists: existingArtists,
         flagArtists: args.flagArtists,
-        hideNc: args.hideNc || false
+        hideNc: args.hideNc || false,
+        enclosures: enclosureMap
     });
+    plan.counts.feedsFetched = feedStats.feedsFetched || 0;
+    plan.counts.feedsFailed = feedStats.feedsFailed || 0;
 
     if (args.fixture && args.apply) {
         if (!args.out) {
@@ -550,12 +798,79 @@ async function main() {
     printCounts('dry-run', plan.counts);
 }
 
+async function loadTrackById(args, id) {
+    if (args.fixture) {
+        const rows = readJson(args.fixture);
+        return (rows || []).find(function (track) { return track && track.id === id; }) || null;
+    }
+    if (!credentialsConfigured()) {
+        console.error('Refusing Firestore access. Set GOOGLE_APPLICATION_CREDENTIALS or pass --fixture.');
+        process.exit(1);
+    }
+    const admin = require('firebase-admin');
+    if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.applicationDefault() });
+    const db = admin.firestore();
+    const doc = await db.collection('beats_tracks').doc(id).get();
+    if (!doc.exists) return null;
+    return { admin: admin, db: db, track: Object.assign({ id: doc.id }, doc.data()) };
+}
+
+async function runTakedown(args) {
+    const id = String(args.takedown || '').trim();
+    if (!id || id.indexOf('/') !== -1 || id === '.' || id === '..' || id.length > 700) {
+        console.error('Pass --takedown with a track id.');
+        process.exit(1);
+    }
+    let track = null;
+    let admin = null;
+    let db = null;
+    if (args.fixture) {
+        track = await loadTrackById(args, id);
+    } else {
+        const loaded = await loadTrackById(args, id);
+        if (loaded) {
+            admin = loaded.admin;
+            db = loaded.db;
+            track = loaded.track;
+        }
+    }
+    const plan = planTakedown(track);
+    const mode = args.apply ? (args.fixture ? 'fixture-apply' : 'apply') : 'dry-run';
+    if (!plan.found) {
+        console.log(['mode: ' + mode, 'takedown: 0', 'takedown_storage: 0'].join('\n'));
+        process.exit(1);
+    }
+    if (args.apply && args.fixture) {
+        if (!args.out) {
+            console.error('Fixture --apply needs --out.');
+            process.exit(1);
+        }
+        const after = Object.assign({}, track, { hidden: true, hiddenReason: 'takedown' });
+        if (plan.deleteStorage) delete after.audioUrl;
+        fs.writeFileSync(args.out, JSON.stringify({ track: after, deleteStorage: plan.deleteStorage }));
+    } else if (args.apply) {
+        await db.collection('beats_tracks').doc(id).set({
+            hidden: true,
+            hiddenReason: 'takedown'
+        }, { merge: true });
+        if (plan.deleteStorage) {
+            await admin.storage().bucket(plan.bucket).file(plan.path).delete({ ignoreNotFound: true });
+        }
+    }
+    console.log(['mode: ' + mode, 'takedown: 1', 'takedown_storage: ' + (plan.deleteStorage ? 1 : 0)].join('\n'));
+}
+
 module.exports = {
     planCatalog: planCatalog,
     httpsUrl: httpsUrl,
     archiveItemId: archiveItemId,
     artistMatch: artistMatch,
-    isGrindcoreItem: isGrindcoreItem
+    isGrindcoreItem: isGrindcoreItem,
+    parseRssEnclosures: parseRssEnclosures,
+    planTakedown: planTakedown,
+    storageObjectFromUrl: storageObjectFromUrl,
+    hiddenFieldCleared: hiddenFieldCleared,
+    mergeFlagArtists: mergeFlagArtists
 };
 
 if (require.main === module) {

@@ -28,6 +28,27 @@ service cloud.firestore {
       ]);
     }
 
+    // Admins can hide a track or flag it for review. Nothing else on the doc moves.
+    function beatsModerationUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return isAdmin()
+        && changed.size() > 0
+        && changed.hasOnly(['hidden', 'hiddenReason', 'needsReview'])
+        && (!changed.hasAny(['hidden']) || request.resource.data.hidden is bool)
+        && (!changed.hasAny(['hiddenReason'])
+            || (request.resource.data.hiddenReason is string
+                && request.resource.data.hiddenReason.size() > 0
+                && request.resource.data.hiddenReason.size() <= 80))
+        && (!changed.hasAny(['needsReview']) || request.resource.data.needsReview is bool);
+    }
+
+    function beatsCommentEventOk() {
+      return request.resource.data.commentEventId is string
+        && request.resource.data.commentEventId.size() > 0
+        && request.resource.data.commentEventId.size() <= 128
+        && request.resource.data.commentEventId.matches('^[A-Za-z0-9_-]+$');
+    }
+
     // Client-created notification ids. Server Admin SDK writes are not checked here.
     function notifIdOk(v) {
       return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
@@ -848,8 +869,9 @@ service cloud.firestore {
                     && (!('audioUrl' in request.resource.data)
                         || request.resource.data.audioUrl.matches('^https://.*'));
       allow update: if request.auth != null
-                    && beatsCatalogUntouched()
                     && (
+                      beatsModerationUpdate()
+                      || (beatsCatalogUntouched() && (
                       // Author edits stay on the fields the edit and album forms send.
                       (resource.data.authorId == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -881,13 +903,24 @@ service cloud.firestore {
                               && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
                               && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
                           )))
-                      // Comment count moves by one. The caller cannot touch catalog fields.
-                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount'])
+                      // Comment count moves only with a comment create or delete in this batch.
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount', 'commentEventId'])
+                          && beatsCommentEventOk()
+                          && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                           && request.resource.data.commentCount is int
                           && request.resource.data.commentCount >= 0
-                          && (request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1
-                              || request.resource.data.commentCount == resource.data.get('commentCount', 0) - 1))
-                    );
+                          && (
+                            (request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1
+                              && !exists(/databases/$(database)/documents/beats_tracks/$(trackId)/comments/$(request.resource.data.commentEventId))
+                              && existsAfter(/databases/$(database)/documents/beats_tracks/$(trackId)/comments/$(request.resource.data.commentEventId))
+                              && getAfter(/databases/$(database)/documents/beats_tracks/$(trackId)/comments/$(request.resource.data.commentEventId)).data.authorId == request.auth.uid)
+                            || (request.resource.data.commentCount == resource.data.get('commentCount', 0) - 1
+                              && exists(/databases/$(database)/documents/beats_tracks/$(trackId)/comments/$(request.resource.data.commentEventId))
+                              && !existsAfter(/databases/$(database)/documents/beats_tracks/$(trackId)/comments/$(request.resource.data.commentEventId))
+                              && (get(/databases/$(database)/documents/beats_tracks/$(trackId)/comments/$(request.resource.data.commentEventId)).data.authorId == request.auth.uid
+                                  || isAdmin()))
+                          ))
+                    )));
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
                         || isAdmin());
@@ -900,7 +933,8 @@ service cloud.firestore {
                       && request.resource.data.text is string
                       && request.resource.data.text.size() <= 280;
         allow delete: if request.auth != null
-                      && resource.data.authorId == request.auth.uid;
+                      && (resource.data.authorId == request.auth.uid
+                          || isAdmin());
       }
     }
 

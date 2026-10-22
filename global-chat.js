@@ -2715,6 +2715,10 @@ window.djBroadcast = function() {
 
     var track = window._beatsQueue[window._beatsQueueIdx];
     if (!track) return;
+    if (track.needsReview === true || track.hidden === true) {
+        if (typeof showToast === 'function') showToast(track.needsReview === true ? 'pending verification' : 'That track is hidden');
+        return;
+    }
     var uid = auth.currentUser.uid;
 
     // Check if someone is already DJing
@@ -2871,7 +2875,7 @@ window.djFilterTracks = function(query) {
 };
 
 function djPlayableUrl(track) {
-    if (!track || track.hidden === true) return '';
+    if (!track || track.hidden === true || track.needsReview === true) return '';
     if (typeof window._beatsPlayableUrl === 'function') return window._beatsPlayableUrl(track) || '';
     function https(url) {
         return (typeof url === 'string' && /^https:\/\//i.test(url.trim())) ? url.trim() : '';
@@ -2886,7 +2890,10 @@ window.djAddToQueue = function(idx) {
     }
     var tracks = window._beatsQueue || [];
     var t = tracks[idx];
-    if (!t || t.hidden === true) return;
+    if (!t || t.hidden === true || t.needsReview === true) {
+        if (t && t.needsReview === true && typeof showToast === 'function') showToast('pending verification');
+        return;
+    }
     // Don't add duplicates
     for (var i = 0; i < window._djUpNext.length; i++) {
         if (window._djUpNext[i].id === t.id) {
@@ -2908,6 +2915,13 @@ function hookDJAutoQueue() {
     _origBeatsOnEnded = window._beatsAudio.onended;
     window._beatsAudio.onended = function() {
         if (_djIsMe && window._djUpNext.length > 0) {
+            while (window._djUpNext.length && (window._djUpNext[0].hidden === true || window._djUpNext[0].needsReview === true)) {
+                window._djUpNext.shift();
+            }
+            if (!window._djUpNext.length) {
+                if (_origBeatsOnEnded) _origBeatsOnEnded();
+                return;
+            }
             var next = window._djUpNext.shift();
             djRenderUpNext();
             // Find track index in queue

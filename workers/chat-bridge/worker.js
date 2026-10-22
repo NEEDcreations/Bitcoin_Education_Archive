@@ -206,7 +206,7 @@ async function queryFirestore(env, collection, limit) {
 }
 
 function beatsPlayableUrl(t) {
-  if (!t || t.hidden === true) return '';
+  if (!t || t.hidden === true || t.needsReview === true) return '';
   var stream = (typeof t.streamUrl === 'string' && /^https:\/\//i.test(t.streamUrl)) ? t.streamUrl : '';
   var audio = (typeof t.audioUrl === 'string' && /^https:\/\//i.test(t.audioUrl)) ? t.audioUrl : '';
   return stream || audio;

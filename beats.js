@@ -20,6 +20,7 @@ window.renderBitcoinBeats = function() {
                 <h2 style="color:var(--heading);font-weight:900;font-size:1.6rem;margin:0;letter-spacing:-0.5px;">🎸 Bitcoin Beats</h2>
                 <div style="color:var(--text-muted);font-size:0.75rem;">Community Music · Powered by Lightning</div>
                 <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:2px;">
+                    <a href="/music-credits.html" style="color:var(--accent);font-size:0.72rem;font-weight:700;text-decoration:none;">Track credits</a>
                     <a href="/terms.html#open-music-credits" style="color:var(--accent);font-size:0.72rem;font-weight:700;text-decoration:none;">Open music credits</a>
                     <a href="/terms.html#copyright-takedown" style="color:var(--accent);font-size:0.72rem;font-weight:700;text-decoration:none;">Copyright takedown</a>
                 </div>
@@ -195,6 +196,20 @@ function _beatsIsHidden(data) {
     return !!(data && data.hidden === true);
 }
 
+function _beatsNeedsReview(track) {
+    return !!(track && track.needsReview === true);
+}
+
+function _beatsPendingHtml() {
+    return '<span style="color:#f59e0b;font-weight:700;font-size:0.72rem;">pending verification</span>';
+}
+
+function _beatsAttribution(track) {
+    var text = track && track.attribution;
+    if (typeof text !== 'string') return '';
+    return text.trim();
+}
+
 function _beatsTrackFromDoc(doc) {
     if (!doc || typeof doc.data !== 'function') return null;
     var data = doc.data() || {};
@@ -315,17 +330,25 @@ function _beatsLink(url, label) {
 
 function _beatsCreditHtml(track) {
     if (!track) return '';
-    var parts = [escapeHtml(track.title || 'Untitled'), escapeHtml(track.artist || track.authorName || 'Unknown')];
-    var license = _beatsLicenseName(track);
-    if (license) parts.push(_beatsLink(_beatsLicenseLink(track), license));
-    var source = _beatsSourceName(track);
-    if (source) parts.push(_beatsLink(_beatsSourceLink(track), source));
-    return '<div id="beatsCreditLine" style="text-align:center;color:var(--text-faint);font-size:0.68rem;line-height:1.45;margin:0 0 12px;word-break:break-word;">' + parts.join(' · ') + '</div>';
+    var verbatim = _beatsAttribution(track);
+    var inner;
+    if (verbatim) inner = escapeHtml(verbatim);
+    else {
+        var parts = [escapeHtml(track.title || 'Untitled'), escapeHtml(track.artist || track.authorName || 'Unknown')];
+        var license = _beatsLicenseName(track);
+        if (license) parts.push(_beatsLink(_beatsLicenseLink(track), license));
+        var source = _beatsSourceName(track);
+        if (source) parts.push(_beatsLink(_beatsSourceLink(track), source));
+        inner = parts.join(' · ');
+    }
+    return '<div id="beatsCreditLine" style="text-align:center;color:var(--text-faint);font-size:0.68rem;line-height:1.45;margin:0 0 12px;word-break:break-word;">' + inner + '</div>';
 }
 
 function _beatsShortCredit(track) {
+    var verbatim = _beatsAttribution(track);
+    if (verbatim) return verbatim;
     var short = _beatsLicenseShort(_beatsLicenseName(track));
-    if (short !== 'CC BY' && short !== 'CC BY-SA') return '';
+    if (!short || short === 'CC0' || short === 'Public Domain' || short === 'V4V') return '';
     return short + ' · ' + (_beatsSourceName(track) || 'Source');
 }
 
@@ -1523,7 +1546,7 @@ window.beatsShowTrackDetail = function(idx) {
         '<div style="text-align:center;margin-bottom:6px;color:var(--heading);font-weight:800;font-size:1.1rem;word-break:break-word;">' + escapeHtml(track.title || 'Untitled') + '</div>' +
         '<div style="text-align:center;font-size:0.85rem;margin-bottom:4px;">' +
             (track.authorId ? '<span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + track.authorId + '\')" style="color:var(--text-muted);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>' : '<span style="color:var(--text-faint);">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>') +
-            (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof showTipOverlay===\'function\')showTipOverlay({recipientName:\'' + escapeHtml(track.artist || track.authorName || 'Artist').replace(/[\\'"]/g,"") + '\',recipientUid:\'' + track.authorId + '\',context:\'Bitcoin Beats tip\',label:\'Tip Artist\'})" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '') +
+            (_beatsNeedsReview(track) ? ' ' + _beatsPendingHtml() : (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof showTipOverlay===\'function\')showTipOverlay({recipientName:\'' + escapeHtml(track.artist || track.authorName || 'Artist').replace(/[\\'"]/g,"") + '\',recipientUid:\'' + track.authorId + '\',context:\'Bitcoin Beats tip\',label:\'Tip Artist\'})" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '')) +
         '</div>' +
         _beatsCreditHtml(track) +
         (track.genre ? '<div style="text-align:center;margin-bottom:10px;"><span style="background:rgba(247,147,26,0.15);color:var(--accent);font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;">' + escapeHtml(track.genre) + '</span></div>' : '<div style="margin-bottom:10px;"></div>') +
@@ -2519,12 +2542,19 @@ window.beatsPostComment = function(trackId) {
     input.disabled = true;
     var authorName = currentUser ? currentUser.username : 'Anonymous';
 
-    db.collection('beats_tracks').doc(trackId).collection('comments').add({
+    var commentRef = db.collection('beats_tracks').doc(trackId).collection('comments').doc();
+    var batch = db.batch();
+    batch.set(commentRef, {
         text: text.substring(0, 280),
         authorId: auth.currentUser.uid,
         authorName: authorName,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function() {
+    });
+    batch.update(db.collection('beats_tracks').doc(trackId), {
+        commentCount: firebase.firestore.FieldValue.increment(1),
+        commentEventId: commentRef.id
+    });
+    batch.commit().then(function() {
         input.value = '';
         input.disabled = false;
         beatsLoadComments(trackId);
@@ -2541,10 +2571,6 @@ window.beatsPostComment = function(trackId) {
                 sessionStorage.setItem('_ch_beats_comment', '1');
             }
         }
-        // Increment comment count on track + notify artist
-        db.collection('beats_tracks').doc(trackId).update({
-            commentCount: firebase.firestore.FieldValue.increment(1)
-        }).catch(function() {});
         // Notify track author
         db.collection('beats_tracks').doc(trackId).get().then(function(doc) {
             if (doc.exists && doc.data().authorId && typeof sendNotification === 'function') {
@@ -2570,20 +2596,23 @@ window.beatsDeleteComment = function(trackId, commentId) {
     // Check permission: own comment or admin
     db.collection('beats_tracks').doc(trackId).collection('comments').doc(commentId).get()
         .then(function(doc) {
-            if (!doc.exists) { showToast('Comment not found'); return; }
+            if (!doc.exists) { showToast('Comment not found'); return false; }
             var c = doc.data();
             if (c.authorId !== _cu.uid && !_isAdmin) {
                 showToast('You can only delete your own comments');
-                return;
+                return false;
             }
-            return db.collection('beats_tracks').doc(trackId).collection('comments').doc(commentId).delete();
+            var batch = db.batch();
+            batch.delete(db.collection('beats_tracks').doc(trackId).collection('comments').doc(commentId));
+            batch.update(db.collection('beats_tracks').doc(trackId), {
+                commentCount: firebase.firestore.FieldValue.increment(-1),
+                commentEventId: commentId
+            });
+            return batch.commit().then(function() { return true; });
         })
-        .then(function() {
+        .then(function(deleted) {
+            if (!deleted) return;
             showToast('🗑️ Comment deleted');
-            // Decrement comment count
-            db.collection('beats_tracks').doc(trackId).update({
-                commentCount: firebase.firestore.FieldValue.increment(-1)
-            }).catch(function() {});
             // Reload comments
             beatsLoadComments(trackId);
         })
@@ -2606,6 +2635,10 @@ window.beatsFormatTime = function(secs) {
 // ================================================================
 window.beatsTipCurrentArtist = function() {
     var track = window._beatsQueue && window._beatsQueue[window._beatsQueueIdx];
+    if (_beatsNeedsReview(track)) {
+        if (typeof showToast === 'function') showToast('pending verification');
+        return;
+    }
     if (!track || !track.authorId) {
         if (typeof showToast === 'function') showToast('No artist info for this track');
         return;
@@ -2738,7 +2771,7 @@ window.beatsSetGenre = function(genre) {
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
-                        (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\x27]/g, '') + '\',\'' + escapeHtml(t.title || '').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
+                        (_beatsNeedsReview(t) ? _beatsPendingHtml() : (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\x27]/g, '') + '\',\'' + escapeHtml(t.title || '').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '')) +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\',\'' + escapeHtml(t.title || 'Track').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;" title="More">⋮</button>' +
                     '</div>' +
@@ -2906,6 +2939,11 @@ window.beatsSetGenre = function(genre) {
 
 // Helper for inline tip buttons
 window.beatsTipCurrentArtistById = function(uid, name, trackTitle) {
+    var current = window._beatsQueue && window._beatsQueue[window._beatsQueueIdx];
+    if (current && current.authorId === uid && _beatsNeedsReview(current)) {
+        if (typeof showToast === 'function') showToast('pending verification');
+        return;
+    }
     if (typeof showTipOverlay === 'function') {
         showTipOverlay({ recipientName: name, recipientUid: uid, context: 'Tip for: ' + trackTitle, label: 'Tip Artist' });
     } else if (typeof beatsShowArtistPage === 'function') {
@@ -4188,6 +4226,10 @@ function _v4vPayLabel(r) {
 // Show V4V split tip overlay — fans out to each artist's Lightning address
 window.beatsShowV4VTip = async function(track) {
     if (!track || !track.id) return;
+    if (_beatsNeedsReview(track)) {
+        if (typeof showToast === 'function') showToast('pending verification');
+        return;
+    }
     var splits = track.v4vSplits || [];
     if (!splits.length) {
         if (typeof showTipOverlay === 'function') showTipOverlay({ recipientName: track.artist || 'Artist', recipientUid: track.authorId || '', context: 'Bitcoin Beats tip', label: 'Tip Artist' });

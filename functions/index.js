@@ -6914,6 +6914,7 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
     if (!trackDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const track    = trackDoc.data();
     if (track.hidden === true) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
+    if (track.needsReview === true) throw new functionsV1.https.HttpsError('failed-precondition', 'pending verification');
     const splits   = (track.v4vSplits || []).filter(s => s.split > 0);
 
     if (splits.length === 0) throw new functionsV1.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
@@ -8837,7 +8838,7 @@ exports.nachoRadioTick = onSchedule({
     }
 
     function nachoPlayableUrl(t) {
-        if (!t || t.hidden === true) return '';
+        if (!t || t.hidden === true || t.needsReview === true) return '';
         const stream = typeof t.streamUrl === 'string' && /^https:\/\//i.test(t.streamUrl) ? t.streamUrl.trim() : '';
         const audio = typeof t.audioUrl === 'string' && /^https:\/\//i.test(t.audioUrl) ? t.audioUrl.trim() : '';
         return stream || audio;

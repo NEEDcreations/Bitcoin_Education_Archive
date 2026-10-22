@@ -29,8 +29,7 @@ function run(extra) {
 const baseArgs = [
     '--data-dir', fixtureDir,
     '--fixture', path.join(fixtureDir, 'existing-tracks.json'),
-    '--fixture-artists', path.join(fixtureDir, 'existing-artists.json'),
-    '--flag-artist', 'Falz'
+    '--fixture-artists', path.join(fixtureDir, 'existing-artists.json')
 ];
 
 test('dry-run prints counts only and does not require credentials', function () {
@@ -49,6 +48,9 @@ test('dry-run prints counts only and does not require credentials', function () 
         'would_hide_grindcore: 0',
         'hidden_license_nc: 0',
         'stream_url_existing: 1',
+        'stream_url_unresolved: 1',
+        'feeds_fetched: 0',
+        'feeds_failed: 0',
         'needs_review: 1',
         'audit_tracks_listed: 2',
         'audit_grindcore_listed: 0',
@@ -181,6 +183,104 @@ test('flagging an artist does not hide their tracks', function () {
     assert.strictEqual(plan.counts.hidden, 0);
     assert.strictEqual(plan.trackWrites[0].after.needsReview, true);
     assert.notStrictEqual(plan.trackWrites[0].after.hidden, true);
+});
+
+test('Falz is needsReview without a CLI flag', function () {
+    const plan = importer.planCatalog({
+        tracks: [],
+        artists: [],
+        feeds: [],
+        audit: [],
+        existingTracks: [{ id: 'f', artist: 'Falz', source: 'podcastindex', v4vGuid: 'g', audioUrl: 'https://storage.googleapis.com/b/a.mp3' }],
+        existingArtists: []
+    });
+    assert.strictEqual(plan.counts.needsReview, 1);
+    assert.strictEqual(plan.trackWrites[0].after.needsReview, true);
+    assert.notStrictEqual(plan.trackWrites[0].after.hidden, true);
+    assert.deepStrictEqual(importer.mergeFlagArtists(['falz', 'Other']), ['Falz', 'Other']);
+});
+
+test('a takedown hide survives an import that includes the guid', function () {
+    const plan = importer.planCatalog({
+        tracks: [{
+            v4vGuid: 'keep-me',
+            title: 'Kept',
+            artist: 'A',
+            source: 'incompetech',
+            license: 'CC BY 4.0',
+            audioUrl: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/x.mp3'
+        }],
+        artists: [],
+        feeds: [],
+        audit: [],
+        existingTracks: [{
+            id: 'hidden-1',
+            v4vGuid: 'keep-me',
+            title: 'Old',
+            artist: 'A',
+            hidden: true,
+            hiddenReason: 'takedown',
+            audioUrl: 'https://storage.googleapis.com/b/a.mp3',
+            plays: 3
+        }],
+        existingArtists: []
+    });
+    const track = plan.tracks.filter(function (row) { return row.id === 'hidden-1'; })[0];
+    assert.strictEqual(track.hidden, true);
+    assert.strictEqual(track.hiddenReason, 'takedown');
+    assert.strictEqual(track.plays, 3);
+    assert.strictEqual(track.audioUrl.indexOf('storage.googleapis.com') !== -1, true);
+    const write = plan.trackWrites.filter(function (row) { return row.id === 'hidden-1'; })[0];
+    assert.strictEqual(importer.hiddenFieldCleared(write.before, write.after), false);
+
+    const cleared = importer.planCatalog({
+        tracks: [{ v4vGuid: 'nc-1', title: 'N', artist: 'A', source: 'incompetech', license: 'CC BY 4.0', audioUrl: 'https://incompetech.com/a.mp3' }],
+        artists: [], feeds: [], audit: [],
+        existingTracks: [{ id: 'nc', v4vGuid: 'nc-1', title: 'N', artist: 'A', hidden: true, hiddenReason: 'license-nc', audioUrl: 'https://storage.googleapis.com/b/a.mp3' }],
+        existingArtists: []
+    });
+    const nc = cleared.tracks.filter(function (row) { return row.id === 'nc'; })[0];
+    assert.strictEqual(nc.hidden, undefined);
+    assert.strictEqual(nc.hiddenReason, undefined);
+    assert.strictEqual(importer.hiddenFieldCleared(cleared.trackWrites[0].before, cleared.trackWrites[0].after), true);
+});
+
+test('RSS enclosures resolve an existing Wavlake track and keep the Storage file', function () {
+    const xml = '<rss><channel><item><guid isPermaLink="false">abc-123</guid>' +
+        '<enclosure url="https://op3.dev/e,pg=feed-guid/https://d12wklypp119aj.cloudfront.net/track/abc-123.mp3" type="audio/mpeg"/>' +
+        '</item></channel></rss>';
+    const map = importer.parseRssEnclosures(xml);
+    assert.ok(map['abc-123'].indexOf('https://op3.dev/') === 0);
+    const plan = importer.planCatalog({
+        tracks: [], artists: [], feeds: [], audit: [],
+        existingTracks: [{ id: 'w', v4vGuid: 'abc-123', artist: 'X', source: 'podcastindex', sourceUrl: 'https://wavlake.com/feed/music/album', audioUrl: 'https://storage.googleapis.com/b/a.mp3' }],
+        existingArtists: [],
+        enclosures: map
+    });
+    assert.strictEqual(plan.counts.streamUrlExisting, 1);
+    assert.strictEqual(plan.counts.streamUrlUnresolved, 0);
+    assert.ok(plan.tracks[0].audioUrl.indexOf('storage.googleapis.com') !== -1);
+    assert.ok(plan.tracks[0].streamUrl.indexOf('https://op3.dev/') === 0);
+    assert.strictEqual(importer.parseRssEnclosures('<item><enclosure url="javascript:alert(1)"/></item>')['x'], undefined);
+});
+
+test('takedown plan hides the track and names a Storage object without writing', function () {
+    const plan = importer.planTakedown({
+        id: 'old-archive-1',
+        audioUrl: 'https://storage.googleapis.com/example-bucket/beats-v4v/grind.mp3'
+    });
+    assert.strictEqual(plan.found, true);
+    assert.strictEqual(plan.hide, true);
+    assert.strictEqual(plan.deleteStorage, true);
+    assert.strictEqual(plan.bucket, 'example-bucket');
+    assert.strictEqual(plan.path, 'beats-v4v/grind.mp3');
+    const firebase = importer.storageObjectFromUrl('https://firebasestorage.googleapis.com/v0/b/example/o/beats%2Fmine.mp3?alt=media');
+    assert.strictEqual(firebase.bucket, 'example');
+    assert.strictEqual(firebase.path, 'beats/mine.mp3');
+    assert.strictEqual(importer.planTakedown(null).found, false);
+    const output = run(['--takedown', 'old-archive-1', '--fixture', path.join(fixtureDir, 'existing-tracks.json')]);
+    assert.strictEqual(output.trim(), ['mode: dry-run', 'takedown: 1', 'takedown_storage: 1'].join('\n'));
+    assert.ok(!/example-bucket|GOOGLE_APPLICATION/.test(output));
 });
 
 test('javascript license URLs are dropped', function () {
