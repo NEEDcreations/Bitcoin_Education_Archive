@@ -10701,30 +10701,34 @@ window._tipFromProfile = function() {
 };
 
 window._sendPeerRequest = async function(btnEl, targetUid) {
-    if (!btnEl) return;
+    if (!btnEl || btnEl.disabled || btnEl.getAttribute('data-peer-busy') === '1') return;
+    var prev = {
+        text: btnEl.textContent,
+        opacity: btnEl.style.opacity,
+        cursor: btnEl.style.cursor,
+        background: btnEl.style.background
+    };
+    btnEl.setAttribute('data-peer-busy', '1');
     btnEl.disabled = true;
-    btnEl.textContent = 'Sending...';
-    btnEl.style.opacity = '0.6';
+    btnEl.textContent = '🧡 Sent!';
+    btnEl.style.background = 'rgba(249,115,22,0.2)';
+    btnEl.style.opacity = '1';
+    btnEl.style.cursor = 'default';
+    if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
     try {
         var fn = firebase.functions().httpsCallable('managePeer');
         await fn({ action: 'send', targetUid: targetUid });
-        btnEl.textContent = '🧡 Sent!';
-        btnEl.style.background = 'rgba(249,115,22,0.2)';
-        btnEl.style.opacity = '1';
-        btnEl.style.cursor = 'default';
-        if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
     } catch(e) {
-        var msg = (e && e.message) || 'Error';
-        if (msg.includes('already-exists')) {
-            btnEl.textContent = '🧡 Sent!';
-            btnEl.style.opacity = '0.8';
-            btnEl.style.cursor = 'default';
-        } else {
-            btnEl.disabled = false;
-            btnEl.textContent = '🧡 Add Peer';
-            btnEl.style.opacity = '1';
-            if (typeof showToast === 'function') showToast(msg);
-        }
+        var code = (e && e.code) ? String(e.code) : '';
+        var msg = (e && e.message) ? String(e.message) : 'Error';
+        if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) return;
+        btnEl.disabled = false;
+        btnEl.removeAttribute('data-peer-busy');
+        btnEl.textContent = prev.text || '🧡 Add Peer';
+        btnEl.style.opacity = prev.opacity || '1';
+        btnEl.style.cursor = prev.cursor || 'pointer';
+        btnEl.style.background = prev.background || '';
+        if (typeof showToast === 'function') showToast(msg);
     }
 };
 
