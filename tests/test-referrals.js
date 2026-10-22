@@ -214,6 +214,13 @@ test('home card uses the stored referral code and does not query referrals', () 
     const copyBody = tickets.slice(copyStart, copyEnd);
     assert.ok(copyBody.indexOf("execCommand('copy')") !== -1);
     assert.ok(copyBody.indexOf("execCommand('copy')") < copyBody.indexOf('navigator.clipboard.writeText'));
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'referralService.js'), 'utf8');
+    assert.ok(service.includes('rewardNotify.plan'));
+    assert.ok(service.includes("onceKey: 'referral_out_'"));
+    assert.ok(service.includes("onceKey: 'referral_in_'"));
+    assert.ok(service.includes("sourceLabel: 'a referral reaching Maxi'"));
+    assert.ok(service.includes("sourceLabel: 'reaching Maxi with a referral'"));
+    assert.ok(service.indexOf("collection('notifications')") === -1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

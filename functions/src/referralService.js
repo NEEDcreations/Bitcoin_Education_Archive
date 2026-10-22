@@ -6,6 +6,7 @@
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const referrals = require('./referrals');
+const rewardNotify = require('./rewardNotify');
 
 function db() {
     return admin.firestore();
@@ -142,19 +143,6 @@ async function registerReferral(data, context) {
     return { success: true, reason: created ? status : 'exists', status: status, paid: paid };
 }
 
-function notification(uid, message) {
-    return {
-        recipientId: uid,
-        senderId: 'system',
-        senderName: 'Referrals',
-        type: 'referral_reward',
-        targetType: 'referral_reward',
-        message: message,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-}
-
 async function payIfQualified(referredUid) {
     const uid = String(referredUid || '');
     if (!uid) return { paid: false, reason: 'missing-user' };
@@ -232,26 +220,21 @@ async function payIfQualified(referredUid) {
             orangeTickets: admin.firestore.FieldValue.increment(tickets),
             referralVerified: true,
         });
-        const referrerMsg = 'Your referral reached Maxi. +' + tickets + ' Orange Tickets.';
-        const referredMsg = 'You reached Maxi from a referral. +' + tickets + ' Orange Tickets.';
-        const referrerNote = db().collection('notifications').doc();
-        const referredNote = db().collection('notifications').doc();
-        t.set(referrerNote, notification(referrerUid, referrerMsg));
-        t.set(referredNote, notification(uid, referredMsg));
-        t.set(referrerRef.collection('notifications').doc(), {
-            type: 'referral_reward',
-            title: 'Referral reward',
-            body: referrerMsg,
-            read: false,
-            ts: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        t.set(referredRef.collection('notifications').doc(), {
-            type: 'referral_reward',
-            title: 'Referral reward',
-            body: referredMsg,
-            read: false,
-            ts: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        rewardNotify.apply(t, db(), stamp, rewardNotify.plan({
+            uid: referrerUid,
+            tickets: tickets,
+            sourceLabel: 'a referral reaching Maxi',
+            icon: '🎟️',
+            onceKey: 'referral_out_' + uid,
+        }));
+        rewardNotify.apply(t, db(), stamp, rewardNotify.plan({
+            uid: uid,
+            tickets: tickets,
+            sourceLabel: 'reaching Maxi with a referral',
+            icon: '🎟️',
+            onceKey: 'referral_in_' + referrerUid,
+        }));
         outcome = { paid: true, reason: 'paid', ticketsEach: tickets, referrerUid: referrerUid };
     });
     return outcome;
