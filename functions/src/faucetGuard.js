@@ -11,6 +11,7 @@ const MAX_DAILY_PER_USER_SATS = 200;
 const MIN_WITHDRAWAL_SATS = 100;
 const SUBNET_WINDOW_MS = 24 * 60 * 60 * 1000;
 const ADDRESS_WINDOW_MS = 24 * 60 * 60 * 1000;
+const NETWORK_ACCOUNT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const REPORT_WINDOW_MS = 48 * 60 * 60 * 1000;
 const SUPPORT_EMAIL = 'info.603btc@gmail.com';
 const LN_LOCK_COPY = 'You can only add one lightning address to your account, and it can\'t be changed later. If you ever need to change it, email support at ' + SUPPORT_EMAIL + '.';
@@ -173,32 +174,80 @@ function assessAddressRate(claims, now) {
     return { ok: true, recent: recent };
 }
 
-// Hard-block a new account once two other accounts are already on this key.
-// Separately, only one claim per 24h from a different account.
-function assessNetworkSlot(slot, uid, now) {
+// Rightmost X-Forwarded-For entry is the one Google appends. The leftmost
+// entry is whatever the caller sent, so context.rawRequest.ip is not used.
+function clientIpFromRequest(req) {
+    const src = req || {};
+    const headers = src.headers || {};
+    let forwarded = headers['x-forwarded-for'];
+    if (Array.isArray(forwarded)) forwarded = forwarded.join(',');
+    const parts = String(forwarded || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+    let ip = parts.length ? parts[parts.length - 1] : '';
+    if (!ip) {
+        const sock = src.socket || src.connection || {};
+        ip = String(sock.remoteAddress || '').trim();
+    }
+    ip = ip.replace(/^::ffff:/i, '');
+    return ip;
+}
+
+// seen is { uid: millis }. Entries older than 30 days do not count.
+// A bare uids array from older docs has no time, so it does not count.
+function accountsSeenRecently(slot, now) {
     const src = slot || {};
-    const raw = Array.isArray(src.uids) ? src.uids : [];
-    const uids = [];
-    for (let i = 0; i < raw.length; i++) {
-        if (raw[i] && uids.indexOf(raw[i]) === -1) uids.push(raw[i]);
-    }
-    if (uids.indexOf(uid) === -1 && uids.length >= 2) {
-        return {
-            ok: false,
-            code: 'network_hard',
-            error: supportError('This network is already linked to other accounts.'),
-        };
-    }
+    const seen = src.seen && typeof src.seen === 'object' && !Array.isArray(src.seen) ? src.seen : {};
+    const fresh = {};
+    const atNow = Number(now) || 0;
+    Object.keys(seen).forEach(function(id) {
+        const at = Number(seen[id]) || 0;
+        if (!id || !at) return;
+        const age = atNow - at;
+        if (age <= NETWORK_ACCOUNT_WINDOW_MS && age >= -60000) fresh[id] = at;
+    });
+    return fresh;
+}
+
+function _crossAccount24h(slot, uid, now) {
+    const src = slot || {};
     const lastUid = src.lastUid || '';
     const lastMs = Number(src.lastClaimMs) || 0;
-    if (lastUid && lastUid !== uid && lastMs && (Number(now) - lastMs) < SUBNET_WINDOW_MS) {
+    const age = Number(now) - lastMs;
+    if (lastUid && lastUid !== uid && lastMs && age >= 0 && age < SUBNET_WINDOW_MS) {
         return {
             ok: false,
             code: 'network_24h',
             error: supportError('A claim was already made from this network in the last 24 hours.'),
         };
     }
-    return { ok: true };
+    return null;
+}
+
+// Exact IP: a third distinct account in the last 30 days is blocked, and a
+// different account cannot claim again within 24 hours.
+function assessExactIpSlot(slot, uid, now) {
+    const seen = accountsSeenRecently(slot, now);
+    const ids = Object.keys(seen);
+    if (ids.indexOf(uid) === -1 && ids.length >= 2) {
+        return {
+            ok: false,
+            code: 'network_hard',
+            error: supportError('This network is already linked to other accounts.'),
+        };
+    }
+    const day = _crossAccount24h(slot, uid, now);
+    if (day) return day;
+    seen[uid] = Number(now);
+    return { ok: true, seen: seen };
+}
+
+// Subnet (/24 or /64): one cross-account claim per 24 hours. The account list
+// is kept for 30 days and is not a permanent hard block.
+function assessSubnetSlot(slot, uid, now) {
+    const seen = accountsSeenRecently(slot, now);
+    const day = _crossAccount24h(slot, uid, now);
+    if (day) return day;
+    seen[uid] = Number(now);
+    return { ok: true, seen: seen };
 }
 
 function _docId(parts) {
@@ -429,6 +478,7 @@ module.exports = {
     MAX_DAILY_PER_USER_SATS: MAX_DAILY_PER_USER_SATS,
     MIN_WITHDRAWAL_SATS: MIN_WITHDRAWAL_SATS,
     SUBNET_WINDOW_MS: SUBNET_WINDOW_MS,
+    NETWORK_ACCOUNT_WINDOW_MS: NETWORK_ACCOUNT_WINDOW_MS,
     ADDRESS_WINDOW_MS: ADDRESS_WINDOW_MS,
     REPORT_WINDOW_MS: REPORT_WINDOW_MS,
     SUPPORT_EMAIL: SUPPORT_EMAIL,
@@ -447,7 +497,10 @@ module.exports = {
     addressRateDocId: addressRateDocId,
     pruneAddressClaims: pruneAddressClaims,
     assessAddressRate: assessAddressRate,
-    assessNetworkSlot: assessNetworkSlot,
+    clientIpFromRequest: clientIpFromRequest,
+    accountsSeenRecently: accountsSeenRecently,
+    assessExactIpSlot: assessExactIpSlot,
+    assessSubnetSlot: assessSubnetSlot,
     networkKeys: networkKeys,
     decideFaucetPayment: decideFaucetPayment,
     decideFaucetLookupResult: decideFaucetLookupResult,

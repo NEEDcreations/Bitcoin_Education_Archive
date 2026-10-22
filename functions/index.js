@@ -1799,7 +1799,7 @@ exports.claimSats = functionsV1.runWith({
     const invoiceHash = require('crypto').createHash('sha256').update(invoice).digest('hex').substring(0, 32);
     const invoiceRef = db.collection('faucet_invoices').doc(invoiceHash);
 
-    const clientIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
+    const clientIP = faucetGuard.clientIpFromRequest(context.rawRequest) || 'unknown';
     if (clientIP === 'unknown') {
         console.error('[FAUCET] Could not determine client IP for uid=' + uid);
         return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
@@ -2004,16 +2004,18 @@ exports.claimSats = functionsV1.runWith({
             }
 
             const nowMs = Date.now();
-            const ipDecision = faucetGuard.assessNetworkSlot({
-                uids: ipDoc.exists ? (ipDoc.data().uids || []) : [],
-                lastUid: ipDoc.exists ? (ipDoc.data().lastUid || '') : '',
-                lastClaimMs: ipDoc.exists ? _toMillis(ipDoc.data().lastClaim) : 0,
+            const ipSlot = ipDoc.exists ? ipDoc.data() : {};
+            const subnetSlot = subnetDoc.exists ? subnetDoc.data() : {};
+            const ipDecision = faucetGuard.assessExactIpSlot({
+                seen: ipSlot.seen || null,
+                lastUid: ipSlot.lastUid || '',
+                lastClaimMs: _toMillis(ipSlot.lastClaim),
             }, uid, nowMs);
             if (!ipDecision.ok) deny(ipDecision.error);
-            const subnetDecision = faucetGuard.assessNetworkSlot({
-                uids: subnetDoc.exists ? (subnetDoc.data().uids || []) : [],
-                lastUid: subnetDoc.exists ? (subnetDoc.data().lastUid || '') : '',
-                lastClaimMs: subnetDoc.exists ? _toMillis(subnetDoc.data().lastClaim) : 0,
+            const subnetDecision = faucetGuard.assessSubnetSlot({
+                seen: subnetSlot.seen || null,
+                lastUid: subnetSlot.lastUid || '',
+                lastClaimMs: _toMillis(subnetSlot.lastClaim),
             }, uid, nowMs);
             if (!subnetDecision.ok) deny(subnetDecision.error);
 
@@ -2061,14 +2063,16 @@ exports.claimSats = functionsV1.runWith({
             t.set(ipRef, {
                 lastClaim: admin.firestore.FieldValue.serverTimestamp(),
                 lastUid: uid,
-                uids: admin.firestore.FieldValue.arrayUnion(uid),
+                seen: ipDecision.seen,
+                uids: admin.firestore.FieldValue.delete(),
                 claimCount: admin.firestore.FieldValue.increment(1),
             }, { merge: true });
             t.set(subnetRef, {
                 lastClaim: admin.firestore.FieldValue.serverTimestamp(),
                 lastUid: uid,
                 label: net.rangeLabel,
-                uids: admin.firestore.FieldValue.arrayUnion(uid),
+                seen: subnetDecision.seen,
+                uids: admin.firestore.FieldValue.delete(),
                 claimCount: admin.firestore.FieldValue.increment(1),
             }, { merge: true });
             t.set(lnRateRef, {
@@ -2566,6 +2570,37 @@ exports.dailyFaucetAbuseReport = onSchedule({
         }
     }
     console.log('[FAUCET-REPORT] wrote', day, 'clusters', report.counts.clusters, 'admins', adminUids.length);
+});
+
+// Ban from the in-app faucet report. The caller must hold the Firebase admin
+// custom claim. adminBanUser (ADMIN_TOKEN header) is unchanged for other tools.
+exports.banReportedFaucetUser = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    if (context.auth.token.admin !== true) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const uid = String((data && data.uid) || '');
+    if (!/^[A-Za-z0-9_-]{4,128}$/.test(uid)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'uid required');
+    }
+    const reason = String((data && data.reason) || 'faucet abuse report').substring(0, 200);
+    const batch = db.batch();
+    batch.update(db.collection('users').doc(uid), {
+        withdrawals_disabled: true,
+        satsDisabled: true,
+        flagged: true,
+        ban_reason: reason,
+    });
+    batch.set(db.collection('faucet_ledger').doc(uid), {
+        banned: true,
+        ban_reason: reason,
+        bannedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    await batch.commit();
+    console.log('[banReportedFaucetUser] Banned uid:', uid);
+    return { success: true, uid: uid };
 });
 
 async function _loadBannedFaucetProfiles() {

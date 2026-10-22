@@ -17,20 +17,25 @@ service cloud.firestore {
     function lightningLockOk() {
       let oldL = 'lightning' in resource.data && resource.data.lightning is string ? resource.data.lightning : '';
       let oldA = 'lightningAddress' in resource.data && resource.data.lightningAddress is string ? resource.data.lightningAddress : '';
+      let oldN = 'lnAddress' in resource.data && resource.data.lnAddress is string ? resource.data.lnAddress : '';
       let newL = 'lightning' in request.resource.data && request.resource.data.lightning is string ? request.resource.data.lightning : '';
       let newA = 'lightningAddress' in request.resource.data && request.resource.data.lightningAddress is string ? request.resource.data.lightningAddress : '';
-      let locked = oldL.size() > 0 ? oldL : oldA;
-      let untouched = !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lightning', 'lightningAddress']);
-      let firstSet = oldL.size() == 0 && oldA.size() == 0
-        && ((newL.size() == 0 && newA.size() == 0)
-          || (newL.size() == 0 && lnShape(newA))
-          || (newA.size() == 0 && lnShape(newL))
-          || (newL == newA && lnShape(newA)));
+      let newN = 'lnAddress' in request.resource.data && request.resource.data.lnAddress is string ? request.resource.data.lnAddress : '';
+      let locked = oldL.size() > 0 ? oldL : (oldA.size() > 0 ? oldA : oldN);
+      let fresh = newL.size() > 0 ? newL : (newA.size() > 0 ? newA : newN);
+      let untouched = !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lightning', 'lightningAddress', 'lnAddress']);
+      let firstSet = oldL.size() == 0 && oldA.size() == 0 && oldN.size() == 0
+        && (fresh.size() == 0 || lnShape(fresh))
+        && (newL.size() == 0 || newL == fresh)
+        && (newA.size() == 0 || newA == fresh)
+        && (newN.size() == 0 || newN == fresh);
       let keepLocked = locked.size() > 0
         && (newL.size() == 0 || newL == locked)
         && (newA.size() == 0 || newA == locked)
+        && (newN.size() == 0 || newN == locked)
         && (oldL.size() == 0 || newL == oldL)
-        && (oldA.size() == 0 || newA == oldA);
+        && (oldA.size() == 0 || newA == oldA)
+        && (oldN.size() == 0 || newN == oldN);
       return untouched || firstSet || keepLocked;
     }
 

@@ -8102,7 +8102,7 @@ window.renderFaucetAbuseAdmin = function(containerId) {
     title.style.cssText = 'font-weight:800;font-size:0.9rem;margin-bottom:6px;color:var(--text);';
     card.appendChild(title);
     var hint = document.createElement('div');
-    hint.textContent = 'Daily 13:00 UTC. Display names and uids only. Ban calls adminBanUser.';
+    hint.textContent = 'Daily 13:00 UTC. Display names and uids only. Ban uses your admin sign-in.';
     hint.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin-bottom:8px;';
     card.appendChild(hint);
     var status = document.createElement('div');
@@ -8162,27 +8162,17 @@ window.banFaucetReportedUser = async function(uid) {
         return;
     }
     if (!window.confirm('Ban ' + id + ' from the faucet?')) return;
-    var token = '';
-    try { token = sessionStorage.getItem('btc_admin_http_token') || ''; } catch (e) { token = ''; }
-    async function callBan(tok) {
-        var url = 'https://us-central1-bitcoin-education-archive.cloudfunctions.net/adminBanUser?uid=' + encodeURIComponent(id) + '&reason=' + encodeURIComponent('faucet abuse report');
-        return fetch(url, { method: 'POST', headers: { 'x-admin-token': tok } });
-    }
     try {
-        var res = token ? await callBan(token) : { status: 403, ok: false };
-        if (res.status === 403) {
-            token = window.prompt('Admin token') || '';
-            if (!token) return;
-            try { sessionStorage.setItem('btc_admin_http_token', token); } catch (e2) {}
-            res = await callBan(token);
-        }
-        if (res.ok) {
+        var banReportedFaucetUser = firebase.functions().httpsCallable('banReportedFaucetUser');
+        var result = await banReportedFaucetUser({ uid: id, reason: 'faucet abuse report' });
+        if (result && result.data && result.data.success) {
             if (typeof showToast === 'function') showToast('Banned ' + id);
             return;
         }
-        if (typeof showToast === 'function') showToast('Ban failed (' + res.status + ').');
+        if (typeof showToast === 'function') showToast('Ban failed.');
     } catch (err) {
-        if (typeof showToast === 'function') showToast('Ban request failed.');
+        var msg = (err && err.message) ? err.message : 'Ban request failed.';
+        if (typeof showToast === 'function') showToast(msg);
     }
 };
 

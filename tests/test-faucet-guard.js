@@ -157,24 +157,73 @@ test('IPv4 /24 and IPv6 /64 are keyed along with the exact IP', function() {
     assert.strictEqual(guard.networkKeys('203.0.113.08'), null);
 });
 
-test('one claim per network per 24h across accounts, and a third account is blocked', function() {
+test('a forged leftmost X-Forwarded-For is ignored', function() {
+    const forged = guard.clientIpFromRequest({
+        headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.44' },
+        ip: '198.51.100.1',
+        socket: { remoteAddress: '198.51.100.1' },
+    });
+    assert.strictEqual(forged, '203.0.113.44');
+    assert.strictEqual(guard.networkKeys(forged).exactId, '203_0_113_44');
+    const fallback = guard.clientIpFromRequest({
+        headers: { 'x-forwarded-for': '   ' },
+        ip: '1.2.3.4',
+        socket: { remoteAddress: '::ffff:203.0.113.9' },
+    });
+    assert.strictEqual(fallback, '203.0.113.9');
+    assert.strictEqual(guard.networkKeys(fallback).rangeId, '203_0_113_0_24');
+});
+
+test('subnet allows a later account after 24h, and the exact IP blocks a third recent account', function() {
     const now = 1_700_000_000_000;
-    const open = guard.assessNetworkSlot({ uids: ['alice'], lastUid: 'alice', lastClaimMs: now - 60_000 }, 'bob', now);
-    assert.strictEqual(open.code, 'network_24h');
-    assert.ok(open.error.indexOf(EMAIL) !== -1);
+    const recent = now - 60_000;
+    const old = now - guard.NETWORK_ACCOUNT_WINDOW_MS - 5;
+    const subnetBusy = guard.assessSubnetSlot({
+        seen: { alice: recent },
+        lastUid: 'alice',
+        lastClaimMs: recent,
+    }, 'bob', now);
+    assert.strictEqual(subnetBusy.code, 'network_24h');
+    assert.ok(subnetBusy.error.indexOf(EMAIL) !== -1);
 
-    const nextDay = guard.assessNetworkSlot({ uids: ['alice'], lastUid: 'alice', lastClaimMs: now - guard.SUBNET_WINDOW_MS - 1 }, 'bob', now);
-    assert.strictEqual(nextDay.ok, true);
+    const subnetLater = guard.assessSubnetSlot({
+        seen: { alice: now - guard.SUBNET_WINDOW_MS - 1, bob: now - guard.SUBNET_WINDOW_MS - 1, carol: now - guard.SUBNET_WINDOW_MS - 1 },
+        lastUid: 'carol',
+        lastClaimMs: now - guard.SUBNET_WINDOW_MS - 1,
+    }, 'dave', now);
+    assert.strictEqual(subnetLater.ok, true);
+    assert.strictEqual(subnetLater.seen.dave, now);
 
-    const sameUser = guard.assessNetworkSlot({ uids: ['alice'], lastUid: 'alice', lastClaimMs: now - 60_000 }, 'alice', now);
+    const staleSubnet = guard.assessSubnetSlot({
+        seen: { alice: old, bob: old },
+        uids: ['alice', 'bob', 'carol', 'dave', 'erin'],
+        lastUid: 'erin',
+        lastClaimMs: now - guard.SUBNET_WINDOW_MS - 5,
+    }, 'frank', now);
+    assert.strictEqual(staleSubnet.ok, true);
+    assert.strictEqual(staleSubnet.seen.alice, undefined);
+
+    const exactThird = guard.assessExactIpSlot({
+        seen: { alice: recent, bob: recent },
+        lastUid: 'bob',
+        lastClaimMs: now - guard.SUBNET_WINDOW_MS - 5,
+    }, 'carol', now);
+    assert.strictEqual(exactThird.code, 'network_hard');
+    assert.ok(exactThird.error.indexOf(EMAIL) !== -1);
+
+    const exactStale = guard.assessExactIpSlot({
+        seen: { alice: old, bob: old },
+        lastUid: 'bob',
+        lastClaimMs: now - guard.SUBNET_WINDOW_MS - 5,
+    }, 'carol', now);
+    assert.strictEqual(exactStale.ok, true);
+
+    const sameUser = guard.assessExactIpSlot({
+        seen: { alice: recent, bob: recent },
+        lastUid: 'alice',
+        lastClaimMs: recent,
+    }, 'alice', now);
     assert.strictEqual(sameUser.ok, true);
-
-    const third = guard.assessNetworkSlot({ uids: ['alice', 'bob'], lastUid: 'bob', lastClaimMs: now - guard.SUBNET_WINDOW_MS - 5 }, 'carol', now);
-    assert.strictEqual(third.code, 'network_hard');
-    assert.ok(third.error.indexOf(EMAIL) !== -1);
-
-    const alreadyThere = guard.assessNetworkSlot({ uids: ['alice', 'bob', 'carol'], lastUid: 'alice', lastClaimMs: now - guard.SUBNET_WINDOW_MS - 5 }, 'carol', now);
-    assert.strictEqual(alreadyThere.ok, true);
 });
 
 test('per-address claim history is pruned inside the 24h window', function() {
@@ -320,7 +369,14 @@ test('claimSats enforces App Check, drops invoices, and bans before network look
     const banAt = body.indexOf('assessBan');
     const netAt = body.indexOf('assertPublicHost');
     assert.ok(banAt > 0 && netAt > banAt);
+    assert.ok(body.indexOf('clientIpFromRequest') !== -1);
+    assert.ok(body.indexOf('rawRequest.ip') === -1);
+    assert.ok(body.indexOf('assessExactIpSlot') !== -1);
+    assert.ok(body.indexOf('assessSubnetSlot') !== -1);
+    assert.ok(body.indexOf('assessNetworkSlot') === -1);
     assert.ok(body.indexOf('timeoutSeconds: 300') !== -1);
+    assert.ok(src.indexOf('exports.banReportedFaucetUser') !== -1);
+    assert.ok(src.indexOf('context.auth.token.admin !== true') !== -1);
     assert.ok(src.indexOf("schedule: '0 13 * * *'") !== -1);
     assert.ok(src.indexOf('exports.dailyFaucetAbuseReport') !== -1);
     assert.ok(src.indexOf('hashForFavor') === -1 || src.indexOf('enforceAppCheck') < src.indexOf('hashForFavor') || src.slice(src.indexOf('hashForFavor') - 200, src.indexOf('hashForFavor')).indexOf('enforceAppCheck') === -1);
@@ -330,15 +386,19 @@ test('the lock copy is the sentence shown before an address is saved', function(
     assert.strictEqual(COPY, 'You can only add one lightning address to your account, and it can\'t be changed later. If you ever need to change it, email support at info.603btc@gmail.com.');
     const ranking = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const lightning = fs.readFileSync(path.join(__dirname, '..', 'lightning.js'), 'utf8');
     const count = ranking.split(COPY).length - 1;
     assert.ok(count >= 2, 'faucet UI should show the lock copy when adding and when locked');
     assert.ok(html.indexOf(COPY) !== -1);
+    assert.ok(lightning.indexOf(COPY) !== -1);
+    assert.ok(lightning.indexOf('permission-denied') !== -1);
     assert.ok(ranking.indexOf('firebase.appCheck') !== -1);
-    assert.ok(ranking.indexOf('banFaucetReportedUser') !== -1);
-    assert.ok(ranking.indexOf('adminBanUser') !== -1);
+    assert.ok(ranking.indexOf('banReportedFaucetUser') !== -1);
+    assert.ok(ranking.indexOf('btc_admin_http_token') === -1);
     assert.ok(ranking.indexOf('satsClaimInvoice') === -1);
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.ok(rules.indexOf('function lightningLockOk()') !== -1);
+    assert.ok(rules.indexOf('lnAddress') !== -1);
     assert.ok(rules.indexOf('&& lightningLockOk()') !== -1);
     assert.ok(rules.indexOf('match /lightning_addresses/{addrId}') !== -1);
     assert.ok(rules.indexOf('resource.data.uid == request.auth.uid') !== -1);
