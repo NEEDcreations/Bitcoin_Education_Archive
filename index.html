@@ -26,6 +26,7 @@
 })();
 // One-time cache nuke for the SW strategy change (April 2026)
 (function(){
+    var _href = location.href;
     if (!sessionStorage.getItem('_cnuke')) {
         var v = localStorage.getItem('btc_build');
         if (v !== '20260405e') {
@@ -41,7 +42,7 @@
                     r.forEach(function(reg){ reg.unregister(); });
                 });
             }
-            setTimeout(function(){ location.reload(); }, 500);
+            setTimeout(function(){ if (location.href !== _href) history.replaceState(null, '', _href); location.reload(); }, 500);
             return;
         }
     }
@@ -60,7 +61,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261022_v2246" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261022_v2252" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -548,7 +549,7 @@
         .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
         
         /* Search overlay — always out of normal flow; flex only when JS shows it */
-        #searchOverlay { position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; flex-shrink: 0 !important; flex-grow: 0 !important; width: 100% !important; height: 100% !important; }
+        #searchOverlay { position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; flex-shrink: 0 !important; flex-grow: 0 !important; width: 100% !important; height: 100% !important; background: var(--bg) !important; }
         #searchOverlay:not([data-open="1"]) { display: none !important; }
         /* Mobile nav bar */
         .mobile-bar { display: none; }
@@ -781,7 +782,7 @@
     <div id="btcTicker" style="height:32px;background:#030712;width:0;min-width:0;flex-shrink:0;overflow:visible;"></div>
     <!-- Mobile top bar -->
     <!-- Separate independent search overlay for better visibility over Nacho Mode -->
-    <div id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:rgba(0,0,0,0.85);padding:16px;flex-direction:column;">
+    <div id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);padding:16px;flex-direction:column;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div style="font-size:1.1rem;font-weight:800;color:var(--heading);">🔍 Search Archive</div>
             <button onclick="var _so=document.getElementById('searchOverlay');_so.style.display='none';_so.removeAttribute('data-open');" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
@@ -1461,8 +1462,9 @@
     <script src="ranking.js?v=20261022_lightfix" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261022_v2246" defer fetchpriority="high"></script>
-    <script src="patches.js?v=20260713_scrollfix" defer></script>
+    <script src="bundle.min.js?v=20261022_v2252" defer fetchpriority="high"></script>
+    <script src="features.registry.js?v=20261022_v2252" defer></script>
+    <script src="patches.js?v=20261022_v2252" defer></script>
     <script src="onboarding.js?v=20261013_1908" defer></script>
     <script src="learning-quests.js?v=20261014_0554" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
@@ -1471,20 +1473,20 @@
     (function(){
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
-            'global-chat.js?v=20261022_v2251',
+            'global-chat.js?v=20261022_v2252',
             'satoshi-favor.js?v=20261022_v2250'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261022_v2251',
+            'quests.js?v=20261022_v2252',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20260803_1628',
+            'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20261022_v2252',
             'scholar.js?v=20260809_1846','beats.js?v=20261013_2307',
             'lightning.js?v=20261022_faucet','lightning-tips.js?v=20261007_2124',
-            'notifications.js?v=20261022_gifts','gifting.js?v=20261022_lightfix','guide.js?v=20260716_1628','modules.js?v=20260331',
+            'notifications.js?v=20261022_gifts','gifting.js?v=20261022_lightfix','guide.js?v=20260716_1628','modules.js?v=20261022_v2252',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20260810_0418',
-            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602',
+            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
             'timechain-tv.js?v=20261022_tctv3',
             'learning-quests.js?v=20261014_0554',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
@@ -1534,21 +1536,24 @@
     // inject its script immediately (don't wait for interaction or 5s timeout).
     // This cuts the initial route delay from up to 5s down to one network fetch.
     (function() {
-        var hash = (window.location.hash || '').replace('#', '').split('/')[0].toLowerCase();
+        var fullHash = (window.location.hash || '').replace('#', '');
+        var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2251'],
-            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2251'],
-            'chat':          ['global-chat.js?v=20261022_v2251'],
-            'dms':           ['global-chat.js?v=20261022_v2251'],
+            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2252'],
+            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2252'],
+            'chat':          ['global-chat.js?v=20261022_v2252'],
+            'dms':           ['global-chat.js?v=20261022_v2252'],
             'irl-sync':      ['irl-sync.js?v=20260810_0418'],
             'lightning':     ['lightning.js?v=20261022_faucet', 'lightning-tips.js?v=20261007_2124'],
             'pvp':           ['pvp.js?v=20260708_0427'],
             'proof-of-play': ['pvp.js?v=20260708_0427', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
-            'trails':        ['modules.js?v=20260331'],
+            'trails':        ['modules.js?v=20261022_v2252'],
             'learning-quests': ['learning-quests.js?v=20261014_0554'],
-            'quests':        ['quests.js?v=20261022_v2251'],
+            'quests':        ['quests.js?v=20261022_v2252'],
+            'questhub':      ['quests.js?v=20261022_v2252'],
+            'app':           ['quests.js?v=20261022_v2252'],
             'timechain-tv':  ['timechain-tv.js?v=20261022_tctv3'],
             'tv':            ['timechain-tv.js?v=20261022_tctv3']
         };
@@ -1562,7 +1567,9 @@
                 _loaded++;
                 if (_loaded >= _toLoad.length) {
                     // All scripts loaded — re-trigger routing so go() runs with scripts ready
-                    if (typeof window.go === 'function') window.go(hash);
+                    if (hash === 'app') {
+                        if (typeof window.bqRouteHash === 'function') window.bqRouteHash(fullHash);
+                    } else if (hash !== 'questhub' && typeof window.go === 'function') window.go(hash);
                 }
             }
             _toLoad.forEach(function(src) {

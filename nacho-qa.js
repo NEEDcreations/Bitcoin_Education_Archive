@@ -227,7 +227,7 @@ const NACHO_KB = [
       answer: "Bitcoin is open-source code that anyone can audit. No CEO, no company, no promises of returns. It's the opposite of a scam — it's the most transparent financial system ever built.",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
-    { keys: ['not physical','can\'t hold','cant hold','not real','not tangible','can\'t touch','cant touch','why would i want','no intrinsic value','intrinsic value','backed by nothing','what backs bitcoin'],
+    { keys: ['not physical','can\'t hold','cant hold','not real','not tangible','can\'t touch','cant touch','why would i want','no intrinsic value'],
       answer: "You can't hold an email either, but it replaced letters! 📬 Bitcoin is digital, but it's backed by something powerful: math, energy, and the most secure computer network ever built. It's scarcer than gold (only 21 million), can't be faked, can't be seized, and can be sent anywhere instantly. The dollar isn't backed by anything physical either — just government promises. Bitcoin is backed by proof-of-work. Which would you trust more?",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
@@ -476,8 +476,8 @@ const NACHO_KB = [
       answer: "Earn XP by: visiting daily (+5), opening new channels (+10), reading for 30sec (+15), quest bonuses, badges (25-1000), and Orange Tickets (5 XP each)! Check the leaderboard!",
       channel: null, channelName: null },
 
-    { keys: ['ticket','tickets','orange ticket','giveaway','referral','refer','sats giveaway'],
-      answer: "Earn Orange Tickets by logging in daily (+1) and referring friends (+5). The more tickets you have, the higher your chances in future events! Check Settings → Tickets for your referral link!",
+    { keys: ['ticket','tickets','orange ticket','giveaway','sats giveaway'],
+      answer: "Orange Tickets come from the daily spin, activity, and referrals. When a friend you referred reaches Maxi rank, you both get 50 Orange Tickets. Your link is in Settings → Account.",
       channel: null, channelName: null },
 
     { keys: ['badge','badges','hidden badge','achievements','unlock'],
@@ -592,7 +592,7 @@ const NACHO_KB = [
     // EXPANDED KB — The Bitcoin Standard + The Fiat Standard (full books)
     // ========================================
 
-    { keys: ['fiat standard','fiat standard book','debt slavery','what is the fiat standard','ammous fiat'],
+    { keys: ['fiat standard','fiat standard book','what is the fiat standard book','debt slavery','what is the fiat standard','ammous fiat'],
       answer: "The Fiat Standard by Saifedean Ammous is the devastating sequel to The Bitcoin Standard, {name}! 📚🦌 Subtitle: 'The Debt Slavery Alternative to Human Civilization.' While The Bitcoin Standard shows what sound money IS, The Fiat Standard shows what fiat money DOES — and it's ugly. Key insight: fiat money doesn't just lose value. It restructures ALL of society around debt, short-term thinking, and government dependency. Housing, education, food, energy, family — everything gets distorted when money is broken. The book traces how the gold standard's fatal flaw (low spatial salability — gold is expensive to move) opened the door for governments to take control. Bitcoin fixes both: salability across time AND space. 🔥",
       channel: 'books', channelName: 'Books' },
 
@@ -608,7 +608,7 @@ const NACHO_KB = [
       answer: "From The Bitcoin Standard: 'It is no exaggeration to say that our modern world was invented in the gold standard years preceding World War I.' 🏗️🦌 The majority of technology we use in modern life was invented in the 19th century, under the gold standard, financed with evergrowing capital accumulated by people who could SAVE in sound money. Electricity, automobiles, telephones, radio, aviation — all born in the era of hard money. When money holds value, people invest in the future. When money is debased, they consume today and let infrastructure rot. The gold standard proved it. Bitcoin is bringing it back. 🧡",
       channel: 'history', channelName: 'History' },
 
-    { keys: ['fiat distortion','fiat food','fiat family','fiat education','fiat housing','fiat destroys','everything is broken','what fiat broke','how fiat broke society'],
+    { keys: ['fiat distortion','what is fiat distortion','fiat food','fiat family','fiat education','fiat housing','fiat destroys','everything is broken','what fiat broke','what did fiat break','how fiat broke society'],
       answer: "The Fiat Standard reveals how broken money distorts EVERYTHING, {name}! 🏚️🦌 Housing: 100 years ago people saved up and bought homes outright. Now everyone needs 30-year mortgages because prices are inflated by easy credit. Education: universities charge insane tuition because student loans create infinite demand. Food: fiat incentivizes industrial farming and processed food over natural nutrition. Family: both parents must work because one income can't cover inflated costs anymore. 'Whereas 100 years ago most people would pay for their house, education, or marriage from their own labor or accumulated savings, such a notion seems ridiculous to people today.' Fiat broke everything. Bitcoin fixes this. 🔧",
       channel: 'problems-of-money', channelName: 'Problems of Money' },
 
@@ -648,7 +648,7 @@ const NACHO_KB = [
       answer: "Gigi explains the fundamental problem Bitcoin solved, {name}: 'In the digital realm, we can ONLY use ledgers.' 💻🦌 Physical money (coins, shells, gold) exists as TOKENS — you hand it over, it's gone. But digital information can be PERFECTLY COPIED. That's the double-spend problem — how do you stop someone from spending the same digital money twice? Before Bitcoin, the only solution was a CENTRAL authority keeping the ledger (banks, PayPal). Satoshi's genius was creating a decentralized ledger where EVERYONE agrees on the state without trusting anyone. The secret ingredient? Time, enforced through proof of work. Each block timestamp is unforgeable. That's why Bitcoin took 30 years of cryptographic research to invent. 🧠🔥",
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
-    { keys: ['satoshi treasure','legendary treasure','satoshi sacrifice','satoshi noble','satoshi didn\'t spend','satoshi coins unmoved','why satoshi didn\'t sell','heroic sacrifice'],
+    { keys: ['satoshi treasure','legendary treasure','what is the legendary treasure','legendary treasure of satoshi','satoshi sacrifice','satoshi noble','satoshi didn\'t spend','satoshi coins unmoved','why satoshi didn\'t sell','heroic sacrifice'],
       answer: "Tomer Strolight's 'The Legendary Treasure of Satoshi Nakamoto' is one of the most profound pieces ever written about Bitcoin, {name}! 👑🦌 Satoshi left behind ~1 million Bitcoin — visible on the blockchain to everyone, yet untouchable. As Bitcoin grows, this treasure will 'drive mad with lust and greed' those who hunger for wealth. But here's Tomer's revelation: those coins are NOT the real treasure. They are 'an incorruptible monument paying tribute to the real treasure.' The REAL legendary treasure of Satoshi Nakamoto? 'The discoveries you will arrive at on your personal journey of finding out what is true, what is pure, who you are, and what you will do with your precious time because you judge it valuable and good.' Satoshi chose not to buy anything, not to become famous, not to become powerful. He chose to make his fortune into an eternal monument to the human spirit — proving that one person CAN sacrifice wealth and fame to create something morally good. 🧡🔥",
       channel: 'satoshi-nakamoto', channelName: 'Satoshi Nakamoto' },
 
@@ -780,7 +780,7 @@ const NACHO_KB = [
       answer: "CBDCs are the OPPOSITE of Bitcoin, {name} — don't let anyone tell you otherwise! 🚨🦌 A Central Bank Digital Currency gives governments unprecedented surveillance power over every transaction you make. No more cash. Every purchase tracked. And the most troubling part: the government could CONTROL how you spend your money — expiration dates on your savings, restrictions on purchases, negative interest rates, account freezes. As one article from our site puts it: 'The most troubling aspect of a centrally managed digital currency is the potential for the government to control its use.' Bitcoin is the escape hatch. Self-custody, pseudonymous, uncensorable. CBDCs enslave. Bitcoin liberates. 🗽",
       channel: 'regulation', channelName: 'Regulation' },
 
-    { keys: ['ethereum cloud','ethereum nodes cloud','aws ethereum','amazon ethereum','ethereum centralized nodes','60 percent ethereum'],
+    { keys: ['ethereum cloud','ethereum nodes cloud','ethereum nodes in the cloud','aws ethereum','amazon ethereum','ethereum centralized nodes','60 percent ethereum','61.6 percent of ethereum nodes','what percent of ethereum nodes'],
       answer: "Here's a damning fact from The Next Web, {name}: as of research, 61.6% of ALL Ethereum nodes run in the cloud — with Amazon Web Services ALONE hosting nearly 25% of them! 🏢🦌 That means Jeff Bezos's company could theoretically disrupt a quarter of the Ethereum network with one policy change. Compare that to Bitcoin: nodes run on Raspberry Pis, old laptops, and home servers worldwide. No single cloud provider, no single country, no single company controls a significant portion. THAT is real decentralization vs. marketing decentralization. Ethereum is DINO: Decentralized In Name Only. 🎭",
       channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
 
@@ -796,7 +796,7 @@ const NACHO_KB = [
       answer: "Parker Lewis's 'Bitcoin is the Great Definancialization' is essential reading, {name}! 📖🦌 The thesis: because fiat money constantly loses value, people are FORCED to become investors. You can't just save — your savings rot. So Wall Street sells you stocks, bonds, 401ks, index funds, real estate as 'investments.' The entire financial industry exists because money is BROKEN. Bitcoin fixes this. If your money holds or gains value over time, you don't NEED Wall Street. You just... save. In hard money. Bitcoin makes most of the financial industry obsolete by fixing the money itself. Save in sats, not stocks. 📈🧡",
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
-    { keys: ['glacier protocol','high security','large amount','cold storage protocol','serious security','institutional security','multisig setup'],
+    { keys: ['glacier protocol','what is the glacier protocol','high security','large amount','cold storage protocol','serious security','institutional security','multisig setup'],
       answer: "For serious Bitcoin security, check out the Glacier Protocol, {name}! 🏔️🦌 From our Self-Custody channel: it's a step-by-step guide for storing large amounts ($100K+) that thoroughly considers obscure attack vectors, malware infection paths, estate planning, and human error. Key principles: air-gapped computers, multisig setups, geographically distributed backups, and detailed procedures that minimize the chance of mistakes. Even if your holdings are modest NOW, consider this: if Bitcoin 10x's, your security needs change dramatically. Plan your custody like your future self will thank you! 🔐",
       channel: 'self-custody', channelName: 'Self Custody' },
 
@@ -812,7 +812,7 @@ const NACHO_KB = [
       answer: "Lyn Alden is one of the most respected macro analysts who became a Bitcoiner, {name}! 📊🦌 Her article 'Misconceptions About Bitcoin' dismantled every major critique: energy FUD, volatility concerns, 'backed by nothing' claims. She showed that MicroStrategy became the first major public company to put Bitcoin on its balance sheet — and the CEO's analysis drove the decision. Her book 'Broken Money' lays out the macro case: the global monetary system is literally broken, and Bitcoin is the most credible fix. When Wall Street analysts do the math honestly, they arrive at Bitcoin. 📈",
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
-    { keys: ['nakamoto effect','reverse cantillon','bitcoin distribution','fair distribution','bitcoin fairness','equitable money'],
+    { keys: ['nakamoto effect','what is the nakamoto effect','reverse cantillon','bitcoin distribution','fair distribution','bitcoin fairness','equitable money'],
       answer: "Bitcoin has what some call the 'Nakamoto Effect' — the OPPOSITE of the Cantillon Effect, {name}! ⚖️🦌 While fiat money printing benefits those closest to the money printer (banks, corporations, insiders), Bitcoin distributes new coins through WORK — mining. Anyone can mine. Anyone can buy. No insider access, no pre-allocation, no special deals. The rules are the same for a teenager in Nigeria and a billionaire in New York. And as Bitcoin appreciates, early believers who took the risk are rewarded — not political insiders who printed money for themselves. Fair money. Fair rules. Fair distribution. 🧡",
       channel: 'problems-of-money', channelName: 'Problems of Money' },
 
@@ -947,7 +947,7 @@ const NACHO_KB = [
       answer: "Oh {name}, the Bitcoin rabbit hole has INCREDIBLE books! 📚🦌 The must-reads: 'The Bitcoin Standard' by Saifedean Ammous — the history of money and why Bitcoin is the next evolution (this is THE book that orange-pills economists). '21 Lessons' by Gigi — philosophical journey down the rabbit hole (free at 21lessons.com!). 'The Internet of Money' by Andreas Antonopoulos — the WHY of Bitcoin. 'Layered Money' by Nik Bhatia — why Bitcoin is the evolution of the monetary system. 'The Blocksize War' by Jonathan Bier — the governance battle that proved Bitcoin's decentralization. And 'Broken Money' by Lyn Alden — the macro case for Bitcoin. Check our Books channel for the complete list! 📖🧡",
       channel: 'books', channelName: 'Books' },
 
-    { keys: ['milton friedman','friedman predicted','predicted bitcoin','who predicted bitcoin','bitcoin prediction old'],
+    { keys: ['milton friedman','friedman bitcoin prediction','milton friedman bitcoin prediction','what is milton friedman','friedman predicted','predicted bitcoin','who predicted bitcoin','bitcoin prediction old'],
       answer: "Nobel Prize-winning economist Milton Friedman predicted Bitcoin in 1999 — 10 years before it existed! 🤯🦌 In an interview, he described needing a 'reliable e-cash' where you could transfer funds on the Internet 'without A knowing B or B knowing A.' He basically described Bitcoin's pseudonymous, peer-to-peer nature before it was invented. The video is on YouTube and it's mind-blowing. Friedman, Hayek, and the Austrian economists all understood that sound money needed to be free from government control. Satoshi made it real. Check our Videos channel! 📺",
       channel: 'videos', channelName: 'Videos' },
 
@@ -2355,22 +2355,22 @@ const NACHO_KB = [
 
 // ---- Sats Faucet / Claim Sats ----
 { keys: ['earn real sats','earn bitcoin','earn real bitcoin','can i earn bitcoin','get free sats','earn sats on this site','free bitcoin','earn btc','how to earn sats','earn sats here','get sats','get bitcoin'],
-  answer: "Yes, {name} — you can earn REAL sats (Bitcoin) on this site! ⚡🦌 Earn points by reading channels, completing quests, chatting, and more. Then convert your points into real sats at a rate of 10 points = 1 sat. Go to Settings → ⚡ Sats tab to claim. You'll need at least 1,000 points to claim 100 sats (the minimum). Payouts are instant via Lightning Network! 🧡",
+  answer: "Yes, {name} — you can claim real sats from the faucet. ⚡🦌 Earn points by reading, quests, and chat, then open Settings → Sats. The faucet keeps a few quiet checks so it stays fair — those details stay vague on purpose.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Go to Sats Tab', isSiteNav: true },
 
 { keys: ['claim sats','how to claim sats','withdraw sats','withdraw bitcoin','how to withdraw','cash out points','convert points','redeem points','redeem sats','claim bitcoin','how do i claim','sats tab','get my sats'],
-  answer: "Here's how to claim your sats, {name}! ⚡🦌\n\n1️⃣ Go to **Settings → ⚡ Sats** tab\n2️⃣ Check your point balance (10 points = 1 sat)\n3️⃣ Enter the amount of sats you want to claim (min 100, max 500/day)\n4️⃣ Paste a **Lightning invoice** from your wallet for that amount\n5️⃣ Hit Claim — sats are sent instantly via Lightning! ⚡\n\nYou'll need a Lightning wallet like Wallet of Satoshi, Phoenix, or Alby to generate an invoice. 🧡",
-  siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Claim Sats Now', isSiteNav: true },
+  answer: "You can claim sats from the faucet, {name}. ⚡🦌 Open Settings → Sats. The faucet has a few quiet checks so it stays fair for real learners — those details stay vague on purpose.",
+  siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: 'Open it', isSiteNav: true },
 
 { keys: ['requirements to claim sats','sats requirements','claim requirements','who can claim sats','eligible for sats','qualify for sats','sats eligibility','requirements for sats'],
-  answer: "To claim sats you need to meet these requirements, {name}: 📋🦌\n\n✅ Account at least **7 days old**\n✅ Read at least **10 channels**\n✅ **Verified email** on your account\n✅ Minimum **1,000 points** (= 100 sats)\n\nThese requirements help prevent abuse and reward genuine learners. Once you qualify, head to Settings → ⚡ Sats to claim! ⚡",
+  answer: "The faucet has a few quiet checks so it stays fair for real learners, {name}. 📋🦌 I don't publish the exact rules. Open Settings → Sats when you want to claim.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Check Eligibility', isSiteNav: true },
 
-{ keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','daily cap','claim limit','200 sats','15000 sats','sats per day','cooldown','how often can i claim'],
-  answer: "Here are the sats claim limits, {name}: 📊🦌\n\n⚡ **Minimum claim**: 100 sats (1,000 points)\n⚡ **Maximum per day**: 200 sats (2,000 points)\n⚡ **Lifetime cap**: 15,000 sats per user\n⏰ **Cooldown**: 1 claim every 24 hours\n📈 **Points earned per day**: up to 500 points\n\nThe faucet rewards consistent learning over time. Stack sats by stacking knowledge! 🧡" },
+{ keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','claim limit','200 sats','15000 sats','sats per day','cooldown','how often can i claim'],
+  answer: "I don't publish the claim limits or the anti-abuse rules, {name}. ⚡🦌 They stay vague so the faucet stays fair. Open Settings → Sats to claim when you're eligible." },
 
 { keys: ['locked points','release points','unlock points','when release','when unlock','points locked','claimed points','pointsClaimed','my points are locked','why are my points locked','redeem points','how to redeem','release my points','when can i claim','how to unlock points'],
-  answer: "Your points aren't locked, {name} — they're waiting to be claimed as real sats! ⚡🦌\n\nHere's how it works:\n1️⃣ Go to **Settings → ⚡ Sats** tab\n2️⃣ Check the **requirements**: verified email, 7+ day account, 10+ channels read\n3️⃣ Once you have **1,000+ points**, you can claim **100+ sats**\n4️⃣ Paste a Lightning invoice and claim — we even pay the network fees! 💚\n\nYour points never expire and they keep growing. Head to Settings → ⚡ Sats to see exactly where you stand! 🧡" },
+  answer: "Your points are waiting to be claimed as sats, {name}. ⚡🦌 Open Settings → Sats. The faucet keeps a few quiet checks so it stays fair — those details stay vague on purpose." },
 
 { keys: ['points to sats','sats conversion','conversion rate','how many points per sat','points per sat','exchange rate points','10 points','points ratio','points equal sats'],
   answer: "The conversion rate is simple, {name}: **10 points = 1 sat**! 🔢🦌\n\nSo 1,000 points = 100 sats, 2,000 points = 200 sats. You earn points by reading channels (+15), daily visits (+5), quests, badges, chatting, and more. Points cap at 500 per day. Think of it as earning Bitcoin by learning about Bitcoin — how cool is that? ⚡🧡" },
@@ -2495,13 +2495,40 @@ function isCurrentEventQuestion(input) {
     return false;
 }
 
-// ---- Conversation memory ----
+// ---- Conversation memory (last 8 turns, per user, survives refresh) ----
 var _nachoConvoHistory = [];
-
+function nachoConvoStorageKey() {
+    var uid = 'guest';
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.uid) uid = auth.currentUser.uid;
+        else if (localStorage.getItem('btc_uid')) uid = localStorage.getItem('btc_uid');
+    } catch (e) {}
+    return 'btc_nacho_convo_' + uid;
+}
+function nachoPersistConvo() {
+    try {
+        var slim = _nachoConvoHistory.slice(-8).map(function (t) {
+            return { q: t.q, a: String(t.a || '').slice(0, 500), t: t.t || Date.now() };
+        });
+        localStorage.setItem(nachoConvoStorageKey(), JSON.stringify(slim));
+    } catch (e) {}
+    window._nachoConvoHistory = _nachoConvoHistory;
+}
+function nachoRestoreConvo() {
+    try {
+        var stored = JSON.parse(localStorage.getItem(nachoConvoStorageKey()) || '[]');
+        if (Array.isArray(stored) && stored.length && _nachoConvoHistory.length === 0) {
+            stored.slice(-8).forEach(function (t) { _nachoConvoHistory.push(t); });
+        }
+    } catch (e) {}
+    window._nachoConvoHistory = _nachoConvoHistory;
+}
 function nachoRemember(q, a) {
     _nachoConvoHistory.push({ q: q, a: a, t: Date.now() });
-    if (_nachoConvoHistory.length > 8) _nachoConvoHistory.shift();
+    while (_nachoConvoHistory.length > 8) _nachoConvoHistory.shift();
+    nachoPersistConvo();
 }
+nachoRestoreConvo();
 
 function nachoLastQ() {
     return _nachoConvoHistory.length > 0 ? _nachoConvoHistory[_nachoConvoHistory.length - 1].q : '';
@@ -2919,23 +2946,23 @@ function matchSiteNavigation(input) {
           answer: "Nacho's Closet is where you dress up your favorite deer with items you unlock! 👔🦌",
           action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)", label: "🎽 Open Closet" },
         { patterns: /where.*(referral|invite|share.*link)|referral|invite.*friend|share.*link|how.*refer/,
-          answer: "Your referral link is in Settings → you earn 50 Orange Tickets for each friend who joins! 🔗",
-          action: "showSettings()", label: "🔗 Open Settings" },
+          answer: "When a friend you referred reaches Maxi rank, you both get 50 Orange Tickets. Your link is in Settings → Account. 🔗",
+          action: "window.bqOpenFeature?window.bqOpenFeature('referral'):showSettings()", label: "Open it" },
         { patterns: /where.*(story|chapter|adventure|tale)|nacho.*story|read.*story/,
           answer: "Nacho's Story is a daily Bitcoin adventure — one chapter unlocks each day! 📖",
           action: "showNachoStory()", label: "📖 Read Story" },
         { patterns: /where.*(predict|forecast|price predict)|price prediction|predict.*price/,
           answer: "Price Prediction lets you guess if Bitcoin goes up or down in 24 hours! 📈",
-          action: "showPrediction()", label: "📈 Predict Price" },
+          action: "if(typeof showPricePrediction==='function')showPricePrediction()", label: "Open it" },
         { patterns: /where.*(home|main|start|beginning)|go.*home|back.*home|main.*page|home.*page/,
           answer: "Home is where all the main features live — let me take you there! 🏠",
           action: "goHome()", label: "🏠 Go Home" },
-        { patterns: /where.*(donate|support|tip|contribute)|how.*(donate|support|tip)|donate|support.*archive/,
-          answer: "You can support the archive with a Lightning donation — every sat helps! 💛",
-          action: "showDonateModal()", label: "💛 Donate" },
+        { patterns: /where.*(donate|support the archive|contribute)|how do i donate|donate to (the )?(archive|site)|support.*archive/,
+          answer: "You can support the archive with a Lightning donation — every sat helps! 💛 Donating XP to charity is a different screen, in Quest Hub.",
+          action: "showDonateModal()", label: "Open it" },
         { patterns: /where.*(flashcard|study|study card)|flashcard|study card|how.*study/,
-          answer: "Flashcards are on the homepage — pick a topic and study to prepare for quests! 👩‍🎓",
-          action: "goHome()", label: "🏠 Go to Flashcards" },
+          answer: "Flashcards are in Settings → Scholar. Pick a topic and study for quests! 👩‍🎓",
+          action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)", label: "Open it" },
         { patterns: /where.*(map|exploration|progress|visited)|exploration.*map|which.*channel.*visited|my.*progress/,
           answer: "The Exploration Map is on the homepage — it shows which topics you've visited! 🗺️",
           action: "goHome()", label: "🗺️ View Map" },
@@ -3009,8 +3036,61 @@ function matchSiteNavigation(input) {
 }
 
 // Internal check for altcoins to bypass AI
+// Question frames like "what is the" are not topics. They must not outscore a real name.
+var NACHO_MATCH_STOP = { what:1, is:1, the:1, a:1, an:1, of:1, about:1, how:1, does:1, do:1, did:1, are:1, was:1, were:1, who:1, why:1, when:1, where:1, which:1, tell:1, you:1, your:1, can:1, this:1, that:1, with:1, from:1, for:1, and:1, but:1, its:1 };
+var NACHO_ALT_WORDS = { ethereum:1, ether:1, eth:1, vitalik:1, solana:1, cardano:1, dogecoin:1, doge:1, xrp:1, ripple:1, kaspa:1, bnb:1, binance:1, polkadot:1, avalanche:1, polygon:1, tron:1, altcoin:1, shitcoin:1, shiba:1 };
+
+function nachoContentWords(text) {
+    return String(text || '').toLowerCase().split(/[^a-z0-9.%]+/).filter(function (w) {
+        return w.length >= 4 && !NACHO_MATCH_STOP[w];
+    });
+}
+
+function nachoGramUseful(gram) {
+    var parts = String(gram || '').split(/\s+/);
+    for (var i = 0; i < parts.length; i++) {
+        var w = parts[i].replace(/[^a-z0-9.%]/g, '');
+        if (w.length >= 4 && !NACHO_MATCH_STOP[w]) return true;
+    }
+    return false;
+}
+
+// A named fact ("61.6% of Ethereum nodes are in the cloud") should beat the generic altcoin roast.
+function namedFactMatch(input) {
+    var low = String(input || '').toLowerCase();
+    var qWords = nachoContentWords(low);
+    if (qWords.length < 2) return null;
+    var qSet = {};
+    for (var qi = 0; qi < qWords.length; qi++) qSet[qWords[qi]] = 1;
+    var best = null;
+    var bestScore = 0;
+    for (var i = 0; i < NACHO_KB.length; i++) {
+        var entry = NACHO_KB[i];
+        if (!entry || !entry.keys) continue;
+        for (var k = 0; k < entry.keys.length; k++) {
+            var key = String(entry.keys[k] || '').toLowerCase();
+            var words = nachoContentWords(key);
+            if (words.length < 2) continue;
+            var alt = 0;
+            var extra = 0;
+            var all = true;
+            for (var w = 0; w < words.length; w++) {
+                if (!qSet[words[w]] && low.indexOf(words[w]) === -1) { all = false; break; }
+                if (NACHO_ALT_WORDS[words[w]]) alt++;
+                else extra++;
+            }
+            if (!all || !alt || !extra) continue;
+            var score = words.length * 10 + (low.indexOf(key) !== -1 ? 40 + key.length : 0);
+            if (score > bestScore) { bestScore = score; best = entry; }
+        }
+    }
+    return best;
+}
+
 function checkAltcoin(input) {
     if (!input) return null;
+    var fact = namedFactMatch(input);
+    if (fact) return fact;
     var lowInput = input.toLowerCase();
     
     var altcoinPatterns = [
@@ -3143,6 +3223,8 @@ function fixTypos(input) {
         for (var i = 0; i < words.length; i++) {
             var w = words[i].replace(/[?.!,;:'"()]/g, '');
             if (w.length < 4) continue;
+            // Everyday words that sit one or two edits from a Bitcoin term ("morning" → "mining").
+            if ({ morning: 1, timing: 1, coming: 1, warning: 1, something: 1 }[w]) continue;
             for (var j = 0; j < knownTerms.length; j++) {
                 if (w === knownTerms[j]) break;
                 var dist = _levenshtein(w, knownTerms[j]);
@@ -3176,9 +3258,20 @@ function _levenshtein(a, b) {
 }
 
 function findAnswer(input) {
-    input = fixTypos(input.toLowerCase().trim());
-    input = (typeof expandSynonyms === 'function') ? expandSynonyms(input) : input;
+    var _rawQ = String(input || '');
+    // Safety before the feature registry, so "where is the chat" cannot hide a crisis.
+    if (nachoSafetyCheck(_rawQ)) return null;
+    input = fixTypos(_rawQ.toLowerCase().trim());
+    // Trailing "?" used to glue onto the last word and hide the real key.
+    input = input.replace(/[?!.,;:()"]/g, ' ').replace(/['’]s\b/g, '').replace(/['’]/g, ' ').replace(/\s+/g, ' ').trim();
     if (input.length < 2) return null;
+    // Feature registry wins before synonym expansion (which maps "keys" to "private key")
+    // and before the fuzzy KB matcher.
+    if (typeof window.resolveNachoFeature === 'function') {
+        var _feat = window.resolveNachoFeature(_rawQ) || window.resolveNachoFeature(input);
+        if (_feat && _feat.answer) return _feat;
+    }
+    input = (typeof expandSynonyms === 'function') ? expandSynonyms(input) : input;
 
     // ---- EMERGENCY PRIORITY: Live Data Awareness ----
     if (/bitcoin price|current price|price now|how much is bitcoin|price of bitcoin/.test(input)) {
@@ -3198,6 +3291,10 @@ function findAnswer(input) {
     // SECOND: If it matches an off-topic pattern, bail early — don't let fuzzy KB scoring
     // produce false matches on random non-Bitcoin questions
     if (typeof checkOffTopic === 'function' && checkOffTopic(input)) return null;
+
+    // A named altcoin fact ("61.6% of Ethereum nodes are in the cloud") beats the generic node/altcoin route.
+    var _namedEarly = namedFactMatch(input);
+    if (_namedEarly) return _namedEarly;
 
     // NOTE: Current event detection moved AFTER KB topic matching.
     // This ensures questions like "What happened when China banned Bitcoin?"
@@ -3225,11 +3322,12 @@ function findAnswer(input) {
         { pattern: /cbdc|central bank digital|digital dollar|digital euro|digital yuan/, key: 'cbdc' },
         { pattern: /softwar|jason lowery|bitcoin.*warfare/, key: 'softwar' },
         { pattern: /executive order 6102|gold confiscation|6102/, key: 'executive order 6102' },
+        { pattern: /stock.to.flow ratio|monetary hardness|hardness of money|stock and flow/, key: 'stock to flow ratio' },
         { pattern: /stock.to.flow|s2f model|planb|plan.b model/, key: 'stock to flow' },
         { pattern: /bitcoin.*freedom|freedom.*bitcoin|financial freedom|monetary freedom|rally cry/, key: 'bitcoin rally cry' },
         { pattern: /time is money|money is time|bitcoin.*time|time.*bitcoin/, key: 'bitcoin is time' },
         { pattern: /gold standard era|golden age|nineteenth century|19th century.*gold|gold.*prosper/, key: 'gold standard era' },
-        { pattern: /gold.*fail|gold.*problem|why not gold|gold.*flaw|gold.*transport|shipping gold|moving gold/, key: 'gold spatial salability' },
+        { pattern: /spatial salability|gold.*spatial|gold.*fail|gold.*problem|why not gold|gold.*flaw|gold.*transport|shipping gold|moving gold/, key: 'gold spatial salability' },
         { pattern: /el salvador|legal tender|bukele|bitcoin.*country|first country.*bitcoin/, key: 'nayib bukele' },
         { pattern: /boom.*bust|business cycle|why.*recession|credit cycle|financial crisis.*cause/, key: 'business cycle' },
         { pattern: /fiat.*distort|fiat.*broke|fiat.*destroy|fiat.*food|fiat.*housing|fiat.*family|everything.*broken/, key: 'fiat distortion' },
@@ -3259,6 +3357,8 @@ function findAnswer(input) {
     ];
     for (var ai = 0; ai < altcoinPatterns.length; ai++) {
         if (altcoinPatterns[ai].pattern.test(input)) {
+            var _namedFact = namedFactMatch(input);
+            if (_namedFact) return _namedFact;
             for (var ei = 0; ei < NACHO_KB.length; ei++) {
                 if (NACHO_KB[ei].keys && NACHO_KB[ei].keys.indexOf(altcoinPatterns[ai].key) !== -1) {
                     return NACHO_KB[ei];
@@ -3267,12 +3367,13 @@ function findAnswer(input) {
         }
     }
 
-    // Follow-up detection: short questions with pronouns/references that need prior context
-    var _isFollowUp = _nachoConvoHistory.length > 0 && (
-        /^\b(it|that|this|they|them|those|these|the same|which one)\b/i.test(input) ||
-        /^\b(how much|how long|how many|is it|are they|can it|does it|what about|and what|but what|so what|tell me more|go deeper|explain more|elaborate)\b/i.test(input) ||
-        (input.split(/\s+/).length <= 5 && !/bitcoin|btc|mining|lightning|wallet|satoshi|halving|blockchain/i.test(input))
-    );
+    // A follow-up needs a back-reference, and the last turn has to be recent.
+    // A short new question ("thanks", "what is the glacier protocol") still hits the KB.
+    var _lastTurn = _nachoConvoHistory.length ? _nachoConvoHistory[_nachoConvoHistory.length - 1] : null;
+    var _recent = !!(_lastTurn && _lastTurn.t && (Date.now() - _lastTurn.t) < 120000);
+    var _pronoun = /^(it|that|this|they|them|those|these|the same|which one)\b/i.test(input)
+        || /^(how much|how long|how many|is it|are they|can it|does it|what about|and what|but what|so what|tell me more|go deeper|explain more|elaborate)\b/i.test(input);
+    var _isFollowUp = _nachoConvoHistory.length > 0 && _pronoun && (_recent || !_lastTurn.t);
     if (_isFollowUp) return null; // route to AI which has conversation history
 
     // Questions that should ALWAYS go to AI (bypass KB) unless exact match
@@ -3306,7 +3407,7 @@ function findAnswer(input) {
 
     var inputBigrams = getNgrams(input, 2);
     var inputTrigrams = getNgrams(input, 3);
-    var inputWords = input.split(/\s+/).filter(function(w) { return w.length >= 3; });
+    var inputWords = input.split(/\s+/).filter(function(w) { return w.length >= 3 && !NACHO_MATCH_STOP[w.replace(/[^a-z0-9]/g, '')]; });
 
     let bestMatch = null;
     let bestScore = 0;
@@ -3318,19 +3419,30 @@ function findAnswer(input) {
             // Exact match
             if (input === key) { score = 100; break; }
             // Contains full key phrase
-            if (input.includes(key)) { score = Math.max(score, 50 + key.length); continue; }
+            var _at = key ? input.indexOf(key) : -1;
+            if (_at !== -1) {
+                // Apostrophes stay inside the word, so "bitcoin" does not eat "bitcoin's".
+                var _beforeOk = _at === 0 || /[^a-z0-9']/.test(input.charAt(_at - 1));
+                var _afterCh = input.charAt(_at + key.length);
+                var _afterOk = !_afterCh || /[^a-z0-9']/.test(_afterCh);
+                if (_beforeOk && _afterOk) {
+                    var _cw = key.split(/\s+/).filter(function (w) { return w.length >= 3 && !NACHO_MATCH_STOP[w.replace(/[^a-z0-9]/g, '')]; });
+                    score = Math.max(score, 30 + _cw.length * 22 + key.length);
+                    continue;
+                }
+            }
             // Key contains full input
             if (key.includes(input) && input.length >= 4) { score = Math.max(score, 45 + input.length); continue; }
 
-            var keyWords = key.split(/\s+/).filter(function(w) { return w.length >= 3; });
+            var keyWords = key.split(/\s+/).filter(function(w) { return w.length >= 3 && !NACHO_MATCH_STOP[w.replace(/[^a-z0-9]/g, '')]; });
 
-            // N-gram overlap: check if 2-word or 3-word phrases from input match within the key
+            // N-gram overlap. Skip frames like "what is" / "what is the" — they are not a topic.
             var ngramScore = 0;
             for (var bi = 0; bi < inputBigrams.length; bi++) {
-                if (key.includes(inputBigrams[bi])) ngramScore += 25;
+                if (nachoGramUseful(inputBigrams[bi]) && key.includes(inputBigrams[bi])) ngramScore += 25;
             }
             for (var ti = 0; ti < inputTrigrams.length; ti++) {
-                if (key.includes(inputTrigrams[ti])) ngramScore += 35;
+                if (nachoGramUseful(inputTrigrams[ti]) && key.includes(inputTrigrams[ti])) ngramScore += 35;
             }
             if (ngramScore > 0) { score = Math.max(score, ngramScore); continue; }
 
@@ -3538,6 +3650,16 @@ var CRISIS_RESPONSE = "Hey {name}, I'm just a deer, but I care about you. 🧡 I
     "<strong>💬 Crisis Text Line:</strong> Text HOME to <strong>741741</strong><br>" +
     "<strong>🌍 International:</strong> <a href='https://findahelpline.com/' target='_blank' rel='noopener' style='color:#f7931a;'>findahelpline.com</a><br><br>" +
     "You matter, {name}. Please reach out. 💛";
+
+function nachoSafetyCheck(q) {
+    var text = String(q || '');
+    if (isCrisis(text)) return { type: 'crisis', answer: CRISIS_RESPONSE };
+    for (var i = 0; i < HARM_PATTERNS.length; i++) {
+        if (HARM_PATTERNS[i].test(text)) return { type: 'harm', answer: HARM_RESPONSE };
+    }
+    if (isInappropriate(text)) return { type: 'profanity', answer: NACHO_POLITE_DEFLECTIONS[0] };
+    return null;
+}
 
 function isCrisis(text) {
     var lower = text.toLowerCase();
@@ -3773,7 +3895,7 @@ async function nachoAIAnswer(question, callback) {
         var kbMatch = findAnswer(question);
         if (kbMatch) {
             var kbAnswerText = typeof kbMatch.answer === 'function' ? kbMatch.answer('') : kbMatch.answer;
-            kbContext = (kbAnswerText || '').substring(0, 300);
+            kbContext = (kbAnswerText || '').substring(0, 1200);
             if (kbMatch.channelName) kbContext += ' (The site has a dedicated "' + kbMatch.channelName + '" channel the user can explore.)';
         }
     }
@@ -3811,8 +3933,9 @@ async function nachoAIAnswer(question, callback) {
             eli5: eli5,
             history: history,
             kbContext: kbContext,
-            maxi: true,
-            forceMaxi: NACHO_SYSTEM_PROMPT 
+            appKnowledge: (typeof window.bqAppKnowledgeFor === 'function' ? window.bqAppKnowledgeFor(question) : '').slice(0, 1500),
+            userContext: (typeof window.bqUserContext === 'function' ? window.bqUserContext() : { name: userName }),
+            mode: eli5 ? 'eli5' : 'chat'
         })
     };
 
@@ -3831,12 +3954,10 @@ async function nachoAIAnswer(question, callback) {
         .then(function(data) {
             if (timeoutId) clearTimeout(timeoutId);
             if (data && data.answer && !data.error) {
-                // Make AI answer more conversational by adding follow-up when appropriate
                 var conversationalAnswer = data.answer;
-                var lowerQ = question.toLowerCase();
-                if (data.answer.length < 300 && !lowerQ.includes('?') && !lowerQ.includes('how') && !lowerQ.includes('why') && !lowerQ.includes('what') && !lowerQ.includes('when') && !lowerQ.includes('where') && !lowerQ.includes('who')) {
-                    // User made a statement — add a warm closing
-                    conversationalAnswer += " What do you think about that?";
+                if (data.followUp) {
+                    var _fu = String(data.followUp).replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
+                    if (_fu) window._bqLastFollowUp = _fu;
                 }
                 callback(conversationalAnswer);
             } else {
@@ -3875,8 +3996,9 @@ async function nachoConvoAIAnswer(question, callback) {
             eli5: false,
             history: history,
             kbContext: '',
-            maxi: false,
-            forceMaxi: NACHO_CONVO_PROMPT
+            appKnowledge: (typeof window.bqAppKnowledgeFor === 'function' ? window.bqAppKnowledgeFor(question) : '').slice(0, 1500),
+            userContext: (typeof window.bqUserContext === 'function' ? window.bqUserContext() : { name: userName }),
+            mode: 'chat'
         })
     };
 
@@ -4012,17 +4134,20 @@ function renderNachoAnswer(textEl, answerHtml, match) {
         '</div>';
     }
 
-    // Follow-up suggestions (use explicit followUp from KB entry, or auto-generate)
-    if (match && match.followUp) {
-        html += '<div style="margin-top:8px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.08));border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted);font-size:0.8rem;">' + match.followUp + '</div>';
-    }
-    if (match && match.answer) {
+    // One follow-up chip. The same sentence is not also written into the answer.
+    if (match && match.followUp && String(answerHtml).indexOf(String(match.followUp).slice(0, 24)) === -1 && String(answerHtml).indexOf('data-bq-chip') === -1) {
+        var _fuText = String(match.followUp).replace(/[<>]/g, '');
+        var _fuAttr = _fuText.replace(/[\\'"]/g, '');
+        html += '<button data-bq-chip="1" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + _fuAttr + '\';nachoAnswer();}},150)" style="display:block;width:100%;margin-top:8px;padding:5px 8px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_fuText) + '</button>';
+    } else if (match && match.answer && String(answerHtml).indexOf('data-bq-chip') === -1) {
         var followUps = typeof nachoFollowUps === 'function' ? nachoFollowUps(match.answer) : [];
         if (followUps.length > 0) {
             html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#333);">' +
                 '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">You might also want to ask:</div>';
             for (var fi = 0; fi < Math.min(followUps.length, 2); fi++) {
-                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + followUps[fi].replace(/[\\'"]/g, "") + '\';nachoAnswer();}},150)" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + followUps[fi] + '</button>';
+                var _chip = String(followUps[fi] || '').replace(/[<>]/g, '');
+                var _chipAttr = _chip.replace(/[\\'"]/g, '');
+                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + _chipAttr + '\';nachoAnswer();}},150)" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_chip) + '</button>';
             }
             html += '</div>';
         }
@@ -4978,11 +5103,16 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
 // Expose IIFE functions to window
 window.findAnswer = findAnswer;
+window.checkAltcoin = checkAltcoin;
+window.nachoRemember = nachoRemember;
+window.nachoRestoreConvo = nachoRestoreConvo;
+window._nachoConvoHistory = _nachoConvoHistory;
 window.checkOffTopic = checkOffTopic;
 window.nachoAIAnswer = nachoAIAnswer;
 window.nachoConvoAIAnswer = nachoConvoAIAnswer;
 window.isInappropriate = isInappropriate;
 window.isCrisis = isCrisis;
+window.nachoSafetyCheck = nachoSafetyCheck;
 window.isFinancialAdvice = isFinancialAdvice;
 window.deepContentSearch = deepContentSearch;
 window.nachoWebSearch = nachoWebSearch;
@@ -5165,6 +5295,11 @@ if (typeof NACHO_KB !== 'undefined') {
 // Every topic funnels toward Bitcoin maximalism — scarcity, sovereignty, sound money.
 window.nachoFollowUps = function(answerText) {
     if (!answerText) return [];
+    if (String(answerText).indexOf('data-bq-chip') !== -1) return [];
+    if (window._bqLastFollowUp && String(answerText).indexOf(String(window._bqLastFollowUp).slice(0, 24)) !== -1) {
+        return [];
+    }
+    if (window._bqLastFollowUp) return [window._bqLastFollowUp];
     var a = answerText.toLowerCase();
     var suggestions = [];
 
@@ -5249,7 +5384,7 @@ window.nachoFollowUps = function(answerText) {
         { keywords: ['nostr','decentralized social','zap'], suggestions: ['What is Nostr?','How does Nostr use Lightning?','Why are Bitcoiners building on Nostr?'] },
 
         // --- SITE FEATURES → guide engagement ---
-        { keywords: ['nacho','this site','archive','channel','leaderboard'], suggestions: ['What channels should I start with?','How do I earn points?','What are Bitcoin Quests?'] },
+        { keywords: ['nacho','this site','archive','channel','leaderboard'], suggestions: ['I am brand new, where do I start?','How do I earn points?','What is the Quest Hub?'] },
     ];
 
     for (var i = 0; i < topicMap.length; i++) {
@@ -5294,5 +5429,5 @@ window.nachoFollowUps = function(answerText) {
         suggestions[j] = suggestions[r];
         suggestions[r] = tmp;
     }
-    return suggestions.slice(0, 3);
+    return suggestions.slice(0, 1);
 };

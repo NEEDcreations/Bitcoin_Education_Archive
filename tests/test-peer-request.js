@@ -385,7 +385,7 @@ queue.push(test('Quest Hub tab label is Nook/Inv on the shared desktop and mobil
     assert.strictEqual(quests.includes('>🦌 Nook/Inventory'), false);
 }));
 
-queue.push(test('cache busters are v2251 and index.html matches 404.html', function() {
+queue.push(test('cache busters are v2252 and index.html matches 404.html', function() {
     const html = read('index.html');
     const html404 = read('404.html');
     const sw = read('sw.js');
@@ -394,10 +394,11 @@ queue.push(test('cache busters are v2251 and index.html matches 404.html', funct
     assert.ok(html.includes('gifting.js?v=20261022_lightfix'));
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2251'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
-    assert.ok(html.includes('bundle.min.js?v=20261022_v2246'));
-    assert.ok(html.includes('global-chat.js?v=20261022_v2251'));
+    assert.ok(html.includes('bundle.min.js?v=20261022_v2252'));
+    assert.ok(html.includes('global-chat.js?v=20261022_v2252'));
     assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));
-    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2251/g) || []).length, 2);
+    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2252/g) || []).length, 4);
+    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2251/g) || []).length, 0);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2246'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2245'), false);
@@ -408,7 +409,8 @@ queue.push(test('cache busters are v2251 and index.html matches 404.html', funct
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2251'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2252'"));
+    assert.strictEqual(sw.includes('btc-archive-v2251'), false);
     assert.strictEqual(sw.includes('btc-archive-v2250'), false);
     assert.strictEqual(sw.includes('btc-archive-v2249'), false);
     assert.strictEqual(sw.includes('btc-archive-v2248'), false);

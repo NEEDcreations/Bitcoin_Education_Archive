@@ -1949,7 +1949,10 @@
         if (!followUps || followUps.length === 0) return '';
         var html = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
         for (var i = 0; i < followUps.length; i++) {
-            html += '<button onclick="nachoModeChip(\''+ followUps[i].replace(/[\\'"]/g, "") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
+            var raw = String(followUps[i] || '').replace(/[<>]/g, '');
+            var safeAttr = raw.replace(/[\\'"]/g, '');
+            var safeText = (typeof escapeHtml === 'function') ? escapeHtml(raw) : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            html += '<button onclick="nachoModeChip(\''+ safeAttr + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + safeText + '</button>';
         }
         html += '</div>';
         return html;
@@ -4185,7 +4188,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw cashout bitcoin lightning faucet earn XP convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
         { id: '_tips', title: '⚡ Lightning Tips', desc: 'Tip other users with Lightning sats', keywords: 'tip tips lightning send sats zap reward give appreciation', action: "if(typeof showTipOverlay==='function')showTipOverlay()" },
         { id: '_network', title: '📡 Bitcoin Network', desc: 'Live mempool, hashrate, difficulty, fees, and block explorer', keywords: 'network mempool hashrate difficulty fees block explorer transaction confirmations bitcoin network stats', action: "go('bitcoin-dashboard')" },
-        { id: '_notifications', title: '🔔 Notifications', desc: 'Enable push notifications for updates and alerts', keywords: 'notifications push alerts notify bell updates permission enable disable', action: "if(typeof requestNotificationPermission==='function')requestNotificationPermission();else showSettings()" },
+        { id: '_notifications', title: '🔔 Notifications', desc: 'Enable push notifications for updates and alerts', keywords: 'notifications push alerts notify bell updates permission enable disable', action: "if(typeof showNotifications==='function')showNotifications()" },
         { id: '_streakfreeze', title: '🧊 Streak Freeze', desc: 'Protect your visit streak with freeze tickets', keywords: 'streak freeze ticket protect miss save guard insurance ice', action: "showSettings();setTimeout(function(){showSettingsPage('data')},100)" },
         { id: '_cotd', title: '📅 Channel of the Day', desc: 'Today\'s featured Bitcoin education channel', keywords: 'channel of the day daily featured recommendation today pick spotlight', action: 'goHome()' },
         { id: '_nostr', title: '🟣 Nostr Login', desc: 'Sign in with Nostr — extension, nsec, or npub', keywords: 'nostr login sign in nip npub nsec extension relay decentralized identity', action: 'showUsernamePrompt()' },
@@ -5115,6 +5118,7 @@ if (locked) {
 // DIRECT HASH ROUTING (#nacho, #forum, #marketplace, etc.)
 // =============================================
 (function() {
+    window._bqAppRoutesHash = true;
     function handleHash() {
         // Support both clean URLs (/channels/X, /app/X) and hash routes (#X)
         var hash = window.location.hash.replace('#', '');
@@ -5125,7 +5129,7 @@ if (locked) {
         console.log('[ROUTE] Routing to:', hash);
         // If this is a deep link to a lazy-loaded feature, kick off deferred loading immediately
         // so the script is ready when _routeApp starts polling for it.
-        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests'];
+        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app'];
         if (_lazyRoutes.indexOf(hash.split('/')[0]) !== -1 && typeof window._loadDeferred === 'function') {
             window._loadDeferred();
         }
@@ -5236,6 +5240,8 @@ if (locked) {
                     if (typeof toggleDashboard === 'function') { history.replaceState({ home: true }, '', window.location.pathname); toggleDashboard(); return; }
                     break;
                 default:
+                    // Feature registry deep links (#app/<id>, #questhub, and other feature hashes).
+                    if (typeof window.bqRouteHash === 'function' && window.bqRouteHash(hash)) return;
                     // Beats deep links (#beats/trackId, #beats/playlist/uid/id) — route to Beats, deep link handler in beats.js takes over
                     // Skip if initial handler already routed (prevents double go() wiping deep link state)
                     if (hash.indexOf('beats/') === 0 && typeof go === 'function' && !window._beatsRouted) {
