@@ -3444,6 +3444,7 @@ window.showQuestHub = function() {
         '#questHubOverlay p,[id="questHubBody"] div{font-size:inherit}' +
         '#questHubBody{font-size:1rem}' +
         '#questHubTabs button{font-size:0.88rem!important;padding:12px 0!important}' +
+        '#questHubTabs #qhTabNook{font-size:0.62rem!important;line-height:1.15!important;white-space:normal!important;padding:6px 3px!important}' +
         '#questHubTabs{grid-template-columns:repeat(5,1fr)!important}' +
     '}';
     modal.appendChild(qhStyle);
@@ -3467,7 +3468,7 @@ window.showQuestHub = function() {
         '<button id="qhTabCitadel" onclick="window._questHubTab=\'citadel\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏰 Citadel</button>' +
         '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
         '<button id="qhTabCommunity" onclick="window._questHubTab=\'community\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:nowrap;">🤝 Community</button>' +
-        '<button id="qhTabNook" onclick="window._questHubTab=\'nook\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🦌 Nook</button>' +
+        '<button id="qhTabNook" onclick="window._questHubTab=\'nook\';_renderQuestHubTab()" style="width:100%;padding:6px 3px;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.62rem;line-height:1.15;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:normal;">🦌 Nook/Inventory</button>' +
                 '</div>';
 
     var body = document.createElement('div');
@@ -3747,27 +3748,16 @@ function _renderNookShop() {
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     var giftOwnsGiftBag = ownedCosmetics.indexOf('gift_bag') !== -1;
     var giftBagBtn = giftOwnsGiftBag
-        ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓ (75 gift cap)</div>'
+        ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>'
         : buyBtn('gift_bag', 100, 1, 'Buy');
-    html += itemRow('🎒', 'Gift Bag', 'Permanently increases your gift inventory from 50 → 75 slots', 100, giftBagBtn).replace('<!--EXTRA_HTML-->', '');
-    var invGifts = 0; // shown dynamically in inventory
-    var giftCap = giftOwnsGiftBag ? 75 : 50;
+    html += itemRow('🎒', 'Gift Bag', 'A keepsake from the shop. Gifts are opened right away now, so keys and ciphers live in Inventory.', 100, giftBagBtn).replace('<!--EXTRA_HTML-->', '');
     html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
-        '<div style="font-size:1.4rem;">📦</div>' +
-        '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Gift Inventory</div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);" id="nookGiftInvCount">Loading...</div></div>' +
-        '<button onclick="if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)" style="padding:7px 14px;border-radius:8px;border:1px solid #f7931a;background:rgba(247,147,26,0.1);color:#f7931a;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gifts</button>' +
+        '<div style="font-size:1.4rem;">🔑</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Keys &amp; locked ciphers</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);">Open gifts as the wheel gives them. Matching keys and ciphers are in Inventory.</div></div>' +
+        '<button onclick="window._nookSubTab=\'inventory\';if(typeof _renderNookSubTabs===\'function\')_renderNookSubTabs();" style="padding:7px 14px;border-radius:8px;border:1px solid #f7931a;background:rgba(247,147,26,0.1);color:#f7931a;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Inventory</button>' +
     '</div>';
     html += '</div>';
-    // Load gift inventory count async
-    (function() {
-        if (typeof db === 'undefined' || typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
-        var uid = auth.currentUser.uid;
-        db.collection('gifts').where('ownerId','==',uid).where('status','==','inventory').limit(76).get().then(function(snap) {
-            var el2 = document.getElementById('nookGiftInvCount');
-            if (el2) el2.textContent = snap.size + ' / ' + giftCap + ' gifts in inventory';
-        }).catch(function() {});
-    })();
 
     // ─── Cosmetics ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Cosmetics (Permanent) ───</div>';
@@ -3968,10 +3958,6 @@ function _renderNookInventoryContent(el) {
         '<button onclick="_nookUseBonusSpin(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#a855f7,#7c3aed);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Use</button>',
         'Spin the wheel without using your daily spin');
 
-    // ─── Gifts ───────────────────────────────────────────────────────────
-    // Loaded async below — placeholder first
-    html += '<div id="nookInvGiftRow"></div>';
-
     // Raffle entries
     html += invRow('🎲', 'Raffle Entries (this month)', raffleEntries,
         '',
@@ -4015,48 +4001,29 @@ function _renderNookInventoryContent(el) {
     if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
         html = '<div style="text-align:center;padding:32px 20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
-            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">Your inventory is empty.</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">No shop items yet.</div>' +
             '<div style="font-size:0.78rem;color:var(--text-faint);">Visit the Shop to buy items with your Orange Tickets <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></div>' +
         '</div>';
     }
 
+    html += '<div id="nookKeysCiphers" style="margin-top:16px;"></div>';
     el.innerHTML = html;
 
-    // Populate gift count row async (gifting.js may be lazy-loaded)
-    (function _fillNookGiftRow() {
-        var giftRow = document.getElementById('nookInvGiftRow');
-        if (!giftRow) return;
-        var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-        var ownedCosmetics2 = (typeof currentUser !== 'undefined' && currentUser ? currentUser.ownedCosmetics || [] : []);
-        var giftCap2 = ownedCosmetics2.indexOf('gift_bag') !== -1 ? 75 : 50;
-        if (!uid || typeof db === 'undefined') {
-            giftRow.innerHTML = '';
-            return;
-        }
-        giftRow.innerHTML = '<div style="opacity:0.5;padding:10px 12px;font-size:0.8rem;color:var(--text-faint);">🎁 Loading gifts...</div>';
-        db.collection('gifts').where('ownerId','==',uid).where('status','==','inventory').limit(giftCap2 + 1).get().then(function(snap) {
-            var count = snap.size;
-            var hasItems = count > 0;
-            var borderC = hasItems ? 'var(--border)' : 'rgba(255,255,255,0.06)';
-            var opC = hasItems ? '1' : '0.5';
-            var txtC = hasItems ? 'var(--heading)' : 'var(--text-faint)';
-            var icnC = hasItems ? '#f7931a' : 'var(--text-faint)';
-            var actionBtn = hasItems
-                ? '<button onclick="if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Gifts</button>'
-                : '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Spin daily wheel to earn gifts</div>';
-            giftRow.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid '+borderC+';border-radius:12px;opacity:'+opC+'">' +
-                '<div style="font-size:1.4rem;flex-shrink:0;">🎁</div>' +
-                '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Gifts</div>' +
-                '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Earned from spinning the wheel</div>' +
-                '</div>' +
-                '<div style="flex-shrink:0;text-align:right;"><div style="font-size:0.85rem;font-weight:800;color:'+txtC+';"><span style="color:'+icnC+';font-size:1rem;">×</span> '+count+' / '+giftCap2+'</div>' +
-                (hasItems ? actionBtn : '') +
-                '</div>' +
-            '</div>';
-        }).catch(function() {
-            giftRow.innerHTML = '';
-        });
-    }());
+    (function _fillNookKeys() {
+        var tries = 0;
+        var timer = setInterval(function() {
+            tries++;
+            var host = document.getElementById('nookKeysCiphers');
+            if (!host) { clearInterval(timer); return; }
+            if (typeof window.renderKeysAndCiphersPanel === 'function') {
+                clearInterval(timer);
+                window.renderKeysAndCiphersPanel(host);
+            } else if (tries > 24) {
+                clearInterval(timer);
+                host.textContent = 'Keys and ciphers are still loading. Open Inventory again in a moment.';
+            }
+        }, 250);
+    })();
 }
 
 window._nookActivateHashBooster = function(btnEl) {

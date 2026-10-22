@@ -1,13 +1,11 @@
 // © 2024-2026 603BTC LLC. All rights reserved.
-// Bitcoin Education Archive — Gifting, Keys & Ciphers System
-// Lazy-loaded. Requires: firebase, auth, db, currentUser, showToast, escapeHtml
+// Bitcoin Quest — daily gifts, labeled keys, locked ciphers.
+// Lazy-loaded. Rewards and limits are decided by Cloud Functions.
 
 (function() {
 'use strict';
 
-var CIPHER_DECRYPT_DAILY_MAX = 21;
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+var CIPHER_OPENS_PER_DAY = 21;
 
 function _callCF(name, data) {
     if (typeof firebase === 'undefined' || !firebase.functions) return Promise.reject(new Error('Firebase unavailable'));
@@ -23,696 +21,1112 @@ function _getUid() {
 }
 
 function _esc(s) {
-    return typeof escapeHtml === 'function' ? escapeHtml(s || '') : (s || '');
+    return typeof escapeHtml === 'function' ? escapeHtml(String(s || '')) : String(s || '');
 }
 
-// ─── Inject shared CSS once ───────────────────────────────────────────────────
+function _utcDay() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function _toast(msg, ms) {
+    if (typeof showToast === 'function') showToast(msg, ms || 3500);
+}
+
 function _injectGiftingCSS() {
     if (document.getElementById('giftingCSS')) return;
     var s = document.createElement('style');
     s.id = 'giftingCSS';
     s.textContent = [
-        '@keyframes giftBounce{0%{transform:scale(0.5)}60%{transform:scale(1.3)}80%{transform:scale(0.95)}100%{transform:scale(1)}}',
-        '@keyframes giftShake{0%,100%{transform:rotate(0deg)}20%{transform:rotate(-10deg)}40%{transform:rotate(10deg)}60%{transform:rotate(-7deg)}80%{transform:rotate(7deg)}}',
-        '@keyframes giftReveal{from{opacity:0;transform:scale(0.8) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}',
-        '@keyframes giftConfetti{to{transform:translateY(220px) rotate(720deg);opacity:0}}',
-        '@keyframes decryptScan{0%{opacity:0.4}50%{opacity:1}100%{opacity:0.4}}',
+        '@keyframes giftBounce{0%{transform:scale(0.5)}60%{transform:scale(1.15)}100%{transform:scale(1)}}',
+        '@keyframes giftShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-8deg)}40%{transform:rotate(8deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(5deg)}}',
+        '@keyframes giftReveal{from{opacity:0;transform:scale(0.86)}to{opacity:1;transform:scale(1)}}',
+        '@keyframes decryptScan{0%{opacity:0.45}50%{opacity:1}100%{opacity:0.45}}',
         '@keyframes decryptReveal{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}',
         '@keyframes decryptConfetti{to{transform:translateY(220px) rotate(720deg);opacity:0}}',
-        '@keyframes decryptPulse{0%,100%{text-shadow:0 0 8px #f7931a}50%{text-shadow:0 0 24px #f7931a,0 0 48px rgba(247,147,26,0.5)}}',
-        '@keyframes wrongKey{0%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}100%{transform:translateX(0)}}',
+        '@keyframes decryptPulse{0%,100%{text-shadow:0 0 8px #f7931a}50%{text-shadow:0 0 24px #f7931a}}',
         '.gifting-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:120000;display:flex;align-items:center;justify-content:center;padding:16px;}',
-        '.gifting-modal{background:var(--card-bg,#0f172a);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:28px 24px;max-width:380px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(247,147,26,0.12);max-height:90vh;overflow-y:auto;}',
+        '.gifting-modal{background:var(--card-bg,#0f172a);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(247,147,26,0.12);max-height:90vh;overflow-y:auto;}',
+        '.gift-open-btn,.cipher-open-btn,.key-send-btn{padding:8px 12px;border:none;border-radius:8px;color:#fff;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;}',
+        '@media (max-width:700px){.gifting-modal{padding:18px 14px;border-radius:16px;}}'
     ].join('');
     document.head.appendChild(s);
 }
 
-// ─── Award Daily Gifts — called after spin ────────────────────────────────────
-// Returns gifts to client and triggers the post-spin open modal immediately.
+function _rewardEmoji(rw) {
+    if (!rw) return '🎁';
+    if (rw.rewardType === 'tickets') return '🎫';
+    if (rw.rewardType === 'xp_bonus' || rw.rewardType === 'xp_tickets') return '⭐';
+    if (rw.rewardType === 'streak_shield') return '🛡️';
+    if (rw.rewardType === 'closet_item') return rw.itemEmoji || '👑';
+    if (rw.rewardType === 'nacho_shoutout') return '🦌';
+    if (rw.rewardType === 'keys') return '🔑';
+    if (rw.rewardType === 'locked_ciphers') return '🔒';
+    if (rw.rewardType === 'sats') return '⚡';
+    return '🎁';
+}
+
+function _rewardLabel(rw) {
+    if (!rw) return 'Reward';
+    if (rw.rewardType === 'tickets') return '+' + (rw.ticketCount || 1) + ' Orange Ticket' + ((rw.ticketCount || 1) > 1 ? 's' : '');
+    if (rw.rewardType === 'xp_bonus') return '+' + (rw.xpAmount || 50) + ' XP';
+    if (rw.rewardType === 'xp_tickets') {
+        var bits = ['+' + (rw.xpAmount || 50) + ' XP'];
+        if ((rw.ticketCount || 0) > 0) bits.push('+' + rw.ticketCount + ' ticket' + (rw.ticketCount > 1 ? 's' : ''));
+        return bits.join(' and ');
+    }
+    if (rw.rewardType === 'streak_shield') return 'Streak Shield';
+    if (rw.rewardType === 'closet_item') return rw.itemName || 'Closet item';
+    if (rw.rewardType === 'nacho_shoutout') return 'Nacho Shoutout';
+    if (rw.rewardType === 'keys') {
+        var labels = (rw.keyLabels || []).join(', ');
+        return (rw.keyLabels || []).length + ' key' + ((rw.keyLabels || []).length === 1 ? '' : 's') + (labels ? ' (' + labels + ')' : '');
+    }
+    if (rw.rewardType === 'locked_ciphers') {
+        var cl = (rw.cipherLabels || []).join(', ');
+        return (rw.cipherLabels || []).length + ' locked cipher' + ((rw.cipherLabels || []).length === 1 ? '' : 's') + (cl ? ' (' + cl + ')' : '');
+    }
+    if (rw.rewardType === 'sats') {
+        var amt = (rw.satsAmount || 0).toLocaleString();
+        if (rw.satsStatus === 'pending') return amt + ' sats — Phil will pay this one';
+        return amt + ' sats';
+    }
+    return 'Reward';
+}
+
+function _playHex(el, ms) {
+    return new Promise(function(resolve) {
+        if (!el) { setTimeout(resolve, ms); return; }
+        var hex = '0123456789ABCDEF';
+        el.style.animation = 'decryptScan 0.8s ease-in-out infinite';
+        var timer = setInterval(function() {
+            var s = '3045022100';
+            for (var i = 0; i < 32; i++) s += hex[(Math.random() * 16) | 0];
+            el.textContent = s;
+        }, 45);
+        setTimeout(function() {
+            clearInterval(timer);
+            el.style.animation = 'none';
+            resolve();
+        }, ms);
+    });
+}
+
+function _confetti() {
+    var colors = ['#f7931a', '#fbbf24', '#a78bfa', '#34d399', '#f472b6', '#60a5fa'];
+    for (var i = 0; i < 12; i++) {
+        var dot = document.createElement('div');
+        dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:120001;left:' + (15 + Math.random() * 70) + '%;top:' + (8 + Math.random() * 30) + '%;background:' + colors[i % colors.length] + ';animation:decryptConfetti 1.2s ease-out forwards;';
+        document.body.appendChild(dot);
+        setTimeout(function(d) { if (d && d.parentNode) d.parentNode.removeChild(d); }, 1400, dot);
+    }
+}
+
+function _btn(label, bg) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.style.cssText = 'padding:10px 16px;background:' + (bg || 'linear-gradient(135deg,#f7931a,#ea580c)') + ';color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit;';
+    return b;
+}
+
+// ─── After the daily spin ────────────────────────────────────────────────────
 
 window.awardDailyGifts = async function() {
     if (!_isSignedIn()) return;
     _injectGiftingCSS();
+    window._suppressPendingGifts = true;
     try {
         var result = await _callCF('awardDailyGifts', {});
-        var d = result.data;
-        if (!d) return;
-        if (d.alreadyAwarded) return; // silent
-        if (d.giftsAdded > 0 && Array.isArray(d.gifts) && d.gifts.length > 0) {
+        var d = result.data || {};
+        if (d.alreadyAwarded) {
+            window._suppressPendingGifts = false;
+            return;
+        }
+        if (d.giftsAdded > 0 && Array.isArray(d.gifts) && d.gifts.length) {
+            _toast('🎁 ' + d.giftsAdded + ' gifts earned!');
             window.showPostSpinGiftModal(d.gifts);
         }
-    } catch(e) {
+    } catch (e) {
+        window._suppressPendingGifts = false;
         console.warn('[gifting] awardDailyGifts failed:', e.message);
     }
 };
 
-// ─── Post-spin gift modal ─────────────────────────────────────────────────────
-// Shows right after spin. User opens gifts 1-by-1 or all at once.
+window.checkPendingGifts = async function() {
+    if (window._pendingGiftsChecked || window._suppressPendingGifts) return;
+    if (!_isSignedIn() || typeof db === 'undefined') return;
+    window._pendingGiftsChecked = true;
+    try {
+        var snap = await db.collection('gifts')
+            .where('ownerId', '==', _getUid())
+            .where('status', 'in', ['unopened', 'inventory', 'sent'])
+            .limit(40).get();
+        if (window._suppressPendingGifts || document.getElementById('postSpinGiftOverlay')) return;
+        if (snap.empty) return;
+        var gifts = snap.docs.map(function(d) {
+            return { id: d.id, rewardType: (d.data().rewardType || '') };
+        });
+        window.showPostSpinGiftModal(gifts, { pending: true });
+    } catch (e) {
+        console.warn('[gifting] pending gifts:', e.message);
+    }
+};
 
-window.showPostSpinGiftModal = function(gifts) {
+window.showPostSpinGiftModal = function(gifts, opts) {
     _injectGiftingCSS();
+    opts = opts || {};
     var existing = document.getElementById('postSpinGiftOverlay');
     if (existing) existing.remove();
+    window._postSpinGifts = gifts.slice();
+    window._openedGiftRewards = [];
 
     var overlay = document.createElement('div');
     overlay.id = 'postSpinGiftOverlay';
     overlay.className = 'gifting-overlay';
 
+    var modal = document.createElement('div');
+    modal.className = 'gifting-modal';
+
     var count = gifts.length;
-    overlay.innerHTML =
-        '<div class="gifting-modal">' +
-        '<div style="font-size:3rem;margin-bottom:4px;animation:giftBounce 0.6s ease-out;">🎁</div>' +
-        '<div style="color:#f7931a;font-weight:900;font-size:1.25rem;margin-bottom:4px;">You won ' + count + ' gift' + (count > 1 ? 's' : '') + '!</div>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:20px;">Open them to collect your rewards</div>' +
-        '<div id="postSpinGiftList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>' +
-        '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
-        '<button id="openAllGiftsBtn" style="padding:12px 24px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(247,147,26,0.35);">✨ Open All</button>' +
-        '<button onclick="document.getElementById(\'postSpinGiftOverlay\').remove()" style="padding:12px 20px;background:transparent;color:var(--text-muted);border:1px solid var(--border,#333);border-radius:12px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Open Later</button>' +
-        '</div></div>';
+    var title = document.createElement('div');
+    title.innerHTML = '<div style="font-size:2.6rem;animation:giftBounce 0.6s ease-out;">🎁</div>' +
+        '<div style="color:#f7931a;font-weight:900;font-size:1.2rem;margin:4px 0;">' +
+        (opts.pending ? 'You have ' + count + ' gift' + (count > 1 ? 's' : '') + ' to open' : 'You won ' + count + ' gift' + (count > 1 ? 's' : '') + '!') +
+        '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Open them now — gifts are not saved for later.</div>';
+    modal.appendChild(title);
 
-    document.body.appendChild(overlay);
+    var stage = document.createElement('div');
+    stage.id = 'giftAnimStage';
+    stage.style.cssText = 'display:none;font-family:monospace;font-size:0.68rem;color:#f7931a;word-break:break-all;min-height:36px;margin:0 0 10px;padding:8px;background:rgba(247,147,26,0.06);border-radius:8px;';
+    modal.appendChild(stage);
 
-    var listEl = document.getElementById('postSpinGiftList');
+    var list = document.createElement('div');
+    list.id = 'postSpinGiftList';
+    list.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:14px;text-align:left;';
     gifts.forEach(function(g, i) {
         var row = document.createElement('div');
         row.id = 'giftRow_' + g.id;
-        row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;';
-        row.innerHTML =
-            '<span style="font-size:1.6rem;">🎁</span>' +
-            '<div style="flex:1;color:var(--text-muted);font-size:0.85rem;">Gift ' + (i + 1) + '</div>' +
-            '<button onclick="window.openSingleGift(\'' + g.id + '\',\'' + g.rewardType + '\')" style="padding:7px 14px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;">Open 🎁</button>';
-        if (listEl) listEl.appendChild(row);
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;';
+        var icon = document.createElement('span');
+        icon.textContent = '🎁';
+        icon.style.fontSize = '1.4rem';
+        var label = document.createElement('div');
+        label.style.cssText = 'flex:1;color:var(--text-muted);font-size:0.85rem;';
+        label.textContent = 'Gift ' + (i + 1);
+        var btn = _btn('Open');
+        btn.style.padding = '7px 14px';
+        btn.style.fontSize = '0.8rem';
+        btn.onclick = function() { window.openSingleGift(g.id); };
+        row.appendChild(icon);
+        row.appendChild(label);
+        row.appendChild(btn);
+        list.appendChild(row);
     });
+    modal.appendChild(list);
 
-    // Open all button
-    var openAllBtn = document.getElementById('openAllGiftsBtn');
-    if (openAllBtn) {
-        openAllBtn.onclick = async function() {
-            openAllBtn.disabled = true;
-            openAllBtn.textContent = 'Opening...';
-            var summary = { tickets: 0, xp: 0, keys: [], ciphers: [], shields: 0, closet: [], nacho: 0 };
-            for (var i = 0; i < gifts.length; i++) {
-                var g = gifts[i];
-                var row = document.getElementById('giftRow_' + g.id);
-                if (row) row.style.opacity = '0.5';
-                try {
-                    var res = await _callCF('openGift', { giftId: g.id });
-                    var rw = res.data && res.data.reward ? res.data.reward : { rewardType: 'tickets', ticketCount: 1 };
-                    if (row) {
-                        row.innerHTML = '<span style="font-size:1.2rem;">' + _rewardEmoji(rw) + '</span><div style="flex:1;font-size:0.82rem;color:var(--text);">' + _rewardLabel(rw) + '</div><span style="color:#34d399;font-size:0.8rem;font-weight:700;">✓</span>';
-                        row.style.opacity = '1';
-                        row.style.borderColor = 'rgba(52,211,153,0.3)';
-                        row.style.background = 'rgba(52,211,153,0.05)';
-                    }
-                    _accumulateReward(summary, rw);
-                } catch(e) {
-                    if (row) { row.style.opacity = '1'; }
-                }
-                await new Promise(function(r) { setTimeout(r, 180); });
-            }
-            openAllBtn.textContent = '🎉 All opened!';
-            openAllBtn.style.background = '#34d399';
-            openAllBtn.onclick = null;
-            // Show summary toast
-            var parts = [];
-            if (summary.tickets > 0)  parts.push('+' + summary.tickets + ' 🎫');
-            if (summary.xp > 0)       parts.push('+' + summary.xp + ' XP');
-            if (summary.keys.length)  parts.push(summary.keys.length + ' 🔑 key' + (summary.keys.length > 1 ? 's' : ''));
-            if (summary.ciphers.length) parts.push(summary.ciphers.length + ' 🔒 cipher' + (summary.ciphers.length > 1 ? 's' : ''));
-            if (summary.shields > 0)  parts.push(summary.shields + ' 🛡️');
-            if (typeof showToast === 'function' && parts.length)
-                showToast('🎁 Gifts opened! ' + parts.join(' · '), 4000);
-            // Refresh keys/ciphers tabs if visible
-            setTimeout(function() {
-                if (typeof window.renderKeysTab === 'function')    window.renderKeysTab('keysTabContent');
-                if (typeof window.renderCiphersTab === 'function') window.renderCiphersTab('ciphersTabContent');
-            }, 500);
-        };
-    }
+    var follow = document.createElement('div');
+    follow.id = 'giftFollowUp';
+    follow.style.marginBottom = '12px';
+    modal.appendChild(follow);
+
+    var actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;';
+    var openAll = _btn('Open all');
+    openAll.id = 'openAllGiftsBtn';
+    openAll.onclick = function() { window.openAllPostSpinGifts(); };
+    var later = _btn(opts.pending ? 'Not now' : 'Close', 'transparent');
+    later.style.border = '1px solid var(--border,#333)';
+    later.style.color = 'var(--text-muted)';
+    later.onclick = function() {
+        overlay.remove();
+        if (opts.pending) window._suppressPendingGifts = true;
+    };
+    actions.appendChild(openAll);
+    actions.appendChild(later);
+    modal.appendChild(actions);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
 };
 
-function _rewardEmoji(rw) {
-    if (rw.rewardType === 'tickets')       return '🎫';
-    if (rw.rewardType === 'xp_bonus')      return '⭐';
-    if (rw.rewardType === 'streak_shield') return '🛡️';
-    if (rw.rewardType === 'closet_item')   return rw.itemEmoji || '👑';
-    if (rw.rewardType === 'nacho_shoutout') return '🦌';
-    if (rw.rewardType === 'keys')          return '🔑';
-    if (rw.rewardType === 'locked_ciphers') return '🔒';
-    return '🎁';
-}
-
-function _rewardLabel(rw) {
-    if (rw.rewardType === 'tickets')       return '+' + (rw.ticketCount || 1) + ' Orange Ticket' + ((rw.ticketCount || 1) > 1 ? 's' : '');
-    if (rw.rewardType === 'xp_bonus')      return '+' + (rw.xpAmount || 50) + ' XP Bonus';
-    if (rw.rewardType === 'streak_shield') return 'Streak Shield';
-    if (rw.rewardType === 'closet_item')   return rw.itemName || 'Rare Closet Item';
-    if (rw.rewardType === 'nacho_shoutout') return 'Nacho Shoutout! 🦌';
-    if (rw.rewardType === 'keys') {
-        var labels = (rw.keyLabels || []).join(', ');
-        return (rw.keyLabels || []).length + ' Key' + ((rw.keyLabels || []).length > 1 ? 's' : '') + (labels ? ': ' + labels : '');
+function _markGiftRow(giftId, rw, failed) {
+    var row = document.getElementById('giftRow_' + giftId);
+    if (!row) return;
+    row.innerHTML = '';
+    var icon = document.createElement('span');
+    icon.style.cssText = 'font-size:1.3rem;animation:giftReveal 0.35s ease-out;';
+    icon.textContent = failed ? '⚠️' : _rewardEmoji(rw);
+    var label = document.createElement('div');
+    label.style.cssText = 'flex:1;font-size:0.85rem;font-weight:700;color:var(--text);';
+    label.textContent = failed ? 'Could not open — try again' : _rewardLabel(rw);
+    row.appendChild(icon);
+    row.appendChild(label);
+    row.style.borderColor = failed ? 'rgba(239,68,68,0.35)' : 'rgba(52,211,153,0.35)';
+    row.style.background = failed ? 'rgba(239,68,68,0.05)' : 'rgba(52,211,153,0.06)';
+    if (!failed) {
+        var ok = document.createElement('span');
+        ok.textContent = '✓';
+        ok.style.color = '#34d399';
+        ok.style.fontWeight = '800';
+        row.appendChild(ok);
     }
-    if (rw.rewardType === 'locked_ciphers') {
-        var clabels = (rw.cipherLabels || []).join(', ');
-        return (rw.cipherLabels || []).length + ' Locked Cipher' + ((rw.cipherLabels || []).length > 1 ? 's' : '') + (clabels ? ': ' + clabels : '');
-    }
-    return 'Reward';
 }
 
-function _accumulateReward(summary, rw) {
-    if (rw.rewardType === 'tickets')       summary.tickets += (rw.ticketCount || 1);
-    if (rw.rewardType === 'xp_bonus')      summary.xp += (rw.xpAmount || 50);
-    if (rw.rewardType === 'streak_shield') summary.shields++;
-    if (rw.rewardType === 'closet_item')   summary.closet.push(rw.itemName || '?');
-    if (rw.rewardType === 'nacho_shoutout') summary.nacho++;
-    if (rw.rewardType === 'keys')          summary.keys.push(...(rw.keyLabels || []));
-    if (rw.rewardType === 'locked_ciphers') summary.ciphers.push(...(rw.cipherLabels || []));
+async function _openGiftRequest(giftId) {
+    var res = await _callCF('openGift', { giftId: giftId });
+    var rw = (res.data && res.data.reward) ? res.data.reward : { rewardType: 'tickets', ticketCount: 1 };
+    window._openedGiftRewards.push(rw);
+    return rw;
 }
 
-// ─── Open single gift (with animation) ───────────────────────────────────────
-
-window.openSingleGift = async function(giftId, knownType) {
+window.openSingleGift = async function(giftId) {
     _injectGiftingCSS();
     var row = document.getElementById('giftRow_' + giftId);
     if (row) {
-        var btn = row.querySelector('button');
-        if (btn) { btn.disabled = true; btn.textContent = 'Opening...'; }
+        var old = row.querySelector('button');
+        if (old) { old.disabled = true; old.textContent = 'Opening…'; }
     }
+    var stage = document.getElementById('giftAnimStage');
+    if (stage) {
+        stage.style.display = 'block';
+        stage.textContent = '🔓 Unlocking gift…';
+    }
+    var anim = _playHex(stage, 700);
     try {
-        var res = await _callCF('openGift', { giftId: giftId });
-        var rw = res.data && res.data.reward ? res.data.reward : { rewardType: 'tickets', ticketCount: 1 };
+        var rw = await _openGiftRequest(giftId);
+        await anim;
+        if (stage) stage.style.display = 'none';
+        _markGiftRow(giftId, rw, false);
+        _confetti();
+        _toast('🎁 ' + _rewardLabel(rw));
+        _showGiftFollowUp();
+    } catch (e) {
+        await anim;
+        if (stage) stage.style.display = 'none';
+        _markGiftRow(giftId, null, true);
         if (row) {
-            row.innerHTML = '<span style="font-size:1.4rem;animation:giftReveal 0.4s ease-out;">' + _rewardEmoji(rw) + '</span><div style="flex:1;font-size:0.9rem;font-weight:700;color:var(--text);animation:giftReveal 0.4s ease-out;">' + _rewardLabel(rw) + '</div><span style="color:#34d399;font-weight:700;">✓</span>';
-            row.style.borderColor = 'rgba(52,211,153,0.35)';
-            row.style.background = 'rgba(52,211,153,0.06)';
+            var retry = _btn('Try again');
+            retry.style.padding = '6px 10px';
+            retry.style.fontSize = '0.75rem';
+            retry.onclick = function() { window.openSingleGift(giftId); };
+            row.appendChild(retry);
         }
-        if (typeof showToast === 'function') showToast('🎁 ' + _rewardLabel(rw) + '!', 3000);
-        setTimeout(function() {
-            if (typeof window.renderKeysTab === 'function')    window.renderKeysTab('keysTabContent');
-            if (typeof window.renderCiphersTab === 'function') window.renderCiphersTab('ciphersTabContent');
-        }, 400);
-    } catch(e) {
-        if (row) {
-            var btn2 = row.querySelector('button');
-            if (btn2) { btn2.disabled = false; btn2.textContent = 'Open 🎁'; }
-        }
-        if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Failed to open gift'), 3000);
+        _toast('❌ ' + (e.message || 'Could not open that gift'));
     }
 };
 
-// ─── Load key inventory ───────────────────────────────────────────────────────
+window.openAllPostSpinGifts = async function() {
+    var gifts = window._postSpinGifts || [];
+    var openAll = document.getElementById('openAllGiftsBtn');
+    if (openAll) { openAll.disabled = true; openAll.textContent = 'Opening…'; }
+    var stage = document.getElementById('giftAnimStage');
+    for (var i = 0; i < gifts.length; i++) {
+        var g = gifts[i];
+        var row = document.getElementById('giftRow_' + g.id);
+        if (row && row.querySelector('button') == null && row.textContent.indexOf('✓') !== -1) continue;
+        if (row) row.style.opacity = '0.7';
+        if (stage) { stage.style.display = 'block'; stage.textContent = '🎁'; }
+        var anim = _playHex(stage, 550);
+        try {
+            var rw = await _openGiftRequest(g.id);
+            await anim;
+            _markGiftRow(g.id, rw, false);
+        } catch (e) {
+            await anim;
+            _markGiftRow(g.id, null, true);
+        }
+    }
+    if (stage) stage.style.display = 'none';
+    if (openAll) { openAll.textContent = 'All opened'; openAll.style.background = '#34d399'; }
+    _confetti();
+    _showGiftFollowUp();
+    var summary = _summarize(window._openedGiftRewards || []);
+    if (summary) _toast('🎁 Opened! ' + summary, 4500);
+};
+
+function _summarize(list) {
+    var tickets = 0, xp = 0, keys = 0, ciphers = 0, shields = 0, sats = 0;
+    list.forEach(function(rw) {
+        if (rw.rewardType === 'tickets') tickets += rw.ticketCount || 1;
+        if (rw.rewardType === 'xp_bonus' || rw.rewardType === 'xp_tickets') xp += rw.xpAmount || 0;
+        if (rw.rewardType === 'xp_tickets') tickets += rw.ticketCount || 0;
+        if (rw.rewardType === 'keys') keys += (rw.keyLabels || []).length;
+        if (rw.rewardType === 'locked_ciphers') ciphers += (rw.cipherLabels || []).length;
+        if (rw.rewardType === 'streak_shield') shields++;
+        if (rw.rewardType === 'sats') sats += rw.satsAmount || 0;
+    });
+    var parts = [];
+    if (tickets) parts.push('+' + tickets + ' tickets');
+    if (xp) parts.push('+' + xp + ' XP');
+    if (keys) parts.push(keys + ' key' + (keys > 1 ? 's' : ''));
+    if (ciphers) parts.push(ciphers + ' cipher' + (ciphers > 1 ? 's' : ''));
+    if (shields) parts.push(shields + ' shield' + (shields > 1 ? 's' : ''));
+    if (sats) parts.push(sats + ' sats');
+    return parts.join(' · ');
+}
+
+async function _showGiftFollowUp() {
+    var box = document.getElementById('giftFollowUp');
+    if (!box) return;
+    var rewards = window._openedGiftRewards || [];
+    var keyIds = [];
+    rewards.forEach(function(rw) {
+        (rw.keyIds || []).forEach(function(id) { keyIds.push(id); });
+    });
+    box.innerHTML = '';
+    if (keyIds.length) {
+        var note = document.createElement('div');
+        note.style.cssText = 'font-size:0.8rem;color:var(--text);margin-bottom:8px;';
+        note.textContent = 'You got ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '. Send ' + (keyIds.length > 3 ? 'up to 3 of them' : (keyIds.length > 1 ? 'them' : 'it')) + ' to a peer?';
+        var send = _btn('Send keys to a peer');
+        send.style.width = '100%';
+        send.style.marginBottom = '8px';
+        var ids = keyIds.slice(0, 3);
+        send.onclick = function() { window.showPeerPickerForKeys(ids); };
+        box.appendChild(note);
+        box.appendChild(send);
+    }
+    try {
+        var matches = await _matchingLabels();
+        if (!matches.length) return;
+        matches.forEach(function(m) {
+            var banner = document.createElement('div');
+            banner.style.cssText = 'margin-top:8px;padding:10px;border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.35);text-align:left;';
+            var t = document.createElement('div');
+            t.style.cssText = 'font-weight:800;color:#34d399;font-size:0.85rem;margin-bottom:6px;';
+            t.textContent = 'You have a matching ' + m.label + ' key and cipher. Open it now?';
+            var b = _btn('Open ' + m.label, 'linear-gradient(135deg,#34d399,#10b981)');
+            b.style.width = '100%';
+            b.onclick = function() { window.openCipherWithMatch(m.cipherId, m.label); };
+            banner.appendChild(t);
+            banner.appendChild(b);
+            box.appendChild(banner);
+        });
+    } catch (e) { /* inventory read can fail before rules deploy */ }
+    if (typeof window.renderKeysAndCiphersPanel === 'function') {
+        var host = document.getElementById('nookKeysCiphers');
+        if (host) window.renderKeysAndCiphersPanel(host);
+    }
+}
+
+async function _matchingLabels() {
+    var data = await _loadHoldings();
+    var keyLabels = {};
+    data.ownKeys.concat(data.peerKeys).forEach(function(k) { keyLabels[k.label] = true; });
+    var seen = {};
+    var out = [];
+    data.ciphers.forEach(function(c) {
+        if (keyLabels[c.label] && !seen[c.label]) {
+            seen[c.label] = true;
+            out.push({ label: c.label, cipherId: c.id });
+        }
+    });
+    return out;
+}
+
+// ─── Holdings ────────────────────────────────────────────────────────────────
+
+async function _loadHoldings() {
+    var empty = { ownKeys: [], peerKeys: [], ciphers: [] };
+    if (!_isSignedIn() || typeof db === 'undefined') return empty;
+    var uid = _getUid();
+    try {
+        var snaps = await Promise.all([
+            db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(100).get(),
+            db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').limit(100).get(),
+            db.collection('locked_ciphers').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(200).get(),
+        ]);
+        function map(snap) { return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }); }
+        return { ownKeys: map(snaps[0]), peerKeys: map(snaps[1]), ciphers: map(snaps[2]) };
+    } catch (e) {
+        console.warn('[gifting] holdings:', e.message);
+        return empty;
+    }
+}
 
 window.loadKeyInventory = async function() {
-    if (!_isSignedIn() || typeof db === 'undefined') return { inventory: [], received: [] };
-    var uid = _getUid();
-    try {
-        var invSnap = await db.collection('keys').where('ownerId','==',uid).where('status','==','inventory').orderBy('createdAt','desc').limit(100).get();
-        var recvSnap = await db.collection('keys').where('ownerId','==',uid).where('status','==','sent').orderBy('sentAt','desc').limit(100).get();
-        return {
-            inventory: invSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }),
-            received:  recvSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }),
-        };
-    } catch(e) {
-        console.warn('[gifting] loadKeyInventory error:', e.message);
-        return { inventory: [], received: [] };
-    }
+    var h = await _loadHoldings();
+    return { inventory: h.ownKeys, received: h.peerKeys };
 };
-
-// ─── Load cipher inventory ────────────────────────────────────────────────────
 
 window.loadCipherInventory = async function() {
-    if (!_isSignedIn() || typeof db === 'undefined') return { ciphers: [] };
-    var uid = _getUid();
-    try {
-        var snap = await db.collection('locked_ciphers').where('ownerId','==',uid).where('status','==','inventory').orderBy('createdAt','desc').limit(200).get();
-        return { ciphers: snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }) };
-    } catch(e) {
-        console.warn('[gifting] loadCipherInventory error:', e.message);
-        return { ciphers: [] };
-    }
+    var h = await _loadHoldings();
+    return { ciphers: h.ciphers };
 };
 
-// ─── Render Keys Tab ──────────────────────────────────────────────────────────
+function _group(list) {
+    var g = {};
+    list.forEach(function(item) {
+        var label = item.label || '?';
+        if (!g[label]) g[label] = [];
+        g[label].push(item);
+    });
+    return g;
+}
 
-window.renderKeysTab = async function(containerId) {
-    var el = document.getElementById(containerId);
+function _card(el) {
+    var d = document.createElement('div');
+    d.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:12px;';
+    el.appendChild(d);
+    return d;
+}
+
+window.renderKeysAndCiphersPanel = async function(container) {
+    var el = typeof container === 'string' ? document.getElementById(container) : container;
     if (!el) return;
-    el.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:0.82rem;">Loading keys...</div>';
-    try {
-        var data = await window.loadKeyInventory();
-        var inv  = data.inventory;
-        var recv = data.received;
-        if (!inv.length && !recv.length) {
-            el.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:0.82rem;">No keys yet — open gifts from the daily spin to earn keys! 🎡</div>';
-            return;
-        }
-        var html = '';
-        if (inv.length) {
-            html += '<div style="font-size:0.68rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">🔑 Your Keys — Send to Peers (' + inv.length + ')</div>';
-            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
-            inv.forEach(function(k) {
-                html += '<div style="padding:7px 12px;background:rgba(247,147,26,0.1);border:1.5px solid rgba(247,147,26,0.4);border-radius:8px;font-family:monospace;font-size:0.95rem;font-weight:900;color:#f7931a;letter-spacing:1px;">🔑 ' + _esc(k.label) + '</div>';
-            });
-            html += '</div>';
-        }
-        if (recv.length) {
-            html += '<div style="font-size:0.68rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">📬 Keys Received From Peers (' + recv.length + ')</div>';
-            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">';
-            recv.forEach(function(k) {
-                var sentBy = k.sentByName ? ' from ' + _esc(k.sentByName) : '';
-                html += '<div style="padding:7px 12px;background:rgba(167,139,250,0.1);border:1.5px solid rgba(167,139,250,0.4);border-radius:8px;font-family:monospace;font-size:0.95rem;font-weight:900;color:#a78bfa;letter-spacing:1px;" title="' + sentBy + '">🔑 ' + _esc(k.label) + '</div>';
-            });
-            html += '</div>';
-            html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Use these to decrypt matching ciphers below ⬇️</div>';
-        }
-        el.innerHTML = html;
-    } catch(e) {
-        el.innerHTML = '<div style="color:#ef4444;font-size:0.82rem;padding:10px;">Error loading keys</div>';
-    }
-};
-
-// ─── Render Ciphers Tab ───────────────────────────────────────────────────────
-
-window.renderCiphersTab = async function(containerId) {
-    var el = document.getElementById(containerId);
-    if (!el) return;
-    el.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:0.82rem;">Loading ciphers...</div>';
-    try {
-        var cipherData = await window.loadCipherInventory();
-        var ciphers    = cipherData.ciphers;
-        var keyData    = await window.loadKeyInventory();
-        var recvKeys   = keyData.received; // keys received from peers — usable for decrypting
-
-        if (!ciphers.length) {
-            el.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:0.82rem;">No locked ciphers yet — open gifts to earn them! 🎁<br><span style="font-size:0.72rem;opacity:0.7;margin-top:4px;display:block;">Then ask peers to send you the matching key label to decrypt.</span></div>';
-            return;
-        }
-
-        // Group by label so duplicates are obvious
-        var grouped = {};
-        ciphers.forEach(function(c) {
-            if (!grouped[c.label]) grouped[c.label] = [];
-            grouped[c.label].push(c);
-        });
-
-        var html = '<div style="display:flex;flex-direction:column;gap:8px;">';
-        Object.keys(grouped).sort().forEach(function(label) {
-            var group = grouped[label];
-            // Find a usable received key with this label
-            var matchingKey = null;
-            for (var i = 0; i < recvKeys.length; i++) {
-                if (recvKeys[i].label === label) { matchingKey = recvKeys[i]; break; }
-            }
-            group.forEach(function(c, idx) {
-                var hasKey = matchingKey && idx === 0; // only first cipher can use the key
-                html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:' + (hasKey ? 'rgba(52,211,153,0.06)' : 'rgba(99,102,241,0.06)') + ';border:1px solid ' + (hasKey ? 'rgba(52,211,153,0.3)' : 'rgba(99,102,241,0.2)') + ';border-radius:12px;">' +
-                    '<div style="text-align:center;min-width:44px;">' +
-                    '<div style="font-size:1.5rem;">' + (hasKey ? '🔓' : '🔒') + '</div>' +
-                    '<div style="font-family:monospace;font-size:0.8rem;font-weight:900;color:' + (hasKey ? '#34d399' : '#a78bfa') + ';letter-spacing:1px;margin-top:2px;">' + _esc(label) + '</div>' +
-                    (group.length > 1 && idx === 0 ? '<div style="font-size:0.6rem;color:var(--text-faint);">×' + group.length + '</div>' : '') +
-                    '</div>' +
-                    '<div style="flex:1;min-width:0;">' +
-                    (hasKey
-                        ? '<div style="font-size:0.82rem;font-weight:700;color:#34d399;">✅ Matching key ready!</div><div style="font-size:0.7rem;color:var(--text-faint);">From ' + _esc(matchingKey.sentByName || 'a peer') + '</div>'
-                        : '<div style="font-size:0.82rem;font-weight:700;color:var(--text);">Needs a <span style="font-family:monospace;color:#a78bfa;">' + _esc(label) + '</span> key</div><div style="font-size:0.7rem;color:var(--text-faint);">Ask in chat for a ' + _esc(label) + ' key 💬</div>'
-                    ) +
-                    '</div>' +
-                    (hasKey
-                        ? '<button onclick="window.decryptCipherModal(\'' + c.id + '\',\'' + _esc(label) + '\')" style="padding:8px 14px;background:linear-gradient(135deg,#34d399,#10b981);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;">🔓 Decrypt</button>'
-                        : '<button onclick="navigator.clipboard&&navigator.clipboard.writeText(\'Anyone have a ' + _esc(label) + ' key? I need one to decrypt my cipher!\').then(function(){if(typeof showToast===\'function\')showToast(\'📋 Message copied! Paste in chat\',2500);})" style="padding:8px 12px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:#a78bfa;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Copy ask</button>'
-                    ) +
-                    '</div>';
-                if (group.length > 1 && idx === 0) {
-                    // Skip rendering duplicates — they show as ×N
-                    for (var j = 1; j < group.length; j++) { /* skip */ }
-                }
-            });
-            // Only render first of each group (duplicates shown as ×N)
-            grouped[label] = [group[0]];
-        });
-        html += '</div>';
-        html += '<div style="margin-top:10px;font-size:0.7rem;color:var(--text-faint);text-align:center;">21 decrypts per day max. Each decrypt uses one peer-sent key.</div>';
-        el.innerHTML = html;
-    } catch(e) {
-        el.innerHTML = '<div style="color:#ef4444;font-size:0.82rem;padding:10px;">Error loading ciphers</div>';
-    }
-};
-
-// ─── Decrypt Cipher Modal ─────────────────────────────────────────────────────
-// ECDSA animation → reveal big reward. Wrong label → send-back option.
-
-window.decryptCipherModal = async function(cipherId, cipherLabel) {
-    if (!_isSignedIn()) { if (typeof showToast === 'function') showToast('🔐 Sign in to decrypt'); return; }
     _injectGiftingCSS();
-
-    // Find matching peer-sent key
-    var uid = _getUid();
-    var matchingKey = null;
-    try {
-        var keySnap = await db.collection('keys')
-            .where('ownerId','==',uid)
-            .where('status','==','sent')
-            .where('label','==',cipherLabel)
-            .limit(1).get();
-        if (!keySnap.empty) matchingKey = Object.assign({ id: keySnap.docs[0].id }, keySnap.docs[0].data());
-    } catch(e) { console.warn('[gifting] key lookup error:', e.message); }
-
-    if (!matchingKey) {
-        if (typeof showToast === 'function')
-            showToast('🔑 No matching ' + cipherLabel + ' key found. Ask a peer in chat!', 4500);
+    el.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:0.8rem;">Loading keys and ciphers…</div>';
+    if (!_isSignedIn()) {
+        el.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:0.8rem;">Sign in to see keys and locked ciphers.</div>';
         return;
     }
+    var data = await _loadHoldings();
+    el.innerHTML = '';
 
-    var existing = document.getElementById('decryptCipherOverlay');
-    if (existing) existing.remove();
+    var heading = document.createElement('div');
+    heading.style.cssText = 'font-size:0.72rem;font-weight:800;color:#f7931a;letter-spacing:0.08em;text-transform:uppercase;margin:4px 0 8px;';
+    heading.textContent = 'Locked ciphers';
+    el.appendChild(heading);
 
+    var cipherGroups = _group(data.ciphers);
+    var ownGroups = _group(data.ownKeys);
+    var peerGroups = _group(data.peerKeys);
+    var labels = Object.keys(cipherGroups).sort();
+
+    if (!labels.length) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'padding:12px;border:1px dashed var(--border,#333);border-radius:12px;color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;';
+        empty.textContent = 'No locked ciphers yet. Spin the daily wheel and open your gifts — some gifts contain ciphers.';
+        el.appendChild(empty);
+    }
+
+    labels.forEach(function(label) {
+        var group = cipherGroups[label];
+        var peerKey = (peerGroups[label] || [])[0] || null;
+        var ownKey = (ownGroups[label] || [])[0] || null;
+        var match = peerKey || ownKey;
+        var card = _card(el);
+        card.style.marginBottom = '8px';
+        card.style.borderColor = match ? 'rgba(52,211,153,0.45)' : 'var(--border,#333)';
+        var icon = document.createElement('div');
+        icon.style.textAlign = 'center';
+        icon.innerHTML = '<div style="font-size:1.4rem;">' + (match ? '🔓' : '🔒') + '</div><div style="font-family:monospace;font-weight:900;color:' + (match ? '#34d399' : '#a78bfa') + ';">' + _esc(label) + '</div>';
+        var mid = document.createElement('div');
+        mid.style.cssText = 'flex:1;min-width:0;';
+        var title = document.createElement('div');
+        title.style.cssText = 'font-weight:800;font-size:0.88rem;color:var(--heading,#fff);';
+        title.textContent = '× ' + group.length;
+        var sub = document.createElement('div');
+        sub.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-top:2px;';
+        if (peerKey) sub.textContent = 'Matching key from ' + (peerKey.sentByName || 'a peer') + '.';
+        else if (ownKey) sub.textContent = 'You have your own ' + label + ' key. You can open this.';
+        else sub.textContent = 'Needs a ' + label + ' key from you or a peer.';
+        mid.appendChild(title);
+        mid.appendChild(sub);
+        card.appendChild(icon);
+        card.appendChild(mid);
+        if (match) {
+            var open = _btn('Open', 'linear-gradient(135deg,#34d399,#10b981)');
+            open.className = 'cipher-open-btn';
+            open.onclick = function() { window.openCipherWithMatch(group[0].id, label); };
+            card.appendChild(open);
+        }
+    });
+
+    var keyHead = document.createElement('div');
+    keyHead.style.cssText = 'font-size:0.72rem;font-weight:800;color:#f7931a;letter-spacing:0.08em;text-transform:uppercase;margin:14px 0 8px;';
+    keyHead.textContent = 'Your keys — send to peers';
+    el.appendChild(keyHead);
+
+    var ownLabels = Object.keys(ownGroups).sort();
+    if (!ownLabels.length) {
+        var noKeys = document.createElement('div');
+        noKeys.style.cssText = 'padding:12px;border:1px dashed var(--border,#333);border-radius:12px;color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;';
+        noKeys.textContent = 'No keys waiting to send. Open gifts from the daily wheel to earn some.';
+        el.appendChild(noKeys);
+    }
+    ownLabels.forEach(function(label) {
+        var group = ownGroups[label];
+        var card = _card(el);
+        card.style.marginBottom = '8px';
+        var lab = document.createElement('div');
+        lab.style.cssText = 'font-family:monospace;font-weight:900;font-size:1.05rem;color:#f7931a;min-width:52px;';
+        lab.textContent = '🔑 ' + label;
+        var qty = document.createElement('div');
+        qty.style.cssText = 'flex:1;font-size:0.85rem;font-weight:700;';
+        qty.textContent = '× ' + group.length;
+        var send = _btn('Send');
+        send.className = 'key-send-btn';
+        var ids = group.slice(0, 3).map(function(k) { return k.id; });
+        send.onclick = function() { window.showPeerPickerForKeys(ids); };
+        card.appendChild(lab);
+        card.appendChild(qty);
+        card.appendChild(send);
+    });
+    var hint = document.createElement('div');
+    hint.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin:2px 0 8px;';
+    hint.textContent = 'Up to 3 keys per peer each day. You can send to as many peers as you like.';
+    el.appendChild(hint);
+
+    var recvHead = document.createElement('div');
+    recvHead.style.cssText = 'font-size:0.72rem;font-weight:800;color:#a78bfa;letter-spacing:0.08em;text-transform:uppercase;margin:12px 0 8px;';
+    recvHead.textContent = 'Keys from peers';
+    el.appendChild(recvHead);
+    if (!data.peerKeys.length) {
+        var noRecv = document.createElement('div');
+        noRecv.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;';
+        noRecv.textContent = 'When a peer sends you a key, it shows up here.';
+        el.appendChild(noRecv);
+    }
+    data.peerKeys.forEach(function(k) {
+        var card = _card(el);
+        card.style.marginBottom = '8px';
+        var lab = document.createElement('div');
+        lab.style.cssText = 'font-family:monospace;font-weight:900;color:#a78bfa;';
+        lab.textContent = '🔑 ' + (k.label || '');
+        var from = document.createElement('div');
+        from.style.cssText = 'flex:1;font-size:0.78rem;color:var(--text-muted);';
+        from.textContent = 'from ' + (k.sentByName || 'a peer');
+        card.appendChild(lab);
+        card.appendChild(from);
+        if ((cipherGroups[k.label] || []).length) {
+            var open = _btn('Open ' + k.label, 'linear-gradient(135deg,#34d399,#10b981)');
+            open.onclick = function() { window.openCipherWithMatch(cipherGroups[k.label][0].id, k.label); };
+            card.appendChild(open);
+        }
+    });
+
+    var winsHost = document.createElement('div');
+    winsHost.id = 'nookCipherWins';
+    winsHost.style.marginTop = '12px';
+    el.appendChild(winsHost);
+    _renderMyWins(winsHost);
+
+    var cap = document.createElement('div');
+    cap.style.cssText = 'font-size:0.72rem;color:var(--text-faint);text-align:center;margin-top:8px;';
+    cap.textContent = 'You can open up to ' + CIPHER_OPENS_PER_DAY + ' ciphers per day.';
+    el.appendChild(cap);
+};
+
+window.renderKeysTab = function(containerId) { return window.renderKeysAndCiphersPanel(containerId); };
+window.renderCiphersTab = window.renderKeysTab;
+
+async function _renderMyWins(el) {
+    try {
+        var res = await _callCF('listMyCipherWins', {});
+        var wins = (res.data && res.data.wins) || [];
+        var open = wins.filter(function(w) { return w.status === 'claimable' || w.status === 'pending' || w.status === 'paying'; });
+        if (!open.length) { el.innerHTML = ''; return; }
+        el.innerHTML = '';
+        var h = document.createElement('div');
+        h.style.cssText = 'font-size:0.72rem;font-weight:800;color:#f7931a;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;';
+        h.textContent = 'Sats from ciphers';
+        el.appendChild(h);
+        open.forEach(function(w) {
+            var card = _card(el);
+            card.style.marginBottom = '8px';
+            var mid = document.createElement('div');
+            mid.style.flex = '1';
+            var t = document.createElement('div');
+            t.style.cssText = 'font-weight:800;font-size:0.88rem;';
+            t.textContent = (w.amount || 0).toLocaleString() + ' sats';
+            var s = document.createElement('div');
+            s.style.cssText = 'font-size:0.72rem;color:var(--text-muted);';
+            if (w.status === 'claimable') s.textContent = 'Cipher ' + (w.cipherLabel || '') + ' — ready to claim';
+            else if (w.status === 'paying') s.textContent = 'Payment in progress';
+            else s.textContent = 'Cipher ' + (w.cipherLabel || '') + ' — Phil pays prizes of 1,000 sats and up';
+            mid.appendChild(t);
+            mid.appendChild(s);
+            card.appendChild(mid);
+            if (w.status === 'claimable') {
+                var b = _btn('Claim');
+                b.onclick = function() { window.showCipherClaim(w); };
+                card.appendChild(b);
+            }
+        });
+    } catch (e) { el.innerHTML = ''; }
+}
+
+// ─── Open a cipher ───────────────────────────────────────────────────────────
+
+async function _findKeyForLabel(label) {
+    var uid = _getUid();
+    var peer = await db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').where('label', '==', label).limit(1).get();
+    if (!peer.empty) return Object.assign({ id: peer.docs[0].id }, peer.docs[0].data());
+    var own = await db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').where('label', '==', label).limit(1).get();
+    if (!own.empty) return Object.assign({ id: own.docs[0].id }, own.docs[0].data());
+    return null;
+}
+
+window.openCipherWithMatch = async function(cipherId, label) {
+    if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
+    _injectGiftingCSS();
+    var key = null;
+    try { key = await _findKeyForLabel(label); } catch (e) { _toast('Could not look up a matching key'); return; }
+    if (!key) { _toast('You need a ' + label + ' key to open this cipher'); return; }
+    window.decryptCipherModal(cipherId, label, key);
+};
+
+window.decryptCipherModal = async function(cipherId, cipherLabel, knownKey) {
+    if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
+    _injectGiftingCSS();
+    var key = knownKey || null;
+    if (!key) {
+        try { key = await _findKeyForLabel(cipherLabel); } catch (e) { key = null; }
+    }
+    if (!key) { _toast('No matching ' + cipherLabel + ' key'); return; }
+
+    var old = document.getElementById('decryptCipherOverlay');
+    if (old) old.remove();
     var overlay = document.createElement('div');
     overlay.id = 'decryptCipherOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.innerHTML =
-        '<div class="gifting-modal">' +
-        '<div id="dcLabelDisplay" style="font-family:monospace;font-size:2.8rem;font-weight:900;color:#a78bfa;letter-spacing:4px;margin-bottom:6px;">🔒 ' + _esc(cipherLabel) + '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:16px;">Applying key <span style="font-family:monospace;color:#f7931a;font-weight:700;">' + _esc(cipherLabel) + '</span></div>' +
-        '<div id="dcHexStream" style="font-family:monospace;font-size:0.72rem;color:#f7931a;word-break:break-all;min-height:52px;margin-bottom:16px;padding:10px;background:rgba(247,147,26,0.05);border-radius:8px;letter-spacing:1px;line-height:1.6;animation:decryptScan 1s ease-in-out infinite;"></div>' +
-        '<div id="dcStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;min-height:22px;"></div>' +
-        '<div id="dcResult" style="display:none;"></div>' +
-        '</div>';
+    var modal = document.createElement('div');
+    modal.className = 'gifting-modal';
+    var own = key.status === 'inventory';
+    modal.innerHTML =
+        '<div id="dcLabel" style="font-family:monospace;font-size:2.4rem;font-weight:900;color:#a78bfa;letter-spacing:3px;">🔒 ' + _esc(cipherLabel) + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.78rem;margin:6px 0 12px;">' + (own ? 'Using your own ' + _esc(cipherLabel) + ' key' : 'Using the ' + _esc(cipherLabel) + ' key from ' + _esc(key.sentByName || 'a peer')) + '</div>' +
+        '<div id="dcHex" style="font-family:monospace;font-size:0.7rem;color:#f7931a;word-break:break-all;min-height:48px;margin-bottom:12px;padding:10px;background:rgba(247,147,26,0.05);border-radius:8px;"></div>' +
+        '<div id="dcStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Checking the key…</div>' +
+        '<div id="dcResult" style="display:none;"></div>';
+    overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    var hexEl  = document.getElementById('dcHexStream');
-    var statEl = document.getElementById('dcStatus');
+    var hexEl = document.getElementById('dcHex');
+    var statusEl = document.getElementById('dcStatus');
+    var anim = _playHex(hexEl, 1200);
+    var result, err;
+    try { result = await _callCF('decryptCipher', { cipherId: cipherId, keyId: key.id }); }
+    catch (e) { err = e.message || 'Could not open the cipher'; }
+    await anim;
 
-    var hexChars = '0123456789ABCDEF';
-    var streamLen = 48;
-
-    // Phase 1: cycle random hex for 1.5s
-    statEl.textContent = 'Verifying ECDSA signature...';
-    var cycleInterval = setInterval(function() {
-        var str = '3045022100';
-        for (var i = 0; i < streamLen; i++) str += hexChars[Math.floor(Math.random() * 16)];
-        str += '0220' + Array.from({length: 30}, function() { return hexChars[Math.floor(Math.random() * 16)]; }).join('');
-        if (hexEl) hexEl.textContent = str;
-    }, 45);
-
-    await new Promise(function(r) { setTimeout(r, 1500); });
-    clearInterval(cycleInterval);
-
-    // Phase 2: lock in char by char over 0.8s
-    statEl.textContent = 'Signature verified ✓';
-    var finalHash = '3045022100' + Array.from({length: streamLen}, function() { return hexChars[Math.floor(Math.random() * 16)]; }).join('') +
-                    '0220' + Array.from({length: 30}, function() { return hexChars[Math.floor(Math.random() * 16)]; }).join('');
-    for (var ci = 0; ci < finalHash.length; ci++) {
-        var locked = finalHash.slice(0, ci + 1);
-        var remaining = finalHash.slice(ci + 1).split('').map(function() { return hexChars[Math.floor(Math.random() * 16)]; }).join('');
-        if (hexEl) hexEl.textContent = locked + remaining;
-        await new Promise(function(r) { setTimeout(r, 12); });
-    }
-    if (hexEl) { hexEl.textContent = finalHash; hexEl.style.animation = 'none'; hexEl.style.opacity = '1'; }
-
-    statEl.textContent = 'Decrypting cipher...';
-
-    // Phase 3: call CF
-    var result, cfError;
-    try {
-        result = await _callCF('decryptCipher', { cipherId: cipherId, keyId: matchingKey.id });
-    } catch(e) {
-        cfError = e.message || 'Decryption failed';
-    }
-
-    var ov       = document.getElementById('decryptCipherOverlay');
-    if (!ov) return;
-    var resultDiv = ov.querySelector('#dcResult');
-    var statusDiv = ov.querySelector('#dcStatus');
-    var hexDiv    = ov.querySelector('#dcHexStream');
-
-    if (cfError) {
-        if (statusDiv) statusDiv.textContent = '';
-        if (hexDiv)    hexDiv.style.display = 'none';
+    var resultDiv = document.getElementById('dcResult');
+    if (!overlay.parentNode) return;
+    if (statusEl) statusEl.textContent = '';
+    if (hexEl) hexEl.style.display = 'none';
+    if (err) {
         if (resultDiv) {
             resultDiv.style.display = 'block';
-            // Check if it's a label mismatch (shouldn't happen but handle gracefully)
-            var isMismatch = cfError.indexOf('LABEL_MISMATCH') !== -1 || cfError.indexOf('does not match') !== -1;
-            resultDiv.innerHTML = '<div style="animation:wrongKey 0.5s ease-in-out;color:#ef4444;font-size:0.9rem;margin-bottom:14px;">❌ ' + (isMismatch ? 'Wrong key for this cipher!' : _esc(cfError)) + '</div>' +
-                (isMismatch ? '<button onclick="window._sendKeyBack(\'' + matchingKey.id + '\',\'' + _esc(cipherLabel) + '\',\'' + _esc(matchingKey.sentBy || '') + '\',\'' + _esc(matchingKey.sentByName || 'peer') + '\')" style="display:block;width:100%;margin-bottom:8px;padding:10px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">↩️ Send key back to sender</button>' : '') +
-                '<button onclick="document.getElementById(\'decryptCipherOverlay\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Keep key &amp; close</button>';
+            resultDiv.innerHTML = '<div style="color:#ef4444;font-weight:700;margin-bottom:12px;">❌ ' + _esc(err) + '</div>';
+            var close = _btn('Close', 'transparent');
+            close.style.border = '1px solid var(--border,#333)';
+            close.style.color = 'var(--text-muted)';
+            close.style.width = '100%';
+            close.onclick = function() { overlay.remove(); };
+            resultDiv.appendChild(close);
         }
         return;
     }
 
-    // Success!
-    var labelDisp = ov.querySelector('#dcLabelDisplay');
-    if (labelDisp) labelDisp.innerHTML = '🔓 <span style="color:#f7931a;animation:decryptPulse 1.2s ease-in-out 2;">' + _esc(cipherLabel) + '</span>';
-    if (statusDiv) statusDiv.textContent = '';
-    if (hexDiv) { hexDiv.style.animation = 'none'; hexDiv.style.color = '#34d399'; }
-
-    // Decrypt count
-    var decCount = '';
-    try {
-        var uSnap = await db.collection('users').doc(uid).get();
-        if (uSnap.exists) {
-            var cnt = uSnap.data().ciphersDecryptedToday || 1;
-            decCount = '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">' + cnt + ' / 21 decrypts used today</div>';
-        }
-    } catch(e) {}
-
-    var rw = (result && result.data && result.data.reward) ? result.data.reward : { rewardType: 'tickets', ticketCount: 5 };
+    var labelEl = document.getElementById('dcLabel');
+    if (labelEl) labelEl.innerHTML = '🔓 <span style="color:#f7931a;animation:decryptPulse 1.2s ease-in-out 2;">' + _esc(cipherLabel) + '</span>';
+    var rw = (result && result.data && result.data.reward) ? result.data.reward : { rewardType: 'xp_tickets', xpAmount: 50, ticketCount: 0 };
     if (resultDiv) {
         resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div style="animation:decryptReveal 0.45s ease-out;">' + _buildCipherRewardHTML(rw) + decCount + '</div>';
+        resultDiv.style.animation = 'decryptReveal 0.4s ease-out';
+        var emoji = document.createElement('div');
+        emoji.style.cssText = 'font-size:2.4rem;margin-bottom:6px;';
+        emoji.textContent = _rewardEmoji(rw);
+        var line = document.createElement('div');
+        line.style.cssText = 'color:#f7931a;font-weight:900;font-size:1.2rem;';
+        line.textContent = _rewardLabel(rw);
+        resultDiv.appendChild(emoji);
+        resultDiv.appendChild(line);
+        if (rw.opensToday) {
+            var used = document.createElement('div');
+            used.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin-top:6px;';
+            used.textContent = rw.opensToday + ' / ' + (rw.opensMax || CIPHER_OPENS_PER_DAY) + ' ciphers opened today';
+            resultDiv.appendChild(used);
+        }
+        if (rw.rewardType === 'sats' && rw.satsStatus === 'claimable' && rw.winId) {
+            var claim = _btn('Claim ' + (rw.satsAmount || '') + ' sats');
+            claim.style.width = '100%';
+            claim.style.marginTop = '12px';
+            claim.onclick = function() { window.showCipherClaim({ id: rw.winId, amount: rw.satsAmount, cipherLabel: cipherLabel, status: 'claimable' }); };
+            resultDiv.appendChild(claim);
+        }
+        var done = _btn('Nice!');
+        done.style.width = '100%';
+        done.style.marginTop = '10px';
+        done.onclick = function() { overlay.remove(); };
+        resultDiv.appendChild(done);
     }
-
-    // Confetti
-    var colors = ['#f7931a','#fbbf24','#a78bfa','#34d399','#f472b6','#60a5fa'];
-    for (var fi = 0; fi < 14; fi++) {
-        var dot = document.createElement('div');
-        dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:120001;left:' + (20 + 60 * Math.random()) + '%;top:' + (5 + 25 * Math.random()) + '%;background:' + colors[fi % colors.length] + ';animation:decryptConfetti 1.3s ease-out ' + (0.05 * Math.random()) + 's forwards;';
-        document.body.appendChild(dot);
-        setTimeout(function(d) { if (d && d.parentNode) d.parentNode.removeChild(d); }, 1500, dot);
-    }
-
-    if (typeof showToast === 'function') {
-        var toastMsg = '🔓 Cipher cracked! ' + _rewardLabel(rw) + ' 🎉';
-        showToast(toastMsg, 4000);
-    }
-
-    // Refresh cipher + key display
-    setTimeout(function() {
-        if (typeof window.renderKeysTab === 'function')    window.renderKeysTab('keysTabContent');
-        if (typeof window.renderCiphersTab === 'function') window.renderCiphersTab('ciphersTabContent');
-    }, 600);
+    _confetti();
+    _toast('🔓 Cipher ' + cipherLabel + ' opened! ' + _rewardLabel(rw));
+    var host = document.getElementById('nookKeysCiphers');
+    if (host) window.renderKeysAndCiphersPanel(host);
 };
 
-function _buildCipherRewardHTML(rw) {
-    var closeBtn = '<button onclick="document.getElementById(\'decryptCipherOverlay\').remove()" style="margin-top:12px;padding:12px 28px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(247,147,26,0.4);">';
-    if (rw.rewardType === 'tickets') {
-        return '<div style="font-size:2.4rem;margin-bottom:8px;">🎫</div>' +
-            '<div style="color:#f7931a;font-weight:900;font-size:1.3rem;">+' + (rw.ticketCount || 5) + ' Orange Tickets!</div>' +
-            '<div style="color:var(--text-muted);font-size:0.78rem;margin:4px 0 0;">Your cipher held secrets 🧡</div>' +
-            closeBtn + 'Collect! ✓</button>';
-    } else if (rw.rewardType === 'xp_bonus') {
-        return '<div style="font-size:2.4rem;margin-bottom:8px;">⭐</div>' +
-            '<div style="color:#fbbf24;font-weight:900;font-size:1.3rem;">+' + (rw.xpAmount || 250) + ' XP!</div>' +
-            '<div style="color:var(--text-muted);font-size:0.78rem;margin:4px 0 0;">Big brain energy 🧠</div>' +
-            closeBtn + 'Collect! ✓</button>';
-    } else if (rw.rewardType === 'closet_item') {
-        return '<div style="font-size:2.4rem;margin-bottom:8px;">' + (rw.itemEmoji || '👑') + '</div>' +
-            '<div style="color:#a78bfa;font-weight:900;font-size:1.2rem;">' + _esc(rw.itemName || 'Rare Item') + '!</div>' +
-            '<div style="color:var(--text-muted);font-size:0.78rem;margin:4px 0 0;">Ultra rare closet drop 🎁</div>' +
-            closeBtn + 'Collect! ✓</button>';
-    } else if (rw.rewardType === 'nacho_shoutout') {
-        return '<div style="font-size:2.4rem;margin-bottom:8px;">🦌</div>' +
-            '<div style="color:#f7931a;font-weight:900;font-size:1.2rem;">Nacho Shoutout!</div>' +
-            '<div style="color:var(--text-muted);font-size:0.78rem;margin:4px 0 0;">Ultra rare — Nacho is posting about you! 🦌⚡</div>' +
-            closeBtn + '🦌 ✓</button>';
-    }
-    return '<div style="color:#f7931a;font-weight:700;margin-bottom:12px;">🔓 Cipher decrypted!</div>' + closeBtn + 'Close</button>';
-}
+// ─── Claim a small sats win ──────────────────────────────────────────────────
 
-// ─── Send key back (no daily limit) ──────────────────────────────────────────
-
-window._sendKeyBack = async function(keyId, keyLabel, recipientUid, recipientName) {
-    if (!recipientUid) {
-        if (typeof showToast === 'function') showToast('❌ Cannot find original sender to return key', 3000);
-        return;
-    }
-    var btn = event && event.target ? event.target : null;
-    if (btn) { btn.disabled = true; btn.textContent = 'Sending back...'; }
-    try {
-        await _callCF('sendKeys', { keyIds: [keyId], recipientUid: recipientUid, bypassDailyLimit: true });
-        if (typeof showToast === 'function')
-            showToast('↩️ Key ' + keyLabel + ' sent back to ' + (recipientName || 'sender') + '!', 3000);
-        var ov = document.getElementById('decryptCipherOverlay');
-        if (ov) ov.remove();
-    } catch(e) {
-        if (btn) { btn.disabled = false; btn.textContent = '↩️ Send key back to sender'; }
-        if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Failed to send back'), 3000);
-    }
-};
-
-// ─── Key picker for sending to a peer ────────────────────────────────────────
-
-window.showKeyPickerForPeer = async function(recipientUid, recipientName, onDone) {
-    if (!_isSignedIn()) { if (typeof showToast === 'function') showToast('🔐 Sign in to send keys'); return; }
+window.showCipherClaim = function(win) {
     _injectGiftingCSS();
-
-    // ── Peer check ─────────────────────────────────────────────────────────
-    var isPeer = (typeof window._myPeers !== 'undefined' && window._myPeers instanceof Set)
-        ? window._myPeers.has(recipientUid)
-        : ((typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.peers))
-            ? currentUser.peers.indexOf(recipientUid) !== -1
-            : false);
-
-    if (!isPeer) {
-        // Show not-peers toast with an Add Peer button
-        var toastContainer = document.createElement('div');
-        toastContainer.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:130000;background:#1e293b;border:1px solid rgba(247,147,26,0.4);border-radius:14px;padding:14px 18px;max-width:320px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
-        toastContainer.innerHTML =
-            '<div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:8px;">🧡 Not peers yet!</div>' +
-            '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;">You need to be peers with ' + _esc(recipientName || 'this user') + ' before you can send keys.</div>' +
-            '<div style="display:flex;gap:8px;justify-content:center;">' +
-            '<button onclick="if(typeof window.managePeer===\'function\'){window.managePeer(\'add\',\''+recipientUid+'\').then(function(){if(typeof showToast===\'function\')showToast(\'🧡 Peer request sent!\',3000);});} this.closest(\'[style*=position]\').remove()" style="padding:8px 16px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:9px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Add Peer 🧡</button>' +
-            '<button onclick="this.closest(\'[style*=position]\').remove()" style="padding:8px 14px;background:none;border:1px solid var(--border,#333);color:var(--text-muted);border-radius:9px;font-size:0.85rem;cursor:pointer;font-family:inherit;">Close</button>' +
-            '</div>';
-        document.body.appendChild(toastContainer);
-        setTimeout(function() { if (toastContainer.parentNode) toastContainer.parentNode.removeChild(toastContainer); }, 6000);
-        return;
-    }
-
-    var existing = document.getElementById('keyPickerOverlay');
-    if (existing) existing.remove();
-
+    var old = document.getElementById('cipherClaimOverlay');
+    if (old) old.remove();
     var overlay = document.createElement('div');
-    overlay.id = 'keyPickerOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:110000;display:flex;align-items:flex-end;justify-content:center;padding:0;';
-    overlay.innerHTML =
-        '<div style="background:var(--card-bg,#0f172a);border:1px solid var(--border,#1e293b);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
-        '<div style="color:#f7931a;font-weight:800;font-size:1.05rem;">🔑 Send Keys to ' + _esc(recipientName || 'peer') + '</div>' +
-        '<button onclick="document.getElementById(\'keyPickerOverlay\').remove()" style="background:none;border:1px solid var(--border,#333);color:var(--text-muted);width:28px;height:28px;border-radius:6px;font-size:0.9rem;cursor:pointer;">✕</button>' +
-        '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:14px;">Select up to 3 keys. They can use them to decrypt their ciphers.</div>' +
-        '<div id="kpDailyStatus" style="margin-bottom:10px;"></div>' +
-        '<div id="kpKeyList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;min-height:40px;"><div style="color:var(--text-muted);font-size:0.85rem;">Loading...</div></div>' +
-        '<div id="kpSelCount" style="font-size:0.75rem;color:var(--text-faint);margin-bottom:10px;"></div>' +
-        '<button id="kpSendBtn" disabled style="width:100%;padding:13px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;opacity:0.35;">Send Keys 🔑</button>' +
-        '</div>';
-    document.body.appendChild(overlay);
-
-    var today = new Date().toISOString().slice(0, 10);
-    var uid   = _getUid();
-
-    // Check daily limit
-    try {
-        var pairSnap = await db.collection('key_send_pairs').doc(uid + '_' + recipientUid + '_' + today).get();
-        var statusEl = document.getElementById('kpDailyStatus');
-        if (statusEl) {
-            statusEl.innerHTML = pairSnap.exists
-                ? '<div style="padding:9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;color:#ef4444;font-size:0.78rem;font-weight:700;">⏰ Already sent keys to this peer today. Come back tomorrow!</div>'
-                : '<div style="padding:7px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:8px;color:#34d399;font-size:0.75rem;">✅ 1 send available today</div>';
-            if (pairSnap.exists) {
-                var sb = document.getElementById('kpSendBtn');
-                if (sb) { sb.disabled = true; sb.style.opacity = '0.25'; sb.textContent = 'Already sent today'; }
-                document.getElementById('kpKeyList').innerHTML = '';
+    overlay.id = 'cipherClaimOverlay';
+    overlay.className = 'gifting-overlay';
+    var modal = document.createElement('div');
+    modal.className = 'gifting-modal';
+    modal.style.textAlign = 'left';
+    var title = document.createElement('div');
+    title.style.cssText = 'font-weight:900;color:#f7931a;font-size:1.05rem;margin-bottom:6px;text-align:center;';
+    title.textContent = 'Claim ' + (win.amount || 0).toLocaleString() + ' sats';
+    var help = document.createElement('div');
+    help.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;text-align:center;';
+    help.textContent = 'Paste a Lightning invoice for exactly this amount, or type a Lightning Address (name@wallet).';
+    var input = document.createElement('textarea');
+    input.id = 'cipherClaimInput';
+    input.rows = 3;
+    input.placeholder = 'lnbc… invoice   or   you@walletofsatoshi.com';
+    input.style.cssText = 'width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--border,#333);background:var(--input-bg,#111);color:var(--text,#fff);font-family:inherit;font-size:0.85rem;margin-bottom:10px;';
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;';
+    var go = _btn('Pay me');
+    go.style.flex = '1';
+    var cancel = _btn('Cancel', 'transparent');
+    cancel.style.border = '1px solid var(--border,#333)';
+    cancel.style.color = 'var(--text-muted)';
+    cancel.onclick = function() { overlay.remove(); };
+    go.onclick = async function() {
+        var raw = (input.value || '').trim();
+        if (!raw) { _toast('Paste an invoice or Lightning Address'); return; }
+        go.disabled = true;
+        go.textContent = 'Paying…';
+        var payload = { winId: win.id };
+        if (raw.toLowerCase().indexOf('lnbc') === 0) payload.invoice = raw;
+        else payload.lightningAddress = raw;
+        try {
+            var res = await _callCF('claimCipherWin', payload);
+            var d = res.data || {};
+            if (!d.success) {
+                go.disabled = false;
+                go.textContent = 'Pay me';
+                _toast('❌ ' + (d.error || 'Payment failed'));
                 return;
             }
+            overlay.remove();
+            _toast('⚡ ' + (d.amount || win.amount) + ' sats sent!');
+            var host = document.getElementById('nookKeysCiphers');
+            if (host) window.renderKeysAndCiphersPanel(host);
+        } catch (e) {
+            go.disabled = false;
+            go.textContent = 'Pay me';
+            _toast('❌ ' + (e.message || 'Payment failed'));
         }
-    } catch(e) {}
-
-    var data = await window.loadKeyInventory();
-    var keys = data.inventory;
-    var listDiv = document.getElementById('kpKeyList');
-    if (!listDiv) return;
-
-    if (!keys.length) {
-        listDiv.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:10px;">No keys in inventory. Open gifts from the daily spin first! 🎡</div>';
-        return;
-    }
-
-    var selected = [];
-
-    function _renderChips() {
-        listDiv.innerHTML = '';
-        keys.forEach(function(k) {
-            var isSel = selected.indexOf(k.id) !== -1;
-            var chip  = document.createElement('button');
-            chip.style.cssText = 'padding:10px 16px;font-family:monospace;font-size:1rem;font-weight:900;letter-spacing:1px;border-radius:10px;cursor:pointer;transition:0.15s;border:2px solid ' + (isSel ? '#f7931a' : 'rgba(247,147,26,0.3)') + ';background:' + (isSel ? 'rgba(247,147,26,0.2)' : 'rgba(247,147,26,0.05)') + ';color:' + (isSel ? '#f7931a' : 'var(--text-muted)') + ';';
-            chip.textContent = (isSel ? '✓ ' : '') + k.label;
-            chip.onclick = function() {
-                var idx = selected.indexOf(k.id);
-                if (idx !== -1) { selected.splice(idx, 1); }
-                else {
-                    if (selected.length >= 3) { if (typeof showToast === 'function') showToast('Max 3 keys per send', 2000); return; }
-                    selected.push(k.id);
-                }
-                _renderChips();
-            };
-            listDiv.appendChild(chip);
-        });
-        var sc = document.getElementById('kpSelCount');
-        if (sc) sc.textContent = selected.length + ' / 3 selected';
-        var sb = document.getElementById('kpSendBtn');
-        if (sb) { sb.disabled = selected.length === 0; sb.style.opacity = selected.length > 0 ? '1' : '0.35'; }
-    }
-
-    _renderChips();
-
-    var sendBtn = document.getElementById('kpSendBtn');
-    if (sendBtn) {
-        sendBtn.onclick = async function() {
-            if (!selected.length) return;
-            sendBtn.disabled = true; sendBtn.textContent = 'Sending...';
-            try {
-                await _callCF('sendKeys', { keyIds: selected, recipientUid: recipientUid });
-                var count = selected.length;
-                if (typeof showToast === 'function')
-                    showToast('🔑 ' + count + ' key' + (count > 1 ? 's' : '') + ' sent to ' + _esc(recipientName || 'your peer') + '! +25 XP 🎉', 3500);
-                var ov2 = document.getElementById('keyPickerOverlay');
-                if (ov2) ov2.remove();
-                if (typeof onDone === 'function') onDone();
-                setTimeout(function() { if (typeof window.renderKeysTab === 'function') window.renderKeysTab('keysTabContent'); }, 400);
-            } catch(e) {
-                sendBtn.disabled = false; sendBtn.textContent = 'Send Keys 🔑';
-                if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Failed to send keys'), 3500);
-            }
-        };
-    }
+    };
+    row.appendChild(go);
+    row.appendChild(cancel);
+    modal.appendChild(title);
+    modal.appendChild(help);
+    modal.appendChild(input);
+    modal.appendChild(row);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    setTimeout(function() { input.focus(); }, 50);
 };
 
-// ─── Gifts settings tab ────────────────────────────────────────────────────────
+// ─── Send keys ───────────────────────────────────────────────────────────────
+
+window.showPeerPickerForKeys = async function(keyIds) {
+    if (!_isSignedIn()) { _toast('Sign in to send keys'); return; }
+    _injectGiftingCSS();
+    var ids = (keyIds || []).slice(0, 3);
+    if (!ids.length) { _toast('Pick a key first'); return; }
+    var uid = _getUid();
+    var peers = [];
+    try {
+        var doc = await db.collection('users').doc(uid).get();
+        var list = (doc.exists && doc.data().peers) || [];
+        var profiles = await Promise.all(list.slice(0, 40).map(function(p) {
+            return db.collection('public_profiles').doc(p).get().then(function(s) {
+                return { uid: p, name: s.exists ? (s.data().username || s.data().displayName || 'Bitcoiner') : 'Bitcoiner' };
+            });
+        }));
+        peers = profiles;
+    } catch (e) { peers = []; }
+
+    var old = document.getElementById('peerPickerOverlay');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'peerPickerOverlay';
+    overlay.className = 'gifting-overlay';
+    overlay.style.alignItems = 'flex-end';
+    var sheet = document.createElement('div');
+    sheet.style.cssText = 'background:var(--card-bg,#0f172a);border:1px solid var(--border,#333);border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;';
+    var h = document.createElement('div');
+    h.style.cssText = 'font-weight:800;color:#f7931a;margin-bottom:6px;';
+    h.textContent = 'Send ' + ids.length + ' key' + (ids.length > 1 ? 's' : '') + ' to…';
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;';
+    sub.textContent = 'One send per peer each day, up to 3 keys.';
+    sheet.appendChild(h);
+    sheet.appendChild(sub);
+    if (!peers.length) {
+        var none = document.createElement('div');
+        none.style.cssText = 'font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;';
+        none.textContent = 'You have no peers yet. Add one from Settings → Account → Peers, then come back.';
+        sheet.appendChild(none);
+    }
+    peers.forEach(function(p) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = p.name;
+        b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px;padding:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:var(--text,#fff);font-weight:700;cursor:pointer;font-family:inherit;';
+        b.onclick = async function() {
+            b.disabled = true;
+            b.textContent = 'Sending…';
+            try {
+                await _callCF('sendKeys', { keyIds: ids, recipientUid: p.uid });
+                _toast('🔑 Sent to ' + p.name + '! +25 XP');
+                overlay.remove();
+                var host = document.getElementById('nookKeysCiphers');
+                if (host) window.renderKeysAndCiphersPanel(host);
+            } catch (e) {
+                b.disabled = false;
+                b.textContent = p.name;
+                _toast('❌ ' + (e.message || 'Could not send'));
+            }
+        };
+        sheet.appendChild(b);
+    });
+    var close = _btn('Close', 'transparent');
+    close.style.border = '1px solid var(--border,#333)';
+    close.style.color = 'var(--text-muted)';
+    close.style.width = '100%';
+    close.onclick = function() { overlay.remove(); };
+    sheet.appendChild(close);
+    overlay.appendChild(sheet);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+};
+
+window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
+    if (!_isSignedIn()) { _toast('Sign in to send keys'); return; }
+    _injectGiftingCSS();
+    var isPeer = (window._myPeers && window._myPeers.has && window._myPeers.has(recipientUid));
+    if (!isPeer && typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.peers)) {
+        isPeer = currentUser.peers.indexOf(recipientUid) !== -1;
+    }
+    if (!isPeer) {
+        _toast('Add ' + (recipientName || 'them') + ' as a peer before sending keys');
+        return;
+    }
+    var holdings = await _loadHoldings();
+    var keys = holdings.ownKeys;
+    var old = document.getElementById('keyPickerOverlay');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'keyPickerOverlay';
+    overlay.className = 'gifting-overlay';
+    overlay.style.alignItems = 'flex-end';
+    var sheet = document.createElement('div');
+    sheet.style.cssText = 'background:var(--card-bg,#0f172a);border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow:auto;border:1px solid var(--border,#333);';
+    var h = document.createElement('div');
+    h.style.cssText = 'font-weight:800;color:#f7931a;margin-bottom:8px;';
+    h.textContent = 'Send keys to ' + (recipientName || 'peer');
+    sheet.appendChild(h);
+
+    var today = _utcDay();
+    var offset = (typeof getDailyKey === 'function') ? getDailyKey() : today;
+    try {
+        var dates = today === offset ? [today] : [today, offset];
+        var pairSnap = await db.collection('key_send_pairs').where('senderUid', '==', _getUid()).where('date', 'in', dates).limit(100).get();
+        var alreadySent = false;
+        pairSnap.forEach(function(d) {
+            if (d.data().recipientUid === recipientUid) alreadySent = true;
+        });
+        if (alreadySent) {
+            var blocked = document.createElement('div');
+            blocked.style.cssText = 'padding:10px;border-radius:8px;background:rgba(239,68,68,0.08);color:#ef4444;font-size:0.8rem;font-weight:700;margin-bottom:10px;';
+            blocked.textContent = 'You already sent keys to this peer today.';
+            sheet.appendChild(blocked);
+            var closeBlocked = _btn('Close', 'transparent');
+            closeBlocked.style.border = '1px solid var(--border,#333)';
+            closeBlocked.style.color = 'var(--text-muted)';
+            closeBlocked.style.width = '100%';
+            closeBlocked.onclick = function() { overlay.remove(); };
+            sheet.appendChild(closeBlocked);
+            overlay.appendChild(sheet);
+            document.body.appendChild(overlay);
+            return;
+        }
+    } catch (e) { /* server still enforces the cap */ }
+
+    if (!keys.length) {
+        var none = document.createElement('div');
+        none.style.cssText = 'color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;';
+        none.textContent = 'No keys to send. Open gifts from the daily wheel first.';
+        sheet.appendChild(none);
+    }
+    var selected = [];
+    var list = document.createElement('div');
+    list.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;';
+    function paint() {
+        list.innerHTML = '';
+        keys.forEach(function(k) {
+            var on = selected.indexOf(k.id) !== -1;
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.textContent = (on ? '✓ ' : '') + k.label;
+            chip.style.cssText = 'padding:8px 12px;font-family:monospace;font-weight:900;border-radius:8px;cursor:pointer;border:2px solid ' + (on ? '#f7931a' : 'rgba(247,147,26,0.3)') + ';background:' + (on ? 'rgba(247,147,26,0.2)' : 'transparent') + ';color:' + (on ? '#f7931a' : 'var(--text-muted)') + ';';
+            chip.onclick = function() {
+                var idx = selected.indexOf(k.id);
+                if (idx !== -1) selected.splice(idx, 1);
+                else if (selected.length >= 3) _toast('Max 3 keys per send');
+                else selected.push(k.id);
+                paint();
+                send.disabled = selected.length === 0;
+                send.style.opacity = selected.length ? '1' : '0.4';
+            };
+            list.appendChild(chip);
+        });
+    }
+    var send = _btn('Send keys');
+    send.style.width = '100%';
+    send.disabled = true;
+    send.style.opacity = '0.4';
+    send.onclick = async function() {
+        send.disabled = true;
+        send.textContent = 'Sending…';
+        try {
+            await _callCF('sendKeys', { keyIds: selected.slice(), recipientUid: recipientUid });
+            _toast('🔑 Sent to ' + (recipientName || 'your peer') + '! +25 XP');
+            overlay.remove();
+            var host = document.getElementById('nookKeysCiphers');
+            if (host) window.renderKeysAndCiphersPanel(host);
+        } catch (e) {
+            send.disabled = false;
+            send.textContent = 'Send keys';
+            _toast('❌ ' + (e.message || 'Could not send'));
+        }
+    };
+    paint();
+    sheet.appendChild(list);
+    sheet.appendChild(send);
+    var close = _btn('Close', 'transparent');
+    close.style.border = '1px solid var(--border,#333)';
+    close.style.color = 'var(--text-muted)';
+    close.style.width = '100%';
+    close.style.marginTop = '8px';
+    close.onclick = function() { overlay.remove(); };
+    sheet.appendChild(close);
+    overlay.appendChild(sheet);
+    document.body.appendChild(overlay);
+};
+
+// ─── Settings blurb: pending gifts only (the explanation is in the page) ────
 
 window.renderGiftsSettingsTab = async function() {
     var container = document.getElementById('giftsTabContent');
     if (!container) return;
     if (!_isSignedIn()) {
-        container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:0.9rem;">🔐 Sign in to view your gifts</div>';
+        container.innerHTML = '';
         return;
     }
-    container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;">Loading...</div>';
     try {
-        // Show unopened gifts (any that haven't been opened yet from today)
-        var uid   = _getUid();
-        var snap  = await db.collection('gifts').where('ownerId','==',uid).where('status','==','unopened').limit(20).get();
-        var gifts = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-        var html  = '';
-        if (gifts.length > 0) {
-            html += '<div style="background:rgba(247,147,26,0.07);border:1px solid rgba(247,147,26,0.25);border-radius:12px;padding:14px;margin-bottom:14px;">';
-            html += '<div style="color:#f7931a;font-weight:800;font-size:0.9rem;margin-bottom:10px;">🎁 ' + gifts.length + ' unopened gift' + (gifts.length > 1 ? 's' : '') + ' waiting!</div>';
-            html += '<button onclick="window.showPostSpinGiftModal(' + JSON.stringify(gifts.map(function(g){return{id:g.id,rewardType:g.rewardType||\'unknown\'};})) + ')" style="width:100%;padding:11px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">✨ Open My Gifts</button>';
-            html += '</div>';
-        }
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">';
-        html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;font-weight:800;margin-bottom:8px;">How it works</div>';
-        html += '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.9;">';
-        html += '<b style="color:var(--text);">🎡 Spin</b> the daily wheel to win 2-5 gifts.<br>';
-        html += '<b style="color:var(--text);">🎁 Open</b> gifts immediately — they contain keys, locked ciphers, XP, and tickets.<br>';
-        html += '<b style="color:var(--text);">🔑 Send keys</b> to peers from their profile card.<br>';
-        html += '<b style="color:var(--text);">🔒 Collect ciphers</b> — ask in chat for the matching key label to decrypt.<br>';
-        html += '<b style="color:var(--text);">🔓 Decrypt</b> with a peer-sent matching key for big rewards!';
-        html += '</div></div>';
-        container.innerHTML = html;
-    } catch(e) {
-        container.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;padding:16px;">Could not load: ' + _esc(e.message || 'error') + '</div>';
+        var snap = await db.collection('gifts')
+            .where('ownerId', '==', _getUid())
+            .where('status', 'in', ['unopened', 'inventory', 'sent'])
+            .limit(40).get();
+        container.innerHTML = '';
+        if (snap.empty) return;
+        var gifts = snap.docs.map(function(d) { return { id: d.id }; });
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'margin-top:10px;padding:12px;border-radius:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);';
+        var t = document.createElement('div');
+        t.style.cssText = 'font-weight:800;color:#f7931a;margin-bottom:8px;';
+        t.textContent = gifts.length + ' gift' + (gifts.length > 1 ? 's' : '') + ' waiting to be opened';
+        var b = _btn('Open them');
+        b.style.width = '100%';
+        b.onclick = function() { window.showPostSpinGiftModal(gifts, { pending: true }); };
+        wrap.appendChild(t);
+        wrap.appendChild(b);
+        container.appendChild(wrap);
+    } catch (e) {
+        container.textContent = '';
     }
 };
 
-console.log('[gifting] v2 loaded');
+window.openNookInventory = function() {
+    if (typeof showQuestHub !== 'function') return;
+    showQuestHub();
+    setTimeout(function() {
+        window._questHubTab = 'nook';
+        window._nookSubTab = 'inventory';
+        if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+    }, 120);
+};
+
+// ─── Admin ledger ────────────────────────────────────────────────────────────
+
+window.renderCipherWinsAdmin = async function(container) {
+    var el = typeof container === 'string' ? document.getElementById(container) : container;
+    if (!el || window._isAdminClaim !== true) { if (el) el.innerHTML = ''; return; }
+    el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);padding:8px;">Loading cipher wins…</div>';
+    try {
+        var res = await _callCF('adminListCipherWins', {});
+        var wins = (res.data && res.data.wins) || [];
+        el.innerHTML = '';
+        var h = document.createElement('div');
+        h.style.cssText = 'font-weight:800;color:#f7931a;margin-bottom:8px;';
+        h.textContent = 'Cipher sats wins (' + wins.length + ')';
+        el.appendChild(h);
+        if (!wins.length) {
+            var none = document.createElement('div');
+            none.style.cssText = 'font-size:0.8rem;color:var(--text-muted);';
+            none.textContent = 'No sats wins yet.';
+            el.appendChild(none);
+            return;
+        }
+        wins.forEach(function(w) {
+            var card = document.createElement('div');
+            card.style.cssText = 'padding:10px;margin-bottom:8px;border:1px solid var(--border,#333);border-radius:10px;font-size:0.78rem;';
+            var line = document.createElement('div');
+            line.style.fontWeight = '800';
+            line.textContent = (w.amount || 0).toLocaleString() + ' sats — ' + (w.status || '') + (w.announced ? '' : ' (chat not posted)');
+            var who = document.createElement('div');
+            who.style.color = 'var(--text-muted)';
+            who.textContent = '@' + (w.username || w.uid || '') + ' · cipher ' + (w.cipherLabel || '') +
+                ' · key ' + (w.keyOrigin === 'peer' ? ('from ' + (w.keySentByName || w.keySentBy || 'a peer')) : 'their own') +
+                ' · roll ' + (w.roll != null ? w.roll : '?');
+            card.appendChild(line);
+            card.appendChild(who);
+            if (w.status !== 'paid' || w.announced !== true) {
+                var b = _btn(w.status === 'paid' ? 'Post Nacho message' : 'Mark paid');
+                b.style.marginTop = '8px';
+                b.onclick = async function() {
+                    b.disabled = true;
+                    try {
+                        await _callCF('adminMarkCipherWinPaid', { winId: w.id });
+                        _toast('Marked paid');
+                        window.renderCipherWinsAdmin(el);
+                    } catch (e) {
+                        b.disabled = false;
+                        _toast('❌ ' + (e.message || 'Could not update'));
+                    }
+                };
+                card.appendChild(b);
+            }
+            el.appendChild(card);
+        });
+    } catch (e) {
+        el.innerHTML = '<div style="color:#ef4444;font-size:0.8rem;">Could not load wins. ' + _esc(e.message || '') + '</div>';
+    }
+};
+
+function _boot() {
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries++;
+        if (_isSignedIn() && typeof db !== 'undefined') {
+            clearInterval(timer);
+            window.checkPendingGifts();
+        } else if (tries > 40) clearInterval(timer);
+    }, 500);
+}
+_boot();
+
+console.log('[gifting] keys/ciphers loaded');
+})();

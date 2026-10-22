@@ -250,6 +250,7 @@ window.showNotifications = async function() {
             if (n.type === 'peer_request') icon = '🧡';
             if (n.type === 'peer_accepted') icon = '🧡';
             if (n.type === 'gift_received') icon = '🎁';
+            if (n.type === 'keys_received') icon = '🔑';
             if (n.type === 'peer_level_up') icon = '⚡';
 
             var extraHtml = '';
@@ -258,6 +259,9 @@ window.showNotifications = async function() {
                     '<button onclick="event.stopPropagation();handlePeerNotifAction(\'accept\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
                     '<button onclick="event.stopPropagation();handlePeerNotifAction(\'decline\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
                     '</div>';
+            }
+            if (n.type === 'keys_received') {
+                extraHtml = '<div style="margin-top:6px;"><button type="button" onclick="event.stopPropagation();if(typeof window.openNookInventory===\'function\')window.openNookInventory();" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
             }
             if (n.type === 'gift_received' && n.giftId) {
                 var _gGiftId = n.giftId || '';
@@ -530,6 +534,7 @@ window.renderNotifList = async function() {
             if (n.type === 'peer_request') icon = '🧡';
             if (n.type === 'peer_accepted') icon = '🧡';
             if (n.type === 'gift_received') icon = '🎁';
+            if (n.type === 'keys_received') icon = '🔑';
             if (n.type === 'peer_level_up') icon = '⚡';
 
             var extraHtml = '';
@@ -538,6 +543,9 @@ window.renderNotifList = async function() {
                     '<button onclick="event.stopPropagation();handlePeerNotifAction(\'accept\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
                     '<button onclick="event.stopPropagation();handlePeerNotifAction(\'decline\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
                     '</div>';
+            }
+            if (n.type === 'keys_received') {
+                extraHtml = '<div style="margin-top:6px;"><button type="button" onclick="event.stopPropagation();if(typeof window.openNookInventory===\'function\')window.openNookInventory();" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
             }
             if (n.type === 'gift_received' && n.giftId) {
                 var _gGiftId = n.giftId || '';
