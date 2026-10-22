@@ -64,6 +64,8 @@ function topLevelObjects(s, a, b) { // object spans between a..b (exclusive)
 }
 
 const path = require('path');
+const guards = require('./tctv_import_guards');
+const blockedIds = guards.loadBlockedIds(opt('--blocked', path.join(__dirname, 'blocked-ids.txt')));
 let src = null, start = 0, end = 0, arr;
 if (DIR) {
   const names = fs.readdirSync(DIR).filter(name => name.endsWith('.json')).sort();
@@ -82,7 +84,7 @@ const incoming = JSON.parse(fs.readFileSync(NEW, 'utf8'));
 if (!fs.existsSync(META)) { console.error('refusing import: no meta file with YouTube contentDetails durations at ' + META); process.exit(1); }
 const metaRaw = JSON.parse(fs.readFileSync(META, 'utf8'));
 const verified = new Map();
-function addRec(rec) { if (rec && rec.id) verified.set(rec.id, { sec: verifiedSeconds(rec), short: rec.short === true, station: rec.station || '' }); }
+function addRec(rec) { if (rec && rec.id) verified.set(rec.id, { sec: verifiedSeconds(rec), short: rec.short === true, station: rec.station || '', raw: rec }); }
 if (Array.isArray(metaRaw)) metaRaw.forEach(addRec);
 else Object.keys(metaRaw).forEach(k => { const val = metaRaw[k]; if (Array.isArray(val)) val.forEach(addRec); else addRec(val); });
 const dead = DEAD ? new Set(fs.readFileSync(DEAD, 'utf8').split(/\s+/).filter(Boolean)) : new Set();
@@ -93,7 +95,10 @@ for (const st of incoming) {
   plan[st.id] = [];
   for (const v of st.videos) {
     if (!/^[A-Za-z0-9_-]{11}$/.test(v.id) || typeof v.title !== 'string' || !Number.isInteger(v.duration) || v.duration < 1 || v.duration > MAX_DURATION) throw new Error('bad entry ' + JSON.stringify(v));
+    if (guards.titleBlocked(v.title)) throw new Error('titleBlocked ' + v.id);
+    if (blockedIds.has(v.id)) throw new Error('blocked id ' + v.id);
     const info = verified.get(v.id);
+    if (guards.ageRestricted(v) || guards.ageRestricted(info && info.raw)) throw new Error('ytAgeRestricted ' + v.id);
     const sec = info && info.sec;
     if (!Number.isInteger(sec) || sec < 1 || sec > MAX_DURATION || Math.abs(v.duration - sec) > 2) throw new Error('unverified contentDetails duration ' + v.id);
     if (info.station && info.station !== st.id) throw new Error('meta station mismatch ' + v.id);

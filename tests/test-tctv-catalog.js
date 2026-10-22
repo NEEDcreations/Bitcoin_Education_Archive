@@ -65,6 +65,8 @@ test('station shells match the allow-list and the video files', () => {
     const apply = read('tools/tctv-import/apply_tctv_import.js');
     assert.ok(apply.includes('Number.isInteger(v.duration)'));
     assert.ok(apply.includes('contentDetails'));
+    assert.ok(apply.includes('ytAgeRestricted'));
+    assert.ok(apply.includes('titleBlocked'));
     const shuffle = read('tools/tctv-import/shuffle_tctv_stations.js');
     assert.ok(shuffle.includes('Number.isInteger(v.duration)'));
     assert.ok(shuffle.includes('process.exit(1)'));

@@ -1,0 +1,2 @@
+# YouTube ids the Timechain TV importer must refuse.
+# One 11-character id per line. Blank lines and # comments are ignored.

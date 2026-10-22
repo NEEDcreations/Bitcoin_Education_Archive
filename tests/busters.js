@@ -1,6 +1,7 @@
-// Cache-buster pin. Live gh-pages after #52 is btc-archive-v2268.
-// This branch is btc-archive-v2281. The cache name will be re-bumped at merge.
-// bundle.min.js stays on v2268. notifications.js stays on v2262.
+// Cache-buster pin. Live gh-pages at 4f339f1a is btc-archive-v2272.
+// This branch is btc-archive-v2282. A new cache name drops the previous
+// /data/tctv/* and sw.js caches on activate.
+// bundle.min.js stays on v2271. notifications.js stays on v2262.
 // index.html and 404.html must stay identical.
 const assert = require('assert');
 const fs = require('fs');
@@ -18,12 +19,12 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2281', () => {
+test('service worker cache is v2282', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2281'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2282'"));
     assert.ok(sw.includes('./nacho-deer.svg'));
     assert.ok(!sw.includes('nacho-fly.svg'));
-    ['v2271', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    ['v2281', 'v2272', 'v2271', 'v2268', 'v2267', 'v2266', 'v2265', 'v2264', 'v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
