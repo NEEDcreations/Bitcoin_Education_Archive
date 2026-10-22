@@ -3751,6 +3751,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 userUpdate.lastOverflowDate = offsetToday;
             }
 
+            const rankPrevById = await rewardNotify.readRankPrev(t, db, uid, userData.points || 0, totalPointsOut);
+
             // ── PHASE 3: ALL WRITES ──
 
             // Dedup stamps (badge, trivia, poll, tickets, strava, counted, flex, combo)
@@ -3822,6 +3824,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     badgeId: badgeAwardRef ? badgeId : null,
                     pointsBefore: userData.points || 0,
                     pointsDelta: totalPointsOut,
+                    prevById: rankPrevById,
                 };
                 if (rewardGroup) {
                     rewardSpec.existing = rewardGroupDoc && rewardGroupDoc.exists ? rewardGroupDoc.data() : null;
@@ -4511,6 +4514,7 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (totalPts > 0) update.points = admin.firestore.FieldValue.increment(totalPts);
         if (totalTickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(totalTickets);
         if (totalFreezes > 0) update.streakFreezes = admin.firestore.FieldValue.increment(totalFreezes);
+        const spinRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, totalPts);
         tx.update(userRef, update);
         try {
             const spinGains = reward.closet ? ['👔 a closet drop'] : [];
@@ -4525,6 +4529,7 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
                 icon: '🎡',
                 pointsBefore: userData.points || 0,
                 pointsDelta: totalPts,
+                prevById: spinRankPrev,
             }));
         } catch (notifyErr) {
             console.warn('[SPIN] reward notify skipped:', notifyErr && notifyErr.message);
@@ -4816,6 +4821,9 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         }
 
         const passed = score >= 20;
+        const scholarRankPrev = passed
+            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, 2100)
+            : {};
 
         // Mark exam as graded
         tx.update(examRef, { graded: true, score, passed, gradedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -4844,6 +4852,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
                     icon: '🎓',
                     pointsBefore: userData.points || 0,
                     pointsDelta: 2100,
+                    prevById: scholarRankPrev,
                 }));
             } catch (notifyErr) {
                 console.warn('[SCHOLAR] reward notify skipped:', notifyErr && notifyErr.message);
@@ -4970,6 +4979,7 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
                 overflowAdded = pts;
             }
             capped = (dailyUsed + awarded >= DAILY_POINTS_CAP);
+            const questRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, awarded);
 
             const userUpdate = {};
             if (awarded > 0) {
@@ -4996,6 +5006,7 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
                         icon: '🏆',
                         pointsBefore: userData.points || 0,
                         pointsDelta: awarded,
+                        prevById: questRankPrev,
                     }));
                 } catch (notifyErr) {
                     console.warn('[QUEST] reward notify skipped:', notifyErr && notifyErr.message);
@@ -6553,6 +6564,7 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         }
 
         const ts = admin.firestore.FieldValue.serverTimestamp();
+        const donateRankPrev = await rewardNotify.readRankPrev(tx, db, uid, points, bonusPts);
 
         // Update user doc
         const today = new Date().toISOString().split('T')[0];
@@ -6606,6 +6618,7 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
                     icon: '🏅',
                     pointsBefore: points,
                     pointsDelta: bonusPts,
+                    prevById: donateRankPrev,
                 }));
             }
             rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), donatePlans);

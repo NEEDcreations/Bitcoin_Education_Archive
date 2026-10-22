@@ -82,6 +82,53 @@ test('a grouped plan without a prior read is merged later', () => {
     assert.strictEqual(plans[0].delta.xp, 10);
 });
 
+test('an unchanged rank or grouped notice is not written again', () => {
+    const rank = rn.plan({ uid: 'abc', pointsBefore: 2100, pointsDelta: 50 })[0];
+    const stored = Object.assign({}, rank.data, { read: true, createdAt: 'old' });
+    assert.strictEqual(rn.sameNoticeContent(stored, rank.data), true);
+    assert.strictEqual(rn.prepareNoticeWrite(rank.data, stored, 'now'), null);
+    const changed = Object.assign({}, stored, { xp: 25, message: stored.message + ' more' });
+    const rewritten = rn.prepareNoticeWrite(rank.data, changed, 'now');
+    assert.strictEqual(rewritten.read, false);
+    assert.strictEqual(rewritten.createdAt, 'now');
+});
+
+test('a grouped rewrite stays read until the totals change', async () => {
+    const store = {};
+    function ref(id) { return { id: id }; }
+    const db = {
+        collection: function() { return { doc: ref }; },
+        runTransaction: async function(fn) {
+            const t = {
+                get: async function(r) {
+                    const data = store[r.id];
+                    return { exists: !!data, data: function() { return data; } };
+                },
+                set: function(r, data) { store[r.id] = Object.assign({}, store[r.id], data); },
+            };
+            await fn(t);
+        },
+    };
+    const day = '2026-10-22';
+    const first = rn.plan({ uid: 'abc', action: 'quiz_correct', day: day, xp: 10 });
+    await rn.commit(db, 't1', first);
+    const id = first[0].id;
+    assert.strictEqual(store[id].read, false);
+    assert.strictEqual(store[id].xp, 10);
+    store[id].read = true;
+    await rn.commit(db, 't2', rn.plan({ uid: 'abc', action: 'quiz_correct', day: day, xp: 10 }));
+    assert.strictEqual(store[id].xp, 20);
+    assert.strictEqual(store[id].read, false);
+
+    const rank = rn.plan({ uid: 'abc', pointsBefore: 2100, pointsDelta: 50 });
+    await rn.commit(db, 'r1', rank);
+    const rankId = rank[0].id;
+    assert.strictEqual(store[rankId].read, false);
+    store[rankId].read = true;
+    await rn.commit(db, 'r2', rn.plan({ uid: 'abc', pointsBefore: 2100, pointsDelta: 50 }));
+    assert.strictEqual(store[rankId].read, true, 'same rank copy must not become unread');
+});
+
 test('sumSpec adds a second hash-booster debit onto the same day', () => {
     const merged = rn.sumSpec({ boosterHashes: -4, count: 4, xp: 0 }, { boosterHashes: -1, count: 1 });
     assert.strictEqual(merged.boosterHashes, -5);

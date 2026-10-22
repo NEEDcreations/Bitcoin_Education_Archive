@@ -277,8 +277,10 @@ function plan(spec) {
             message: null,
             deduction: false,
         }));
-        plans.push({
-            id: groupDocId(src.uid, group, day),
+        const groupId = groupDocId(src.uid, group, day);
+        const groupPlan = {
+            id: groupId,
+            kind: 'group',
             grouped: true,
             delta: delta,
             groupLabel: label,
@@ -288,7 +290,11 @@ function plan(spec) {
                 group: group,
                 icon: src.icon || '✨',
             }), message),
-        });
+        };
+        if (Object.prototype.hasOwnProperty.call(src, 'existing')) {
+            groupPlan.prev = src.existing || null;
+        }
+        plans.push(groupPlan);
         // existingRead means the caller already folded `existing` in (even if null).
     } else if (!group && (hasNumbers || hasText)) {
         const label = sourceLabelFor(src);
@@ -318,8 +324,10 @@ function plan(spec) {
 
     const ranks = src.ranks || levelsCrossed(src.pointsBefore, src.pointsDelta);
     ranks.forEach(function(level) {
-        plans.push({
-            id: rankDocId(src.uid, level.name),
+        const rankId = rankDocId(src.uid, level.name);
+        const rankPlan = {
+            id: rankId,
+            kind: 'rank',
             grouped: false,
             data: envelope({
                 uid: src.uid,
@@ -328,7 +336,11 @@ function plan(spec) {
                 icon: level.emoji,
                 rankId: rankSlug(level.name),
             }, rankMessage(level)),
-        });
+        };
+        if (src.prevById && Object.prototype.hasOwnProperty.call(src.prevById, rankId)) {
+            rankPlan.prev = src.prevById[rankId];
+        }
+        plans.push(rankPlan);
     });
 
     return plans;
@@ -347,58 +359,98 @@ function planFinal(spec) {
     return plans;
 }
 
+const NOTICE_NUMS = ['xp', 'tickets', 'sats', 'freezes', 'count', 'boosterHashes'];
+
+function sameNoticeContent(prev, next) {
+    if (!prev || !next) return false;
+    if (String(prev.message || '') !== String(next.message || '')) return false;
+    if (String(prev.type || '') !== String(next.type || '')) return false;
+    if (String(prev.icon || '') !== String(next.icon || '')) return false;
+    for (let i = 0; i < NOTICE_NUMS.length; i++) {
+        const key = NOTICE_NUMS[i];
+        if ((Math.round(Number(prev[key]) || 0)) !== (Math.round(Number(next[key]) || 0))) return false;
+    }
+    return true;
+}
+
+// null when the stored notice already says the same thing, so a merge does
+// not mark it unread again. A new doc, or a doc whose message or amounts
+// changed, is written with read:false.
+function prepareNoticeWrite(next, prev, timestamp) {
+    if (prev && sameNoticeContent(prev, next)) return null;
+    const data = Object.assign({}, next);
+    data.read = false;
+    data.updatedAt = timestamp;
+    data.createdAt = timestamp;
+    return data;
+}
+
+async function readRankPrev(reader, db, uid, pointsBefore, pointsDelta) {
+    const out = {};
+    const levels = levelsCrossed(pointsBefore, pointsDelta);
+    for (let i = 0; i < levels.length; i++) {
+        const id = rankDocId(uid, levels[i].name);
+        const snap = await reader.get(db.collection('notifications').doc(id));
+        out[id] = snap && snap.exists ? (snap.data() || {}) : null;
+    }
+    return out;
+}
+
 function apply(writer, db, timestamp, plans) {
     (plans || []).forEach(function(item) {
         if (!item || !item.data) return;
+        const known = Object.prototype.hasOwnProperty.call(item, 'prev');
+        const write = prepareNoticeWrite(item.data, known ? item.prev : null, timestamp);
+        if (!write) return;
         const ref = item.id
             ? db.collection('notifications').doc(item.id)
             : db.collection('notifications').doc();
-        const data = Object.assign({}, item.data, {
-            createdAt: timestamp,
-            updatedAt: timestamp,
-        });
-        writer.set(ref, data, { merge: true });
+        writer.set(ref, write, { merge: true });
     });
 }
 
 async function commit(db, timestamp, plans) {
-    const list = plans || [];
+    const list = (plans || []).filter(function(p) { return p && p.data; });
     if (!list.length || !db) return;
-    const plain = list.filter(function(p) { return !p.grouped; });
-    const grouped = list.filter(function(p) { return p.grouped; });
-    if (plain.length && typeof db.batch === 'function') {
+    const auto = list.filter(function(p) { return !p.id; });
+    const named = list.filter(function(p) { return !!p.id; });
+    if (auto.length && typeof db.batch === 'function') {
         const batch = db.batch();
-        apply(batch, db, timestamp, plain);
+        apply(batch, db, timestamp, auto);
         await batch.commit();
     }
-    for (let i = 0; i < grouped.length; i++) {
-        const item = grouped[i];
-        await db.runTransaction(async function(t) {
-            const ref = db.collection('notifications').doc(item.id);
-            const snap = await t.get(ref);
-            const prev = snap && snap.exists ? snap.data() : null;
-            const merged = sumSpec(prev, item.delta || {});
-            const message = formatRewardMessage(Object.assign({}, merged, {
-                sourceLabel: item.groupLabel || 'a reward',
-            }));
-            const data = Object.assign({}, item.data, envelope({
-                uid: item.data.recipientId,
-                type: 'reward',
-                source: item.data.source,
-                icon: item.data.icon,
-                xp: merged.xp,
-                tickets: merged.tickets,
-                sats: merged.sats,
-                freezes: merged.freezes,
-                count: merged.count,
-            }, message), {
-                boosterHashes: merged.boosterHashes || 0,
-                createdAt: timestamp,
-                updatedAt: timestamp,
-            });
-            t.set(ref, data, { merge: true });
+    if (!named.length || typeof db.runTransaction !== 'function') return;
+    await db.runTransaction(async function(t) {
+        const snaps = [];
+        for (let i = 0; i < named.length; i++) {
+            snaps.push(await t.get(db.collection('notifications').doc(named[i].id)));
+        }
+        named.forEach(function(item, i) {
+            const snap = snaps[i];
+            const prev = snap && snap.exists ? (snap.data() || {}) : null;
+            if (item.grouped) {
+                const merged = sumSpec(prev, item.delta || {});
+                const message = formatRewardMessage(Object.assign({}, merged, {
+                    sourceLabel: item.groupLabel || 'a reward',
+                }));
+                item.data = Object.assign({}, item.data, envelope({
+                    uid: item.data.recipientId,
+                    type: 'reward',
+                    source: item.data.source,
+                    icon: item.data.icon,
+                    xp: merged.xp,
+                    tickets: merged.tickets,
+                    sats: merged.sats,
+                    freezes: merged.freezes,
+                    count: merged.count,
+                }, message), {
+                    boosterHashes: merged.boosterHashes || 0,
+                });
+            }
+            item.prev = prev;
         });
-    }
+        apply(t, db, timestamp, named);
+    });
 }
 
 async function safeCommit(db, timestamp, plans) {
@@ -428,4 +480,7 @@ module.exports = {
     apply: apply,
     commit: commit,
     safeCommit: safeCommit,
+    sameNoticeContent: sameNoticeContent,
+    prepareNoticeWrite: prepareNoticeWrite,
+    readRankPrev: readRankPrev,
 };
