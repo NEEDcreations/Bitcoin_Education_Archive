@@ -575,6 +575,12 @@
             .ch-btn { font-size: 0.85rem; padding: 9px 12px; }
         }
 
+        /* Daily row: 4–6 buttons in two rows on a phone, one wrapping row above that. */
+        #em-quick-actions { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+        @media (max-width: 480px) {
+            #em-quick-actions { grid-template-columns: repeat(3, 1fr); }
+        }
+
         /* Mobile breakpoint */
         @media (max-width: 900px) {
             #mobileSearchBtn { display: flex !important; }
@@ -1195,10 +1201,11 @@
 
                         <!-- Support moved to bottom -->
                 </div>
-                <div id="em-quick-actions" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px;margin-bottom:16px;">
+                <div id="em-quick-actions" style="display:grid;gap:8px;margin-top:16px;margin-bottom:16px;">
                     <button id="nqSpinBtn" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
                     <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                     <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho's Story</button>
+                    <button id="sayHiBtn" onclick="if(typeof openSayHi==='function')openSayHi();else{window._pendingSayHi=true;if(window._loadDeferred)window._loadDeferred();}" aria-label="Say hi to the community" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="sayHiBtnEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">👋</span><span id="sayHiBtnLabel">Say hi</span><span id="sayHiBtnSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">to the community</span></button>
                 </div>
                 <div id="continueReading" style="display:none;margin-bottom:16px;"></div>
                 <div id="dailyChallengeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;"></div>
@@ -1475,7 +1482,7 @@
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261022_v2263" defer fetchpriority="high"></script>
-    <script src="features.registry.js?v=20261022_v2263" defer></script>
+    <script src="features.registry.js?v=20261022_v2264" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>
     <script src="onboarding.js?v=20261013_1908" defer></script>
     <script src="learning-quests.js?v=20261014_0554" defer></script>
@@ -1485,7 +1492,7 @@
     (function(){
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
-            'global-chat.js?v=20261022_v2263',
+            'global-chat.js?v=20261022_v2264',
             'satoshi-favor.js?v=20261022_v2250'
         ];
         var _lazyScripts = [
@@ -1552,10 +1559,10 @@
         var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2263'],
-            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2263'],
-            'chat':          ['global-chat.js?v=20261022_v2263'],
-            'dms':           ['global-chat.js?v=20261022_v2263'],
+            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2264'],
+            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2264'],
+            'chat':          ['global-chat.js?v=20261022_v2264'],
+            'dms':           ['global-chat.js?v=20261022_v2264'],
             'irl-sync':      ['irl-sync.js?v=20260810_0418'],
             'lightning':     ['lightning.js?v=20261022_faucet', 'lightning-tips.js?v=20261007_2124'],
             'pvp':           ['pvp.js?v=20260708_0427'],

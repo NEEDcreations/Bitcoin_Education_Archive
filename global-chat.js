@@ -1259,6 +1259,7 @@ window.sendGlobalChat = function() {
         // Bridge to Telegram with messageId for reaction sync
         if (docRef && docRef.id) {
             bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '', messageId: docRef.id });
+            if (typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
         }
     }).catch(function(err) {
         console.error('[CHAT] Send error:', err);
@@ -2250,6 +2251,8 @@ window.sendGifMessage = function(url, caption) {
         ts: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) msgData.faction = currentUser.faction;
+    var _gifCaption = caption ? String(caption).trim().slice(0, 300) : '';
+    if (_gifCaption) msgData.caption = _gifCaption;
 
     // Include reply if active
     if (_replyTo) {
@@ -2261,8 +2264,9 @@ window.sendGifMessage = function(url, caption) {
         if (banner) banner.style.display = 'none';
     }
 
-    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+    db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
         bridgeToTelegram({ user: username, text: '', gifUrl: url });
+        if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
     }).catch(function(e) {
         if (typeof showToast === 'function') showToast('Failed to send GIF');
     });
@@ -2630,10 +2634,11 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 msgData.replyToText = replyCopy.text;
             }
 
-            return db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+            return db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
                 if (typeof showToast === 'function') showToast('📷 Image sent!');
                 // Bridge https URL to Telegram
                 bridgeToTelegram({ user: username, text: caption || '', imageUrl: url });
+                if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
             });
         })
        .catch(function(e) {
@@ -3312,6 +3317,12 @@ function _initOverlayAndOpenIfPending() {
         setTimeout(function() {
             if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
         }, 100);
+    }
+    if (window._pendingSayHi) {
+        window._pendingSayHi = false;
+        setTimeout(function() {
+            if (typeof window.openSayHi === 'function') window.openSayHi();
+        }, 150);
     }
 }
 if (document.readyState === 'loading') {
@@ -4015,6 +4026,187 @@ function _startPinListener() {
             _renderPinnedBanner(doc.exists ? doc.data() : null);
         }, function() {});
 }
+
+// SAY-HI START
+// Daily "Say hi". The client only opens chat and names the message id.
+// XP, tickets, the day, and the first-toast flag are written by claimSayHi.
+var SAY_HI_TOAST = '+50 XP and +1 \uD83C\uDF9F\uFE0F orange ticket for saying hi!';
+
+function _sayHiDay() {
+    if (typeof getDailyKey === 'function') return getDailyKey();
+    var shifted = new Date(Date.now() - 5 * 3600000);
+    return shifted.toISOString().slice(0, 10);
+}
+
+function _sayHiSignedIn() {
+    return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+}
+
+function _paintSayHiButton() {
+    var btn = document.getElementById('sayHiBtn');
+    if (!btn) return;
+    var emoji = document.getElementById('sayHiBtnEmoji');
+    var label = document.getElementById('sayHiBtnLabel');
+    var sub = document.getElementById('sayHiBtnSub');
+    var claimed = typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiClaimedDay === _sayHiDay();
+    if (claimed) {
+        if (emoji) emoji.textContent = '\u2705';
+        if (label) label.textContent = 'Said hi';
+        if (sub) sub.textContent = 'today';
+        btn.style.color = 'var(--link)';
+        btn.style.background = 'var(--card-bg)';
+        btn.style.borderColor = 'var(--border)';
+        btn.style.opacity = '0.85';
+        btn.setAttribute('aria-label', 'Said hi today');
+    } else {
+        if (emoji) emoji.textContent = '\uD83D\uDC4B';
+        if (label) label.textContent = 'Say hi';
+        if (sub) sub.textContent = 'to the community';
+        btn.style.color = 'var(--text)';
+        btn.style.background = 'var(--card-bg)';
+        btn.style.borderColor = 'var(--border)';
+        btn.style.opacity = '1';
+        btn.setAttribute('aria-label', 'Say hi to the community');
+    }
+}
+window._paintSayHiButton = _paintSayHiButton;
+
+function _sayHiFocusInput() {
+    var input = _gcActiveInput();
+    if (!input) return;
+    try { input.focus(); } catch (e) {}
+}
+
+function _openSayHiChat() {
+    if (!document.getElementById('chatOverlay') && typeof createChatOverlay === 'function') createChatOverlay();
+    if (!window._chatOverlayOpen) {
+        if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+    } else if (typeof window._switchOverlayTab === 'function') {
+        window._switchOverlayTab('global');
+    }
+    setTimeout(_sayHiFocusInput, 60);
+    setTimeout(_sayHiFocusInput, 350);
+}
+
+function _sayHiAppCheck() {
+    if (typeof firebase === 'undefined' || !firebase.appCheck) return Promise.reject(new Error('appcheck'));
+    return firebase.appCheck().getToken(false);
+}
+
+function _sayHiCallable(name) {
+    return firebase.functions().httpsCallable(name);
+}
+
+function _sayHiToast(text) {
+    if (typeof showToast === 'function') showToast(text);
+}
+
+window.openSayHi = function() {
+    _paintSayHiButton();
+    if (!_sayHiSignedIn()) {
+        _sayHiToast('Sign in to say hi.');
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+    var today = _sayHiDay();
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiClaimedDay === today) {
+        _paintSayHiButton();
+        _sayHiToast('You already said hi today.');
+        _openSayHiChat();
+        return;
+    }
+    window._sayHiAwaitingSend = true;
+    _openSayHiChat();
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    // Kept so a message sent before this returns still claims after the arm.
+    window._sayHiArmPromise = _sayHiAppCheck().then(function() {
+        return _sayHiCallable('armSayHi')({});
+    }).then(function(res) {
+        var data = (res && res.data) || {};
+        if (data.alreadyClaimed) {
+            window._sayHiAwaitingSend = false;
+            if (typeof currentUser !== 'undefined' && currentUser && data.day) currentUser.sayHiClaimedDay = data.day;
+            _paintSayHiButton();
+            _sayHiToast('You already said hi today.');
+            return data;
+        }
+        if (data.success && typeof currentUser !== 'undefined' && currentUser && data.day) {
+            currentUser.sayHiArmedDay = data.day;
+        } else if (data.code === 'unavailable') {
+            window._sayHiAwaitingSend = false;
+            _sayHiToast('Say hi is unavailable on this account.');
+        } else if (data.code === 'rate') {
+            // Double-tap while the send is still coming. The first arm stands.
+        } else if (!data.success) {
+            window._sayHiAwaitingSend = false;
+            _sayHiToast('Could not start Say hi. Try again.');
+        }
+        return data;
+    }).catch(function() {
+        _sayHiToast('Security check failed. Refresh the page and try again.');
+    });
+};
+
+window._maybeClaimSayHi = function(messageId) {
+    if (!messageId || typeof messageId !== 'string') return;
+    var today = _sayHiDay();
+    var awaiting = window._sayHiAwaitingSend === true;
+    var armedToday = typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiArmedDay === today;
+    var claimedToday = typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiClaimedDay === today;
+    if (claimedToday) return;
+    if (!awaiting && !armedToday) return;
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    if (window._sayHiClaiming) return;
+    window._sayHiClaiming = true;
+    (window._sayHiArmPromise || Promise.resolve()).then(function() {
+        return _sayHiAppCheck();
+    }).then(function() {
+        return _sayHiCallable('claimSayHi')({ messageId: messageId });
+    }).then(function(res) {
+        window._sayHiClaiming = false;
+        var data = (res && res.data) || {};
+        if (data.code === 'ok') {
+            window._sayHiAwaitingSend = false;
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                var gained = (Number(data.xpAwarded) || 0) + (Number(data.overflowRedeemed) || 0);
+                if (gained > 0) currentUser.points = (Number(currentUser.points) || 0) + gained;
+                if (data.tickets) currentUser.orangeTickets = (Number(currentUser.orangeTickets) || 0) + Number(data.tickets);
+                if (data.day) currentUser.sayHiClaimedDay = data.day;
+                currentUser.sayHiToastSeen = true;
+            }
+            if (typeof updateRankUI === 'function') updateRankUI();
+            _paintSayHiButton();
+            if (data.showToast === true) _sayHiToast(SAY_HI_TOAST);
+        } else if (data.alreadyClaimed) {
+            window._sayHiAwaitingSend = false;
+            if (typeof currentUser !== 'undefined' && currentUser && data.day) currentUser.sayHiClaimedDay = data.day;
+            _paintSayHiButton();
+        } else if (data.code === 'short' || data.code === 'empty') {
+            _sayHiToast('Send a short hello to earn today\u2019s Say hi.');
+        } else if (data.code === 'before-press' || data.code === 'no-arm') {
+            _sayHiToast('Press Say hi, then send a new message.');
+        } else if (data.code === 'unavailable') {
+            window._sayHiAwaitingSend = false;
+            _sayHiToast('Say hi is unavailable on this account.');
+        } else if (data.code === 'rate') {
+            _sayHiToast('Slow down a moment, then send your hello.');
+        }
+    }).catch(function() {
+        window._sayHiClaiming = false;
+    });
+};
+
+var _sayHiPaintTries = 0;
+var _sayHiPaintTimer = setInterval(function() {
+    _sayHiPaintTries++;
+    _paintSayHiButton();
+    if (_sayHiPaintTries > 20) clearInterval(_sayHiPaintTimer);
+}, 1000);
+if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function') {
+    try { auth.onAuthStateChanged(function() { setTimeout(_paintSayHiButton, 600); }); } catch (e) {}
+}
+// SAY-HI END
 
 console.log('[CHAT] Global chat module loaded');
 }();

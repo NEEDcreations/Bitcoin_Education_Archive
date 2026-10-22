@@ -122,6 +122,9 @@ service cloud.firestore {
                         // to toggle badge visibility preference (cosmetic, not gated).
                         // Social / gamification counters (CF)
                         'forumPosts', 'forumReplies', 'lastSpinDate',
+                        // Say-hi reward (armSayHi / claimSayHi). Server only.
+                        'sayHiArmedDay', 'sayHiArmedAt',
+                        'sayHiClaimedDay', 'sayHiClaimedMessageId', 'sayHiToastSeen',
                         // Gifting system (CF-only)
                         'lastGiftSpinDate', 'giftsOpenedToday', 'giftsOpenedDate',
                         'lastShoutoutAt',
@@ -1270,6 +1273,7 @@ service cloud.firestore {
     // Used to enforce hard daily limits on spam-prone actions (e.g. beats_upload=5/day)
     match /users/{userId}/daily_action_counts/{docId} {
       // Owner can read their own flex/action records (needed for client-side FLEX restore)
+      // Say-hi claims live here as {serverDay}_say_hi. Clients cannot write them.
       allow read: if request.auth != null && request.auth.uid == userId;
       // Writes only from Cloud Functions (server-side enforcement)
       allow write: if false;
@@ -1803,6 +1807,11 @@ service cloud.firestore {
     match /faucet_abuse_reports/{docId} {
       allow read: if isAdmin();
       allow write: if false;
+    }
+
+    // Say-hi callable rate limit. Admin SDK only.
+    match /rate_limits/{docId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

@@ -93,6 +93,9 @@
             else if (typeof win.toggleChatOverlay === 'function') win.toggleChatOverlay();
             else if (typeof win.openGlobalChatForCipher === 'function') win.openGlobalChatForCipher();
         };
+        if (k === 'sayhi') return function () {
+            if (typeof win.openSayHi === 'function') win.openSayHi();
+        };
         if (k === 'dms') return function () {
             if (typeof win.showInbox === 'function') win.showInbox();
             else if (typeof win.renderChatHub === 'function') win.renderChatHub('dms');
@@ -513,6 +516,13 @@
             how: 'Open the chat button and stay on the Global tab.',
             follow: 'Want direct messages instead of the public room?',
             hash: 'chat', aliases: ['chat', 'global-chat'], kind: 'chat', openFns: ['renderChatHub', 'toggleChatOverlay', 'openGlobalChatForCipher'] }),
+        R({ id: 'say-hi', title: 'Say hi to the community', group: 'Community', term: 'say hi', priority: 82,
+            kw: 'say hi say hello community hello daily hello wave sayhi',
+            desc: 'Say hi in Global Chat once a day for 50 XP and 1 Orange Ticket.',
+            how: 'On the home page, tap Say hi next to the daily spin. Global Chat opens. Send a message and the reward lands once per day.',
+            follow: 'Want the daily spin, on the same home row?',
+            hash: 'app/say-hi', aliases: ['say-hi', 'sayhi'], kind: 'sayhi',
+            openFns: ['openSayHi'] }),
         R({ id: 'dms', title: 'Direct messages', group: 'Community', term: 'messages', priority: 65,
             kw: 'messages dms dm inbox direct message',
             desc: 'Direct messages are private chats.',
@@ -910,6 +920,7 @@
         if (/proof of walk|\bstrava\b|\bwalk\b/.test(s) && !/proof of work/.test(s)) return 'proof-of-walk';
         if (/arcade|proof of play/.test(s)) return 'proof-of-play';
         if (/\bpvp\b|trivia battle/.test(s)) return 'pvp';
+        if (/say hi|say hello|saying hi|community hello/.test(s)) return 'say-hi';
         if (/global chat/.test(s)) return 'global-chat';
         if (/direct message|\bdms?\b|\binbox\b/.test(s)) return 'dms';
         if (/bitcoin buddy|\bbuddy\b/.test(s)) return 'buddy';
