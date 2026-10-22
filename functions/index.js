@@ -7701,6 +7701,8 @@ const hotTopics = require('./src/hotTopics');
 exports.refreshHotTopics = onScheduleV2({
     schedule: '0 22 * * 0',
     timeZone: 'America/New_York',
+    // Workers AI uses 3 attempts at 45s (~136s) plus source fetches. That fits
+    // in 540s, so this timeout stays put.
     timeoutSeconds: 540,
     memory: '512MiB',
 }, async () => {
@@ -7721,7 +7723,11 @@ exports.refreshHotTopics = onScheduleV2({
 // Also expose as HTTP endpoint so you can trigger it manually
 // GET https://us-central1-bitcoin-education-archive.cloudfunctions.net/refreshHotTopicsHttp
 // Header: x-admin-token: $ADMIN_TOKEN
-exports.refreshHotTopicsHttp = functionsV1.https.onRequest(async (req, res) => {
+// Gen1 HTTPS functions default to 60s. Three 45s Workers AI attempts need
+// longer than that, so this matches the scheduler's 540s ceiling.
+exports.refreshHotTopicsHttp = functionsV1.runWith({
+    timeoutSeconds: 540,
+}).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const result = await hotTopics.runHotTopicsJob({
@@ -7745,7 +7751,9 @@ exports.refreshHotTopicsHttp = functionsV1.https.onRequest(async (req, res) => {
 });
 
 // Manual force-refresh that bypasses the quality gate (admin use only)
-exports.refreshHotTopicsForce = functionsV1.https.onRequest(async (req, res) => {
+exports.refreshHotTopicsForce = functionsV1.runWith({
+    timeoutSeconds: 540,
+}).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const result = await hotTopics.runHotTopicsJob({

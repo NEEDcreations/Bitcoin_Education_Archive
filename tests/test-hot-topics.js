@@ -487,6 +487,172 @@ test('a good scheduled run saves and does not alert', async function() {
     assert.strictEqual(doc.data.topics[0].title, GOOD_TOPIC.title);
 });
 
+function accountAiUrl(accountId) {
+    return 'https://api.cloudflare.com/client/v4/accounts/' + accountId + '/ai/run/@cf/meta/llama-4-scout-17b-16e-instruct';
+}
+
+function collectWarns() {
+    const lines = [];
+    return {
+        lines: lines,
+        warn: function() {
+            lines.push(Array.prototype.map.call(arguments, String).join(' '));
+        },
+    };
+}
+
+test('Workers AI timeouts and AbortErrors retry without logging the account', async function() {
+    const accountId = 'cfacct9f3asecret';
+    const timeouts = [];
+    const sleeps = [];
+    let calls = 0;
+    let thrown = null;
+    const logged = collectWarns();
+    try {
+        await ht.callAiForTopics('prompt', {
+            env: { CF_ACCOUNT_ID: accountId, CF_AI_TOKEN: 'tok' },
+            sleep: function(ms) { sleeps.push(ms); return Promise.resolve(); },
+            warn: logged.warn,
+            fetch: function(url, init) {
+                calls++;
+                timeouts.push(init.timeout);
+                assert.ok(String(url).indexOf('/accounts/' + accountId + '/') !== -1);
+                const err = new Error('network timeout at: ' + accountAiUrl(accountId));
+                err.name = 'FetchError';
+                err.type = 'request-timeout';
+                throw err;
+            },
+        });
+    } catch (e) {
+        thrown = e;
+    }
+    assert.ok(thrown);
+    assert.strictEqual(calls, 3);
+    assert.deepStrictEqual(sleeps, [400, 800]);
+    assert.deepStrictEqual(timeouts, [ht.CF_CALL_TIMEOUT_MS, ht.CF_CALL_TIMEOUT_MS, ht.CF_CALL_TIMEOUT_MS]);
+    assert.strictEqual(ht.CF_CALL_TIMEOUT_MS, 45000);
+    assert.strictEqual(thrown.message, 'CF Workers AI timeout');
+    assert.strictEqual(thrown.transient, true);
+    let blob = logged.lines.join('\n');
+    assert.ok(blob.indexOf('CF Workers AI timeout') !== -1);
+    assert.ok(blob.indexOf(accountId) === -1);
+    assert.ok(blob.indexOf('api.cloudflare.com') === -1);
+    assert.ok(blob.indexOf('accounts/') === -1);
+
+    let abortCalls = 0;
+    const abortSleeps = [];
+    const abortLog = collectWarns();
+    const ai = await ht.callAiForTopics('prompt', {
+        env: { CF_ACCOUNT_ID: accountId, CF_AI_TOKEN: 'tok' },
+        sleep: function(ms) { abortSleeps.push(ms); return Promise.resolve(); },
+        warn: abortLog.warn,
+        fetch: function(url, init) {
+            abortCalls++;
+            assert.strictEqual(init.timeout, 45000);
+            if (abortCalls === 1) {
+                const err = new Error('The user aborted a request. ' + accountAiUrl(accountId));
+                err.name = 'AbortError';
+                err.type = 'aborted';
+                throw err;
+            }
+            return Promise.resolve(res(200, { success: true, result: { response: { topics: [GOOD_TOPIC] } } }));
+        },
+    });
+    assert.strictEqual(abortCalls, 2);
+    assert.deepStrictEqual(abortSleeps, [400]);
+    assert.strictEqual(ai.topics[0].title, GOOD_TOPIC.title);
+    blob = abortLog.lines.join('\n');
+    assert.ok(blob.indexOf('CF Workers AI AbortError') !== -1);
+    assert.ok(blob.indexOf(accountId) === -1);
+    assert.ok(blob.indexOf('api.cloudflare.com') === -1);
+
+    const fallbackLog = collectWarns();
+    const topics = await ht.clusterAndSummarize([
+        { source: 'web', title: 'bitcoin fee debate', url: 'https://example.com/fees', body: 'fees' },
+    ], {
+        env: { CF_ACCOUNT_ID: accountId, CF_AI_TOKEN: 'tok' },
+        now: RUN_AT,
+        sleep: function() { return Promise.resolve(); },
+        warn: fallbackLog.warn,
+        fetch: function() {
+            const err = new Error('network timeout at: ' + accountAiUrl(accountId));
+            err.type = 'request-timeout';
+            err.code = 'ETIMEDOUT';
+            throw err;
+        },
+    });
+    assert.strictEqual(ht.isRealTopics(topics), false);
+    blob = fallbackLog.lines.join('\n');
+    assert.ok(blob.indexOf('using keyword fallback') !== -1);
+    assert.ok(blob.indexOf('CF Workers AI timeout') !== -1);
+    assert.ok(blob.indexOf(accountId) === -1);
+    assert.ok(blob.indexOf('api.cloudflare.com') === -1);
+});
+
+test('Workers AI 5xx retries and logs only the status', async function() {
+    const accountId = 'cfacct9f3asecret';
+    const logged = collectWarns();
+    let calls = 0;
+    const sleeps = [];
+    const ai = await ht.callAiForTopics('prompt', {
+        env: { CF_ACCOUNT_ID: accountId, CF_AI_TOKEN: 'tok' },
+        sleep: function(ms) { sleeps.push(ms); return Promise.resolve(); },
+        warn: logged.warn,
+        fetch: function() {
+            calls++;
+            if (calls < 3) {
+                return Promise.resolve(res(503, { errors: [{ message: 'down ' + accountAiUrl(accountId) }] }));
+            }
+            return Promise.resolve(res(200, { success: true, result: { response: { topics: [GOOD_TOPIC] } } }));
+        },
+    });
+    assert.strictEqual(calls, 3);
+    assert.deepStrictEqual(sleeps, [400, 800]);
+    assert.strictEqual(ai.topics[0].title, GOOD_TOPIC.title);
+    const blob = logged.lines.join('\n');
+    assert.ok(blob.indexOf('CF Workers AI HTTP 503') !== -1);
+    assert.ok(blob.indexOf('HTTP 200') === -1);
+    assert.ok(blob.indexOf(accountId) === -1);
+    assert.ok(blob.indexOf('api.cloudflare.com') === -1);
+    assert.ok(blob.indexOf('down ') === -1);
+
+    let permanentCalls = 0;
+    let permanent = null;
+    try {
+        await ht.callAiForTopics('prompt', {
+            env: { CF_ACCOUNT_ID: accountId, CF_AI_TOKEN: 'tok' },
+            sleep: function() { throw new Error('permanent 400 must not retry'); },
+            fetch: function() {
+                permanentCalls++;
+                return Promise.resolve(res(400, { error: accountAiUrl(accountId) }));
+            },
+        });
+    } catch (e) {
+        permanent = e;
+    }
+    assert.strictEqual(permanentCalls, 1);
+    assert.ok(permanent);
+    assert.strictEqual(permanent.permanent, true);
+    assert.strictEqual(permanent.message, 'CF Workers AI HTTP 400');
+    assert.ok(permanent.message.indexOf(accountId) === -1);
+});
+
+test('Workers AI budget stays inside the 540s function timeout', function() {
+    assert.strictEqual(ht.CF_CALL_TIMEOUT_MS, 45000);
+    const index = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
+    const scheduleBlock = index.slice(index.indexOf('exports.refreshHotTopics = onScheduleV2'), index.indexOf('exports.refreshHotTopicsHttp'));
+    const httpBlock = index.slice(index.indexOf('exports.refreshHotTopicsHttp'), index.indexOf('exports.refreshHotTopicsForce'));
+    const forceBlock = index.slice(index.indexOf('exports.refreshHotTopicsForce'), index.indexOf('END HOT TOPICS'));
+    assert.ok(scheduleBlock.indexOf('timeoutSeconds: 540') !== -1);
+    assert.ok(httpBlock.indexOf('functionsV1.runWith') !== -1);
+    assert.ok(httpBlock.indexOf('timeoutSeconds: 540') !== -1);
+    assert.ok(forceBlock.indexOf('functionsV1.runWith') !== -1);
+    assert.ok(forceBlock.indexOf('timeoutSeconds: 540') !== -1);
+    const src = fs.readFileSync(path.join(__dirname, '../functions/src/hotTopics.js'), 'utf8');
+    assert.ok(src.indexOf('timeout: 20000') !== -1);
+    assert.ok(src.indexOf('timeout: CF_CALL_TIMEOUT_MS') !== -1);
+});
+
 test('scheduler wiring is unchanged and the old X and Reddit paths are gone', function() {
     const index = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
     const src = fs.readFileSync(path.join(__dirname, '../functions/src/hotTopics.js'), 'utf8');
