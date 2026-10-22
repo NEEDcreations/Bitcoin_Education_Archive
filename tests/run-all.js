@@ -33,6 +33,10 @@ const TESTS = [
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
+    { name: 'Referrals', file: 'test-referrals.js' },
+    { name: 'Double XP', file: 'test-double-xp.js' },
+    { name: 'Tip Confirmation', file: 'test-tip-confirm.js' },
+    { name: 'Spin Reminder', file: 'test-spin-reminder.js' },
 ];
 
 let allPassed = true;

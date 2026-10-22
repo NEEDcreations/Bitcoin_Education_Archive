@@ -2147,13 +2147,13 @@ setTimeout(initBadges, 2000);
 // =============================================
 // Earn <svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets:
 //   +1 per daily login
-//   +50 per verified referral (referred user must log in & earn 2100+ pts)
+//   +100 per verified referral (referred user reaches Maxi, 2,140 pts)
 // =============================================
 
 const TICKET_CONFIG = {
     dailyLogin: 1,
-    referral: 50,
-    referralSignupBonus: 50,  // Tickets awarded to referred user when they reach Maxi rank
+    referral: 100,
+    referralSignupBonus: 100,  // Tickets awarded to both sides when the referred user reaches Maxi
     referralPointsThreshold: 2140,  // Maxi rank threshold
     pointsPerTicket: 5,  // Each ticket earned = 5 points towards reward system
 };
@@ -2242,138 +2242,30 @@ async function awardDailyTicket() {
 // ---- Attach referral to new user on account creation ----
 async function attachReferral(uid) {
     const refCode = localStorage.getItem('btc_referral_code');
-    if (!refCode) return;
-
-    // Don't let users refer themselves
-    if (uid.startsWith(refCode)) return;
-
+    if (!refCode || !uid) return;
+    if (String(uid).indexOf(refCode) === 0) return;
     try {
-        // Find referrer by matching uid prefix
-        const snapshot = await db.collection('users')
-            .where('referralCode', '==', refCode)
-            .limit(1)
-            .get();
-
-        let referrerUid = null;
-
-        if (!snapshot.empty) {
-            referrerUid = snapshot.docs[0].id;
-        } else {
-            // Fallback: scan users whose uid starts with the refCode
-            // Since referralCode field may not exist yet on old users,
-            // we store the raw refCode and resolve it later
-            referrerUid = null;
+        if (typeof firebase === 'undefined' || !firebase.functions) return;
+        var fn = firebase.functions().httpsCallable('registerReferral');
+        var result = await fn({ refCode: refCode });
+        var data = result && result.data;
+        if (data && (data.success || data.reason === 'self')) {
+            localStorage.removeItem('btc_referral_code');
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid && data.success) {
+                currentUser.referredBy = refCode;
+            }
         }
-
-        // Save referral info on the new user — bonus tickets awarded when they reach Maxi rank
-        await db.collection('users').doc(uid).update({
-            referredBy: refCode,
-            referralVerified: false,
-        });
-
-        // Also record in referrals collection for tracking
-        // Include signup source so Stacker News / Pleb Underground links are attributable
-        var _refSource = localStorage.getItem('btc_signup_source') || '';
-        var _refDoc = {
-            referredUser: uid,
-            referrerCode: refCode,
-            referrerUid: referrerUid || '',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            verified: false,
-            ticketsAwarded: false,
-        };
-        if (_refSource) _refDoc.source = _refSource;
-        await db.collection('referrals').doc(uid).set(_refDoc);
-
-        localStorage.removeItem('btc_referral_code');
     } catch (e) {
+        // Keep btc_referral_code so a later session can retry the callable.
         console.log('Referral attach error:', e);
     }
 }
 
-// ---- Check if referred users have qualified (2100+ pts) ----
-async function checkReferralQualifications() {
-    if (!currentUser || !db || !auth || !auth.currentUser) return;
-    if (auth.currentUser.isAnonymous) return;
+// Referral records and ticket awards are server-side (registerReferral,
+// the user-doc trigger, and the hourly scan). The browser must not write them.
+async function checkReferralQualifications() {}
 
-    // Only check once per session (heavy query)
-    if (window._referralChecked) return;
-    window._referralChecked = true;
-
-    const refCode = getReferralCode();
-    if (!refCode) return;
-
-    try {
-        // Find all referrals where this user is the referrer and tickets not yet awarded
-        const snapshot = await db.collection('referrals')
-            .where('referrerCode', '==', refCode)
-            .where('ticketsAwarded', '==', false)
-            .get();
-
-        if (snapshot.empty) return;
-
-        let ticketsEarned = 0;
-
-        for (const refDoc of snapshot.docs) {
-            const refData = refDoc.data();
-            const referredUid = refData.referredUser;
-
-            // Check if referred user has 2100+ points and has logged in
-            const userDoc = await db.collection('users').doc(referredUid).get();
-            if (!userDoc.exists) continue;
-
-            const userData = userDoc.data();
-            if ((userData.points || 0) >= TICKET_CONFIG.referralPointsThreshold && (userData.totalVisits || 0) >= 2) {
-                // Qualified! Award tickets
-                ticketsEarned += TICKET_CONFIG.referral;
-
-                // Mark referral as verified and tickets awarded
-                await db.collection('referrals').doc(refDoc.id).update({
-                    verified: true,
-                    ticketsAwarded: true,
-                    verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                });
-
-                // Also mark on the referred user's doc
-                await db.collection('users').doc(referredUid).update({
-                    referralVerified: true,
-                });
-            }
-        }
-
-        if (ticketsEarned > 0) {
-            const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
-            const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
-            // Award tickets + points through server-side Cloud Function
-            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 Referral tickets', null, ticketsEarned);
-            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsEarned;
-            showToast('🎫 +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
-            if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
-            updateRankUI();
-
-            // Check ticket badges after earning
-            if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-        }
-    } catch (e) {
-        console.log('Referral check error:', e);
-    }
-}
-
-// ---- Ensure referralCode field exists on user doc ----
-async function ensureReferralCode() {
-    if (!currentUser || !db || !auth || !auth.currentUser) return;
-    if (auth.currentUser.isAnonymous) return;
-
-    if (!currentUser.referralCode) {
-        const code = getReferralCode();
-        if (code) {
-            await db.collection('users').doc(currentUser.uid).update({
-                referralCode: code,
-            });
-            currentUser.referralCode = code;
-        }
-    }
-}
+async function ensureReferralCode() {}
 
 // ---- Get referral stats for display ----
 async function getReferralStats() {
@@ -2411,7 +2303,7 @@ function renderTicketsSection() {
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets</div>' +
         '<div style="color:#f7931a;font-weight:800;font-size:1.3rem;">' + tickets + '</div></div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Earn tickets by logging in daily (+1), spinning the daily wheel, and referring friends (+50 per verified referral!). Each ticket earned also awards <strong style="color:#f7931a;">5 bonus points</strong>!<br><br>' +
+        'Earn tickets by logging in daily (+1), spinning the daily wheel, and referring friends (+100 per verified referral!). Each ticket earned also awards <strong style="color:#f7931a;">5 bonus points</strong>!<br><br>' +
         '🏆 <strong style="color:#eab308;">The more tickets you have, the higher your chances in future giveaways!</strong>' +
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
@@ -2422,7 +2314,7 @@ function renderTicketsSection() {
         '<div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">' +
         '<div style="font-size:1.2rem;">🤝</div>' +
         '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Referral</div>' +
-        '<div style="color:var(--accent);font-weight:700;font-size:0.85rem;">+50 tickets</div></div></div>' +
+        '<div style="color:var(--accent);font-weight:700;font-size:0.85rem;">+100 tickets</div></div></div>' +
         '</div>';
 
     return html;
@@ -2438,7 +2330,7 @@ function renderReferralSection() {
     let html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Referral Program</div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Share your link with friends. Earn <strong style="color:#f7931a;">50 Orange Tickets</strong> for each referral who logs in and earns 2,140+ points (Maxi rank).' +
+        'Share your link with friends. You and your friend each earn <strong style="color:#f7931a;">100 Orange Tickets</strong> when they reach Maxi (2,140 points).' +
         '</div>' +
         '<div style="position:relative;margin-bottom:12px;">' +
         '<input type="text" id="referralLinkInput" readonly value="' + link + '" style="width:100%;padding:10px 80px 10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;box-sizing:border-box;" onclick="this.select()">' +
@@ -17167,8 +17059,9 @@ document.addEventListener('btcProfileSaved', function() {
                     var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
                     rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
                 } else {
-                    rewardText = '👔 You already own all spin closet items! +25 bonus XP instead!';
-                    if (typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
+                    var closetPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : 25;
+                    rewardText = '👔 You already own all spin closet items! +' + closetPts + ' bonus XP instead!';
+                    if (!(serverData && serverData.reward && typeof serverData.reward.pts === 'number') && typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
                 }
             } else if (rewardType === 'freeze') {
                 rewardText = '🧊 STREAK FREEZE TICKET! Your streak is protected for 1 missed day!';
@@ -17187,8 +17080,18 @@ document.addEventListener('btcProfileSaved', function() {
                     localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
                 }
             } else if (rewardType === 'points') {
-                rewardText = '⭐ You won ' + rewardAmount + ' XP!';
-                if (typeof awardPoints === 'function') {
+                var wonPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : rewardAmount;
+                rewardText = '⭐ You won ' + wonPts + ' XP!' + (serverData && serverData.reward && serverData.reward.doubled ? ' (2×)' : '');
+                if (serverData && serverData.reward && typeof serverData.reward.pts === 'number') {
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.points = (currentUser.points || 0) + wonPts;
+                        if (serverData.reward.doubleXpUntil) {
+                            currentUser.doubleXpUntil = serverData.reward.doubleXpUntil;
+                            currentUser.doubleXPExpiry = serverData.reward.doubleXpUntil;
+                        }
+                    }
+                    if (typeof updateRankUI === 'function') updateRankUI();
+                } else if (typeof awardPoints === 'function') {
                     awardPoints(rewardAmount, 'Daily Spin');
                 } else {
                     var pts = parseInt(localStorage.getItem('btc_points') || '0');
@@ -17296,23 +17199,49 @@ document.addEventListener('btcProfileSaved', function() {
         }
     }
 
+    function _spinReminderDelay(signedInAt, now) {
+        if (signedInAt == null) return null;
+        return Math.max(0, 60000 - ((now || Date.now()) - signedInAt));
+    }
+
+    function _noteSpinSignIn(user) {
+        if (!user || user.isAnonymous) return;
+        if (!window._spinSignedInAt) window._spinSignedInAt = Date.now();
+    }
+
     (function _scheduleSpinReminder() {
-        var start = window._sessionStart || Date.now();
-        var wait = Math.max(0, 60000 - (Date.now() - start));
-        setTimeout(function() {
-            function tryShow() {
-                if (window._spinReminderDone || _hasSpunToday()) return true;
-                if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
-                _showSpinReminder();
-                return true;
+        function arm() {
+            if (window._spinReminderArmed || window._spinSignedInAt == null) return;
+            window._spinReminderArmed = true;
+            var wait = _spinReminderDelay(window._spinSignedInAt, Date.now());
+            setTimeout(function() {
+                function tryShow() {
+                    if (window._spinReminderDone || _hasSpunToday()) return true;
+                    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
+                    _showSpinReminder();
+                    return true;
+                }
+                if (tryShow()) return;
+                var timer = setInterval(function() {
+                    if (window._spinReminderDone || tryShow()) clearInterval(timer);
+                }, 1000);
+            }, wait);
+        }
+        if (auth && auth.currentUser) _noteSpinSignIn(auth.currentUser);
+        if (auth && typeof auth.onAuthStateChanged === 'function') {
+            auth.onAuthStateChanged(function(user) {
+                _noteSpinSignIn(user);
+                arm();
+            });
+        }
+        arm();
+        var watch = setInterval(function() {
+            if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                _noteSpinSignIn(auth.currentUser);
+                arm();
+                clearInterval(watch);
             }
-            if (tryShow()) return;
-            var n = 0;
-            var timer = setInterval(function() {
-                n++;
-                if (tryShow() || n > 600) clearInterval(timer);
-            }, 1000);
-        }, wait);
+        }, 1000);
     })();
 
     // Preload local QR lib so donate modal can render instantly

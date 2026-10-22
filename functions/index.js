@@ -146,6 +146,9 @@ const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
+const doubleXp = require('./src/doubleXp');
+const referralService = require('./src/referralService');
+const tipService = require('./src/tipService');
 
 // ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
 // String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
@@ -1445,161 +1448,39 @@ exports.nachoFeedbackReport = onSchedule({
 // Runs when a referred user meets qualifications
 // Uses admin SDK to update the referrer's document
 // =============================================
+// Referral payouts are server-side. The old client path looked up `referredUid`
+// and paid 50 tickets from the referrer's browser; rules blocked that write, so
+// nobody was ever paid. This callable now only pays the signed-in referee, once.
 exports.verifyReferral = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-
-    const referredUid = context.auth.uid;
-
-    // Find the referral doc where this user was referred
-    const referralSnap = await db.collection('referrals')
-        .where('referredUid', '==', referredUid)
-        .where('verified', '==', false)
-        .limit(1)
-        .get();
-
-    if (referralSnap.empty) return { success: false, reason: 'No pending referral found' };
-
-    const referralDoc = referralSnap.docs[0];
-    const referralData = referralDoc.data();
-    const referrerUid = referralData.referrerUid;
-
-    const referredUser = await db.collection('users').doc(referredUid).get();
-    if (!referredUser.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
-
-    const referrerDoc = await db.collection('users').doc(referrerUid).get();
-    if (!referrerDoc.exists) return { success: false, reason: 'Referrer not found' };
-
-    const userData = referredUser.data();
-    const refData = referrerDoc.data();
-    const points = userData.points || 0;
-    const channelsVisited = (userData.visitedChannels || userData.visitedChannelsList || []).length;
-
-    // Qualification: reached Maxi rank (2,140+ points)
-    if (points < 2140) {
-        return { success: false, reason: 'Keep learning! You need to reach Maxi rank (2,140+ points) to unlock the referral reward.' };
-    }
-
-    // ===== FRAUD CHECKS =====
-    // Collect signals that this is the same person referring themselves.
-    const flags = [];
-    const lowerStr = s => (s == null ? null : String(s).toLowerCase().trim());
-
-    // 1. Same email on user doc
-    if (lowerStr(userData.email) && lowerStr(userData.email) === lowerStr(refData.email)) {
-        flags.push('same-email-user-doc');
-    }
-
-    // 2. Same Lightning address (profile field)
-    const referredLN = lowerStr(userData.lightningAddress || userData.lnAddress);
-    const referrerLN = lowerStr(refData.lightningAddress || refData.lnAddress);
-    if (referredLN && referredLN === referrerLN) flags.push('same-lightning-address');
-
-    // 3. Same giveaway Lightning address
-    try {
-        const [gA, gB] = await Promise.all([
-            db.collection('giveaway_entries').doc(referredUid).get(),
-            db.collection('giveaway_entries').doc(referrerUid).get()
-        ]);
-        if (gA.exists && gB.exists) {
-            const a = lowerStr(gA.data().lightningAddress || gA.data().lnAddress);
-            const b = lowerStr(gB.data().lightningAddress || gB.data().lnAddress);
-            if (a && a === b) flags.push('same-giveaway-lightning-address');
-        }
-    } catch (e) {}
-
-    // 4. Firebase Auth cross-checks: same provider email, accounts created within 24h.
-    try {
-        const [authA, authB] = await Promise.all([
-            admin.auth().getUser(referredUid).catch(() => null),
-            admin.auth().getUser(referrerUid).catch(() => null)
-        ]);
-        if (authA && authB) {
-            // Same displayName
-            if (authA.displayName && lowerStr(authA.displayName) === lowerStr(authB.displayName)) {
-                flags.push('same-display-name');
-            }
-            // Any provider email match
-            const emailsA = new Set();
-            const emailsB = new Set();
-            (authA.providerData || []).forEach(p => p.email && emailsA.add(lowerStr(p.email)));
-            (authB.providerData || []).forEach(p => p.email && emailsB.add(lowerStr(p.email)));
-            if (authA.email) emailsA.add(lowerStr(authA.email));
-            if (authB.email) emailsB.add(lowerStr(authB.email));
-            for (const e of emailsA) { if (emailsB.has(e)) { flags.push('same-auth-email:' + e); break; } }
-            // Accounts created within 24h of each other
-            const tA = new Date(authA.metadata.creationTime).getTime();
-            const tB = new Date(authB.metadata.creationTime).getTime();
-            if (Math.abs(tA - tB) < 86400000) flags.push('accounts-created-within-24h');
-        }
-    } catch (e) { console.error('[verifyReferral] auth cross-check failed:', e.message); }
-
-    // 5. Referral code chain: is the referrer himself referred back by this same user or vice versa?
-    if (refData.referredBy && lowerStr(refData.referredBy) === lowerStr((userData.uid || referredUid).substring(0, 8))) {
-        flags.push('circular-referral');
-    }
-
-    if (flags.length > 0) {
-        // Reject + log suspicious activity for review
-        try {
-            await db.collection('suspicious_activity').add({
-                type: 'referral-self-fraud',
-                referrerUid,
-                referredUid,
-                flags,
-                referrerEmail: refData.email || null,
-                referredEmail: userData.email || null,
-                referrerLN: refData.lightningAddress || refData.lnAddress || null,
-                referredLN: userData.lightningAddress || userData.lnAddress || null,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                action: 'referral-rejected'
-            });
-        } catch (e) {}
-        await referralDoc.ref.update({
-            verified: false,
-            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-            rejectionFlags: flags,
-            ticketsAwarded: false
-        });
-        return { success: false, reason: 'Referral rejected: sanity check failed', flags };
-    }
-
-    // ===== Passed all checks - award tickets =====
-    const batch = db.batch();
-    batch.update(referralDoc.ref, {
-        verified: true,
-        verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-        ticketsAwarded: true
-    });
-    // Referrer: +50 tickets, +1 referralCount
-    batch.update(db.collection('users').doc(referrerUid), {
-        orangeTickets: admin.firestore.FieldValue.increment(50),
-        referralTicketsEarned: admin.firestore.FieldValue.increment(50),
-        referralCount: admin.firestore.FieldValue.increment(1),
-    });
-    // Referred user: +50 tickets for reaching Maxi rank via referral link
-    batch.update(db.collection('users').doc(referredUid), {
-        referralVerified: true,
-        orangeTickets: admin.firestore.FieldValue.increment(50),
-    });
-    const referralTs = admin.firestore.FieldValue.serverTimestamp();
-    rewardNotify.apply(batch, db, referralTs, rewardNotify.plan({
-        uid: referrerUid,
-        tickets: 50,
-        sourceLabel: 'a referral reaching Maxi',
-        icon: '🎟️',
-        onceKey: 'referral_out_' + referredUid,
-    }));
-    rewardNotify.apply(batch, db, referralTs, rewardNotify.plan({
-        uid: referredUid,
-        tickets: 50,
-        sourceLabel: 'reaching Maxi with a referral',
-        icon: '🎟️',
-        onceKey: 'referral_in_' + referrerUid,
-    }));
-    await batch.commit();
-
-    return { success: true, referrerTickets: 50, referredTickets: 50 };
+    const result = await referralService.payIfQualified(context.auth.uid);
+    return {
+        success: !!(result && result.paid),
+        reason: result && result.reason,
+        referrerTickets: result && result.paid ? result.ticketsEach : 0,
+        referredTickets: result && result.paid ? result.ticketsEach : 0,
+    };
 });
+
+exports.registerReferral = functionsV1.https.onCall(async (data, context) => {
+    return referralService.registerReferral(data, context);
+});
+
+exports.confirmTipSent = functionsV1.https.onCall(async (data, context) => {
+    return tipService.confirmTipSent(data, context);
+});
+
+exports.onUserReferral = onDocumentWritten('users/{uid}', async (event) => {
+    return referralService.onUserWritten(event);
+});
+
+exports.payQualifiedReferrals = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'UTC',
+}, async () => {
+    return referralService.scanPending(40);
+});
+
 
 // =============================================
 // NOTE: Old allowedAwards-based awardPoints removed - replaced by daily-cap version below (line ~1527)
@@ -3478,6 +3359,18 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
             if (userData.ban_reason) throw new Error('BANNED');
+            // Double XP covers daily-capped activity only. Badges, the scholar
+            // exam, and onboarding are not multiplied. The allowlist amount is
+            // boosted before planGrant applies the daily cap.
+            const actionLower = String(reason || '').toLowerCase();
+            const skipDouble = matchedAction === 'badge_earned'
+                || matchedAction === 'scholar_cert'
+                || actionLower.indexOf('nacho quest') !== -1
+                || actionLower.indexOf('onboarding') !== -1;
+            const xpBoost = skipDouble
+                ? { points: pts, doubled: false, until: doubleXp.untilMillis(userData) }
+                : doubleXp.boostPoints(pts, userData, Date.now());
+            pts = xpBoost.points;
 
             if (matchedAction === 'badge_earned' && badgeKnown) {
                 const MILESTONE_BADGE_THRESHOLDS = {
@@ -3619,6 +3512,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 overflowRedeemed: 0,
                 pendingOverflow: userData.pendingOverflow || 0,
                 channelTracked: channelTracked,
+                doubled: xpBoost.doubled,
+                doubleXpUntil: xpBoost.until || 0,
             };
         });
     } catch (e) {
@@ -3657,9 +3552,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         overflowRedeemed: 0,
         pendingOverflow: transactionResult.pendingOverflow,
         channelTracked: transactionResult.channelTracked,
+        doubled: !!transactionResult.doubled,
+        doubleXpUntil: transactionResult.doubleXpUntil || 0,
     };
-
-    // (dead-code block below removed 2026-04-16 - was a leftover from a pre-refactor commit that prevented Cloud Functions deploys)
 });
 
 // ===== FAUCET ADMIN - getFaucetStats =====
@@ -4285,6 +4180,8 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
+        const spinBoost = doubleXp.boostPoints(totalPts, userData, Date.now());
+        totalPts = spinBoost.points;
 
         // Atomic update
         const update = {};
@@ -4330,6 +4227,8 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             closet: reward.closet,
             rare: reward.rare,
             rareLabel,
+            doubled: spinBoost.doubled,
+            doubleXpUntil: spinBoost.until || 0,
         };
     });
 
@@ -4615,10 +4514,13 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         const update = {};
         update[attemptField] = today;
 
+        let pointsAwarded = 0;
         if (passed) {
             // Award points server-side. Still increments directly (outside daily cap by design),
             // but now limited to ONCE per cert type thanks to the alreadyPassed gate above.
-            update.points = admin.firestore.FieldValue.increment(2100);
+            const scholarBoost = doubleXp.boostPoints(2100, userData, Date.now());
+            pointsAwarded = scholarBoost.points;
+            update.points = admin.firestore.FieldValue.increment(pointsAwarded);
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
@@ -4641,10 +4543,10 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             }
         }
 
-        return { score, passed, type };
+        return { score, passed, type, pointsAwarded };
     });
 
-    return { success: true, score: result.score, passed: result.passed, type: result.type };
+    return { success: true, score: result.score, passed: result.passed, type: result.type, pointsAwarded: result.pointsAwarded || 0 };
 });
 
 // ── Quest: Server-Side Grading ──
@@ -4745,12 +4647,16 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
         let awarded = 0;
         let capped = false;
         let dropped = 0;
+        let doubled = false;
         if (pts > 0) {
             const userDoc = await tx.get(userRef);
             const userData = userDoc.exists ? userDoc.data() : {};
             if (userData.ban_reason) {
                 dropped = pts;
             } else {
+                const questBoost = doubleXp.boostPoints(pts, userData, Date.now());
+                pts = questBoost.points;
+                doubled = questBoost.doubled;
                 const dailyDoc = await tx.get(dailyPtsRef);
                 const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
                 const triviaQuizUsed = dailyDoc.exists ? (dailyDoc.data().triviaQuiz || 0) : 0;
@@ -4812,7 +4718,7 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
             });
         }
 
-        return { score, pts, awarded, capped, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
+        return { score, pts, awarded, capped, doubled, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
     });
 
     return result;
@@ -6362,6 +6268,7 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
             pointsDonated: admin.firestore.FieldValue.increment(amount),
         };
         if (newBadges.length > 0) {
+            bonusPts = doubleXp.boostPoints(bonusPts, u, Date.now()).points;
             userUpdate.donationBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
             userUpdate.points = admin.firestore.FieldValue.increment(bonusPts);
             userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
@@ -7295,10 +7202,12 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
                     const heroSnap = await pRef.get();
                     const heroBefore = heroSnap.exists ? (heroSnap.data().points || 0) : 0;
                     await badgeRef.set({ awardedAt: admin.firestore.FieldValue.serverTimestamp() });
+                    const pSnap = await pRef.get();
+                    const hero = doubleXp.boostPoints(100, pSnap.exists ? pSnap.data() : {}, Date.now());
                     await pRef.update({
-                        points: admin.firestore.FieldValue.increment(100),
-                        weeklyXP: admin.firestore.FieldValue.increment(100),
-                        monthlyXP: admin.firestore.FieldValue.increment(100),
+                        points: admin.firestore.FieldValue.increment(hero.points),
+                        weeklyXP: admin.firestore.FieldValue.increment(hero.points),
+                        monthlyXP: admin.firestore.FieldValue.increment(hero.points),
                         visibleBadges: admin.firestore.FieldValue.arrayUnion('weekly_hero'),
                     });
                     await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
@@ -7393,7 +7302,20 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
         if (g.streakFreezes)  update.streakFreezes  = admin.firestore.FieldValue.increment(g.streakFreezes);
         if (g.hashBoosters)   update.hashBoosters   = admin.firestore.FieldValue.increment(g.hashBoosters * qty);
         if (g.hintTokens)     update.hintTokens     = admin.firestore.FieldValue.increment(g.hintTokens);
-        if (g.doubleXP)       update.doubleXPCharges = admin.firestore.FieldValue.increment(g.doubleXP * qty);
+        let doubleXpUntil = 0;
+        if (itemId === 'double_xp') {
+            // Buying starts or extends the window immediately. Leftover charges
+            // stay put so an older activateDoubleXP call can still spend them.
+            doubleXpUntil = doubleXp.extendUntil(
+                doubleXp.untilMillis(userData),
+                Date.now(),
+                doubleXp.DOUBLE_XP_MS * qty
+            );
+            update.doubleXpUntil = doubleXpUntil;
+            update.doubleXPExpiry = doubleXpUntil;
+        } else if (g.doubleXP) {
+            update.doubleXPCharges = admin.firestore.FieldValue.increment(g.doubleXP * qty);
+        }
         if (g.bonusSpins)        update.bonusSpins        = admin.firestore.FieldValue.increment(g.bonusSpins * qty);
         if (g.raffleEntries)     update.raffleEntries     = admin.firestore.FieldValue.increment(g.raffleEntries * qty);
         if (g.secondRigCharges)  update.secondRigCharges  = admin.firestore.FieldValue.increment(g.secondRigCharges * qty);
@@ -7461,7 +7383,7 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
             streakFreezes:  (userData.streakFreezes  || 0) + (g.streakFreezes  ? g.streakFreezes        : 0),
             hashBoosters:   (userData.hashBoosters   || 0) + (g.hashBoosters   ? g.hashBoosters * qty   : 0),
             hintTokens:     (userData.hintTokens     || 0) + (g.hintTokens     ? g.hintTokens           : 0),
-            doubleXPCharges:(userData.doubleXPCharges|| 0) + (g.doubleXP       ? g.doubleXP * qty       : 0),
+            doubleXPCharges:(userData.doubleXPCharges|| 0) + (itemId === 'double_xp' ? 0 : (g.doubleXP ? g.doubleXP * qty : 0)),
             bonusSpins:       (userData.bonusSpins       || 0) + (g.bonusSpins       ? g.bonusSpins * qty       : 0),
             raffleEntries:    (userData.raffleEntries    || 0) + (g.raffleEntries    ? g.raffleEntries * qty    : 0),
             secondRigCharges: (userData.secondRigCharges || 0) + (g.secondRigCharges ? g.secondRigCharges * qty : 0),
@@ -7475,6 +7397,8 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
             quantity: qty,
             itemName: item.name,
             inventory: newInventory,
+            doubleXpUntil: doubleXpUntil,
+            minutesLeft: doubleXp.minutesLeft(doubleXpUntil, Date.now()),
         };
     });
 });
@@ -7682,18 +7606,17 @@ exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
             throw new functionsV1.https.HttpsError('failed-precondition', 'No Double XP charges available.');
         }
 
-        // Already active? extend or reject
-        const now = admin.firestore.Timestamp.now();
-        const existingExpiry = userData.doubleXPExpiry;
-        const alreadyActive = existingExpiry && existingExpiry.toMillis() > now.toMillis();
-
-        // Set expiry to now+60min (or extend if already active)
-        const base = alreadyActive ? existingExpiry.toMillis() : now.toMillis();
-        const newExpiry = admin.firestore.Timestamp.fromMillis(base + 3600000);
+        // Leftover charges from before the purchase started the timer.
+        // Extend the same way a new purchase does, and store a number so the
+        // client countdown can compare it to Date.now() across reloads.
+        const nowMs = Date.now();
+        const alreadyActive = doubleXp.isActive(userData, nowMs);
+        const until = doubleXp.extendUntil(doubleXp.untilMillis(userData), nowMs, doubleXp.DOUBLE_XP_MS);
 
         tx.update(userRef, {
             doubleXPCharges: admin.firestore.FieldValue.increment(-1),
-            doubleXPExpiry: newExpiry,
+            doubleXpUntil: until,
+            doubleXPExpiry: until,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         try {
@@ -7709,9 +7632,11 @@ exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
 
         return {
             success: true,
-            doubleXPExpiry: newExpiry.toMillis(),
+            doubleXPExpiry: until,
+            doubleXpUntil: until,
             charges: charges - 1,
             extended: alreadyActive,
+            minutesLeft: doubleXp.minutesLeft(until, nowMs),
         };
     });
 });

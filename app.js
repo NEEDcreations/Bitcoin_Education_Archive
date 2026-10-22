@@ -915,8 +915,9 @@
                     var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
                     rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
                 } else {
-                    rewardText = '👔 You already own all spin closet items! +25 bonus XP instead!';
-                    if (typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
+                    var closetPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : 25;
+                    rewardText = '👔 You already own all spin closet items! +' + closetPts + ' bonus XP instead!';
+                    if (!(serverData && serverData.reward && typeof serverData.reward.pts === 'number') && typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
                 }
             } else if (rewardType === 'freeze') {
                 rewardText = '🧊 STREAK FREEZE TICKET! Your streak is protected for 1 missed day!';
@@ -935,8 +936,18 @@
                     localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
                 }
             } else if (rewardType === 'points') {
-                rewardText = '⭐ You won ' + rewardAmount + ' XP!';
-                if (typeof awardPoints === 'function') {
+                var wonPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : rewardAmount;
+                rewardText = '⭐ You won ' + wonPts + ' XP!' + (serverData && serverData.reward && serverData.reward.doubled ? ' (2×)' : '');
+                if (serverData && serverData.reward && typeof serverData.reward.pts === 'number') {
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.points = (currentUser.points || 0) + wonPts;
+                        if (serverData.reward.doubleXpUntil) {
+                            currentUser.doubleXpUntil = serverData.reward.doubleXpUntil;
+                            currentUser.doubleXPExpiry = serverData.reward.doubleXpUntil;
+                        }
+                    }
+                    if (typeof updateRankUI === 'function') updateRankUI();
+                } else if (typeof awardPoints === 'function') {
                     awardPoints(rewardAmount, 'Daily Spin');
                 } else {
                     var pts = parseInt(localStorage.getItem('btc_points') || '0');
@@ -1044,23 +1055,49 @@
         }
     }
 
+    function _spinReminderDelay(signedInAt, now) {
+        if (signedInAt == null) return null;
+        return Math.max(0, 60000 - ((now || Date.now()) - signedInAt));
+    }
+
+    function _noteSpinSignIn(user) {
+        if (!user || user.isAnonymous) return;
+        if (!window._spinSignedInAt) window._spinSignedInAt = Date.now();
+    }
+
     (function _scheduleSpinReminder() {
-        var start = window._sessionStart || Date.now();
-        var wait = Math.max(0, 60000 - (Date.now() - start));
-        setTimeout(function() {
-            function tryShow() {
-                if (window._spinReminderDone || _hasSpunToday()) return true;
-                if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
-                _showSpinReminder();
-                return true;
+        function arm() {
+            if (window._spinReminderArmed || window._spinSignedInAt == null) return;
+            window._spinReminderArmed = true;
+            var wait = _spinReminderDelay(window._spinSignedInAt, Date.now());
+            setTimeout(function() {
+                function tryShow() {
+                    if (window._spinReminderDone || _hasSpunToday()) return true;
+                    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
+                    _showSpinReminder();
+                    return true;
+                }
+                if (tryShow()) return;
+                var timer = setInterval(function() {
+                    if (window._spinReminderDone || tryShow()) clearInterval(timer);
+                }, 1000);
+            }, wait);
+        }
+        if (auth && auth.currentUser) _noteSpinSignIn(auth.currentUser);
+        if (auth && typeof auth.onAuthStateChanged === 'function') {
+            auth.onAuthStateChanged(function(user) {
+                _noteSpinSignIn(user);
+                arm();
+            });
+        }
+        arm();
+        var watch = setInterval(function() {
+            if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                _noteSpinSignIn(auth.currentUser);
+                arm();
+                clearInterval(watch);
             }
-            if (tryShow()) return;
-            var n = 0;
-            var timer = setInterval(function() {
-                n++;
-                if (tryShow() || n > 600) clearInterval(timer);
-            }, 1000);
-        }, wait);
+        }, 1000);
     })();
 
     // Preload local QR lib so donate modal can render instantly

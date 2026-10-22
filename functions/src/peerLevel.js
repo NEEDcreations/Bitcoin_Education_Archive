@@ -18,6 +18,7 @@
 
 const admin = require('firebase-admin');
 const rewardNotify = require('./rewardNotify');
+const { boostPoints } = require('./doubleXp');
 
 const db = admin.firestore();
 
@@ -110,17 +111,23 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
     };
 
     // ── XP award on level-up — server-side increment only ─────────────────
-    // Both peers earn XP. Applied inside the transaction so it's atomic
-    // with the level write — no partial states, no double-awards.
-    if (didLevelUp && newLevel.xp > 0) {
-      const xpFields = {
-        points:    admin.firestore.FieldValue.increment(newLevel.xp),
-        weeklyXP:  admin.firestore.FieldValue.increment(newLevel.xp),
-        monthlyXP: admin.firestore.FieldValue.increment(newLevel.xp),
+    // Each peer is boosted from their own double-XP window.
+    const nowMs = Date.now();
+    const senderXp = (didLevelUp && newLevel.xp > 0)
+      ? boostPoints(newLevel.xp, senderDoc.data(), nowMs).points
+      : 0;
+    const recipXp = (didLevelUp && newLevel.xp > 0)
+      ? boostPoints(newLevel.xp, recipDoc.data(), nowMs).points
+      : 0;
+    function xpFields(amount) {
+      return {
+        points:    admin.firestore.FieldValue.increment(amount),
+        weeklyXP:  admin.firestore.FieldValue.increment(amount),
+        monthlyXP: admin.firestore.FieldValue.increment(amount),
       };
-      Object.assign(senderPeerUpdate, xpFields);
-      Object.assign(recipPeerUpdate,  xpFields);
     }
+    if (senderXp > 0) Object.assign(senderPeerUpdate, xpFields(senderXp));
+    if (recipXp > 0) Object.assign(recipPeerUpdate, xpFields(recipXp));
 
     t.update(senderRef, senderPeerUpdate);
     t.update(recipRef,  recipPeerUpdate);
@@ -129,7 +136,9 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
       giftsExchanged,
       newLevel,
       didLevelUp,
-      xpAwarded: didLevelUp ? newLevel.xp : 0,
+      xpAwarded: senderXp,
+      senderXp,
+      recipXp,
       senderPoints: senderDoc.data().points || 0,
       recipPoints: recipDoc.data().points || 0,
     };
@@ -153,13 +162,13 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
           ...notifBase,
           recipientId: senderUid,
           peerId:      recipientUid,
-          message:     `Your friendship with this peer reached ${levelLabel}! ⚡ +${newLevel.xp.toLocaleString()} XP`,
+          message:     `Your friendship with this peer reached ${levelLabel}! ⚡ +${(txResult.senderXp || 0).toLocaleString()} XP`,
         }),
         db.collection('notifications').add({
           ...notifBase,
           recipientId: recipientUid,
           peerId:      senderUid,
-          message:     `Your friendship with this peer reached ${levelLabel}! ⚡ +${newLevel.xp.toLocaleString()} XP`,
+          message:     `Your friendship with this peer reached ${levelLabel}! ⚡ +${(txResult.recipXp || 0).toLocaleString()} XP`,
         }),
       ]);
     } catch (e) {
@@ -170,18 +179,18 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
         rewardNotify.plan({
           uid: senderUid,
           pointsBefore: txResult.senderPoints,
-          pointsDelta: txResult.xpAwarded,
+          pointsDelta: txResult.senderXp,
         }).concat(rewardNotify.plan({
           uid: recipientUid,
           pointsBefore: txResult.recipPoints,
-          pointsDelta: txResult.xpAwarded,
+          pointsDelta: txResult.recipXp,
         }))
       );
     }
 
     console.log(
       `[peerLevel] Level-up! pair=${uidA}_${uidB} → ${newLevel.name} ` +
-      `(${txResult.giftsExchanged} gifts, +${newLevel.xp} XP each)`
+      `(${txResult.giftsExchanged} gifts, sender +${txResult.senderXp || 0} XP, peer +${txResult.recipXp || 0} XP)`
     );
   }
 
