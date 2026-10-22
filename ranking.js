@@ -3672,12 +3672,66 @@ window.confirmDeleteAccount = async function() {
         console.error('Account deletion error:', e);
         var code = (e && e.code) || '';
         var msg = (e && e.message) || '';
+        if (/2FA code/i.test(msg)) {
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            window._promptDeleteAccountTotp();
+            return;
+        }
         if (code === 'auth/requires-recent-login' || code === 'functions/failed-precondition' || code === 'failed-precondition' || /sign in again/i.test(msg) || /recent login/i.test(msg)) {
             showToast('🔒 For security, please sign out and sign back in, then try again.');
         } else {
             showToast('Error deleting account: ' + (e.message || 'Unknown error'));
         }
         if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+    }
+};
+
+// Shown when deleteAccount asks for the authenticator code. totpCheck writes
+// the server session, then the same deletion is tried again.
+window._promptDeleteAccountTotp = function() {
+    if (document.getElementById('deleteTotpOverlay')) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'deleteTotpOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100020;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML =
+        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid #ef4444;border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">' +
+            '<div style="font-size:2.2rem;margin-bottom:10px;">📱</div>' +
+            '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;">Enter your 2FA code</div>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Enter your 2FA code, then try again.</div>' +
+            '<input id="deleteTotpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
+            '<div id="deleteTotpStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
+            '<button id="deleteTotpBtn" type="button" style="width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify and delete</button>' +
+            '<button type="button" id="deleteTotpCancel" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    document.getElementById('deleteTotpCancel').onclick = function() { overlay.remove(); };
+    var submit = async function() {
+        var inp = document.getElementById('deleteTotpInput');
+        var statusEl = document.getElementById('deleteTotpStatus');
+        var verifyBtn = document.getElementById('deleteTotpBtn');
+        if (!inp) return;
+        var code = inp.value.trim();
+        if (code.length < 6) {
+            if (statusEl) statusEl.textContent = 'Enter the full 6-digit code';
+            return;
+        }
+        if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
+        try {
+            var checkFn = firebase.functions().httpsCallable('totpCheck');
+            await checkFn({ code: code });
+            overlay.remove();
+            window.confirmDeleteAccount();
+        } catch (err) {
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify and delete'; }
+            if (statusEl) statusEl.textContent = (err && err.message) ? err.message : 'Verification failed';
+            if (inp) { inp.value = ''; inp.focus(); }
+        }
+    };
+    document.getElementById('deleteTotpBtn').onclick = submit;
+    var inp = document.getElementById('deleteTotpInput');
+    if (inp) {
+        inp.focus();
+        inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') submit(); });
     }
 };
 

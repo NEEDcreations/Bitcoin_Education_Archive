@@ -260,6 +260,7 @@ function world() {
         'usernames/alice': { uid: 'u1' },
         'usernames/u1': { uid: 'u1' },
         'usernames/bob': { uid: 'u2' },
+        'usernames/orphan': { reserved: true },
         'push_tokens/u1': { token: 'tok-u1' },
         'push_tokens/u1/devices/phone': { token: 'phone-u1' },
         'push_tokens/u2': { token: 'tok-u2' },
@@ -290,7 +291,8 @@ function world() {
         'suggestions/s2': { uid: 'u2', text: 'keep idea' },
         'beats_tracks/t1': { authorId: 'u1', title: 'song' },
         'beats_tracks/t1/comments/c1': { authorId: 'u1', text: 'own comment' },
-        'beats_tracks/t2': { authorId: 'u2', title: 'other song' },
+        'beats_tracks/t2': { authorId: 'u2', title: 'other song', likedBy: ['u1', 'u2'], likes: 2 },
+        'beats_tracks/t3': { authorId: 'u9', title: 'untouched', likedBy: ['u2'], likes: 1 },
         'beats_tracks/t2/comments/c2': { authorId: 'u1', text: 'on their track' },
         'beats_tracks/t2/comments/c3': { authorId: 'u2', text: 'their comment' },
         'gifts/g1': { ownerId: 'u1', sentBy: 'u2' },
@@ -320,6 +322,39 @@ function world() {
         'satoshiFavor/personalBests/users/u1': { username: 'Alice', best: 9 },
         'global_chat_meta/live_dj/dj_queue/u1': { uid: 'u1', name: 'Alice' },
         'totp_secrets/u1': { secret: 'should-go' },
+        'totp_sessions/u1': { verified: true, verifiedAt: 1 },
+        'nacho_feedback/f1': { uid: 'u1', question: 'what is a utxo' },
+        'nacho_feedback/f2': { uid: 'u2', question: 'keep' },
+        'nacho_misses/miss1': { uid: 'u1', question: 'missed' },
+        'nacho_bad_matches/bad1': { uid: 'u1', question: 'bad' },
+        'analytics/nacho_feedback': { count: 9 },
+        'analytics/nacho_misses': { count: 3 },
+        'ai_tools_opens/open1': { uid: 'u1', tool: 'explorer' },
+        'ai_tools_opens/open2': { uid: 'u2', tool: 'keep' },
+        'channel_feedback/cf1': { uid: 'u1', text: 'loud' },
+        'channel_feedback/cf2': { uid: 'u2', text: 'keep' },
+        'poll_votes/poll1': { voters: ['u1', 'u2'], votes: [1, 1, 0, 0] },
+        'poll_votes/poll2': { voters: ['u2'], votes: [0, 1, 0, 0] },
+        'reply_bonus_state/u1': { uid: 'u1', firstClaimed: true },
+        'reply_bonus_state/u2': { uid: 'u2', firstClaimed: true },
+        'reply_bonus_pairs/p_u1__u2': { replierUid: 'u1', targetUid: 'u2' },
+        'reply_bonus_pairs/p_u2__u1': { replierUid: 'u2', targetUid: 'u1' },
+        'reply_bonus_pairs/p_u2__u3': { replierUid: 'u2', targetUid: 'u3' },
+        'reply_bonus_claims/msg1': { uid: 'u1', targetUid: 'u2', messageId: 'msg1' },
+        'reply_bonus_claims/msg2': { uid: 'u2', targetUid: 'u1', messageId: 'msg2' },
+        'reply_bonus_claims/msg3': { uid: 'u2', targetUid: 'u3', messageId: 'msg3' },
+        'rate_limits/reply_u1': { count: 2 },
+        'rate_limits/reply_u2': { count: 1 },
+        'market_listing_counts/l1': { sellerUid: 'u1' },
+        'market_listing_counts/l2': { sellerUid: 'u2' },
+        'tctv_watch/u1': { minutes: 10 },
+        'tctv_watch/u2': { minutes: 4 },
+        'users/u1/quest_completions/q9': { questId: 'q9' },
+        'users/u1/lifetime_awards/life1': { award: 'first' },
+        'users/u1/onboarding_evidence/ev1': { note: 'joined' },
+        'suspicious_activity/sa1': { uid: 'u1', email: 'alice@example.com' },
+        'watchlist_snapshots/u1': { uid: 'u1', note: 'watch' },
+        'beats_reports/br1': { reporterId: 'u1', trackId: 't2' },
         'global_chat/nacho1': {
             uid: 'nacho-bot', name: '🦌 Nacho', mentionUid: 'u1',
             text: 'Shoutout to @Alice and also @Bob stays',
@@ -430,6 +465,7 @@ function auth(uid, extras) {
 
 (async function() {
     execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'deleteAccount.js')], { stdio: 'pipe' });
+    execFileSync(process.execPath, ['--check', path.join(root, 'functions', 'src', 'requireSecondFactor.js')], { stdio: 'pipe' });
 
     test('owner needs a recent sign-in, and only an admin can name another uid', function() {
         const now = 1000 + del.REAUTH_MAX_AGE_SEC;
@@ -464,6 +500,14 @@ function auth(uid, extras) {
             { uid: 'u2' },
             now
         ).code, 'permission-denied');
+        const nostr = 'nostr:' + 'ab'.repeat(32);
+        const ln = 'ln:' + 'cd'.repeat(33);
+        assert.strictEqual(del.authorizeDeleteAccount(auth(nostr, { token: { auth_time: 1000 } }), {}, now).uid, nostr);
+        assert.strictEqual(del.authorizeDeleteAccount(auth(ln, { token: { auth_time: 1000 } }), {}, now).uid, ln);
+        assert.strictEqual(del.authorizeDeleteAccount(auth('a/b', { token: { auth_time: 1000 } }), {}, now).code, 'invalid-argument');
+        assert.strictEqual(del.authorizeDeleteAccount(auth('has space', { token: { auth_time: 1000 } }), {}, now).code, 'invalid-argument');
+        assert.strictEqual(del.UID_RE.test('..'), false);
+        assert.strictEqual(del.UID_RE.test('guestAnon1'), true);
     });
 
     test('chat tombstone keeps the reply link and clears the author, text, and media', function() {
@@ -575,6 +619,7 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('usernames/alice'), false);
         assert.strictEqual(db.docs.has('usernames/u1'), false);
         assert.strictEqual(db.docs.get('usernames/bob').uid, 'u2');
+        assert.ok(db.docs.has('usernames/orphan'));
         assert.strictEqual(db.docs.has('public_profiles/u1'), false);
         assert.ok(db.docs.has('public_profiles/u2'));
 
@@ -589,6 +634,10 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('beats_tracks/t1'), false);
         assert.strictEqual(db.docs.has('beats_tracks/t1/comments/c1'), false);
         assert.ok(db.docs.has('beats_tracks/t2'));
+        assert.deepStrictEqual(db.docs.get('beats_tracks/t2').likedBy, ['u2']);
+        assert.strictEqual(db.docs.get('beats_tracks/t2').likes, 1);
+        assert.deepStrictEqual(db.docs.get('beats_tracks/t3').likedBy, ['u2']);
+        assert.strictEqual(db.docs.get('beats_tracks/t3').likes, 1);
         assert.strictEqual(db.docs.has('beats_tracks/t2/comments/c2'), false);
         assert.strictEqual(db.docs.get('beats_tracks/t2/comments/c3').text, 'their comment');
         assert.strictEqual(db.docs.has('gifts/g1'), false);
@@ -603,6 +652,41 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('tctv_view_days/20261022_u1_main'), false);
         assert.strictEqual(db.docs.has('certs/cert1'), false);
         assert.strictEqual(db.docs.has('totp_secrets/u1'), false);
+        assert.strictEqual(db.docs.has('totp_sessions/u1'), false);
+        assert.strictEqual(db.docs.has('nacho_feedback/f1'), false);
+        assert.ok(db.docs.has('nacho_feedback/f2'));
+        assert.strictEqual(db.docs.has('nacho_misses/miss1'), false);
+        assert.strictEqual(db.docs.has('nacho_bad_matches/bad1'), false);
+        assert.strictEqual(db.docs.get('analytics/nacho_feedback').count, 9);
+        assert.strictEqual(db.docs.get('analytics/nacho_misses').count, 3);
+        assert.strictEqual(db.docs.has('ai_tools_opens/open1'), false);
+        assert.ok(db.docs.has('ai_tools_opens/open2'));
+        assert.strictEqual(db.docs.has('channel_feedback/cf1'), false);
+        assert.ok(db.docs.has('channel_feedback/cf2'));
+        assert.deepStrictEqual(db.docs.get('poll_votes/poll1').voters, ['u2']);
+        assert.deepStrictEqual(db.docs.get('poll_votes/poll1').votes, [1, 1, 0, 0]);
+        assert.deepStrictEqual(db.docs.get('poll_votes/poll2').voters, ['u2']);
+        assert.deepStrictEqual(db.docs.get('poll_votes/poll2').votes, [0, 1, 0, 0]);
+        assert.strictEqual(db.docs.has('reply_bonus_state/u1'), false);
+        assert.ok(db.docs.has('reply_bonus_state/u2'));
+        assert.strictEqual(db.docs.has('reply_bonus_pairs/p_u1__u2'), false);
+        assert.strictEqual(db.docs.has('reply_bonus_pairs/p_u2__u1'), false);
+        assert.ok(db.docs.has('reply_bonus_pairs/p_u2__u3'));
+        assert.strictEqual(db.docs.has('reply_bonus_claims/msg1'), false);
+        assert.strictEqual(db.docs.has('reply_bonus_claims/msg2'), false);
+        assert.ok(db.docs.has('reply_bonus_claims/msg3'));
+        assert.strictEqual(db.docs.has('rate_limits/reply_u1'), false);
+        assert.ok(db.docs.has('rate_limits/reply_u2'));
+        assert.strictEqual(db.docs.has('market_listing_counts/l1'), false);
+        assert.ok(db.docs.has('market_listing_counts/l2'));
+        assert.strictEqual(db.docs.has('tctv_watch/u1'), false);
+        assert.ok(db.docs.has('tctv_watch/u2'));
+        assert.strictEqual(db.docs.has('users/u1/quest_completions/q9'), false);
+        assert.strictEqual(db.docs.has('users/u1/lifetime_awards/life1'), false);
+        assert.strictEqual(db.docs.has('users/u1/onboarding_evidence/ev1'), false);
+        assert.strictEqual(db.docs.get('suspicious_activity/sa1').email, 'alice@example.com');
+        assert.ok(db.docs.has('watchlist_snapshots/u1'));
+        assert.strictEqual(db.docs.get('beats_reports/br1').reporterId, 'u1');
         assert.strictEqual(db.docs.has('global_chat_meta/live_dj/dj_queue/u1'), false);
         assert.strictEqual(db.docs.has('satoshiFavor/personalBests/users/u1'), false);
         assert.strictEqual(db.docs.get('satoshiFavor/current/session_hashes/u1').username, '[deleted]');
@@ -763,6 +847,9 @@ function auth(uid, extras) {
     test('the client calls the server wipe and does not delete Firestore itself', function() {
         const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
         assert.ok(ranking.includes("httpsCallable('deleteAccount', { timeout: 540000 })"));
+        assert.ok(ranking.includes('window._promptDeleteAccountTotp'));
+        assert.ok(ranking.includes('Enter your 2FA code, then try again.'));
+        assert.ok(ranking.includes("httpsCallable('totpCheck')"));
         assert.ok(ranking.includes('user.delete()'));
         assert.ok(ranking.includes('auth/user-not-found'));
         assert.strictEqual(ranking.includes("collection('conversations')"), false);
@@ -787,6 +874,13 @@ function auth(uid, extras) {
         assert.ok(privacy.includes('deletes the Firebase sign-in itself'));
         assert.ok(privacy.includes('other person\'s messages'));
         assert.ok(privacy.includes('deleted for both people'));
+        assert.ok(privacy.includes('keyed hash'));
+        assert.ok(privacy.includes('expires after about a day'));
+        assert.ok(privacy.includes('suspicious-activity notes'));
+        assert.ok(privacy.includes('watchlist snapshots'));
+        assert.ok(privacy.includes('Beats reports'));
+        assert.ok(privacy.includes('vote totals stay'));
+        assert.ok(privacy.includes('The referral reward at Maxi is 50 Orange Tickets') === false);
         const chat = fs.readFileSync(path.join(root, 'global-chat.js'), 'utf8');
         assert.ok(chat.includes("m.uid === 'deleted'"));
         assert.ok(chat.includes('!isDeleted'));
@@ -891,6 +985,17 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('gift_pending_pairs/u1_u2'));
         assert.ok(db.docs.has('users/u1/sats_daily/2026-10-22'));
         assert.ok(db.docs.has('users/u1/proof_of_walk/act1'));
+        assert.ok(db.docs.has('users/u1/quest_completions/q9'));
+        assert.ok(db.docs.has('users/u1/lifetime_awards/life1'));
+        assert.ok(db.docs.has('users/u1/onboarding_evidence/ev1'));
+        assert.ok(db.docs.has('reply_bonus_state/u1'));
+        assert.ok(db.docs.has('reply_bonus_pairs/p_u1__u2'));
+        assert.ok(db.docs.has('market_listing_counts/l1'));
+        assert.ok(db.docs.has('tctv_watch/u1'));
+        assert.deepStrictEqual(db.docs.get('poll_votes/poll1').voters, ['u1', 'u2']);
+        assert.strictEqual(db.docs.has('totp_sessions/u1'), false);
+        assert.strictEqual(db.docs.has('nacho_feedback/f1'), false);
+        assert.deepStrictEqual(db.docs.get('beats_tracks/t2').likedBy, ['u2']);
         assert.ok(db.docs.has('quest_answer_keys/q1'));
         assert.ok(bucket.files.has('beats/u1/song.mp3'));
 
@@ -917,6 +1022,13 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('users/u1/daily_points/2026-10-22'), false);
         assert.strictEqual(db.docs.has('users/u1/daily_action_counts/2026-10-22'), false);
         assert.strictEqual(db.docs.has('users/u1/badge_awards/b1'), false);
+        assert.strictEqual(db.docs.has('users/u1/quest_completions/q9'), false);
+        assert.strictEqual(db.docs.has('users/u1/lifetime_awards/life1'), false);
+        assert.strictEqual(db.docs.has('users/u1/onboarding_evidence/ev1'), false);
+        assert.strictEqual(db.docs.has('reply_bonus_state/u1'), false);
+        assert.strictEqual(db.docs.has('market_listing_counts/l1'), false);
+        assert.strictEqual(db.docs.has('tctv_watch/u1'), false);
+        assert.deepStrictEqual(db.docs.get('poll_votes/poll1').voters, ['u2']);
         assert.strictEqual(db.docs.has('shoutout_limits/forum_u1'), false);
         assert.strictEqual(db.docs.has('action_cooldowns/u1_chat_message'), false);
         assert.ok(db.docs.has('shoutout_limits/global'));
@@ -935,6 +1047,7 @@ function auth(uid, extras) {
             nowSec: function() { return now; },
             nowMs: function() { return 5000; },
             documentIdField: '__name__',
+            ipSecret: 'unit-secret',
         });
         const result = await handlers.deleteAccount({}, {
             auth: { uid: 'u1', token: { auth_time: 1000, firebase: { sign_in_provider: 'anonymous' } } },
@@ -952,7 +1065,14 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('users/u1'), false);
         assert.strictEqual(db.docs.has('forum_posts/p1'), false);
         assert.strictEqual(db.docs.has('users/u1/daily_points/2026-10-22'), false);
-        assert.strictEqual(db.docs.get('rate_limits/deleteip_203_0_113_9').count, 1);
+        const ipDoc = del.deletionIpDocId('203.0.113.9', 5000, 'unit-secret');
+        const ipRow = db.docs.get('rate_limits/' + ipDoc);
+        assert.strictEqual(ipRow.count, 1);
+        assert.ok(ipRow.expireAt instanceof Date);
+        assert.strictEqual(ipRow.expireAt.getTime(), 5000 + del.DELETE_RATE_TTL_MS);
+        assert.strictEqual(JSON.stringify(ipRow).indexOf('203.0.113.9'), -1);
+        assert.strictEqual(JSON.stringify(ipRow).indexOf('198.51.100.8'), -1);
+        assert.strictEqual(db.docs.has('rate_limits/deleteip_203_0_113_9'), false);
         assert.ok(db.docs.has('rate_limits/nostr_203_0_113_8'));
     });
 
@@ -969,6 +1089,7 @@ function auth(uid, extras) {
             nowSec: function() { return now; },
             nowMs: function() { return 5000; },
             documentIdField: '__name__',
+            ipSecret: 'unit-secret',
         });
         await assert.rejects(
             handlers.deleteAccount({}, { auth: auth('u1', { token: { auth_time: 1000 } }) }),
@@ -979,7 +1100,8 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('faucet_ledger/u1').satsWithdrawn, 3);
 
         const anonDb = createFakeDb({ 'users/guest': { username: 'Guest' } });
-        anonDb.docs.set('rate_limits/deleteip_203_0_113_9', { windowStart: 5000, count: del.DELETE_RATE_MAX_ANON_IP });
+        const anonIp = del.deletionIpDocId('203.0.113.9', 5000, 'unit-secret');
+        anonDb.docs.set('rate_limits/' + anonIp, { windowStart: 5000, count: del.DELETE_RATE_MAX_ANON_IP });
         const anonHandlers = del.createDeleteAccountHandlers({
             db: anonDb,
             bucket: createBucket([]),
@@ -988,6 +1110,7 @@ function auth(uid, extras) {
             nowSec: function() { return now; },
             nowMs: function() { return 5000; },
             documentIdField: '__name__',
+            ipSecret: 'unit-secret',
         });
         await assert.rejects(
             anonHandlers.deleteAccount({}, {
@@ -997,6 +1120,156 @@ function auth(uid, extras) {
             function(err) { return err.code === 'resource-exhausted'; }
         );
         assert.ok(anonDb.docs.has('users/guest'));
+    });
+
+    await testAsync('Google, email, Nostr, Lightning, and guest ids can be deleted', async function() {
+        const ids = [
+            'G00gleUser_1',
+            'emailUser_2',
+            'nostr:' + 'ab'.repeat(32),
+            'ln:' + 'cd'.repeat(33),
+            'guestAnon99',
+        ];
+        for (let i = 0; i < ids.length; i++) {
+            const uid = ids[i];
+            const db = createFakeDb({});
+            db.docs.set('users/' + uid, { username: 'P' + i });
+            const authApi = okAuth();
+            const handlers = del.createDeleteAccountHandlers({
+                db: db,
+                bucket: createBucket([]),
+                authApi: authApi,
+                HttpsError: HttpsError,
+                nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+                nowMs: function() { return 5000; },
+                documentIdField: '__name__',
+                ipSecret: 'unit-secret',
+            });
+            const token = { auth_time: 1000 };
+            if (uid.indexOf('guest') === 0) token.firebase = { sign_in_provider: 'anonymous' };
+            const result = await handlers.deleteAccount({}, {
+                auth: { uid: uid, token: token },
+                rawRequest: { headers: { 'x-forwarded-for': '203.0.113.50' } },
+            });
+            assert.strictEqual(result.authDeleted, true, uid);
+            assert.strictEqual(db.docs.has('users/' + uid), false, uid);
+            assert.ok(authApi.calls.indexOf('delete:' + uid) !== -1, uid);
+            const ipPath = 'rate_limits/' + del.deletionIpDocId('203.0.113.50', 5000, 'unit-secret');
+            const row = db.docs.get(ipPath);
+            assert.ok(row, uid);
+            assert.strictEqual(JSON.stringify(row).indexOf('203.0.113.50'), -1, uid);
+            assert.ok(!(ipPath.indexOf('203.0.113.50') !== -1), uid);
+        }
+    });
+
+    await testAsync('an invalid id is rejected before a rate-limit row is written', async function() {
+        const db = createFakeDb({ 'users/bad': { username: 'Bad' } });
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret',
+        });
+        const badIds = ['../x', 'a/b', 'has space', '..'];
+        for (let i = 0; i < badIds.length; i++) {
+            await assert.rejects(
+                handlers.deleteAccount({}, { auth: { uid: badIds[i], token: { auth_time: 1000 } } }),
+                function(err) { return err.code === 'invalid-argument'; }
+            );
+        }
+        for (const key of db.docs.keys()) {
+            assert.strictEqual(key.indexOf('rate_limits/'), -1, key);
+        }
+        assert.ok(db.docs.has('users/bad'));
+    });
+
+    await testAsync('authenticator 2FA is required for the owner and skipped for an admin', async function() {
+        const now = 1000 + del.REAUTH_MAX_AGE_SEC;
+        function handlers(db) {
+            return del.createDeleteAccountHandlers({
+                db: db,
+                bucket: createBucket([]),
+                authApi: okAuth(),
+                HttpsError: HttpsError,
+                nowSec: function() { return now; },
+                nowMs: function() { return 5000; },
+                documentIdField: '__name__',
+                ipSecret: 'unit-secret',
+            });
+        }
+        function call(db, auth) {
+            return handlers(db).deleteAccount({}, { auth: auth, rawRequest: { headers: {} } });
+        }
+        const blocked = createFakeDb({
+            'users/u1': { username: 'Alice' },
+            'totp_secrets/u1': { enabled: true, secret: 'abc' },
+        });
+        await assert.rejects(
+            call(blocked, { uid: 'u1', token: { auth_time: 1000 } }),
+            function(err) { return err.code === 'failed-precondition' && /2FA code/.test(err.message); }
+        );
+        assert.ok(blocked.docs.has('users/u1'));
+        for (const key of blocked.docs.keys()) {
+            assert.strictEqual(key.indexOf('rate_limits/delete'), -1, key);
+        }
+
+        const stale = createFakeDb({
+            'users/u1': { username: 'Alice' },
+            'totp_secrets/u1': { enabled: true },
+            'totp_sessions/u1': { verified: true, verifiedAt: 999000 },
+        });
+        await assert.rejects(
+            call(stale, { uid: 'u1', token: { auth_time: 1000 } }),
+            function(err) { return err.code === 'failed-precondition' && /2FA code/.test(err.message); }
+        );
+        assert.ok(stale.docs.has('users/u1'));
+
+        const fresh = createFakeDb({
+            'users/u1': { username: 'Alice' },
+            'totp_secrets/u1': { enabled: true },
+            'totp_sessions/u1': { verified: true, verifiedAt: 1000000 },
+        });
+        const freshResult = await call(fresh, { uid: 'u1', token: { auth_time: 1000 } });
+        assert.strictEqual(freshResult.authDeleted, true);
+        assert.strictEqual(fresh.docs.has('users/u1'), false);
+
+        const off = createFakeDb({ 'users/u1': { username: 'Alice' } });
+        const offResult = await call(off, { uid: 'u1', token: { auth_time: 1000 } });
+        assert.strictEqual(offResult.authDeleted, true);
+
+        const disabled = createFakeDb({
+            'users/u1': { username: 'Alice' },
+            'totp_secrets/u1': { enabled: false },
+            'totp_sessions/u1': { verified: true, verifiedAt: 1 },
+        });
+        const disabledResult = await call(disabled, { uid: 'u1', token: { auth_time: 1000 } });
+        assert.strictEqual(disabledResult.authDeleted, true);
+        assert.strictEqual(disabled.docs.has('totp_sessions/u1'), false);
+
+        const phone = createFakeDb({ 'users/u1': { username: 'Alice' } });
+        const phoneResult = await call(phone, {
+            uid: 'u1',
+            token: { auth_time: 1000, firebase: { sign_in_provider: 'phone' } },
+        });
+        assert.strictEqual(phoneResult.authDeleted, true);
+
+        const adminDb = createFakeDb({
+            'users/u2': { username: 'Bob' },
+            'totp_secrets/admin': { enabled: true },
+            'totp_secrets/u2': { enabled: true },
+        });
+        const adminResult = await handlers(adminDb).deleteAccount(
+            { uid: 'u2' },
+            { auth: { uid: 'admin', token: { admin: true, auth_time: 1 } }, rawRequest: { headers: {} } }
+        );
+        assert.strictEqual(adminResult.byAdmin, true);
+        assert.strictEqual(adminResult.authDeleted, true);
+        assert.strictEqual(adminDb.docs.has('users/u2'), false);
+        assert.ok(adminDb.docs.has('totp_secrets/admin'));
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

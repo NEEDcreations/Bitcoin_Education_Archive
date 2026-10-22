@@ -24,11 +24,18 @@
 //    weekly_challenges parents are paged because the participant flag is a
 //    map. Each week's user_contribs rows are a document-id range.
 // Direct document gets do not need an index.
+// Nacho notes, channel feedback, Beats likes, poll voters, reply-bonus
+// rows, and listing-count markers use the same single-field shapes.
+// likedBy and voters are array-contains on fields with no override, so the
+// automatic index covers them. No new composite is required.
 // Anonymous callers skip chat, raid, raffle, and weekly passes.
 //
 // Financial and abuse records in RETAINED_COLLECTIONS are never written.
 // Per-day caps and other user-keyed limit docs are removed only after the
 // Firebase Auth user is deleted in this same call.
+
+const crypto = require('crypto');
+const { requireSecondFactor } = require('./requireSecondFactor');
 
 const BATCH_LIMIT = 400;
 const QUERY_PAGE = 200;
@@ -36,7 +43,10 @@ const IN_LIMIT = 10;
 const REAUTH_MAX_AGE_SEC = 5 * 60;
 const DELETED_LABEL = '[deleted]';
 const DELETED_UID = 'deleted';
-const UID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+// Colon is required for nostr:<pubkey> and ln:<key>. Slash, dot, and
+// whitespace stay rejected, so a uid cannot escape a Storage prefix or a
+// document-id range.
+const UID_RE = /^[A-Za-z0-9_:-]{1,128}$/;
 const ID_RANGE_END = '\uf8ff';
 // Reaction maps are not queryable per uid. Read only the newest messages.
 const REACTION_SCAN_CAP = 2000;
@@ -46,6 +56,9 @@ const DELETE_RATE_WINDOW_MS = 60 * 60 * 1000;
 const DELETE_RATE_MAX_UID = 3;
 const DELETE_RATE_MAX_IP = 8;
 const DELETE_RATE_MAX_ANON_IP = 2;
+const DELETE_RATE_TTL_MS = 24 * 60 * 60 * 1000;
+// expireAt is a timestamp. Turn on the Firestore TTL policy for
+// rate_limits.expireAt at deploy time. firebase.json does not declare it.
 
 const STORAGE_PREFIXES = [
     'beats/',
@@ -82,6 +95,9 @@ const DEFERRED_USER_SUBCOLLECTIONS = [
     'sats_daily',
     'proof_of_walk',
     'proof_of_walk_stats',
+    'quest_completions',
+    'lifetime_awards',
+    'onboarding_evidence',
 ];
 
 // These stay so a deleted account cannot reset a cap, hide a payout, or
@@ -139,6 +155,11 @@ const DELETION_QUERIES = [
     ['peerRelationships', 'uid2', '==', []],
     ['channel_ratings', 'userId', '==', []],
     ['tctv_view_days', 'viewerId', '==', []],
+    ['nacho_feedback', 'uid', '==', []],
+    ['nacho_misses', 'uid', '==', []],
+    ['nacho_bad_matches', 'uid', '==', []],
+    ['ai_tools_opens', 'uid', '==', []],
+    ['channel_feedback', 'uid', '==', []],
     ['buddy_matches', 'user1.uid', '==', []],
     ['buddy_matches', 'user2.uid', '==', []],
     ['pvp_matches', 'player1.uid', '==', []],
@@ -157,6 +178,11 @@ const DEFERRED_QUERIES = [
     ['scholar_exam_keys', 'uid', '==', []],
     ['shoutout_claims', 'authorUid', '==', []],
     ['raid_deck_completions', 'uid', '==', []],
+    ['reply_bonus_pairs', 'replierUid', '==', []],
+    ['reply_bonus_pairs', 'targetUid', '==', []],
+    ['reply_bonus_claims', 'uid', '==', []],
+    ['reply_bonus_claims', 'targetUid', '==', []],
+    ['market_listing_counts', 'sellerUid', '==', []],
 ];
 
 const COLLECTION_GROUP_QUERIES = [
@@ -171,6 +197,7 @@ const ID_RANGE_QUERIES = [
     { collection: 'action_cooldowns', prefix: 'uid_' },
     { collection: 'raid_daily_caps', prefix: 'uid_' },
     { collection: 'gift_pending_pairs', prefix: 'uid_' },
+    { collection: 'reply_bonus_pairs', prefix: 'p_{uid}__' },
     { collection: 'weekly_challenges/{week}/user_contribs', prefix: 'uid_' },
     { collection: 'stats', prefix: 'raffle_' },
 ];
@@ -189,6 +216,8 @@ const INDEX_AUDIT = {
     collectionQueries: DELETION_QUERIES.concat(DEFERRED_QUERIES).concat([
         ['gifts', 'sentBy', '==', []],
         ['leaderboard_winners', 'uids', 'array-contains', []],
+        ['beats_tracks', 'likedBy', 'array-contains', []],
+        ['poll_votes', 'voters', 'array-contains', []],
     ]).map(function(row) {
         return { collection: row[0], field: row[1], op: row[2], orderBy: '__name__' };
     }),
@@ -210,6 +239,9 @@ function authorizeDeleteAccount(auth, data, nowSec) {
         return { ok: false, code: 'permission-denied', message: 'Only the account owner or an admin can delete this account.' };
     }
     const target = raw && isAdmin ? raw : auth.uid;
+    if (typeof target !== 'string' || !UID_RE.test(target)) {
+        return { ok: false, code: 'invalid-argument', message: 'That account id is not valid.' };
+    }
     const ownerCall = target === auth.uid;
     if (ownerCall) {
         const authTime = auth.token && Number(auth.token.auth_time);
@@ -226,9 +258,11 @@ function isAnonymousAuth(auth) {
     return !!(firebase && firebase.sign_in_provider === 'anonymous');
 }
 
-function sanitizeRateKey(value) {
-    const cleaned = String(value || 'unknown').replace(/[^A-Za-z0-9]/g, '_').slice(0, 80);
-    return cleaned || 'unknown';
+function deletionIpDocId(ip, nowMs, secret) {
+    const day = new Date(nowMs).toISOString().slice(0, 10);
+    const key = secret || ('delete-rate-' + day);
+    const hash = crypto.createHmac('sha256', key).update(String(ip) + '|' + day).digest('hex').slice(0, 40);
+    return 'deleteip_' + hash;
 }
 
 // Rightmost X-Forwarded-For entry is the one the platform appends.
@@ -265,8 +299,9 @@ async function enforceDeleteRateLimit(db, spec) {
         limits.push({ id: 'delete_' + callerUid, max: DELETE_RATE_MAX_UID });
     }
     limits.push({
-        id: 'deleteip_' + sanitizeRateKey(ip),
+        id: deletionIpDocId(ip, nowMs, options.ipSecret || process.env.DELETE_RATE_IP_SECRET || ''),
         max: anonymous ? DELETE_RATE_MAX_ANON_IP : (options.byAdmin ? 30 : DELETE_RATE_MAX_IP),
+        expireAt: new Date(nowMs + DELETE_RATE_TTL_MS),
     });
     if (!db || typeof db.runTransaction !== 'function') {
         throw new Error('Rate limit storage is required');
@@ -275,7 +310,12 @@ async function enforceDeleteRateLimit(db, spec) {
         const snaps = [];
         for (let i = 0; i < limits.length; i++) {
             const ref = db.collection('rate_limits').doc(limits[i].id);
-            snaps.push({ ref: ref, max: limits[i].max, snap: await tx.get(ref) });
+            snaps.push({
+                ref: ref,
+                max: limits[i].max,
+                expireAt: limits[i].expireAt,
+                snap: await tx.get(ref),
+            });
         }
         const writes = [];
         for (let i = 0; i < snaps.length; i++) {
@@ -290,13 +330,12 @@ async function enforceDeleteRateLimit(db, spec) {
                 err.code = 'resource-exhausted';
                 throw err;
             }
-            writes.push({
-                ref: item.ref,
-                data: {
-                    windowStart: inWindow ? data.windowStart : nowMs,
-                    count: count + 1,
-                },
-            });
+            const next = {
+                windowStart: inWindow ? data.windowStart : nowMs,
+                count: count + 1,
+            };
+            if (item.expireAt) next.expireAt = item.expireAt;
+            writes.push({ ref: item.ref, data: next });
         }
         writes.forEach(function(item) { tx.set(item.ref, item.data); });
     });
@@ -532,7 +571,7 @@ async function deleteUsernameReservations(db, batcher, uid, userData, documentId
         const snap = await ref.get();
         if (!snap.exists) continue;
         const data = snap.data() || {};
-        if (!data.uid || data.uid === uid) await batcher.remove(ref);
+        if (data.uid === uid) await batcher.remove(ref);
     }
     await deleteWhere(db, batcher, 'usernames', 'uid', '==', uid, [], documentIdField);
 }
@@ -838,6 +877,38 @@ async function deleteIdPrefix(db, batcher, collectionName, uid, documentIdField)
     for (let i = 0; i < docs.length; i++) await batcher.remove(docs[i].ref);
 }
 
+async function removeBeatsLikes(db, batcher, uid, documentIdField) {
+    const docs = await collectDocs(
+        db.collection('beats_tracks').where('likedBy', 'array-contains', uid),
+        documentIdField
+    );
+    for (let i = 0; i < docs.length; i++) {
+        const data = docs[i].data() || {};
+        const likedBy = Array.isArray(data.likedBy) ? data.likedBy.filter(function(id) { return id !== uid; }) : [];
+        const likes = Math.max(0, (Number(data.likes) || 0) - 1);
+        await batcher.update(docs[i].ref, { likedBy: likedBy, likes: likes });
+    }
+}
+
+async function stripPollVoters(db, batcher, uid, documentIdField) {
+    const docs = await collectDocs(
+        db.collection('poll_votes').where('voters', 'array-contains', uid),
+        documentIdField
+    );
+    for (let i = 0; i < docs.length; i++) {
+        const data = docs[i].data() || {};
+        const voters = Array.isArray(data.voters) ? data.voters.filter(function(id) { return id !== uid; }) : [];
+        await batcher.update(docs[i].ref, { voters: voters });
+    }
+}
+
+async function deleteReplyBonus(db, batcher, uid, documentIdField) {
+    await deleteExactIfPresent(db, batcher, 'reply_bonus_state', uid);
+    await deleteExactIfPresent(db, batcher, 'rate_limits', 'reply_' + uid);
+    const prefixed = await collectIdPrefix(db.collection('reply_bonus_pairs'), 'p_' + uid + '__', documentIdField);
+    for (let i = 0; i < prefixed.length; i++) await batcher.remove(prefixed[i].ref);
+}
+
 async function deleteWeeklyContribs(db, batcher, uid, documentIdField, weeks) {
     const rows = weeks || await loadWeeklyChallenges(db, documentIdField);
     for (let i = 0; i < rows.length; i++) {
@@ -890,6 +961,7 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField, opts) {
         ['rate_limits', 'sayhi_' + uid],
         ['rate_limits', 'announce_' + uid],
         ['rate_limits', 'delete_' + uid],
+        ['rate_limits', 'reply_' + uid],
         ['totp_rate_limits', uid],
         ['totp_rate_limits', uid + '_verify'],
         ['totp_rate_limits', uid + '_disable'],
@@ -900,6 +972,9 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField, opts) {
     await deleteIdPrefix(db, batcher, 'action_cooldowns', uid, documentIdField);
     await deleteIdPrefix(db, batcher, 'raid_daily_caps', uid, documentIdField);
     await deleteGiftPairs(db, batcher, uid, options.pairIds, documentIdField);
+    await deleteReplyBonus(db, batcher, uid, documentIdField);
+    await stripPollVoters(db, batcher, uid, documentIdField);
+    await deleteExactIfPresent(db, batcher, 'tctv_watch', uid);
     if (!options.light) await deleteWeeklyContribs(db, batcher, uid, documentIdField, options.weeks);
 }
 
@@ -943,6 +1018,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     }
     await anonymizeFavorNames(db, batcher, uid, documentIdField);
     await deleteUsernameReservations(db, batcher, uid, userData, documentIdField);
+    await removeBeatsLikes(db, batcher, uid, documentIdField);
 
     let deletedDocs = 0;
     for (let i = 0; i < DELETION_QUERIES.length; i++) {
@@ -977,6 +1053,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['pvp_lobby', uid, []],
         ['totp_secrets', uid, []],
         ['totp_pending', uid, []],
+        ['totp_sessions', uid, []],
         ['suggestions', uid, []],
     ];
     for (let i = 0; i < direct.length; i++) {
@@ -1021,7 +1098,8 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     };
 }
 
-function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, nowMs, documentIdField }) {
+function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, nowMs, documentIdField, ipSecret }) {
+    const rateSecret = ipSecret != null ? ipSecret : (process.env.DELETE_RATE_IP_SECRET || '');
     return {
         async deleteAccount(data, context) {
             const now = typeof nowSec === 'function'
@@ -1029,6 +1107,8 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                 : (typeof nowSec === 'number' ? nowSec : Math.floor(Date.now() / 1000));
             const decision = authorizeDeleteAccount(context && context.auth, data || {}, now);
             if (!decision.ok) throw new HttpsError(decision.code, decision.message);
+            const second = await requireSecondFactor(context, { db: db, skip: decision.byAdmin === true });
+            if (!second.ok) throw new HttpsError(second.code, second.message);
             const clock = typeof nowMs === 'function'
                 ? nowMs()
                 : (typeof nowMs === 'number' ? nowMs : Date.now());
@@ -1040,6 +1120,7 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                     anonymous: anonymous,
                     ip: clientIpFromContext(context),
                     nowMs: clock,
+                    ipSecret: rateSecret,
                 });
             } catch (err) {
                 if (err && err.code === 'resource-exhausted') {
@@ -1094,6 +1175,9 @@ module.exports = {
     RAID_BOSS_LOOKUP_CAP: RAID_BOSS_LOOKUP_CAP,
     DELETE_RATE_MAX_UID: DELETE_RATE_MAX_UID,
     DELETE_RATE_MAX_ANON_IP: DELETE_RATE_MAX_ANON_IP,
+    DELETE_RATE_TTL_MS: DELETE_RATE_TTL_MS,
+    UID_RE: UID_RE,
+    deletionIpDocId: deletionIpDocId,
     REAUTH_MAX_AGE_SEC: REAUTH_MAX_AGE_SEC,
     DELETED_LABEL: DELETED_LABEL,
     DELETED_UID: DELETED_UID,
