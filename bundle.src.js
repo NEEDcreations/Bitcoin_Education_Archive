@@ -22104,26 +22104,14 @@ window.toggleAITools = function() {
 // =============================================
 // TASK 13: Re-enable Firebase App Check
 // =============================================
-// ** MANUAL EDIT in ranking.js — uncomment the App Check block **
+// App Check is initialized once in ranking.js initRanking() with
+// APP_CHECK_RECAPTCHA_SITE_KEY (reCAPTCHA v3). Do not activate it again here.
+// Site key: 6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j
 //
-// Find this commented-out section in initRanking():
+//   firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
 //
-//   // if (typeof firebase.appCheck === 'function') {
-//   //     try {
-//   //         firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
-//   //     } catch(e) {}
-//   // }
-//
-// Uncomment it:
-//
-//   if (typeof firebase.appCheck === 'function') {
-//       try {
-//           firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
-//       } catch(e) {}
-//   }
-//
-// Then in your Firebase Console → App Check, enable the reCAPTCHA Enterprise provider
-// and add your domain (bitcoineducation.quest).
+// Firebase Console → App Check uses reCAPTCHA v3 for bitcoineducation.quest.
+// Enforcement stays off for Firestore and the other callables. claimSats enforces it.
 //
 // IMPORTANT: Also update your Cloud Functions to accept App Check tokens.
 // See: https://firebase.google.com/docs/app-check/cloud-functions

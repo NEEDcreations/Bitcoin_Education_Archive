@@ -14,7 +14,7 @@ const FIREBASE_CONFIG = {
 };
 
 // Public reCAPTCHA v3 site key. The matching secret stays in the Firebase console.
-var APP_CHECK_RECAPTCHA_SITE_KEY = '6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv';
+var APP_CHECK_RECAPTCHA_SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
 var LN_ADDRESS_LOCK_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 var LN_ADDRESS_LOCKED_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 
@@ -129,12 +129,16 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // App Check for claimSats. Enforcement is on that callable only.
+        // App Check for claimSats. One activation per page, before any claim.
         // Storage stays unenforced. SMS 2FA on Safari still uses TOTP.
-        try {
-            firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
-        } catch (appCheckErr) {
-            console.warn('App Check init failed', appCheckErr);
+        // reCAPTCHA v3. Token TTL is 1 hour in the Firebase console.
+        if (!window._btcAppCheckReady) {
+            try {
+                firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+                window._btcAppCheckReady = true;
+            } catch (appCheckErr) {
+                console.warn('App Check init failed', appCheckErr);
+            }
         }
 
         db = firebase.firestore();
@@ -7976,6 +7980,8 @@ window.submitSatsClaim = async function() {
 
     try {
         try {
+            // Mint or reuse the cached token (1h TTL). httpsCallable attaches it
+            // as X-Firebase-AppCheck on the claimSats request.
             await firebase.appCheck().getToken(false);
         } catch (appCheckErr) {
             if (errorEl) { errorEl.textContent = 'Security check failed. Refresh the page and try again.'; errorEl.style.display = 'block'; }
