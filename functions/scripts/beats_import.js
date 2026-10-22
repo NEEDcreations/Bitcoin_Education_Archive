@@ -7,7 +7,8 @@
 // Owner decision: keep the existing NC archive.org tracks visible.
 // --hide-nc stays available and is never the default.
 // Falz is flagged needsReview by default. A later import never clears
-// hidden or hiddenReason except a previous license-nc hide when --hide-nc is off.
+// hidden, hiddenReason, or coverRemovedReason, and it does not put back a
+// coverUrl that was removed on purpose.
 // --takedown hides a track and deletes its Storage audio object.
 const fs = require('fs');
 const https = require('https');
@@ -459,17 +460,6 @@ function planCatalog(input) {
                 if (Object.prototype.hasOwnProperty.call(existing, key)) target[key] = existing[key];
             });
             if (existing.authorId) target.authorId = existing.authorId;
-            // A takedown or any other moderation hide stays. license-nc is the
-            // only reason a re-import may clear, and only when --hide-nc is off.
-            const reason = existing.hiddenReason;
-            const clearLicenseNc = existing.hidden === true && reason === 'license-nc' && !hideNc;
-            if (existing.hidden === true && !clearLicenseNc) {
-                target.hidden = true;
-                if (reason) target.hiddenReason = reason;
-            } else {
-                delete target.hidden;
-                delete target.hiddenReason;
-            }
             if (existing.needsReview === true) target.needsReview = true;
         } else {
             if (target.plays == null) target.plays = 0;
@@ -504,6 +494,23 @@ function planCatalog(input) {
         if (!flagged(track, flagArtists)) return;
         track.needsReview = true;
         counts.needsReview++;
+    });
+
+    // Moderation hides and removed covers survive every import path, including
+    // a catalog row that still has the old coverUrl.
+    finalTracks.forEach(function (track) {
+        const before = originals[track.id];
+        if (!before) return;
+        if (before.hidden === true) {
+            track.hidden = true;
+            if (before.hiddenReason) track.hiddenReason = before.hiddenReason;
+        }
+        if (!before.coverRemovedReason) return;
+        track.coverRemovedReason = before.coverRemovedReason;
+        if (!before.coverUrl) delete track.coverUrl;
+        else track.coverUrl = before.coverUrl;
+        if (!before.coverArt) delete track.coverArt;
+        else track.coverArt = before.coverArt;
     });
 
     finalTracks.forEach(function (track) {
@@ -669,15 +676,14 @@ function payloadFrom(after, admin, isNew, before) {
     const data = Object.assign({}, after);
     delete data.id;
     if (isNew && !data.createdAt) data.createdAt = admin.firestore.FieldValue.serverTimestamp();
-    if (before && Object.prototype.hasOwnProperty.call(before, 'hidden') && !Object.prototype.hasOwnProperty.call(after, 'hidden')) {
-        data.hidden = admin.firestore.FieldValue.delete();
-    }
-    if (before && Object.prototype.hasOwnProperty.call(before, 'hiddenReason') && !Object.prototype.hasOwnProperty.call(after, 'hiddenReason')) {
-        data.hiddenReason = admin.firestore.FieldValue.delete();
-    }
-    if (before && before.hidden === true && before.hiddenReason && before.hiddenReason !== 'license-nc') {
+    if (before && before.hidden === true) {
         data.hidden = true;
-        data.hiddenReason = before.hiddenReason;
+        if (before.hiddenReason) data.hiddenReason = before.hiddenReason;
+    }
+    if (before && before.coverRemovedReason) {
+        data.coverRemovedReason = before.coverRemovedReason;
+        if (!before.coverUrl) delete data.coverUrl;
+        if (!before.coverArt) delete data.coverArt;
     }
     return data;
 }
@@ -870,7 +876,8 @@ module.exports = {
     planTakedown: planTakedown,
     storageObjectFromUrl: storageObjectFromUrl,
     hiddenFieldCleared: hiddenFieldCleared,
-    mergeFlagArtists: mergeFlagArtists
+    mergeFlagArtists: mergeFlagArtists,
+    payloadFrom: payloadFrom
 };
 
 if (require.main === module) {

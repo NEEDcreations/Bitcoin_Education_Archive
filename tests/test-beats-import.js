@@ -240,9 +240,72 @@ test('a takedown hide survives an import that includes the guid', function () {
         existingArtists: []
     });
     const nc = cleared.tracks.filter(function (row) { return row.id === 'nc'; })[0];
-    assert.strictEqual(nc.hidden, undefined);
-    assert.strictEqual(nc.hiddenReason, undefined);
-    assert.strictEqual(importer.hiddenFieldCleared(cleared.trackWrites[0].before, cleared.trackWrites[0].after), true);
+    assert.strictEqual(nc.hidden, true);
+    assert.strictEqual(nc.hiddenReason, 'license-nc');
+    assert.strictEqual(importer.hiddenFieldCleared(cleared.trackWrites[0].before, cleared.trackWrites[0].after), false);
+});
+
+test('import does not clear a hide or restore a removed cover', function () {
+    const plan = importer.planCatalog({
+        tracks: [{
+            v4vGuid: 'ffs-guid',
+            title: 'Covered again',
+            artist: 'X',
+            source: 'archive.org',
+            coverUrl: 'https://archive.org/download/ffs104/cover.jpg',
+            coverArt: 'https://archive.org/download/ffs104/cover.jpg',
+            audioUrl: 'https://archive.org/download/ffs104/a.mp3',
+            license: 'CC BY-NC-ND 3.0'
+        }, {
+            v4vGuid: 'plain-hide',
+            title: 'Still hidden',
+            artist: 'Y',
+            source: 'incompetech',
+            license: 'CC BY 4.0',
+            audioUrl: 'https://incompetech.com/a.mp3'
+        }],
+        artists: [],
+        feeds: [],
+        audit: [],
+        existingTracks: [{
+            id: 'ffs',
+            v4vGuid: 'ffs-guid',
+            title: 'Old',
+            artist: 'X',
+            hidden: true,
+            source: 'archive.org',
+            sourceUrl: 'https://archive.org/details/ffs104',
+            audioUrl: 'https://storage.googleapis.com/b/ffs.mp3',
+            coverRemovedReason: 'ffs104'
+        }, {
+            id: 'plain',
+            v4vGuid: 'plain-hide',
+            title: 'Old hidden',
+            artist: 'Y',
+            hidden: true,
+            audioUrl: 'https://storage.googleapis.com/b/plain.mp3'
+        }],
+        existingArtists: []
+    });
+    const ffs = plan.tracks.filter(function (row) { return row.id === 'ffs'; })[0];
+    assert.strictEqual(ffs.hidden, true);
+    assert.strictEqual(ffs.coverRemovedReason, 'ffs104');
+    assert.strictEqual(ffs.coverUrl, undefined);
+    assert.strictEqual(ffs.coverArt, undefined);
+    assert.ok(ffs.audioUrl.indexOf('storage.googleapis.com') !== -1);
+    const write = plan.trackWrites.filter(function (row) { return row.id === 'ffs'; })[0];
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(write.after, 'coverUrl'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(write.after, 'coverArt'), false);
+    assert.strictEqual(importer.hiddenFieldCleared(write.before, write.after), false);
+    const dirty = Object.assign({}, write.after, { coverUrl: 'https://archive.org/download/ffs104/cover.jpg', coverArt: 'https://archive.org/download/ffs104/cover.jpg' });
+    const payload = importer.payloadFrom(dirty, null, false, write.before);
+    assert.strictEqual(payload.hidden, true);
+    assert.strictEqual(payload.coverRemovedReason, 'ffs104');
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(payload, 'coverUrl'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(payload, 'coverArt'), false);
+    const plain = plan.tracks.filter(function (row) { return row.id === 'plain'; })[0];
+    assert.strictEqual(plain.hidden, true);
+    assert.strictEqual(plain.hiddenReason, undefined);
 });
 
 test('RSS enclosures resolve an existing Wavlake track and keep the Storage file', function () {

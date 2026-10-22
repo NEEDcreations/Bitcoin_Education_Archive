@@ -150,10 +150,11 @@ test('clients cannot write catalog credit or hide fields', function () {
     const rules = read('firestore.rules');
     assert.ok(rules.includes('function beatsCatalogUntouched()'));
     assert.ok(rules.includes('function beatsModerationUpdate()'));
+    assert.ok(rules.includes("hasAny(['coverUrl', 'coverArt'])"));
     assert.ok(rules.includes('existsAfter('));
     assert.ok(rules.includes('commentEventId'));
     assert.ok(rules.includes('function beatsCatalogLocked()'));
-    ['hidden', 'hiddenReason', 'needsReview', 'streamUrl', 'license', 'licenseUrl', 'attribution', 'v4vSplits'].forEach(function (field) {
+    ['hidden', 'hiddenReason', 'coverRemovedReason', 'needsReview', 'streamUrl', 'license', 'licenseUrl', 'attribution', 'v4vSplits'].forEach(function (field) {
         assert.ok(rules.includes("'" + field + "'"), field);
     });
 });

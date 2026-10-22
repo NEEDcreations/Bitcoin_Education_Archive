@@ -10,7 +10,7 @@ service cloud.firestore {
     // License, credit, hide, and stream fields are Admin SDK only.
     function beatsCatalogLocked() {
       return !request.resource.data.keys().hasAny([
-        'hidden', 'hiddenReason', 'needsReview', 'streamUrl',
+        'hidden', 'hiddenReason', 'coverRemovedReason', 'needsReview', 'streamUrl',
         'license', 'licenseUrl', 'licenseProofUrl', 'attribution', 'pageUrl',
         'source', 'sourceUrl', 'feedUrl', 'feedTitle',
         'v4vGuid', 'v4vSplits', 'v4vLicense', 'archiveLicense', 'hasV4VSplits',
@@ -20,7 +20,7 @@ service cloud.firestore {
 
     function beatsCatalogUntouched() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        'hidden', 'hiddenReason', 'needsReview', 'streamUrl',
+        'hidden', 'hiddenReason', 'coverRemovedReason', 'needsReview', 'streamUrl',
         'license', 'licenseUrl', 'licenseProofUrl', 'attribution', 'pageUrl',
         'source', 'sourceUrl', 'feedUrl', 'feedTitle',
         'v4vGuid', 'v4vSplits', 'v4vLicense', 'archiveLicense', 'hasV4VSplits',
@@ -892,7 +892,9 @@ service cloud.firestore {
                         && (!('releaseDate' in request.resource.data)
                             || request.resource.data.releaseDate == ''
                             || (request.resource.data.releaseDate is string
-                                && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))))
+                                && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+                        && (!resource.data.keys().hasAny(['coverRemovedReason'])
+                            || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['coverUrl', 'coverArt'])))
                       // Social interactions: plays/likes only
                       || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes', 'likedBy'])
                           && request.resource.data.plays <= resource.data.get('plays', 0) + 1

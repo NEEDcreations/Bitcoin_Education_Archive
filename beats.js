@@ -1546,7 +1546,7 @@ window.beatsShowTrackDetail = function(idx) {
         '<div style="text-align:center;margin-bottom:6px;color:var(--heading);font-weight:800;font-size:1.1rem;word-break:break-word;">' + escapeHtml(track.title || 'Untitled') + '</div>' +
         '<div style="text-align:center;font-size:0.85rem;margin-bottom:4px;">' +
             (track.authorId ? '<span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + track.authorId + '\')" style="color:var(--text-muted);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>' : '<span style="color:var(--text-faint);">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>') +
-            (_beatsNeedsReview(track) ? ' ' + _beatsPendingHtml() : (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof showTipOverlay===\'function\')showTipOverlay({recipientName:\'' + escapeHtml(track.artist || track.authorName || 'Artist').replace(/[\\'"]/g,"") + '\',recipientUid:\'' + track.authorId + '\',context:\'Bitcoin Beats tip\',label:\'Tip Artist\'})" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '')) +
+            (_beatsIsHidden(track) ? '' : (_beatsNeedsReview(track) ? ' ' + _beatsPendingHtml() : (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof showTipOverlay===\'function\')showTipOverlay({recipientName:\'' + escapeHtml(track.artist || track.authorName || 'Artist').replace(/[\\'"]/g,"") + '\',recipientUid:\'' + track.authorId + '\',context:\'Bitcoin Beats tip\',label:\'Tip Artist\'})" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : ''))) +
         '</div>' +
         _beatsCreditHtml(track) +
         (track.genre ? '<div style="text-align:center;margin-bottom:10px;"><span style="background:rgba(247,147,26,0.15);color:var(--accent);font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;">' + escapeHtml(track.genre) + '</span></div>' : '<div style="margin-bottom:10px;"></div>') +
@@ -2635,6 +2635,10 @@ window.beatsFormatTime = function(secs) {
 // ================================================================
 window.beatsTipCurrentArtist = function() {
     var track = window._beatsQueue && window._beatsQueue[window._beatsQueueIdx];
+    if (_beatsIsHidden(track)) {
+        if (typeof showToast === 'function') showToast('Track not available');
+        return;
+    }
     if (_beatsNeedsReview(track)) {
         if (typeof showToast === 'function') showToast('pending verification');
         return;
@@ -2771,7 +2775,7 @@ window.beatsSetGenre = function(genre) {
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
-                        (_beatsNeedsReview(t) ? _beatsPendingHtml() : (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\x27]/g, '') + '\',\'' + escapeHtml(t.title || '').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '')) +
+                        (_beatsIsHidden(t) ? '' : (_beatsNeedsReview(t) ? _beatsPendingHtml() : (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\x27]/g, '') + '\',\'' + escapeHtml(t.title || '').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : ''))) +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\',\'' + escapeHtml(t.title || 'Track').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;" title="More">⋮</button>' +
                     '</div>' +
@@ -4226,6 +4230,10 @@ function _v4vPayLabel(r) {
 // Show V4V split tip overlay — fans out to each artist's Lightning address
 window.beatsShowV4VTip = async function(track) {
     if (!track || !track.id) return;
+    if (_beatsIsHidden(track)) {
+        if (typeof showToast === 'function') showToast('Track not available');
+        return;
+    }
     if (_beatsNeedsReview(track)) {
         if (typeof showToast === 'function') showToast('pending verification');
         return;
