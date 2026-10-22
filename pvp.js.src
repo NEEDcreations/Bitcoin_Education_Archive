@@ -145,41 +145,9 @@
     // Watches for users waiting in PVP lobby
     // =============================================
     function startLobbyTicker() {
-        var db = getDb();
-        if (!db) return;
-
-        // Listen to pvp_lobby for waiting players
-        if (pvpState.tickerUnsub) pvpState.tickerUnsub();
-
-        pvpState.tickerUnsub = db.collection('pvp_lobby')
-            .where('status', '==', 'waiting')
-            .onSnapshot(function(snap) {
-                var myUid = getMyUid();
-                var waitingOthers = [];
-                snap.forEach(function(doc) {
-                    var d = doc.data();
-                    if (d.uid === myUid) return;
-                    // Only count players with a fresh heartbeat
-                    if (!isLobbyEntryAlive(d)) {
-                        // Clean up stale entry silently
-                        doc.ref.delete().catch(function(){});
-                        return;
-                    }
-                    waitingOthers.push(d);
-                });
-
-                if (waitingOthers.length > 0 && !pvpState.active) {
-                    injectTickerPVP(true);
-                    showNachoPVPBubble();
-                } else if (waitingOthers.length > 0 && pvpState.inLobby && pvpState.practicing) {
-                    // Opponent found while user is practicing — interrupt with match prompt
-                    showOpponentFoundDuringPractice();
-                } else {
-                    injectTickerPVP(false);
-                }
-            }, function(err) {
-                console.log('PVP lobby ticker listener error:', err);
-            });
+        // The app-wide alert listens to the single pvp_lobby_live doc.
+        // Do not attach a collection listener here.
+        return;
     }
 
     // Inject/remove the PVP ticker message
@@ -299,7 +267,7 @@
             '<div id="pvpPracticePrompt" style="background:var(--card-bg,#1a1a2e);border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:20px;text-align:center;animation:pvpSlideIn 0.4s ease;">' +
                 '<div style="font-size:1.5rem;margin-bottom:8px;">🧠</div>' +
                 '<div style="color:var(--accent);font-weight:800;font-size:0.9rem;margin-bottom:6px;">Warm Up While You Wait?</div>' +
-                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:14px;">Practice Bitcoin trivia and earn ' + PRACTICE_PTS_PER_CORRECT + ' pts per correct answer!<br><span style="color:var(--text-faint);">' + remaining + ' practice question' + (remaining !== 1 ? 's' : '') + ' left today</span></div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:14px;">Practice Bitcoin trivia while you wait. Practice does not award XP.<br><span style="color:var(--text-faint);">' + remaining + ' practice question' + (remaining !== 1 ? 's' : '') + ' left today</span></div>' +
                 '<div style="display:flex;gap:10px;justify-content:center;">' +
                     '<button onclick="pvpStartPractice()" class="pvp-btn" style="padding:10px 24px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Let\'s Go! 🚀</button>' +
                     '<button onclick="pvpDismissPractice()" class="pvp-btn" style="padding:10px 24px;background:none;border:2px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">No Thanks</button>' +
@@ -415,8 +383,8 @@
 
         if (isCorrect) {
             pvpState.practiceCorrect++;
-            if (typeof awardPoints === 'function') awardPoints(PRACTICE_PTS_PER_CORRECT, '🧠 PVP Practice');
-            if (typeof showToast === 'function') showToast('✅ +' + PRACTICE_PTS_PER_CORRECT + ' pts!');
+            // Practice is local only. XP is not granted from the client.
+            if (typeof showToast === 'function') showToast('✅ Correct!');
         }
         sessionStorage.setItem('_ch_pvp_answer', '1');
 
@@ -424,7 +392,7 @@
         var resultHtml =
             '<div style="text-align:center;margin-top:12px;">' +
                 '<div style="color:' + (isCorrect ? '#22c55e' : '#ef4444') + ';font-weight:700;font-size:0.85rem;margin-bottom:10px;">' +
-                    (isCorrect ? '✅ Correct! +' + PRACTICE_PTS_PER_CORRECT + ' pts' : '❌ Wrong — the answer was ' + String.fromCharCode(65 + q.correct)) +
+                    (isCorrect ? '✅ Correct!' : '❌ Wrong — the answer was ' + String.fromCharCode(65 + q.correct)) +
                 '</div>';
 
         if (dailyTotal >= PRACTICE_DAILY_MAX) {
@@ -645,6 +613,8 @@
         pvpState.active = true;
         pvpState.inLobby = true;
         pvpState.inMatch = false;
+        window._pvpSessionActive = true;
+        if (typeof window._pvpDismissLobbyAlert === 'function') window._pvpDismissLobbyAlert();
 
         // Push hash state for direct linking & back-button
         if (window.location.hash !== '#pvp') {
@@ -667,25 +637,19 @@
         var wasInMatch = pvpState.inMatch;
         var wasInLobby = pvpState.inLobby;
         var matchId = pvpState.matchId;
-        var myKey = pvpState.isPlayer1 ? 'player1' : 'player2';
-        var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
+        window._pvpSessionActive = false;
 
-        // FORFEIT LOGIC — only if manually leaving (not after match result or disconnect)
+        // FORFEIT LOGIC — only if manually leaving (not after match result or disconnect).
+        // Wins, losses, and XP are written by settlePvpMatch. The client only marks the forfeit.
         if (wasInMatch && matchId && !skipForfeit) {
             var db = getDb();
             if (db) {
-                // Mark self as forfeited in the match doc
                 var update = {};
                 update['status'] = 'forfeit';
                 update['forfeitedBy'] = getMyUid();
                 update['forfeitReason'] = 'manual_leave';
                 db.collection('pvp_matches').doc(matchId).update(update).catch(function(){});
-
-                // Give leaver a loss
-                var losses = parseInt(localStorage.getItem('btc_pvp_losses') || '0') + 1;
-                localStorage.setItem('btc_pvp_losses', losses.toString());
-                savePVPStats(parseInt(localStorage.getItem('btc_pvp_wins') || '0'), losses);
-                if (typeof showToast === 'function') showToast('💀 You forfeited — counted as a loss');
+                if (typeof showToast === 'function') showToast('You left the match');
             }
         } else if (wasInLobby && !wasInMatch) {
             // Left lobby before match started — no penalty
@@ -716,6 +680,10 @@
         if (pvpState._lobbyHeartbeat) { clearInterval(pvpState._lobbyHeartbeat); pvpState._lobbyHeartbeat = null; }
         if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
         if (pvpState._oppTimeoutTimer) { clearTimeout(pvpState._oppTimeoutTimer); pvpState._oppTimeoutTimer = null; }
+        if (pvpState._unsubTimer) { clearTimeout(pvpState._unsubTimer); pvpState._unsubTimer = null; }
+        pvpState._forfeitShown = false;
+        pvpState._statsRefreshed = false;
+        pvpState._creatingMatch = false;
         stopPractice();
         stopFunFactRotation();
         stopPvpTickerUpdates();
@@ -955,7 +923,7 @@
     // LOBBY — JOIN & MATCHMAKING (real-time)
     // =============================================
     // How long (ms) before a lobby entry without a heartbeat is considered stale
-    var LOBBY_STALE_MS = 30000; // 30 seconds
+    var LOBBY_STALE_MS = 45000; // matches the server lobby summary
 
     function isLobbyEntryAlive(data) {
         if (!data.lastSeen) return false; // legacy entry with no heartbeat — stale
@@ -977,19 +945,15 @@
                 snap.forEach(function(doc) {
                     if (matched) return;
                     var data = doc.data();
-                    if (data.uid === uid) {
-                        // Clean up our own stale entry from a previous session
-                        doc.ref.delete().catch(function(){});
-                        return;
+                    if (data.uid === uid) return;
+                    // Stale rows are removed by cleanupExpiredLobbies. Clients
+                    // cannot delete another user's lobby doc.
+                    if (!isLobbyEntryAlive(data)) return;
+                    // Only the lower uid creates the match. The other waits.
+                    if (uid < data.uid) {
+                        matched = true;
+                        createMatch(doc.id, data);
                     }
-                    // Only match with players who have a fresh heartbeat
-                    if (!isLobbyEntryAlive(data)) {
-                        // Stale entry — clean it up
-                        doc.ref.delete().catch(function(){});
-                        return;
-                    }
-                    matched = true;
-                    createMatch(doc.id, data);
                 });
 
                 if (!matched) {
@@ -1004,48 +968,47 @@
             });
     }
 
+    function lobbyDisplayName() {
+        var name = String(getMyDisplayName() || '').replace(/[\r\n<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+        if (name.length < 2) name = 'Bitcoiner';
+        return name;
+    }
+
     function addToLobbyAndListen(uid) {
         var db = getDb();
         if (!db) return;
 
-        // Clean up any stale entries for this user first
-        db.collection('pvp_lobby').where('uid', '==', uid).get().then(function(snap) {
-            snap.forEach(function(doc) { doc.ref.delete(); });
-        }).catch(function(){});
-
-        // Add fresh lobby entry with lastSeen for presence detection
-        setTimeout(function() {
-            db.collection('pvp_lobby').doc(uid).set({
+        // set() on an existing doc is an update, and rules only allow lastSeen
+        // on update. Delete our own row first, then create a fresh waiting entry.
+        db.collection('pvp_lobby').doc(uid).delete().catch(function(){}).then(function() {
+            return db.collection('pvp_lobby').doc(uid).set({
                 uid: uid,
-                name: getMyDisplayName(),
+                name: lobbyDisplayName(),
                 profilePic: getMyProfilePic(),
                 status: 'waiting',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 lastSeen: Date.now()
-            }).then(function() {
-                pvpState.lobbyDocId = uid;
-                listenForMatch(uid);
-                // Heartbeat: update lastSeen every 5s so others know we're alive
-                if (pvpState._lobbyHeartbeat) clearInterval(pvpState._lobbyHeartbeat);
-                pvpState._lobbyHeartbeat = setInterval(function() {
-                    if (!pvpState.inLobby || pvpState.inMatch || !pvpState.lobbyDocId) {
-                        clearInterval(pvpState._lobbyHeartbeat);
-                        pvpState._lobbyHeartbeat = null;
-                        return;
-                    }
-                    db.collection('pvp_lobby').doc(pvpState.lobbyDocId).update({
-                        lastSeen: Date.now()
-                    }).catch(function(){});
-                }, 5000);
-                // Also start polling for opponents (catches cases where real-time listener misses)
-                startMatchmakingPoll(uid, uid);
-                // Start practice prompt timer (10s wait before offering practice)
-                startPracticePromptTimer();
-            }).catch(function(err) {
-                console.error('PVP lobby join error:', err);
-                if (typeof showToast === 'function') showToast('⚠️ Failed to join PVP lobby');
             });
-        }, 500);
+        }).then(function() {
+            pvpState.lobbyDocId = uid;
+            listenForMatch(uid);
+            if (pvpState._lobbyHeartbeat) clearInterval(pvpState._lobbyHeartbeat);
+            pvpState._lobbyHeartbeat = setInterval(function() {
+                if (!pvpState.inLobby || pvpState.inMatch || !pvpState.lobbyDocId) {
+                    clearInterval(pvpState._lobbyHeartbeat);
+                    pvpState._lobbyHeartbeat = null;
+                    return;
+                }
+                db.collection('pvp_lobby').doc(pvpState.lobbyDocId).update({
+                    lastSeen: Date.now()
+                }).catch(function(){});
+            }, 5000);
+            startMatchmakingPoll(uid, uid);
+            startPracticePromptTimer();
+        }).catch(function(err) {
+            console.error('PVP lobby join error:', err);
+            if (typeof showToast === 'function') showToast('⚠️ Failed to join PVP lobby');
+        });
     }
 
     // Poll for opponents every 3 seconds as a fallback
@@ -1071,10 +1034,7 @@
                         var data = doc.data();
                         if (data.uid === myUid) return;
                         // Only match with alive players
-                        if (!isLobbyEntryAlive(data)) {
-                            doc.ref.delete().catch(function(){}); // clean up stale
-                            return;
-                        }
+                        if (!isLobbyEntryAlive(data)) return;
                         // Found a live opponent — match them!
                         // Race condition prevention: only the player with the smaller UID
                         // creates the match. If our UID is larger, we wait for the opponent
@@ -1112,85 +1072,79 @@
                     pvpState.inMatch = true;
 
                     if (pvpState.lobbyUnsub) { pvpState.lobbyUnsub(); pvpState.lobbyUnsub = null; }
+                    db.collection('pvp_lobby').doc(lobbyDocId).delete().catch(function(){});
+                    pvpState.lobbyDocId = null;
 
-                    // Start listening to the match
                     listenToMatch(data.matchId);
                     showMatchFound();
                 }
+            }, function(err) {
+                console.error('PVP lobby listener error:', err);
             });
+    }
+
+    function callPvp(name, payload) {
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            return Promise.reject(new Error('functions unavailable'));
+        }
+        return firebase.functions().httpsCallable(name)(payload);
     }
 
     function createMatch(waitingDocId, waitingData) {
         var db = getDb();
         var uid = getMyUid();
-        if (!db || !uid) return;
+        if (!db || !uid || pvpState._creatingMatch) return;
+        pvpState._creatingMatch = true;
 
-        // Pick 5 questions
-        var rawQuestions = pickRandomQuestions(5);
-        var questions = rawQuestions.map(formatQuestionForFirestore);
+        // The server shuffles options and keeps the answer key. Skip questions
+        // the callable would reject for length.
+        var questions = pickRandomQuestions(12).map(formatQuestionForFirestore).filter(function(q) {
+            if (!q || !q.q || q.q.length > 300) return false;
+            if (!q.options || q.options.length < 2 || q.options.length > 6) return false;
+            for (var i = 0; i < q.options.length; i++) {
+                if (!q.options[i] || q.options[i].length > 200) return false;
+            }
+            return typeof q.correct === 'number';
+        }).slice(0, 5);
+        if (!questions.length) {
+            pvpState._creatingMatch = false;
+            if (typeof showToast === 'function') showToast('⚠️ No PvP questions available');
+            addToLobbyAndListen(uid);
+            return;
+        }
 
-        // Create match document
-        var matchData = {
-            player1: { uid: waitingData.uid, name: waitingData.name, profilePic: waitingData.profilePic || '', score: 0, correct: 0, answers: [] },
-            player2: { uid: uid, name: getMyDisplayName(), profilePic: getMyProfilePic(), score: 0, correct: 0, answers: [] },
-            questions: questions,
-            currentQ: 0,
-            status: 'countdown',  // countdown -> active -> question_result -> finished
-            questionWinner: null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            questionStartedAt: null,
-        };
-
-        // Atomic transaction: check lobby doc is still 'waiting' before creating the match.
-        // Prevents double-match race condition where both players call createMatch simultaneously.
-        var matchRef = db.collection('pvp_matches').doc();
-        var lobbyRef = db.collection('pvp_lobby').doc(waitingDocId);
-
-        db.runTransaction(function(transaction) {
-            return transaction.get(lobbyRef).then(function(lobbyDoc) {
-                if (!lobbyDoc.exists) {
-                    throw new Error('LOBBY_GONE');
-                }
-                var currentStatus = lobbyDoc.data().status;
-                if (currentStatus !== 'waiting') {
-                    throw new Error('LOBBY_ALREADY_MATCHED');
-                }
-                // Atomic: write match doc + update lobby in one transaction
-                transaction.set(matchRef, matchData);
-                transaction.update(lobbyRef, {
-                    status: 'matched',
-                    matchId: matchRef.id,
-                    opponentName: getMyDisplayName(),
-                    opponentUid: uid,
-                    opponentProfilePic: getMyProfilePic()
-                });
-            });
-        }).then(function() {
-            var matchId = matchRef.id;
-
-            // Remove our own lobby entry if we had one
+        callPvp('pvpCreateMatch', {
+            lobbyDocId: waitingDocId,
+            player2: { name: lobbyDisplayName(), profilePic: getMyProfilePic() },
+            questions: questions
+        }).then(function(res) {
+            pvpState._creatingMatch = false;
+            var matchId = res && res.data && res.data.matchId;
+            if (!matchId) throw new Error('NO_MATCH');
             if (pvpState.lobbyDocId) {
                 db.collection('pvp_lobby').doc(pvpState.lobbyDocId).delete().catch(function(){});
+                pvpState.lobbyDocId = null;
             }
-
             pvpState.matchId = matchId;
             pvpState.isPlayer1 = false;
-            pvpState.opponentName = waitingData.name;
-            pvpState.opponentUid = waitingData.uid;
-            pvpState.opponentProfilePic = waitingData.profilePic || '';
+            pvpState.opponentName = (waitingData && waitingData.name) || 'Opponent';
+            pvpState.opponentUid = (waitingData && waitingData.uid) || '';
+            pvpState.opponentProfilePic = (waitingData && waitingData.profilePic) || '';
             pvpState.inLobby = false;
             pvpState.inMatch = true;
-
+            window._pvpSessionActive = true;
             listenToMatch(matchId);
             showMatchFound();
         }).catch(function(err) {
-            if (err.message === 'LOBBY_GONE' || err.message === 'LOBBY_ALREADY_MATCHED') {
-                // Opponent was already claimed — rejoin lobby and keep waiting
-                console.log('[PVP Matchmaker] createMatch: lobby already claimed, re-entering lobby.');
+            pvpState._creatingMatch = false;
+            var code = String((err && err.code) || '');
+            var msg = String((err && err.message) || '');
+            if (code.indexOf('already-exists') !== -1 || code.indexOf('not-found') !== -1 || msg.indexOf('already matched') !== -1 || msg.indexOf('not found') !== -1) {
                 addToLobbyAndListen(uid);
             } else {
-                console.error('[PVP Matchmaker] createMatch transaction error:', err);
+                console.error('[PVP Matchmaker] createMatch error:', err);
                 if (typeof showToast === 'function') showToast('⚠️ Failed to create PVP match');
+                addToLobbyAndListen(uid);
             }
         });
     }
@@ -1425,63 +1379,17 @@
                         if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
                         renderQuestion(data);
                     }
-                    // Safety: if both answered but status is still 'active', force-resolve via transaction
+                    // Scoring is server-side. If the opponent is quiet, ask the callable
+                    // to record a timeout. It refuses until the question has been open 15s.
                     var myAns = data[myKey].answers || [];
                     var oppAns = data[oppKey].answers || [];
-                    console.log('[PVP] Snapshot: status=active, currentQ=' + data.currentQ + ', myAns=' + myAns.length + ', oppAns=' + oppAns.length + ', answered=' + pvpState.answered);
-                    if (myAns.length > data.currentQ && oppAns.length > data.currentQ && pvpState.answered) {
-                        if (!pvpState._forceResultTimer) {
-                            console.log('[PVP] Both answered! Starting force-resolve timer (2s)');
-                            pvpState._forceResultTimer = setTimeout(function() {
-                                pvpState._forceResultTimer = null;
-                                console.log('[PVP] Force-resolve timer fired, running transaction...');
-                                var matchRef = db.collection('pvp_matches').doc(matchId);
-                                db.runTransaction(function(tx) {
-                                    return tx.get(matchRef).then(function(freshDoc) {
-                                        if (!freshDoc.exists) { console.log('[PVP] Force-resolve: doc missing'); return; }
-                                        var fd = freshDoc.data();
-                                        if (fd.status !== 'active') { console.log('[PVP] Force-resolve: status=' + fd.status + ', already resolved'); return; }
-                                        var qIdx = fd.currentQ;
-                                        var fMyAns = fd[myKey].answers || [];
-                                        var fOppAns = fd[oppKey].answers || [];
-                                        if (fMyAns.length <= qIdx || fOppAns.length <= qIdx) { console.log('[PVP] Force-resolve: answers not ready, myAns=' + fMyAns.length + ', oppAns=' + fOppAns.length); return; }
-                                        var update = {};
-                                        resolveRound(update, fd, fMyAns.slice(), fOppAns.slice(), qIdx, myKey, oppKey, fd[myKey], fd[oppKey], fMyAns[qIdx].correct);
-                                        console.log('[PVP] Force-resolve: writing update, new status=' + update.status);
-                                        tx.update(matchRef, update);
-                                    });
-                                }).then(function() {
-                                    console.log('[PVP] Force-resolve transaction committed');
-                                }).catch(function(e) { console.error('[PVP] Force-resolve tx error:', e); });
-                            }, 2000);
-                        }
-                    }
-
-                    // Opponent AFK: if we answered but opponent hasn't after 18s, submit timeout for them
                     if (pvpState.answered && myAns.length > data.currentQ && oppAns.length <= data.currentQ) {
                         if (!pvpState._oppTimeoutTimer) {
                             pvpState._oppTimeoutTimer = setTimeout(function() {
                                 pvpState._oppTimeoutTimer = null;
-                                var matchRef = db.collection('pvp_matches').doc(matchId);
-                                db.runTransaction(function(tx) {
-                                    return tx.get(matchRef).then(function(freshDoc) {
-                                        if (!freshDoc.exists) return;
-                                        var fd = freshDoc.data();
-                                        if (fd.status !== 'active') return;
-                                        var qIdx = fd.currentQ;
-                                        var fOppAns = fd[oppKey].answers || [];
-                                        if (fOppAns.length > qIdx) return; // opponent answered in the meantime
-                                        // Submit a timeout answer for the opponent
-                                        var timeoutAnswer = { selected: -1, correct: false, answeredAt: new Date().toISOString(), won: false };
-                                        var newOppAns = fOppAns.slice();
-                                        newOppAns.push(timeoutAnswer);
-                                        var fMyAns = fd[myKey].answers || [];
-                                        var update = {};
-                                        update[oppKey + '.answers'] = newOppAns;
-                                        resolveRound(update, fd, fMyAns.slice(), newOppAns, qIdx, myKey, oppKey, fd[myKey], fd[oppKey], fMyAns[qIdx].correct);
-                                        tx.update(matchRef, update);
-                                    });
-                                }).catch(function(e) { console.error('Opp timeout tx error:', e); });
+                                callPvp('pvpTimeoutOpponent', { matchId: matchId }).catch(function(e) {
+                                    console.error('Opp timeout error:', e);
+                                });
                             }, 18000);
                         }
                     }
@@ -1500,38 +1408,32 @@
                         pvpState._matchResultShown = true;
                         renderMatchResult(data);
                     }
+                    noteServerRewards(data);
                 }
 
-                // Opponent forfeited
+                // Opponent forfeited. Rewards arrive on a later snapshot.
                 if (data.status === 'forfeit' && data.forfeitedBy !== getMyUid()) {
-                    var myKey = pvpState.isPlayer1 ? 'player1' : 'player2';
-                    var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
-                    var myQWins = 0, oppQWins = 0;
-                    var myA = data[myKey].answers || [];
-                    var opA = data[oppKey].answers || [];
-                    for (var fi = 0; fi < 5; fi++) {
-                        if (myA[fi] && myA[fi].won) myQWins++;
-                        if (opA[fi] && opA[fi].won) oppQWins++;
-                    }
-
-                    if (data.forfeitReason === 'manual_leave') {
-                        // Opponent manually left
-                        if (myQWins > oppQWins) {
-                            // I was winning — count as my win
-                            var w = parseInt(localStorage.getItem('btc_pvp_wins') || '0') + 1;
-                            localStorage.setItem('btc_pvp_wins', w.toString());
-                            savePVPStats(w, parseInt(localStorage.getItem('btc_pvp_losses') || '0'));
-                            if (typeof awardPoints === 'function') awardPoints(data[myKey].score || 10, '⚔️ PVP Victory (opponent forfeited)');
-                            renderForfeitScreen(true, 'Your opponent left the match. You win! 🏆');
-                        } else {
-                            // I was losing or tied — no win, no loss
-                            renderForfeitScreen(false, 'Your opponent left the match. No win or loss recorded.');
+                    if (!pvpState._forfeitShown) {
+                        pvpState._forfeitShown = true;
+                        var fMyKey = pvpState.isPlayer1 ? 'player1' : 'player2';
+                        var fOppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
+                        var myQWins = 0, oppQWins = 0;
+                        var myA = (data[fMyKey] && data[fMyKey].answers) || [];
+                        var opA = (data[fOppKey] && data[fOppKey].answers) || [];
+                        for (var fi = 0; fi < 5; fi++) {
+                            if (myA[fi] && myA[fi].won) myQWins++;
+                            if (opA[fi] && opA[fi].won) oppQWins++;
                         }
-                    } else {
-                        // Disconnect — no penalty for either
-                        renderForfeitScreen(false, 'Your opponent disconnected. No win or loss recorded.');
+                        if (data.forfeitReason === 'manual_leave' && myQWins > oppQWins) {
+                            renderForfeitScreen(true, 'Your opponent left the match. You win!');
+                        } else if (data.forfeitReason === 'manual_leave') {
+                            renderForfeitScreen(false, 'Your opponent left the match. No win or loss recorded.');
+                        } else {
+                            renderForfeitScreen(false, 'Your opponent disconnected. No win or loss recorded.');
+                        }
+                        scheduleMatchUnsub(12000);
                     }
-                    if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
+                    noteServerRewards(data);
                 }
 
             }, function(err) {
@@ -1722,14 +1624,8 @@
 
         if (pvpState._questionTimeout) { clearTimeout(pvpState._questionTimeout); pvpState._questionTimeout = null; }
 
-        var db = getDb();
-        var uid = getMyUid();
-        if (!db || !uid || !pvpState.matchId) return;
+        if (!pvpState.matchId) { pvpState.answered = false; return; }
 
-        var q = pvpState.questions[qIdx];
-        var isCorrect = selected === q.correct;
-
-        // Disable all buttons
         var opts = document.getElementById('pvpOptions');
         if (opts) {
             var btns = opts.querySelectorAll('button');
@@ -1738,69 +1634,25 @@
                 btns[i].style.cursor = 'default';
                 btns[i].style.opacity = '0.7';
             }
-            // Highlight correct
-            if (btns[q.correct]) {
-                btns[q.correct].style.borderColor = '#22c55e';
-                btns[q.correct].style.background = 'rgba(34,197,94,0.15)';
-                btns[q.correct].style.opacity = '1';
-            }
-            // Highlight wrong selection
-            if (selected >= 0 && selected !== q.correct && btns[selected]) {
-                btns[selected].style.borderColor = '#ef4444';
-                btns[selected].style.background = 'rgba(239,68,68,0.15)';
+            if (selected >= 0 && btns[selected]) {
+                btns[selected].style.borderColor = 'var(--accent)';
+                btns[selected].style.opacity = '1';
             }
         }
-
-        // Show waiting for opponent text
         if (opts) {
-            opts.insertAdjacentHTML('afterend',
-                '<div style="text-align:center;margin-top:12px;color:var(--text-muted);font-size:0.8rem;animation:pvpPulse 2s infinite;">' +
-                    (isCorrect ? '✅ Correct! Waiting for opponent...' : (selected < 0 ? '⏰ Time\'s up!' : '❌ Wrong! Waiting for opponent...')) +
-                '</div>');
+            var wait = document.createElement('div');
+            wait.style.cssText = 'text-align:center;margin-top:12px;color:var(--text-muted);font-size:0.8rem;';
+            wait.textContent = selected < 0 ? 'Time is up. Waiting for opponent...' : 'Answer locked. Waiting for opponent...';
+            opts.insertAdjacentElement('afterend', wait);
         }
 
-        // Submit answer to Firestore
-        var myKey = pvpState.isPlayer1 ? 'player1' : 'player2';
-
-        var answerData = {
-            selected: selected,
-            correct: isCorrect,
-            answeredAt: new Date().toISOString(),
-            won: false // will be determined by comparison
-        };
-
-        // Use a transaction to resolve who answered first
-        var matchRef = db.collection('pvp_matches').doc(pvpState.matchId);
-
-        console.log('[PVP] Submitting answer for Q' + qIdx + ', myKey=' + myKey + ', correct=' + isCorrect);
-
-        // Use simple update instead of transaction — snapshot listener handles resolution
-        var update = {};
-        var newAnswers = [];
-
-        // First, read current state
-        matchRef.get().then(function(doc) {
-            if (!doc.exists) { console.error('[PVP] Match doc not found'); return; }
-            var data = doc.data();
-            var myPlayerData = data[myKey];
-            var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
-
-            // Already answered?
-            if (myPlayerData.answers && myPlayerData.answers.length > qIdx) {
-                console.log('[PVP] Already answered Q' + qIdx + ', skipping');
-                return;
-            }
-
-            newAnswers = (myPlayerData.answers || []).slice();
-            newAnswers.push(answerData);
-            update[myKey + '.answers'] = newAnswers;
-
-            console.log('[PVP] Writing my answer, oppAnswers.length=' + (data[oppKey].answers || []).length + ', qIdx=' + qIdx);
-            return matchRef.update(update);
-        }).then(function() {
-            console.log('[PVP] Answer written successfully');
+        callPvp('pvpSubmitAnswer', {
+            matchId: pvpState.matchId,
+            questionIndex: qIdx,
+            answerIndex: selected
         }).catch(function(err) {
-            console.error('[PVP] Answer write FAILED:', err);
+            console.error('[PVP] Answer submit failed:', err);
+            pvpState.answered = false;
             if (typeof showToast === 'function') showToast('⚠️ Failed to submit answer — check connection');
         });
     };
@@ -1879,6 +1731,49 @@
         }, 1000);
     }
 
+    function scheduleMatchUnsub(delay) {
+        if (pvpState._unsubTimer) clearTimeout(pvpState._unsubTimer);
+        pvpState._unsubTimer = setTimeout(function() {
+            pvpState._unsubTimer = null;
+            if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
+        }, delay == null ? 12000 : delay);
+    }
+
+    // XP and W/L land on the match doc after settlePvpMatch. Read them from there
+    // and refresh the signed-in user's own stats. Never grant points here.
+    function noteServerRewards(matchData) {
+        if (!matchData) return;
+        var uid = getMyUid();
+        var reward = (matchData.rewards && uid) ? matchData.rewards[uid] : null;
+        var line = document.getElementById('pvpRewardLine');
+        if (line && reward && !line.getAttribute('data-set')) {
+            line.setAttribute('data-set', '1');
+            if (reward.points > 0) line.textContent = '+' + reward.points + ' XP';
+            else if (reward.outcome === 'void') line.textContent = 'No XP for this match';
+            else line.textContent = 'Match recorded';
+        }
+        if (reward && !pvpState._statsRefreshed) {
+            pvpState._statsRefreshed = true;
+            var db = getDb();
+            if (db && uid) {
+                db.collection('users').doc(uid).get().then(function(doc) {
+                    if (!doc.exists) return;
+                    var d = doc.data() || {};
+                    var wins = d.pvpWins || 0;
+                    var losses = d.pvpLosses || 0;
+                    localStorage.setItem('btc_pvp_wins', String(wins));
+                    localStorage.setItem('btc_pvp_losses', String(losses));
+                    if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid) {
+                        currentUser.pvpWins = wins;
+                        currentUser.pvpLosses = losses;
+                    }
+                    checkPVPBadges(wins);
+                }).catch(function(){});
+            }
+        }
+        if (matchData.rewardsGranted) scheduleMatchUnsub(0);
+    }
+
     // =============================================
     // RENDER MATCH RESULT
     // =============================================
@@ -1905,61 +1800,7 @@
         var totalDecided = myQWins + oppQWins;
 
         var iWon = myQWins > oppQWins;
-        var isDraw = myQWins === oppQWins; // should not happen with rerolls, but just in case
-
-        // Anti-abuse: check if opponent is anonymous, max 1 recorded win vs anon per day
-        var anonWinKey = 'btc_pvp_anon_win_' + new Date().toISOString().split('T')[0];
-        var anonWinsToday = parseInt(localStorage.getItem(anonWinKey) || '0');
-
-        // Also track wins vs new accounts (registered < 10 min ago)
-        var newAcctWinKey = 'btc_pvp_newacct_win_' + new Date().toISOString().split('T')[0];
-        var newAcctWinsToday = parseInt(localStorage.getItem(newAcctWinKey) || '0');
-
-        function _savePvpResult(oppIsAnon, oppIsNewAccount) {
-            var statsBlocked = iWon && ((oppIsAnon && anonWinsToday >= 1) || (oppIsNewAccount && newAcctWinsToday >= 1));
-
-            if (iWon) {
-                if (statsBlocked) {
-                    if (typeof awardPoints === 'function') awardPoints(Math.floor(myData.score / 2), '⚔️ PVP Win (unranked vs guest)');
-                    if (typeof showToast === 'function') showToast('⚔️ Win! Stats not recorded — max 1 ranked win vs guests per day.');
-                } else {
-                    var wins = parseInt(localStorage.getItem('btc_pvp_wins') || '0') + 1;
-                    localStorage.setItem('btc_pvp_wins', wins.toString());
-                    if (typeof awardPoints === 'function') awardPoints(myData.score, '⚔️ PVP Victory!');
-                    checkPVPBadges(wins);
-                    savePVPStats(wins, parseInt(localStorage.getItem('btc_pvp_losses') || '0'));
-                    if (oppIsAnon) localStorage.setItem(anonWinKey, (anonWinsToday + 1).toString());
-                    if (oppIsNewAccount) localStorage.setItem(newAcctWinKey, (newAcctWinsToday + 1).toString());
-                }
-            } else if (!isDraw) {
-                var losses = parseInt(localStorage.getItem('btc_pvp_losses') || '0') + 1;
-                localStorage.setItem('btc_pvp_losses', losses.toString());
-                if (typeof awardPoints === 'function' && myData.score > 0) awardPoints(Math.floor(myData.score / 2), '⚔️ PVP Consolation');
-                savePVPStats(parseInt(localStorage.getItem('btc_pvp_wins') || '0'), losses);
-            } else {
-                if (typeof awardPoints === 'function') awardPoints(5, '⚔️ PVP Draw');
-            }
-        }
-
-        // Check opponent account type then save
-        if (pvpState.opponentUid && db) {
-            db.collection('users').doc(pvpState.opponentUid).get().then(function(oppDoc) {
-                var oppIsAnon = true;
-                var oppIsNew = false;
-                if (oppDoc.exists) {
-                    var od = oppDoc.data();
-                    oppIsAnon = !od.email && !od.authMethod && !od.nostr;
-                    // Check if account was created within the last 10 minutes
-                    if (od.created && od.created.toDate) {
-                        var ageMs = Date.now() - od.created.toDate().getTime();
-                        oppIsNew = ageMs < 10 * 60 * 1000; // 10 minutes
-                    }
-                }
-                _savePvpResult(oppIsAnon, oppIsNew);
-            }).catch(function() { _savePvpResult(false, false); });
-        } else {
-            _savePvpResult(false, false);
-        }
+        var isDraw = myQWins === oppQWins;
 
         var resultEmoji = iWon ? '🏆' : (isDraw ? '🤝' : '💀');
         var resultText = iWon ? 'VICTORY!' : (isDraw ? 'DRAW!' : 'DEFEAT');
@@ -1994,9 +1835,10 @@
                     '</div>' +
                 '</div>' +
                 // Round breakdown dots
-                '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:28px;">' +
+                '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:12px;">' +
                     buildFinalRoundDots(myAnswers, oppAnswers) +
                 '</div>' +
+                '<div id="pvpRewardLine" style="color:var(--accent);font-weight:800;margin-bottom:16px;min-height:1.2em;"></div>' +
                 // Buttons
                 '<div style="display:flex;gap:12px;justify-content:center;">' +
                     '<button onclick="exitPVPMode(true);enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Play Again ⚔️</button>' +
@@ -2004,9 +1846,10 @@
                 '</div>' +
             '</div>';
 
-        // Cleanup match listener
-        if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
+        // Keep the listener until the server writes rewards (or 12s).
         pvpState.inMatch = false;
+        noteServerRewards(matchData);
+        scheduleMatchUnsub(12000);
 
         // Cleanup lobby doc
         var db = getDb();
@@ -2026,7 +1869,8 @@
             '<div style="width:92%;max-width:480px;text-align:center;padding:20px;animation:pvpSlideIn 0.5s ease;">' +
                 '<div style="font-size:4rem;margin-bottom:16px;">' + emoji + '</div>' +
                 '<h1 style="color:' + color + ';font-size:1.8rem;margin:0 0 12px;letter-spacing:2px;">' + title + '</h1>' +
-                '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:32px;line-height:1.6;">' + message + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:12px;line-height:1.6;">' + message + '</div>' +
+                '<div id="pvpRewardLine" style="color:var(--accent);font-weight:800;margin-bottom:20px;min-height:1.2em;"></div>' +
                 '<div style="display:flex;gap:12px;justify-content:center;">' +
                     '<button onclick="exitPVPMode(true);enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Play Again ⚔️</button>' +
                     '<button onclick="exitPVPMode(true)" class="pvp-btn" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
@@ -2061,8 +1905,7 @@
                     earned.add(b.id);
                     localStorage.setItem('btc_badges', JSON.stringify([...earned]));
                     // Show toast
-                    if (typeof showToast === 'function') showToast(b.emoji + ' Badge Earned: ' + b.name + '! +' + b.pts + ' pts');
-                    if (typeof awardPoints === 'function') awardPoints(b.pts, b.emoji + ' ' + b.name);
+                    if (typeof showToast === 'function') showToast(b.emoji + ' Badge Earned: ' + b.name + '!');
                     // Show badge celebration if available
                     if (typeof showBadgeToast === 'function') {
                         showBadgeToast(b);
@@ -2074,25 +1917,11 @@
 
     // Save PVP stats to Firebase + update in-memory currentUser for instant display
     function savePVPStats(wins, losses) {
-        // Update in-memory user object so Settings/Profile show immediately
+        // Display only. pvpWins and pvpLosses are server fields.
         if (typeof currentUser !== 'undefined' && currentUser) {
             currentUser.pvpWins = wins;
             currentUser.pvpLosses = losses;
         }
-
-        var db = getDb();
-        var uid = getMyUid();
-        if (!db || !uid) return;
-
-        db.collection('users').doc(uid).update({
-            pvpWins: wins,
-            pvpLosses: losses
-        }).catch(function() {
-            db.collection('users').doc(uid).set({
-                pvpWins: wins,
-                pvpLosses: losses
-            }, { merge: true }).catch(function(){});
-        });
     }
 
     // =============================================
@@ -2125,30 +1954,6 @@
             });
         }
 
-        // Also start lobby ticker after a delay even without auth — covers first-time visitors
-        setTimeout(function() {
-            if (!pvpState.tickerUnsub) {
-                startLobbyTicker();
-            }
-        }, 5000);
-
-        // Clean up stale lobby entries on init — delete any without a fresh heartbeat
-        setTimeout(function() {
-            var db = getDb();
-            if (!db) return;
-            db.collection('pvp_lobby')
-                .where('status', '==', 'waiting')
-                .get()
-                .then(function(snap) {
-                    snap.forEach(function(doc) {
-                        var d = doc.data();
-                        if (!isLobbyEntryAlive(d)) {
-                            doc.ref.delete().catch(function(){});
-                        }
-                    });
-                })
-                .catch(function(){});
-        }, 10000);
     }
 
     // Clean up lobby entry when user closes/navigates away

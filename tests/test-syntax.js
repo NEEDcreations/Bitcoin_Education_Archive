@@ -11,6 +11,7 @@ const JS_FILES = [
     'nacho-closet.js', 'nacho-live.js', 'bitcoin-dashboard.js', 'mobile-ux.js', 'forum.js',
     'marketplace.js', 'messaging.js', 'engagement.js', 'badges.js',
     'tickets.js', 'features.js', 'quests.js', 'scholar.js', 'sw.js',
+    'pvp.js', 'pvp-enhance.js', 'pvp-lobby-alert.js',
     'channel_index.js'
 ];
 

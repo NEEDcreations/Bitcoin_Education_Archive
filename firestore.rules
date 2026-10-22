@@ -161,6 +161,7 @@ service cloud.firestore {
                         // Price-prediction stats are server-only (resolvePredictions).
                         // The nested `predictions` map used to be client-incremented.
                         'predictions',
+                        'pvpWins', 'pvpLosses',
                         'predCorrect', 'predTotal', 'predLastResult', 'predAccuracy',
                         'predPending', 'predStreak', 'predBestStreak', 'reachedAt', 'reachedSort',
                         'weekKey', 'weekCorrect', 'weekTotal', 'weekAccuracy', 'weekReachedAt', 'weekReachedSort',
@@ -323,7 +324,8 @@ service cloud.firestore {
       // Admin emails have unrestricted write (for resets and maintenance).
       //
       // Whitelisted fields: channelVisits, questsCompleted, chatMessages, spins,
-      //                     pvpMatches, userCount, watchTimeMinutes
+      //                     userCount, watchTimeMinutes
+      // pvpMatches is incremented only by onPvpMatchFinished.
       //
       // Risk: a determined attacker with a console can inflate counters, but these
       // are cosmetic engagement metrics only — no points, sats, or access granted.
@@ -352,9 +354,6 @@ service cloud.firestore {
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spins'])
                         && request.resource.data.spins == resource.data.get('spins', 0) + 1)
                       ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pvpMatches'])
-                        && request.resource.data.pvpMatches == resource.data.get('pvpMatches', 0) + 1)
-                      ||
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userCount'])
                         && request.resource.data.userCount == resource.data.get('userCount', 0) + 1)
                       ||
@@ -367,7 +366,7 @@ service cloud.firestore {
                     && request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.keys()
-                       .hasOnly(['channelVisits','questsCompleted','chatMessages','spins','pvpMatches','userCount','watchTimeMinutes'])
+                       .hasOnly(['channelVisits','questsCompleted','chatMessages','spins','userCount','watchTimeMinutes'])
                     && request.resource.data.keys().size() == 1
                     && request.resource.data.values()[0] is int
                     && request.resource.data.values()[0] >= 1
@@ -849,18 +848,38 @@ service cloud.firestore {
     // =============================================
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
+      // One entry per user. The owner writes their own uid. Match claims are
+      // admin-SDK only (pvpCreateMatch), so a client cannot stamp someone else's lobby.
       allow create: if request.auth != null
                     && docId == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      // Owner can update anything; opponent can only claim the match with their own UID
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.status == 'waiting'
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() >= 2
+                    && request.resource.data.name.size() <= 30
+                    && request.resource.data.lastSeen is number;
+      // Heartbeat only. Status, name, and match fields stay as written.
       allow update: if request.auth != null
-                    && (docId == request.auth.uid
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opponentUid', 'opponentName', 'opponentProfilePic', 'matchId', 'status'])
-                            && request.resource.data.opponentUid == request.auth.uid
-                            && request.resource.data.status == 'matched'));
-      // [AUDIT FIX] Only lobby owner can delete their entry
+                    && docId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen'])
+                    && request.resource.data.lastSeen is number;
       allow delete: if request.auth != null
                     && docId == request.auth.uid;
+    }
+
+    // One summary of who is waiting. Clients listen to this doc only.
+    // onPvpLobbyLive maintains it. Clients cannot write it.
+    match /pvp_lobby_live/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /pvp_rewards/{matchId} {
+      allow read, write: if false;
+    }
+
+    match /pvp_rate/{uid} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -886,44 +905,43 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (resource.data.player1.uid == request.auth.uid
                       || resource.data.player2.uid == request.auth.uid);
-      // Match creation still client-side (lobby system), but answers go through Cloud Function
-      allow create: if request.auth != null
-                    && (request.resource.data.player1.uid == request.auth.uid
-                        || request.resource.data.player2.uid == request.auth.uid)
-                    && request.resource.data.player1.uid != request.resource.data.player2.uid;
-      // Clients may only write: own answers, flow fields (advance), heartbeats, self-forfeit.
-      // Clients may NOT set status=finished/question_result, touch opponent answers,
-      // or modify questions[]. The questions array is immutable after match creation —
-      // only the pvpResolveRound CF (admin SDK) may write it (e.g. reroll new questions).
-      // [SECURITY FIX] Removed 'questions' from hasOnly — clients could swap in
-      // questions they knew the answers to, rigging pvpResolveRound grading.
+      // Matches are created by pvpCreateMatch (admin SDK). Clients cannot
+      // plant a questions array or an answer key.
+      allow create: if false;
+      // Clients may advance the round, heartbeat, forfeit, or send a taunt.
+      // Answers, scores, and questions are server-only.
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
-                    // Field set is still bounded — 'questions' intentionally excluded
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['player1', 'player2',
                                  'status', 'currentQ', 'questionWinner', 'questionStartedAt',
                                  'player1LastSeen', 'player2LastSeen',
-                                 'forfeitedBy', 'forfeitReason'])
-                    // Scores/correct are immutable from clients — CF (admin) owns them
+                                 'forfeitedBy', 'forfeitReason', 'lastTaunt'])
                     && request.resource.data.player1.score   == resource.data.player1.score
                     && request.resource.data.player1.correct == resource.data.player1.correct
                     && request.resource.data.player2.score   == resource.data.player2.score
                     && request.resource.data.player2.correct == resource.data.player2.correct
-                    // Clients can only set status to 'active' or 'forfeit'
-                    // 'finished' and 'question_result' are written exclusively by CF
+                    && request.resource.data.player1.answers == resource.data.player1.answers
+                    && request.resource.data.player2.answers == resource.data.player2.answers
                     && (request.resource.data.status == resource.data.status
                         || request.resource.data.status == 'active'
                         || request.resource.data.status == 'forfeit')
-                    // Forfeit: forfeitedBy must be the requesting player
+                    && (request.resource.data.currentQ == resource.data.currentQ
+                        || (resource.data.status == 'question_result'
+                            && request.resource.data.status == 'active'
+                            && request.resource.data.currentQ == resource.data.currentQ + 1))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionStartedAt'])
+                        || request.resource.data.questionStartedAt == request.time)
                     && (!request.resource.data.keys().hasAny(['forfeitedBy'])
-                        || request.resource.data.forfeitedBy == request.auth.uid)
-                    // Each player can only write their own answers array
-                    && (resource.data.player1.uid == request.auth.uid
-                        || request.resource.data.player1.answers == resource.data.player1.answers)
-                    && (resource.data.player2.uid == request.auth.uid
-                        || request.resource.data.player2.answers == resource.data.player2.answers);
+                        || request.resource.data.forfeitedBy == request.auth.uid
+                        || request.resource.data.forfeitedBy == resource.data.forfeitedBy)
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastTaunt'])
+                        || (request.resource.data.lastTaunt.uid == request.auth.uid
+                            && request.resource.data.lastTaunt.emoji is string
+                            && request.resource.data.lastTaunt.emoji.size() > 0
+                            && request.resource.data.lastTaunt.emoji.size() <= 8
+                            && request.resource.data.lastTaunt.ts is number));
     }
 
     // =============================================
