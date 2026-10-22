@@ -253,13 +253,17 @@ test('single-field index is declared for tctv_presence.ts', () => {
     assert.ok(orders.includes('ASCENDING:COLLECTION'));
 });
 
-test('cache name is v2286 and the TV script cache-buster moved', () => {
+test('cache name is v2298 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2286'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2298'"));
+    assert.ok(!sw.includes('btc-archive-v2295'));
+    assert.ok(!sw.includes('btc-archive-v2293'));
+    assert.ok(!sw.includes('btc-archive-v2286'));
     assert.ok(!sw.includes('btc-archive-v2279'));
     assert.ok(!sw.includes('btc-archive-v2272'));
     assert.ok(!sw.includes('nacho-fly.svg'));
     assert.ok(sw.includes('nacho-deer.svg'));
+    assert.ok(!sw.includes('btc-archive-v2272'));
     assert.ok(!sw.includes('btc-archive-v2271'));
     assert.ok(!sw.includes('btc-archive-v2270'));
     assert.ok(!sw.includes('btc-archive-v2269'));
@@ -302,7 +306,10 @@ test('cache name is v2286 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2251'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2251'));
-    assert.ok(html.includes('bundle.min.js?v=20261022_v2279'));
+    assert.ok(html.includes('bundle.min.js?v=20261022_v2298'));
+    assert.ok(!html.includes('bundle.min.js?v=20261022_v2295'));
+    assert.ok(!html.includes('bundle.min.js?v=20261022_v2293'));
+    assert.ok(!html.includes('bundle.min.js?v=20261022_v2279'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2271'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2268'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2266'));

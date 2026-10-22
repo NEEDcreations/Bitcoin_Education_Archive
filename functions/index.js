@@ -1,5 +1,7 @@
 const functions = require('firebase-functions');
 const functionsV1 = require('firebase-functions/v1');
+const { defineSecret } = require('firebase-functions/params');
+const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -1414,7 +1416,7 @@ exports.nachoFeedbackReport = onSchedule({
 // Referral payouts are server-side. The old client path looked up `referredUid`
 // and paid 50 tickets from the referrer's browser; rules blocked that write, so
 // nobody was ever paid. This callable now only pays the signed-in referee, once.
-exports.verifyReferral = functionsV1.https.onCall(async (data, context) => {
+exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret] }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const result = await referralService.payIfQualified(context.auth.uid);
     return {
@@ -1425,7 +1427,7 @@ exports.verifyReferral = functionsV1.https.onCall(async (data, context) => {
     };
 });
 
-exports.registerReferral = functionsV1.https.onCall(async (data, context) => {
+exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret] }).https.onCall(async (data, context) => {
     return referralService.registerReferral(data, context);
 });
 
@@ -1437,13 +1439,17 @@ exports.confirmTipSent = functionsV1.https.onCall(async (data, context) => {
     return tipService.confirmTipSent(data, context);
 });
 
-exports.onUserReferral = onDocumentWritten('users/{uid}', async (event) => {
+exports.onUserReferral = onDocumentWritten({
+    document: 'users/{uid}',
+    secrets: [referralIpSecret],
+}, async (event) => {
     return referralService.onUserWritten(event);
 });
 
 exports.payQualifiedReferrals = onSchedule({
     schedule: 'every 60 minutes',
     timeZone: 'UTC',
+    secrets: [referralIpSecret],
 }, async () => {
     return referralService.scanPending(40);
 });
