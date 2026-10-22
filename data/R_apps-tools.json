@@ -24,15 +24,14 @@
       "link": ""
     },
     {
-      "text": "https://plebeian.technology/?s=09\nTO BUILD SOVEREIGN SOLUTIONS THAT ENABLE THE SMOOTHEST TRANSITION UP TO AND BEYOND HYPERBITCOINIZATION.",
-      "link": "https://plebeian.technology/?s=09"
+      "text": "TO BUILD SOVEREIGN SOLUTIONS THAT ENABLE THE SMOOTHEST TRANSITION UP TO AND BEYOND HYPERBITCOINIZATION."
     },
     {
       "text": "<b>TOOLS</b>\nIf you only have a phone at your disposal, there is a way to scan a QR code on your phone screen with your phone. Use this website:\nScreenshot the QR code and \"Choose file\" + upload. It'll decode the QR code and then you can copy/paste the address.\nhttps://zxing.org/w/decode.jspx\n\nQR code generator:\nhttps://www.qr-code-generator.com/\n\nInflation calculator:\nhttps://www.calculator.net/inflation-calculator.html\n\nThis Widget allow you to add the Bitcoin price or chart to any webpage:\nhttps://gobitcoin.io/tools/widget/\n\nSHA-256 (and other hashers):\nhttps://emn178.github.io/online-tools/sha256.html\n\nUse to create a vanity legacy address for yourself:\nhttps://github.com/klynastor/supervanitygen\nhttps://en.bitcoin.it/wiki/Vanitygen\n\nScript:\nA programmer can currently control the inputs of a transaction with Bitcoin Script, restricting what can be done before a transaction is spent, but they can’t control what types of transaction are permitted to be signed for. In other words, in most Bitcoin smart contracts today, a user can control how a coin can be unlocked by defining restrictions necessary to be satisfied. But they can’t control very well what can be done with that coin once it is unlocked.\nhttps://en.bitcoin.it/wiki/Script\n\nTimelock:\nOne can define a certain amount of time before a transaction can be spent with a timelock, effectively locking that transaction until the specified block height is reached. In this case, restrictions are being imposed on when funds can be spent, preventing the correct key from unlocking those funds and spending them. However, after that time expires and the block height is reached on the Bitcoin blockchain, the key can unlock those funds and spend them freely. The when is restricted, but not the what or how.\nhttps://en.bitcoin.it/wiki/Timelock",
       "link": "https://zxing.org/w/decode.jspx"
     },
     {
-      "text": "<b>TOOLS (continued)</b>\nWEN MOON?\nGiven my Bitcoin stack, when can I retire?\nThis notebook helps you estimate the date after which you can live forever on a given Bitcoin stack size.\nhttps://observablehq.com/@jimbojw/wen-moon\n\nWatch-only wallet:\nHow to create a view-wallet using Blue Wallet. This is so you can see your balance on your phone and send Bitcoin to your wallet without exposing your private keys. You (or any attacker) can not send Bitcoin from a watch/view-only wallet. Instructions:\nhttps://www.youtube.com/watch?v=7w4ThvxEK-8\n\nDollar Cost Average (DCA) Calculator:\nhttps://dcabtc.com/\n\nLightning Jet auto channel rebalancer by Neski.\n\"GitHub - itsneski/lightning-jet: Lightning Jet is a fully automated rebalancer for Lightning nodes. Jet optimizes channel liquidity allocation based on routing volume, missed routing opportunities (htlcs), and other variables.\" https://github.com/itsneski/lightning-jet\n\nOP_RETURN Bot:\nStore a message in the Bitcoin Blockchain forever with http://opreturnbot.com/\nHere's another way to do it with Bit Scribble:\nhttps://bitscribble.com/",
+      "text": "<b>TOOLS (continued)</b>\nWEN MOON?\nGiven my Bitcoin stack, when can I retire?\nThis notebook helps you estimate the date after which you can live forever on a given Bitcoin stack size.\nhttps://observablehq.com/@jimbojw/wen-moon\n\nWatch-only wallet:\nHow to create a view-wallet using Blue Wallet. This is so you can see your balance on your phone and send Bitcoin to your wallet without exposing your private keys. You (or any attacker) can not send Bitcoin from a watch/view-only wallet. Instructions:\nhttps://www.youtube.com/watch?v=7w4ThvxEK-8\n\nDollar Cost Average (DCA) Calculator:\nhttps://dcabtc.com/\n\nLightning Jet auto channel rebalancer by Neski.\n\"GitHub - itsneski/lightning-jet: Lightning Jet is a fully automated rebalancer for Lightning nodes. Jet optimizes channel liquidity allocation based on routing volume, missed routing opportunities (htlcs), and other variables.\" https://github.com/itsneski/lightning-jet\n\nOP_RETURN Bot:\nStore a message in the Bitcoin Blockchain forever with https://opreturnbot.com/\nHere's another way to do it with Bit Scribble:",
       "link": "https://observablehq.com/@jimbojw/wen-moon"
     },
     {
@@ -300,8 +299,7 @@
       ]
     },
     {
-      "text": "TollGate\nNo-kyc internet access. Pay in Bitcoin\nhttps://tollgate.me/",
-      "link": "https://tollgate.me/",
+      "text": "TollGate\nNo-kyc internet access. Pay in Bitcoin",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/apps-tools_0022_apps-tools_05eb8e6f-27f3-40c2-b104-f18eadd16c4d.png"
       ]
@@ -503,13 +501,13 @@
       "text": "Bitcoin data toolkit\nsuite: \napp: \napi:",
       "link": "http://bitcoinresearchkit.org",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_019_0.jpg"
+        "images/discord-may2026/discord_019_0.jpg"
       ]
     },
     {
       "text": "Tools\n\n• StackFreedom.io → find out how much Bitcoin you need to escape the rat race\n\n• SatChek.com → see if what you are buying today is worth the sats you are giving up tomorrow\n\n• StackSim.vercel.app → estimate future supply shock from global DCA stackers",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_022_0.jpg"
+        "images/discord-may2026/discord_022_0.jpg"
       ]
     },
     {
@@ -522,9 +520,6 @@
     },
     {
       "text": "Self hosted VPN (tools)",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_002_0.png"
-      ],
       "link": "https://mynymbox.io/"
     },
     {
@@ -541,9 +536,6 @@
     },
     {
       "text": "Rizful bitcoin and lightning service",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_020_0.png"
-      ],
       "link": "https://rizful.com/"
     },
     {
@@ -552,9 +544,6 @@
     },
     {
       "text": "Bitcoin collection /collectors website",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_037_0.png"
-      ],
       "link": "https://www.bitcoinforcollectors.com/homepage"
     },
     {

@@ -4,11 +4,14 @@
   "desc": "Sidechains, Liquid Network, and layer-3 applications built on top of Bitcoin.",
   "msgs": [
     {
-      "text": "<i>(under construction)</i>\n\n<b>SIDECHAIN</b>\nSidechains are in fact something of a hybrid between layer 1 and layer 2 solutions to scaling. A sidechain is another blockchain that is linked to a main chain such as Bitcoin’s. They are linked with a two-way peg (2WP) that is a protocol that allows for the open transfer of cryptocurrency from the main chain to a layer two chain that requires a degree of third-party trust.\n\nOne example of a sidechain is the Liquid Network, attached to Bitcoin’s main chain. Like other layer 2 scaling solutions, it aims to tackle scalability problems by offloading some of the validation and transaction processing processes to another blockchain. This frees up the main chain to take on a greater number of transactions.\n\n<b>RSK</b>\nLaunched in 2018, RSK is a Bitcoin sidechain which can support Ethereum smart contracts. The RSK sidechain is “merge mined” with Bitcoin, meaning miners who mine Bitcoin's blockchain also contribute hash rate to mine blocks on RSK.\n\n@RSKsmart (twitter)\nhttps://www.rsk.co/\n\nRSK's YouTube:\nhttps://www.youtube.com/c/RskSmart/videos",
+      "text": "<b>SIDECHAIN</b>\nSidechains are in fact something of a hybrid between layer 1 and layer 2 solutions to scaling. A sidechain is another blockchain that is linked to a main chain such as Bitcoin’s. They are linked with a two-way peg (2WP) that is a protocol that allows for the open transfer of cryptocurrency from the main chain to a layer two chain that requires a degree of third-party trust.\n\nOne example of a sidechain is the Liquid Network, attached to Bitcoin’s main chain. Like other layer 2 scaling solutions, it aims to tackle scalability problems by offloading some of the validation and transaction processing processes to another blockchain. This frees up the main chain to take on a greater number of transactions.\n\n<b>RSK</b>\nLaunched in 2018, RSK is a Bitcoin sidechain which can support Ethereum smart contracts. The RSK sidechain is “merge mined” with Bitcoin, meaning miners who mine Bitcoin's blockchain also contribute hash rate to mine blocks on RSK.\n\n@RSKsmart (twitter)\nhttps://www.rsk.co/\n\nRSK's YouTube:\nhttps://www.youtube.com/c/RskSmart/videos",
       "link": "https://www.rsk.co/",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/experienced/layer-3-sidechains_209_layer-3-sidechains_rsk.jpg"
-      ]
+      ],
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://blockstream.com/liquid/",
+      "sourceLabel": "Liquid Network"
     },
     {
       "text": "<b>The Liquid Network</b>\nA sidechain-based settlement network for traders & exchanges. Liquid enables faster, more confidential Bitcoin and Tether transactions, and the issuance of digital assets.\nhttps://liquid.net/\n\nLiquid uses Confidential Transactions (CTs) which are enables less auditability and surveillance of the Blockchain by disguising the amount of Bitcoin that is sent with each transaction. Hundreds of millions of dollars are settled privately on Liquid.\n\nMore on liquid https://www.youtube.com/watch?v=W90nOePOz58",
@@ -209,8 +212,8 @@
       "text": "Lightning also required users to monitor and manage their channels, to ensure they have sufficient liquidity and prevent theft from their channels."
     },
     {
-      "text": "Pleb net - An organized group dedicated to Lightning Network education and node implementation:\nSite: https://plebnet.wiki/wiki/Main_Page\nTelegram: \nhttps://t.me/plebnet",
-      "link": "https://plebnet.wiki/wiki/Main_Page"
+      "text": "Pleb net - An organized group dedicated to Lightning Network education and node implementation:\nSite: https://web.archive.org/web/20251008000144/https://plebnet.wiki/wiki/Main_Page\nTelegram: \nhttps://t.me/plebnet",
+      "link": "https://web.archive.org/web/20251008000144/https://plebnet.wiki/wiki/Main_Page"
     },
     {
       "text": "Lightning not as private as we think?\nhttps://www.coindesk.com/tech/2020/04/21/researchers-surface-privacy-vulnerabilities-in-bitcoin-lightning-network-payments/?s=09",

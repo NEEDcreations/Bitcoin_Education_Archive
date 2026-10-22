@@ -213,6 +213,23 @@
         renderContent(id);
     }
 
+    function ageNoteBadge(m) {
+        if (!m || m.ageNote == null || m.ageNote === '') return '';
+        return '<div class="age-note" style="display:inline-block;margin:0 0 8px;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.16);color:#fecaca;border:1px solid rgba(248,113,113,0.45);font-size:0.68rem;font-weight:800;letter-spacing:0.06em;">' + escapeHtml(String(m.ageNote)) + '</div>';
+    }
+
+    function updatedNoteBadge(m) {
+        if (!m || m.updatedNote == null || m.updatedNote === '') return '';
+        var html = '<div class="updated-note" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 8px;">';
+        html += '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(34,197,94,0.16);color:#bbf7d0;border:1px solid rgba(74,222,128,0.45);font-size:0.68rem;font-weight:800;letter-spacing:0.04em;">' + escapeHtml(String(m.updatedNote)) + '</span>';
+        if (m.source && /^https:\/\//i.test(String(m.source))) {
+            var label = m.sourceLabel ? String(m.sourceLabel) : 'Source';
+            html += '<a class="msg-link" href="' + escapeHtml(String(m.source)) + '" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;">' + escapeHtml(label) + '</a>';
+        }
+        html += '</div>';
+        return html;
+    }
+
     function renderContent(id) {
         const d = currentChannelData;
         if (!d) return;
@@ -263,8 +280,10 @@
 
                 batch.forEach((m, bi) => {
                     html += '<div class="msg" id="msg-' + (startIdx + bi) + '">';
+                    html += ageNoteBadge(m);
+                    html += updatedNoteBadge(m);
                     if (m.text) {
-                        let t = m.text;
+                        let t = (typeof censorText === 'function') ? censorText(m.text) : m.text;
                         // Embed YouTube videos — extract them first, replace with placeholders
                         let ytEmbeds = [];
                         t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g, function(match, id) {
@@ -283,7 +302,7 @@
                             return '%%TW' + (twEmbeds.length - 1) + '%%';
                         });
                         // Now linkify remaining URLs
-                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + eu + '</a>'; });
+                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, function(_, url) { var eu = escapeHtml(url); var label = escapeHtml(typeof censorUrlLabel === 'function' ? censorUrlLabel(url) : url); return '<a class="msg-link" href="' + eu + '" target="_blank" rel="noopener noreferrer">' + label + '</a>'; });
                         // Restore YouTube embeds
                         t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
                             return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy" decoding="async" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
@@ -441,7 +460,7 @@
             d = channelCache[channelId];
         } else {
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 d = await resp.json();
                 channelCache[channelId] = d;
             } catch(e) { return; }
@@ -3963,7 +3982,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             d = channelCache[id];
         } else {
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 d = await resp.json();
                 channelCache[id] = d;
             } catch(e) {
@@ -4054,7 +4073,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             let html = '';
             nextBatch.forEach((m, bi) => {
                 html += '<div class="msg" id="msg-' + (offset + bi) + '">';
-                if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                html += ageNoteBadge(m);
+                    html += updatedNoteBadge(m);
+                if (m.text) { let t = (typeof censorText==='function'?censorText(m.text):m.text); let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,function(_,url){var label=(typeof censorUrlLabel==='function'?censorUrlLabel(url):url);return '<a class="msg-link" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+'</a>';}); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
                 if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
                 html += '</div>';
             });
@@ -4136,7 +4157,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const promises = Object.entries(CHANNELS).map(async ([key, meta]) => {
             if (channelCache[key]) { searchFullData[key] = channelCache[key]; return; }
             try {
-                const resp = await fetch(meta.file);
+                const resp = await fetch(withDataCacheBuster(meta.file));
                 const d = await resp.json();
                 channelCache[key] = d;
                 searchFullData[key] = d;
@@ -4365,6 +4386,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                         let idx = m.text.toLowerCase().indexOf(scheduledQ);
                         let start = Math.max(0, idx - 30);
                         let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + scheduledQ.length + 30).replace(/<[^>]+>/g, '') + '...';
+                        if (typeof censorText === 'function') snippet = censorText(snippet);
                         deepResults.push({key, title: meta.title, cat: meta.cat, match: snippet, msgIdx: mi});
                         break;
                     }
