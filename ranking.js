@@ -13,6 +13,18 @@ const FIREBASE_CONFIG = {
     appId: "1:1055248200518:web:6c6d64a5ee78e19bfbeb47"
 };
 
+// Public reCAPTCHA v3 site key. The matching secret stays in the Firebase console.
+var APP_CHECK_RECAPTCHA_SITE_KEY = '6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv';
+var LN_ADDRESS_LOCK_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
+var LN_ADDRESS_LOCKED_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
+
+function normalizeClientLn(addr) {
+    return String(addr || '').trim().toLowerCase();
+}
+function clientLnValid(addr) {
+    return addr.length >= 5 && addr.length <= 320 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr);
+}
+
 // Levels
 const LEVELS = [
     { name: 'Normie',         emoji: '🟢', min: 0 },
@@ -117,9 +129,13 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // App Check NOT initialized.
-        // Storage enforcement disabled in Firebase console — authenticated users upload freely.
-        // SMS 2FA on Safari blocked by ITP regardless of App Check; TOTP used instead on Safari.
+        // App Check for claimSats. Enforcement is on that callable only.
+        // Storage stays unenforced. SMS 2FA on Safari still uses TOTP.
+        try {
+            firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+        } catch (appCheckErr) {
+            console.warn('App Check init failed', appCheckErr);
+        }
 
         db = firebase.firestore();
         // Enable offline persistence - data survives connection loss
@@ -520,7 +536,8 @@ async function finishEmailSignIn(email, _signInUrl) {
                 lastVisit: new Date().toISOString().split('T')[0],
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
-            if (pendingLnAddress) { userData.lightning = pendingLnAddress; userData.lightningAddress = pendingLnAddress; }
+            var _emailLn = normalizeClientLn(pendingLnAddress);
+            if (clientLnValid(_emailLn)) { userData.lightning = _emailLn; userData.lightningAddress = _emailLn; }
             if (pendingFaction)   { userData.faction = pendingFaction; }
             if (pendingCountry)   { userData.country = pendingCountry; }
             var _emailSrc = localStorage.getItem('btc_signup_source');
@@ -1098,7 +1115,8 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
         if (anonData) {
             anonData.email = user.email || '';
             if (!anonData.username) anonData.username = _pendingUN || user.displayName || 'Bitcoiner';
-            if (_pendingLn)      { anonData.lightning = _pendingLn; anonData.lightningAddress = _pendingLn; }
+            var _anonLn = normalizeClientLn(_pendingLn);
+            if (clientLnValid(_anonLn)) { anonData.lightning = _anonLn; anonData.lightningAddress = _anonLn; }
             if (_pendingFaction) { anonData.faction = _pendingFaction; }
             if (_pendingCountry) { anonData.country = _pendingCountry; }
             await db.collection('users').doc(user.uid).set(anonData);
@@ -1112,7 +1130,8 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
                 lastVisit: new Date().toISOString().split('T')[0],
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
-            if (_pendingLn)      { _newProviderDoc.lightning = _pendingLn; _newProviderDoc.lightningAddress = _pendingLn; }
+            var _provLn = normalizeClientLn(_pendingLn);
+            if (clientLnValid(_provLn)) { _newProviderDoc.lightning = _provLn; _newProviderDoc.lightningAddress = _provLn; }
             if (_pendingFaction) { _newProviderDoc.faction = _pendingFaction; }
             if (_pendingCountry) { _newProviderDoc.country = _pendingCountry; }
             await db.collection('users').doc(user.uid).set(_newProviderDoc);
@@ -1120,9 +1139,10 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
     } else {
         // Returning user - apply fields they typed only if not already set
         var _returnUpdates = {};
-        if (_pendingLn && !existingDoc.data().lightningAddress && !existingDoc.data().lightning) {
-            _returnUpdates.lightning = _pendingLn;
-            _returnUpdates.lightningAddress = _pendingLn;
+        var _returnLn = normalizeClientLn(_pendingLn);
+        if (clientLnValid(_returnLn) && !existingDoc.data().lightningAddress && !existingDoc.data().lightning) {
+            _returnUpdates.lightning = _returnLn;
+            _returnUpdates.lightningAddress = _returnLn;
         }
         if (_pendingFaction && !existingDoc.data().faction) {
             _returnUpdates.faction = _pendingFaction;
@@ -2172,7 +2192,13 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         _signupLn = localStorage.getItem('btc_pending_ln_address') || '';
         localStorage.removeItem('btc_pending_ln_address');
     }
-    if (_signupLn) userData.lightningAddress = _signupLn;
+    _signupLn = normalizeClientLn(_signupLn);
+    if (clientLnValid(_signupLn)) {
+        userData.lightning = _signupLn;
+        userData.lightningAddress = _signupLn;
+    } else {
+        _signupLn = '';
+    }
     // Faction choice from signup
     if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
     // Campaign source tracking - written once at signup, never overwritten
@@ -4093,7 +4119,10 @@ window._captureSignupFormState = function() {
     var em    = emEl  && emEl.value.trim();
     var ct    = ctEl  && ctEl.value.trim();
     if (un) localStorage.setItem('btc_pending_username', un);
-    if (ln && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ln)) localStorage.setItem('btc_pending_ln_address', ln);
+    if (ln) {
+        ln = normalizeClientLn(ln);
+        if (clientLnValid(ln)) localStorage.setItem('btc_pending_ln_address', ln);
+    }
     if (em) localStorage.setItem('btc_pending_email', em);
     if (ct) localStorage.setItem('btc_pending_country', ct);
     if (window._signupFaction) localStorage.setItem('btc_pending_faction', window._signupFaction);
@@ -4105,7 +4134,7 @@ window._captureSignupFormState = function() {
 window._signupGoGetLnAddress = function() {
     // Preserve any partial LN address typed
     var lnEl = document.getElementById('signupLnAddress');
-    if (lnEl && lnEl.value.trim()) localStorage.setItem('btc_pending_ln_address', lnEl.value.trim());
+    if (lnEl && lnEl.value.trim()) localStorage.setItem('btc_pending_ln_address', normalizeClientLn(lnEl.value));
     // Save username + email if already typed so they're restored on return
     var unEl = document.getElementById('usernameInput');
     var emEl = document.getElementById('emailInput');
@@ -4676,6 +4705,7 @@ function showSettingsPage(tab) {
         var _filledLinks = [], _emptyLinks = [];
         _slDef.forEach(function(s) {
             var val = currentUser ? currentUser[s.k] || '' : '';
+            if (s.k === 'lightning' && currentUser) val = currentUser.lightning || currentUser.lightningAddress || '';
             if (val) _filledLinks.push(s);
             else _emptyLinks.push(s);
         });
@@ -4691,6 +4721,17 @@ function showSettingsPage(tab) {
         html += '<div id="profileLinksArea">';
         _filledLinks.forEach(function(s) {
             var val = currentUser ? currentUser[s.k] || '' : '';
+            if (s.k === 'lightning' && currentUser) val = currentUser.lightning || currentUser.lightningAddress || '';
+            if (s.k === 'lightning') {
+                html += '<div class="pf-link-row" data-key="lightning" style="margin-bottom:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:12px;border:1px solid var(--border);">' +
+                    '<div style="display:flex;align-items:center;gap:12px;">' +
+                    '<span style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
+                    '<span style="flex:1;color:var(--text);font-size:0.85rem;word-break:break-all;">' + escapeHtml(val) + '</span>' +
+                    '</div>' +
+                    '<p style="margin:8px 0 0;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCKED_NOTICE + '</p>' +
+                    '</div>';
+                return;
+            }
             html += '<div class="pf-link-row" data-key="' + s.k + '" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:12px;border:1px solid var(--border);">' +
                 '<span style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
                 '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
@@ -4760,6 +4801,7 @@ function showSettingsPage(tab) {
         });
         html += '</div>';
         html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
+        html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
         html += '</div>';
 
         // Advanced Account toggle - content renders BELOW this button
@@ -5323,8 +5365,11 @@ function showSettingsPage(tab) {
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;background:linear-gradient(135deg,#eab308,#f97316);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">⚡</div><div><div style="font-weight:700;font-size:0.85rem;color:var(--text);">Lightning Address</div><div style="font-size:0.72rem;color:var(--text-muted);">For receiving tips from other users</div></div></div>';
         if (_satsLnAddr) {
             html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;margin-bottom:8px;"><span style="color:#22c55e;font-size:0.9rem;">✅</span><span style="color:var(--text);font-size:0.82rem;font-weight:600;word-break:break-all;">' + escapeHtml(_satsLnAddr) + '</span></div>';
+            html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCKED_NOTICE + '</p>';
+        } else {
+            html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCK_NOTICE + '</p>';
+            html += '<div style="display:flex;gap:8px;align-items:center;"><input type="text" id="satsLnAddrInput" placeholder="you@walletofsatoshi.com" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:10px 12px;background:var(--input-bg,rgba(255,255,255,0.07));border:1px solid var(--border,#444);border-radius:10px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;-webkit-text-fill-color:var(--text,#e2e8f0);" onkeydown="if(event.key===\'Enter\')saveSatsLnAddress()"><button onclick="saveSatsLnAddress()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Save</button></div>';
         }
-        html += '<div style="display:flex;gap:8px;align-items:center;"><input type="text" id="satsLnAddrInput" placeholder="you@walletofsatoshi.com" value="' + escapeHtml(_satsLnAddr) + '" style="flex:1;padding:10px 12px;background:var(--input-bg,rgba(255,255,255,0.07));border:1px solid var(--border,#444);border-radius:10px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;-webkit-text-fill-color:var(--text,#e2e8f0);" onkeydown="if(event.key===\'Enter\')saveSatsLnAddress()"><button onclick="saveSatsLnAddress()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Save</button>' + (_satsLnAddr ? '<button onclick="document.getElementById(\'satsLnAddrInput\').value=\'\';saveSatsLnAddress()" style="padding:10px 12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;color:#ef4444;white-space:nowrap;touch-action:manipulation;" title="Remove Lightning Address">✕ Remove</button>' : '') + '</div>';
         html += '<div id="satsLnAddrStatus" style="margin-top:6px;font-size:0.75rem;text-align:center;"></div>';
         if (!_satsLnAddr) {
             html += '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);line-height:1.5;">💡 Get one from <a href="https://walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);">Wallet of Satoshi</a>, <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);">Alby</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);">Coinos</a>, or <a href="https://strike.me" target="_blank" rel="noopener" style="color:var(--accent);">Strike</a>.</div>';
@@ -6149,6 +6194,9 @@ function showSettingsPage(tab) {
             if (window._isAdminClaim === true && typeof window.renderCipherWinsAdmin === 'function') {
                 window.renderCipherWinsAdmin('cipherWinsAdmin');
             }
+            if (window._isAdminClaim === true && typeof window.renderFaucetAbuseAdmin === 'function') {
+                window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
+            }
             // Populate badge on the Peers/Gifts button (waiting gifts + keys held + ciphers)
             var _giftBadge = document.getElementById('peersGiftsBadge');
             if (_giftBadge && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous && typeof db !== 'undefined') {
@@ -6545,6 +6593,14 @@ window.profileLinkRemoved = function(key) { window._removedProfileLinks[key] = t
 window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
     var area = document.getElementById('profileLinksArea');
     if (!area) return;
+    if (key === 'lightning') {
+        var lockedLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
+        if (lockedLn) return;
+        var note = document.createElement('p');
+        note.textContent = LN_ADDRESS_LOCK_NOTICE;
+        note.style.cssText = 'color:var(--text-muted);font-size:0.75rem;line-height:1.45;margin:0 0 8px;';
+        area.appendChild(note);
+    }
     // Add new input row
     var row = document.createElement('div');
     row.className = 'pf-link-row';
@@ -6653,6 +6709,7 @@ async function saveProfile() {
         return;
     }
     var updateData = { bio: bio, country: country };
+    var _lnProfileError = '';
 
     // Social links mapping
     var links = ['website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail', 'lightning'];
@@ -6665,14 +6722,31 @@ async function saveProfile() {
     };
     links.forEach(function(k) {
         var el = document.getElementById('profile_' + k);
+        if (k === 'lightning') {
+            var lockedRaw = currentUser ? String(currentUser.lightning || currentUser.lightningAddress || '') : '';
+            if (lockedRaw) {
+                if (el) {
+                    var typedLn = normalizeClientLn(el.value);
+                    if (typedLn && typedLn !== normalizeClientLn(lockedRaw)) _lnProfileError = LN_ADDRESS_LOCKED_NOTICE;
+                }
+                return;
+            }
+            if (el) {
+                var freshLn = normalizeClientLn(el.value);
+                if (freshLn && !clientLnValid(freshLn)) {
+                    _lnProfileError = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)';
+                    return;
+                }
+                if (freshLn) {
+                    updateData.lightning = freshLn;
+                    updateData.lightningAddress = freshLn;
+                }
+            }
+            return;
+        }
         if (el) {
             var val = el.value.trim();
-            if (k === 'lightning') {
-                // Lightning address: must be user@domain format, no special chars that break onclick
-                val = val.replace(/[\\'"<>]/g, '');
-                if (val && !val.match(/^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) val = '';
-                updateData.lightningAddress = val; // keep in sync — dedup check queries this field
-            } else if (k === 'contactEmail') {
+            if (k === 'contactEmail') {
                 val = val.replace(/[\\'"<>]/g, '');
             } else if (k === 'nostr') {
                 val = val.replace(/[\\'"<>]/g, '');
@@ -6691,6 +6765,12 @@ async function saveProfile() {
             if (!row) updateData[k] = '';
         }
     });
+
+    if (_lnProfileError) {
+        if (status) status.textContent = _lnProfileError;
+        if (typeof showToast === 'function') showToast(_lnProfileError);
+        return;
+    }
 
     try {
         if (status) status.innerHTML = '<span style="color:var(--accent);">Saving...</span>';
@@ -7080,9 +7160,9 @@ window.submitUsername = async function() {
         }
         var enteredGiveaway = false;
         var lnAddressEl = document.getElementById('signupLnAddress');
-        var lnAddress = lnAddressEl ? lnAddressEl.value.trim() : '';
+        var lnAddress = lnAddressEl ? normalizeClientLn(lnAddressEl.value) : '';
         // Basic Lightning address validation (user@domain format)
-        if (lnAddress && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(lnAddress)) {
+        if (lnAddress && !clientLnValid(lnAddress)) {
             if (lnAddressEl) { lnAddressEl.style.borderColor = '#ef4444'; lnAddressEl.focus(); }
             showToast('⚡ Please enter a valid Lightning address (e.g. you@wallet.com) or leave it blank.');
             return;
@@ -7708,38 +7788,38 @@ function showSignInPrompt() {
 
 // ===== SATS CLAIM FLOW =====
 window.saveSatsLnAddress = async function() {
-    var input = document.getElementById('satsLnAddrInput');
     var status = document.getElementById('satsLnAddrStatus');
+    var locked = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
+    if (locked) {
+        if (status) status.textContent = LN_ADDRESS_LOCKED_NOTICE;
+        return;
+    }
+    var input = document.getElementById('satsLnAddrInput');
     if (!input) return;
-    var addr = input.value.trim();
-    if (addr && (!addr.includes('@') || addr.length < 5)) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)</span>';
+    var addr = normalizeClientLn(input.value);
+    if (!clientLnValid(addr)) {
+        if (status) status.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)';
         return;
     }
     if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Sign in to save your Lightning Address</span>';
+        if (status) status.textContent = 'Sign in to save your Lightning Address';
         return;
     }
     try {
-        if (status) status.innerHTML = '<span style="color:var(--accent);">Saving...</span>';
+        if (status) status.textContent = 'Saving...';
         await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr, lightningAddress: addr });
         if (typeof currentUser !== 'undefined' && currentUser) { currentUser.lightning = addr; currentUser.lightningAddress = addr; }
-        if (addr) {
-            if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Lightning Address saved!</span>';
-            if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');
-            if (localStorage.getItem('btc_lightning_setup') !== 'true') {
-                localStorage.setItem('btc_lightning_setup', 'true');
-                if (typeof awardPoints === 'function') awardPoints(100, '⚡ Lightning wallet setup!');
-                if (typeof showToast === 'function') setTimeout(function() { showToast('⚡🏅 Lightning Rod badge earned! +100 pts'); }, 1500);
-                if (typeof initBadges === 'function') setTimeout(initBadges, 2000);
-            }
-        } else {
-            if (typeof showToast === 'function') showToast('⚡ Lightning Address removed');
-            if (status) status.innerHTML = '<span style="color:#22c55e;">Lightning Address removed</span>';
-            setTimeout(function(){ if (typeof showSettingsPage === 'function') showSettingsPage('sats'); }, 400);
+        if (status) status.textContent = 'Lightning Address saved.';
+        if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');
+        if (localStorage.getItem('btc_lightning_setup') !== 'true') {
+            localStorage.setItem('btc_lightning_setup', 'true');
+            if (typeof awardPoints === 'function') awardPoints(100, '⚡ Lightning wallet setup!');
+            if (typeof showToast === 'function') setTimeout(function() { showToast('⚡🏅 Lightning Rod badge earned! +100 pts'); }, 1500);
+            if (typeof initBadges === 'function') setTimeout(initBadges, 2000);
         }
+        setTimeout(function(){ if (typeof showSettingsPage === 'function') showSettingsPage('sats'); }, 400);
     } catch(e) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Error saving - try again</span>';
+        if (status) status.textContent = LN_ADDRESS_LOCKED_NOTICE;
     }
 };
 
@@ -7773,10 +7853,9 @@ window.initSatsClaim = function() {
         overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
     }, 200);
 
-    // Detect if user has a Lightning Address saved (for 1-click flow)
     var _savedLnAddr = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
-    window._satsClaimMaxClaim = maxClaim; // stored for submitSatsClaim to read
-    window._satsClaimTab = _savedLnAddr ? 'ln' : 'inv'; // default to LN if address saved
+    window._satsClaimMaxClaim = maxClaim;
+    window._satsClaimTab = 'ln';
 
     var html = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">';
     html += '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:2rem;">⚡</span><div style="font-size:1.1rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Sats</div></div>';
@@ -7787,17 +7866,16 @@ window.initSatsClaim = function() {
     html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Zero fees - we cover all routing costs</div>';
     html += '</div>';
 
-    // Tab switcher
-    html += '<div style="display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;">';
-    html += '<button id="satsTabLn" onclick="window._satsSwitchTab(\'ln\')" style="flex:1;padding:9px 6px;border:none;background:' + (_savedLnAddr ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (_savedLnAddr ? '#fff' : 'var(--text-muted)') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid var(--border);transition:0.15s;">⚡ Lightning Address</button>';
-    html += '<button id="satsTabInv" onclick="window._satsSwitchTab(\'inv\')" style="flex:1;padding:9px 6px;border:none;background:' + (!_savedLnAddr ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (!_savedLnAddr ? '#fff' : 'var(--text-muted)') + ';font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:0.15s;">📋 Paste Invoice</button>';
-    html += '</div>';
-
-    // Lightning Address panel
-    html += '<div id="satsLnPanel" style="display:' + (_savedLnAddr ? 'block' : 'none') + ';">';
+    html += '<div id="satsLnPanel">';
     html += '<div style="margin-bottom:10px;">';
     html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Your Lightning Address</label>';
-    html += '<input id="satsLnAddr" type="text" placeholder="you@walletofsatoshi.com" value="' + (typeof escapeHtml === 'function' ? escapeHtml(_savedLnAddr) : _savedLnAddr) + '" style="width:100%;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">';
+    if (_savedLnAddr) {
+        html += '<input id="satsLnAddr" type="text" readonly value="' + (typeof escapeHtml === 'function' ? escapeHtml(_savedLnAddr) : _savedLnAddr) + '" style="width:100%;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">';
+        html += '<p style="margin:8px 0 0;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCKED_NOTICE + '</p>';
+    } else {
+        html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCK_NOTICE + '</p>';
+        html += '<input id="satsLnAddr" type="text" placeholder="you@walletofsatoshi.com" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">';
+    }
     html += '</div>';
     html += '<div style="margin-bottom:12px;">';
     html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Amount <span style="color:var(--text-faint);">(100-' + maxClaim + ' sats)</span></label>';
@@ -7805,14 +7883,7 @@ window.initSatsClaim = function() {
     html += '<input id="satsLnAmount" type="number" min="100" max="' + maxClaim + '" value="' + maxClaim + '" style="flex:1;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;text-align:center;font-weight:700;">';
     html += '<button onclick="document.getElementById(\'satsLnAmount\').value=' + maxClaim + '" style="padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Max</button>';
     html += '</div></div>';
-    html += '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:14px;">✅ Your wallet receives sats automatically - no invoice needed!</div>';
-    html += '</div>';
-
-    // Invoice paste panel
-    html += '<div id="satsInvPanel" style="display:' + (!_savedLnAddr ? 'block' : 'none') + ';">';
-    html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Paste Lightning Invoice</label>';
-    html += '<textarea id="satsClaimInvoice" placeholder="lnbc..." rows="3" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;resize:none;margin-bottom:4px;box-sizing:border-box;word-break:break-all;"></textarea>';
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Open your Lightning wallet, generate an invoice for 100-' + maxClaim + ' sats, paste it here.</div>';
+    html += '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:14px;">Your wallet receives sats automatically.</div>';
     html += '</div>';
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
@@ -7871,65 +7942,49 @@ function _generateDeviceFingerprint() {
 }
 
 window._satsClaimInProgress = false;
-window._satsClaimTab = 'ln'; // 'ln' or 'inv'
-
-window._satsSwitchTab = function(tab) {
-    window._satsClaimTab = tab;
-    var lnPanel = document.getElementById('satsLnPanel');
-    var invPanel = document.getElementById('satsInvPanel');
-    var tabLn = document.getElementById('satsTabLn');
-    var tabInv = document.getElementById('satsTabInv');
-    if (!lnPanel || !invPanel) return;
-    lnPanel.style.display = tab === 'ln' ? 'block' : 'none';
-    invPanel.style.display = tab === 'inv' ? 'block' : 'none';
-    if (tabLn) { tabLn.style.background = tab === 'ln' ? 'var(--accent)' : 'var(--card-bg)'; tabLn.style.color = tab === 'ln' ? '#fff' : 'var(--text-muted)'; }
-    if (tabInv) { tabInv.style.background = tab === 'inv' ? 'var(--accent)' : 'var(--card-bg)'; tabInv.style.color = tab === 'inv' ? '#fff' : 'var(--text-muted)'; }
-};
+window._satsClaimTab = 'ln';
 
 window.submitSatsClaim = async function() {
-    if (window._satsClaimInProgress) return; // prevent double-click
+    if (window._satsClaimInProgress) return;
     var btn = document.getElementById('satsClaimBtn');
     var errorEl = document.getElementById('satsClaimError');
     if (!btn) return;
 
-    var isLnMode = window._satsClaimTab !== 'inv' && !!document.getElementById('satsLnPanel') && document.getElementById('satsLnPanel').style.display !== 'none';
     var claimPayload;
-
-    if (isLnMode) {
-        var lnAddrEl = document.getElementById('satsLnAddr');
-        var lnAmtEl = document.getElementById('satsLnAmount');
-        var lnAddr = lnAddrEl ? lnAddrEl.value.trim() : '';
-        var lnAmt = lnAmtEl ? parseInt(lnAmtEl.value) : 0;
-        if (!lnAddr || !lnAddr.includes('@')) {
-            if (errorEl) { errorEl.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)'; errorEl.style.display = 'block'; }
-            return;
-        }
-        var _maxCl = window._satsClaimMaxClaim || 200;
-        if (!lnAmt || lnAmt < 100 || lnAmt > _maxCl) {
-            if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
-            return;
-        }
-        claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
-    } else {
-        var invoiceEl = document.getElementById('satsClaimInvoice');
-        if (!invoiceEl) return;
-        var invoice = invoiceEl.value.trim();
-        if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
-            if (errorEl) { errorEl.textContent = 'Please paste a valid Lightning invoice (starts with lnbc...)'; errorEl.style.display = 'block'; }
-            return;
-        }
-        claimPayload = { invoice: invoice };
+    var lnAddrEl = document.getElementById('satsLnAddr');
+    var lnAmtEl = document.getElementById('satsLnAmount');
+    var lnAddr = normalizeClientLn(lnAddrEl ? lnAddrEl.value : '');
+    var lnAmt = lnAmtEl ? parseInt(lnAmtEl.value, 10) : 0;
+    if (!clientLnValid(lnAddr)) {
+        if (errorEl) { errorEl.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)'; errorEl.style.display = 'block'; }
+        return;
     }
+    var _maxCl = window._satsClaimMaxClaim || 200;
+    if (!lnAmt || lnAmt < 100 || lnAmt > _maxCl) {
+        if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
+        return;
+    }
+    claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
 
     // Hide previous errors
     if (errorEl) errorEl.style.display = 'none';
 
     window._satsClaimInProgress = true;
     btn.disabled = true;
-    btn.textContent = isLnMode ? '⏳ Sending to your address...' : '⏳ Sending sats...';
+    btn.textContent = '⏳ Sending to your address...';
     btn.style.opacity = '0.6';
 
     try {
+        try {
+            await firebase.appCheck().getToken(false);
+        } catch (appCheckErr) {
+            if (errorEl) { errorEl.textContent = 'Security check failed. Refresh the page and try again.'; errorEl.style.display = 'block'; }
+            btn.disabled = false;
+            btn.textContent = '⚡ Send Sats to My Wallet';
+            btn.style.opacity = '1';
+            window._satsClaimInProgress = false;
+            return;
+        }
         var claimSats = firebase.functions().httpsCallable('claimSats');
         // Generate device fingerprint for multi-account detection
         var _fp = _generateDeviceFingerprint();
@@ -7938,7 +7993,7 @@ window.submitSatsClaim = async function() {
         var _tsToken = _tsEl ? (_tsEl.value || '') : '';
         if (!_tsToken) {
             if (errorEl) { errorEl.textContent = 'Security check pending — please wait a moment and try again.'; errorEl.style.display = 'block'; }
-            btn.disabled = false; btn.textContent = isLnMode ? '⚡ Send to Lightning Address' : '⚡ Send Sats to My Wallet'; btn.style.opacity = '1';
+            btn.disabled = false; btn.textContent = '⚡ Send Sats to My Wallet'; btn.style.opacity = '1';
             window._satsClaimInProgress = false;
             if (window.turnstile) window.turnstile.reset('#satsClaimTurnstile');
             return;
@@ -8009,6 +8064,125 @@ window.submitSatsClaim = async function() {
         btn.disabled = false;
         btn.textContent = '⚡ Send Sats to My Wallet';
         btn.style.opacity = '1';
+    }
+};
+
+function _faucetAbuseBanButton(uid) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Ban';
+    btn.style.cssText = 'padding:6px 10px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:8px;color:#ef4444;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
+    btn.addEventListener('click', function() { window.banFaucetReportedUser(uid); });
+    return btn;
+}
+
+function _faucetAbuseAccountRow(acc) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0 4px 8px;';
+    var name = document.createElement('span');
+    var flags = [];
+    if (acc && acc.banned) flags.push('banned');
+    if (acc && acc.satsDisabled) flags.push('sats disabled');
+    name.textContent = ((acc && acc.displayName) || 'Bitcoiner') + ' · ' + ((acc && acc.uid) || '') + (flags.length ? ' · ' + flags.join(', ') : '');
+    name.style.cssText = 'flex:1;font-size:0.75rem;color:var(--text);word-break:break-all;';
+    row.appendChild(name);
+    row.appendChild(_faucetAbuseBanButton(acc && acc.uid));
+    return row;
+}
+
+window.renderFaucetAbuseAdmin = function(containerId) {
+    var root = document.getElementById(containerId);
+    if (!root) return;
+    root.textContent = '';
+    if (window._isAdminClaim !== true || typeof db === 'undefined' || !db) return;
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;';
+    var title = document.createElement('div');
+    title.textContent = 'Faucet abuse reports';
+    title.style.cssText = 'font-weight:800;font-size:0.9rem;margin-bottom:6px;color:var(--text);';
+    card.appendChild(title);
+    var hint = document.createElement('div');
+    hint.textContent = 'Daily 13:00 UTC. Display names and uids only. Ban calls adminBanUser.';
+    hint.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin-bottom:8px;';
+    card.appendChild(hint);
+    var status = document.createElement('div');
+    status.textContent = 'Loading...';
+    status.style.cssText = 'font-size:0.78rem;color:var(--text-muted);';
+    card.appendChild(status);
+    root.appendChild(card);
+    db.collection('faucet_abuse_reports').orderBy('generatedAt', 'desc').limit(7).get().then(function(snap) {
+        status.textContent = '';
+        if (snap.empty) {
+            status.textContent = 'No faucet reports yet.';
+            return;
+        }
+        snap.forEach(function(doc) {
+            var data = doc.data() || {};
+            var counts = data.counts || {};
+            var block = document.createElement('div');
+            block.style.cssText = 'border-top:1px solid var(--border);padding-top:10px;margin-top:10px;';
+            var head = document.createElement('div');
+            head.textContent = doc.id + ' · ' + (counts.clusters || 0) + ' clusters · ' + (counts.unknownPayments || 0) + ' unknown · ' + (counts.addressConflicts || 0) + ' address locks';
+            head.style.cssText = 'font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:6px;';
+            block.appendChild(head);
+            (data.clusters || []).forEach(function(cluster) {
+                var line = document.createElement('div');
+                line.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;';
+                line.textContent = (cluster.kind || 'share') + (cluster.bannedLink ? ' · banned link' : '') + ': ' + (cluster.key || '');
+                block.appendChild(line);
+                (cluster.accounts || []).forEach(function(acc) {
+                    block.appendChild(_faucetAbuseAccountRow(acc));
+                });
+            });
+            (data.unknownPayments || []).forEach(function(row) {
+                var line = document.createElement('div');
+                line.style.cssText = 'font-size:0.75rem;color:#eab308;margin:4px 0;';
+                line.textContent = 'Unknown payment · ' + (row.displayName || 'Bitcoiner') + ' · ' + (row.uid || '') + ' · ' + (row.amount || 0) + ' sats';
+                block.appendChild(line);
+                block.appendChild(_faucetAbuseBanButton(row.uid));
+            });
+            (data.addressConflicts || []).forEach(function(row) {
+                var line = document.createElement('div');
+                line.style.cssText = 'font-size:0.75rem;color:#f97316;margin:4px 0;';
+                line.textContent = 'Address lock · ' + (row.displayName || 'Bitcoiner') + ' · ' + (row.uid || '') + ' · ' + (row.address || '');
+                block.appendChild(line);
+                block.appendChild(_faucetAbuseBanButton(row.uid));
+            });
+            card.appendChild(block);
+        });
+    }).catch(function() {
+        status.textContent = 'Could not load faucet reports.';
+    });
+};
+
+window.banFaucetReportedUser = async function(uid) {
+    var id = String(uid || '');
+    if (!/^[A-Za-z0-9_-]{4,128}$/.test(id)) {
+        if (typeof showToast === 'function') showToast('That account id cannot be banned from here.');
+        return;
+    }
+    if (!window.confirm('Ban ' + id + ' from the faucet?')) return;
+    var token = '';
+    try { token = sessionStorage.getItem('btc_admin_http_token') || ''; } catch (e) { token = ''; }
+    async function callBan(tok) {
+        var url = 'https://us-central1-bitcoin-education-archive.cloudfunctions.net/adminBanUser?uid=' + encodeURIComponent(id) + '&reason=' + encodeURIComponent('faucet abuse report');
+        return fetch(url, { method: 'POST', headers: { 'x-admin-token': tok } });
+    }
+    try {
+        var res = token ? await callBan(token) : { status: 403, ok: false };
+        if (res.status === 403) {
+            token = window.prompt('Admin token') || '';
+            if (!token) return;
+            try { sessionStorage.setItem('btc_admin_http_token', token); } catch (e2) {}
+            res = await callBan(token);
+        }
+        if (res.ok) {
+            if (typeof showToast === 'function') showToast('Banned ' + id);
+            return;
+        }
+        if (typeof showToast === 'function') showToast('Ban failed (' + res.status + ').');
+    } catch (err) {
+        if (typeof showToast === 'function') showToast('Ban request failed.');
     }
 };
 
