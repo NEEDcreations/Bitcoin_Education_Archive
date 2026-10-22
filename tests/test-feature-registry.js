@@ -150,10 +150,228 @@ test('every quest hub tab, settings page, and hash route has a registry entry', 
         const feat = reg.featureByHash(id) || reg.featureByHash('app/' + id);
         assert.ok(feat, 'hash route #' + id);
     });
-    assert.ok(reg.featureByHash('questhub'), '#questhub');
+    assert.strictEqual(reg.featureByHash('questhub').id, 'raid', '#questhub opens Raid');
+    assert.strictEqual(reg.featureByHash('quests').id, 'quest-hub');
     assert.ok(reg.featureByHash('app/ciphers'), '#app/ciphers');
     assert.ok(reg.featureByHash('app/predictions'), '#app/predictions');
     assert.strictEqual(reg.featureByHash('predictions'), null);
+    const hubHit = reg.resolveNachoFeature('what is the quest hub');
+    assert.strictEqual(hubHit && hubHit.featureId, 'quest-hub');
+});
+
+test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab', function () {
+    const origSetTimeout = global.setTimeout;
+    const origClearTimeout = global.clearTimeout;
+    const queue = [];
+    let now = 0;
+    let seq = 1;
+    global.setTimeout = function (fn, ms) {
+        const id = seq++;
+        queue.push({ id: id, fn: fn, at: now + (ms || 0) });
+        return id;
+    };
+    global.clearTimeout = function (id) {
+        const i = queue.findIndex(function (t) { return t.id === id; });
+        if (i >= 0) queue.splice(i, 1);
+    };
+    function advance(ms) {
+        const end = now + ms;
+        let guard = 0;
+        while (guard++ < 500) {
+            queue.sort(function (a, b) { return a.at - b.at; });
+            const next = queue[0];
+            if (!next || next.at > end) break;
+            queue.shift();
+            now = next.at;
+            next.fn();
+        }
+        now = end;
+    }
+    function reset() {
+        queue.length = 0;
+        now = 0;
+        global._bqSuppressRoute = false;
+        global._bqDeepLinkHandled = false;
+        global._bqLastRouted = '';
+        global._bqLastRoutedAt = 0;
+        global._questHubTab = 'quiz';
+        global._nookSubTab = '';
+        global._renders = [];
+        global.location = { hash: '', pathname: '/' };
+    }
+    function tabLabel() {
+        return global._questHubTab + (global._questHubTab === 'nook' && global._nookSubTab ? '>' + global._nookSubTab : '');
+    }
+    function handleHashLoop(hash) {
+        let waited = 0;
+        function tryRoute() {
+            if (waited > 8000) return;
+            if (global.bqRouteHash(hash)) return;
+            waited += 200;
+            global.setTimeout(tryRoute, 200);
+        }
+        global.setTimeout(tryRoute, 500);
+    }
+    function install() {
+        global.history = {
+            pushState: function (_s, _t, url) {
+                global.location.hash = url;
+                handleHashLoop(String(url).replace(/^#/, ''));
+            }
+        };
+        global._renderQuestHubTab = function () { global._renders.push(tabLabel()); };
+        global.showQuestHub = function () {
+            global._renders.push(tabLabel());
+            if (global.location.hash !== '#questhub') {
+                global.history.pushState({ overlay: 'questhub' }, '', '#questhub');
+            }
+        };
+        global.openRaidHub = function () {
+            global._questHubTab = 'raid';
+            global._nookSubTab = '';
+            global.showQuestHub();
+            global._questHubTab = 'raid';
+            global._renderQuestHubTab();
+        };
+        global.openNookInventory = function () {
+            global.showQuestHub();
+            global._questHubTab = 'nook';
+            global._nookSubTab = 'inventory';
+            global._renderQuestHubTab();
+        };
+        global.openKeysAndCiphers = function () { global.openNookInventory(); };
+    }
+    function questsLoad() {
+        global.setTimeout(function () {
+            const hash = global.location.hash;
+            if (hash === '#questhub' || hash === '#raid' || hash === '#raid-hub') {
+                if (global._bqDeepLinkHandled) return;
+                global.openRaidHub();
+            }
+        }, 500);
+    }
+
+    try {
+        reset();
+        install();
+        global.location.hash = '#app/raid';
+        assert.strictEqual(global.bqRouteHash('app/raid'), true);
+        questsLoad();
+        advance(3000);
+        assert.strictEqual(global._questHubTab, 'raid', 'raid renders ' + global._renders.join(','));
+        assert.ok(global._renders.indexOf('quiz') === -1, global._renders.join(','));
+
+        reset();
+        install();
+        global.location.hash = '#app/ciphers';
+        assert.strictEqual(global.bqRouteHash('app/ciphers'), true);
+        questsLoad();
+        advance(3000);
+        assert.strictEqual(global._questHubTab, 'nook', 'cipher tab ' + global._renders.join(','));
+        assert.strictEqual(global._nookSubTab, 'inventory');
+        assert.strictEqual(global._renders[global._renders.length - 1], 'nook>inventory', global._renders.join(','));
+
+        reset();
+        install();
+        global.location.hash = '#questhub';
+        questsLoad();
+        handleHashLoop('questhub');
+        advance(3000);
+        assert.strictEqual(global._questHubTab, 'raid', 'questhub renders ' + global._renders.join(','));
+        assert.ok(global._renders.indexOf('quiz') === -1, global._renders.join(','));
+    } finally {
+        global.setTimeout = origSetTimeout;
+        global.clearTimeout = origClearTimeout;
+        global._bqSuppressRoute = false;
+        global._bqDeepLinkHandled = false;
+    }
+
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    const fast = html.slice(html.indexOf('function _onScriptLoad'), html.indexOf('_toLoad.forEach'));
+    assert.ok(fast.indexOf("hash === 'app'") !== -1, fast);
+    assert.ok(fast.indexOf("hash === 'app' || hash === 'questhub'") === -1, fast);
+    assert.ok(fast.indexOf("hash !== 'questhub'") !== -1, fast);
+    const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
+    assert.strictEqual((quests.match(/if \(window\._bqDeepLinkHandled\) return;/g) || []).length, 2);
+});
+
+test('search drops duplicate app rows and linked answers skip the generic tip', function () {
+    assert.strictEqual(reg.titleKey('🗺️ Exploration Map'), reg.titleKey('Exploration Map'));
+    assert.strictEqual(reg.titleKey('⚡ Raid Boss'), 'raid boss');
+    function div(cls, text, extra) {
+        return {
+            tag: 'div',
+            attrs: Object.assign({ class: cls || '' }, extra || {}),
+            textContent: text || '',
+            kids: [],
+            parentNode: null,
+            getAttribute: function (name) { return this.attrs[name] == null ? null : this.attrs[name]; },
+            querySelector: function (sel) { const all = this.querySelectorAll(sel); return all[0] || null; },
+            querySelectorAll: function (sel) {
+                const out = [];
+                function walk(list) {
+                    for (let i = 0; i < list.length; i++) {
+                        if (matches(list[i], sel)) out.push(list[i]);
+                        walk(list[i].kids);
+                    }
+                }
+                walk(this.kids);
+                return out;
+            },
+            removeChild: function (child) { this.kids = this.kids.filter(function (k) { return k !== child; }); }
+        };
+    }
+    function matches(n, sel) {
+        if (sel === 'div') return n.tag === 'div';
+        if (sel === '.sr-item') return n.attrs.class === 'sr-item';
+        if (sel === '.sr-cat') return n.attrs.class === 'sr-cat';
+        if (sel === '[data-bq-feature]') return !!n.attrs['data-bq-feature'];
+        return false;
+    }
+    function nest(parent, child) { child.parentNode = parent; parent.kids.push(child); return child; }
+    const sr = div('', '');
+    const card = div('sr-item', '', { 'data-bq-feature': 'exploration-map' });
+    nest(card, div('sr-cat', 'Feature'));
+    nest(card, div('', 'Exploration Map'));
+    nest(sr, card);
+    const dup = div('sr-item', '');
+    nest(dup, div('sr-cat', '⚡ App'));
+    nest(dup, div('', '🗺️ Exploration Map'));
+    nest(sr, dup);
+    const other = div('sr-item', '');
+    nest(other, div('sr-cat', '⚡ App'));
+    nest(other, div('', 'Leaderboard'));
+    nest(sr, other);
+    const channel = div('sr-item', '');
+    nest(channel, div('sr-cat', 'Channel'));
+    nest(channel, div('', 'Exploration Map'));
+    nest(sr, channel);
+    reg.dropDuplicateAppRows(sr);
+    const left = sr.kids.map(function (row) { return row.kids[1].textContent; });
+    assert.deepStrictEqual(left, ['Exploration Map', 'Leaderboard', 'Exploration Map']);
+
+    function answer(question, result) {
+        let got = null;
+        reg.wrapUnified(function (_q, cb) { cb(result); })(question, function (out) { got = out; });
+        return got;
+    }
+    const linked = answer('what is the halving', {
+        type: 'kb',
+        answer: 'The halving cuts the block subsidy. See the Scarce channel.',
+        channel: 'scarce'
+    });
+    assert.ok(linked && !/Orange Tickets/i.test(linked.answer) && !/data-bq-chip/.test(linked.answer), linked && linked.answer);
+    const topical = answer('what is the halving', {
+        type: 'kb',
+        answer: 'The halving cuts the block subsidy every 210,000 blocks.'
+    });
+    assert.ok(topical && /Scarce channel/.test(topical.answer), topical && topical.answer);
+    assert.ok(!/Orange Tickets/i.test(topical.answer));
+    const plain = answer('what is a utxo', {
+        type: 'kb',
+        answer: 'A UTXO is an unspent transaction output.'
+    });
+    assert.ok(plain && !/Orange Tickets/i.test(plain.answer) && !/Quest Hub/i.test(plain.answer), plain && plain.answer);
 });
 
 test('every registry opener calls a function that exists', function () {
@@ -202,7 +420,7 @@ test('show/open/enter navigation openers are in the registry', function () {
 });
 
 test('changed files parse', function () {
-    ['features.registry.js', 'nacho-qa.js', 'app.js', 'global-chat.js', 'sw.js', 'workers/nacho-search/worker.js'].forEach(function (file) {
+    ['features.registry.js', 'quests.js', 'nacho-qa.js', 'app.js', 'global-chat.js', 'sw.js', 'workers/nacho-search/worker.js'].forEach(function (file) {
         execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
     });
 });

@@ -257,7 +257,7 @@
             desc: 'Quest Hub holds the daily quiz, trivia, poll, Flex, Favor, raid, charity, community challenge, and the Nook.',
             how: 'Open Quest Hub from the menu. Pick a tab along the top.',
             follow: 'Want the daily quiz tab first?',
-            hash: 'quests', aliases: ['quests', 'questhub', 'quest-hub'], kind: 'quest', arg: 'quiz', questTab: 'quests',
+            hash: 'quests', aliases: ['quests', 'quest-hub'], kind: 'quest', arg: 'quiz', questTab: 'quests',
             openFns: ['showQuestHub'] }),
         R({ id: 'qh-quiz', title: 'Daily quiz', group: 'Quests', term: 'daily quiz', priority: 80,
             kw: 'daily quiz quest quiz',
@@ -295,7 +295,7 @@
             desc: 'The raid boss is a community fight. You deal damage by earning badges and doing activities.',
             how: 'Open Quest Hub → Raid to see the boss, your damage, and the prize.',
             follow: 'Want the leaderboard of raiders next?',
-            hash: 'app/raid', aliases: ['raid', 'raid-boss'], kind: 'raid', arg: 'raid', questTab: 'raid',
+            hash: 'app/raid', aliases: ['raid', 'raid-boss', 'questhub'], kind: 'raid', arg: 'raid', questTab: 'raid',
             openFns: ['openRaidHub', 'showQuestHub'] }),
         R({ id: 'citadel', title: 'Citadel', group: 'Quests', term: 'citadel', priority: 80,
             kw: 'citadel coming soon spend xp',
@@ -988,7 +988,9 @@
     }
 
     function bqRouteHash(hash, attempt) {
-        if (win._bqSuppressRoute) return false;
+        // Already opening a feature. Returning true stops handleHash from retrying
+        // this hash after the suppress window and landing on a different tab.
+        if (win._bqSuppressRoute) return true;
         var f = featureByHash(hash);
         if (!f) return false;
         // Don't steal a real education-channel hash (for example #predictions).
@@ -1003,6 +1005,8 @@
             win._bqLastRoutedAt = now;
         }
         if (!openerReady(f)) {
+            // Claim the deep link so quests.js does not open Raid over a tab we are still waiting to show.
+            win._bqDeepLinkHandled = true;
             if (typeof win._loadDeferred === 'function') {
                 try { win._loadDeferred(); } catch (e0) {}
             }
@@ -1012,6 +1016,10 @@
                 return true;
             }
         }
+        // showQuestHub pushes #questhub. Ignore that hashchange, or it reopens Quiz a second later.
+        win._bqSuppressRoute = true;
+        win._bqDeepLinkHandled = true;
+        setTimeout(function () { win._bqSuppressRoute = false; }, 1500);
         try { f.open(); } catch (e) {}
         return true;
     }
@@ -1055,9 +1063,43 @@
         var s = norm(q || '');
         if (/price|buy|invest|sell/.test(s)) return 'Want the education page for your first Bitcoin purchase? It is not financial advice.';
         if (/wallet|seed|custody/.test(s)) return 'Want the self-custody channel, or the in-app Lightning wallet page?';
+        if (/lightning|lnurl|bolt11/.test(s)) return 'Want the Lightning Network channel, or the in-app Lightning wallet page?';
+        if (/halving|21 million|supply cap|block reward/.test(s)) return 'Want the Scarce channel for the supply cap and the halving?';
+        if (/privacy|coinjoin|kyc/.test(s)) return 'Want the Privacy channel?';
+        if (/full node|\bnode\b|consensus/.test(s)) return 'Want the Nodes channel?';
         if (/mining|hash/.test(s)) return 'Want Satoshi\'s Favor, the in-app hashing game?';
-        if (/hello|how are you|thanks|thank/.test(s)) return 'Want me to open Quest Hub so you can earn a little XP today?';
-        return 'Want me to open Quest Hub, or show you how Orange Tickets work?';
+        if (/hello|how are you|thanks|thank|good morning/.test(s)) return 'Want me to open Quest Hub so you can earn a little XP today?';
+        return '';
+    }
+
+    function titleKey(s) {
+        return String(s || '')
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F\u200D]/gu, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+    }
+
+    // The registry also fills APP_PAGES, so the old search prints a second "⚡ App" row.
+    function dropDuplicateAppRows(sr) {
+        if (!sr || !sr.querySelectorAll) return;
+        var keys = {};
+        var cards = sr.querySelectorAll('[data-bq-feature]');
+        var ci;
+        for (ci = 0; ci < cards.length; ci++) {
+            var label = cards[ci].querySelectorAll('div')[1];
+            if (label) keys[titleKey(label.textContent)] = 1;
+        }
+        var rows = sr.querySelectorAll('.sr-item');
+        for (ci = 0; ci < rows.length; ci++) {
+            var row = rows[ci];
+            if (row.getAttribute('data-bq-feature')) continue;
+            var cat = row.querySelector('.sr-cat');
+            if (!cat || cat.textContent.indexOf('App') === -1) continue;
+            var titleDiv = row.querySelectorAll('div')[1];
+            var appTitle = titleDiv ? titleDiv.textContent : '';
+            if (keys[titleKey(appTitle)]) row.parentNode.removeChild(row);
+        }
     }
 
     function bqAskFollowUp(text) {
@@ -1218,6 +1260,7 @@
             sr.classList.add('active');
             if (!sr.querySelector('.sr-item') && /No results/i.test(sr.textContent || '')) sr.innerHTML = '';
             sr.insertAdjacentHTML('afterbegin', block);
+            dropDuplicateAppRows(sr);
         }
         var wrapped = function (q) {
             var text = (q == null) ? '' : String(q);
@@ -1253,11 +1296,17 @@
             return result;
         }
         if (!tip) {
-            if (/\?\s*$/.test(plain.trim())) {
+            var linked = !!(result.channel || result.channelName || /<a\s/i.test(result.answer));
+            // A channel link is already the next step. Don't tack on a generic Quest Hub tip.
+            if (linked || /\?\s*$/.test(plain.trim())) {
                 if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
                 return result;
             }
             tip = pickTip(q);
+            if (!tip) {
+                if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
+                return result;
+            }
         }
         result.followUp = tip;
         result.answer += '<div data-bq-chip="1" style="margin-top:8px;font-size:0.84rem;color:var(--text-muted,#bbb);">' + esc(tip) + '</div>';
@@ -1373,6 +1422,8 @@
         toSeoPages: toSeoPages,
         answerText: answerText,
         renderNachoAnswerCard: renderNachoAnswerCard,
+        titleKey: titleKey,
+        dropDuplicateAppRows: dropDuplicateAppRows,
         appKnowledge: appKnowledge,
         appKnowledgeFor: appKnowledgeFor,
         userContext: userContext,

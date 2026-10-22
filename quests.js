@@ -5910,7 +5910,10 @@ if (typeof window._questHubRouteAdded === 'undefined') {
                 setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
             }, 100);
         } else if (location.hash === '#questhub' || location.hash === '#raid' || location.hash === '#raid-hub') {
-            setTimeout(function() { if (typeof openRaidHub === 'function') openRaidHub(); }, 100);
+            setTimeout(function() {
+                if (window._bqDeepLinkHandled) return;
+                if (typeof openRaidHub === 'function') openRaidHub();
+            }, 100);
         }
     });
     if (location.hash === '#quests') {
@@ -5922,7 +5925,10 @@ if (typeof window._questHubRouteAdded === 'undefined') {
             setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
         }, 500);
     } else if (location.hash === '#questhub' || location.hash === '#raid' || location.hash === '#raid-hub') {
-        setTimeout(function() { if (typeof openRaidHub === 'function') openRaidHub(); }, 500);
+        setTimeout(function() {
+            if (window._bqDeepLinkHandled) return;
+            if (typeof openRaidHub === 'function') openRaidHub();
+        }, 500);
     }
 }
 

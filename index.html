@@ -1481,11 +1481,11 @@
             'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20261022_v2252',
             'scholar.js?v=20260809_1846','beats.js?v=20261013_2307',
             'lightning.js?v=20261022_faucet','lightning-tips.js?v=20261007_2124',
-            'notifications.js?v=20261022_gifts','gifting.js?v=20261022_lightfix','guide.js?v=20260716_1628','modules.js?v=20260331',
+            'notifications.js?v=20261022_gifts','gifting.js?v=20261022_lightfix','guide.js?v=20260716_1628','modules.js?v=20261022_v2252',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20260810_0418',
-            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260602',
+            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
             'timechain-tv.js?v=20261022_tctv3',
             'learning-quests.js?v=20261014_0554',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
@@ -1548,7 +1548,7 @@
             'pvp':           ['pvp.js?v=20260708_0427'],
             'proof-of-play': ['pvp.js?v=20260708_0427', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
-            'trails':        ['modules.js?v=20260331'],
+            'trails':        ['modules.js?v=20261022_v2252'],
             'learning-quests': ['learning-quests.js?v=20261014_0554'],
             'quests':        ['quests.js?v=20261022_v2251'],
             'questhub':      ['quests.js?v=20261022_v2251'],
@@ -1566,9 +1566,9 @@
                 _loaded++;
                 if (_loaded >= _toLoad.length) {
                     // All scripts loaded — re-trigger routing so go() runs with scripts ready
-                    if (hash === 'app' || hash === 'questhub') {
+                    if (hash === 'app') {
                         if (typeof window.bqRouteHash === 'function') window.bqRouteHash(fullHash);
-                    } else if (typeof window.go === 'function') window.go(hash);
+                    } else if (hash !== 'questhub' && typeof window.go === 'function') window.go(hash);
                 }
             }
             _toLoad.forEach(function(src) {
