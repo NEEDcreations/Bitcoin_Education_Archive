@@ -14,6 +14,7 @@ const TESTS = [
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
     { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
+    { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
 ];
 
 let allPassed = true;

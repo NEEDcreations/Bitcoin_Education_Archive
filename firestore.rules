@@ -7,6 +7,38 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.get('admin', false) == true;
     }
 
+    function lnShape(v) {
+      return v is string && v.size() >= 5 && v.size() <= 320
+        && v.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+    }
+
+    // The first Lightning address saved on a profile stays. The client cannot
+    // change it or clear it. The server still writes the normalized lock.
+    function lightningLockOk() {
+      let oldL = 'lightning' in resource.data && resource.data.lightning is string ? resource.data.lightning : '';
+      let oldA = 'lightningAddress' in resource.data && resource.data.lightningAddress is string ? resource.data.lightningAddress : '';
+      let oldN = 'lnAddress' in resource.data && resource.data.lnAddress is string ? resource.data.lnAddress : '';
+      let newL = 'lightning' in request.resource.data && request.resource.data.lightning is string ? request.resource.data.lightning : '';
+      let newA = 'lightningAddress' in request.resource.data && request.resource.data.lightningAddress is string ? request.resource.data.lightningAddress : '';
+      let newN = 'lnAddress' in request.resource.data && request.resource.data.lnAddress is string ? request.resource.data.lnAddress : '';
+      let locked = oldL.size() > 0 ? oldL : (oldA.size() > 0 ? oldA : oldN);
+      let fresh = newL.size() > 0 ? newL : (newA.size() > 0 ? newA : newN);
+      let untouched = !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lightning', 'lightningAddress', 'lnAddress']);
+      let firstSet = oldL.size() == 0 && oldA.size() == 0 && oldN.size() == 0
+        && (fresh.size() == 0 || lnShape(fresh))
+        && (newL.size() == 0 || newL == fresh)
+        && (newA.size() == 0 || newA == fresh)
+        && (newN.size() == 0 || newN == fresh);
+      let keepLocked = locked.size() > 0
+        && (newL.size() == 0 || newL == locked)
+        && (newA.size() == 0 || newA == locked)
+        && (newN.size() == 0 || newN == locked)
+        && (oldL.size() == 0 || newL == oldL)
+        && (oldA.size() == 0 || newA == oldA)
+        && (oldN.size() == 0 || newN == oldN);
+      return untouched || firstSet || keepLocked;
+    }
+
     // =============================================
     // USERS COLLECTION
     // [AUDIT FIX M-NEW-23] Prevent full profile enumeration and PII exposure
@@ -49,7 +81,12 @@ service cloud.firestore {
                     && (!('points'          in request.resource.data) || request.resource.data.points          == 0)
                     && (!('streak'          in request.resource.data) || request.resource.data.streak          <= 1)
                     && (!('channelsVisited' in request.resource.data) || request.resource.data.channelsVisited  == 0)
-                    && (!('totalVisits'     in request.resource.data) || request.resource.data.totalVisits      <= 1);
+                    && (!('totalVisits'     in request.resource.data) || request.resource.data.totalVisits      <= 1)
+                    && (!('lightning' in request.resource.data) || request.resource.data.lightning == '' || lnShape(request.resource.data.lightning))
+                    && (!('lightningAddress' in request.resource.data) || request.resource.data.lightningAddress == '' || lnShape(request.resource.data.lightningAddress))
+                    && (!('lightning' in request.resource.data) || !('lightningAddress' in request.resource.data)
+                        || request.resource.data.lightning == '' || request.resource.data.lightningAddress == ''
+                        || request.resource.data.lightning == request.resource.data.lightningAddress);
 
       allow update: if request.auth != null
                     && request.auth.uid == userId
@@ -126,7 +163,8 @@ service cloud.firestore {
                         || (request.resource.data.country is string
                             && request.resource.data.country.size() >= 2
                             && request.resource.data.country.size() <= 60
-                            && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")));
+                            && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
+                    && lightningLockOk();
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
       // create after delete could re-seed with anything). Server (Admin SDK) can still delete.
@@ -1648,6 +1686,35 @@ service cloud.firestore {
     // =============================================
     match /admin_audit_log/{logId} {
       allow read, write: if false; // Cloud Function (Admin SDK) only
+    }
+
+    // One Lightning address, owned by one uid. Clients may read their own lock.
+    match /lightning_addresses/{addrId} {
+      allow get: if request.auth != null
+                 && resource.data.uid == request.auth.uid;
+      allow list: if false;
+      allow write: if false;
+    }
+
+    // Faucet subnet and per-uid claim signals. Server only.
+    match /faucet_subnet_log/{docId} {
+      allow read, write: if false;
+    }
+    match /faucet_uid_signals/{docId} {
+      allow read, write: if false;
+    }
+    match /faucet_ln_ratelimit/{docId} {
+      allow read, write: if false;
+    }
+
+    // Daily faucet abuse report and the flags that feed it. Admins read, server writes.
+    match /faucet_admin_flags/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /faucet_abuse_reports/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /{document=**} {

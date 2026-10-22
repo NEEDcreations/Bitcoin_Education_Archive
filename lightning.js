@@ -15,6 +15,7 @@
 'use strict';
 
 // ─── State ───────────────────────────────────────────────
+var LN_ADDRESS_LOCK_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 var _ln = {
     connected: false,
     method: null,      // 'webln' | 'nwc'
@@ -425,8 +426,8 @@ function renderConnectionOptions() {
 
     // Lightning Address section
     var savedLnAddr = '';
-    if (typeof currentUser !== 'undefined' && currentUser && currentUser.lightning) {
-        savedLnAddr = currentUser.lightning;
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        savedLnAddr = currentUser.lightning || currentUser.lightningAddress || currentUser.lnAddress || '';
     }
     h += '<div style="padding:18px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
@@ -435,12 +436,16 @@ function renderConnectionOptions() {
             '<p style="color:var(--text-muted);font-size:0.78rem;margin:0;">So other users can tip you sats</p></div>' +
         '</div>' +
         '<p style="color:var(--text);font-size:0.82rem;line-height:1.5;margin:0 0 10px;">Enter your Lightning Address (looks like an email). Get one from <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Alby</a>, <a href="https://walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Wallet of Satoshi</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Coinos</a>, or <a href="https://strike.me" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">Strike</a>.</p>' +
-        '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<input type="text" id="lnAddrInput" placeholder="you@walletofsatoshi.com" value="' + (typeof escapeHtml === 'function' ? escapeHtml(savedLnAddr) : savedLnAddr) + '" style="flex:1;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')saveLnAddress()">' +
+        '<p style="color:var(--text-muted);font-size:0.75rem;line-height:1.45;margin:0 0 10px;">' + LN_ADDRESS_LOCK_NOTICE + '</p>';
+    if (savedLnAddr) {
+        h += '<div style="padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;word-break:break-all;">' + (typeof escapeHtml === 'function' ? escapeHtml(savedLnAddr) : savedLnAddr) + '</div>';
+    } else {
+        h += '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<input type="text" id="lnAddrInput" placeholder="you@walletofsatoshi.com" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')saveLnAddress()">' +
             '<button onclick="saveLnAddress()" style="padding:11px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Save</button>' +
-        '</div>' +
-        '<div id="lnAddrStatus" style="margin-top:6px;font-size:0.78rem;text-align:center;"></div>' +
-        (savedLnAddr ? '<div style="margin-top:6px;font-size:0.72rem;color:#22c55e;text-align:center;">✅ Your Lightning Address is set — you can receive tips!</div>' : '') +
+        '</div>';
+    }
+    h += '<div id="lnAddrStatus" style="margin-top:6px;font-size:0.78rem;text-align:center;"></div>' +
     '</div>';
 
     // Compatible wallets
@@ -661,43 +666,45 @@ window.lnSendPaymentDirect = async function(bolt11) {
 
 // ─── Save Lightning Address to profile ───────────────────
 window.saveLnAddress = async function() {
-    var input = document.getElementById('lnAddrInput');
     var status = document.getElementById('lnAddrStatus');
+    var locked = '';
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        locked = currentUser.lightning || currentUser.lightningAddress || currentUser.lnAddress || '';
+    }
+    if (locked) {
+        if (status) status.textContent = LN_ADDRESS_LOCK_NOTICE;
+        return;
+    }
+    var input = document.getElementById('lnAddrInput');
     if (!input) return;
-    var addr = input.value.trim();
+    var addr = String(input.value || '').trim().toLowerCase();
 
-    // Validate format
-    if (addr && (!addr.includes('@') || addr.length < 5)) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)</span>';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr) || addr.length < 5 || addr.length > 320) {
+        if (status) status.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)';
         return;
     }
 
-    // Must be signed in
     if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Sign in to save your Lightning Address</span>';
+        if (status) status.textContent = 'Sign in to save your Lightning Address';
         return;
     }
 
     try {
-        if (status) status.innerHTML = '<span style="color:var(--accent);">Saving…</span>';
+        if (status) status.textContent = 'Saving…';
         await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr, lightningAddress: addr });
-        // Update local user object
         if (typeof currentUser !== 'undefined' && currentUser) {
             currentUser.lightning = addr;
             currentUser.lightningAddress = addr;
         }
-        if (addr) {
-            if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Lightning Address saved! You can now receive tips.</span>';
-            if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');
-            // Dismiss the setup prompt if it exists
-            localStorage.setItem('btc_ln_prompt_dismissed', '1');
-            var prompt = document.getElementById('lnAddressPrompt');
-            if (prompt) prompt.remove();
-        } else {
-            if (status) status.innerHTML = '<span style="color:var(--text-faint);">Lightning Address removed.</span>';
-        }
-    } catch(e) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Error saving — try again</span>';
+        if (status) status.textContent = 'Lightning Address saved. You can now receive tips.';
+        if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');
+        localStorage.setItem('btc_ln_prompt_dismissed', '1');
+        var prompt = document.getElementById('lnAddressPrompt');
+        if (prompt) prompt.remove();
+        if (typeof renderLightning === 'function') setTimeout(renderLightning, 300);
+    } catch (e) {
+        var code = e && e.code ? String(e.code) : '';
+        if (status) status.textContent = (code.indexOf('permission-denied') !== -1) ? LN_ADDRESS_LOCK_NOTICE : 'Error saving. Try again.';
     }
 };
 

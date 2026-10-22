@@ -117,6 +117,7 @@ async function verifyTurnstile(token, remoteip) {
 }
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
+const faucetGuard = require('./src/faucetGuard');
 
 // ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
 // String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
@@ -168,8 +169,8 @@ const VALID_CHANNEL_IDS = new Set(["0_mining__hashing","100_sats","1_first_princ
 const FAUCET = {
     POINTS_PER_SAT: 10,
     MIN_WITHDRAWAL_SATS: 100,
-    MAX_PER_CLAIM_SATS: 500,
-    MAX_DAILY_PER_USER_SATS: 500,
+    MAX_PER_CLAIM_SATS: faucetGuard.MAX_PER_CLAIM_SATS,
+    MAX_DAILY_PER_USER_SATS: faucetGuard.MAX_DAILY_PER_USER_SATS,
     MAX_LIFETIME_PER_USER_SATS: 15000,
     GLOBAL_DAILY_MAX_SATS: 10000,
     COOLDOWN_HOURS: 24,
@@ -1646,8 +1647,11 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
 });
 
 // ===== SATS FAUCET - claimSats Cloud Function =====
-exports.claimSats = functionsV1.https.onCall(async (data, context) => {
-    // 1. Must be authenticated
+// Lookup retries can run about two minutes, so the timeout sits above that.
+exports.claimSats = functionsV1.runWith({
+    timeoutSeconds: 300,
+    enforceAppCheck: true,
+}).https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
@@ -1655,12 +1659,10 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
     const email = context.auth.token.email;
     const emailVerified = context.auth.token.email_verified;
 
-    // 2. Must not be anonymous, must have verified email
     if (!email || !emailVerified) {
         return { success: false, error: 'Verified email required. Link and verify your email in Account settings.' };
     }
 
-    // 3. Turnstile CAPTCHA verification (bot protection)
     const tsToken = data.turnstileToken || '';
     const tsValid = await verifyTurnstile(tsToken, null);
     if (!tsValid) {
@@ -1668,141 +1670,27 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
         return { success: false, error: 'Security check failed. Please refresh and try again.' };
     }
 
-    // 4. NWC configuration check
     if (!FAUCET.NWC_URL) {
         console.error('[FAUCET] NWC_URL not configured');
         return { success: false, error: 'Faucet not configured. Contact admin.' };
     }
 
-    // ---- Lightning Address path: resolve LNURL-pay server-side ----
-    // If caller passes lightningAddress + amount instead of a pre-made invoice,
-    // we fetch the BOLT11 for them so they don’t have to open their wallet.
-    let invoice = (data.invoice || '').trim();
-    const lnAddrRaw = (data.lightningAddress || '').trim();
-    const lnAddrAmount = Math.floor(Number(data.amount) || 0); // sats
+    // Banned accounts fail before any Lightning, IP, or fingerprint lookup.
+    const userPreSnap = await db.collection('users').doc(uid).get();
+    const ledgerPreSnap = await db.collection('faucet_ledger').doc(uid).get();
+    const preBan = faucetGuard.assessBan(
+        userPreSnap.exists ? userPreSnap.data() : {},
+        ledgerPreSnap.exists ? ledgerPreSnap.data() : {}
+    );
+    if (!preBan.ok) return { success: false, error: preBan.error };
 
-    if (lnAddrRaw && !invoice) {
-        // Validate Lightning Address format
-        if (!lnAddrRaw.includes('@') || lnAddrRaw.length < 5 || lnAddrRaw.length > 320) {
-            return { success: false, error: 'Invalid Lightning Address format.' };
-        }
-        if (lnAddrAmount < FAUCET.MIN_WITHDRAWAL_SATS || lnAddrAmount > FAUCET.MAX_PER_CLAIM_SATS) {
-            return { success: false, error: 'Amount must be between ' + FAUCET.MIN_WITHDRAWAL_SATS + ' and ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats.' };
-        }
+    const addrReq = faucetGuard.requireLightningAddress(data || {});
+    if (!addrReq.ok) return { success: false, error: addrReq.error };
+    const lnNorm = addrReq.address;
+    const amountReq = faucetGuard.assessClaimAmount(data && data.amount);
+    if (!amountReq.ok) return { success: false, error: amountReq.error };
+    const lnAddrAmount = amountReq.amount;
 
-        // SECURITY: SSRF prevention — validate the domain is a public internet hostname.
-        // Blocks: localhost, 127.x, 10.x, 172.16-31.x, 169.254.x (link-local/AWS metadata),
-        // 192.168.x, ::1, and any non-HTTPS scheme. Also disallows bare IPs entirely.
-        const _lnDomainRaw = lnAddrRaw.split('@')[1] || '';
-        const _lnDomain = _lnDomainRaw.split(':')[0].toLowerCase(); // strip port
-        const _isPrivateHost = (
-            _lnDomain === 'localhost' ||
-            /^127\./.test(_lnDomain) ||
-            /^10\./.test(_lnDomain) ||
-            /^192\.168\./.test(_lnDomain) ||
-            /^172\.(1[6-9]|2[0-9]|3[01])\./.test(_lnDomain) ||
-            /^169\.254\./.test(_lnDomain) ||
-            /^::1$/.test(_lnDomain) ||
-            /^fd[0-9a-f]{2}:/i.test(_lnDomain) ||
-            /^\d+\.\d+\.\d+\.\d+$/.test(_lnDomain) // reject bare IP addresses entirely
-        );
-        if (_isPrivateHost || !_lnDomain || _lnDomain.length < 3 || !_lnDomain.includes('.')) {
-            console.error('[FAUCET] SSRF BLOCKED: domain=' + _lnDomain + ' uid=' + uid);
-            return { success: false, error: 'Invalid Lightning Address domain.' };
-        }
-
-        // Resolve Lightning Address → LNURL-pay → BOLT11
-        try {
-            const nodeFetch = require('node-fetch');
-            const [localPart, domain] = lnAddrRaw.split('@');
-
-            // SECURITY: DNS pre-resolution SSRF check — string-matching alone is bypassed by
-            // a public domain that resolves to a private/link-local IP (e.g. 169.254.169.254).
-            // Resolve first; reject if any returned address is private.
-            await assertPublicHost(domain);
-
-            const lnurlPayUrl = 'https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart);
-            const metaRes = await nodeFetch(lnurlPayUrl, { timeout: 8000, size: 65536 }); // 64KB max response
-            if (!metaRes.ok) throw new Error('LNURL-pay metadata fetch failed (' + metaRes.status + ')');
-            const meta = await metaRes.json();
-            if (!meta.callback) throw new Error('No callback in LNURL-pay metadata');
-
-            // SECURITY: SSRF prevention on callback URL — must be https:// on the same domain.
-            // A malicious LNURL server could return a callback pointing to internal infra.
-            let cbUrl;
-            try {
-                cbUrl = new URL(meta.callback);
-            } catch(_) {
-                throw new Error('Invalid callback URL in LNURL-pay response');
-            }
-            if (cbUrl.protocol !== 'https:') {
-                throw new Error('Callback URL must use HTTPS');
-            }
-            // Callback domain must match the Lightning Address domain (prevents open redirect to internal)
-            if (cbUrl.hostname.toLowerCase() !== domain.split(':')[0].toLowerCase()) {
-                throw new Error('Callback URL domain mismatch (expected ' + domain + ')');
-            }
-
-            const msats = lnAddrAmount * 1000;
-            if (meta.minSendable && msats < meta.minSendable) {
-                throw new Error('Amount below wallet minimum (' + Math.ceil(meta.minSendable / 1000) + ' sats)');
-            }
-            if (meta.maxSendable && msats > meta.maxSendable) {
-                throw new Error('Amount above wallet maximum (' + Math.floor(meta.maxSendable / 1000) + ' sats)');
-            }
-            const cbSep = meta.callback.includes('?') ? '&' : '?';
-            const invoiceRes = await nodeFetch(meta.callback + cbSep + 'amount=' + msats, { timeout: 8000, size: 65536 }); // 64KB max
-            if (!invoiceRes.ok) throw new Error('Invoice fetch failed (' + invoiceRes.status + ')');
-            const invoiceData = await invoiceRes.json();
-            if (!invoiceData.pr) throw new Error('No invoice returned by Lightning Address');
-            invoice = invoiceData.pr;
-            console.log('[FAUCET] Resolved Lightning Address ' + lnAddrRaw + ' → invoice for ' + lnAddrAmount + ' sats (callback domain: ' + cbUrl.hostname + ')');
-        } catch (e) {
-            console.error('[FAUCET] Lightning Address resolution failed:', e.message);
-            return { success: false, error: 'Could not resolve Lightning Address. Check the address and try again.' };
-        }
-    }
-
-    // 4. Validate invoice format
-    if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
-        return { success: false, error: 'Invalid Lightning invoice. Must start with lnbc.' };
-    }
-    if (invoice.length < 50 || invoice.length > 2000) {
-        return { success: false, error: 'Invalid Lightning invoice length.' };
-    }
-
-    // 5. Cryptographic BOLT11 decode (C4 fix - proper library, not regex)
-    let decoded;
-    try {
-        decoded = bolt11.decode(invoice);
-    } catch(e) {
-        return { success: false, error: 'Invalid Lightning invoice format.' };
-    }
-    const amount = Math.floor((decoded.millisatoshis || 0) / 1000);
-    if (!amount || amount <= 0) {
-        return { success: false, error: 'Invoice has no amount or zero amount. Create an invoice for a specific amount.' };
-    }
-
-    if (amount < FAUCET.MIN_WITHDRAWAL_SATS) {
-        return { success: false, error: 'Invoice is for ' + amount + ' sats. Minimum claim is ' + FAUCET.MIN_WITHDRAWAL_SATS + ' sats.' };
-    }
-    if (amount > FAUCET.MAX_PER_CLAIM_SATS) {
-        return { success: false, error: 'Invoice is for ' + amount + ' sats. Maximum claim is ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats.' };
-    }
-
-    // 6. Check invoice expiry
-    if (decoded.timeExpireDate && decoded.timeExpireDate < Math.floor(Date.now() / 1000)) {
-        return { success: false, error: 'Invoice has expired. Generate a fresh one.' };
-    }
-
-    // 7. Invoice replay protection - full invoice SHA-256 hash (C3 fix)
-    // [AUDIT FIX] invoiceHash computed here; the actual existence check + atomic reservation
-    // are now performed INSIDE the transaction below to prevent TOCTOU: two concurrent requests
-    // both reading the doc before either writes it, allowing the same invoice to be paid twice.
-    const invoiceHash = require('crypto').createHash('sha256').update(invoice).digest('hex').substring(0, 32);
-    const invoiceRef = db.collection('faucet_invoices').doc(invoiceHash);
-
-    // 5. Check account age FIRST (cheap check, fail fast)
     let userRecord;
     try {
         userRecord = await admin.auth().getUser(uid);
@@ -1811,404 +1699,523 @@ exports.claimSats = functionsV1.https.onCall(async (data, context) => {
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
             return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
         }
-    } catch(e) {
+    } catch (e) {
         console.error('[FAUCET] Could not verify account age:', e.message);
         return { success: false, error: 'Could not verify account age. Try again later.' };
     }
 
-    // 6. Check kill switch before expensive operations
     const configDoc = await db.collection('faucet_config').doc('settings').get();
     if (configDoc.exists && configDoc.data().paused) {
         return { success: false, error: 'Sats faucet is temporarily paused.' };
     }
 
-    // 6a. IP RATE LIMITING (Fix #6) - flag same IP claiming across multiple accounts
-    const clientIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
-    if (clientIP === 'unknown') {
-        console.error('[FAUCET] Could not determine client IP for uid=' + uid);
-        return { success: false, error: 'Could not verify request origin. Try again later.' };
-    }
-    {
-        const ipRef = db.collection('faucet_ip_log').doc(clientIP.replace(/[./]/g, '_'));
-        const ipDoc = await ipRef.get();
-        if (ipDoc.exists) {
-            const ipData = ipDoc.data();
-            const ipUids = ipData.uids || [];
-            // Flag if 3+ different UIDs claim from the same IP
-            if (ipUids.length >= 3 && !ipUids.includes(uid)) {
-                console.error('[FAUCET] IP ABUSE: ' + clientIP + ' used by ' + ipUids.length + ' accounts + new uid=' + uid);
-                return { success: false, error: 'Unusual activity detected from this network. Contact support if this is an error.' };
-            }
-            // Check if same IP claimed in last 2 hours (across ANY account)
-            const lastClaimTime = ipData.lastClaim ? (ipData.lastClaim.toDate ? ipData.lastClaim.toDate() : new Date(ipData.lastClaim)) : null;
-            if (lastClaimTime && (Date.now() - lastClaimTime.getTime()) < 7200000 && ipData.lastUid !== uid) {
-                console.error('[FAUCET] IP COOLDOWN: ' + clientIP + ' claimed by ' + ipData.lastUid + ' recently, now uid=' + uid);
-                return { success: false, error: 'A claim was recently made from this network. Try again later.' };
-            }
-        }
-        // Log this IP claim (after payment succeeds - moved to post-payment batch below)
+    const _lnDomainRaw = lnNorm.split('@')[1] || '';
+    const _lnDomain = _lnDomainRaw.split(':')[0].toLowerCase();
+    const _isPrivateHost = (
+        _lnDomain === 'localhost' ||
+        /^127\./.test(_lnDomain) ||
+        /^10\./.test(_lnDomain) ||
+        /^192\.168\./.test(_lnDomain) ||
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(_lnDomain) ||
+        /^169\.254\./.test(_lnDomain) ||
+        /^::1$/.test(_lnDomain) ||
+        /^fd[0-9a-f]{2}:/i.test(_lnDomain) ||
+        /^\d+\.\d+\.\d+\.\d+$/.test(_lnDomain)
+    );
+    if (_isPrivateHost || !_lnDomain || _lnDomain.length < 3 || !_lnDomain.includes('.')) {
+        console.error('[FAUCET] SSRF BLOCKED: domain=' + _lnDomain + ' uid=' + uid);
+        return { success: false, error: 'Invalid Lightning Address domain.' };
     }
 
-    // 6b. DEVICE FINGERPRINT CHECK (Mandatory - Fix M-NEW-12)
+    let invoice = '';
+    try {
+        const nodeFetch = require('node-fetch');
+        const localPart = lnNorm.split('@')[0];
+        const domain = lnNorm.split('@')[1];
+        await assertPublicHost(domain);
+
+        const lnurlPayUrl = 'https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart);
+        const metaRes = await nodeFetch(lnurlPayUrl, { timeout: 8000, size: 65536 });
+        if (!metaRes.ok) throw new Error('LNURL-pay metadata fetch failed (' + metaRes.status + ')');
+        const meta = await metaRes.json();
+        if (!meta.callback) throw new Error('No callback in LNURL-pay metadata');
+
+        let cbUrl;
+        try {
+            cbUrl = new URL(meta.callback);
+        } catch (_) {
+            throw new Error('Invalid callback URL in LNURL-pay response');
+        }
+        if (cbUrl.protocol !== 'https:') throw new Error('Callback URL must use HTTPS');
+        if (cbUrl.hostname.toLowerCase() !== domain.split(':')[0].toLowerCase()) {
+            throw new Error('Callback URL domain mismatch (expected ' + domain + ')');
+        }
+
+        const msats = lnAddrAmount * 1000;
+        if (meta.minSendable && msats < meta.minSendable) {
+            throw new Error('Amount below wallet minimum (' + Math.ceil(meta.minSendable / 1000) + ' sats)');
+        }
+        if (meta.maxSendable && msats > meta.maxSendable) {
+            throw new Error('Amount above wallet maximum (' + Math.floor(meta.maxSendable / 1000) + ' sats)');
+        }
+        const cbSep = meta.callback.includes('?') ? '&' : '?';
+        const invoiceRes = await nodeFetch(meta.callback + cbSep + 'amount=' + msats, { timeout: 8000, size: 65536 });
+        if (!invoiceRes.ok) throw new Error('Invoice fetch failed (' + invoiceRes.status + ')');
+        const invoiceData = await invoiceRes.json();
+        if (!invoiceData.pr) throw new Error('No invoice returned by Lightning Address');
+        invoice = invoiceData.pr;
+        console.log('[FAUCET] Resolved Lightning Address for ' + lnAddrAmount + ' sats (callback domain: ' + cbUrl.hostname + ')');
+    } catch (e) {
+        console.error('[FAUCET] Lightning Address resolution failed:', e.message);
+        return { success: false, error: 'Could not resolve Lightning Address. Check the address and try again.' };
+    }
+
+    if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
+        return { success: false, error: 'Could not resolve Lightning Address. Check the address and try again.' };
+    }
+    if (invoice.length < 50 || invoice.length > 2000) {
+        return { success: false, error: 'Invalid Lightning invoice length.' };
+    }
+
+    let decoded;
+    try {
+        decoded = bolt11.decode(invoice);
+    } catch (e) {
+        return { success: false, error: 'Invalid Lightning invoice format.' };
+    }
+    const amount = Math.floor((decoded.millisatoshis || 0) / 1000);
+    if (!amount || amount !== lnAddrAmount) {
+        return { success: false, error: 'Lightning Address returned an unexpected amount.' };
+    }
+    if (amount > faucetGuard.MAX_PER_CLAIM_SATS) {
+        return { success: false, error: 'Claim exceeds maximum. Contact support.' };
+    }
+    if (decoded.timeExpireDate && decoded.timeExpireDate < Math.floor(Date.now() / 1000)) {
+        return { success: false, error: 'Invoice has expired. Generate a fresh one.' };
+    }
+
+    const lookupReqEarly = faucetGuard.lookupRequestFromDecoded(decoded);
+    const paymentHash = lookupReqEarly ? lookupReqEarly.payment_hash : '';
+    const invoiceHash = require('crypto').createHash('sha256').update(invoice).digest('hex').substring(0, 32);
+    const invoiceRef = db.collection('faucet_invoices').doc(invoiceHash);
+
+    const clientIP = faucetGuard.clientIpFromRequest(context.rawRequest) || 'unknown';
+    if (clientIP === 'unknown') {
+        console.error('[FAUCET] Could not determine client IP for uid=' + uid);
+        return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
+    }
+    const net = faucetGuard.networkKeys(clientIP);
+    if (!net) {
+        console.error('[FAUCET] Unparsed client IP for uid=' + uid);
+        return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
+    }
+
     const fingerprint = (data.fingerprint || '').trim();
-    if (!fingerprint || fingerprint.length < 8) {
+    const fpId = faucetGuard.fingerprintDocId(fingerprint);
+    if (!fpId) {
         console.warn('[FAUCET] FINGERPRINT MISSING: uid=' + uid);
         return { success: false, error: 'Device verification required.' };
     }
 
-    const fpRef = db.collection('faucet_fingerprints').doc(fingerprint.substring(0, 64));
-    const fpDoc = await fpRef.get();
-    if (fpDoc.exists) {
-        const fpData = fpDoc.data();
-        const fpUids = fpData.uids || [];
-        // [AUDIT FIX] Fingerprint is a weak signal — proxies + new fingerprint bypass it easily.
-        // Treat as advisory only: log abuse for review but do NOT hard-block.
-        // The real controls are: server-side points ledger, LN-address dedup, global daily cap,
-        // IP rate limiting, account age, and email verification.
-        if (fpUids.length >= 2 && !fpUids.includes(uid)) {
-            console.warn('[FAUCET] FINGERPRINT_ADVISORY: fp=' + fingerprint.substring(0, 16) + ' seen from ' + fpUids.length + ' accounts + uid=' + uid + ' — logged for review, not blocked');
-        }
-    }
-
-    // 7a. LN ADDRESS DEDUP CHECK — block multi-account farming ring (same LN address across accounts)
-    //     Applies when user passes a lightningAddress (not a raw invoice).
-    //     Rate-limit: max 2 successful withdrawals per unique LN destination within 24h across ALL uids.
-    if (lnAddrRaw) {
-        const lnNorm = lnAddrRaw.toLowerCase().trim();
-        // (i) Shared LN address across accounts — block if any OTHER uid has this LN address set
-        //     in their profile. One address = one person; two accounts = farming.
-        //     Query both field names (lightningAddress and lnAddress) for full coverage.
-        const [lnAddrSnap1, lnAddrSnap2] = await Promise.all([
-            db.collection('users').where('lightningAddress', '==', lnNorm).limit(5).get(),
-            db.collection('users').where('lnAddress', '==', lnNorm).limit(5).get()
-        ]);
-        const allSharedDocs = [...lnAddrSnap1.docs, ...lnAddrSnap2.docs];
-        const sharedUids = [...new Set(allSharedDocs.map(d => d.id))].filter(id => id !== uid);
-        if (sharedUids.length > 0) {
-            console.error('[FAUCET] LN_ADDR_SHARED: ' + lnNorm + ' already used by uid(s): ' + sharedUids.join(',') + ' — blocked uid=' + uid);
-            return { success: false, error: 'This Lightning Address is registered to another account. Each person may only use one account.' };
-        }
-        // Persist the LN address on the user doc (normalized) so future dedup queries work
-        // even if the user hasn't explicitly saved it in their profile.
-        await db.collection('users').doc(uid).set({ lightningAddress: lnNorm }, { merge: true });
-        // (ii) Per-destination daily rate limit — max 2 withdrawals to same LN address within 24h
-        //      regardless of which account makes the request.
-        const lnRateLimitRef = db.collection('faucet_ln_ratelimit').doc(lnNorm.replace(/[^a-z0-9@._-]/g, '_').substring(0, 80));
-        const lnRateLimitDoc = await lnRateLimitRef.get();
-        if (lnRateLimitDoc.exists) {
-            const rl = lnRateLimitDoc.data();
-            const windowStart = Date.now() - 86400000; // 24h window
-            const recentClaims = (rl.claims || []).filter(c => c.ts > windowStart);
-            if (recentClaims.length >= 2) {
-                const hoursLeft = Math.ceil((recentClaims[0].ts + 86400000 - Date.now()) / 3600000);
-                console.error('[FAUCET] LN_RATELIMIT: ' + lnNorm + ' hit 2-claim/24h limit. uids: ' + recentClaims.map(c=>c.uid).join(',') + ' — blocked uid=' + uid);
-                return { success: false, error: 'Too many withdrawals to this Lightning Address in the last 24 hours. Try again in ~' + hoursLeft + ' hour(s).' };
-            }
-        }
-    }
-
-    // 7. ATOMIC TRANSACTION - All balance/limit checks + point deduction + invoice reservation
-    //    in one transaction. This prevents race conditions from concurrent requests.
     const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
     const dailyRef = userRef.collection('sats_daily').doc(today);
     const globalRef = db.collection('faucet_stats').doc(today);
-    // Server-only ledger - immune to client account-deletion (C-NEW-6 fix)
-    // Firestore rules DENY all client reads/writes to this collection.
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const lockRef = db.collection('lightning_addresses').doc(lnNorm);
+    const fpRef = db.collection('faucet_fingerprints').doc(fpId);
+    const ipRef = db.collection('faucet_ip_log').doc(net.exactId);
+    const subnetRef = db.collection('faucet_subnet_log').doc(net.rangeId);
+    const lnRateRef = db.collection('faucet_ln_ratelimit').doc(faucetGuard.addressRateDocId(lnNorm));
+    const signalRef = db.collection('faucet_uid_signals').doc(uid);
 
-    let transactionPassed = false;
+    let txFlag = null;
+    let displayName = 'Bitcoiner';
     try {
         await db.runTransaction(async (t) => {
-            // [AUDIT FIX] Read invoice doc atomically with all other checks.
-            // Reserving it here (before payInvoice) closes the TOCTOU window:
-            // two concurrent requests race here; only one commits the reservation.
+            txFlag = null;
+            function deny(message, extra) {
+                txFlag = extra || null;
+                const err = new Error('FAUCET_USER:' + message);
+                err.faucetExtra = extra || null;
+                throw err;
+            }
+
             const invoiceDoc = await t.get(invoiceRef);
-            if (invoiceDoc.exists) {
-                throw new Error('This invoice has already been used. Generate a new one.');
-            }
-
             const userDoc = await t.get(userRef);
-            if (!userDoc.exists) throw new Error('User profile not found.');
+            const ledgerDoc = await t.get(ledgerRef);
+            const dailyDoc = await t.get(dailyRef);
+            const globalDoc = await t.get(globalRef);
+            const lockDoc = await t.get(lockRef);
+            const fpDoc = await t.get(fpRef);
+            const ipDoc = await t.get(ipRef);
+            const subnetDoc = await t.get(subnetRef);
+            const lnRateDoc = await t.get(lnRateRef);
+
+            if (invoiceDoc.exists) deny('This payout was already used. Wait a moment and try again.');
+            if (!userDoc.exists) deny('User profile not found.');
             const user = userDoc.data();
+            const ledger = ledgerDoc.exists ? ledgerDoc.data() : {};
+            displayName = faucetGuard.publicDisplayName(user);
 
-            // SATS DISABLED CHECK - admin ban for farming/abuse
-            if (user.satsDisabled === true) {
-                throw new Error('Sats withdrawals are disabled on this account. Contact support if you believe this is an error.');
-            }
+            const ban = faucetGuard.assessBan(user, ledger);
+            if (!ban.ok) deny(ban.error);
 
-            // L1: Check if a previous claim is still pending (5-min TTL self-heal)
             if (user._pendingClaim === true) {
                 const pendingAt = user._pendingClaimAt
                     ? (user._pendingClaimAt.toDate ? user._pendingClaimAt.toDate() : new Date(user._pendingClaimAt))
                     : null;
-                const PENDING_TTL_MS = 5 * 60 * 1000; // 5 minutes
-                if (!pendingAt || (Date.now() - pendingAt.getTime() > PENDING_TTL_MS)) {
-                    // Flag is stale — auto-clear and proceed
-                    console.log('[FAUCET] Auto-clearing stale _pendingClaim for uid=' + uid);
-                } else {
-                    throw new Error('A previous claim is still processing. Try again in a minute.');
+                const PENDING_TTL_MS = 5 * 60 * 1000;
+                if (pendingAt && (Date.now() - pendingAt.getTime() <= PENDING_TTL_MS)) {
+                    deny('A previous claim is still processing. Try again in a minute.');
                 }
+                console.log('[FAUCET] Auto-clearing stale _pendingClaim for uid=' + uid);
             }
 
-            // Check channels read
-            // Fix #4: Use visitedChannelsList (arrayUnion-only, tamper-resistant) instead of readChannels
-            // Backfill: pre-fix users may have 0 visitedChannelsList but valid readChannels.
-            // On first faucet attempt, migrate readChannels -> visitedChannelsList in this transaction.
             let visitedList = Array.isArray(user.visitedChannelsList) ? user.visitedChannelsList : [];
+            let visitedUpdate = null;
             if (visitedList.length < FAUCET.MIN_CHANNELS_READ) {
                 const legacyRead = Array.isArray(user.readChannels) ? user.readChannels : [];
                 if (legacyRead.length > visitedList.length) {
-                    // Merge legacy client-tracked list into server-tracked list (dedup).
-                    // [SECURITY FIX] Also filter legacy entries through VALID_CHANNEL_IDS —
-                    // readChannels was client-writable so it may contain forged values.
-                    const merged = Array.from(new Set([].concat(
+                    visitedUpdate = Array.from(new Set([].concat(
                         visitedList,
                         legacyRead.filter(function(c) {
                             return typeof c === 'string' && VALID_CHANNEL_IDS.has(c);
                         })
                     )));
-                    t.update(userRef, { visitedChannelsList: merged });
-                    visitedList = merged;
+                    visitedList = visitedUpdate;
                 }
             }
-            const channelsRead = visitedList.length;
-            if (channelsRead < FAUCET.MIN_CHANNELS_READ) {
-                throw new Error('Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.');
+            if (visitedList.length < FAUCET.MIN_CHANNELS_READ) {
+                deny('Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + visitedList.length + '.');
             }
 
-            // Check points balance.
-            // Points are never deducted on earn; we track offset counters instead:
-            //   pointsClaimed   — sats already withdrawn against these points
-            //   pointsDonated   — points spent via donatePoints
-            //   pointsExchanged — points spent via XP→OrangeTicket exchange
-            // All three draw from the same pool; subtract all to get true available.
             const userPoints = user.points || 0;
-            const pointsClaimed = user.pointsClaimed || 0;
-            const pointsDonated = user.pointsDonated || 0;
-            const pointsExchanged = user.pointsExchanged || 0;
-            const availablePoints = userPoints - pointsClaimed - pointsDonated - pointsExchanged;
+            const availablePoints = userPoints - (user.pointsClaimed || 0) - (user.pointsDonated || 0) - (user.pointsExchanged || 0);
             const satsBalance = Math.floor(availablePoints / FAUCET.POINTS_PER_SAT);
             if (satsBalance < amount) {
-                throw new Error('Insufficient unclaimed points. You have ' + satsBalance + ' sats worth of unclaimed points (' + availablePoints + ' pts).');
+                deny('Insufficient unclaimed points. You have ' + satsBalance + ' sats worth of unclaimed points (' + availablePoints + ' pts).');
             }
 
-            // Server-side points sanity check: max 500 pts/day × account age + 2100 (scholar)
-            // Uses Firebase Auth metadata (immutable) - NOT client-writable Firestore field
-            // Points sanity check - log suspicious but do NOT block claims.
-            // All other rules (cooldown, lifetime cap, daily cap, min channels, min age)
-            // still enforce. Phil: "as long as all rules are followed, allow it." (2026-04-25)
-            {
-                const authCreation = new Date(userRecord.metadata.creationTime);
-                const accountDays = Math.max(1, Math.floor((Date.now() - authCreation.getTime()) / 86400000));
-                const maxReasonablePoints = (accountDays * 500) + 2100;
-                if (userPoints > maxReasonablePoints) {
-                    console.error('[FAUCET] SUSPICIOUS (allowed): uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account (auth creation: ' + userRecord.metadata.creationTime + ')');
-                }
+            const authCreation = new Date(userRecord.metadata.creationTime);
+            const accountDays = Math.max(1, Math.floor((Date.now() - authCreation.getTime()) / 86400000));
+            const maxReasonablePoints = (accountDays * 500) + 2100;
+            if (userPoints > maxReasonablePoints) {
+                console.error('[FAUCET] SUSPICIOUS (allowed): uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account');
             }
 
-            // Read server-only ledger (survives account deletion) - C-NEW-6 fix
-            const ledgerDoc = await t.get(ledgerRef);
-            const ledger = ledgerDoc.exists ? ledgerDoc.data() : {};
-
-            // [VULN-7 FIX] Check ledger ban BEFORE user-doc ban.
-            // faucet_ledger is allow write: if false — clients can never clear this.
-            // This defeats the delete+recreate bypass: even if the user deletes their
-            // Firestore profile and recreates it (no satsDisabled field), the ledger
-            // ban persists and blocks the claim. Both checks are enforced — either
-            // banning mechanism alone is sufficient to block.
-            if (ledger.banned === true) {
-                throw new Error('Sats withdrawals are disabled on this account. Contact support if you believe this is an error.');
-            }
-
-            // Check lifetime cap - use MAX of user doc and ledger to handle both
-            // pre-existing users (only have user.satsWithdrawn) and post-deletion
-            // attackers (user doc reset, ledger intact).
             const userSatsWithdrawn = user.satsWithdrawn || 0;
             const ledgerSatsWithdrawn = ledger.satsWithdrawn || 0;
             const satsWithdrawn = Math.max(userSatsWithdrawn, ledgerSatsWithdrawn);
             if (satsWithdrawn + amount > FAUCET.MAX_LIFETIME_PER_USER_SATS) {
                 const remaining = FAUCET.MAX_LIFETIME_PER_USER_SATS - satsWithdrawn;
-                throw new Error('Lifetime cap reached. You can withdraw ' + remaining + ' more sats.');
+                deny('Lifetime cap reached. You can withdraw ' + remaining + ' more sats.');
             }
 
-            // Check 24h cooldown - again use max(user, ledger)
-            function _toDate(v) {
-                if (!v) return null;
-                if (v.toDate) return v.toDate();
-                return new Date(v);
-            }
-            const userLastClaim = _toDate(user.lastSatsClaim);
-            const ledgerLastClaim = _toDate(ledger.lastSatsClaim);
-            let lastClaim = null;
-            if (userLastClaim && ledgerLastClaim) {
-                lastClaim = userLastClaim.getTime() > ledgerLastClaim.getTime() ? userLastClaim : ledgerLastClaim;
-            } else {
-                lastClaim = userLastClaim || ledgerLastClaim;
-            }
+            const userLastClaim = _toMillis(user.lastSatsClaim);
+            const ledgerLastClaim = _toMillis(ledger.lastSatsClaim);
+            const lastClaim = Math.max(userLastClaim, ledgerLastClaim);
             if (lastClaim) {
-                const cooldownEnd = lastClaim.getTime() + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
+                const cooldownEnd = lastClaim + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
                 if (Date.now() < cooldownEnd) {
                     const hoursLeft = Math.ceil((cooldownEnd - Date.now()) / 3600000);
-                    throw new Error('Cooldown active. Try again in ~' + hoursLeft + ' hour(s).');
+                    deny('Cooldown active. Try again in ~' + hoursLeft + ' hour(s).');
                 }
             }
 
-            // Check daily per-user cap
-            const dailyDoc = await t.get(dailyRef);
             const dailyUsed = dailyDoc.exists ? (dailyDoc.data().amount || 0) : 0;
             if (dailyUsed + amount > FAUCET.MAX_DAILY_PER_USER_SATS) {
                 const remaining = FAUCET.MAX_DAILY_PER_USER_SATS - dailyUsed;
-                throw new Error('Daily limit reached. You can claim ' + remaining + ' more sats today.');
+                deny('Daily limit reached. You can claim ' + remaining + ' more sats today.');
             }
 
-            // Check global daily cap
-            const globalDoc = await t.get(globalRef);
             const globalUsed = globalDoc.exists ? (globalDoc.data().totalPaid || 0) : 0;
             if (globalUsed + amount > FAUCET.GLOBAL_DAILY_MAX_SATS) {
-                throw new Error('Daily faucet limit reached. Try again tomorrow.');
+                deny('Daily faucet limit reached. Try again tomorrow.');
             }
 
-            // ALL CHECKS PASSED - mark points as claimed (NEVER deduct points)
-            // This locks the unclaimed balance so concurrent requests fail
+            const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
+            const lockOwner = lockDoc.exists ? String((lockDoc.data().uid || '')) : '';
+            let lockOwnerBanned = false;
+            let otherBanned = false;
+            let otherUid = '';
+            let otherName = '';
+            if (lockOwner && lockOwner !== uid) {
+                const otherDoc = await t.get(db.collection('users').doc(lockOwner));
+                const otherLedger = await t.get(db.collection('faucet_ledger').doc(lockOwner));
+                const otherUser = otherDoc.exists ? otherDoc.data() : {};
+                otherUid = lockOwner;
+                otherName = faucetGuard.publicDisplayName(otherUser);
+                lockOwnerBanned = otherUser.satsDisabled === true || (otherLedger.exists && otherLedger.data().banned === true);
+            } else if (!lockOwner) {
+                const byAddress = await t.get(db.collection('users').where('lightningAddress', '==', lnNorm).limit(10));
+                const byLightning = await t.get(db.collection('users').where('lightning', '==', lnNorm).limit(10));
+                const byLn = await t.get(db.collection('users').where('lnAddress', '==', lnNorm).limit(10));
+                const seen = {};
+                [byAddress, byLightning, byLn].forEach(function(snap) {
+                    snap.forEach(function(d) { if (d.id !== uid) seen[d.id] = d.data() || {}; });
+                });
+                const ids = Object.keys(seen);
+                for (let i = 0; i < ids.length; i++) {
+                    const led = await t.get(db.collection('faucet_ledger').doc(ids[i]));
+                    if (seen[ids[i]].satsDisabled === true || (led.exists && led.data().banned === true)) {
+                        otherBanned = true;
+                        otherUid = ids[i];
+                        otherName = faucetGuard.publicDisplayName(seen[ids[i]]);
+                        break;
+                    }
+                }
+            }
+            const addrDecision = faucetGuard.assessAddressLock({
+                callerUid: uid,
+                requested: lnNorm,
+                saved: saved,
+                lockOwner: lockOwner,
+                lockOwnerBanned: lockOwnerBanned,
+                otherBanned: otherBanned,
+            });
+            if (!addrDecision.ok) {
+                let flag = null;
+                if (addrDecision.flag) {
+                    flag = {
+                        type: addrDecision.code === 'address_banned' ? 'banned_address' : 'locked_address_conflict',
+                        uid: uid,
+                        displayName: displayName,
+                        otherUid: otherUid,
+                        otherDisplayName: otherName,
+                        detail: lnNorm,
+                    };
+                    console.error('[FAUCET] ADDRESS LOCK ' + addrDecision.code + ' addr owner=' + (lockOwner || otherUid) + ' uid=' + uid);
+                }
+                deny(addrDecision.error, flag);
+            }
+
+            const fpUids = fpDoc.exists ? (fpDoc.data().uids || []) : [];
+            const fpDecision = faucetGuard.assessFingerprint(fpUids, uid);
+            if (!fpDecision.ok) {
+                console.error('[FAUCET] FINGERPRINT ABUSE fp=' + fpId + ' uid=' + uid + ' others=' + fpDecision.others.join(','));
+                deny(fpDecision.error, {
+                    type: 'fingerprint_abuse',
+                    uid: uid,
+                    displayName: displayName,
+                    otherUid: fpDecision.others[0] || '',
+                    detail: fpId,
+                });
+            }
+
+            const nowMs = Date.now();
+            const ipSlot = ipDoc.exists ? ipDoc.data() : {};
+            const subnetSlot = subnetDoc.exists ? subnetDoc.data() : {};
+            const ipDecision = faucetGuard.assessExactIpSlot({
+                seen: ipSlot.seen || null,
+                lastUid: ipSlot.lastUid || '',
+                lastClaimMs: _toMillis(ipSlot.lastClaim),
+            }, uid, nowMs);
+            if (!ipDecision.ok) deny(ipDecision.error);
+            const subnetDecision = faucetGuard.assessSubnetSlot({
+                seen: subnetSlot.seen || null,
+                lastUid: subnetSlot.lastUid || '',
+                lastClaimMs: _toMillis(subnetSlot.lastClaim),
+            }, uid, nowMs);
+            if (!subnetDecision.ok) deny(subnetDecision.error);
+
+            const priorClaims = lnRateDoc.exists ? (lnRateDoc.data().claims || []) : [];
+            const rate = faucetGuard.assessAddressRate(priorClaims, nowMs);
+            if (!rate.ok) deny(rate.error);
+
             const pointsToClaim = amount * FAUCET.POINTS_PER_SAT;
-            t.update(userRef, {
+            const userUpdate = {
                 pointsClaimed: admin.firestore.FieldValue.increment(pointsToClaim),
                 satsWithdrawn: admin.firestore.FieldValue.increment(amount),
                 lastSatsClaim: admin.firestore.FieldValue.serverTimestamp(),
-                _pendingClaim: true, // flag: payment in progress
-                _pendingClaimAt: admin.firestore.Timestamp.now()
-            });
-
-            // ALSO write to server-only ledger (C-NEW-6 fix). Using set+merge so
-            // first-time users get a fresh doc, and increment so multi-claim adds up.
+                _pendingClaim: true,
+                _pendingClaimAt: admin.firestore.Timestamp.now(),
+                lightning: lnNorm,
+                lightningAddress: lnNorm,
+            };
+            if (visitedUpdate) userUpdate.visitedChannelsList = visitedUpdate;
+            t.update(userRef, userUpdate);
             t.set(ledgerRef, {
                 satsWithdrawn: admin.firestore.FieldValue.increment(amount),
                 lastSatsClaim: admin.firestore.FieldValue.serverTimestamp(),
                 lastUid: uid,
                 claimCount: admin.firestore.FieldValue.increment(1),
-                firstClaim: ledgerDoc.exists ? (ledger.firstClaim || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp()
+                firstClaim: ledgerDoc.exists ? (ledger.firstClaim || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-
             t.set(dailyRef, { amount: admin.firestore.FieldValue.increment(amount) }, { merge: true });
-            t.set(globalRef, { totalPaid: admin.firestore.FieldValue.increment(amount), claimCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
-            // [AUDIT FIX] Reserve the invoice atomically. If payment later fails, _rollbackClaim
-            // deletes this reservation so the user can retry with the same invoice.
-            t.set(invoiceRef, { uid, amount, status: 'pending', ts: admin.firestore.Timestamp.now() });
+            t.set(globalRef, {
+                totalPaid: admin.firestore.FieldValue.increment(amount),
+                claimCount: admin.firestore.FieldValue.increment(1),
+            }, { merge: true });
+            t.set(invoiceRef, {
+                uid: uid,
+                amount: amount,
+                status: 'pending',
+                paymentHash: paymentHash,
+                ts: admin.firestore.Timestamp.now(),
+            });
+            t.set(fpRef, {
+                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                lastUid: uid,
+                uids: admin.firestore.FieldValue.arrayUnion(uid),
+                claimCount: admin.firestore.FieldValue.increment(1),
+            }, { merge: true });
+            t.set(ipRef, {
+                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                lastUid: uid,
+                seen: ipDecision.seen,
+                uids: admin.firestore.FieldValue.delete(),
+                claimCount: admin.firestore.FieldValue.increment(1),
+            }, { merge: true });
+            t.set(subnetRef, {
+                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                lastUid: uid,
+                label: net.rangeLabel,
+                seen: subnetDecision.seen,
+                uids: admin.firestore.FieldValue.delete(),
+                claimCount: admin.firestore.FieldValue.increment(1),
+            }, { merge: true });
+            t.set(lnRateRef, {
+                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                lastUid: uid,
+                claims: rate.recent.concat([{ uid: uid, ts: nowMs, amount: amount }]),
+            }, { merge: true });
+            if (!lockDoc.exists) {
+                t.set(lockRef, {
+                    uid: uid,
+                    address: lnNorm,
+                    displayName: displayName,
+                    lockedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+            t.set(signalRef, {
+                uid: uid,
+                displayName: displayName,
+                fingerprint: fpId,
+                subnet: net.rangeId,
+                ipExact: net.exactId,
+                lightningAddress: lnNorm,
+                updatedAtMs: nowMs,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
         });
-        transactionPassed = true;
     } catch (e) {
-        console.error('[FAUCET] Transaction failed:', e.message);
+        const raw = e && e.message ? String(e.message) : '';
+        const marker = 'FAUCET_USER:';
+        const at = raw.indexOf(marker);
+        if (at !== -1) {
+            const extra = (e && e.faucetExtra) || txFlag;
+            if (extra) await _flagFaucetAdmin(extra);
+            return { success: false, error: raw.slice(at + marker.length) };
+        }
+        console.error('[FAUCET] Transaction failed:', raw);
         return { success: false, error: 'Claim validation failed. Please try again.' };
     }
 
-    if (!transactionPassed) {
-        return { success: false, error: 'Claim validation failed.' };
-    }
+    const payInfo = {
+        uid: uid,
+        amount: amount,
+        invoice: invoice,
+        invoiceRef: invoiceRef,
+        userRef: userRef,
+        address: lnNorm,
+        paymentHash: paymentHash,
+        displayName: displayName,
+    };
 
-    // 7. Check wallet balance floor
     let nwc;
+    let phase = 'balance';
+    let payResult = null;
+    let payError = null;
     try {
         nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
         const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor(balanceResult.balance / 1000);
-        if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) {
-            // ROLLBACK: refund points since we already deducted
-            await _rollbackClaim(uid, amount, today, invoiceRef);
+        if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) throw new Error('WALLET_LOW');
+        if (amount > faucetGuard.MAX_PER_CLAIM_SATS) throw new Error('HARD_CAP');
+        phase = 'pay';
+        payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
+        if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
+    } catch (e) {
+        payError = e;
+    }
+
+    const decision = faucetGuard.decideFaucetPayment({ phase: phase, error: payError, payResult: payResult });
+    if (decision.action === 'record') {
+        try {
+            await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: decision.preimage }));
+        } catch (e) {
+            console.error('[FAUCET] paid but record failed:', e.message);
+            return { success: true, amount: amount, preimage: decision.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
+        }
+        console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid);
+        return { success: true, amount: amount, preimage: decision.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
+    }
+    if (decision.action === 'refund') {
+        await _rollbackClaim(uid, amount, today, invoiceRef);
+        if (payError && payError.message === 'WALLET_LOW') {
             return { success: false, error: 'Faucet is being refilled. Try again later.' };
         }
-    } catch (e) {
-        console.error('[FAUCET] Balance check failed:', e.message);
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        const isTimeout = e.message && e.message.indexOf('[TIMEOUT]') === 0;
-        return { success: false, error: isTimeout ? 'Payment wallet is not responding. Try again in a moment.' : 'Could not connect to payment wallet. Try again later.' };
+        if (payError && payError.message === 'HARD_CAP') {
+            return { success: false, error: 'Claim exceeds maximum. Contact support.' };
+        }
+        const isTimeout = payError && payError.message && payError.message.indexOf('[TIMEOUT]') === 0;
+        if (phase !== 'pay') {
+            return { success: false, error: isTimeout ? 'Payment wallet is not responding. Try again in a moment.' : 'Could not connect to payment wallet. Try again later.' };
+        }
+        return { success: false, error: 'Payment failed. Check your Lightning Address and try again.' };
     }
 
-    // FINAL SAFETY CHECK - absolute hard cap before touching the wallet
-    if (amount > 200) {
-        console.error('[FAUCET] BLOCKED: amount ' + amount + ' exceeds hard cap of 200 sats for uid=' + uid);
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        return { success: false, error: 'Claim exceeds maximum. Contact support.' };
+    const lookupReq = faucetGuard.lookupRequestFromDecoded(decoded);
+    if (!lookupReq) {
+        console.error('[FAUCET] ambiguous pay but the invoice has no payment hash uid=' + uid);
+        try { await _holdFaucetUnknown(payInfo); }
+        catch (e) { console.error('[FAUCET] could not hold unknown payment:', e.message); }
+        return { success: false, error: _unknownPayError() };
     }
 
-    // 9. PAY THE INVOICE via NWC
-    try {
-        const payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
-        if (!payResult || !payResult.preimage) {
-            await _rollbackClaim(uid, amount, today, invoiceRef);
-            return { success: false, error: 'Payment failed. Check your invoice and try again.' };
+    console.error('[FAUCET] pay not confirmed (' + (payError && payError.message) + '). Looking up ' + lookupReq.payment_hash);
+    const settlement = await faucetGuard.lookupSettlement({
+        lookup: function() {
+            return _withTimeout(nwc.lookupInvoice(lookupReq), 10000, 'lookupInvoice');
+        },
+        sleep: function(ms) {
+            return new Promise(function(resolve) { setTimeout(resolve, ms); });
+        },
+    });
+    const afterLookup = faucetGuard.decideFaucetLookupResult(settlement);
+    if (afterLookup.action === 'record') {
+        try {
+            await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: afterLookup.preimage, paymentHash: lookupReq.payment_hash }));
+        } catch (e) {
+            console.error('[FAUCET] settled but record failed:', e.message);
+            return { success: true, amount: amount, preimage: afterLookup.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
         }
-
-        // 9. Payment succeeded - record withdrawal history, clear pending flag, mark invoice used
-        const batch = db.batch();
-        batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete(), _pendingClaimAt: admin.firestore.FieldValue.delete() });
-        batch.set(userRef.collection('sats_withdrawals').doc(), {
-            amount: amount,
-            pointsUsed: amount * FAUCET.POINTS_PER_SAT,
-            invoice: invoice.substring(0, 50) + '...',
-            preimage: payResult.preimage,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            uid: uid
-        });
-        // Mark invoice as fully used (upgrade from 'pending' reservation set in transaction)
-        batch.set(invoiceRef, {
-            uid: uid,
-            amount: amount,
-            status: 'used',
-            ts: admin.firestore.FieldValue.serverTimestamp()
-        });
-        // Log IP for multi-account detection (Fix #6)
-        if (clientIP !== 'unknown') {
-            const ipDocRef = db.collection('faucet_ip_log').doc(clientIP.replace(/[./]/g, '_'));
-            batch.set(ipDocRef, {
-                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
-                lastUid: uid,
-                uids: admin.firestore.FieldValue.arrayUnion(uid),
-                claimCount: admin.firestore.FieldValue.increment(1)
-            }, { merge: true });
-        }
-        // Log fingerprint for multi-account detection (Fix #3)
-        if (fingerprint && fingerprint.length >= 8) {
-            const fpDocRef = db.collection('faucet_fingerprints').doc(fingerprint.substring(0, 64));
-            batch.set(fpDocRef, {
-                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
-                lastUid: uid,
-                uids: admin.firestore.FieldValue.arrayUnion(uid),
-                claimCount: admin.firestore.FieldValue.increment(1)
-            }, { merge: true });
-        }
-        // Log LN destination for per-address rate limiting (LN_RATELIMIT fix)
-        if (lnAddrRaw) {
-            const lnNorm = lnAddrRaw.toLowerCase().trim();
-            const lnRateLimitRef = db.collection('faucet_ln_ratelimit').doc(lnNorm.replace(/[^a-z0-9@._-]/g, '_').substring(0, 80));
-            const windowStart = Date.now() - 86400000;
-            // Prune claims older than 24h and append this one
-            batch.set(lnRateLimitRef, {
-                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
-                lastUid: uid,
-                claims: admin.firestore.FieldValue.arrayUnion({ uid, ts: Date.now(), amount })
-            }, { merge: true });
-        }
-        await batch.commit();
-
-        console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid + ' (preimage: ' + payResult.preimage.substring(0, 16) + '...)');
-
-        return {
-            success: true,
-            amount: amount,
-            preimage: payResult.preimage,
-            message: '⚡ ' + amount + ' sats sent to your wallet!'
-        };
-    } catch (e) {
-        console.error('[FAUCET] Payment error:', e.message);
-        // Payment failed - rollback the points deduction
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        const isTimeout = e.message && e.message.indexOf('[TIMEOUT]') === 0;
-        return { success: false, error: isTimeout ? 'Payment timed out — your sats were not sent. Please try again.' : 'Payment failed. Please try again.' };
+        console.log('[FAUCET] Lookup settled ' + amount + ' sats to ' + uid);
+        return { success: true, amount: amount, preimage: afterLookup.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
     }
+    if (afterLookup.action === 'refund') {
+        await _rollbackClaim(uid, amount, today, invoiceRef);
+        return { success: false, error: 'Payment failed. Your sats were not sent. Please try again.' };
+    }
+
+    try { await _holdFaucetUnknown(Object.assign({}, payInfo, { paymentHash: lookupReq.payment_hash })); }
+    catch (e) { console.error('[FAUCET] could not hold unknown payment:', e.message); }
+    return { success: false, error: _unknownPayError() };
 });
 
-// Timeout helper: race a promise against a deadline; rejects with a labeled error on timeout
+function _unknownPayError() {
+    return 'Payment status is unknown, so these sats were not refunded and the 24 hour cooldown still applies. Email support at ' + faucetGuard.SUPPORT_EMAIL + '.';
+}
+
+function _toMillis(v) {
+    if (!v) return 0;
+    if (typeof v.toMillis === 'function') return v.toMillis();
+    if (typeof v.toDate === 'function') return v.toDate().getTime();
+    const n = new Date(v).getTime();
+    return Number.isFinite(n) ? n : 0;
+}
+
 function _withTimeout(promise, ms, label) {
     return Promise.race([
         promise,
@@ -2220,7 +2227,6 @@ function _withTimeout(promise, ms, label) {
     ]);
 }
 
-// Rollback helper: refund points if payment fails after transaction
 async function _rollbackClaim(uid, amount, today, invoiceRef) {
     try {
         const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
@@ -2231,7 +2237,6 @@ async function _rollbackClaim(uid, amount, today, invoiceRef) {
             _pendingClaim: admin.firestore.FieldValue.delete(),
             _pendingClaimAt: admin.firestore.FieldValue.delete()
         });
-        // Also roll back the server-only ledger (C-NEW-6 fix)
         batch.set(db.collection('faucet_ledger').doc(uid), {
             satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
             claimCount: admin.firestore.FieldValue.increment(-1)
@@ -2243,16 +2248,451 @@ async function _rollbackClaim(uid, amount, today, invoiceRef) {
             totalPaid: admin.firestore.FieldValue.increment(-amount),
             claimCount: admin.firestore.FieldValue.increment(-1)
         }, { merge: true });
-        // [AUDIT FIX] Delete the pending invoice reservation so the user can retry
-        // with the same invoice if payment failed before it was actually sent.
-        if (invoiceRef) {
-            batch.delete(invoiceRef);
-        }
+        if (invoiceRef) batch.delete(invoiceRef);
         await batch.commit();
         console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
     } catch (e) {
         console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
     }
+}
+
+async function _flagFaucetAdmin(flag) {
+    if (!flag || !flag.type) return;
+    try {
+        await db.collection('faucet_admin_flags').add({
+            type: String(flag.type).substring(0, 40),
+            uid: String(flag.uid || '').substring(0, 128),
+            displayName: faucetGuard.publicDisplayName({ username: flag.displayName }),
+            otherUid: String(flag.otherUid || '').substring(0, 128),
+            otherDisplayName: flag.otherDisplayName ? faucetGuard.publicDisplayName({ username: flag.otherDisplayName }) : '',
+            detail: String(flag.detail || '').substring(0, 200),
+            amount: Math.floor(Number(flag.amount) || 0),
+            paymentHash: String(flag.paymentHash || '').substring(0, 80),
+            createdAtMs: Date.now(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (e) {
+        console.error('[FAUCET] flag write failed:', e.message);
+    }
+}
+
+async function _recordFaucetPaid(info) {
+    const batch = db.batch();
+    batch.update(info.userRef, {
+        _pendingClaim: admin.firestore.FieldValue.delete(),
+        _pendingClaimAt: admin.firestore.FieldValue.delete(),
+    });
+    batch.set(info.userRef.collection('sats_withdrawals').doc(), {
+        amount: info.amount,
+        pointsUsed: info.amount * FAUCET.POINTS_PER_SAT,
+        invoice: String(info.invoice || '').substring(0, 50) + '...',
+        preimage: info.preimage || '',
+        paymentHash: info.paymentHash || '',
+        lightningAddress: info.address,
+        status: 'paid',
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        uid: info.uid,
+    });
+    batch.set(info.invoiceRef, {
+        uid: info.uid,
+        amount: info.amount,
+        status: 'used',
+        paymentHash: info.paymentHash || '',
+        ts: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+}
+
+async function _holdFaucetUnknown(info) {
+    const batch = db.batch();
+    batch.update(info.userRef, {
+        _pendingClaim: admin.firestore.FieldValue.delete(),
+        _pendingClaimAt: admin.firestore.FieldValue.delete(),
+    });
+    batch.set(info.invoiceRef, {
+        uid: info.uid,
+        amount: info.amount,
+        status: 'unknown',
+        paymentHash: info.paymentHash || '',
+        ts: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    batch.set(info.userRef.collection('sats_withdrawals').doc(), {
+        amount: info.amount,
+        pointsUsed: info.amount * FAUCET.POINTS_PER_SAT,
+        status: 'unknown',
+        paymentHash: info.paymentHash || '',
+        lightningAddress: info.address,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        uid: info.uid,
+    });
+    await batch.commit();
+    await _flagFaucetAdmin({
+        type: 'unknown_payment',
+        uid: info.uid,
+        displayName: info.displayName,
+        amount: info.amount,
+        paymentHash: info.paymentHash || '',
+        detail: 'unknown',
+    });
+}
+
+// Daily 13:00 UTC. One report, then an in-app note to admin-claim users.
+// Also locks Lightning addresses found on banned accounts so a later claim
+// cannot reuse them. It never overwrites a lock owned by someone else.
+exports.dailyFaucetAbuseReport = onSchedule({
+    schedule: '0 13 * * *',
+    timeZone: 'UTC',
+    timeoutSeconds: 300,
+}, async () => {
+    const now = Date.now();
+    const start = now - faucetGuard.REPORT_WINDOW_MS;
+    const startTs = admin.firestore.Timestamp.fromMillis(start);
+    const day = new Date(now).toISOString().slice(0, 10);
+
+    const bannedProfiles = await _loadBannedFaucetProfiles();
+    await _lockBannedLightningAddresses(bannedProfiles);
+
+    let claims = [];
+    try {
+        const signalsSnap = await db.collection('faucet_uid_signals').where('updatedAtMs', '>=', start).limit(500).get();
+        claims = signalsSnap.docs.map(function(d) {
+            const x = d.data() || {};
+            return {
+                uid: d.id,
+                username: x.displayName || '',
+                fingerprint: x.fingerprint || '',
+                subnet: x.subnet || '',
+                lightningAddress: x.lightningAddress || '',
+                at: Number(x.updatedAtMs) || now,
+            };
+        });
+    } catch (e) {
+        console.error('[FAUCET-REPORT] signal query failed:', e.message);
+    }
+
+    const mates = [];
+    const seenFp = {};
+    const seenNet = {};
+    for (let i = 0; i < claims.length; i++) {
+        const c = claims[i];
+        if (c.fingerprint && !seenFp[c.fingerprint]) {
+            seenFp[c.fingerprint] = true;
+            try {
+                const fpDoc = await db.collection('faucet_fingerprints').doc(c.fingerprint).get();
+                const uids = fpDoc.exists ? (fpDoc.data().uids || []) : [];
+                uids.forEach(function(id) {
+                    if (id && id !== c.uid) mates.push({ uid: id, username: '', fingerprint: c.fingerprint, at: c.at });
+                });
+            } catch (e) { console.error('[FAUCET-REPORT] fingerprint read failed:', e.message); }
+        }
+        if (c.subnet && !seenNet[c.subnet]) {
+            seenNet[c.subnet] = true;
+            try {
+                const netDoc = await db.collection('faucet_subnet_log').doc(c.subnet).get();
+                const uids = netDoc.exists ? (netDoc.data().uids || []) : [];
+                uids.forEach(function(id) {
+                    if (id && id !== c.uid) mates.push({ uid: id, username: '', subnet: c.subnet, at: c.at });
+                });
+            } catch (e) { console.error('[FAUCET-REPORT] subnet read failed:', e.message); }
+        }
+    }
+    claims = claims.concat(mates);
+
+    let signups = [];
+    try {
+        const signupSnap = await db.collection('users').where('created', '>=', startTs).limit(500).get();
+        signups = signupSnap.docs.map(function(d) {
+            const x = d.data() || {};
+            return {
+                uid: d.id,
+                username: x.username || x.displayName || '',
+                lightningAddress: faucetGuard.normalizeLightningAddress(x.lightningAddress || x.lightning || ''),
+                at: x.created && x.created.toMillis ? x.created.toMillis() : now,
+                satsDisabled: x.satsDisabled === true,
+            };
+        });
+    } catch (e) {
+        console.error('[FAUCET-REPORT] signup query failed:', e.message);
+    }
+
+    const uidSet = {};
+    claims.forEach(function(c) { if (c.uid) uidSet[c.uid] = true; });
+    signups.forEach(function(s) { if (s.uid) uidSet[s.uid] = true; });
+    bannedProfiles.forEach(function(b) { if (b.uid) uidSet[b.uid] = true; });
+    const allUids = Object.keys(uidSet);
+    const users = {};
+    const ledgers = {};
+    for (let i = 0; i < allUids.length; i += 50) {
+        const chunk = allUids.slice(i, i + 50);
+        const userRefs = chunk.map(function(id) { return db.collection('users').doc(id); });
+        const ledgerRefs = chunk.map(function(id) { return db.collection('faucet_ledger').doc(id); });
+        const userSnaps = await db.getAll.apply(db, userRefs);
+        const ledgerSnaps = await db.getAll.apply(db, ledgerRefs);
+        userSnaps.forEach(function(doc) {
+            if (!doc.exists) return;
+            const x = doc.data() || {};
+            users[doc.id] = {
+                username: x.username || '',
+                displayName: x.displayName || '',
+                satsDisabled: x.satsDisabled === true,
+                lightningAddress: faucetGuard.normalizeLightningAddress(x.lightningAddress || x.lightning || ''),
+            };
+        });
+        ledgerSnaps.forEach(function(doc) {
+            if (!doc.exists) return;
+            ledgers[doc.id] = { banned: doc.data().banned === true };
+        });
+    }
+
+    claims = claims.map(function(c) {
+        const user = users[c.uid] || {};
+        const ledger = ledgers[c.uid] || {};
+        return {
+            uid: c.uid,
+            username: user.username || user.displayName || c.username || '',
+            fingerprint: c.fingerprint || '',
+            subnet: c.subnet || '',
+            lightningAddress: c.lightningAddress || user.lightningAddress || '',
+            at: c.at,
+            banned: ledger.banned === true,
+            satsDisabled: user.satsDisabled === true,
+        };
+    });
+    signups = signups.map(function(s) {
+        const user = users[s.uid] || {};
+        const ledger = ledgers[s.uid] || {};
+        return {
+            uid: s.uid,
+            username: user.username || user.displayName || s.username || '',
+            lightningAddress: s.lightningAddress || user.lightningAddress || '',
+            at: s.at,
+            banned: ledger.banned === true,
+            satsDisabled: user.satsDisabled === true || s.satsDisabled === true,
+        };
+    });
+
+    const signalByUid = {};
+    claims.forEach(function(c) {
+        signalByUid[c.uid] = signalByUid[c.uid] || { fingerprint: '', subnet: '' };
+        if (c.fingerprint) signalByUid[c.uid].fingerprint = c.fingerprint;
+        if (c.subnet) signalByUid[c.uid].subnet = c.subnet;
+    });
+    const bannedAccounts = bannedProfiles.map(function(b) {
+        const user = users[b.uid] || b;
+        const signal = signalByUid[b.uid] || {};
+        return {
+            uid: b.uid,
+            username: user.username || b.username || '',
+            lightningAddress: user.lightningAddress || b.lightningAddress || '',
+            fingerprint: signal.fingerprint || '',
+            subnet: signal.subnet || '',
+            banned: true,
+            satsDisabled: user.satsDisabled === true || b.satsDisabled === true,
+        };
+    });
+
+    const unknownPayments = [];
+    const addressConflicts = [];
+    try {
+        const flagSnap = await db.collection('faucet_admin_flags').where('createdAtMs', '>=', start).limit(500).get();
+        flagSnap.forEach(function(d) {
+            const x = d.data() || {};
+            if (x.type === 'unknown_payment') {
+                unknownPayments.push({
+                    uid: x.uid,
+                    username: x.displayName,
+                    amount: x.amount,
+                    paymentHash: x.paymentHash,
+                    at: x.createdAtMs,
+                });
+            } else if (x.type === 'locked_address_conflict' || x.type === 'banned_address') {
+                addressConflicts.push({
+                    uid: x.uid,
+                    username: x.displayName,
+                    otherUid: x.otherUid,
+                    otherDisplayName: x.otherDisplayName,
+                    address: x.detail,
+                    at: x.createdAtMs,
+                });
+            }
+        });
+    } catch (e) {
+        console.error('[FAUCET-REPORT] flag query failed:', e.message);
+    }
+
+    const report = faucetGuard.buildAbuseReport({
+        now: now,
+        claims: claims,
+        signups: signups,
+        bannedAccounts: bannedAccounts,
+        unknownPayments: unknownPayments,
+        addressConflicts: addressConflicts,
+    });
+    report.clusters = report.clusters.slice(0, 40).map(function(c) {
+        return {
+            kind: c.kind,
+            key: c.kind === 'subnet' ? c.key : (c.kind === 'fingerprint' ? String(c.key).substring(0, 16) : c.key),
+            bannedLink: c.bannedLink,
+            accounts: c.accounts.slice(0, 12),
+        };
+    });
+
+    await db.collection('faucet_abuse_reports').doc(day).set({
+        generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        generatedAtMs: now,
+        windowStartMs: report.windowStartMs,
+        windowEndMs: report.windowEndMs,
+        counts: report.counts,
+        clusters: report.clusters,
+        unknownPayments: report.unknownPayments.slice(0, 40),
+        addressConflicts: report.addressConflicts.slice(0, 40),
+    });
+
+    const message = ('Faucet report ' + day + ': ' + report.counts.clusters + ' shared-account clusters, ' +
+        report.counts.unknownPayments + ' unknown payments, ' + report.counts.addressConflicts +
+        ' address locks. Open Settings, then Account.').substring(0, 180);
+    const adminUids = await _listAdminClaimUids();
+    for (let i = 0; i < adminUids.length; i++) {
+        try {
+            await db.collection('notifications').doc('faucet_abuse_' + day + '_' + adminUids[i]).set({
+                recipientId: adminUids[i],
+                senderId: 'system',
+                senderName: 'Bitcoin Quest',
+                type: 'security',
+                message: message,
+                targetType: 'faucet_abuse',
+                targetId: day,
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        } catch (e) {
+            console.error('[FAUCET-REPORT] notify failed:', e.message);
+        }
+    }
+    console.log('[FAUCET-REPORT] wrote', day, 'clusters', report.counts.clusters, 'admins', adminUids.length);
+});
+
+// Ban from the in-app faucet report. The caller must hold the Firebase admin
+// custom claim. adminBanUser (ADMIN_TOKEN header) is unchanged for other tools.
+exports.banReportedFaucetUser = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    if (context.auth.token.admin !== true) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const uid = String((data && data.uid) || '');
+    if (!/^[A-Za-z0-9_-]{4,128}$/.test(uid)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'uid required');
+    }
+    const reason = String((data && data.reason) || 'faucet abuse report').substring(0, 200);
+    const batch = db.batch();
+    batch.update(db.collection('users').doc(uid), {
+        withdrawals_disabled: true,
+        satsDisabled: true,
+        flagged: true,
+        ban_reason: reason,
+    });
+    batch.set(db.collection('faucet_ledger').doc(uid), {
+        banned: true,
+        ban_reason: reason,
+        bannedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    await batch.commit();
+    console.log('[banReportedFaucetUser] Banned uid:', uid);
+    return { success: true, uid: uid };
+});
+
+async function _loadBannedFaucetProfiles() {
+    const byUid = {};
+    function take(id, data) {
+        const x = data || {};
+        const prev = byUid[id] || { uid: id, username: '', lightningAddress: '', satsDisabled: false };
+        prev.username = prev.username || x.username || x.displayName || '';
+        prev.lightningAddress = prev.lightningAddress || faucetGuard.normalizeLightningAddress(x.lightningAddress || x.lightning || '');
+        if (x.satsDisabled === true) prev.satsDisabled = true;
+        byUid[id] = prev;
+    }
+    try {
+        const disabled = await db.collection('users').where('satsDisabled', '==', true).limit(300).get();
+        disabled.forEach(function(d) { take(d.id, d.data()); });
+    } catch (e) {
+        console.error('[FAUCET-REPORT] satsDisabled query failed:', e.message);
+    }
+    try {
+        const ledgers = await db.collection('faucet_ledger').where('banned', '==', true).limit(300).get();
+        const missing = [];
+        ledgers.forEach(function(d) {
+            if (!byUid[d.id]) missing.push(d.id);
+            else byUid[d.id].banned = true;
+        });
+        for (let i = 0; i < missing.length; i += 50) {
+            const refs = missing.slice(i, i + 50).map(function(id) { return db.collection('users').doc(id); });
+            const snaps = await db.getAll.apply(db, refs);
+            snaps.forEach(function(doc) {
+                take(doc.id, doc.exists ? doc.data() : {});
+                if (byUid[doc.id]) byUid[doc.id].banned = true;
+            });
+        }
+    } catch (e) {
+        console.error('[FAUCET-REPORT] ledger ban query failed:', e.message);
+    }
+    return Object.keys(byUid).map(function(id) { return byUid[id]; });
+}
+
+async function _lockBannedLightningAddresses(profiles) {
+    const list = profiles || [];
+    for (let i = 0; i < list.length; i++) {
+        const profile = list[i];
+        const addr = faucetGuard.normalizeLightningAddress(profile.lightningAddress);
+        if (!faucetGuard.validLightningAddress(addr)) continue;
+        const ref = db.collection('lightning_addresses').doc(addr);
+        try {
+            let conflict = null;
+            await db.runTransaction(async function(t) {
+                const doc = await t.get(ref);
+                if (!doc.exists) {
+                    t.set(ref, {
+                        uid: profile.uid,
+                        address: addr,
+                        displayName: faucetGuard.publicDisplayName(profile),
+                        banned: true,
+                        lockedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                    return;
+                }
+                const owner = String(doc.data().uid || '');
+                if (owner && owner !== profile.uid) {
+                    conflict = { owner: owner, ownerName: doc.data().displayName || '' };
+                }
+            });
+            if (conflict) {
+                await _flagFaucetAdmin({
+                    type: 'locked_address_conflict',
+                    uid: profile.uid,
+                    displayName: profile.username,
+                    otherUid: conflict.owner,
+                    otherDisplayName: conflict.ownerName,
+                    detail: addr,
+                });
+            }
+        } catch (e) {
+            console.error('[FAUCET-REPORT] lock failed:', e.message);
+        }
+    }
+}
+
+async function _listAdminClaimUids() {
+    const uids = [];
+    let pageToken;
+    do {
+        const page = await admin.auth().listUsers(1000, pageToken);
+        page.users.forEach(function(u) {
+            if (u.customClaims && u.customClaims.admin === true) uids.push(u.uid);
+        });
+        pageToken = page.pageToken;
+    } while (pageToken);
+    return uids;
 }
 
 // ===== PEER SYSTEM =====
