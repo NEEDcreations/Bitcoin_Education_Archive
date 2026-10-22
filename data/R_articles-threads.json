@@ -71,12 +71,11 @@
       "link": "https://armantheparman.com/moaop/"
     },
     {
-      "text": "Funny (but true) sites: \nHow wrong were certain people about Bitcoin: \n\nThe amount of money you could have had if you purchased Bitcoin instead of (blank) \nhttp://bitcoinorshit.com",
+      "text": "Funny (but true) sites: \nHow wrong were certain people about Bitcoin: \n\nThe amount of money you could have had if you purchased Bitcoin instead of (blank)",
       "link": ""
     },
     {
-      "text": "Models and research conducted by PlanB, a Dutch former institutional investor with 25 years of experiences in financial markets., famous for his \"Stock to Flow\" Bitcoin model\nhttp://web.archive.org/web/20240806210428/https://100trillionusd.github.io/",
-      "link": "http://web.archive.org/web/20240806210428/https://100trillionusd.github.io/"
+      "text": "Models and research conducted by PlanB, a Dutch former institutional investor with 25 years of experiences in financial markets., famous for his \"Stock to Flow\" Bitcoin model"
     },
     {
       "text": "Limit your dependency on any one particular state by obtaining a second passport (if you so desire). Associated with @KatieTheRussian: \nhttps://www.planbpassport.com",
@@ -91,8 +90,8 @@
       "link": "https://medium.com/@samanthamessing/why-progressives-should-love-bitcoin-an-open-letter-to-senator-elizabeth-warren-176ab5cc9229"
     },
     {
-      "text": "With Bitcoin, Satoshi solved the famous Byzantine Generals' Problem. More here: \nhttps://analyticsindiamag.com/how-bitcoin-solved-the-byzantine-generals-problem/",
-      "link": "https://analyticsindiamag.com/how-bitcoin-solved-the-byzantine-generals-problem/"
+      "text": "With Bitcoin, Satoshi solved the famous Byzantine Generals' Problem. More here: \nhttps://web.archive.org/web/20230625223437/https://analyticsindiamag.com/how-bitcoin-solved-the-byzantine-generals-problem/",
+      "link": "https://web.archive.org/web/20230625223437/https://analyticsindiamag.com/how-bitcoin-solved-the-byzantine-generals-problem/"
     },
     {
       "text": "Bitcoin glossary put together by Bitcoin Magazine. Find brief definitions of Bitcoin related words and phrases here \nhttps://bitcoinmagazine.com/bitcoin-glossary?mc_cid=c5f853961e&mc_eid=8cf3d05d1f",
@@ -296,16 +295,15 @@
       "link": "https://charts.bitbo.io/stock-to-flow/"
     },
     {
-      "text": "Bitcoin tree project:\nhttps://www.btreec.com/",
-      "link": "https://www.btreec.com/"
+      "text": "Bitcoin tree project:\nhttps://btreec.com/",
+      "link": "https://btreec.com/"
     },
     {
       "text": "Blockchain is not what you think it is:\nhttps://jimmysong.medium.com/why-blockchain-is-hard-60416ea4c5c",
       "link": "https://jimmysong.medium.com/why-blockchain-is-hard-60416ea4c5c"
     },
     {
-      "text": "A three-week interactive course focused on welcoming more women into the Bitcoin community.\nLearn the history of money and how Bitcoin will impact your life, your business, and your industry:\nhttps://btcforwomen.com/",
-      "link": "https://btcforwomen.com/",
+      "text": "A three-week interactive course focused on welcoming more women into the Bitcoin community.\nLearn the history of money and how Bitcoin will impact your life, your business, and your industry:",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/articles-threads_0197_articles-threads_headerbase-8-1.jpg"
       ]
@@ -321,8 +319,8 @@
       "text": "I've been watching this for quite some time. Saddening."
     },
     {
-      "text": "Another great article worth adding it it’s not pinned anywhere: https://t.co/IdFkLyZxP3",
-      "link": "https://t.co/IdFkLyZxP3"
+      "text": "Another great article worth adding it it’s not pinned anywhere: https://web.archive.org/web/20250326060248/https://medium.com/the-bitcoin-times/the-greatest-game-b787ac3242b2",
+      "link": "https://web.archive.org/web/20250326060248/https://medium.com/the-bitcoin-times/the-greatest-game-b787ac3242b2"
     },
     {
       "text": "https://darthcoin.substack.com/p/21-reasons-why-bitcoin-will-save",
@@ -562,7 +560,7 @@
       "link": "https://twitter.com/parman_the/status/1471761888526536705?t=uNmUeg-Jv0t3eo8ULGWjMg&s=19"
     },
     {
-      "text": "Framing Bitcoin for Progressives \nhttps://bitcoinmagazine.com/culture/framing-bitcoin-for-progressives?s=09",
+      "text": "Framing Bitcoin for Progressives \nhttps://bitcoinmagazine.com/culture/framing-bitcoin-for-progressives",
       "link": ""
     },
     {
@@ -624,7 +622,7 @@
       ]
     },
     {
-      "text": "Another \"Bitcoin for Progressives\" article\nhttps://bitcoinmagazine.com/culture/progressives-and-bitcoin-are-not-opposed?s=09",
+      "text": "Another \"Bitcoin for Progressives\" article\nhttps://bitcoinmagazine.com/culture/progressives-and-bitcoin-are-not-opposed",
       "link": ""
     },
     {
@@ -781,8 +779,11 @@
       ]
     },
     {
-      "text": "Taro\nhttps://twitter.com/ziggamon/status/1541770183555129345?t=qghbFZo5O0mSqkOO9oc3DQ&s=19",
-      "link": "https://twitter.com/ziggamon/status/1541770183555129345?t=qghbFZo5O0mSqkOO9oc3DQ&s=19"
+      "text": "Taproot Assets (formerly Taro)\nhttps://twitter.com/ziggamon/status/1541770183555129345",
+      "link": "https://twitter.com/ziggamon/status/1541770183555129345",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://docs.lightning.engineering/the-lightning-network/taproot-assets",
+      "sourceLabel": "Lightning Labs"
     },
     {
       "text": "(2021)\nBITCOIN AND THE AMERICAN IDEA\nHas America strayed from its founding ideals? An activist and a refugee think Bitcoin can help it get back on track.\nby Gladstein \nhttps://bitcoinmagazine.com/culture/bitcoin-and-the-american-idea",
@@ -1052,16 +1053,18 @@
       "link": "https://darthcoin.substack.com/p/21-reasons-why-bitcoin-will-save"
     },
     {
-      "text": "The HODL Commandments\nhttps://bholr.com",
-      "link": "https://bholr.com"
+      "text": "The HODL Commandments"
     },
     {
       "text": "Quality batch of articles by <@705947643821555774> on the fiat implosion that is soon to be upon us and how Bitcoin wins.....\nhttps://medium.com/@luke.mikic88",
       "link": "https://medium.com/@luke.mikic88"
     },
     {
-      "text": "Taro\nhttps://twitter.com/ziggamon/status/1541770183555129345?t=qghbFZo5O0mSqkOO9oc3DQ&s=19",
-      "link": "https://twitter.com/ziggamon/status/1541770183555129345?t=qghbFZo5O0mSqkOO9oc3DQ&s=19"
+      "text": "Taproot Assets (formerly Taro)\nhttps://twitter.com/ziggamon/status/1541770183555129345",
+      "link": "https://twitter.com/ziggamon/status/1541770183555129345",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://docs.lightning.engineering/the-lightning-network/taproot-assets",
+      "sourceLabel": "Lightning Labs"
     },
     {
       "text": "https://21lessons.com/15/",
@@ -1076,8 +1079,8 @@
       "link": "https://twitter.com/dergigi/status/1425202084782264326?s=20"
     },
     {
-      "text": "https://rollkit.dev/blog/sovereign-rollups-on-bitcoin",
-      "link": "https://rollkit.dev/blog/sovereign-rollups-on-bitcoin"
+      "text": "https://web.archive.org/web/20240312165924/https://rollkit.dev/blog/sovereign-rollups-on-bitcoin",
+      "link": "https://web.archive.org/web/20240312165924/https://rollkit.dev/blog/sovereign-rollups-on-bitcoin"
     },
     {
       "text": "<@392553943298998302>"

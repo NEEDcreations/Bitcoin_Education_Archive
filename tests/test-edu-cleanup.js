@@ -37,8 +37,8 @@ test('censorText masks strong words and leaves links working', () => {
     assert.ok(start > 0, 'helper missing');
     const sandbox = {};
     vm.runInNewContext(src.slice(start), sandbox);
-    assert.strictEqual(sandbox.DATA_CACHE_BUSTER, '20261022a');
-    assert.strictEqual(sandbox.withDataCacheBuster('data/R_games.json'), 'data/R_games.json?v=20261022a');
+    assert.strictEqual(sandbox.DATA_CACHE_BUSTER, '20261022b');
+    assert.strictEqual(sandbox.withDataCacheBuster('data/R_games.json'), 'data/R_games.json?v=20261022b');
     assert.strictEqual(sandbox.censorText('Fuck you and stack sats'), 'F**k you and stack sats');
     assert.strictEqual(sandbox.censorText('Buy the fucking dip'), 'Buy the f*****g dip');
     assert.strictEqual(sandbox.censorText('bitchute.com stays'), 'bitchute.com stays');
@@ -89,8 +89,22 @@ test('renderer uses the shared helper and the 18+ field', () => {
     const app = read('app.js');
     assert.ok(app.includes('censorText'));
     assert.ok(app.includes('ageNoteBadge'));
+    assert.ok(app.includes('updatedNoteBadge'));
     assert.ok(app.includes('withDataCacheBuster'));
-    assert.ok(read('patch-notes.html').includes('Cleaned up the education topics: removed off-topic and unsafe posts.'));
+    const notes = read('patch-notes.html');
+    assert.ok(notes.includes('Cleaned up the education topics: removed off-topic and unsafe posts.'));
+    assert.ok(notes.indexOf('Updated education topics with current facts and fixed broken links and images.') < notes.indexOf('Cleaned up the education topics: removed off-topic and unsafe posts.'));
+});
+
+test('corrected facts carry an Updated Oct 2026 field and a source', () => {
+    const mining = JSON.parse(read('data/E_mining.json'));
+    assert.strictEqual(mining.msgs[0].updatedNote, 'Updated Oct 2026');
+    assert.ok(mining.msgs[0].source.startsWith('https://'));
+    assert.ok(mining.msgs[0].text.includes('3.125'));
+    assert.ok(!mining.msgs[0].text.toLowerCase().includes('under construction'));
+    const secure = JSON.parse(read('data/D_secure.json'));
+    assert.ok(secure.msgs[4].text.includes('3.125'));
+    assert.ok(!secure.msgs[4].text.includes('6.25'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

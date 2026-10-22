@@ -1,0 +1,1164 @@
+{
+  "asOf": "2026-10-22",
+  "unique": 165,
+  "replaced": 86,
+  "kept": 17,
+  "removed": 62,
+  "items": [
+    {
+      "old": "https://acceleratebtc.com/",
+      "new": "https://web.archive.org/web/20250418135608/https://acceleratebtc.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot 20250418135608"
+    },
+    {
+      "old": "http://BoardwalkCash.com",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://stephanlivera.com/episode/404/amp/",
+      "new": "https://web.archive.org/web/20260223145911/https://stephanlivera.com/episode/404/amp/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.plebdevs.com/",
+      "new": "https://web.archive.org/web/20260614124410/https://www.plebdevs.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.coindesk.com/sale-of-the-century-the-inside-story-of-ethereums-2014-premine",
+      "new": "https://web.archive.org/web/20210301164752/https://www.coindesk.com/sale-of-the-century-the-inside-story-of-ethereums-2014-premine",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://web.archive.org/web/20210828173102/https://drive.google.com/file/d/1oUUGs-pESwZZ_AO28jQ4tUKlPsR7LLiy/view",
+      "new": "https://web.archive.org/web/20210828173102/https://drive.google.com/file/d/1oUUGs-pESwZZ_AO28jQ4tUKlPsR7LLiy/view",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://dennisporter.substack.com/p/ethereum-dumpster-fire",
+      "new": "https://web.archive.org/web/20210629023611/https://dennisporter.substack.com/p/ethereum-dumpster-fire",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://darthcoin.substack.com/p/hide-bitcoin-inside-nft-aka-dumb",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://supercool.info/scam-of-the-century-the-inside-story-of-ethereums-2014-premine/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://bmpro.substack.com/p/bm-pro-daily-bitcoin-and-crypto?s=r",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://bullbitcoin.com",
+      "new": "https://www.bullbitcoin.com/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://www.bitaroo.com.au/",
+      "new": "https://www.bitaroo.com.au/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://empoweredlaw.com",
+      "new": "https://empoweredlaw.com/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://web.alsa.org/site/TR?team_id=400870&fr_id=14584&pg=team",
+      "new": "https://web.archive.org/web/20220109013157/http://web.alsa.org/site/TR?team_id=400870&fr_id=14584&pg=team",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot 20220109013157"
+    },
+    {
+      "old": "https://www.coinbeast.com/connect",
+      "new": "https://web.archive.org/web/20240811052630/https://www.coinbeast.com/connect",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://fbce.io/",
+      "new": "https://fbce.io/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://laserfocus.pro/",
+      "new": "https://web.archive.org/web/20240916001920/https://laserfocus.pro/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://web.archive.org/web/20230410184432/https://citadeldispatch.com/help",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://plebnet.wiki/wiki/Main_Page",
+      "new": "https://web.archive.org/web/20251008000144/https://plebnet.wiki/wiki/Main_Page",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://demo.lnbits.com/",
+      "new": "https://demo.lnbits.com/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://wattummanagement.com/bitcoin-mining-containers/?utm_medium=ppc&utm_source=googleadwords&utm_campaign=14824905545&utm_content=552280813396&utm_keyword=asic%20mining&gclid=CjwKCAjw9LSSBhBsEiwAKtf0nyi8aW2c2MxGEj8MY-dhbPyRL7W1a7N-BmqM3QTXy8Qw_r-HLJhLuhoCYpYQAvD_BwE",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://bmpro.substack.com/p/bm-pro-daily-mining-equity-performance?s=r",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://samsonmow.com/review-microbt-whatsminer-m30s/",
+      "new": "https://web.archive.org/web/20230408193121/https://samsonmow.com/review-microbt-whatsminer-m30s/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://p2pool.in/",
+      "new": "http://p2pool.in/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://web.archive.org/web/20260115165456/https://bitcoinlaws.io/reserve-race",
+      "new": "https://www.bitcoinlaws.io/reserve-race",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://bitcoinsecurity.guide/",
+      "new": "https://bitcoin.org/en/secure-your-wallet",
+      "method": "replacement",
+      "status": "200",
+      "note": "original guide was removed; Bitcoin.org's secure-your-wallet page covers the same topic"
+    },
+    {
+      "old": "https://lookingglasseducation.com/courses/thebitcoinexam/",
+      "new": "https://web.archive.org/web/20260515054314/https://lookingglasseducation.com/courses/thebitcoinexam/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://suredbits.com/",
+      "new": "https://web.archive.org/web/20241227151639/https://suredbits.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.michael.com/en/resources/bitcoin-mining-and-the-environment",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://en.wikipedia.org/wiki/Focal_point_(game_theory",
+      "new": "https://en.wikipedia.org/wiki/Focal_point_(game_theory)",
+      "method": "same-site",
+      "status": "200",
+      "note": "https://en.wikipedia.org/wiki/Focal_point_(game_theory)"
+    },
+    {
+      "old": "https://lightningnetwork.plus/watchtower",
+      "new": "https://web.archive.org/web/20250124131432/https://lightningnetwork.plus/watchtower",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://web.archive.org/web/20240417070658/https://www.coindesk.com/layer2/2022/02/16/why-bitcoin-is-a-tool-for-social-justice/",
+      "new": "https://web.archive.org/web/20240417070658/https://www.coindesk.com/layer2/2022/02/16/why-bitcoin-is-a-tool-for-social-justice/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.washingtonpost.com/business/2022/03/30/crypto-political-fundraising/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://oshi.team/NEEDcreations",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://links.thebitcoincompany.com/tas6",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://signup.theorangepillapp.com/opa/NEEDcreations",
+      "new": "https://web.archive.org/web/20240529191107/https://signup.theorangepillapp.com/opa/NEEDcreations",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://btcpins.com/?aff=needcreations%40strike.me",
+      "new": "https://btcpins.com/?aff=needcreations%40strike.me",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://www.btctimes.com/news/samson-mow-debunks-pentagon-backed-bitcoin-report",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://en.bitcoinwiki.org/wiki/Simplified_Payment_Verification",
+      "new": "https://web.archive.org/web/20231204203917/https://en.bitcoinwiki.org/wiki/Simplified_Payment_Verification",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://plebeian.technology/?s=09",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://opreturnbot.com/",
+      "new": "https://opreturnbot.com/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://bitscribble.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://silent.link/",
+      "new": "https://silent.link/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://tollgate.me/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://www.shadowstats.com/",
+      "new": "http://www.shadowstats.com/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://bitcoinresearchkit.org",
+      "new": "http://bitcoinresearchkit.org",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://raretoshi.com/",
+      "new": "https://web.archive.org/web/20250802193634/https://raretoshi.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://shop.citadel21.com/",
+      "new": "https://shop.citadel21.com/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://www.bitcoincartoons.io/cartoons",
+      "new": "https://web.archive.org/web/20260613092254/https://www.bitcoincartoons.io/cartoons",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://Thebitcoinflag.com",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://raretoshi.com/HeroOfBitcoin",
+      "new": "https://web.archive.org/web/20220528164219/https://raretoshi.com/HeroOfBitcoin",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://uselessshit.co/card-generator",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://bitcoinorshit.com",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "live site redirects to a gambling (togel) page; no archive snapshot. https variant in the data was removed too."
+    },
+    {
+      "old": "http://web.archive.org/web/20240806210428/https://100trillionusd.github.io/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://analyticsindiamag.com/how-bitcoin-solved-the-byzantine-generals-problem/",
+      "new": "https://web.archive.org/web/20230625223437/https://analyticsindiamag.com/how-bitcoin-solved-the-byzantine-generals-problem/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://bitcoinseedbackup.com/",
+      "new": "http://bitcoinseedbackup.com/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://www.btreec.com/",
+      "new": "https://btreec.com/",
+      "method": "same-site",
+      "status": "200",
+      "note": "alternate of https://www.btreec.com/"
+    },
+    {
+      "old": "https://btcforwomen.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://bitcoin.interaqt.nl/",
+      "new": "http://bitcoin.interaqt.nl/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://bitcoinmagazine.com/culture/framing-bitcoin-for-progressives?s=09",
+      "new": "https://bitcoinmagazine.com/culture/framing-bitcoin-for-progressives",
+      "method": "same-site",
+      "status": "200",
+      "note": "https://bitcoinmagazine.com/culture/framing-bitcoin-for-progressives"
+    },
+    {
+      "old": "https://bitcoinmagazine.com/culture/progressives-and-bitcoin-are-not-opposed?s=09",
+      "new": "https://bitcoinmagazine.com/culture/progressives-and-bitcoin-are-not-opposed",
+      "method": "same-site",
+      "status": "200",
+      "note": "https://bitcoinmagazine.com/culture/progressives-and-bitcoin-are-not-opposed"
+    },
+    {
+      "old": "https://bholr.com",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://rollkit.dev/blog/sovereign-rollups-on-bitcoin",
+      "new": "https://web.archive.org/web/20240312165924/https://rollkit.dev/blog/sovereign-rollups-on-bitcoin",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://bitcoinforkiddos.com/",
+      "new": "https://web.archive.org/web/20220121075601/https://bitcoinforkiddos.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://web.archive.org/web/20220818052825/https://www.uncerto.com/book-pdf",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://www.uncerto.com/book-pdf",
+      "new": "https://web.archive.org/web/20220702091018/https://www.uncerto.com/book-pdf",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://Swan.com/freebook",
+      "new": "https://www.swanbitcoin.com/inventing-bitcoin/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://thebitcoineffect.com",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://stats.buybitcoinworldwide.com/power-law-oscillator/",
+      "new": "https://web.archive.org/web/20210528195601/https://stats.buybitcoinworldwide.com/power-law-oscillator/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://docs.google.com/document/d/1_5gxtO1NQS-y-_8JEBDRinDGhPD_fPh07_fsvGwEpHE/edit?usp=sharing",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://docs.google.com/spreadsheets/d/1D3tVjDX5DS_SrvX_iK67wPjg2wT0EKzbyMM5g7dX90s/edit?usp=sharing",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://docs.google.com/document/d/1aGip1AIGdjf9eR4h-aFi1Suu8_c9NXuBenQL-zXU33I/edit?usp=sharing",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://github.com/MyFirstBitcoin/Bitcoin-Diploma-2025",
+      "new": "https://web.archive.org/web/20250906225244/https://github.com/MyFirstBitcoin/Bitcoin-Diploma-2025",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://coindiligent.com/interesting-quotes-satoshi-nakamoto",
+      "new": "https://web.archive.org/web/20220127023650/https://coindiligent.com/interesting-quotes-satoshi-nakamoto",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.lnflip.com/",
+      "new": "https://web.archive.org/web/20250714082338/https://www.lnflip.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://TimechainArcade.com/games/getrekt",
+      "new": "https://timechainarcade.com/games/getrekt",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://biggestbitcoin.com",
+      "new": "https://biggestbitcoin.com/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://en.wikipedia.org/wiki/Silk_Road_(marketplace",
+      "new": "https://en.wikipedia.org/wiki/Silk_Road_(marketplace)",
+      "method": "same-site",
+      "status": "200",
+      "note": "https://en.wikipedia.org/wiki/Silk_Road_(marketplace)"
+    },
+    {
+      "old": "http://web.archive.org/web/20240829161924/http://p2pfoundation.ning.com/m/discussion?id=2003008%3ATopic%3A9402",
+      "new": "https://web.archive.org/web/20240829161924/http://p2pfoundation.ning.com/m/discussion?id=2003008%3ATopic%3A9402",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://laszlospizzeria.com/",
+      "new": "http://laszlospizzeria.com/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://fiatmarketcap.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://bitcoinrain.io/",
+      "new": "http://bitcoinrain.io/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://bitcoinaverage.com/en/bitcoin-price/btc-to-usd",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://www.bitcoinsupport.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://www.getbitcoin.org/#get-btc",
+      "new": "https://hrf.org/program/financial-freedom/",
+      "method": "replacement",
+      "status": "200",
+      "note": "getbitcoin.org now resolves to the Human Rights Foundation financial-freedom program"
+    },
+    {
+      "old": "https://100millionsatoshis.world/",
+      "new": "https://web.archive.org/web/20220707112100/https://100millionsatoshis.world/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://thenakedpleb.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://cryptosovereignty.org/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://theartbanc.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://growr.xyz",
+      "new": "https://www.growr.xyz/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://www.swanbitcoin.com/pacbitcoin/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://lookingglasseducation.com/courses/free-foundation-course/",
+      "new": "https://web.archive.org/web/20260517112757/https://lookingglasseducation.com/courses/free-foundation-course/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://plebeian.technology/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://web.archive.org/web/20260216062419/https://bluecollarbitcoin.io/btc-resources/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "rejected bad redirect"
+    },
+    {
+      "old": "https://bitcoinforgirls.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://artdesignbysf.com/must-reads/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://web.archive.org/web/20220918213845/https://bitnob.com/blog/bitnob-for-business/how-to-create-tickets-for-event-using-bitnob",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://dollarsareworthless.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://www.cypherspace.org/",
+      "new": "http://www.cypherspace.org/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://timechaincalendar.com/",
+      "new": "https://timechaincalendar.com/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://web.archive.org/web/20230402061132/https://hodlween.party/clt/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://bitcoinmaxinews.com/m/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://www.pricedinbitcoin21.com/landing",
+      "new": "https://web.archive.org/web/20251117154446/https://www.pricedinbitcoin21.com/landing",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot 20251117154446"
+    },
+    {
+      "old": "http://yeticold.com",
+      "new": "https://yeticold.com/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://satstats.net/",
+      "new": "https://web.archive.org/web/20250131205229/https://satstats.net/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.bitcoinmarathon.org/",
+      "new": "https://web.archive.org/web/20250829125858/https://www.bitcoinmarathon.org/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://event.swanbitcoin.com/librogratis/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://bitblioteca.com/",
+      "new": "https://web.archive.org/web/20240622214227/https://bitblioteca.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://web.archive.org/web/20230330101427/https://konsensus.network/shop",
+      "new": "https://konsensus.net/",
+      "method": "replacement",
+      "status": "200",
+      "note": "Konsensus publishing moved to konsensus.net"
+    },
+    {
+      "old": "http://adam.curry.com/html/HowtoreceiveBitcoini-BrxM2PDPNJ7Zzbz7G28xk4H0D658fH.html",
+      "new": "http://adam.curry.com/html/HowtoreceiveBitcoini-BrxM2PDPNJ7Zzbz7G28xk4H0D658fH.html",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://nutminer.semisol.dev/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://rarepepedirectory.com/?p=6051",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://www.buttcoinfoundation.org/what-are-buttcoins/",
+      "new": "https://www.buttcoinfoundation.org/what-are-buttcoins/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://tenor.com/view/satoshi-nakamoto-satoshi-stack-sats-bitcoin-btc-gif-18134593",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://www.fidelitydigitalassets.com/sites/default/files/documents/1110227.1.0%20Fidelity%20Digital%20Assets%20-%20Revisiting%20Persistent%20Bitcoin%20Criticisms%20%2811.02%29.pdf",
+      "new": "https://www.fidelitydigitalassets.com/research-and-insights/revisiting-persistent-bitcoin-criticisms",
+      "method": "replacement",
+      "status": "200",
+      "note": "same Fidelity paper, HTML page"
+    },
+    {
+      "old": "https://www.coindesk.com/treasury-prepares-crypto-carve-out-from-infrastructure-bills-tax-reporting-provision-report?amp=1&__twitter_impression=true",
+      "new": "https://web.archive.org/web/20210813202429/https://www.coindesk.com/treasury-prepares-crypto-carve-out-from-infrastructure-bills-tax-reporting-provision-report?amp=1&__twitter_impression=true",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.washingtonpost.com/us-policy/2021/08/25/yellen-crypto-bitcoin-defi/",
+      "new": "https://web.archive.org/web/20221211091827/https://www.washingtonpost.com/us-policy/2021/08/25/yellen-crypto-bitcoin-defi/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.forbes.com/sites/cbovaird/2021/09/07/bitcoin-crashes-below-43000-same-day-cryptocurrency-becomes-legal-tender-in-el-salvador/",
+      "new": "https://web.archive.org/web/20250723153637/https://www.forbes.com/sites/cbovaird/2021/09/07/bitcoin-crashes-below-43000-same-day-cryptocurrency-becomes-legal-tender-in-el-salvador/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.washingtonpost.com/washington-post-live/2021/09/21/path-forward-cryptocurrency-with-gary-gensler-us-securities-exchange-commission-chair/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://cointelegraph.com/news/bitcoin-miner-stronghold-will-list-almost-6m-shares-in-its-100m-ipo/amp?__twitter_impression=true",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://web.archive.org/web/20220731125324/https://www.law.ox.ac.uk/business-law-blog/blog/2018/02/sex-drugs-and-bitcoin-how-much-illegal-activity-financed-through",
+      "new": "https://web.archive.org/web/20220119223511/https://www.law.ox.ac.uk/business-law-blog/blog/2018/02/sex-drugs-and-bitcoin-how-much-illegal-activity-financed-through",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://poseidon01.ssrn.com/delivery.php?ID=894066006095123112068099085127103092118059041019064065110101090089024124007099077121110039062059057028033082025094002121099121108038036022041016096116111020126027009062024125081114022119006076090106113084025085028105029092019027123096090005111021004&EXT=pdf&INDEX=TRUE",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://web.archive.org/web/20250812062028/https://plebsters.com/blogs/news/unlocking-the-future-of-payments-introducing-lightning-fast-bitcoin-transactions-on-plebsters",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://soapbox.pub/tools",
+      "new": "https://web.archive.org/web/20260506194016/https://soapbox.pub/tools",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://jesusbitcoinpod.com/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://blockworks.co/collection/untold-stories/",
+      "new": "https://web.archive.org/web/20210705142717/https://blockworks.co/collection/untold-stories/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://satsradio.com/",
+      "new": "https://satsradio.com/",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://podcasts.apple.com/us/podcast/smart-people-shit/id1562927150?i=1000539698846",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://onthebrink-podcast.com/lancium/?s=09",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://jesusbitcoinpod.com/?s=09",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://podcasts.apple.com/us/podcast/volume-13-btcjune-presents-that-puro-signal/id1619639791?i=1000570951707",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "http://web.archive.org/web/20230324080357/https://www.whatbitcoindid.com/podcast/turning-garbage-into-bitcoin",
+      "new": "https://web.archive.org/web/20220808120959/https://www.whatbitcoindid.com/podcast/turning-garbage-into-bitcoin",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://handsfreebitcoin.com/",
+      "new": "https://handsfreebitcoin.com/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "https://www.forbes.com/sites/andygreenberg/2014/03/25/satoshi-nakamotos-neighbor-the-bitcoin-ghostwriter-who-wasnt/",
+      "new": "https://web.archive.org/web/20260831145317/https://www.forbes.com/sites/andygreenberg/2014/03/25/satoshi-nakamotos-neighbor-the-bitcoin-ghostwriter-who-wasnt/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://twitch.tv/bitcoin",
+      "new": "https://www.twitch.tv/bitcoin",
+      "method": "redirect",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://web.archive.org/web/20230205071136/https://bitcoinhackers.org/about",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "http://web.archive.org/web/20220625140358/https://hive.one/bitcoin?page=1",
+      "new": "https://web.archive.org/web/20220625140358/https://hive.one/bitcoin?page=1",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://starbackr.com/",
+      "new": "https://web.archive.org/web/20230129183925/https://starbackr.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://github.com/lnbits/lnbits/tree/main/lnbits/extensions/livestream",
+      "new": "https://github.com/lnbits/lnbits",
+      "method": "replacement",
+      "status": "200",
+      "note": "the livestream extension path is gone; this is the current LNbits repository"
+    },
+    {
+      "old": "https://zebedee.io/gamers/streamer",
+      "new": "https://web.archive.org/web/20230403153149/https://zebedee.io/gamers/streamer",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://bitcoinsavesgear.com/",
+      "new": "https://web.archive.org/web/20211220172147/https://bitcoinsavesgear.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://btcpins.com/",
+      "new": "https://btcpins.com/",
+      "method": "live",
+      "status": "200",
+      "note": ""
+    },
+    {
+      "old": "http://web.archive.org/web/20250814180106/https://luchopoletti.com/collections/accessories/products/satoshi-sees-backpack",
+      "new": "https://web.archive.org/web/20250814180106/https://luchopoletti.com/collections/accessories/products/satoshi-sees-backpack",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://www.bitcoinblackfriday.com/2021/the-dip?s=09",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://koined.store/products/bullish-af-trucker-cap",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://aantonop.com/product/you-do-not-need-a-blockchain-for-that-15oz-mug/",
+      "new": "https://web.archive.org/web/20260514020342/https://aantonop.com/product/you-do-not-need-a-blockchain-for-that-15oz-mug/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "http://web.archive.org/web/20240813085827/https://scarce.city/marketplace/physical/genesis-block-whisky",
+      "new": "https://web.archive.org/web/20240304150816/https://scarce.city/marketplace/physical/genesis-block-whisky",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://plebsters.com/",
+      "new": "https://web.archive.org/web/20250602132100/https://plebsters.com/",
+      "method": "wayback",
+      "status": "200",
+      "note": "snapshot"
+    },
+    {
+      "old": "https://lfgo.co/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://cypherpunk.store/",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "failed revalidation"
+    },
+    {
+      "old": "https://plebsters.com/products/baseball-cap-3",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "unreachable"
+    },
+    {
+      "old": "https://t.co/Oy0ybi1K1U",
+      "new": "https://x.com/cburniske/status/1488346430271934467",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://t.co/QTCD2bfpEt",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "shortener destination does not resolve"
+    },
+    {
+      "old": "https://t.co/GEvwCHWWgm",
+      "new": "https://www.theinvestorspodcast.com/bitcoin-fundamentals/",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://t.co/I22GhkQZYJ",
+      "new": "https://x.com/TIV_Podcast/status/1504086666155524099",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://t.co/ZDD5Ubdlec",
+      "new": "https://x.com/anilpatel/status/1486848719915945988",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://t.co/IdFkLyZxP3",
+      "new": "https://web.archive.org/web/20250326060248/https://medium.com/the-bitcoin-times/the-greatest-game-b787ac3242b2",
+      "method": "wayback",
+      "status": "200",
+      "note": "expanded destination archived"
+    },
+    {
+      "old": "https://t.co/BEfe27oxor",
+      "new": "",
+      "method": "none",
+      "status": "removed",
+      "note": "shortener destination does not resolve"
+    },
+    {
+      "old": "https://t.co/ISNkbbFjrH",
+      "new": "https://block.xyz/2022/btc-report.pdf",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://t.co/yD7qTWwBY9",
+      "new": "https://raw.githubusercontent.com/MiPrimerBitcoin/Bitcoin-Diploma-English-Version/main/MiPrimerBitcoin_BitcoinDiploma_EnglishVersion_2023.pdf",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://t.co/JPJIWFojrk",
+      "new": "https://thesimplestbitcoinbook.net/wp-content/uploads/2025/02/SBE-Bitcoin-Brochure-Complete-Feb-2025.pdf",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://soundcloud.app.goo.gl/EY2Qv",
+      "new": "https://soundcloud.com/proofofbeats/its-going-up-forever-laura-featuring-michael-saylor",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://soundcloud.app.goo.gl/XJPUf",
+      "new": "https://soundcloud.com/user-480079998/have-fun-staying-poor",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://t.co/vSkpVdOnyU",
+      "new": "https://www.chainalysis.com/blog/2021-global-crypto-adoption-index/",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    },
+    {
+      "old": "https://t.co/TviqnrsFdG",
+      "new": "https://www.youtube.com/watch?v=Hzg5f1U4dkw&feature=youtu.be",
+      "method": "shortener",
+      "status": "200",
+      "note": "expanded"
+    }
+  ]
+}
