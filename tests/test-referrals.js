@@ -177,5 +177,39 @@ test('backfill script defaults to dry-run and prints counts only', () => {
     assert.ok(rules.indexOf('allow create: if false;') !== -1);
 });
 
+test('home card uses the stored referral code and does not query referrals', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const tickets = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
+    assert.ok(html.includes('When a friend you invite reaches Maxi rank, you BOTH get 50 orange tickets'));
+    assert.ok(html.includes('One link. Two winners. Send it to someone who\'s ready to learn Bitcoin.'));
+    assert.ok(html.includes('id="referFriendCard"'));
+    assert.ok(html.includes('Sign in to get your link'));
+    assert.ok(html.includes('onclick="openReferFriend()"'));
+    assert.ok(html.includes('onclick="copyReferFriendLink()"'));
+    assert.ok(html.includes('onclick="shareReferFriendLink()"'));
+    assert.ok(html.includes('id="referFriendLink"'));
+    const cardAt = html.indexOf('id="referFriendCard"');
+    const featuredAt = html.indexOf('As Featured On');
+    assert.ok(cardAt > 0 && featuredAt > cardAt);
+    assert.ok(/\.refer-friend-panel\s*\{[^}]*position:\s*fixed/.test(html));
+    assert.ok(/\.refer-friend-panel\s*\{[^}]*display:\s*none/.test(html));
+    assert.ok(/\.refer-friend-hint\s*\{[^}]*height:\s*1\.25em/.test(html));
+    assert.ok(tickets.includes('function getReferralCode'));
+    assert.ok(tickets.includes('user.referralCode'));
+    assert.ok(tickets.includes('/^[A-Za-z0-9]{6,28}$/'));
+    assert.ok(tickets.includes('function getReferralLink'));
+    assert.ok(tickets.includes('Copied!'));
+    assert.ok(tickets.includes('navigator.share'));
+    assert.ok(tickets.includes('referralCount'));
+    assert.ok(tickets.includes('referralTicketsEarned'));
+    assert.ok(tickets.includes('Tap for your personal link'));
+    assert.ok(tickets.includes('showUsernamePrompt'));
+    const openStart = tickets.indexOf('function openReferFriend');
+    const openEnd = tickets.indexOf('function closeReferFriend');
+    const openBody = tickets.slice(openStart, openEnd);
+    assert.ok(openBody.indexOf('getReferralStats') === -1);
+    assert.ok(openBody.indexOf('getReferralLink') !== -1);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

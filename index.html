@@ -505,7 +505,26 @@
         .home-btc { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; }
-        .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 40px; line-height: 1.6; }
+        .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 18px; line-height: 1.6; }
+        .refer-friend-card { appearance: none; -webkit-appearance: none; display: flex; flex-direction: column; align-items: flex-start; text-align: left; width: 100%; box-sizing: border-box; margin: 0 0 24px; padding: 18px 18px 14px; border-radius: 16px; border: 1px solid rgba(247,147,26,0.45); background: linear-gradient(135deg, rgba(247,147,26,0.16), rgba(234,88,12,0.06)); color: var(--text); font-family: inherit; cursor: pointer; box-shadow: 0 8px 28px rgba(247,147,26,0.12); touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: border-color 0.2s, box-shadow 0.2s; }
+        .refer-friend-card:hover { border-color: #f7931a; box-shadow: 0 10px 32px rgba(247,147,26,0.22); }
+        .refer-friend-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+        .refer-friend-kicker { display: block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #f7931a; margin-bottom: 6px; }
+        .refer-friend-reward { display: block; font-size: 1.05rem; font-weight: 800; color: var(--heading); line-height: 1.35; margin-bottom: 6px; }
+        .refer-friend-encourage { display: block; font-size: 0.86rem; color: var(--text-dim); line-height: 1.45; margin-bottom: 10px; }
+        .refer-friend-hint { display: block; height: 1.25em; line-height: 1.25em; font-size: 0.78rem; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .refer-friend-panel { display: none; position: fixed; inset: 0; z-index: 10050; background: rgba(0,0,0,0.72); align-items: center; justify-content: center; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+        .refer-friend-panel[data-open="1"] { display: flex; }
+        .refer-friend-sheet { width: min(420px, 100%); max-height: min(90dvh, 560px); overflow: auto; box-sizing: border-box; background: var(--bg-side); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 20px 16px 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); text-align: left; position: relative; }
+        .refer-friend-sheet h2 { margin: 0 28px 8px 0; font-size: 1.15rem; color: var(--heading); font-weight: 800; }
+        .refer-friend-close { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 1rem; cursor: pointer; font-family: inherit; }
+        .refer-friend-link { width: 100%; box-sizing: border-box; margin-top: 12px; padding: 10px 12px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.78rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .refer-friend-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .refer-friend-btn { flex: 1; min-height: 44px; padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; font-weight: 800; cursor: pointer; font-family: inherit; touch-action: manipulation; }
+        .refer-friend-btn-primary { background: var(--accent); color: #fff; border: none; }
+        .refer-friend-btn-ghost { background: transparent; color: var(--heading); border: 1px solid var(--border); }
+        #referFriendShare[hidden] { display: none !important; }
+        .refer-friend-stats { min-height: 1.4em; margin: 12px 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
         .home-credits { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 24px 30px; margin-bottom: 40px; text-align: left; }
         .home-credits p { color: var(--text-dim); font-size: 1rem; margin-bottom: 8px; line-height: 1.6; }
         .home-credits p:last-child { margin-bottom: 0; }
@@ -615,7 +634,11 @@
             .scroll-to-bottom { bottom: calc(190px + env(safe-area-inset-bottom, 0px)) !important; right: 52px; width: 34px; height: 34px; font-size: 0.95rem; }
             .home-page { padding: 30px 16px; min-height: auto; }
             .home-title { font-size: 2rem; letter-spacing: -1px; }
-            .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
+            .home-subtitle { font-size: 1rem; margin-bottom: 14px; }
+            .refer-friend-card { padding: 14px 14px 12px; margin-bottom: 20px; }
+            .refer-friend-reward { font-size: 0.95rem; }
+            .refer-friend-encourage { font-size: 0.8rem; }
+            .refer-friend-actions { flex-wrap: wrap; }
             .home-stats { grid-template-columns: repeat(3, auto); gap: 14px 20px; }
             .home-stat-num { font-size: 1.3rem; }
             .home-stat-label { font-size: 0.7rem; }
@@ -651,6 +674,8 @@
         @media (max-width: 380px) {
             .home-title { font-size: 1.5rem; }
             .home-subtitle { font-size: 0.9rem; }
+            .refer-friend-reward { font-size: 0.88rem; }
+            .refer-friend-kicker { letter-spacing: 0.08em; }
             .home-stats { gap: 8px; }
             .home-stat-num { font-size: 1.1rem; }
             .mobile-bar h2 { font-size: 0.75rem; }
@@ -1092,6 +1117,12 @@
                 <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
                 <p style="margin:0 0 16px;font-size:0.78rem;"><a href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates (v2253)</a></p>
                 <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 146 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
+                <button type="button" id="referFriendCard" class="refer-friend-card" onclick="openReferFriend()" aria-haspopup="dialog" aria-controls="referFriendPanel">
+                    <span class="refer-friend-kicker">Refer a friend</span>
+                    <span class="refer-friend-reward">When a friend you invite reaches Maxi rank, you BOTH get 50 orange tickets</span>
+                    <span class="refer-friend-encourage">One link. Two winners. Send it to someone who's ready to learn Bitcoin.</span>
+                    <span class="refer-friend-hint" id="referFriendHint">Sign in to get your link</span>
+                </button>
                 <!-- As Featured On -->
                 <div id="featuredOnSection" style="width:100%;margin:0 auto 24px;">
                 <div id="featuredOnFull" style="position:relative;width:100%;padding:16px 20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:16px;box-sizing:border-box;">
@@ -1649,6 +1680,19 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
+<div id="referFriendPanel" class="refer-friend-panel" role="dialog" aria-modal="true" aria-labelledby="referFriendTitle" onclick="if(event.target===this)closeReferFriend()">
+    <div class="refer-friend-sheet">
+        <button type="button" class="refer-friend-close" onclick="closeReferFriend()" aria-label="Close">✕</button>
+        <h2 id="referFriendTitle">Your referral link</h2>
+        <p class="refer-friend-encourage" style="margin-bottom:0;">When a friend you invite reaches Maxi rank, you BOTH get 50 orange tickets.</p>
+        <input type="text" id="referFriendLink" class="refer-friend-link" readonly value="" onclick="this.select()" aria-label="Referral link">
+        <div class="refer-friend-actions">
+            <button type="button" id="referFriendCopy" class="refer-friend-btn refer-friend-btn-primary" onclick="copyReferFriendLink()">Copy</button>
+            <button type="button" id="referFriendShare" class="refer-friend-btn refer-friend-btn-ghost" hidden onclick="shareReferFriendLink()">Share</button>
+        </div>
+        <p id="referFriendStats" class="refer-friend-stats">No rewards yet — they count when a friend reaches Maxi.</p>
+    </div>
+</div>
 </body>
 </html>
 <!-- v1771873982 -->

@@ -18,9 +18,16 @@ const TICKET_CONFIG = {
 
 // ---- Generate or retrieve referral code ----
 function getReferralCode() {
-    if (!currentUser || !currentUser.uid) return null;
-    // Use first 8 chars of uid as referral code (unique per user)
-    return currentUser.uid.substring(0, 8);
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    var authUser = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    if (!user && !authUser) return null;
+    // Prefer the code the server stored on the user doc. Fall back to the
+    // uid prefix, which is the same code ensureReferralCode writes.
+    var stored = user && user.referralCode;
+    if (typeof stored === 'string' && /^[A-Za-z0-9]{6,28}$/.test(stored)) return stored;
+    var uid = (user && user.uid) || (authUser && authUser.uid) || '';
+    if (!uid) return null;
+    return String(uid).substring(0, 8);
 }
 
 function getReferralLink() {
@@ -235,6 +242,7 @@ async function loadReferralStatsUI() {
 // ---- Initialize tickets system ----
 // Called after user loads (from loadUser or createUser)
 async function onUserLoadedTickets() {
+    if (typeof refreshReferFriendCard === 'function') refreshReferFriendCard();
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
 
     await ensureReferralCode();
@@ -245,6 +253,12 @@ async function onUserLoadedTickets() {
 
     // Start Double XP floating widget if active
     if (typeof window._checkDoubleXPWidget === 'function') window._checkDoubleXPWidget();
+    var panel = document.getElementById('referFriendPanel');
+    if (panel && panel.getAttribute('data-open') === '1') {
+        var input = document.getElementById('referFriendLink');
+        if (input) input.value = getReferralLink();
+        _renderReferFriendStats();
+    }
 }
 
 // ---- Award tickets for content uploads ----
@@ -266,8 +280,131 @@ window.awardTickets = async function(amount, reason) {
     if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Tickets! ' + (reason || ''));
 };
 
+// ---- Home "Refer a friend" card ----
+// The card is in the first HTML paint. This only swaps the hint and fills
+// the fixed overlay. Stats come from fields already on the signed-in user.
+
+function _referFriendSignedIn() {
+    return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+}
+
+function _renderReferFriendStats() {
+    var el = document.getElementById('referFriendStats');
+    if (!el) return;
+    var friends = 0;
+    var tickets = 0;
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        friends = parseInt(currentUser.referralCount, 10) || 0;
+        tickets = parseInt(currentUser.referralTicketsEarned, 10) || 0;
+    }
+    if (!friends && !tickets) {
+        el.textContent = 'No rewards yet — they count when a friend reaches Maxi.';
+        return;
+    }
+    el.textContent = friends + (friends === 1 ? ' friend at Maxi' : ' friends at Maxi') + ' · ' + tickets + ' orange tickets earned';
+}
+
+function refreshReferFriendCard() {
+    var hint = document.getElementById('referFriendHint');
+    if (hint) hint.textContent = _referFriendSignedIn() ? 'Tap for your personal link' : 'Sign in to get your link';
+    var panel = document.getElementById('referFriendPanel');
+    if (panel && panel.getAttribute('data-open') === '1' && !_referFriendSignedIn()) closeReferFriend();
+}
+
+function openReferFriend() {
+    if (!_referFriendSignedIn()) {
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        else {
+            var modal = document.getElementById('usernameModal');
+            if (modal) modal.classList.add('open');
+        }
+        return;
+    }
+    var panel = document.getElementById('referFriendPanel');
+    if (!panel) return;
+    var input = document.getElementById('referFriendLink');
+    if (input) input.value = getReferralLink();
+    var share = document.getElementById('referFriendShare');
+    if (share) {
+        if (navigator.share) share.hidden = false;
+        else share.hidden = true;
+    }
+    var copyBtn = document.getElementById('referFriendCopy');
+    if (copyBtn) copyBtn.textContent = 'Copy';
+    _renderReferFriendStats();
+    panel.setAttribute('data-open', '1');
+    if (copyBtn && copyBtn.focus) copyBtn.focus({ preventScroll: true });
+}
+
+function closeReferFriend() {
+    var panel = document.getElementById('referFriendPanel');
+    if (panel) panel.removeAttribute('data-open');
+}
+
+function copyReferFriendLink() {
+    var input = document.getElementById('referFriendLink');
+    var btn = document.getElementById('referFriendCopy');
+    var text = (input && input.value) || getReferralLink();
+    if (!text) return;
+    function mark() {
+        if (!btn) return;
+        btn.textContent = 'Copied!';
+        clearTimeout(window._referFriendCopiedTimer);
+        window._referFriendCopiedTimer = setTimeout(function() {
+            if (btn) btn.textContent = 'Copy';
+        }, 1500);
+    }
+    function fallback() {
+        var ok = false;
+        if (input) {
+            input.focus();
+            input.select();
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        }
+        if (ok) mark();
+        else if (typeof showToast === 'function') showToast('Select the link and copy it');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(mark).catch(fallback);
+    } else {
+        fallback();
+    }
+}
+
+function shareReferFriendLink() {
+    var link = (document.getElementById('referFriendLink') || {}).value || getReferralLink();
+    if (!link || !navigator.share) return;
+    navigator.share({
+        title: 'Bitcoin Quest',
+        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
+        url: link
+    }).catch(function() {});
+}
+
 // Run on page load
 if (typeof window !== 'undefined') {
     // Capture referral code from URL immediately
     captureReferralCode();
+    window.openReferFriend = openReferFriend;
+    window.closeReferFriend = closeReferFriend;
+    window.copyReferFriendLink = copyReferFriendLink;
+    window.shareReferFriendLink = shareReferFriendLink;
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeReferFriend();
+    });
+    function bindReferFriendAuth() {
+        if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') return false;
+        if (window._referFriendAuthBound) return true;
+        window._referFriendAuthBound = true;
+        auth.onAuthStateChanged(function() { refreshReferFriendCard(); });
+        refreshReferFriendCard();
+        return true;
+    }
+    if (!bindReferFriendAuth()) {
+        var referFriendTries = 0;
+        var referFriendWatch = setInterval(function() {
+            referFriendTries++;
+            if (bindReferFriendAuth() || referFriendTries > 60) clearInterval(referFriendWatch);
+        }, 1000);
+    }
 }
