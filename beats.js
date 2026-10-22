@@ -19,6 +19,10 @@ window.renderBitcoinBeats = function() {
             <div style="flex:1;">
                 <h2 style="color:var(--heading);font-weight:900;font-size:1.6rem;margin:0;letter-spacing:-0.5px;">🎸 Bitcoin Beats</h2>
                 <div style="color:var(--text-muted);font-size:0.75rem;">Community Music · Powered by Lightning</div>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.72rem;color:var(--text-muted);cursor:pointer;user-select:none;">
+                    <input type="checkbox" id="beatsUncensoredCheck" onchange="beatsSetShowUncensored(this.checked)" style="accent-color:var(--accent);">
+                    Show uncensored titles
+                </label>
             </div>
         </div>
 
@@ -49,6 +53,7 @@ window.renderBitcoinBeats = function() {
     </div>`;
 
     container.innerHTML = html;
+    _beatsInitCensorPref();
 
     // Wire autocomplete on the search input
     if (typeof beatsWireSearchInput === 'function') beatsWireSearchInput();
@@ -63,8 +68,13 @@ window.renderBitcoinBeats = function() {
             return;
         } else if (dl.type === 'track') {
             db.collection('beats_tracks').doc(dl.trackId).get().then(function(doc) {
-                if (doc.exists) {
-                    var t = { id: doc.id, ...doc.data() };
+                var t = _beatsTrackFromDoc(doc);
+                if (!t) {
+                    window._beatsUnavailableNote = 'This track is unavailable';
+                    _beatsShowUnavailableNote();
+                    return;
+                }
+                if (t) {
                     window._beatsQueue = [t];
                     window._beatsQueueIdx = 0;
                     // On mobile, autoplay is blocked without a user gesture.
@@ -131,7 +141,183 @@ window._beatsQueueIdx = -1;
 window._beatsCurrentTab = 'discover';
 window._beatsShuffle = false;
 window._beatsUpdateInterval = null;
+
 window._beatsNowPlaying = null; // { title, artist, genre, coverArt }
+
+// BEATS_MOD_HELPERS_START
+function _beatsIsHidden(data) {
+    return !!(data && data.hidden === true);
+}
+function _beatsTrackFromDoc(doc) {
+    if (!doc || typeof doc.data !== 'function') return null;
+    if (doc.exists === false) return null;
+    var data = doc.data() || {};
+    if (_beatsIsHidden(data)) return null;
+    return Object.assign({ id: doc.id }, data);
+}
+function _beatsPushDocs(list, snap) {
+    if (!snap || typeof snap.forEach !== 'function') return;
+    snap.forEach(function(doc) {
+        var track = _beatsTrackFromDoc(doc);
+        if (track) list.push(track);
+    });
+}
+function _beatsRemember(map, doc) {
+    var track = _beatsTrackFromDoc(doc);
+    if (track) map[track.id] = track;
+}
+function _beatsFindQueued(id) {
+    var q = window._beatsQueue || [];
+    for (var i = 0; i < q.length; i++) {
+        if (q[i] && q[i].id === id) return q[i];
+    }
+    return null;
+}
+function _beatsCollectVisible(makeQuery, pageSize, want, maxPages, startCursor) {
+    pageSize = pageSize || 40;
+    want = want || pageSize;
+    maxPages = maxPages || 8;
+    var tracks = [];
+    var cursor = startCursor || null;
+    var pages = 0;
+    function step() {
+        var q = makeQuery();
+        if (!q || typeof q.get !== 'function') {
+            return Promise.resolve({ tracks: tracks, cursor: cursor, exhausted: true });
+        }
+        if (cursor && typeof q.startAfter === 'function') q = q.startAfter(cursor);
+        if (typeof q.limit === 'function') q = q.limit(pageSize);
+        return q.get().then(function(snap) {
+            pages++;
+            var docs = (snap && snap.docs) ? snap.docs.slice() : [];
+            if (!docs.length && snap && typeof snap.forEach === 'function') {
+                snap.forEach(function(doc) { docs.push(doc); });
+            }
+            _beatsPushDocs(tracks, { forEach: function(fn) { docs.forEach(fn); } });
+            if (docs.length) cursor = docs[docs.length - 1];
+            var exhausted = docs.length === 0 || docs.length < pageSize;
+            if (!exhausted && tracks.length < want && pages < maxPages) return step();
+            return { tracks: tracks, cursor: cursor, exhausted: exhausted };
+        });
+    }
+    return step();
+}
+function _beatsLoadArtistTracks(uid) {
+    return _beatsCollectVisible(function() {
+        return db.collection('beats_tracks').where('authorId', '==', uid).orderBy('createdAt', 'desc');
+    }, 50, 50, 4, null).then(function(res) {
+        return res.tracks || [];
+    }).catch(function() {
+        return db.collection('beats_tracks').where('authorId', '==', uid).limit(50).get().then(function(snap) {
+            var tracks = [];
+            _beatsPushDocs(tracks, snap);
+            return tracks;
+        });
+    });
+}
+function _beatsSignedIn() {
+    return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+}
+function _beatsShowUnavailableNote() {
+    if (window._beatsUnavailableNote !== 'This track is unavailable') return;
+    var listEl = document.getElementById('beatsTrackList');
+    if (!listEl || document.getElementById('beatsUnavailableNote')) return;
+    var note = document.createElement('div');
+    note.id = 'beatsUnavailableNote';
+    note.style.cssText = 'text-align:center;padding:16px;margin-bottom:12px;color:var(--text-muted);font-weight:700;';
+    note.textContent = 'This track is unavailable';
+    listEl.insertBefore(note, listEl.firstChild);
+}
+function _beatsShowUnavailableOverlay() {
+    var existing = document.getElementById('beatsDetailOverlay');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'beatsDetailOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg-side,#1a1a2e);border:2px solid var(--border);border-radius:16px;padding:28px;max-width:360px;width:100%;text-align:center;color:var(--heading);font-weight:700;';
+    card.textContent = 'This track is unavailable';
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+}
+window._beatsTextStore = {};
+window._beatsTextSeq = 0;
+function beatsSlot(text) {
+    var id = 's' + (++window._beatsTextSeq);
+    window._beatsTextStore[id] = text == null ? '' : String(text);
+    return '<span class="beats-text" data-beats-text="' + id + '"></span>';
+}
+function beatsFillText(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    if (!scope || !scope.querySelectorAll) return;
+    var nodes = scope.querySelectorAll('[data-beats-text]');
+    for (var i = 0; i < nodes.length; i++) {
+        var id = nodes[i].getAttribute('data-beats-text');
+        if (!id || !Object.prototype.hasOwnProperty.call(window._beatsTextStore, id)) continue;
+        var raw = window._beatsTextStore[id];
+        var shown = (typeof beatsCensor === 'function') ? beatsCensor(raw) : raw;
+        if (nodes[i].textContent !== shown) nodes[i].textContent = shown;
+    }
+    _beatsShowUnavailableNote();
+}
+function _beatsRerenderCensor() {
+    beatsFillText(document);
+    if (typeof beatsUpdatePlayerUI === 'function') beatsUpdatePlayerUI();
+    var q = window._beatsQueue || [];
+    var idx = window._beatsQueueIdx;
+    if (idx >= 0 && q[idx] && typeof beatsSetMediaSession === 'function') beatsSetMediaSession(q[idx]);
+    var cb = document.getElementById('beatsUncensoredCheck');
+    if (cb) cb.checked = window._beatsShowUncensored === true;
+}
+function _beatsInitCensorPref() {
+    window._beatsShowUncensored = false;
+    if (_beatsSignedIn()) {
+        try {
+            if (localStorage.getItem('btc_beats_uncensored') === '1') window._beatsShowUncensored = true;
+        } catch (e) {}
+        if (typeof db !== 'undefined' && auth.currentUser) {
+            db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
+                if (!doc.exists) return;
+                var data = doc.data() || {};
+                if (typeof data.beatsShowUncensored === 'boolean') {
+                    window._beatsShowUncensored = data.beatsShowUncensored === true;
+                    try { localStorage.setItem('btc_beats_uncensored', window._beatsShowUncensored ? '1' : '0'); } catch (e2) {}
+                    _beatsRerenderCensor();
+                }
+            }).catch(function() {});
+        }
+    }
+    var cb = document.getElementById('beatsUncensoredCheck');
+    if (cb) cb.checked = window._beatsShowUncensored === true;
+    if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function' && !window._beatsCensorAuthHook) {
+        window._beatsCensorAuthHook = true;
+        auth.onAuthStateChanged(function() {
+            if (document.getElementById('beatsUncensoredCheck')) _beatsInitCensorPref();
+        });
+    }
+}
+window.beatsSetShowUncensored = function(on) {
+    window._beatsShowUncensored = on === true;
+    if (_beatsSignedIn()) {
+        try { localStorage.setItem('btc_beats_uncensored', on ? '1' : '0'); } catch (e) {}
+        if (typeof db !== 'undefined' && auth.currentUser) {
+            db.collection('users').doc(auth.currentUser.uid).update({ beatsShowUncensored: window._beatsShowUncensored === true }).catch(function() {});
+        }
+    }
+    _beatsRerenderCensor();
+};
+window.beatsTipArtistFromPage = function(uid) {
+    var raw = window._beatsArtistTipName || 'Artist';
+    var name = (typeof beatsCensor === 'function') ? beatsCensor(raw) : raw;
+    if (typeof showTipOverlay === 'function') {
+        showTipOverlay({ recipientName: name, recipientUid: uid, label: 'Tip ' + name, context: 'Artist page' });
+    }
+};
+if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined' && document.body) {
+    new MutationObserver(function() { beatsFillText(document); }).observe(document.body, { childList: true, subtree: true });
+}
+// BEATS_MOD_HELPERS_END
 
 // ---- Format play count ----
 function _formatPlays(n) {
@@ -279,8 +465,12 @@ window.beatsUpdatePlayerUI = function() {
     var titleEl = document.getElementById('beatsNowTitle');
     var artistEl = document.getElementById('beatsNowArtist');
     var artEl = document.getElementById('beatsNowArt');
-    if (titleEl) titleEl.textContent = np.title || 'Untitled';
-    if (artistEl) artistEl.textContent = np.artist || 'Unknown';
+    var shownTitle = (typeof beatsCensor === 'function') ? beatsCensor(np.title || 'Untitled') : (np.title || 'Untitled');
+    var shownArtist = (typeof beatsCensor === 'function') ? beatsCensor(np.artist || 'Unknown') : (np.artist || 'Unknown');
+    if (titleEl) titleEl.textContent = shownTitle;
+    if (artistEl) artistEl.textContent = shownArtist;
+    var miniTitle = document.getElementById('beatsMiniTitle');
+    if (miniTitle) miniTitle.textContent = shownTitle;
     if (artEl) artEl.innerHTML = np.coverArt ? '<img src="' + _safeCover(np.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵';
 };
 
@@ -289,9 +479,9 @@ window.beatsSetMediaSession = function(track) {
     if (!('mediaSession' in navigator)) return;
     try {
         navigator.mediaSession.metadata = new MediaMetadata({
-            title: track.title || 'Untitled',
-            artist: track.artist || track.authorName || 'Bitcoin Beats',
-            album: 'Bitcoin Beats',
+            title: (typeof beatsCensor === 'function') ? beatsCensor(track.title || 'Untitled') : (track.title || 'Untitled'),
+            artist: (typeof beatsCensor === 'function') ? beatsCensor(track.artist || track.authorName || 'Bitcoin Beats') : (track.artist || track.authorName || 'Bitcoin Beats'),
+            album: (typeof beatsCensor === 'function') ? beatsCensor(track.album || track.albumTitle || 'Bitcoin Beats') : (track.album || track.albumTitle || 'Bitcoin Beats'),
             artwork: [
                 { src: track.coverUrl || track.coverArt || 'images/bitcoin-beats-logo.jpg', sizes: '120x120', type: 'image/jpeg' }
             ]
@@ -350,37 +540,45 @@ window.beatsLoadTracks = function(tab) {
         return;
     }
 
-    var query;
+    var loader;
     if (tab === 'mymusic') {
         if (!auth || !auth.currentUser) {
             listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">Sign in to see your uploads</div>';
             return;
         }
-        query = db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc').limit(20);
+        loader = _beatsCollectVisible(function() {
+            return db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc');
+        }, 20, 20, 8, null);
     } else if (tab === 'likes') {
         var liked = safeJSON('btc_beats_liked', []);
         if (liked.length === 0) {
             listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">No liked tracks yet. Hit the ❤️ on tracks you love!</div>';
             return;
         }
-        // Firestore 'in' max 30
+        // Firestore 'in' max 30 — filter hidden, do not page an `in` query
         var batch = liked.slice(0, 30);
-        query = db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', batch);
+        loader = db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', batch).get().then(function(snap) {
+            var tracks = [];
+            _beatsPushDocs(tracks, snap);
+            return { tracks: tracks };
+        });
     } else {
-        query = db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(20);
+        loader = _beatsCollectVisible(function() {
+            return db.collection('beats_tracks').orderBy('createdAt', 'desc');
+        }, 20, 20, 8, null);
     }
 
-    query.get().then(function(snap) {
-        if (snap.empty) {
+    loader.then(function(res) {
+        var tracks = (res && res.tracks) ? res.tracks : [];
+        if (!tracks.length) {
             listEl.innerHTML = '<div style="text-align:center;padding:40px;">' +
                 '<div style="font-size:2.5rem;margin-bottom:12px;">🎸</div>' +
                 '<div style="color:var(--text-muted);font-weight:600;">No tracks yet</div>' +
                 '<div style="color:var(--text-faint);font-size:0.8rem;margin-top:6px;">Be the first to upload!</div></div>';
+            _beatsShowUnavailableNote();
             return;
         }
 
-        var tracks = [];
-        snap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
         window._beatsQueue = tracks;
 
         var liked = safeJSON('btc_beats_liked', []);
@@ -395,8 +593,8 @@ window.beatsLoadTracks = function(tab) {
                     '<div style="width:28px;text-align:center;color:' + (isPlaying ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;flex-shrink:0;">' + (isPlaying ? '<span style="display:flex;gap:1px;justify-content:center;align-items:flex-end;height:14px;"><div style="width:2px;height:60%;background:var(--accent);animation:beatsEqualizer 0.8s infinite alternate;"></div><div style="width:2px;height:100%;background:var(--accent);animation:beatsEqualizer 1.1s infinite alternate;"></div><div style="width:2px;height:40%;background:var(--accent);animation:beatsEqualizer 0.9s infinite alternate;"></div></span>' : (idx + 1)) + '</div>' +
                     '<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
                     '<div onclick="event.stopPropagation();beatsShowTrackDetail(' + idx + ')" style="flex:1;min-width:0;cursor:pointer;">' +
-                        '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                        '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(t.artist || t.authorName || 'Unknown') + '</span>' : escapeHtml(t.artist || t.authorName || 'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
+                        '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + beatsSlot(t.artist || t.authorName || 'Unknown') + '</span>' : beatsSlot(t.artist || t.authorName || 'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
                     '</div>' +
                     '<div style="flex-shrink:0;text-align:right;">' +
                         '<div style="color:var(--text-faint);font-size:0.7rem;">' + duration + '</div>' +
@@ -416,6 +614,8 @@ window.beatsLoadTracks = function(tab) {
             '</div>';
         });
         listEl.innerHTML = html;
+        beatsFillText(listEl);
+        _beatsShowUnavailableNote();
     }).catch(function(e) {
         console.error('Beats load error:', e); if (e && e.message) { console.log('Firestore Error Details:', e.message); }
         listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">Error loading tracks. Try again.</div>';
@@ -425,7 +625,8 @@ window.beatsLoadTracks = function(tab) {
 // ---- Play track ----
 window.beatsPlayTrack = function(idx) {
     var track = window._beatsQueue[idx];
-    if (!track || (!track.audioData && !track.audioUrl)) { if (typeof showToast === 'function') showToast('Track not available'); return; }
+    if (!track || _beatsIsHidden(track)) { if (typeof showToast === 'function') showToast('This track is unavailable'); return; }
+    if (!track.audioData && !track.audioUrl) { if (typeof showToast === 'function') showToast('Track not available'); return; }
 
     // If this track is already playing, toggle play/pause instead of restarting
     if (idx === window._beatsQueueIdx && window._beatsAudio) {
@@ -646,13 +847,22 @@ window.beatsToggleShuffle = function() {
 };
 
 window.beatsNextTrack = function() {
-    if (window._beatsQueue.length === 0) return;
-    var next;
-    if (window._beatsShuffle && window._beatsQueue.length > 1) {
-        do { next = Math.floor(Math.random() * window._beatsQueue.length); } while (next === window._beatsQueueIdx);
+    if (!window._beatsQueue || window._beatsQueue.length === 0) return;
+    var len = window._beatsQueue.length;
+    var next = window._beatsQueueIdx;
+    if (window._beatsShuffle && len > 1) {
+        var guard = 0;
+        do {
+            next = Math.floor(Math.random() * len);
+            guard++;
+        } while ((next === window._beatsQueueIdx || _beatsIsHidden(window._beatsQueue[next])) && guard < len * 4);
     } else {
-        next = (window._beatsQueueIdx + 1) % window._beatsQueue.length;
+        for (var n = 0; n < len; n++) {
+            next = (next + 1) % len;
+            if (!_beatsIsHidden(window._beatsQueue[next])) break;
+        }
     }
+    if (next == null || next < 0 || _beatsIsHidden(window._beatsQueue[next])) return;
     beatsPlayTrack(next);
 };
 
@@ -663,7 +873,13 @@ window.beatsPrevTrack = function() {
         window._beatsAudio.currentTime = 0;
         return;
     }
-    var prev = (window._beatsQueueIdx - 1 + window._beatsQueue.length) % window._beatsQueue.length;
+    var len = window._beatsQueue.length;
+    var prev = window._beatsQueueIdx;
+    for (var n = 0; n < len; n++) {
+        prev = (prev - 1 + len) % len;
+        if (!_beatsIsHidden(window._beatsQueue[prev])) break;
+    }
+    if (_beatsIsHidden(window._beatsQueue[prev])) return;
     beatsPlayTrack(prev);
 };
 
@@ -1282,7 +1498,7 @@ function _onUploadSuccess(btn) {
 // ---- Track detail modal (full song info) ----
 window.beatsShowTrackDetail = function(idx) {
     var track = window._beatsQueue[idx];
-    if (!track) return;
+    if (!track || _beatsIsHidden(track)) { _beatsShowUnavailableOverlay(); return; }
     var isPlaying = window._beatsQueueIdx === idx;
     var isLiked = (JSON.parse(localStorage.getItem('beats_liked') || '[]')).indexOf(track.id) !== -1;
     var duration = track.duration ? beatsFormatTime(track.duration) : '--:--';
@@ -1299,10 +1515,10 @@ window.beatsShowTrackDetail = function(idx) {
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--border);border-radius:20px 20px 0 0;padding:24px;max-width:400px;width:100%;animation:beatsSlideUp 0.25s ease;">' +
         '<div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>' +
         '<div style="text-align:center;margin-bottom:20px;">' + coverHtml + '</div>' +
-        '<div style="text-align:center;margin-bottom:6px;color:var(--heading);font-weight:800;font-size:1.1rem;word-break:break-word;">' + escapeHtml(track.title || 'Untitled') + '</div>' +
+        '<div style="text-align:center;margin-bottom:6px;color:var(--heading);font-weight:800;font-size:1.1rem;word-break:break-word;">' + beatsSlot(track.title || 'Untitled') + '</div>' +
         '<div style="text-align:center;font-size:0.85rem;margin-bottom:4px;">' +
-            (track.authorId ? '<span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + track.authorId + '\')" style="color:var(--text-muted);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>' : '<span style="color:var(--text-faint);">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>') +
-            (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof showTipOverlay===\'function\')showTipOverlay({recipientName:\'' + escapeHtml(track.artist || track.authorName || 'Artist').replace(/[\\'"]/g,"") + '\',recipientUid:\'' + track.authorId + '\',context:\'Bitcoin Beats tip\',label:\'Tip Artist\'})" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '') +
+            (track.authorId ? '<span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + track.authorId + '\')" style="color:var(--text-muted);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + beatsSlot(track.artist || track.authorName || 'Unknown') + '</span>' : '<span style="color:var(--text-faint);">' + beatsSlot(track.artist || track.authorName || 'Unknown') + '</span>') +
+            (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();beatsTipCurrentArtistById(\'' + track.authorId + '\',\'' + track.id + '\')" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '') +
         '</div>' +
         (track.genre ? '<div style="text-align:center;margin-bottom:10px;"><span style="background:rgba(247,147,26,0.15);color:var(--accent);font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;">' + escapeHtml(track.genre) + '</span></div>' : '<div style="margin-bottom:10px;"></div>') +
         // Upload date — small, subtle, tooltip shows full timestamp
@@ -1345,8 +1561,8 @@ window.beatsTrackMenu = function(trackId, idx) {
 
     var html = '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--border);border-radius:20px 20px 0 0;padding:20px;max-width:400px;width:100%;">' +
         '<div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div>' +
-        '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">' + escapeHtml(track.title || 'Untitled') + '</div>' +
-        '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:16px;">' + escapeHtml(track.artist || 'Unknown') + '</div>';
+        '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">' + beatsSlot(track.title || 'Untitled') + '</div>' +
+        '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:16px;">' + beatsSlot(track.artist || 'Unknown') + '</div>';
 
     // Add to playlist (for signed-in users)
     if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
@@ -1401,7 +1617,7 @@ window.beatsEditTrack = function(trackId, artistUid) {
         overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:400px;width:100%;">' +
             '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:16px;">✏️ Edit Track</div>' +
             '<label style="display:block;margin-bottom:12px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Title</span>' +
-                '<input type="text" id="beatsEditTitle" value="' + escapeHtml(t.title || '') + '" maxlength="100" style="display:block;width:100%;padding:10px 12px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-top:4px;box-sizing:border-box;"></label>' +
+                '<input type="text" id="beatsEditTitle" maxlength="100" style="display:block;width:100%;padding:10px 12px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-top:4px;box-sizing:border-box;"></label>' +
             '<label style="display:block;margin-bottom:12px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Genre</span>' +
                 '<input type="text" id="beatsEditGenre" value="' + escapeHtml(t.genre || '') + '" maxlength="30" style="display:block;width:100%;padding:10px 12px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-top:4px;box-sizing:border-box;"></label>' +
             '<label style="display:block;margin-bottom:12px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Release Date</span>' +
@@ -1414,6 +1630,8 @@ window.beatsEditTrack = function(trackId, artistUid) {
             '</div>' +
         '</div>';
         document.body.appendChild(overlay);
+        var titleInput = document.getElementById('beatsEditTitle');
+        if (titleInput) titleInput.value = t.title || '';
     });
 };
 
@@ -1491,8 +1709,8 @@ window.beatsCreateAlbumFromSingles = function() {
     db.collection('beats_tracks').where('authorId', '==', uid).orderBy('createdAt', 'asc').limit(50).get().then(function(snap) {
         var singles = [];
         snap.forEach(function(doc) {
-            var d = doc.data();
-            if (!d.albumId) singles.push({ id: doc.id, ...d });
+            var track = _beatsTrackFromDoc(doc);
+            if (track && !track.albumId) singles.push(track);
         });
         if (singles.length < 2) { showToast('You need at least 2 singles to create an album'); return; }
 
@@ -1520,7 +1738,7 @@ window.beatsCreateAlbumFromSingles = function() {
             html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);cursor:pointer;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                 '<input type="checkbox" value="' + t.id + '" class="beatsGroupCheck" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;">' +
                 '<div style="flex:1;min-width:0;">' +
-                    '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                    '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
                     '<div style="color:var(--text-faint);font-size:0.6rem;">' + escapeHtml(t.genre || '') + (t.duration ? ' · ' + beatsFormatTime(t.duration) : '') + '</div>' +
                 '</div>' +
             '</label>';
@@ -1791,7 +2009,7 @@ window.beatsRenderLivestream = function() {
                         '<div style="flex:1;">' +
                             '<div style="font-size:0.75rem;color:#6366f1;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW LIVE</div>' +
                             '<div style="color:var(--heading);font-weight:700;font-size:1rem;">@' + (typeof escapeHtml === 'function' ? escapeHtml(data.djName) : data.djName) + '</div>' +
-                            '<div style="color:var(--text-muted);font-size:0.85rem;">♫ ' + (typeof escapeHtml === 'function' ? escapeHtml(data.trackTitle) : data.trackTitle) + ' — ' + (typeof escapeHtml === 'function' ? escapeHtml(data.trackArtist) : data.trackArtist) + '</div>' +
+                            '<div style="color:var(--text-muted);font-size:0.85rem;">♫ ' + beatsSlot(data.trackTitle || '') + ' — ' + beatsSlot(data.trackArtist || '') + '</div>' +
                             (data.songCount ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Song ' + data.songCount + (data.songCount >= 5 ? '/5' : '') + '</div>' : '') +
                         '</div>' +
                         (amDJ ? '<button onclick="djStopBroadcast();beatsRenderLivestream()" style="padding:10px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⏹ Stop DJ</button>' : '') +
@@ -1804,7 +2022,7 @@ window.beatsRenderLivestream = function() {
                 html += '<div style="text-align:center;margin-bottom:20px;">';
                 if (isPlaying && hasTrack) {
                     html += '<button onclick="djBroadcast()" style="padding:16px 40px;background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;border-radius:14px;color:#fff;font-size:1.1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);touch-action:manipulation;">📡 Go Live — Broadcast to Chat</button>' +
-                        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:8px;">Now playing: ' + (typeof escapeHtml === 'function' ? escapeHtml(window._beatsNowPlaying.title) : window._beatsNowPlaying.title) + '</div>';
+                        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:8px;">Now playing: ' + beatsSlot(window._beatsNowPlaying.title || '') + '</div>';
                 } else {
                     html += '<div style="padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;">' +
                         '<div style="font-size:1.5rem;margin-bottom:8px;">▶</div>' +
@@ -2147,7 +2365,7 @@ if (_origBeatsPlayTrack) {
                 // Update the header title using stable ID
                 var headerEl = document.getElementById('beatsCommentsPanelTitle');
                 if (headerEl) {
-                    headerEl.innerHTML = '💬 Comments — <span style="color:var(--accent);font-weight:600;">' + escapeHtml((newTrack.title || 'Untitled').substring(0, 30)) + '</span>';
+                    headerEl.innerHTML = '💬 Comments — <span style="color:var(--accent);font-weight:600;">' + beatsSlot(newTrack.title || 'Untitled') + '</span>';
                 }
                 // Reload comments for the new track
                 beatsLoadComments(newTrack.id);
@@ -2186,7 +2404,7 @@ window.beatsShowComments = function(trackId) {
     panel.innerHTML =
         '<style>@keyframes beatsSlideUp{from{transform:translateY(100%);opacity:0;}to{transform:translateY(0);opacity:1;}}</style>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;">' +
-            '<div id="beatsCommentsPanelTitle" style="font-weight:700;font-size:0.85rem;color:var(--heading);">💬 Comments' + (track ? ' — ' + '<span style="color:var(--accent);font-weight:600;">' + escapeHtml((track.title || 'Untitled').substring(0, 30)) + '</span>' : '') + '</div>' +
+            '<div id="beatsCommentsPanelTitle" style="font-weight:700;font-size:0.85rem;color:var(--heading);">💬 Comments' + (track ? ' — ' + '<span style="color:var(--accent);font-weight:600;">' + beatsSlot(track.title || 'Untitled') + '</span>' : '') + '</div>' +
             '<button onclick="document.getElementById(\'beatsCommentsPanel\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;">✕</button>' +
         '</div>' +
         '<div id="beatsCommentsList" style="flex:1;overflow-y:auto;padding:12px 16px;min-height:80px;">' +
@@ -2497,8 +2715,8 @@ window.beatsSetGenre = function(genre) {
                         '<div style="width:28px;text-align:center;color:' + (isPlaying ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;flex-shrink:0;">' + (isPlaying ? '<span style="display:flex;gap:1px;justify-content:center;align-items:flex-end;height:14px;"><div style="width:2px;height:60%;background:var(--accent);animation:beatsEqualizer 0.8s infinite alternate;"></div><div style="width:2px;height:100%;background:var(--accent);animation:beatsEqualizer 1.1s infinite alternate;"></div><div style="width:2px;height:40%;background:var(--accent);animation:beatsEqualizer 0.9s infinite alternate;"></div></span>' : (idx + 1)) + '</div>' +
                         '<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
                         '<div onclick="event.stopPropagation();beatsShowTrackDetail(' + idx + ')" style="flex:1;min-width:0;cursor:pointer;">' +
-                            '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                            '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">'+escapeHtml(t.artist || t.authorName || 'Unknown')+'</span>' : escapeHtml(t.artist||t.authorName||'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
+                            '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
+                            '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">'+beatsSlot(t.artist || t.authorName || 'Unknown')+'</span>' : beatsSlot(t.artist||t.authorName||'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
                         '</div>' +
                         '<div style="flex-shrink:0;text-align:right;">' +
                             '<div style="color:var(--text-faint);font-size:0.7rem;">' + duration + '</div>' +
@@ -2512,8 +2730,8 @@ window.beatsSetGenre = function(genre) {
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
-                        (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\x27]/g, '') + '\',\'' + escapeHtml(t.title || '').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
-                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\',\'' + escapeHtml(t.title || 'Track').replace(/[\x27]/g, '') + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
+                        (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
+                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
                         '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;" title="More">⋮</button>' +
                     '</div>' +
                 '</div>';
@@ -2554,73 +2772,75 @@ window.beatsSetGenre = function(genre) {
                 // trending/shuffle: still fetch all and sort client-side (no single field maps to trending score).
                 var nativeOrderField = sort === 'most-played' ? 'plays' : sort === 'most-liked' ? 'likes' : null;
                 if (nativeOrderField && !append) {
-                    var nQ = db.collection('beats_tracks');
-                    if (genre) nQ = nQ.where('genre', '==', genre);
-                    nQ = nQ.orderBy(nativeOrderField, 'desc').limit(200);
-                    nQ.get().then(function(snap) {
+                    _beatsCollectVisible(function() {
+                        var nQ = db.collection('beats_tracks');
+                        if (genre) nQ = nQ.where('genre', '==', genre);
+                        return nQ.orderBy(nativeOrderField, 'desc');
+                    }, 200, 200, 3, null).then(function(res) {
                         if (sentinel) sentinel.style.display = 'none';
-                        var all = [];
-                        snap.forEach(function(doc) { all.push({ id: doc.id, ...doc.data() }); });
+                        var all = res.tracks || [];
                         window._beatsQueue = all;
                         window._beatsExhausted = true;
                         var html = beatsRenderTrackList(all, false);
                         if (!html) html = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
                         listEl.innerHTML = html;
+                        _beatsShowUnavailableNote();
                     }).catch(function(e) {
-                        // Fallback: index may still be building — fetch newest 500 and sort client-side
+                        // Fallback: index may still be building — fetch newest and sort client-side
                         console.warn('[Beats] native sort unavailable, falling back:', e.message);
-                        var fbQ = db.collection('beats_tracks');
-                        if (genre) fbQ = fbQ.where('genre', '==', genre);
-                        fbQ.orderBy('createdAt', 'desc').limit(500).get().then(function(snap2) {
+                        _beatsCollectVisible(function() {
+                            var fbQ = db.collection('beats_tracks');
+                            if (genre) fbQ = fbQ.where('genre', '==', genre);
+                            return fbQ.orderBy('createdAt', 'desc');
+                        }, 500, 500, 2, null).then(function(res2) {
                             if (sentinel) sentinel.style.display = 'none';
-                            var all2 = [];
-                            snap2.forEach(function(doc) { all2.push({ id: doc.id, ...doc.data() }); });
-                            all2 = beatsApplySort(all2, sort);
+                            var all2 = beatsApplySort(res2.tracks || [], sort);
                             window._beatsQueue = all2;
                             window._beatsExhausted = true;
                             var html2 = beatsRenderTrackList(all2, false);
                             if (!html2) html2 = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
                             listEl.innerHTML = html2;
+                            _beatsShowUnavailableNote();
                         }).catch(function(e2) { console.error('[Beats] fallback load error:', e2); if (sentinel) sentinel.style.display='none'; });
                     });
                     return;
                 }
                 // trending/shuffle: fetch all newest and sort client-side
                 if (!append) {
-                    var csQ = db.collection('beats_tracks');
-                    if (genre) csQ = csQ.where('genre', '==', genre);
-                    csQ.orderBy('createdAt', 'desc').limit(500).get().then(function(snap) {
+                    _beatsCollectVisible(function() {
+                        var csQ = db.collection('beats_tracks');
+                        if (genre) csQ = csQ.where('genre', '==', genre);
+                        return csQ.orderBy('createdAt', 'desc');
+                    }, 500, 500, 2, null).then(function(res) {
                         if (sentinel) sentinel.style.display = 'none';
-                        var all = [];
-                        snap.forEach(function(doc) { all.push({ id: doc.id, ...doc.data() }); });
-                        all = beatsApplySort(all, sort);
+                        var all = beatsApplySort(res.tracks || [], sort);
                         window._beatsQueue = all;
                         window._beatsExhausted = true;
                         var html = beatsRenderTrackList(all, false);
                         if (!html) html = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
                         listEl.innerHTML = html;
+                        _beatsShowUnavailableNote();
                     }).catch(function(e) { console.error('[Beats] sort load error:', e); if (sentinel) sentinel.style.display='none'; });
                 }
                 return;
             }
 
-            // Newest: cursor pagination
-            var q = db.collection('beats_tracks');
-            if (genre) q = q.where('genre', '==', genre);
-            q = q.orderBy('createdAt', 'desc');
-            if (append && window._beatsCursor) q = q.startAfter(window._beatsCursor);
-            q = q.limit(PAGE_SIZE);
-
-            q.get().then(function(snap) {
+            // Newest: cursor pagination. Keep fetching while hidden tracks leave the page short.
+            var startCursor = (append && window._beatsCursor) ? window._beatsCursor : null;
+            _beatsCollectVisible(function() {
+                var nq = db.collection('beats_tracks');
+                if (genre) nq = nq.where('genre', '==', genre);
+                return nq.orderBy('createdAt', 'desc');
+            }, PAGE_SIZE, PAGE_SIZE, 8, startCursor).then(function(res) {
                 if (sentinel) sentinel.style.display = 'none';
-                if (snap.empty || snap.docs.length < PAGE_SIZE) window._beatsExhausted = true;
-                if (snap.empty) {
+                window._beatsExhausted = !!(res && res.exhausted);
+                window._beatsCursor = res ? res.cursor : window._beatsCursor;
+                var newTracks = (res && res.tracks) ? res.tracks : [];
+                if (!newTracks.length) {
                     if (!append) listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks' + (genre ? ' in this genre' : '') + '</div>';
+                    _beatsShowUnavailableNote();
                     return;
                 }
-                window._beatsCursor = snap.docs[snap.docs.length - 1];
-                var newTracks = [];
-                snap.forEach(function(doc) { newTracks.push({ id: doc.id, ...doc.data() }); });
                 if (!append) { window._beatsQueue = newTracks; } else { window._beatsQueue = (window._beatsQueue||[]).concat(newTracks); }
                 var html = beatsRenderTrackList(newTracks, append);
                 if (!append) {
@@ -2679,9 +2899,16 @@ window.beatsSetGenre = function(genre) {
 })();
 
 // Helper for inline tip buttons
-window.beatsTipCurrentArtistById = function(uid, name, trackTitle) {
+window.beatsTipCurrentArtistById = function(uid, trackId) {
+    var track = _beatsFindQueued(trackId);
+    var name = track ? (track.artist || track.authorName || 'Artist') : 'Artist';
+    var trackTitle = track ? (track.title || '') : '';
+    if (typeof beatsCensor === 'function') {
+        name = beatsCensor(name);
+        trackTitle = beatsCensor(trackTitle);
+    }
     if (typeof showTipOverlay === 'function') {
-        showTipOverlay({ recipientName: name, recipientUid: uid, context: 'Tip for: ' + trackTitle, label: 'Tip Artist' });
+        showTipOverlay({ recipientName: name, recipientUid: uid, context: trackTitle ? ('Tip for: ' + trackTitle) : 'Bitcoin Beats tip', label: 'Tip Artist' });
     } else if (typeof beatsShowArtistPage === 'function') {
         beatsShowArtistPage(uid);
     }
@@ -2715,16 +2942,14 @@ window.beatsShowArtistPage = function(uid) {
         db.collection('users').doc(uid).get().catch(function() { return _nullDoc; }),
         db.collection('beats_artists').doc(uid).get().catch(function() { return _nullDoc; }),
         db.collection('public_profiles').doc(uid).get().catch(function() { return _nullDoc; }),
-        db.collection('beats_tracks').where('authorId', '==', uid).limit(50).get()
+        _beatsLoadArtistTracks(uid)
     ]).then(function(results) {
         var userDoc    = results[0];
         var artistDoc  = results[1];
         var pubDoc     = results[2];
-        var trackSnap  = results[3];
+        var tracks = results[3] || [];
         // Merge priority: users (owner only) > public_profiles (sanitized mirror) > beats_artists (V4V import)
         var u = userDoc.exists ? userDoc.data() : (pubDoc.exists ? pubDoc.data() : (artistDoc.exists ? artistDoc.data() : {}));
-        var tracks = [];
-        trackSnap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
 
         var totalPlays = 0, totalLikes = 0;
         tracks.forEach(function(t) { totalPlays += (t.plays || 0); totalLikes += (t.likes || 0); });
@@ -2734,6 +2959,7 @@ window.beatsShowArtistPage = function(uid) {
         var isV4V = artistDoc.exists && !userDoc.exists && !pubDoc.exists; // V4V import, no real user account
         var ad = artistDoc.exists ? artistDoc.data() : {};
         var artistName = ap.stageName || ad.name || u.username || u.displayName || (tracks[0] && (tracks[0].artist || tracks[0].authorName)) || 'Unknown Artist';
+        window._beatsArtistTipName = artistName;
         var artistBio = ap.bio || u.bio || ad.bio || '';
         var artistGenres = ap.genres ? ap.genres.split(',').map(function(g) { return g.trim(); }).filter(Boolean) : [];
         var artistImage = ap.artistImage || ad.avatarUrl || ''; // custom artist profile image
@@ -2764,7 +2990,7 @@ window.beatsShowArtistPage = function(uid) {
                 (artistImage
                     ? '<div style="width:88px;height:88px;border-radius:50%;margin:0 auto 12px;overflow:hidden;border:3px solid var(--accent);box-shadow:0 0 24px rgba(247,147,26,0.35);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Change artist image"' : '') + '><img src="' + escapeHtml(sanitizeUrl(artistImage)) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
                     : '<div style="width:88px;height:88px;border-radius:50%;margin:0 auto 12px;background:linear-gradient(135deg,var(--accent),#1e293b);display:flex;align-items:center;justify-content:center;font-size:2.2rem;border:3px solid var(--border);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Upload artist image"' : '') + '>🎤' + (isOwner ? '<div style="font-size:0.55rem;color:var(--text-faint);position:absolute;margin-top:56px;">📷</div>' : '') + '</div>') +
-                '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + escapeHtml(artistName) + '</div>' +
+                '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + beatsSlot(artistName) + '</div>' +
                 (isV4V
                     ? '<div style="display:inline-block;margin-top:6px;padding:2px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;font-size:0.68rem;color:var(--accent);font-weight:700;">⚡ V4V Artist · Unclaimed</div>'
                     : '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>') +
@@ -2781,14 +3007,14 @@ window.beatsShowArtistPage = function(uid) {
                 '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);font-size:1rem;">' + (u.streak || 0) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Streak</div></div>' +
             '</div>' +
             // Artist Bio
-            (artistBio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;"><div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">About the Artist</div><div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + escapeHtml(artistBio) + '</div></div>' : '') +
+            (artistBio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;"><div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">About the Artist</div><div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + beatsSlot(artistBio) + '</div></div>' : '') +
             // Music links
             (musicLinks.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
                 musicLinks.map(function(l) { return '<a href="' + escapeHtml(sanitizeUrl(l.url)) + '" target="_blank" rel="noopener" style="padding:6px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.75rem;text-decoration:none;font-weight:600;transition:0.2s;display:flex;align-items:center;gap:4px;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + l.emoji + ' ' + escapeHtml(l.label) + '</a>'; }).join('') +
             '</div>' : '') +
             // Action buttons
             '<div style="display:flex;gap:8px;margin-bottom:20px;">' +
-                ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();showTipOverlay({recipientName:\'' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',recipientUid:\'' + uid + '\',label:\'Tip ' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',context:\'Artist page\'})" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
+                ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsTipArtistFromPage(\'' + uid + '\')" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
                 (isV4V && (ad.wavlakeUrl || ad.sourceUrl) ? '<a href="' + escapeHtml(sanitizeUrl(ad.wavlakeUrl || ad.sourceUrl || '')) + '" target="_blank" rel="noopener" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">🌐 Artist Page</a>' : '') +
             '</div>' +
             // Discography — grouped by album, then singles
@@ -2851,7 +3077,7 @@ window.beatsShowArtistPage = function(uid) {
                     '<div onclick="var el=document.getElementById(\'' + albumUid + '\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=el.style.display===\'none\'?\'▸\':\'▾\'" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.05)\'" onmouseout="this.style.background=\'none\'">' +
                         '<div style="width:52px;height:52px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + (alb.cover ? '<img src="' + _safeCover(alb.cover) + '" style="width:100%;height:100%;object-fit:cover;">' : '💿') + '</div>' +
                         '<div style="flex:1;min-width:0;">' +
-                            '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(alb.title) + '</div>' +
+                            '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(alb.title) + '</div>' +
                             '<div style="color:var(--text-faint);font-size:0.7rem;">' + typeLabel + ' · ' + alb.tracks.length + ' tracks' + (alb.year ? ' · ' + alb.year : '') + '</div>' +
                         '</div>' +
                         '<span style="color:var(--text-faint);font-size:1.1rem;flex-shrink:0;">▸</span>' +
@@ -2864,7 +3090,7 @@ window.beatsShowArtistPage = function(uid) {
                         '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
                             '<div style="width:22px;color:var(--text-faint);font-size:0.7rem;text-align:center;flex-shrink:0;">' + (t.trackNumber || '') + '</div>' +
                             '<div style="flex:1;min-width:0;">' +
-                                '<div style="color:var(--heading);font-weight:600;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                                '<div style="color:var(--heading);font-weight:600;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
                                 '<div style="color:var(--text-faint);font-size:0.6rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.releaseDate ? ' · ' + escapeHtml(t.releaseDate) : '') + '</div>' +
                             '</div>' +
                             '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.68rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
@@ -2886,7 +3112,7 @@ window.beatsShowArtistPage = function(uid) {
                     '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
                         '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
                         '<div style="flex:1;min-width:0;">' +
-                            '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                            '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
                             '<div style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + (t.releaseDate ? ' · ' + escapeHtml(t.releaseDate) : '') + '</div>' +
                         '</div>' +
                         '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.7rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
@@ -2922,7 +3148,7 @@ window.beatsShowArtistPage = function(uid) {
                             '<div style="margin:0 auto 10px;width:72px;height:72px;">' + avatarHtml + '</div>' +
                             '<div style="font-weight:800;font-size:1.1rem;color:var(--heading);">' + escapeHtml(ud.username || ud.displayName || 'User') + '</div>' +
                             '<div style="color:var(--text-muted);font-size:0.8rem;">' + lvlApp.name + ' · ' + (ud.points || 0).toLocaleString() + ' XP</div>' +
-                            (ud.bio ? '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;line-height:1.4;">' + escapeHtml(ud.bio) + '</div>' : '') +
+                            (ud.bio ? '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;line-height:1.4;">' + beatsSlot(ud.bio) + '</div>' : '') +
                         '</div>' +
                         '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                             '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);">' + (ud.badges ? Object.keys(ud.badges).length : 0) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Badges</div></div>' +
@@ -2942,11 +3168,9 @@ window.beatsShowArtistPage = function(uid) {
 // Play track from artist page (loads their catalog in same order as artist page display)
 window.beatsArtistPlayTrack = function(uid, idx) {
     if (typeof db === 'undefined') return;
-    db.collection('beats_tracks').where('authorId', '==', uid).limit(50).get().then(function(snap) {
-        var tracks = [];
-        snap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
-        window._beatsQueue = tracks;
-        if (tracks[idx]) beatsPlayTrack(idx);
+    _beatsLoadArtistTracks(uid).then(function(tracks) {
+        window._beatsQueue = tracks || [];
+        if (window._beatsQueue[idx]) beatsPlayTrack(idx);
     });
 };
 
@@ -2976,10 +3200,13 @@ window.beatsArtistPlayTrack = function(uid, idx) {
 
 // Share a track link
 window.beatsShareTrack = function(trackId, title) {
+    var track = _beatsFindQueued(trackId);
+    var raw = (track && track.title) ? track.title : (title || 'Track');
+    var shown = (typeof beatsCensor === 'function') ? beatsCensor(raw) : raw;
     var url = 'https://bitcoineducation.quest/#beats/' + trackId;
-    var text = '🎸 Listen to "' + title + '" on Bitcoin Beats!\n' + url;
+    var text = '🎸 Listen to "' + shown + '" on Bitcoin Beats!\n' + url;
     if (navigator.share) {
-        navigator.share({ title: title + ' — Bitcoin Beats', text: text, url: url }).catch(function() {});
+        navigator.share({ title: shown + ' — Bitcoin Beats', text: text, url: url }).catch(function() {});
     } else {
         navigator.clipboard.writeText(url).then(function() {
             if (typeof showToast === 'function') showToast('🔗 Track link copied!');
@@ -3027,7 +3254,7 @@ window.beatsInjectArtistDashboard = function() {
                 '</div>' +
                 (topTrack ? '<div style="padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
                     '<div style="font-size:1.2rem;">🏆</div>' +
-                    '<div style="flex:1;min-width:0;"><div style="color:var(--text-faint);font-size:0.65rem;">Top Track</div><div style="color:var(--heading);font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(topTrack.title || 'Untitled') + '</div></div>' +
+                    '<div style="flex:1;min-width:0;"><div style="color:var(--text-faint);font-size:0.65rem;">Top Track</div><div style="color:var(--heading);font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(topTrack.title || 'Untitled') + '</div></div>' +
                     '<div style="text-align:right;"><div style="color:var(--accent);font-weight:700;font-size:0.8rem;">▶ ' + _formatPlays(topTrack.plays || 0) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">' + (topTrack.likes || 0) + ' likes</div></div>' +
                 '</div>' : '') +
                 '<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;">💡 Set up a Lightning Address in Settings to receive tips from listeners!</div>';
@@ -3101,8 +3328,10 @@ window.beatsLoadLikedTracks = function() {
         var trackMap = {};
         var serverIds = [];
         serverSnap.forEach(function(doc) {
-            trackMap[doc.id] = Object.assign({ id: doc.id }, doc.data());
-            serverIds.push(doc.id);
+            var track = _beatsTrackFromDoc(doc);
+            if (!track) return;
+            trackMap[track.id] = track;
+            serverIds.push(track.id);
         });
 
         // Sync server → local so the heart icon matches across the UI
@@ -3125,7 +3354,7 @@ window.beatsLoadLikedTracks = function() {
         }
         db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', missing).get().then(function(snap) {
             snap.forEach(function(doc) {
-                if (!trackMap[doc.id]) trackMap[doc.id] = Object.assign({ id: doc.id }, doc.data());
+                if (!trackMap[doc.id]) _beatsRemember(trackMap, doc);
             });
             _renderLikedTracks(el, trackMap, serverIds, localLiked);
         }).catch(function() {
@@ -3140,7 +3369,7 @@ window.beatsLoadLikedTracks = function() {
         }
         db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', localLiked.slice(0, 30)).get().then(function(snap) {
             var tracks = [];
-            snap.forEach(function(doc) { tracks.push(Object.assign({ id: doc.id }, doc.data())); });
+            _beatsPushDocs(tracks, snap);
             window._beatsQueue = tracks;
             if (tracks.length === 0) {
                 el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">❤️</div><div style="color:var(--text-muted);font-weight:600;">No liked tracks yet</div><div style="color:var(--text-faint);font-size:0.8rem;margin-top:4px;">Hit the ❤️ on tracks you love!</div></div>';
@@ -3171,9 +3400,10 @@ window.beatsLoadMyUploads = function() {
     var el = document.getElementById('beatsLibContent');
     if (!el || !auth || !auth.currentUser) { if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);">Sign in to see uploads</div>'; return; }
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading...</div>';
-    db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc').limit(50).get().then(function(snap) {
-        var tracks = [];
-        snap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
+    _beatsCollectVisible(function() {
+        return db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc');
+    }, 50, 50, 4, null).then(function(res) {
+        var tracks = (res && res.tracks) ? res.tracks : [];
         window._beatsQueue = tracks;
         // Artist dashboard
         if (tracks.length > 0) {
@@ -3186,7 +3416,7 @@ window.beatsLoadMyUploads = function() {
                     '<div style="text-align:center;padding:8px;background:var(--card-bg);border-radius:8px;"><div style="font-weight:900;color:var(--accent);font-size:1rem;">' + _formatPlays(totalPlays) + '</div><div style="color:var(--text-faint);font-size:0.6rem;">Plays</div></div>' +
                     '<div style="text-align:center;padding:8px;background:var(--card-bg);border-radius:8px;"><div style="font-weight:900;color:#ef4444;font-size:1rem;">' + totalLikes + '</div><div style="color:var(--text-faint);font-size:0.6rem;">Likes</div></div>' +
                 '</div>' +
-                '<div style="font-size:0.75rem;color:var(--text-muted);">🏆 Top: <strong>' + escapeHtml(topTrack.title || '') + '</strong> — ' + _formatPlays(topTrack.plays || 0) + ' plays</div>' +
+                '<div style="font-size:0.75rem;color:var(--text-muted);">🏆 Top: <strong>' + beatsSlot(topTrack.title || '') + '</strong> — ' + _formatPlays(topTrack.plays || 0) + ' plays</div>' +
             '</div>';
             el.innerHTML = dashHtml;
             var trackDiv = document.createElement('div');
@@ -3211,7 +3441,7 @@ window.beatsLoadRecentlyPlayed = function() {
     var ids = recent.slice(0, 30);
     db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', ids).get().then(function(snap) {
         var trackMap = {};
-        snap.forEach(function(doc) { trackMap[doc.id] = { id: doc.id, ...doc.data() }; });
+        snap.forEach(function(doc) { _beatsRemember(trackMap, doc); });
         // Preserve order (most recent first)
         var tracks = [];
         ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
@@ -3226,7 +3456,7 @@ window.beatsLoadRecentlyPlayed = function() {
     window.beatsPlayTrack = function(idx) {
         _origPlay(idx);
         var track = window._beatsQueue && window._beatsQueue[idx];
-        if (track && track.id) {
+        if (track && track.id && !_beatsIsHidden(track) && (track.audioData || track.audioUrl)) {
             try {
                 var recent = safeJSON('btc_beats_recent', []);
                 recent = recent.filter(function(id) { return id !== track.id; });
@@ -3249,8 +3479,8 @@ window.beatsRenderTrackList = function(el, tracks, showTip) {
         html += '<div class="beats-track-row" onclick="beatsPlayTrack(' + idx + ')" style="padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:6px;display:flex;align-items:center;gap:10px;">' +
             '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
             '<div style="flex:1;min-width:0;">' +
-                '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                '<div style="color:var(--text-faint);font-size:0.68rem;">' + escapeHtml(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
+                '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
+                '<div style="color:var(--text-faint);font-size:0.68rem;">' + beatsSlot(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">' +
                 '<span style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + '</span>' +
@@ -3260,6 +3490,7 @@ window.beatsRenderTrackList = function(el, tracks, showTip) {
         '</div>';
     });
     el.innerHTML = html;
+    beatsFillText(el);
 };
 
 // ================================================================
@@ -3353,7 +3584,7 @@ window.beatsOpenPlaylist = function(playlistId) {
             return db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', b).get();
         })).then(function(results) {
             var trackMap = {};
-            results.forEach(function(snap) { snap.forEach(function(doc) { trackMap[doc.id] = { id: doc.id, ...doc.data() }; }); });
+            results.forEach(function(snap) { snap.forEach(function(doc) { _beatsRemember(trackMap, doc); }); });
             var tracks = [];
             ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
             window._beatsQueue = tracks;
@@ -3403,7 +3634,7 @@ window.beatsOpenSharedPlaylist = function(ownerUid, playlistId) {
             return db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', b).get();
         })).then(function(results) {
             var trackMap = {};
-            results.forEach(function(snap) { snap.forEach(function(d) { trackMap[d.id] = { id: d.id, ...d.data() }; }); });
+            results.forEach(function(snap) { snap.forEach(function(d) { _beatsRemember(trackMap, d); }); });
             var tracks = [];
             ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
             window._beatsQueue = tracks;
@@ -3430,7 +3661,7 @@ window.beatsPlayPlaylist = function(playlistId) {
             return db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', b).get();
         })).then(function(results) {
             var trackMap = {};
-            results.forEach(function(snap) { snap.forEach(function(doc) { trackMap[doc.id] = { id: doc.id, ...doc.data() }; }); });
+            results.forEach(function(snap) { snap.forEach(function(doc) { _beatsRemember(trackMap, doc); }); });
             var tracks = [];
             ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
             window._beatsQueue = tracks;
@@ -3453,7 +3684,7 @@ window.beatsShufflePlaylist = function(playlistId) {
             return db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', b).get();
         })).then(function(results) {
             var trackMap = {};
-            results.forEach(function(snap) { snap.forEach(function(doc) { trackMap[doc.id] = { id: doc.id, ...doc.data() }; }); });
+            results.forEach(function(snap) { snap.forEach(function(doc) { _beatsRemember(trackMap, doc); }); });
             var tracks = [];
             ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
             window._beatsQueue = tracks;
@@ -3558,10 +3789,12 @@ window.beatsQuickCreateAndAdd = function(trackId) {
                 donateBtn.onclick = function(e) {
                     e.stopPropagation();
                     if (typeof showTipOverlay === 'function') {
+                        var tipArtist = (typeof beatsCensor === 'function') ? beatsCensor(d.trackArtist || d.djName || 'Artist') : (d.trackArtist || d.djName || 'Artist');
+                        var tipTitle = (typeof beatsCensor === 'function') ? beatsCensor(d.trackTitle || 'Unknown') : (d.trackTitle || 'Unknown');
                         showTipOverlay({
-                            recipientName: d.trackArtist || d.djName || 'Artist',
+                            recipientName: tipArtist,
                             recipientUid: d.trackAuthorId,
-                            context: 'DJ tip for: ' + (d.trackTitle || 'Unknown'),
+                            context: 'DJ tip for: ' + tipTitle,
                             label: 'Tip Artist'
                         });
                     } else {
@@ -3658,7 +3891,8 @@ window.beatsPerformSearch = function() {
         var seen = {};
         var recentMatches = [];
         trackSnap.forEach(function(doc) {
-            var t = doc.data();
+            var t = doc.data() || {};
+            if (_beatsIsHidden(t)) return;
             var title  = (t.title      || '').toLowerCase().indexOf(query) !== -1;
             var artist = (t.artist || t.authorName || '').toLowerCase().indexOf(query) !== -1;
             var genre  = (t.genre  || '').toLowerCase().indexOf(query) !== -1;
@@ -3678,9 +3912,11 @@ window.beatsPerformSearch = function() {
             var artistTracks = [];
             artistSnaps.forEach(function(snap) {
                 snap.forEach(function(doc) {
+                    if (_beatsIsHidden(doc.data())) return;
                     if (!seen[doc.id]) {
                         seen[doc.id] = true;
-                        artistTracks.push({id: doc.id, ...doc.data()});
+                        var track = _beatsTrackFromDoc(doc);
+                        if (track) artistTracks.push(track);
                     }
                 });
             });
@@ -3699,9 +3935,10 @@ window.beatsPerformSearch = function() {
 
             var html = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-faint);font-size:0.75rem;">🔍 Found '+allResults.length+' result'+(allResults.length!==1?'s':'')+' for "'+escapeHtml(query)+'"</span><button onclick="beatsClearSearch()" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;cursor:pointer;">Clear</button></div>';
 
-            allResults.forEach(function(t,idx){ var isLiked=liked.indexOf(t.id)!==-1;var isPlaying=window._beatsQueueIdx===idx;var duration=t.duration?beatsFormatTime(t.duration):'--:--'; html+='<div class="beats-track-row" onclick="beatsPlayTrack('+idx+')" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;'+ (isPlaying?'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);':'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:28px;text-align:center;color:' + (isPlaying?'var(--accent)':'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;">'+(isPlaying?'▶':(idx+1))+'</div><div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt||t.coverUrl)?'<img src="'+_safeCover(t.coverUrl||t.coverArt)+'" style="width:100%;height:100%;object-fit:cover;">':(t.genre==='podcast'?'🎙️':'🎵')) + '</div><div style="flex:1;min-width:0;"><div style="color:' + (isPlaying?'var(--accent)':'var(--heading)') + ';font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title||'Untitled') + '</div><div style="color:var(--text-faint);font-size:0.72rem;">' + escapeHtml(t.artist||t.authorName||'Unknown') + (t.genre?' · '+t.genre:'') + '</div></div><div style="flex-shrink:0;text-align:right;"><div style="color:var(--text-faint);font-size:0.7rem;">'+duration+'</div><div style="color:var(--text-faint);font-size:0.6rem;">▶ '+_formatPlays(t.plays||0)+'</div></div></div></div>';});
+            allResults.forEach(function(t,idx){ var isLiked=liked.indexOf(t.id)!==-1;var isPlaying=window._beatsQueueIdx===idx;var duration=t.duration?beatsFormatTime(t.duration):'--:--'; html+='<div class="beats-track-row" onclick="beatsPlayTrack('+idx+')" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;'+ (isPlaying?'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);':'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:28px;text-align:center;color:' + (isPlaying?'var(--accent)':'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;">'+(isPlaying?'▶':(idx+1))+'</div><div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt||t.coverUrl)?'<img src="'+_safeCover(t.coverUrl||t.coverArt)+'" style="width:100%;height:100%;object-fit:cover;">':(t.genre==='podcast'?'🎙️':'🎵')) + '</div><div style="flex:1;min-width:0;"><div style="color:' + (isPlaying?'var(--accent)':'var(--heading)') + ';font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title||'Untitled') + '</div><div style="color:var(--text-faint);font-size:0.72rem;">' + beatsSlot(t.artist||t.authorName||'Unknown') + (t.genre?' · '+t.genre:'') + '</div></div><div style="flex-shrink:0;text-align:right;"><div style="color:var(--text-faint);font-size:0.7rem;">'+duration+'</div><div style="color:var(--text-faint);font-size:0.6rem;">▶ '+_formatPlays(t.plays||0)+'</div></div></div></div>';});
 
             listEl.innerHTML = html;
+            beatsFillText(listEl);
         }).catch(function(e){console.error('[Beats Search artist]',e);});
     }).catch(function(e){console.error('[Beats Search]',e);listEl.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-faint);">Error searching</div>';});
 };
@@ -3732,7 +3969,8 @@ function _beatsBuildSuggestCache(cb) {
             }
         });
         trackSnap.forEach(function(doc) {
-            var d = doc.data();
+            var d = doc.data() || {};
+            if (_beatsIsHidden(d)) return;
             var t = (d.title||'').trim();
             var a = (d.artist||d.authorName||'').trim();
             var al = (d.album||'').trim();
@@ -3761,7 +3999,7 @@ function _beatsShowSuggestions(terms) {
     terms.slice(0,8).forEach(function(item) {
         var row = document.createElement('div');
         row.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:0.83rem;color:var(--text);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;';
-        row.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">' + (item.type==='artist'?'🎤':item.type==='album'?'💿':'🎵') + '</span><span style="color:#fff;font-weight:500;">' + escapeHtml(item.label) + '</span>';
+        row.innerHTML = '<span style="color:var(--text-faint);font-size:0.75rem;">' + (item.type==='artist'?'🎤':item.type==='album'?'💿':'🎵') + '</span><span style="color:#fff;font-weight:500;">' + beatsSlot(item.label) + '</span>';
         (function(label) {
             function _pick(e) {
                 e.preventDefault();
@@ -3888,7 +4126,8 @@ window.beatsRenderArtists=function(){
         // Count ALL tracks per artist in one query
         db.collection('beats_tracks').get().then(function(tSnap){
             tSnap.forEach(function(doc){
-                var t=doc.data();
+                var t=doc.data()||{};
+                if(_beatsIsHidden(t)) return;
                 var aid=t.authorId||t.artistDocId;
                 if(aid && artistById[aid]) artistById[aid].count++;
             });
@@ -3905,7 +4144,7 @@ window.beatsRenderArtists=function(){
                 var img=artist.avatarUrl ? '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,#1e293b,#0f172a);overflow:hidden;flex-shrink:0;"><img src="'+_safeCover(artist.avatarUrl)+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'"></div>' : '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,var(--accent),#ea580c);display:flex;align-items:center;justify-content:center;font-size:1.6rem;">🎤</div>';
                 html+='<div onclick="beatsShowArtistPage(\''+artist.id+'\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'\'">';
                 html+=img;
-                html+='<div style="color:var(--heading);font-weight:700;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;">'+escapeHtml(artist.name)+'</div>';
+                html+='<div style="color:var(--heading);font-weight:700;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;">'+beatsSlot(artist.name)+'</div>';
                 html+='<div style="color:var(--text-faint);font-size:0.65rem;">'+artist.count+' track'+(artist.count!==1?'s':'')+(artist.claimed&&artist.claimed!==false?' • ⚡ V4V':'')+'</div>';
                 html+='</div>';
             });
@@ -3952,10 +4191,14 @@ function _v4vPayLabel(r) {
 
 // Show V4V split tip overlay — fans out to each artist's Lightning address
 window.beatsShowV4VTip = async function(track) {
-    if (!track || !track.id) return;
+    if (!track || !track.id || _beatsIsHidden(track)) {
+        if (track && _beatsIsHidden(track) && typeof showToast === 'function') showToast('This track is unavailable');
+        return;
+    }
     var splits = track.v4vSplits || [];
     if (!splits.length) {
-        if (typeof showTipOverlay === 'function') showTipOverlay({ recipientName: track.artist || 'Artist', recipientUid: track.authorId || '', context: 'Bitcoin Beats tip', label: 'Tip Artist' });
+        var tipName = (typeof beatsCensor === 'function') ? beatsCensor(track.artist || 'Artist') : (track.artist || 'Artist');
+        if (typeof showTipOverlay === 'function') showTipOverlay({ recipientName: tipName, recipientUid: track.authorId || '', context: 'Bitcoin Beats tip', label: 'Tip Artist' });
         return;
     }
 
@@ -3976,7 +4219,7 @@ window.beatsShowV4VTip = async function(track) {
         return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;">' +
             '<div style="min-width:36px;text-align:center;padding:3px 6px;background:rgba(247,147,26,0.15);border-radius:6px;color:var(--accent);font-weight:800;font-size:0.78rem;">' + pct + '%</div>' +
             '<div style="flex:1;min-width:0;">' +
-                '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(r.name || 'Artist') + '</div>' +
+                '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(r.name || 'Artist') + '</div>' +
                 '<div style="color:' + statusColor + ';font-size:0.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px;">' +
                     '<span style="font-size:0.45rem;">' + statusDot + '</span>' + icon + ' ' + escapeHtml(label.slice(0,42)) +
                 '</div>' +
@@ -4000,7 +4243,7 @@ window.beatsShowV4VTip = async function(track) {
         '<div style="text-align:center;margin-bottom:14px;">' +
             '<div style="font-size:2rem;margin-bottom:4px;">⚡</div>' +
             '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0 0 4px;">V4V Split — Pay Each Artist</h3>' +
-            '<p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 10px;">' + escapeHtml(track.title || '') + '</p>' +
+            '<p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 10px;">' + beatsSlot(track.title || '') + '</p>' +
         '</div>' +
         '<div style="margin-bottom:12px;max-height:220px;overflow-y:auto;">' + splitsHtml + '</div>' +
         keysendNote +
@@ -4222,7 +4465,7 @@ window.beatsShowArtistClaimCTA = function(artistName) {
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:380px;width:100%;text-align:center;">' +
         '<div style="font-size:2.5rem;margin-bottom:12px;">🎤</div>' +
-        '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:0 0 8px;">Are you ' + escapeHtml(artistName) + '?</h3>' +
+        '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:0 0 8px;">Are you ' + beatsSlot(artistName) + '?</h3>' +
         '<p style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;margin:0 0 16px;">Claim your artist page to manage your profile, update your Lightning address, and receive zaps directly from fans.</p>' +
         '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;margin-bottom:16px;font-size:0.78rem;color:var(--text-muted);line-height:1.6;">' +
             '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">To claim your page, email us:</div>' +
