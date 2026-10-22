@@ -470,6 +470,13 @@ function createNacho() {
             transition: opacity 0.3s;
         }
         #nacho-container.hidden { opacity: 0; pointer-events: none; }
+        /* A minimized deer must not catch taps. Children set pointer-events:auto,
+           so the hidden rule has to win on every descendant. The 🦌 pill is outside. */
+        #nacho-container.hidden,
+        #nacho-container.hidden * {
+            pointer-events: none !important;
+            visibility: hidden !important;
+        }
         #nacho-container.nacho-dragging,
         #nacho-avatar.nacho-dragging,
         #nacho-toggle.nacho-dragging {
@@ -862,12 +869,31 @@ function createNacho() {
             opacity: 1;
             pointer-events: auto;
         }
+        /* Freeze the idle bob while the minimize control is the target, and on
+           touch where that control is always showing. */
+        #nacho-container:hover #nacho-avatar,
+        #nacho-container:focus-within #nacho-avatar {
+            animation: none !important;
+        }
         #nachoHideBtn:hover, #nachoHideBtn:focus {
             border-color: var(--accent, #f7931a);
             color: var(--accent, #f7931a);
         }
-        @media (hover: none), (pointer: coarse), (max-width: 900px) {
+        @media (hover: none) and (pointer: coarse) {
             #nachoHideBtn { opacity: 1; pointer-events: auto; }
+            #nacho-avatar { animation: none !important; }
+        }
+        @media (max-width: 900px) {
+            #nachoHideBtn {
+                opacity: 1;
+                pointer-events: auto;
+                top: 0;
+                left: 0;
+                width: 22px;
+                height: 22px;
+                font-size: 16px;
+            }
+            #nacho-avatar { animation: none !important; }
         }
 
         /* Tablet — sidebar is 280px */
@@ -877,7 +903,7 @@ function createNacho() {
         }
         /* Mobile — sidebar hidden, Nacho goes bottom-left, above clutter */
         @media (max-width: 900px) {
-            #nacho-container { bottom: 76px; left: 10px; }
+            #nacho-container { bottom: 76px; left: 32px; }
             #nacho-avatar { width: 56px; height: 56px; }
             #nacho-bubble {
                 max-width: min(260px, calc(100vw - 80px));
@@ -892,7 +918,7 @@ function createNacho() {
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: 76px; left: 8px; }
+            #nacho-container { bottom: 76px; left: 32px; }
             #nacho-avatar { width: 52px; height: 52px; }
             #nacho-bubble {
                 max-width: min(230px, calc(100vw - 72px));
@@ -1073,6 +1099,11 @@ function createNacho() {
         if (!avatar) return;
         var lpTimer = null;
         var lpFired = false;
+        window._nachoCancelLongPress = function() {
+            clearTimeout(lpTimer);
+            lpTimer = null;
+            lpFired = false;
+        };
         avatar.addEventListener('touchstart', function(e) {
             lpFired = false;
             lpTimer = setTimeout(function() {
@@ -2282,10 +2313,12 @@ if (document.readyState === 'loading') {
     function getAvatar() { return document.getElementById('nacho-avatar'); }
     function getToggle() { return document.getElementById('nacho-toggle'); }
 
+    function finiteNum(n) { return typeof n === 'number' && isFinite(n); }
     function readPos(key) {
         try {
             var saved = JSON.parse(localStorage.getItem(key) || 'null');
-            if (!saved || typeof saved.left !== 'number' || !isFinite(saved.left)) return null;
+            if (!saved || !finiteNum(saved.left)) return null;
+            if (!finiteNum(saved.top) && !finiteNum(saved.bottom)) return null;
             return saved;
         } catch (e) { return null; }
     }
@@ -2305,10 +2338,14 @@ if (document.readyState === 'loading') {
         if (window.innerWidth <= 900) return 64;
         return 8;
     }
+    function sideMargin() {
+        // Phones: keep the minimize control out of the back-swipe edge.
+        return window.innerWidth <= 900 ? 32 : 8;
+    }
     function clampBox(left, top, width, height) {
         var w = width || 52;
         var h = height || 52;
-        var margin = 8;
+        var margin = sideMargin();
         var maxL = Math.max(margin, window.innerWidth - w - margin);
         var maxT = Math.max(topInset(), window.innerHeight - h - margin);
         var minT = Math.min(topInset(), maxT);
@@ -2407,10 +2444,9 @@ if (document.readyState === 'loading') {
             if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
             shiftTo(box.left, box.top);
         }
-        var persist = legacyContainer || saved.v !== 2
-            || Math.abs(box.left - saved.left) > 1
-            || Math.abs(box.top - (typeof saved.top === 'number' ? saved.top : box.top)) > 1;
-        if (persist) writePos(POS_KEY, box.left, box.top);
+        // A resize or rotation only clamps what is on screen. The saved spot
+        // stays put so turning the phone back restores it.
+        if (legacyContainer || saved.v !== 2) writePos(POS_KEY, box.left, box.top);
     }
 
     function placePill(saved) {
@@ -2429,14 +2465,52 @@ if (document.readyState === 'loading') {
         if (typeof top !== 'number') return;
         var box = clampBox(saved.left, top, rect.width, rect.height);
         applyPos(t, box.left, box.top);
-        var changed = saved.v !== 2 || Math.abs(box.left - saved.left) > 1 || Math.abs(box.top - top) > 1;
-        if (changed) writePos(PILL_KEY, box.left, box.top);
+        if (saved.v !== 2) writePos(PILL_KEY, box.left, box.top);
+    }
+
+    function onTv() {
+        if (document.body && document.body.classList.contains('tctv-active')) return true;
+        var hash = window.location.hash || '';
+        var path = window.location.pathname || '';
+        return hash === '#timechain-tv' || hash === '#tv' || path.indexOf('timechain-tv') !== -1;
+    }
+    function clearFixed(el) {
+        if (!el) return;
+        el.style.left = '';
+        el.style.top = '';
+        el.style.right = '';
+        el.style.bottom = '';
+    }
+    // No saved spot on Timechain TV: sit upper-right, clear of the EPG channel column.
+    function placeTvDefault() {
+        var c = getContainer();
+        var a = getAvatar();
+        if (!c || !a || c.classList.contains('nacho-suspended') || c.classList.contains('nacho-dragging')) return;
+        var m = measureAvatar();
+        if (!m) return;
+        var margin = sideMargin();
+        var top = window.innerWidth <= 900 ? 76 : 96;
+        var left = window.innerWidth - m.w - margin;
+        var box = clampBox(left, top, m.w, m.h);
+        applyPos(c, m.cr.left + (box.left - m.ar.left), m.cr.top + (box.top - m.ar.top));
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        m = measureAvatar();
+        if (!m) return;
+        if (Math.abs(m.ar.left - box.left) > 1 || Math.abs(m.ar.top - box.top) > 1) {
+            applyPos(c, m.cr.left + (box.left - m.ar.left), m.cr.top + (box.top - m.ar.top));
+        }
     }
 
     window._nachoRestorePosition = function() {
+        var c = getContainer();
+        if (c && c.classList.contains('nacho-dragging')) return;
         var deer = readPos(POS_KEY);
         if (deer) placeAvatar(deer);
-        else if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        else if (onTv()) placeTvDefault();
+        else if (c) {
+            clearFixed(c);
+            if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        }
         var pill = readPos(PILL_KEY);
         if (pill) placePill(pill);
     };
@@ -2462,6 +2536,13 @@ if (document.readyState === 'loading') {
             if (!moved) {
                 moved = true;
                 window._nachoDragging = true;
+                if (typeof window._nachoCancelLongPress === 'function') window._nachoCancelLongPress();
+                var av = getAvatar();
+                if (av) {
+                    ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(function(cls) {
+                        av.classList.remove(cls);
+                    });
+                }
             }
             if (e.cancelable) e.preventDefault();
             if (opts.move) opts.move(mover, originLeft, originTop, dx, dy);
@@ -2513,6 +2594,7 @@ if (document.readyState === 'loading') {
             var r = mover.getBoundingClientRect();
             originLeft = r.left;
             originTop = r.top;
+            if (opts.snap) dragSnap = opts.snap();
             try { hitEl.setPointerCapture(e.pointerId); } catch (err) {}
             document.addEventListener('pointermove', onMove, true);
             document.addEventListener('pointerup', finish, true);
@@ -2527,8 +2609,9 @@ if (document.readyState === 'loading') {
         }, true);
     }
 
+    var dragSnap = null;
     function moveContainer(mover, originLeft, originTop, dx, dy) {
-        var off = avatarOffset();
+        var off = dragSnap || { x: 0, y: 0, w: 80, h: 80 };
         var avatarLeft = originLeft + off.x + dx;
         var avatarTop = originTop + off.y + dy;
         var box = clampBox(avatarLeft, avatarTop, off.w, off.h);
@@ -2548,6 +2631,10 @@ if (document.readyState === 'loading') {
                 return isChromeTarget(target);
             },
             mover: getContainer,
+            snap: function() {
+                var m = measureAvatar();
+                return m || { x: 0, y: 0, w: 80, h: 80 };
+            },
             suppressEl: getAvatar,
             move: moveContainer,
             commit: function() {
@@ -2585,6 +2672,17 @@ if (document.readyState === 'loading') {
         }
 
         window._nachoRestorePosition();
+
+        if (window.MutationObserver && document.body && !window._nachoTvWatch) {
+            window._nachoTvWatch = true;
+            var tvOn = document.body.classList.contains('tctv-active');
+            new MutationObserver(function() {
+                var now = document.body.classList.contains('tctv-active');
+                if (now === tvOn || window._nachoDragging) return;
+                tvOn = now;
+                window._nachoRestorePosition();
+            }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        }
 
         var resizeTimer = null;
         function onViewportChange() {
@@ -2668,6 +2766,7 @@ window.updateNachoAvatarForPage = function() {
     }
     // Re-attach story button listeners after avatar rebuild
     if (typeof attachNachoStoryBtn === 'function') attachNachoStoryBtn();
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
 };
 
 // Hook into navigation to update avatar when page changes

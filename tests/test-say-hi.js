@@ -399,16 +399,18 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes('openSayHi()'));
     assert.ok(html.includes('#em-quick-actions { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }'));
     assert.ok(html.includes('@media (max-width: 480px)') && html.includes('#em-quick-actions { grid-template-columns: repeat(3, 1fr); }'));
+    assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2284'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2271'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2265'") === false);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2271'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2284'"));
     assert.ok(sw.includes('nacho-fly.svg') === false);
     assert.ok(sw.includes('nacho-deer.svg'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2283'") === false);
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2271'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
 });
 
 test('Nacho and search can open Say hi', function () {
