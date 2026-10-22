@@ -259,13 +259,42 @@ later('gift count and reward rolls use the integer odds', function() {
     assert.deepStrictEqual(threeKeys.keyLabels, ['7F', 'B2', '3A']);
     const twoCiphers = rollGiftReward({ randomInt: scripted([3000, 7000, 1, 2]), labels: LABELS, closet: CLOSET });
     assert.deepStrictEqual(twoCiphers.cipherLabels, ['7F', 'B2']);
-    const tickets = rollGiftReward({ randomInt: scripted([7499, 9000]), labels: LABELS, closet: CLOSET });
+    const tickets = rollGiftReward({ randomInt: scripted([7949, 9000]), labels: LABELS, closet: CLOSET });
+    assert.strictEqual(tickets.rewardType, 'tickets');
     assert.strictEqual(tickets.ticketCount, 3);
-    const xp = rollGiftReward({ randomInt: scripted([8600, 4999]), labels: LABELS, closet: CLOSET });
+    const xp = rollGiftReward({ randomInt: scripted([7950, 4999]), labels: LABELS, closet: CLOSET });
+    assert.strictEqual(xp.rewardType, 'xp_bonus');
     assert.strictEqual(xp.xpAmount, 50);
-    assert.strictEqual(rollGiftReward({ randomInt: scripted([8700]), labels: LABELS, closet: CLOSET }).rewardType, 'streak_shield');
+    assert.strictEqual(rollGiftReward({ randomInt: scripted([9149, 8499]), labels: LABELS, closet: CLOSET }).xpAmount, 100);
+    assert.strictEqual(rollGiftReward({ randomInt: scripted([9150]), labels: LABELS, closet: CLOSET }).rewardType, 'streak_shield');
+    assert.strictEqual(rollGiftReward({ randomInt: scripted([9649]), labels: LABELS, closet: CLOSET }).rewardType, 'streak_shield');
+    assert.strictEqual(rollGiftReward({ randomInt: scripted([9650]), labels: LABELS, closet: CLOSET }).rewardType, 'nacho_shoutout');
     assert.strictEqual(rollGiftReward({ randomInt: scripted([9699]), labels: LABELS, closet: CLOSET }).rewardType, 'nacho_shoutout');
     assert.strictEqual(rollGiftReward({ randomInt: scripted([9700, 0]), labels: LABELS, closet: CLOSET }).itemId, 'crown');
+});
+
+later('a Nacho shoutout is 0.5 percent and the freed share is tickets', function() {
+    const counts = {};
+    for (let r = 0; r < 10000; r++) {
+        let n = 0;
+        const reward = rollGiftReward({
+            randomInt: function() {
+                n += 1;
+                return n === 1 ? r : 0;
+            },
+            labels: LABELS,
+            closet: CLOSET,
+        });
+        counts[reward.rewardType] = (counts[reward.rewardType] || 0) + 1;
+    }
+    assert.strictEqual(counts.nacho_shoutout, 50);
+    assert.strictEqual(counts.nacho_shoutout / 10000, 0.005);
+    assert.strictEqual(counts.tickets, 2950);
+    assert.strictEqual(counts.keys, 3000);
+    assert.strictEqual(counts.locked_ciphers, 2000);
+    assert.strictEqual(counts.xp_bonus, 1200);
+    assert.strictEqual(counts.streak_shield, 500);
+    assert.strictEqual(counts.closet_item, 300);
 });
 
 later('key-send XP stops at the 500 point daily cap', function() {

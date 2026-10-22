@@ -111,8 +111,11 @@ function _rewardEmoji(rw) {
     return '🎁';
 }
 
+var SHOUTOUT_WEEK_MSG = "You already got a Nacho shoutout this week, so here's +100 XP!";
+
 function _rewardLabel(rw) {
     if (!rw) return 'Reward';
+    if (rw.shoutoutConverted) return rw.conversionMessage || SHOUTOUT_WEEK_MSG;
     if (rw.rewardType === 'tickets') return '+' + (rw.ticketCount || 1) + ' Orange Ticket' + ((rw.ticketCount || 1) > 1 ? 's' : '');
     if (rw.rewardType === 'xp_bonus') return '+' + (rw.xpAmount || 50) + ' XP';
     if (rw.rewardType === 'xp_tickets') {
@@ -542,7 +545,7 @@ window.openSingleGift = async function(giftId) {
         await anim;
         _markGiftRow(giftId, rw, false);
         _confetti();
-        _toast('🎁 ' + _rewardLabel(rw));
+        _toast('🎁 ' + _rewardLabel(rw), rw.shoutoutConverted ? 6000 : undefined);
         await _refreshHoldingsViews();
     } catch (e) {
         await anim;
@@ -604,7 +607,7 @@ window.openAllPostSpinGifts = async function() {
 };
 
 function _summarize(list) {
-    var tickets = 0, xp = 0, keys = 0, ciphers = 0, shields = 0, sats = 0;
+    var tickets = 0, xp = 0, keys = 0, ciphers = 0, shields = 0, sats = 0, converted = 0;
     list.forEach(function(rw) {
         if (rw.rewardType === 'tickets') tickets += rw.ticketCount || 1;
         if (rw.rewardType === 'xp_bonus' || rw.rewardType === 'xp_tickets') xp += rw.xpAmount || 0;
@@ -613,10 +616,12 @@ function _summarize(list) {
         if (rw.rewardType === 'locked_ciphers') ciphers += (rw.cipherLabels || []).length;
         if (rw.rewardType === 'streak_shield') shields++;
         if (rw.rewardType === 'sats') sats += rw.satsAmount || 0;
+        if (rw.shoutoutConverted) converted++;
     });
     var parts = [];
     if (tickets) parts.push('+' + tickets + ' tickets');
     if (xp) parts.push('+' + xp + ' XP');
+    if (converted) parts.push(SHOUTOUT_WEEK_MSG);
     if (keys) parts.push(keys + ' key' + (keys > 1 ? 's' : ''));
     if (ciphers) parts.push(ciphers + ' cipher' + (ciphers > 1 ? 's' : ''));
     if (shields) parts.push(shields + ' shield' + (shields > 1 ? 's' : ''));

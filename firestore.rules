@@ -119,6 +119,7 @@ service cloud.firestore {
                         'forumPosts', 'forumReplies', 'lastSpinDate',
                         // Gifting system (CF-only)
                         'lastGiftSpinDate', 'giftsOpenedToday', 'giftsOpenedDate',
+                        'lastShoutoutAt',
                         'ciphersDecryptedToday', 'ciphersDecryptedDate',
                         'keysSentDate', 'keysSentTo',
                         'marketListings', 'marketMessages',
