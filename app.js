@@ -5135,6 +5135,55 @@ if (locked) {
         // Hash routing is handled by the IIFE handleHash() below and its 800ms load fallback.
         // Do not add go() / route calls here — they race with the IIFE and cause skeleton lock.
     };
+
+    function _showAppShell() {
+        if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
+        var home = document.getElementById('home');
+        if (home) home.classList.add('hidden');
+        var hero = document.getElementById('hero');
+        if (hero) { hero.innerHTML = ''; hero.style.display = 'none'; }
+        var msgs = document.getElementById('msgs');
+        if (msgs) { msgs.innerHTML = ''; msgs.style.display = 'none'; }
+        var fc = document.getElementById('forumContainer');
+        if (fc) fc.style.display = 'block';
+        if (typeof isMobile === 'function' && isMobile()) {
+            var sb = document.getElementById('sidebar');
+            if (sb) sb.classList.remove('open');
+        }
+        return fc;
+    }
+
+    function _openWhenReady(ready, open) {
+        var attempt = 0;
+        (function tryOpen() {
+            if (ready()) { open(); return; }
+            if (++attempt < 80) setTimeout(tryOpen, 100);
+        })();
+    }
+
+    // First-load and in-app deep links. fromPopState-style openers keep the hash.
+    window.bqOpenForumPost = function(postId) {
+        var id = String(postId || '');
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return false;
+        _showAppShell();
+        try { history.replaceState({ channel: 'forum', forumPost: id }, '', '#forum/post/' + id); } catch (e) {}
+        _openWhenReady(function() {
+            return typeof forumViewPost === 'function' && typeof db !== 'undefined';
+        }, function() { forumViewPost(id, true); });
+        return true;
+    };
+
+    window.bqOpenMarketListing = function(listingId) {
+        var id = String(listingId || '');
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return false;
+        _showAppShell();
+        try { history.replaceState({ channel: 'marketplace', mktView: 'listing', listingId: id }, '', '#marketplace/listing/' + id); } catch (e) {}
+        _openWhenReady(function() {
+            return typeof renderMarketplace === 'function' && typeof db !== 'undefined';
+        }, function() { renderMarketplace({ listingId: id, _noHistory: true }); });
+        return true;
+    };
+
 // =============================================
 // DIRECT HASH ROUTING (#nacho, #forum, #marketplace, etc.)
 // =============================================
@@ -5165,6 +5214,19 @@ if (locked) {
             if (!document.getElementById('msgs') || !document.getElementById('home')) {
                 waited += 200;
                 setTimeout(tryRoute, 200);
+                return;
+            }
+
+            // Deep links must run on a cold load. popstate already handles them
+            // after the first navigation; this is the first-paint path.
+            if (hash.indexOf('forum/post/') === 0) {
+                var _fpId = hash.slice('forum/post/'.length).split('/')[0];
+                if (typeof window.bqOpenForumPost === 'function' && window.bqOpenForumPost(_fpId)) return;
+                return;
+            }
+            if (hash.indexOf('marketplace/listing/') === 0) {
+                var _mlId = hash.slice('marketplace/listing/'.length).split('/')[0];
+                if (typeof window.bqOpenMarketListing === 'function' && window.bqOpenMarketListing(_mlId)) return;
                 return;
             }
             

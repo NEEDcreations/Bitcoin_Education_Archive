@@ -797,13 +797,29 @@ function formatChatText(text, mentionUid) {
     // Store placeholders to survive the on* sanitizer, then restore after
     var _inAppLinks = [];
     var _safeMentions = [];
-    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(match, label, route) {
-        var _action = route === 'pvp' ? "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof enterPVPMode==='function')enterPVPMode();"
-                     : route === 'nacho' ? "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();"
-                     : route === 'quests' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();"
-                     : route === 'favor' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();},100);"
-                     : (route === 'questhub' || route === 'raid' || route === 'raid-hub') ? "event.preventDefault();if(typeof openRaidHub==='function')openRaidHub();"
-                     : "event.preventDefault();if(typeof go==='function')go('" + route + "');";
+    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(match, label, route) {
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(route)) return label;
+        var _deepId = '';
+        var _action;
+        if (route.indexOf('forum/post/') === 0) {
+            _deepId = route.slice('forum/post/'.length);
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenForumPost==='function')window.bqOpenForumPost('" + _deepId + "');";
+        } else if (route.indexOf('marketplace/listing/') === 0) {
+            _deepId = route.slice('marketplace/listing/'.length);
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenMarketListing==='function')window.bqOpenMarketListing('" + _deepId + "');";
+        } else if (route === 'pvp') {
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof enterPVPMode==='function')enterPVPMode();";
+        } else if (route === 'nacho') {
+            _action = "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();";
+        } else if (route === 'quests') {
+            _action = "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();";
+        } else if (route === 'favor') {
+            _action = "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();},100);";
+        } else if (route === 'questhub' || route === 'raid' || route === 'raid-hub') {
+            _action = "event.preventDefault();if(typeof openRaidHub==='function')openRaidHub();";
+        } else {
+            _action = "event.preventDefault();if(typeof go==='function')go('" + route + "');";
+        }
         var placeholder = '%%INAPPLINK_' + _inAppLinks.length + '%%';
         _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>');
         return placeholder;
@@ -849,7 +865,7 @@ function formatChatText(text, mentionUid) {
         // If we have a direct uid (from level-up announcements etc), use it for the first @mention
         // Greedy multi-word match; terminators are keyword verbs or '!?' only — NOT bare punctuation
         // (bare : or . appear mid-sentence in "earned a badge:" and must NOT be swallowed into the link)
-        text = text.replace(/@([A-Za-z0-9_\\-\\u2026\\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\\n]|$))[A-Za-z0-9_\\-\\u2026\\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?]|$)/, function(match, name) {
+        text = text.replace(/@([A-Za-z0-9_\\-\\u2026\\.]+(?:(?: )(?!(?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\\n]|$))[A-Za-z0-9_\\-\\u2026\\.]+)*)(?= (?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?]|$)/, function(match, name) {
             _mentionHandled = true;
             var safeName = name.trim();
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
@@ -858,7 +874,7 @@ function formatChatText(text, mentionUid) {
         });
     }
     // Handle remaining @mentions without uid — try multi-word first (handles display names with spaces)
-    text = text.replace(/@([A-Za-z0-9_\\-\\u2026\\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\\n]|$))[A-Za-z0-9_\\-\\u2026\\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?]|$)/g, function(match, name) {
+    text = text.replace(/@([A-Za-z0-9_\\-\\u2026\\.]+(?:(?: )(?!(?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\\n]|$))[A-Za-z0-9_\\-\\u2026\\.]+)*)(?= (?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?]|$)/g, function(match, name) {
         if (_mentionHandled) return match; // already handled by uid branch above
         var safeName = name.trim().replace(/['"]/g, '');
         if (!safeName) return match;
@@ -3663,18 +3679,26 @@ if (!window._annHashClickBound) {
         e.preventDefault();
         e.stopPropagation();
         var hash = a.getAttribute('data-ann-hash') || '';
-        if (!/^[a-zA-Z0-9_-]+$/.test(hash)) return;
+        if (!/^(?:[a-zA-Z0-9_-]+|(?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
         if (typeof window._annNavToHash === 'function') window._annNavToHash(hash);
     }, true);
 }
 
 window._annNavToHash = function(hash) {
-    if (!hash || !/^[a-zA-Z0-9_-]+$/.test(hash)) return;
+    if (!hash || !/^(?:[a-zA-Z0-9_-]+|(?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
     var wasOverlayOpen = !!window._chatOverlayOpen;
     // Close overlay if open
     if (wasOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
     var delay = wasOverlayOpen ? 320 : 0;
     setTimeout(function() {
+        if (hash.indexOf('forum/post/') === 0 && typeof window.bqOpenForumPost === 'function') {
+            window.bqOpenForumPost(hash.slice('forum/post/'.length));
+            return;
+        }
+        if (hash.indexOf('marketplace/listing/') === 0 && typeof window.bqOpenMarketListing === 'function') {
+            window.bqOpenMarketListing(hash.slice('marketplace/listing/'.length));
+            return;
+        }
         // Map hash → proper navigation action
         // showQuestHub / showUserProfile etc. are overlays that work on top of any view
         // but channel routes (forum, marketplace, beats…) need go() so forumContainer is hidden first
@@ -3752,9 +3776,10 @@ function _renderAnnouncementItem(doc, context) {
         }
     });
 
-    // 1b. [text](#hash) — ONLY allow [a-zA-Z0-9_-] hashes; never interpolate into onclick
-    // (HTML-escaped quotes decode inside attributes and enable stored XSS).
-    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(_, label, hash) {
+    // 1b. [text](#hash) — single-segment hashes, plus forum/post and marketplace/listing ids.
+    // Never interpolate into onclick (HTML-escaped quotes decode inside attributes).
+    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(_, label, hash) {
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return label;
         return '<a href="#' + hash + '" data-ann-hash="' + hash + '" class="ann-hash-link" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
     });
 
@@ -3762,7 +3787,7 @@ function _renderAnnouncementItem(doc, context) {
     var mentionUid = m.mentionUid || '';
     if (mentionUid) {
         // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
-        text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
@@ -3770,7 +3795,7 @@ function _renderAnnouncementItem(doc, context) {
         // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
         // No uid — try multi-word first (for system announcements missing uid)
         var _annMentionFound = false;
-        text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
             _annMentionFound = true;
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
@@ -4207,7 +4232,7 @@ if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'f
     try { auth.onAuthStateChanged(function() { setTimeout(_paintSayHiButton, 600); }); } catch (e) {}
 }
 // SAY-HI END
-
+window.formatChatText = formatChatText;
 console.log('[CHAT] Global chat module loaded');
 }();
 
