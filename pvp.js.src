@@ -135,9 +135,18 @@
         return 'Anonymous Pleb';
     }
 
+    function pvpPicHostOk(url) {
+        var s = String(url || '');
+        if (!s || s.length > 400) return false;
+        return /^https:\/\/firebasestorage\.googleapis\.com\//.test(s)
+            || /^https:\/\/[a-z0-9-]+\.firebasestorage\.app\//.test(s)
+            || /^https:\/\/assets\.bitcoineducation\.quest\//.test(s)
+            || /^https:\/\/lh3\.googleusercontent\.com\//.test(s);
+    }
+
     function getMyProfilePic() {
-        if (typeof currentUser !== 'undefined' && currentUser && currentUser.profilePic) return currentUser.profilePic;
-        return '';
+        var pic = (typeof currentUser !== 'undefined' && currentUser && currentUser.profilePic) ? currentUser.profilePic : '';
+        return pvpPicHostOk(pic) ? pic : '';
     }
 
     // =============================================
@@ -969,7 +978,7 @@
     }
 
     function lobbyDisplayName() {
-        var name = String(getMyDisplayName() || '').replace(/[\r\n<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+        var name = String(getMyDisplayName() || '').replace(/[\r\n<>\[\]()@#*`_~|\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
         if (name.length < 2) name = 'Bitcoiner';
         return name;
     }

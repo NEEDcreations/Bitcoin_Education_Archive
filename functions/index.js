@@ -147,7 +147,6 @@ const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
 const pvpFlow = require('./src/pvpFlow');
-const { splitDailyXp } = require('./src/dailyXp');
 
 // ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
 // String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
@@ -4119,15 +4118,14 @@ exports.pvpSubmitAnswer = functionsV1.runWith({ enforceAppCheck: true }).https.o
     const matchRef = db.collection('pvp_matches').doc(String(matchId));
     const result = await db.runTransaction(async (tx) => {
         const matchDoc = await tx.get(matchRef);
+        const keyDoc = await tx.get(db.collection('pvp_answer_keys').doc(String(matchId)));
         if (!matchDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Match not found');
         const match = matchDoc.data();
         if (match.status !== 'active') throw new functionsV1.https.HttpsError('failed-precondition', 'Match not active');
         if (match.currentQ !== questionIndex) throw new functionsV1.https.HttpsError('failed-precondition', 'Wrong question index');
 
-        let myKey;
-        if (match.player1 && match.player1.uid === uid) myKey = 'player1';
-        else if (match.player2 && match.player2.uid === uid) myKey = 'player2';
-        else throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
+        const myKey = pvpFlow.playerKeyForUid(keyDoc.exists ? keyDoc.data().playerUids : null, uid);
+        if (!myKey) throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
 
         const myAnswers = (match[myKey].answers || []).slice();
         if (myAnswers.length > questionIndex) return { alreadyAnswered: true };
@@ -4161,13 +4159,13 @@ exports.pvpTimeoutOpponent = functionsV1.runWith({ enforceAppCheck: true }).http
     const matchRef = db.collection('pvp_matches').doc(matchId);
     return db.runTransaction(async (tx) => {
         const matchDoc = await tx.get(matchRef);
+        const keyDoc = await tx.get(db.collection('pvp_answer_keys').doc(matchId));
         if (!matchDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Match not found');
         const match = matchDoc.data();
         if (match.status !== 'active') throw new functionsV1.https.HttpsError('failed-precondition', 'Match not active');
-        let myKey, oppKey;
-        if (match.player1 && match.player1.uid === uid) { myKey = 'player1'; oppKey = 'player2'; }
-        else if (match.player2 && match.player2.uid === uid) { myKey = 'player2'; oppKey = 'player1'; }
-        else throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
+        const myKey = pvpFlow.playerKeyForUid(keyDoc.exists ? keyDoc.data().playerUids : null, uid);
+        if (!myKey) throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
+        const oppKey = myKey === 'player1' ? 'player2' : 'player1';
         const q = match.currentQ || 0;
         const myAnswers = (match[myKey] && match[myKey].answers) || [];
         const oppAnswers = ((match[oppKey] && match[oppKey].answers) || []).slice();
@@ -4340,30 +4338,19 @@ exports.pvpStoreAnswerKey = functionsV1.runWith({ enforceAppCheck: true }).https
         }
     }
     const uid = context.auth.uid;
-    const matchSnap = await db.collection('pvp_matches').doc(matchId).get();
-    if (!matchSnap.exists) throw new functionsV1.https.HttpsError('not-found', 'Match not found');
-    const match = matchSnap.data();
-    // Only a player in the match can store the answer key
-    if (match.player1.uid !== uid && match.player2.uid !== uid) {
-        throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
-    }
     const keyRef = db.collection('pvp_answer_keys').doc(matchId);
     const existing = await keyRef.get();
-
-    // Initial store: only if not already set. pvpCreateMatch is the normal writer.
-    if (existing.exists) return { success: true, alreadySet: true };
-    await keyRef.set({
-        keys: keys.map((correct, i) => ({ questionIndex: i, correct })),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        setBy: uid
-    });
-    return { success: true };
+    // Keys and player uids are written by pvpCreateMatch. Clients cannot plant either.
+    if (!existing.exists) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Answer keys are server-owned');
+    }
+    const mine = pvpFlow.playerKeyForUid(existing.data().playerUids, uid);
+    if (!mine) throw new functionsV1.https.HttpsError('permission-denied', 'Not a player in this match');
+    return { success: true, alreadySet: true };
 });
 
 function pvpSafePic(url) {
-    const s = String(url || '');
-    if (/^https:\/\/\S{1,400}$/.test(s)) return s;
-    return '';
+    return pvpFlow.pvpPicAllowed(url);
 }
 
 // ── PVP Match Creation (server-side, hides answer keys) ──
@@ -4469,6 +4456,9 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         // Store answer keys in server-only collection
         tx.set(db.collection('pvp_answer_keys').doc(matchRef.id), {
             keys: answerKeys,
+            playerUids: { player1: p1Uid, player2: callerUid },
+            player1Name: p1Name,
+            player2Name: p2Name,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
@@ -8013,14 +8003,18 @@ async function pvpAccountFlags(uid) {
     };
 }
 
-// Grant match XP and W/L once. pvp_rewards/{matchId} is the claim lock.
+// Grant match XP, W/L, and one win ticket from the server-owned player uids.
+// pvp_rewards/{matchId} is the claim lock, so a replay cannot mint a second ticket.
 async function settlePvpMatch(matchId, after) {
     if (!after || (after.status !== 'finished' && after.status !== 'forfeit')) return;
     if (after.rewardsGranted === true) return;
+    const keySnap = await db.collection('pvp_answer_keys').doc(matchId).get();
+    const keyData = keySnap.exists ? keySnap.data() : {};
+    const ids = keyData.playerUids || null;
+    if (!ids || !ids.player1 || !ids.player2) return;
     const p1 = after.player1 || {};
     const p2 = after.player2 || {};
-    if (!p1.uid || !p2.uid) return;
-    const [f1, f2] = await Promise.all([pvpAccountFlags(p1.uid), pvpAccountFlags(p2.uid)]);
+    const [f1, f2] = await Promise.all([pvpAccountFlags(ids.player1), pvpAccountFlags(ids.player2)]);
     const plan = pvpFlow.planPvpReward({
         matchId: matchId,
         status: after.status,
@@ -8028,12 +8022,16 @@ async function settlePvpMatch(matchId, after) {
         forfeitedBy: after.forfeitedBy || '',
         forfeitReason: after.forfeitReason || '',
         player1: {
-            uid: p1.uid, name: p1.name, score: p1.score || 0,
+            uid: ids.player1,
+            name: keyData.player1Name || '',
+            score: p1.score || 0,
             roundWins: pvpFlow.countWins(p1.answers),
             banned: f1.banned, anonymous: f1.anonymous,
         },
         player2: {
-            uid: p2.uid, name: p2.name, score: p2.score || 0,
+            uid: ids.player2,
+            name: keyData.player2Name || '',
+            score: p2.score || 0,
             roundWins: pvpFlow.countWins(p2.answers),
             banned: f2.banned, anonymous: f2.anonymous,
         },
@@ -8053,34 +8051,68 @@ async function settlePvpMatch(matchId, after) {
         const dailyRefs = plan.players.map(function (p) {
             return db.collection('users').doc(p.uid).collection('daily_points').doc(offsetToday);
         });
+        const ticketRefs = plan.players.map(function (p) {
+            return db.collection('users').doc(p.uid).collection('daily_action_counts').doc(offsetToday + '_pvp_win_ticket');
+        });
         const userSnaps = [];
         const dailySnaps = [];
+        const ticketSnaps = [];
         for (let i = 0; i < userRefs.length; i++) {
             userSnaps.push(await tx.get(userRefs[i]));
             dailySnaps.push(await tx.get(dailyRefs[i]));
+            ticketSnaps.push(await tx.get(ticketRefs[i]));
         }
         const applied = [];
         for (let i = 0; i < plan.players.length; i++) {
             const p = plan.players[i];
             if (!userSnaps[i].exists) {
-                applied.push({ uid: p.uid, points: 0, overflow: 0, outcome: p.outcome });
+                applied.push({ uid: p.uid, points: 0, overflowAdded: 0, tickets: 0, outcome: p.outcome });
                 continue;
             }
             const used = dailySnaps[i].exists ? (dailySnaps[i].data().total || 0) : 0;
-            const split = splitDailyXp(used, p.points);
+            const grant = awardActions.planGrant({
+                xp: p.points,
+                dailyUsed: used,
+                dailyCap: awardActions.DAILY_CAP,
+            });
+            const write = pvpFlow.planXpWrite(grant.awarded);
+            const ticket = pvpFlow.planWinTicket(Object.assign({}, p, {
+                ticketClaimedToday: ticketSnaps[i].exists,
+            }));
             const upd = {};
-            if (split.awarded > 0) upd.points = admin.firestore.FieldValue.increment(split.awarded);
-            if (split.overflowAdded > 0) upd.pendingOverflow = admin.firestore.FieldValue.increment(split.overflowAdded);
+            if (write.write) {
+                upd.points = admin.firestore.FieldValue.increment(write.points);
+                upd.weeklyXP = admin.firestore.FieldValue.increment(write.weeklyXP);
+                upd.monthlyXP = admin.firestore.FieldValue.increment(write.monthlyXP);
+            }
             if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
             if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);
+            if (ticket.tickets > 0) upd.orangeTickets = admin.firestore.FieldValue.increment(ticket.tickets);
             if (Object.keys(upd).length) tx.update(userRefs[i], upd);
-            if (split.awarded > 0) {
-                tx.set(dailyRefs[i], { total: admin.firestore.FieldValue.increment(split.awarded) }, { merge: true });
+            if (write.write) {
+                tx.set(dailyRefs[i], { total: admin.firestore.FieldValue.increment(write.points) }, { merge: true });
             }
-            applied.push({ uid: p.uid, points: split.awarded, overflow: split.overflowAdded, outcome: p.outcome });
+            if (ticket.tickets > 0) {
+                tx.set(ticketRefs[i], {
+                    awardedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    action: 'pvp_win_ticket',
+                });
+            }
+            applied.push({
+                uid: p.uid,
+                points: write.points,
+                weeklyXP: write.weeklyXP,
+                monthlyXP: write.monthlyXP,
+                overflowAdded: write.overflowAdded,
+                pendingOverflow: userSnaps[i].data().pendingOverflow || 0,
+                tickets: ticket.tickets,
+                outcome: p.outcome,
+            });
         }
         const rewardsMap = {};
-        applied.forEach(function (a) { rewardsMap[a.uid] = { points: a.points, outcome: a.outcome }; });
+        applied.forEach(function (a) {
+            rewardsMap[a.uid] = { points: a.points, outcome: a.outcome, tickets: a.tickets };
+        });
         tx.set(rewardRef, {
             matchId: matchId,
             reason: plan.reason,
@@ -8101,61 +8133,98 @@ async function settlePvpMatch(matchId, after) {
 
 async function pushPvpLobby(joinerUid, name) {
     const now = Date.now();
-    const usersSnap = await db.collection('users').where('pushEnabled', '==', true).limit(30).get();
-    if (usersSnap.empty) return;
+    const globalRef = db.collection('pvp_rate').doc('global');
+    const globalSnap = await globalRef.get();
+    const room = pvpFlow.lobbyGlobalRoom(globalSnap.exists ? globalSnap.data() : {}, now);
+    if (!room.push) return;
+    const order = pvpFlow.pushShardOrder(Math.floor(Math.random() * 10));
     const messages = [];
-    for (const userDoc of usersSnap.docs) {
-        const uid = userDoc.id;
-        const data = userDoc.data() || {};
-        const rateRef = db.collection('pvp_rate').doc(uid);
-        const rate = await rateRef.get();
-        const decision = pvpFlow.decidePvpPush({
-            uid: uid,
-            joinerUid: joinerUid,
-            optedIn: true,
-            muted: data.pvpAlertsMuted === true,
-            lastPushMs: rate.exists ? rate.data().lastPvpPushMs : null,
-            nowMs: now,
-        });
-        if (!decision.send) continue;
-        const tokenDoc = await db.collection('push_tokens').doc(uid).get();
-        if (!tokenDoc.exists || !tokenDoc.data().token) continue;
-        await rateRef.set({ lastPvpPushMs: now }, { merge: true });
-        messages.push({
-            token: tokenDoc.data().token,
-            notification: {
-                title: '⚔️ PvP lobby',
-                body: pvpFlow.safeDisplayName(name) + ' is waiting for a PvP match!',
-            },
-            data: { url: 'https://bitcoineducation.quest/#pvp' },
-            webpush: { fcmOptions: { link: 'https://bitcoineducation.quest/#pvp' } },
-        });
-        if (messages.length >= 20) break;
+    for (let s = 0; s < order.length && !messages.length; s++) {
+        const usersSnap = await db.collection('users').where('pvpPushShard', '==', order[s]).limit(40).get();
+        const docs = usersSnap.docs.slice();
+        for (let i = docs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = docs[i];
+            docs[i] = docs[j];
+            docs[j] = tmp;
+        }
+        for (const userDoc of docs) {
+            const uid = userDoc.id;
+            const data = userDoc.data() || {};
+            if (data.pvpPushEnabled !== true) continue;
+            const rateRef = db.collection('pvp_rate').doc(uid);
+            const rate = await rateRef.get();
+            const rateData = rate.exists ? rate.data() : {};
+            const decision = pvpFlow.decidePvpPush({
+                uid: uid,
+                joinerUid: joinerUid,
+                optedIn: true,
+                muted: data.pvpAlertsMuted === true,
+                lastPushMs: rateData.lastPvpPushMs,
+                pushTimes: rateData.pvpPushTimes || [],
+                nowMs: now,
+            });
+            if (!decision.send) continue;
+            const tokenDoc = await db.collection('push_tokens').doc(uid).get();
+            if (!tokenDoc.exists || !tokenDoc.data().token) continue;
+            const prev = Array.isArray(rateData.pvpPushTimes) ? rateData.pvpPushTimes.filter(function (t) {
+                return typeof t === 'number' && (now - t) < pvpFlow.PUSH_WEEK_MS;
+            }) : [];
+            prev.push(now);
+            await rateRef.set({ lastPvpPushMs: now, pvpPushTimes: prev.slice(-5) }, { merge: true });
+            messages.push({
+                token: tokenDoc.data().token,
+                notification: {
+                    title: '⚔️ PvP lobby',
+                    body: pvpFlow.safeDisplayName(name) + ' is waiting for a PvP match!',
+                },
+                data: { url: 'https://bitcoineducation.quest/#pvp' },
+                webpush: { fcmOptions: { link: 'https://bitcoineducation.quest/#pvp' } },
+            });
+            if (messages.length >= 20) break;
+        }
     }
     if (!messages.length) return;
+    await globalRef.set({
+        windowStart: room.windowStart,
+        shoutCount: room.shoutCount,
+        pushCount: room.pushCount + 1,
+        lastPushWaveMs: now,
+    }, { merge: true });
     await admin.messaging().sendEach(messages);
 }
 
 async function syncPvpLobbyLive(docId, before, after) {
     const now = Date.now();
+    const liveRef = db.collection('pvp_lobby_live').doc('current');
+    if (before && after) {
+        const peek = await liveRef.get();
+        const row = peek.exists && peek.data().entries ? peek.data().entries[docId] : null;
+        if (pvpFlow.shouldSkipLobbySummary(before, after, row, now)) return;
+    }
     const becameWaiting = !!(after && after.status === 'waiting' && (!before || before.status !== 'waiting'));
     let trustedName = '';
-    let banned = false;
+    let blocked = false;
     if (becameWaiting) {
         const flags = await pvpAccountFlags(docId);
-        trustedName = pvpFlow.safeDisplayName(flags.username || (after && after.name));
-        banned = flags.banned;
+        const username = String(flags.username || '').trim();
+        trustedName = username ? pvpFlow.safeDisplayName(username) : '';
+        blocked = flags.banned || flags.anonymous || !username || trustedName === 'a Bitcoiner';
     }
-    const liveRef = db.collection('pvp_lobby_live').doc('current');
     await db.runTransaction(async (tx) => {
         const snap = await tx.get(liveRef);
         const entries = (snap.exists && snap.data().entries) || {};
         let row = after;
         if (after && after.status === 'waiting') {
-            const kept = entries[docId] && entries[docId].name;
-            const name = becameWaiting ? trustedName : (kept || pvpFlow.safeDisplayName(after.name));
-            row = Object.assign({}, after, { name: name });
-            if (becameWaiting && banned) row = Object.assign({}, after, { status: 'blocked' });
+            const keptRow = entries[docId];
+            const kept = keptRow && keptRow.name;
+            if (becameWaiting && !blocked) {
+                row = Object.assign({}, after, { name: trustedName, uid: docId });
+            } else if (!becameWaiting && kept) {
+                row = Object.assign({}, after, { name: kept, uid: keptRow.uid || docId });
+            } else {
+                row = Object.assign({}, after, { status: 'blocked' });
+            }
         }
         const next = pvpFlow.mergeLobbyEntry(entries, docId, row, now);
         tx.set(liveRef, {
@@ -8164,29 +8233,41 @@ async function syncPvpLobbyLive(docId, before, after) {
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
     });
-    if (!becameWaiting || banned) return;
+    if (!becameWaiting || blocked) return;
     const rateRef = db.collection('pvp_rate').doc(docId);
+    const globalRef = db.collection('pvp_rate').doc('global');
     const chatDecision = pvpFlow.shouldPostLobbyShout({
         uid: docId,
-        name: trustedName,
+        username: trustedName,
         nowMs: now,
         lastPostMs: null,
         banned: false,
+        anonymous: false,
+        globalCap: false,
     });
     if (!chatDecision.post) return;
     const chatRef = db.collection('global_chat').doc(chatDecision.docId);
     const posted = await db.runTransaction(async (tx) => {
         const rate = await tx.get(rateRef);
+        const global = await tx.get(globalRef);
         const chat = await tx.get(chatRef);
+        const room = pvpFlow.lobbyGlobalRoom(global.exists ? global.data() : {}, Date.now());
         const again = pvpFlow.shouldPostLobbyShout({
             uid: docId,
-            name: trustedName,
+            username: trustedName,
             nowMs: Date.now(),
             lastPostMs: rate.exists ? rate.data().lastLobbyShoutMs : null,
             banned: false,
+            anonymous: false,
+            globalCap: !room.shout,
         });
         if (!again.post || chat.exists) return null;
         tx.set(rateRef, { lastLobbyShoutMs: Date.now() }, { merge: true });
+        tx.set(globalRef, {
+            windowStart: room.windowStart,
+            shoutCount: room.shoutCount + 1,
+            pushCount: room.pushCount,
+        }, { merge: true });
         tx.set(chatRef, {
             uid: 'nacho-bot',
             name: '🦌 Nacho',
@@ -8285,6 +8366,8 @@ exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 5 minutes', timeZo
     const now = Date.now();
     try {
         const snap = await db.collection('pvp_lobby').limit(200).get();
+        const liveSnap = await db.collection('pvp_lobby_live').doc('current').get();
+        const trusted = (liveSnap.exists && liveSnap.data().entries) || {};
         const entries = {};
         let batch = db.batch();
         let ops = 0;
@@ -8302,14 +8385,13 @@ exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 5 minutes', timeZo
                     batch = db.batch();
                     ops = 0;
                 }
-            } else {
-                entries[doc.id] = {
-                    uid: d.uid || doc.id,
-                    name: pvpFlow.safeDisplayName(d.name),
-                    since: pvpFlow.lastSeenMs(d.createdAt) || seen,
-                    lastSeen: seen,
-                };
+                continue;
             }
+            const flags = await pvpAccountFlags(doc.id);
+            const kept = pvpFlow.trustedLobbyKeep(
+                trusted[doc.id], d, now, flags.banned || flags.anonymous, doc.id
+            );
+            if (kept) entries[doc.id] = kept;
         }
         batch.set(db.collection('pvp_lobby_live').doc('current'), {
             entries: entries,

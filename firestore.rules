@@ -846,23 +846,41 @@ service cloud.firestore {
     // PVP LOBBY
     // [AUDIT FIX L-NEW-7] Enforce 1 entry per user via document ID
     // =============================================
+    function pvpPicOk(url) {
+      return url is string
+             && url.size() <= 400
+             && (url == ''
+                 || url.matches('https://firebasestorage\\.googleapis\\.com/.*')
+                 || url.matches('https://[a-z0-9-]+\\.firebasestorage\\.app/.*')
+                 || url.matches('https://assets\\.bitcoineducation\\.quest/.*')
+                 || url.matches('https://lh3\\.googleusercontent\\.com/.*'));
+    }
+
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
-      // One entry per user. The owner writes their own uid. Match claims are
-      // admin-SDK only (pvpCreateMatch), so a client cannot stamp someone else's lobby.
+      // Signed-in, non-anonymous, own uid, strict field list. No extra payload.
       allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && docId == request.auth.uid
+                    && request.resource.data.keys().hasOnly(['uid', 'name', 'profilePic', 'status', 'createdAt', 'lastSeen'])
                     && request.resource.data.uid == request.auth.uid
                     && request.resource.data.status == 'waiting'
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name.size() <= 30
-                    && request.resource.data.lastSeen is number;
-      // Heartbeat only. Status, name, and match fields stay as written.
+                    && request.resource.data.name.matches('[^\\[\\]()@#*`_]+')
+                    && pvpPicOk(request.resource.data.profilePic)
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.lastSeen is number
+                    && request.resource.data.lastSeen <= request.time.toMillis() + 5000
+                    && request.resource.data.lastSeen >= request.time.toMillis() - 120000;
+      // Heartbeat only, and not faster than once every 4 seconds.
       allow update: if request.auth != null
                     && docId == request.auth.uid
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen'])
-                    && request.resource.data.lastSeen is number;
+                    && request.resource.data.lastSeen is number
+                    && request.resource.data.lastSeen >= resource.data.lastSeen + 4000
+                    && request.resource.data.lastSeen <= request.time.toMillis() + 5000;
       allow delete: if request.auth != null
                     && docId == request.auth.uid;
     }
@@ -908,34 +926,38 @@ service cloud.firestore {
       // Matches are created by pvpCreateMatch (admin SDK). Clients cannot
       // plant a questions array or an answer key.
       allow create: if false;
-      // Clients may advance the round, heartbeat, forfeit, or send a taunt.
-      // Answers, scores, and questions are server-only.
+      // No client writes once the match is finished or forfeited.
+      // player1 and player2 are server-owned (uids live in pvp_answer_keys).
+      // A client may forfeit only as itself, and only with manual_leave.
+      // questionWinner may be cleared to null. The timer moves only when a round starts.
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
+                    && resource.data.status in ['countdown', 'active', 'question_result']
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['player1', 'player2',
-                                 'status', 'currentQ', 'questionWinner', 'questionStartedAt',
+                       .hasOnly(['status', 'currentQ', 'questionWinner', 'questionStartedAt',
                                  'player1LastSeen', 'player2LastSeen',
                                  'forfeitedBy', 'forfeitReason', 'lastTaunt'])
-                    && request.resource.data.player1.score   == resource.data.player1.score
-                    && request.resource.data.player1.correct == resource.data.player1.correct
-                    && request.resource.data.player2.score   == resource.data.player2.score
-                    && request.resource.data.player2.correct == resource.data.player2.correct
-                    && request.resource.data.player1.answers == resource.data.player1.answers
-                    && request.resource.data.player2.answers == resource.data.player2.answers
                     && (request.resource.data.status == resource.data.status
-                        || request.resource.data.status == 'active'
-                        || request.resource.data.status == 'forfeit')
+                        || (request.resource.data.status == 'active'
+                            && resource.data.status in ['countdown', 'question_result'])
+                        || (request.resource.data.status == 'forfeit'
+                            && request.resource.data.forfeitedBy == request.auth.uid
+                            && request.resource.data.forfeitReason == 'manual_leave'))
                     && (request.resource.data.currentQ == resource.data.currentQ
                         || (resource.data.status == 'question_result'
                             && request.resource.data.status == 'active'
                             && request.resource.data.currentQ == resource.data.currentQ + 1))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionWinner'])
+                        || request.resource.data.questionWinner == null)
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionStartedAt'])
-                        || request.resource.data.questionStartedAt == request.time)
-                    && (!request.resource.data.keys().hasAny(['forfeitedBy'])
-                        || request.resource.data.forfeitedBy == request.auth.uid
-                        || request.resource.data.forfeitedBy == resource.data.forfeitedBy)
+                        || (request.resource.data.status == 'active'
+                            && request.resource.data.status != resource.data.status
+                            && request.resource.data.questionStartedAt == request.time))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['forfeitedBy', 'forfeitReason'])
+                        || (request.resource.data.status == 'forfeit'
+                            && request.resource.data.forfeitedBy == request.auth.uid
+                            && request.resource.data.forfeitReason == 'manual_leave'))
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastTaunt'])
                         || (request.resource.data.lastTaunt.uid == request.auth.uid
                             && request.resource.data.lastTaunt.emoji is string

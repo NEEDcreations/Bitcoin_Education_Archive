@@ -30,6 +30,7 @@ const TESTS = [
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
     { name: 'PvP Flow', file: 'test-pvp-flow.js' },
+    { name: 'PvP Rules', file: 'test-pvp-rules.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },

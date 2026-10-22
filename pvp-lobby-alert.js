@@ -80,6 +80,7 @@
 
     function dismiss(mark) {
         var el = document.getElementById('pvpLobbyAlert');
+        if (el && el.getAttribute('data-debug') === '1' && !mark) return;
         if (mark && shownKey) {
             remember(shownKey);
             localStorage.setItem(AT_KEY, String(Date.now()));
@@ -103,13 +104,33 @@
         } catch (e) {}
     };
 
+    window._pvpSyncPushOptIn = function (on) {
+        localStorage.setItem('btc_pvp_push', on ? '1' : '0');
+        try {
+            var user = firebase.auth().currentUser;
+            if (!user) return;
+            var ref = firebase.firestore().collection('users').doc(user.uid);
+            if (on) {
+                ref.set({
+                    pvpPushEnabled: true,
+                    pvpPushShard: Math.floor(Math.random() * 10)
+                }, { merge: true }).catch(function () {});
+            } else {
+                ref.set({
+                    pvpPushEnabled: false,
+                    pvpPushShard: firebase.firestore.FieldValue.delete()
+                }, { merge: true }).catch(function () {});
+            }
+        } catch (e) {}
+    };
+
     function joinLobby() {
         dismiss(true);
         function go() {
             if (typeof window.enterPVPMode === 'function') window.enterPVPMode();
         }
         if (typeof window.enterPVPMode === 'function') { go(); return; }
-        var src = 'pvp.js?v=20261022_v2259';
+        var src = 'pvp.js?v=20261022_v2285';
         var existing = document.querySelector('script[src="' + src + '"]');
         if (existing) { setTimeout(go, 400); return; }
         var s = document.createElement('script');
@@ -123,8 +144,8 @@
         var style = document.createElement('style');
         style.id = 'pvpLobbyAlertStyle';
         style.textContent = ''
-            + '#pvpLobbyAlert{position:fixed;left:12px;right:12px;bottom:12px;z-index:120000;max-width:420px;margin:0 auto;'
-            + 'background:var(--card-bg,#1a1a2e);color:var(--text,#fff);border:1px solid var(--border,rgba(255,255,255,.14));'
+            + '#pvpLobbyAlert{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);z-index:260000;max-width:420px;margin:0 auto;'
+            + 'background:#0f172a;color:#fff;border:1px solid rgba(255,255,255,.14);'
             + 'border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,.35);padding:14px;font-family:inherit;}'
             + '#pvpLobbyAlert p{margin:0;font-size:1rem;font-weight:700;line-height:1.35;}'
             + '#pvpLobbyAlert .pvp-alert-top{display:flex;align-items:flex-start;gap:8px;}'
@@ -139,7 +160,8 @@
             + '#pvpLobbyAlertMenu{margin-top:8px;}'
             + '#pvpLobbyAlertMute{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border,rgba(255,255,255,.14));'
             + 'background:var(--bg-side,transparent);color:var(--text,#fff);font-weight:700;}'
-            + '@media (min-width:900px){#pvpLobbyAlert{left:auto;right:24px;bottom:24px;width:380px;}}';
+            + '@media (min-width:900px){#pvpLobbyAlert{left:auto;right:24px;bottom:24px;width:380px;}}'
+            + '[data-theme="light"] #pvpLobbyAlert{background:#ffffff;color:#0f172a;border-color:rgba(15,23,42,.12);}';
         document.head.appendChild(style);
     }
 
@@ -149,6 +171,7 @@
         if (existing) existing.remove();
         var root = document.createElement('div');
         root.id = 'pvpLobbyAlert';
+        if (debug) root.setAttribute('data-debug', '1');
         root.setAttribute('role', 'dialog');
         root.setAttribute('aria-label', 'PvP lobby');
 

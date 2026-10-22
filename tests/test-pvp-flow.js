@@ -83,7 +83,7 @@ test('lobby alert skips self, muted, in-pvp, and busy users', function () {
     assert.strictEqual(flow.decideLobbyAlert(Object.assign({}, base, { busy: true })).reason, 'busy');
 });
 
-test('push is opted-in only and capped at one hour', function () {
+test('push is opted-in only and stays within a few per week', function () {
     assert.strictEqual(flow.decidePvpPush({ uid: 'a', joinerUid: 'b', optedIn: false, nowMs: NOW }).reason, 'not_opted_in');
     assert.strictEqual(flow.decidePvpPush({ uid: 'b', joinerUid: 'b', optedIn: true, nowMs: NOW }).reason, 'self');
     assert.strictEqual(flow.decidePvpPush({ uid: 'a', joinerUid: 'b', optedIn: true, muted: true, nowMs: NOW }).reason, 'muted');
@@ -94,7 +94,7 @@ test('push is opted-in only and capped at one hour', function () {
 });
 
 test('lobby shout is one post per user per 15 minutes', function () {
-    const first = flow.shouldPostLobbyShout({ uid: 'uid_a', name: 'Nacho<script>', nowMs: NOW, lastPostMs: null, banned: false });
+    const first = flow.shouldPostLobbyShout({ uid: 'uid_a', username: 'Nacho<script>', nowMs: NOW, lastPostMs: null, banned: false });
     assert.strictEqual(first.post, true);
     assert.strictEqual(first.isNachoAuto, false);
     assert.strictEqual(first.authorUid, 'nacho-bot');
@@ -102,12 +102,19 @@ test('lobby shout is one post per user per 15 minutes', function () {
     assert.ok(first.text.indexOf('<') === -1);
     assert.ok(first.text.indexOf('[Tap to join](#pvp)') !== -1);
     assert.strictEqual(first.docId, flow.lobbyShoutDocId('uid_a', NOW));
-    const again = flow.shouldPostLobbyShout({ uid: 'uid_a', name: 'Nacho', nowMs: NOW + 1000, lastPostMs: NOW, banned: false });
+    const again = flow.shouldPostLobbyShout({ uid: 'uid_a', username: 'Nacho', nowMs: NOW + 1000, lastPostMs: NOW, banned: false });
     assert.strictEqual(again.reason, 'rate_limited');
-    const later = flow.shouldPostLobbyShout({ uid: 'uid_a', name: 'Nacho', nowMs: NOW + flow.LOBBY_SHOUT_MS, lastPostMs: NOW, banned: false });
+    const later = flow.shouldPostLobbyShout({ uid: 'uid_a', username: 'Nacho', nowMs: NOW + flow.LOBBY_SHOUT_MS, lastPostMs: NOW, banned: false });
     assert.strictEqual(later.post, true);
     assert.notStrictEqual(later.docId, first.docId);
-    assert.strictEqual(flow.shouldPostLobbyShout({ uid: 'uid_a', name: 'Nacho', nowMs: NOW, banned: true }).reason, 'banned');
+    assert.strictEqual(flow.shouldPostLobbyShout({ uid: 'uid_a', username: 'Nacho', nowMs: NOW, banned: true }).reason, 'banned');
+    assert.strictEqual(flow.shouldPostLobbyShout({ uid: 'uid_a', username: '', nowMs: NOW }).reason, 'no_username');
+    assert.strictEqual(flow.shouldPostLobbyShout({ uid: 'uid_a', username: 'Nacho', nowMs: NOW, anonymous: true }).reason, 'anonymous');
+    assert.strictEqual(flow.shouldPostLobbyShout({ uid: 'uid_a', username: 'Nacho', nowMs: NOW, globalCap: true }).reason, 'global_cap');
+    const shouted = flow.lobbyShoutText('[Ada](http://x) @#*');
+    assert.ok(shouted.indexOf('@Ada') !== -1);
+    assert.ok(shouted.indexOf('[Ada]') === -1);
+    assert.ok(shouted.indexOf('@#') === -1);
 });
 
 test('reward claim is idempotent and banned accounts get no points', function () {
@@ -156,7 +163,10 @@ test('client pvp awardPoints reasons are rejected', function () {
     assert.strictEqual(flow.isClientPvpReward('', '⚔️ PVP Victory!'), true);
     assert.strictEqual(flow.isClientPvpReward('', '⚔️ PVP Practice'), true);
     assert.strictEqual(flow.isClientPvpReward('', '⚔️ PVP Consolation'), true);
+    assert.strictEqual(flow.isClientPvpReward('pvp_win_ticket', 'ticket'), true);
+    assert.strictEqual(flow.isClientPvpReward('daily_visit', 'free pvp xp'), true);
     assert.strictEqual(flow.isClientPvpReward('daily_visit', 'daily visit'), false);
+    assert.strictEqual(flow.isClientPvpReward('', '🏅 Badge: pvp_first'), false);
 });
 
 test('grading ignores a client correct flag and uses the key', function () {
@@ -191,6 +201,53 @@ test('stale lobby rows drop out of the live summary', function () {
     assert.strictEqual(gone.u1, undefined);
     const stale = flow.mergeLobbyEntry({}, 'u2', { status: 'waiting', uid: 'u2', name: 'Bob', lastSeen: NOW - flow.LOBBY_STALE_MS - 1 }, NOW);
     assert.strictEqual(Object.keys(stale).length, 0);
+});
+
+test('names lose markdown, heartbeats skip a fresh summary, cleanup keeps trusted rows', function () {
+    assert.strictEqual(flow.safeDisplayName('[Ada](http://evil) @#*'), 'Ada http://evil');
+    assert.strictEqual(flow.shouldSkipLobbySummary(
+        { status: 'waiting', uid: 'u', name: 'x', lastSeen: NOW },
+        { status: 'waiting', uid: 'u', name: 'x', lastSeen: NOW + 5000 },
+        { name: 'Ada', lastSeen: NOW },
+        NOW + 5000
+    ), true);
+    assert.strictEqual(flow.shouldSkipLobbySummary(
+        { status: 'waiting', uid: 'u', name: 'x', lastSeen: NOW },
+        { status: 'waiting', uid: 'u', name: 'y', lastSeen: NOW + 5000 },
+        { name: 'Ada', lastSeen: NOW },
+        NOW + 5000
+    ), false);
+    const room = flow.lobbyGlobalRoom({ windowStart: NOW, shoutCount: 4, pushCount: 1 }, NOW + 1000);
+    assert.strictEqual(room.shout, false);
+    assert.strictEqual(room.push, false);
+    const fresh = flow.lobbyGlobalRoom({ windowStart: NOW - flow.LOBBY_SHOUT_MS, shoutCount: 4, pushCount: 1 }, NOW);
+    assert.strictEqual(fresh.shout, true);
+    const kept = flow.trustedLobbyKeep({ uid: 'u', name: 'Ada', since: NOW, lastSeen: NOW }, { status: 'waiting', name: '[hack](x)', lastSeen: NOW }, NOW, false, 'u');
+    assert.strictEqual(kept.name, 'Ada');
+    assert.strictEqual(flow.trustedLobbyKeep({ name: 'Ada' }, { status: 'waiting', lastSeen: NOW }, NOW, true, 'u'), null);
+    assert.strictEqual(flow.trustedLobbyKeep(null, { status: 'waiting', name: 'Client', lastSeen: NOW }, NOW, false, 'u'), null);
+});
+
+test('a win ticket is once per win and daily-capped, and XP writes weekly fields', function () {
+    const awardActions = require('../functions/src/awardActions');
+    assert.strictEqual(flow.planWinTicket({ outcome: 'win', blocked: false, ticketClaimedToday: false }).tickets, 1);
+    assert.strictEqual(flow.planWinTicket({ outcome: 'win', blocked: false, ticketClaimedToday: true }).reason, 'daily_cap');
+    assert.strictEqual(flow.planWinTicket({ outcome: 'win', blocked: true }).tickets, 0);
+    assert.strictEqual(flow.planWinTicket({ outcome: 'loss' }).tickets, 0);
+    const grant = awardActions.planGrant({ xp: 50, dailyUsed: 990, dailyCap: awardActions.DAILY_CAP });
+    const write = flow.planXpWrite(grant.awarded);
+    assert.strictEqual(write.points, grant.awarded);
+    assert.strictEqual(write.weeklyXP, grant.awarded);
+    assert.strictEqual(write.monthlyXP, grant.awarded);
+    assert.strictEqual(write.overflowAdded, 0);
+    assert.strictEqual(flow.playerKeyForUid({ player1: 'a', player2: 'b' }, 'b'), 'player2');
+    assert.strictEqual(flow.playerKeyForUid({ player1: 'a', player2: 'b' }, 'c'), '');
+    assert.strictEqual(flow.pvpPicAllowed('https://evil.example/a.png'), '');
+    assert.ok(flow.pvpPicAllowed('https://assets.bitcoineducation.quest/a.png'));
+    const week = [];
+    for (let i = 0; i < 3; i++) week.push(NOW - flow.PUSH_WEEK_MS + (i + 1) * flow.PUSH_GAP_MS);
+    assert.strictEqual(flow.decidePvpPush({ uid: 'a', joinerUid: 'b', optedIn: true, pushTimes: week, nowMs: NOW }).reason, 'rate_limited');
+    assert.deepStrictEqual(flow.pushShardOrder(3).slice(0, 3), [3, 4, 5]);
 });
 
 console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));

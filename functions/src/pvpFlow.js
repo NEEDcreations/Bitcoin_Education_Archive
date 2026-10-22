@@ -5,15 +5,22 @@
 
 const LOBBY_SHOUT_MS = 15 * 60 * 1000;
 const ALERT_COOLDOWN_MS = 10 * 60 * 1000;
-const PUSH_COOLDOWN_MS = 60 * 60 * 1000;
+const PUSH_GAP_MS = 24 * 60 * 60 * 1000;
+const PUSH_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const PUSH_MAX_PER_WEEK = 3;
+const PUSH_COOLDOWN_MS = PUSH_GAP_MS;
 const LOBBY_STALE_MS = 45 * 1000;
+const LOBBY_GLOBAL_WINDOW_MS = 15 * 60 * 1000;
+const LOBBY_GLOBAL_SHOUT_CAP = 4;
+const LOBBY_GLOBAL_PUSH_CAP = 1;
+const SUMMARY_HEARTBEAT_MS = 20 * 1000;
 const WIN_POINTS = 50;
 const DRAW_POINTS = 5;
 const CONSOLATION_POINTS = 25;
 
 function safeDisplayName(name) {
     const cleaned = String(name || '')
-        .replace(/[\r\n<>]/g, ' ')
+        .replace(/[\r\n<>\[\]()@#*`_~|\\]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 30);
@@ -60,7 +67,11 @@ function shouldPostLobbyShout(input) {
     const src = input || {};
     const uid = String(src.uid || '');
     if (!uid) return { post: false, reason: 'no_uid' };
+    if (src.anonymous === true) return { post: false, reason: 'anonymous' };
     if (src.banned === true) return { post: false, reason: 'banned' };
+    const username = String(src.username || '').trim();
+    if (!username) return { post: false, reason: 'no_username' };
+    if (src.globalCap === true) return { post: false, reason: 'global_cap' };
     const now = Number(src.nowMs) || 0;
     const last = src.lastPostMs;
     if (typeof last === 'number' && isFinite(last) && (now - last) < LOBBY_SHOUT_MS) {
@@ -68,11 +79,13 @@ function shouldPostLobbyShout(input) {
     }
     const docId = lobbyShoutDocId(uid, now);
     if (!docId) return { post: false, reason: 'no_uid' };
+    const shown = safeDisplayName(username);
+    if (!shown || shown === 'a Bitcoiner') return { post: false, reason: 'no_username' };
     return {
         post: true,
         reason: 'ok',
         docId: docId,
-        text: lobbyShoutText(src.name),
+        text: lobbyShoutText(shown),
         mentionUid: uid,
         authorUid: 'nacho-bot',
         authorName: '🦌 Nacho',
@@ -150,24 +163,28 @@ function decidePvpPush(input) {
     const uid = String(src.uid || '');
     if (!uid || uid === String(src.joinerUid || '')) return { send: false, reason: 'self' };
     const now = Number(src.nowMs) || 0;
-    if (typeof src.lastPushMs === 'number' && isFinite(src.lastPushMs) && (now - src.lastPushMs) < PUSH_COOLDOWN_MS) {
-        return { send: false, reason: 'rate_limited' };
-    }
+    const times = Array.isArray(src.pushTimes)
+        ? src.pushTimes.map(Number).filter(function (t) { return isFinite(t) && (now - t) >= 0 && (now - t) < PUSH_WEEK_MS; })
+        : [];
+    let last = null;
+    if (typeof src.lastPushMs === 'number' && isFinite(src.lastPushMs)) last = src.lastPushMs;
+    times.forEach(function (t) { if (last == null || t > last) last = t; });
+    if (last != null && (now - last) < PUSH_GAP_MS) return { send: false, reason: 'rate_limited' };
+    if (times.length >= PUSH_MAX_PER_WEEK) return { send: false, reason: 'rate_limited' };
     return { send: true, reason: 'ok' };
 }
 
+function isBadgeClaim(action) {
+    const text = String(action || '').trim();
+    if (/^badge_earned$/i.test(text)) return true;
+    return /^(?:Badge|🎖️ Badge|🏅 Badge):\s+\S/.test(text);
+}
+
 function isClientPvpReward(actionKey, action) {
-    const key = String(actionKey || '');
-    if (key === 'pvp_victory' || key === 'pvp_practice' || key === 'pvp_draw'
-        || key === 'pvp_consolation' || key === 'pvp_win_ticket') return true;
-    const text = String(action || '').toLowerCase();
-    if (!text) return false;
-    return text.indexOf('pvp victory') !== -1
-        || text.indexOf('pvp win') !== -1
-        || text.indexOf('pvp practice') !== -1
-        || text.indexOf('pvp draw') !== -1
-        || text.indexOf('pvp consolation') !== -1
-        || text.indexOf('pvp loss') !== -1;
+    if (isBadgeClaim(action)) return false;
+    if (/pvp/i.test(String(actionKey || ''))) return true;
+    if (/pvp/i.test(String(action || ''))) return true;
+    return false;
 }
 
 function pickBothCorrectWinner(p1AnsweredAt, p2AnsweredAt) {
@@ -344,10 +361,101 @@ function planPvpReward(input) {
     };
 }
 
+function shouldSkipLobbySummary(before, after, summaryRow, nowMs) {
+    if (!before || !after) return false;
+    if (before.status !== 'waiting' || after.status !== 'waiting') return false;
+    const fields = ['uid', 'name', 'profilePic', 'status'];
+    for (let i = 0; i < fields.length; i++) {
+        if (String(before[fields[i]] || '') !== String(after[fields[i]] || '')) return false;
+    }
+    if (!(lastSeenMs(after.lastSeen) > lastSeenMs(before.lastSeen))) return false;
+    if (!summaryRow || !summaryRow.name) return false;
+    const seen = lastSeenMs(summaryRow.lastSeen);
+    const now = Number(nowMs) || 0;
+    return seen > 0 && (now - seen) >= 0 && (now - seen) < SUMMARY_HEARTBEAT_MS;
+}
+
+function lobbyGlobalRoom(state, nowMs) {
+    const now = Number(nowMs) || 0;
+    const src = state || {};
+    let windowStart = Number(src.windowStart) || 0;
+    let shoutCount = Number(src.shoutCount) || 0;
+    let pushCount = Number(src.pushCount) || 0;
+    if (!windowStart || (now - windowStart) >= LOBBY_GLOBAL_WINDOW_MS) {
+        windowStart = now;
+        shoutCount = 0;
+        pushCount = 0;
+    }
+    return {
+        shout: shoutCount < LOBBY_GLOBAL_SHOUT_CAP,
+        push: pushCount < LOBBY_GLOBAL_PUSH_CAP,
+        windowStart: windowStart,
+        shoutCount: shoutCount,
+        pushCount: pushCount,
+    };
+}
+
+function trustedLobbyKeep(summaryRow, lobby, nowMs, banned, docId) {
+    if (banned) return null;
+    if (!summaryRow || !summaryRow.name) return null;
+    if (!lobby || lobby.status !== 'waiting') return null;
+    const seen = lastSeenMs(lobby.lastSeen);
+    const now = Number(nowMs) || 0;
+    if (!seen || (now - seen) >= LOBBY_STALE_MS || (now - seen) < -5000) return null;
+    return {
+        uid: String(summaryRow.uid || docId || ''),
+        name: String(summaryRow.name),
+        since: lastSeenMs(summaryRow.since) || seen,
+        lastSeen: seen,
+    };
+}
+
+function planWinTicket(player) {
+    const p = player || {};
+    if (p.outcome !== 'win' || p.blocked) return { tickets: 0, reason: 'no_ticket' };
+    if (p.ticketClaimedToday === true) return { tickets: 0, reason: 'daily_cap' };
+    return { tickets: 1, reason: 'ok' };
+}
+
+function planXpWrite(awarded) {
+    const n = Math.max(0, Number(awarded) || 0);
+    return { points: n, weeklyXP: n, monthlyXP: n, overflowAdded: 0, write: n > 0 };
+}
+
+function playerKeyForUid(playerUids, uid) {
+    const ids = playerUids || {};
+    if (!uid) return '';
+    if (ids.player1 === uid) return 'player1';
+    if (ids.player2 === uid) return 'player2';
+    return '';
+}
+
+function pushShardOrder(start) {
+    const s = Math.abs(Math.floor(Number(start) || 0)) % 10;
+    const out = [];
+    for (let i = 0; i < 10; i++) out.push((s + i) % 10);
+    return out;
+}
+
+function pvpPicAllowed(url) {
+    const s = String(url || '');
+    if (!s || s.length > 400) return '';
+    if (/^https:\/\/firebasestorage\.googleapis\.com\//.test(s)) return s;
+    if (/^https:\/\/[a-z0-9-]+\.firebasestorage\.app\//.test(s)) return s;
+    if (/^https:\/\/assets\.bitcoineducation\.quest\//.test(s)) return s;
+    if (/^https:\/\/lh3\.googleusercontent\.com\//.test(s)) return s;
+    return '';
+}
+
 module.exports = {
     LOBBY_SHOUT_MS: LOBBY_SHOUT_MS,
     ALERT_COOLDOWN_MS: ALERT_COOLDOWN_MS,
     PUSH_COOLDOWN_MS: PUSH_COOLDOWN_MS,
+    PUSH_GAP_MS: PUSH_GAP_MS,
+    PUSH_WEEK_MS: PUSH_WEEK_MS,
+    PUSH_MAX_PER_WEEK: PUSH_MAX_PER_WEEK,
+    LOBBY_GLOBAL_SHOUT_CAP: LOBBY_GLOBAL_SHOUT_CAP,
+    LOBBY_GLOBAL_PUSH_CAP: LOBBY_GLOBAL_PUSH_CAP,
     LOBBY_STALE_MS: LOBBY_STALE_MS,
     WIN_POINTS: WIN_POINTS,
     DRAW_POINTS: DRAW_POINTS,
@@ -370,4 +478,12 @@ module.exports = {
     matchShouldFinish: matchShouldFinish,
     shuffleQuestion: shuffleQuestion,
     planPvpReward: planPvpReward,
+    shouldSkipLobbySummary: shouldSkipLobbySummary,
+    lobbyGlobalRoom: lobbyGlobalRoom,
+    trustedLobbyKeep: trustedLobbyKeep,
+    planWinTicket: planWinTicket,
+    planXpWrite: planXpWrite,
+    playerKeyForUid: playerKeyForUid,
+    pushShardOrder: pushShardOrder,
+    pvpPicAllowed: pvpPicAllowed,
 };
