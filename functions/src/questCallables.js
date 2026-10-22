@@ -73,6 +73,7 @@ const answerTrivia = onCall(async (data, context) => {
         const graded = reward.gradeTrivia({
             dayKey: payload.dayKey,
             questionIndex: payload.questionIndex,
+            question: typeof payload.q === 'string' ? payload.q : payload.question,
             chosen: payload.chosen,
             now: now,
             banned: banned,
@@ -162,7 +163,13 @@ const gradeQuest = onCall(async (data, context) => {
     const now = Date.now();
     const dayKey = reward.offsetDateKey(now);
     const payload = data || {};
-    const graded = reward.gradeQuestSubmission(payload);
+    const graded = reward.gradeQuestSubmission({
+        topicKey: payload.topicKey,
+        questIndex: payload.questIndex,
+        isRetry: payload.isRetry === true,
+        answers: payload.answers,
+        serverNow: now,
+    });
 
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);

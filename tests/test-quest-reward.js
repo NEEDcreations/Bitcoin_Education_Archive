@@ -5,7 +5,7 @@ const path = require('path');
 const reward = require('../functions/src/questReward');
 const dailyXp = require('../functions/src/dailyXp');
 const rewardNotify = require('../functions/src/rewardNotify');
-const { buildBanks } = require('../functions/build-reward-banks');
+const { buildBanks, snapshotPrevious, GRACE_MS } = require('../functions/build-reward-banks');
 
 const root = path.join(__dirname, '..');
 
@@ -408,6 +408,256 @@ test('answerTrivia and gradeQuest each write a reward notification', function() 
     assert.ok(questWrites[0].data.message.indexOf('100') !== -1);
     assert.strictEqual(triviaWrites[0].data.icon, '🧠');
     assert.strictEqual(questWrites[0].data.icon, '🏆');
+});
+
+test('trivia stats record the bank index, not the shuffled display slot', function() {
+    const src = read('quests.js');
+    const start = src.indexOf('function _triviaStatIndex');
+    const end = src.indexOf('function _getTriviaToday');
+    assert.ok(start >= 0 && end > start);
+    const statIndex = new Function(src.slice(start, end) + '\nreturn _triviaStatIndex;')();
+    const shuffled = { bankIndexOfDisplay: [1, 2, 0, 3] };
+    assert.strictEqual(statIndex(shuffled, 2), 0);
+    assert.strictEqual(statIndex(shuffled, 0), 1);
+    assert.strictEqual(statIndex({ options: ['a', 'b', 'c', 'd'] }, 2), 2);
+    assert.strictEqual(statIndex(null, 1), 1);
+
+    const finishStart = src.indexOf('function _finishTrivia');
+    const finishEnd = src.indexOf('var signedIn', finishStart);
+    const finish = src.slice(finishStart, finishEnd);
+    assert.ok(finish.includes('var _bankIdx = _triviaStatIndex(t, chosenIdx)'));
+    assert.ok(finish.includes("statsUpdate['option_' + _bankIdx]"));
+    assert.ok(finish.includes("dayStatsUpdate['option_' + _bankIdx]"));
+    assert.strictEqual(finish.includes("option_' + chosenIdx"), false);
+    assert.ok(src.includes("_triviaOptimisticStats['option_' + _triviaStatIndex(t, optimisticVote.chosenIdx)]"));
+    assert.ok(src.includes("_ots['option_' + _triviaStatIndex(t, oi)]"));
+    assert.ok(src.includes("stats['option_' + _triviaStatIndex(t, j)]"));
+});
+
+function cloneQuests(mutate) {
+    const quests = {};
+    Object.keys(reward.banks.quests).forEach(function(topic) {
+        quests[topic] = reward.banks.quests[topic].map(function(row) {
+            return {
+                q: row.q,
+                a: row.a,
+                wrong: (row.wrong || []).slice(),
+                questIndex: row.questIndex,
+            };
+        });
+    });
+    if (mutate) mutate(quests);
+    return quests;
+}
+
+test('previous bank answers grade for 72 hours and cannot be claimed twice', function() {
+    assert.strictEqual(GRACE_MS, 72 * 60 * 60 * 1000);
+
+    const fresh = buildBanks();
+    const oldBanks = {
+        trivia: [{ q: 'old trivia', options: ['a', 'b', 'c', 'd'], answer: 0 }],
+        quests: { whitepaper: [{ q: 'old q', a: 'old a', wrong: ['no'], questIndex: 0 }] },
+        learning: fresh.learning,
+    };
+    const opened = snapshotPrevious(oldBanks, fresh, NOW, null);
+    assert.strictEqual(opened.validUntil, NOW + GRACE_MS);
+    assert.strictEqual(opened.trivia[0].q, 'old trivia');
+    assert.notStrictEqual(opened.trivia[0].q, fresh.trivia[0].q);
+    const existing = { validUntil: 50, trivia: oldBanks.trivia, quests: oldBanks.quests, learning: oldBanks.learning };
+    assert.strictEqual(snapshotPrevious(fresh, fresh, NOW + GRACE_MS, existing), existing);
+
+    const committed = JSON.parse(read('functions/reward-banks.json'));
+    const prevFile = JSON.parse(read('functions/reward-banks.prev.json'));
+    assert.strictEqual(typeof prevFile.validUntil, 'number');
+    assert.ok(Array.isArray(prevFile.trivia) && prevFile.trivia.length > 0);
+    assert.strictEqual(snapshotPrevious(committed, fresh, NOW + 1, prevFile), prevFile);
+
+    const prevTrivia = reward.banks.trivia.map(function(item) {
+        return { q: item.q, options: item.options.slice(), answer: item.answer };
+    });
+    prevTrivia.pop();
+    const prevIndex = reward.triviaIndexForDay(DAY, prevTrivia.length);
+    const currentIndex = reward.triviaIndexForDay(DAY);
+    assert.notStrictEqual(prevIndex, currentIndex);
+    const oldTrivia = {
+        q: 'Which previous-bank line is still accepted during the grace window?',
+        options: ['The published previous answer', 'A display slot', 'A forged index', 'Tomorrow'],
+        answer: 0,
+    };
+    prevTrivia[prevIndex] = oldTrivia;
+    const prev = {
+        validUntil: NOW + GRACE_MS,
+        trivia: prevTrivia,
+        quests: cloneQuests(function(quests) {
+            quests.whitepaper.forEach(function(row) {
+                if (row.questIndex === 0) {
+                    row.q = 'PREV ' + row.q;
+                    row.a = 'PREV ' + row.a;
+                } else if (row.questIndex === 1 && row === quests.whitepaper.filter(function(item) { return item.questIndex === 1; })[0]) {
+                    row.a = 'PREVIOUS ANSWER TEXT';
+                }
+            });
+        }),
+        learning: {},
+    };
+
+    const oldRight = reward.gradeTrivia(triviaPayload(oldTrivia.options[0], {
+        questionIndex: prevIndex,
+        q: oldTrivia.q,
+        prev: prev,
+    }));
+    assert.strictEqual(oldRight.ok, true);
+    assert.strictEqual(oldRight.correct, true);
+    assert.strictEqual(oldRight.awarded, 50);
+
+    const oldWrong = reward.gradeTrivia(triviaPayload(oldTrivia.options[1], {
+        questionIndex: prevIndex,
+        q: oldTrivia.q,
+        prev: prev,
+    }));
+    assert.strictEqual(oldWrong.ok, true);
+    assert.strictEqual(oldWrong.correct, false);
+    assert.strictEqual(oldWrong.awarded, 0);
+
+    const wrongText = reward.gradeTrivia(triviaPayload(oldTrivia.options[0], {
+        questionIndex: prevIndex,
+        q: 'not the previous question',
+        prev: prev,
+    }));
+    assert.strictEqual(wrongText.ok, false);
+    assert.strictEqual(wrongText.awarded, 0);
+    assert.strictEqual(wrongText.reason, 'wrong-question');
+
+    const otherIndex = reward.gradeTrivia(triviaPayload(oldTrivia.options[0], {
+        questionIndex: prevIndex === 3 ? 4 : 3,
+        q: oldTrivia.q,
+        prev: prev,
+    }));
+    assert.strictEqual(otherIndex.ok, false);
+    assert.strictEqual(otherIndex.awarded, 0);
+
+    const current = reward.triviaQuestion(currentIndex);
+    const stillCurrent = reward.gradeTrivia(triviaPayload(current.options[current.answer], {
+        questionIndex: currentIndex,
+        q: current.q,
+        prev: prev,
+    }));
+    assert.strictEqual(stillCurrent.correct, true);
+    assert.strictEqual(stillCurrent.awarded, 50);
+
+    const expired = reward.gradeTrivia(triviaPayload(oldTrivia.options[0], {
+        questionIndex: prevIndex,
+        q: oldTrivia.q,
+        prev: { validUntil: NOW, trivia: prevTrivia, quests: prev.quests, learning: {} },
+    }));
+    assert.strictEqual(expired.ok, false);
+    assert.strictEqual(expired.awarded, 0);
+    assert.strictEqual(expired.reason, 'wrong-question');
+
+    const oldPart = prev.quests.whitepaper.filter(function(row) { return row.questIndex === 0; });
+    assert.strictEqual(oldPart.length, 5);
+    const oldAnswers = oldPart.map(function(row) {
+        return { q: row.q, topicKey: 'whitepaper', questIndex: 0, chosen: row.a, answer: 0, correct: true, keys: [0] };
+    });
+    const oldQuiz = reward.gradeQuestSubmission({
+        topicKey: 'whitepaper',
+        questIndex: 0,
+        answers: oldAnswers,
+        prev: prev,
+        now: NOW + GRACE_MS + 1,
+        serverNow: NOW,
+    });
+    assert.strictEqual(oldQuiz.score, 5);
+    assert.strictEqual(oldQuiz.pts, 100);
+    assert.strictEqual(oldQuiz.completeSet, true);
+    assert.strictEqual(oldQuiz.completionKey, 'quest_whitepaper__1');
+    const oldPaid = reward.settleQuizReward({
+        graded: oldQuiz, dailyUsed: 0, questsToday: 0, banned: false, alreadyPerfect: false,
+    });
+    assert.strictEqual(oldPaid.awarded, 100);
+    assert.strictEqual(oldPaid.completionKey, 'quest_whitepaper__1');
+    const second = reward.settleQuizReward({
+        graded: oldQuiz, dailyUsed: 100, questsToday: 1, banned: false, alreadyPerfect: true,
+    });
+    assert.strictEqual(second.awarded, 0);
+    assert.strictEqual(second.pts, 0);
+    assert.strictEqual(second.reason, 'already-perfect');
+    assert.strictEqual(second.completionKey, '');
+
+    const currentPart = reward.gradeQuestSubmission({
+        answers: answersFor('whitepaper', 0, function(question) { return question.a; }),
+        prev: prev,
+        serverNow: NOW,
+    });
+    assert.strictEqual(currentPart.completionKey, oldQuiz.completionKey);
+    const currentBlocked = reward.settleQuizReward({
+        graded: currentPart, dailyUsed: 0, questsToday: 0, banned: false, alreadyPerfect: true,
+    });
+    assert.strictEqual(currentBlocked.awarded, 0);
+    assert.strictEqual(currentBlocked.reason, 'already-perfect');
+
+    const misplaced = reward.gradeQuestSubmission({
+        answers: oldPart.map(function(row) {
+            return { q: row.q, topicKey: 'whitepaper', questIndex: 1, chosen: row.a };
+        }),
+        prev: prev,
+        serverNow: NOW,
+    });
+    assert.strictEqual(misplaced.score, 0);
+    assert.strictEqual(misplaced.completeSet, false);
+    assert.strictEqual(misplaced.pts, 0);
+
+    const part1 = reward.questionsFor('whitepaper', 1);
+    const oldAnswerAccepted = reward.gradeQuestSubmission({
+        answers: part1.map(function(question, i) {
+            return {
+                q: question.q,
+                topicKey: 'whitepaper',
+                questIndex: 1,
+                chosen: i === 0 ? 'PREVIOUS ANSWER TEXT' : question.a,
+            };
+        }),
+        prev: prev,
+        serverNow: NOW,
+    });
+    assert.strictEqual(oldAnswerAccepted.score, 5);
+    assert.strictEqual(oldAnswerAccepted.pts, 100);
+    assert.strictEqual(oldAnswerAccepted.completionKey, 'quest_whitepaper__2');
+
+    const afterExpiry = reward.gradeQuestSubmission({
+        answers: oldAnswers,
+        prev: prev,
+        now: NOW,
+        serverNow: prev.validUntil,
+    });
+    assert.strictEqual(afterExpiry.score, 0);
+    assert.strictEqual(afterExpiry.completeSet, false);
+
+    const unrelated = reward.gradeQuestSubmission({
+        answers: [0, 1, 2, 3, 4].map(function() {
+            return { q: 'not in either bank', topicKey: 'whitepaper', questIndex: 0, chosen: 'nope' };
+        }),
+        prev: prev,
+        serverNow: NOW,
+    });
+    assert.strictEqual(unrelated.score, 0);
+
+    const capped = reward.settleQuizReward({
+        graded: oldQuiz, dailyUsed: 0, questsToday: 3, banned: false, alreadyPerfect: false,
+    });
+    assert.strictEqual(capped.reason, 'daily-limit');
+    assert.strictEqual(capped.awarded, 0);
+
+    const callables = read('functions/src/questCallables.js');
+    const triviaBody = callableBody(callables, 'answerTrivia');
+    const questBody = callableBody(callables, 'gradeQuest');
+    assert.strictEqual(triviaBody.includes('payload.prev'), false);
+    assert.strictEqual(triviaBody.includes('payload.now'), false);
+    assert.ok(triviaBody.includes("doc(dayKey + '_trivia')"));
+    assert.ok(triviaBody.indexOf('if (alreadyClaimed)') < triviaBody.indexOf('tx.set(claimRef'));
+    assert.strictEqual(questBody.includes('payload.prev'), false);
+    assert.strictEqual(questBody.includes('payload.now'), false);
+    assert.ok(questBody.includes('serverNow: now'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

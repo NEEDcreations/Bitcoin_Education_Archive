@@ -4774,6 +4774,14 @@ function _renderQuizTab(body) {
 // TRIVIA QUEST SYSTEM - 1 per day, standalone question
 // ============================================================
 
+// Firestore option_<idx> is the published bank slot. Display order may
+// be shuffled (bankIndexOfDisplay); without that map the indexes match.
+function _triviaStatIndex(trivia, displayIdx) {
+    var map = trivia && trivia.bankIndexOfDisplay;
+    if (map && map[displayIdx] != null) return map[displayIdx];
+    return displayIdx;
+}
+
 function _getTriviaToday() {
     if (typeof TRIVIA_BANK === 'undefined' || !TRIVIA_BANK || !TRIVIA_BANK.length) return null;
     // Deterministic daily rotation keyed by getDailyKey (resets at 5 AM UTC)
@@ -4861,7 +4869,7 @@ function _renderTriviaTab(body, optimisticVote) {
         // bars render correctly right away.  Once Firestore settles the onSnapshot /
         // next tab-open will show the real community totals.
         _triviaOptimisticStats = { total: 1 };
-        _triviaOptimisticStats['option_' + optimisticVote.chosenIdx] = 1;
+        _triviaOptimisticStats['option_' + _triviaStatIndex(t, optimisticVote.chosenIdx)] = 1;
     } else if (answered && typeof db !== 'undefined') {
         // Normal re-open path: read real community stats from Firestore and patch DOM
         // after body.innerHTML is set (deferred below).
@@ -4892,7 +4900,7 @@ function _renderTriviaTab(body, optimisticVote) {
             var _ots = _triviaOptimisticStats;
             var _otTotal = _ots.total || 1;
             for (var oi = 0; oi < t.options.length; oi++) {
-                var _oCount = _ots['option_' + oi] || 0;
+                var _oCount = _ots['option_' + _triviaStatIndex(t, oi)] || 0;
                 var _oPct = Math.round((_oCount / _otTotal) * 100);
                 var _oBar = document.getElementById('triviaBar_' + oi);
                 var _oPctEl = document.getElementById('triviaPct_' + oi);
@@ -4909,7 +4917,7 @@ function _renderTriviaTab(body, optimisticVote) {
                 var total = stats.total || 0;
                 if (total < 1) return; // nothing to show yet
                 for (var j = 0; j < _capturedOptions; j++) {
-                    var count = stats['option_' + j] || 0;
+                    var count = stats['option_' + _triviaStatIndex(t, j)] || 0;
                     var pct = Math.round((count / total) * 100);
                     var barEl = document.getElementById('triviaBar_' + j);
                     var pctEl = document.getElementById('triviaPct_' + j);
@@ -4950,11 +4958,12 @@ window.triviaAnswer = function(chosenIdx) {
             _checkDailyAllThree();
         }
         if (typeof db !== 'undefined') {
+            var _bankIdx = _triviaStatIndex(t, chosenIdx);
             var statsUpdate = { total: firebase.firestore.FieldValue.increment(1), triviaIndex: today.index };
-            statsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
+            statsUpdate['option_' + _bankIdx] = firebase.firestore.FieldValue.increment(1);
             db.collection('trivia_cumulative').doc('t_' + today.index).set(statsUpdate, { merge: true }).catch(function() {});
             var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
-            dayStatsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
+            dayStatsUpdate['option_' + _bankIdx] = firebase.firestore.FieldValue.increment(1);
             db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true }).catch(function() {});
         }
         var body = document.getElementById('questHubBody');
@@ -4978,6 +4987,7 @@ window.triviaAnswer = function(chosenIdx) {
     firebase.functions().httpsCallable('answerTrivia')({
         dayKey: todayKey,
         questionIndex: today.index,
+        q: t.q,
         chosen: chosenText
     }).then(function(res) {
         var d = (res && res.data) || {};
