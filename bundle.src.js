@@ -2204,39 +2204,7 @@ function captureReferralCode() {
 
 // ---- Award daily login ticket ----
 async function awardDailyTicket() {
-    try {
-        if (!currentUser || !db || !auth || !auth.currentUser) return;
-        if (auth.currentUser.isAnonymous) return;
-
-        const today = new Date().toISOString().split('T')[0];
-        if (currentUser.lastTicketDate === today) return; // Already awarded today
-
-        const ticketsToAdd = TICKET_CONFIG.dailyLogin;
-        const bonusPoints = ticketsToAdd * TICKET_CONFIG.pointsPerTicket;
-        const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
-
-        // Award tickets + points through server-side Cloud Function (Fix permission error)
-        // Cloud Function now handles 'lastTicketDate' update server-side for security
-        if (typeof awardPoints === 'function') {
-            const result = await awardPoints(bonusPoints, '🎫 Daily tickets', null, ticketsToAdd);
-            if (!result || !result.success) return; // Silent return if already claimed or error
-        }
-        
-        currentUser.lastTicketDate = today;
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
-
-        // Delay toast so page is settled and user can see it
-        setTimeout(function() {
-            if (typeof showToast === 'function') showToast('🎫 +1 Orange Ticket — Welcome back! (Total: ' + newTickets + ')');
-        }, 2500);
-
-        if (typeof updateRankUI === 'function') updateRankUI();
-
-        // Check ticket badges after earning
-        if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-    } catch(e) {
-        console.warn('Daily ticket error:', e);
-    }
+    return;
 }
 
 // ---- Attach referral to new user on account creation ----
@@ -2342,12 +2310,6 @@ async function checkReferralQualifications() {
         }
 
         if (ticketsEarned > 0) {
-            const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
-            const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
-            // Award tickets + points through server-side Cloud Function
-            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 Referral tickets', null, ticketsEarned);
-            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsEarned;
-            showToast('🎫 +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
             if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
             updateRankUI();
 
@@ -2498,22 +2460,8 @@ async function onUserLoadedTickets() {
 }
 
 // ---- Award tickets for content uploads ----
-window.awardTickets = async function(amount, reason) {
-    if (!amount || amount < 1) return;
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
-    if (typeof currentUser === 'undefined' || !currentUser) return;
-
-    var newTotal = (currentUser.orangeTickets || 0) + amount;
-    var bonusPoints = amount * TICKET_CONFIG.pointsPerTicket;
-
-    try {
-        // Award tickets + points through server-side Cloud Function
-        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
-        if (typeof updateRankUI === 'function') updateRankUI();
-    } catch(e) { console.warn('[tickets] Award error:', e); }
-
-    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Tickets! ' + (reason || ''));
+window.awardTickets = async function() {
+    return { success: false, awarded: 0, tickets: 0 };
 };
 
 // Run on page load
@@ -6917,8 +6865,7 @@ window.forumSubmitPost = async function() {
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
         if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');  // matches forum_post_ticket
-        if (typeof showToast === 'function') setTimeout(function() { showToast('🎫 +1 Orange Ticket for posting in PlebTalk!'); }, 800);
-        // Combo tracking
+                // Combo tracking
         if (typeof window._trackCombo === 'function') window._trackCombo('forum');
         // Notify @mentioned users
         forumNotifyMentions(body, 'forum_post', postRef.id, title);
@@ -9562,8 +9509,7 @@ window.submitListing = function() {
             if (typeof showToast === 'function') showToast('🛒 Listing posted!');
             if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
             if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
-            if (typeof showToast === 'function') setTimeout(function(){ showToast('🎫 +1 Orange Ticket for posting a listing!'); }, 800);
-            // The listing counter is written by onMarketplaceListingCount.
+                        // The listing counter is written by onMarketplaceListingCount.
             if (auth && auth.currentUser) refreshMarketListingBadges(auth.currentUser.uid);
             renderMarketplace();
             finishSubmit();
@@ -12960,17 +12906,8 @@ window.awardHiddenBadge = function(badgeId, toastMsg, pts) {
 };
 
 // awardOrangeTickets
-window.awardOrangeTickets = function(amount, reason) {
-    if (typeof currentUser !== 'undefined' && currentUser) {
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
-        // Award tickets through server-side Cloud Function (orangeTickets blocked in Firestore rules)
-        if (!currentUser._isLocal && typeof awardPoints === 'function') {
-            awardPoints(0, '🎫 ' + (reason || 'Orange Tickets'), null, amount);
-        }
-    }
-    var local = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-    localStorage.setItem('btc_orange_tickets', (local + amount).toString());
-    if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Ticket' + (amount > 1 ? 's' : '') + (reason ? ' — ' + reason : ''));
+window.awardOrangeTickets = function() {
+    return { success: false, awarded: 0, tickets: 0 };
 };
 
 // setFloatingElementsVisible — show/hide floating buttons when sidebar opens
@@ -18884,7 +18821,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _nachoMsgDay = 'btc_nacho_msg_ticket_' + new Date().toDateString();
         if (!localStorage.getItem(_nachoMsgDay)) {
             localStorage.setItem(_nachoMsgDay, '1');
-            if (typeof awardTickets === 'function') awardTickets(1, 'Daily Nacho Chat');
+            if (typeof firebase !== 'undefined' && firebase.functions) {
+                firebase.functions().httpsCallable('claimNachoChatTicket')({ text: String(q || '').slice(0, 280) }).catch(function() {});
+            }
         }
 
         // Track interaction + topic for conversation quiz
@@ -21748,7 +21687,7 @@ window._tctvStartTracker = function() {
                 }
                 localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
                 if (typeof showToast === 'function') {
-                    showToast('📺 +10 XP & 🎫 +1 Ticket — Thanks for watching Timechain TV!');
+                    showToast('📺 +10 XP — Thanks for watching Timechain TV!');
                 }
             } else {
                 if (typeof showToast === 'function') {

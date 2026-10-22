@@ -146,6 +146,8 @@ const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
+const ticketGrants = require('./src/ticketGrants');
+const { grantServerTickets, claimNachoChat } = require('./src/grantServerTickets');
 
 // ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
 // String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
@@ -1087,6 +1089,9 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
         const post = snap.data();
         const postId = context.params.postId;
         const authorId = post.authorId || 'unknown';
+        if (authorId !== 'unknown' && String(post.title || '').trim()) {
+            await grantServerTickets(authorId, 'forum_post_ticket');
+        }
 
         try {
             // 🔒 SECURITY (M-NEW-21): Rate limit admin emails to prevent amplification attacks
@@ -1209,6 +1214,10 @@ exports.onMarketplaceListingCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    const listing = event.data.data() || {};
+    if (listing.sellerUid && listing.status !== 'deleted') {
+        await grantServerTickets(listing.sellerUid, 'marketplace_listing_ticket');
+    }
     try {
         await countMarketplaceListing({
             db: db,
@@ -1221,6 +1230,24 @@ exports.onMarketplaceListingCount = onDocumentCreated({
         throw e;
     }
     return null;
+});
+
+exports.onIrlEventCreated = onDocumentCreated('irl_events/{eventId}', async (event) => {
+    if (!event.data) return null;
+    const ev = event.data.data() || {};
+    if (!ev.hostId || !String(ev.title || '').trim()) return null;
+    await grantServerTickets(ev.hostId, 'irl_listing_ticket');
+    return null;
+});
+
+exports.claimNachoChatTicket = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    const provider = (context.auth.token.firebase || {}).sign_in_provider || '';
+    if (provider === 'anonymous') {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Sign in to earn this ticket');
+    }
+    const result = await claimNachoChat(context.auth.uid, data && data.text);
+    return { success: result.tickets > 0, tickets: result.tickets || 0 };
 });
 
 exports.onForumShoutoutDeleted = onDocumentDeleted({
@@ -3444,12 +3471,29 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         : null;
     const countRef = userRef.collection('daily_action_counts').doc(awardActions.countDocId(resolved, offsetToday));
     const badgeAwardRef = badgeKnown ? userRef.collection('badge_awards').doc(badgeId) : null;
+    const trifectaAction = matchedAction === 'quiz_correct' || matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt' || matchedAction === 'poll_vote';
+    const tctvTicketRef = matchedAction === 'tctv_watch_10m'
+        ? userRef.collection('award_claims').doc(ticketGrants.claimId('tctv_watch_ticket', offsetToday))
+        : null;
+    const trifectaTicketRef = trifectaAction
+        ? userRef.collection('award_claims').doc(ticketGrants.claimId('daily_trifecta_ticket', offsetToday))
+        : null;
+    const quizProofRef = trifectaAction
+        ? userRef.collection('daily_action_counts').doc(offsetToday + '_quiz_correct')
+        : null;
+    const triviaProofRef = trifectaAction
+        ? userRef.collection('award_claims').doc(offsetToday + '_trivia_trivia')
+        : null;
+    const pollProofRef = trifectaAction
+        ? userRef.collection('award_claims').doc(offsetToday + '_poll_vote_poll')
+        : null;
 
     let transactionResult = null;
     try {
         transactionResult = await db.runTransaction(async (t) => {
             const [
-                cooldownDoc, badgeAwardDoc, countDoc, userDoc, dailyDoc, rewardGroupDoc
+                cooldownDoc, badgeAwardDoc, countDoc, userDoc, dailyDoc, rewardGroupDoc,
+                tctvTicketDoc, trifectaTicketDoc, quizProofDoc, triviaProofDoc, pollProofDoc
             ] = await Promise.all([
                 cooldownRef ? t.get(cooldownRef) : Promise.resolve(null),
                 badgeAwardRef ? t.get(badgeAwardRef) : Promise.resolve(null),
@@ -3457,6 +3501,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.get(userRef),
                 t.get(dailyPtsRef),
                 rewardGroupRef ? t.get(rewardGroupRef) : Promise.resolve(null),
+                tctvTicketRef ? t.get(tctvTicketRef) : Promise.resolve(null),
+                trifectaTicketRef ? t.get(trifectaTicketRef) : Promise.resolve(null),
+                quizProofRef ? t.get(quizProofRef) : Promise.resolve(null),
+                triviaProofRef ? t.get(triviaProofRef) : Promise.resolve(null),
+                pollProofRef ? t.get(pollProofRef) : Promise.resolve(null),
             ]);
 
             if (cooldownDoc && cooldownDoc.exists) {
@@ -3478,6 +3527,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
             if (userData.ban_reason) throw new Error('BANNED');
+            if (resolved.requiresDoubleXp && !ticketGrants.doubleXpActive(userData.doubleXPExpiry, Date.now())) {
+                throw new Error('DOUBLE_XP_REQUIRED');
+            }
 
             if (matchedAction === 'badge_earned' && badgeKnown) {
                 const MILESTONE_BADGE_THRESHOLDS = {
@@ -3555,7 +3607,27 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
 
             const rankPrevById = await rewardNotify.readRankPrev(t, db, uid, userData.points || 0, totalPointsOut);
 
-            if (awarded > 0 && badgeAwardRef) {
+            const bonus = ticketGrants.bonusTickets(matchedAction, awarded, {
+                tctvClaimed: !!(tctvTicketDoc && tctvTicketDoc.exists),
+                trifectaClaimed: !!(trifectaTicketDoc && trifectaTicketDoc.exists),
+                quiz: !!(quizProofDoc && quizProofDoc.exists && (quizProofDoc.data().count || 0) > 0),
+                trivia: !!(triviaProofDoc && triviaProofDoc.exists),
+                poll: !!(pollProofDoc && pollProofDoc.exists),
+            });
+            if (bonus.tickets > 0) {
+                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(bonus.tickets);
+                bonus.kinds.forEach(function(kind) {
+                    t.set(userRef.collection('award_claims').doc(ticketGrants.claimId(kind, offsetToday)), {
+                        action: kind,
+                        tickets: ticketGrants.get(kind).tickets,
+                        day: offsetToday,
+                        at: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                });
+            }
+
+            // Save the badge even when the daily cap drops the XP.
+            if (badgeAwardRef) {
                 t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: action });
                 userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(badgeId);
             }
@@ -3567,7 +3639,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     at: admin.firestore.FieldValue.serverTimestamp(),
                 });
             }
-            if (awarded > 0) {
+            if (awarded > 0 || badgeAwardRef) {
                 t.set(countRef, {
                     count: nextCount,
                     lastAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -3595,9 +3667,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     reason: reason,
                     day: offsetToday,
                     xp: awarded,
-                    tickets: 0,
+                    tickets: bonus.tickets,
                     freezes: 0,
-                    badgeId: (awarded > 0 && badgeAwardRef) ? badgeId : null,
+                    badgeId: badgeAwardRef ? badgeId : null,
                     pointsBefore: userData.points || 0,
                     pointsDelta: totalPointsOut,
                     prevById: rankPrevById,
@@ -3612,6 +3684,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
 
             return {
                 awarded: awarded,
+                tickets: bonus.tickets,
                 capped: capped,
                 dropped: dropped,
                 dailyUsed: dailyUsed + awarded,
@@ -3627,6 +3700,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         }
         if (e.message === 'BANNED') {
             return { success: true, awarded: 0, tickets: 0, banned: true };
+        }
+        if (e.message === 'DOUBLE_XP_REQUIRED') {
+            return { success: false, error: 'Double XP is not active', awarded: 0, tickets: 0 };
         }
         if (e.message && e.message.startsWith('BADGE_ALREADY_AWARDED:')) {
             return { success: false, error: 'Badge already awarded', badgeDuplicate: true, awarded: 0, tickets: 0 };
@@ -4898,6 +4974,9 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
         // Skip bot/nacho/system messages so the counter reflects real users
         if (data.uid === 'nacho-bot' || data.uid === 'system') return null;
         if (data.isNachoAuto === true) return null;
+        if (data.uid && String(data.text || '').trim()) {
+            await grantServerTickets(data.uid, 'daily_chat_ticket');
+        }
         try {
             await db.collection('stats').doc('global').set({
                 chatMessages: admin.firestore.FieldValue.increment(1)
@@ -5960,6 +6039,7 @@ exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
                 athlete_profile: data.athlete ? data.athlete.profile : '',
                 updated_at: admin.firestore.FieldValue.serverTimestamp()
             });
+            await grantServerTickets(uid, 'strava_connect_ticket');
             return res.redirect('https://bitcoineducation.quest/#explore?strava=success');
         } else {
             console.error("Strava exchange error:", data);

@@ -10,6 +10,8 @@
 
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const ticketGrants = require('./ticketGrants');
+const { grantServerTickets } = require('./grantServerTickets');
 
 const db = admin.firestore();
 
@@ -287,6 +289,14 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
   } else {
     // Not defeated — update current count if we didn't already do so in the tx
     // (the tx handles this; this branch is a no-op safety fallback)
+  }
+
+  if (metric === 'flashcardCompletions') {
+    await grantServerTickets(uid, 'flashcard_ticket');
+  }
+  const raidTicketCount = ticketGrants.raidTickets(scaledDamage);
+  if (raidTicketCount > 0) {
+    await grantServerTickets(uid, 'raid_damage_ticket', { tickets: raidTicketCount });
   }
 
   return {

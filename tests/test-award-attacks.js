@@ -252,7 +252,11 @@ test('server source no longer keyword-matches or banks overflow', function () {
     const body = src.slice(start, end);
     assert.ok(body.indexOf('ACTION_KEYWORDS') === -1);
     assert.ok(body.indexOf('.includes(') === -1);
-    assert.ok(body.indexOf('orangeTickets') === -1);
+    assert.ok(body.indexOf('data.tickets') === -1);
+    assert.ok(body.indexOf('bonusTickets') > 0);
+    assert.ok(body.indexOf('DOUBLE_XP_REQUIRED') > 0);
+    assert.ok(body.indexOf('if (badgeAwardRef)') > 0);
+    assert.ok(body.indexOf('if (awarded > 0 && badgeAwardRef)') === -1);
     assert.ok(body.indexOf('userUpdate.pendingOverflow') === -1);
     assert.ok(body.indexOf('resolveAction') > 0);
     assert.ok(body.indexOf('planGrant') > 0);

@@ -2632,7 +2632,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _nachoMsgDay = 'btc_nacho_msg_ticket_' + new Date().toDateString();
         if (!localStorage.getItem(_nachoMsgDay)) {
             localStorage.setItem(_nachoMsgDay, '1');
-            if (typeof awardTickets === 'function') awardTickets(1, 'Daily Nacho Chat');
+            if (typeof firebase !== 'undefined' && firebase.functions) {
+                firebase.functions().httpsCallable('claimNachoChatTicket')({ text: String(q || '').slice(0, 280) }).catch(function() {});
+            }
         }
 
         // Track interaction + topic for conversation quiz
@@ -5496,7 +5498,7 @@ window._tctvStartTracker = function() {
                 }
                 localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
                 if (typeof showToast === 'function') {
-                    showToast('📺 +10 XP & 🎫 +1 Ticket — Thanks for watching Timechain TV!');
+                    showToast('📺 +10 XP — Thanks for watching Timechain TV!');
                 }
             } else {
                 if (typeof showToast === 'function') {

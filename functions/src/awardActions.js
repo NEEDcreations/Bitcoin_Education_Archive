@@ -76,6 +76,7 @@ function done(fields) {
         cooldownMs: 0,
         triviaQuiz: false,
         badge: false,
+        requiresDoubleXp: false,
         target: 'x',
         dedupGroup: id,
     }, fields);
@@ -86,13 +87,27 @@ function payMapped(clientPts, amounts) {
     return amounts[clientPts];
 }
 
+// baseMap is payable with no buff. doubleMap is the doubled client amount and
+// is payable only while the server Double XP timer is still running.
+function payChoice(clientPts, baseMap, doubleMap) {
+    if (clientPts < 0) return null;
+    if (baseMap && Object.prototype.hasOwnProperty.call(baseMap, clientPts)) {
+        return { xp: baseMap[clientPts], requiresDoubleXp: false };
+    }
+    if (doubleMap && Object.prototype.hasOwnProperty.call(doubleMap, clientPts)) {
+        return { xp: doubleMap[clientPts], requiresDoubleXp: true };
+    }
+    return null;
+}
+
 function resolveFlex(flexActionId, clientPts) {
     if (!flexActionId || !FLEX_ID_SET.has(flexActionId)) return unknown();
-    const xp = payMapped(clientPts, FLEX_AMOUNTS);
-    if (xp == null) return unknown();
+    const choice = payChoice(clientPts, { 5: 5 }, { 10: 10 });
+    if (!choice) return unknown();
     return done({
         id: 'flex_action',
-        xp: xp,
+        xp: choice.xp,
+        requiresDoubleXp: choice.requiresDoubleXp,
         dailyLimit: FLEX_IDS.length,
         dedupGroup: 'flex',
         target: flexActionId,
@@ -103,11 +118,14 @@ function resolveFlex(flexActionId, clientPts) {
 function resolveCombo(comboTier, clientPts) {
     const amounts = COMBO_AMOUNTS[comboTier];
     if (!amounts) return unknown();
-    const xp = payMapped(clientPts, amounts);
-    if (xp == null) return unknown();
+    const bases = { combo_trio: { 50: 50 }, combo_mega: { 100: 100 }, combo_legend: { 250: 250 } };
+    const doubles = { combo_trio: { 100: 100 }, combo_mega: { 200: 200 }, combo_legend: { 500: 250 } };
+    const choice = payChoice(clientPts, bases[comboTier], doubles[comboTier]);
+    if (!choice) return unknown();
     return done({
         id: 'combo_bonus',
-        xp: xp,
+        xp: choice.xp,
+        requiresDoubleXp: choice.requiresDoubleXp,
         dailyLimit: 3,
         dedupGroup: 'combo',
         target: comboTier,
@@ -147,11 +165,12 @@ function resolvePhrase(action, ctx) {
     }
 
     if (action === '🎮 Quiz correct!') {
-        const xp = payMapped(clientPts, { 5: 5, 10: 10, 20: 10 });
-        if (xp == null) return unknown();
+        const choice = payChoice(clientPts, { 5: 5, 10: 10 }, { 20: 10 });
+        if (!choice) return unknown();
         return done({
             id: 'quiz_correct',
-            xp: xp,
+            xp: choice.xp,
+            requiresDoubleXp: choice.requiresDoubleXp,
             repeatable: true,
             dailyLimit: 100,
             triviaQuiz: true,
@@ -232,9 +251,15 @@ function resolvePhrase(action, ctx) {
     }
 
     if (action === 'Daily Spin') {
-        const xp = payMapped(clientPts, { 25: 25, 50: 50, 100: 50, 200: 50 });
-        if (xp == null) return unknown();
-        return done({ id: 'daily_spin', xp: xp, dedupGroup: 'daily_spin', target: 'spin' });
+        const choice = payChoice(clientPts, { 25: 25, 50: 50, 100: 50 }, { 200: 50 });
+        if (!choice) return unknown();
+        return done({
+            id: 'daily_spin',
+            xp: choice.xp,
+            requiresDoubleXp: choice.requiresDoubleXp,
+            dedupGroup: 'daily_spin',
+            target: 'spin',
+        });
     }
 
     if (action === 'tctv_watch_10m') {
@@ -251,21 +276,22 @@ function resolvePhrase(action, ctx) {
     }
 
     const streaks = {
-        '🔥 3-day chat streak!': ['chat_streak_3', { 10: 10, 20: 20 }, '3'],
-        '🔥 7-day chat streak!': ['chat_streak_7', { 25: 25, 50: 50 }, '7'],
-        '💎 30-day chat streak!': ['chat_streak_30', { 100: 100, 200: 100 }, '30'],
+        '🔥 3-day chat streak!': ['chat_streak_3', { 10: 10 }, { 20: 20 }, '3'],
+        '🔥 7-day chat streak!': ['chat_streak_7', { 25: 25 }, { 50: 50 }, '7'],
+        '💎 30-day chat streak!': ['chat_streak_30', { 100: 100 }, { 200: 100 }, '30'],
     };
     if (streaks[action]) {
         const row = streaks[action];
-        const xp = payMapped(clientPts, row[1]);
-        if (xp == null) return unknown();
+        const choice = payChoice(clientPts, row[1], row[2]);
+        if (!choice) return unknown();
         return done({
             id: row[0],
-            xp: xp,
+            xp: choice.xp,
+            requiresDoubleXp: choice.requiresDoubleXp,
             scope: 'once',
             dailyLimit: 3,
             dedupGroup: 'chat_streak',
-            target: row[2],
+            target: row[3],
         });
     }
 
@@ -295,6 +321,7 @@ function resolvePhrase(action, ctx) {
         return done({
             id: 'anon_merge',
             xp: Math.min(clientPts, 500),
+            requiresDoubleXp: clientPts > 500,
             scope: 'once',
             dailyLimit: 1,
             target: 'merge',
@@ -317,12 +344,17 @@ function resolvePhrase(action, ctx) {
         const raw = 25 * n;
         const doubled = raw * 2;
         let xp = null;
+        let doubledSend = false;
         if (clientPts === raw) xp = Math.min(raw, 50);
-        else if (clientPts === doubled) xp = Math.min(doubled, 50);
+        else if (clientPts === doubled) {
+            xp = Math.min(doubled, 50);
+            doubledSend = true;
+        }
         if (xp == null) return unknown();
         return done({
             id: 'beats_upload_batch',
             xp: xp,
+            requiresDoubleXp: doubledSend,
             repeatable: true,
             dailyLimit: 20,
             dedupGroup: 'beats_upload_batch',
@@ -333,11 +365,20 @@ function resolvePhrase(action, ctx) {
     if (quest) {
         const amounts = NACHO_QUESTS[quest[1]];
         if (!amounts) return unknown();
-        const xp = payMapped(clientPts, amounts);
-        if (xp == null) return unknown();
+        const base = {};
+        const doubled = {};
+        Object.keys(amounts).forEach(function(key) {
+            const n = parseInt(key, 10);
+            const half = n / 2;
+            if (Object.prototype.hasOwnProperty.call(amounts, half)) doubled[n] = amounts[n];
+            else base[n] = amounts[n];
+        });
+        const choice = payChoice(clientPts, base, doubled);
+        if (!choice) return unknown();
         return done({
             id: 'nacho_quest',
-            xp: xp,
+            xp: choice.xp,
+            requiresDoubleXp: choice.requiresDoubleXp,
             scope: 'once',
             dailyLimit: 5,
             dedupGroup: 'nacho_quest',
@@ -352,24 +393,52 @@ function resolvePhrase(action, ctx) {
         return done({ id: 'pvp_draw', xp: 5, repeatable: true, dailyLimit: 200 });
     }
     if (action === '⚔️ PVP Victory!') {
-        const xp = payMapped(clientPts, { 10: 10, 20: 20, 30: 30, 40: 40, 50: 50, 60: 50, 80: 50, 100: 50 });
-        if (xp == null) return unknown();
-        return done({ id: 'pvp_victory', xp: xp, repeatable: true, dailyLimit: 20, dedupGroup: 'pvp_victory' });
+        const choice = payChoice(clientPts, { 10: 10, 20: 20, 30: 30, 40: 40, 50: 50 }, { 60: 50, 80: 50, 100: 50 });
+        if (!choice) return unknown();
+        return done({
+            id: 'pvp_victory',
+            xp: choice.xp,
+            requiresDoubleXp: choice.requiresDoubleXp,
+            repeatable: true,
+            dailyLimit: 20,
+            dedupGroup: 'pvp_victory',
+        });
     }
     if (action === '⚔️ PVP Victory (opponent forfeited)') {
-        const xp = payMapped(clientPts, { 10: 10, 20: 20, 30: 30, 40: 40, 50: 50, 60: 50, 80: 50, 100: 50 });
-        if (xp == null) return unknown();
-        return done({ id: 'pvp_forfeit', xp: xp, repeatable: true, dailyLimit: 20, dedupGroup: 'pvp_forfeit' });
+        const choice = payChoice(clientPts, { 10: 10, 20: 20, 30: 30, 40: 40, 50: 50 }, { 60: 50, 80: 50, 100: 50 });
+        if (!choice) return unknown();
+        return done({
+            id: 'pvp_forfeit',
+            xp: choice.xp,
+            requiresDoubleXp: choice.requiresDoubleXp,
+            repeatable: true,
+            dailyLimit: 20,
+            dedupGroup: 'pvp_forfeit',
+        });
     }
     if (action === '⚔️ PVP Win (unranked vs guest)') {
-        const xp = payMapped(clientPts, { 5: 5, 10: 10, 15: 15, 20: 20, 25: 25, 30: 30, 40: 40, 50: 50 });
-        if (xp == null) return unknown();
-        return done({ id: 'pvp_unranked', xp: xp, repeatable: true, dailyLimit: 20, dedupGroup: 'pvp_unranked' });
+        const choice = payChoice(clientPts, { 5: 5, 10: 10, 15: 15, 20: 20, 25: 25 }, { 30: 30, 40: 40, 50: 50 });
+        if (!choice) return unknown();
+        return done({
+            id: 'pvp_unranked',
+            xp: choice.xp,
+            requiresDoubleXp: choice.requiresDoubleXp,
+            repeatable: true,
+            dailyLimit: 20,
+            dedupGroup: 'pvp_unranked',
+        });
     }
     if (action === '⚔️ PVP Consolation') {
-        const xp = payMapped(clientPts, { 5: 5, 10: 10, 15: 15, 20: 20, 25: 25, 30: 25, 40: 25, 50: 25 });
-        if (xp == null) return unknown();
-        return done({ id: 'pvp_consolation', xp: xp, repeatable: true, dailyLimit: 40, dedupGroup: 'pvp_consolation' });
+        const choice = payChoice(clientPts, { 5: 5, 10: 10, 15: 15, 20: 20, 25: 25 }, { 30: 25, 40: 25, 50: 25 });
+        if (!choice) return unknown();
+        return done({
+            id: 'pvp_consolation',
+            xp: choice.xp,
+            requiresDoubleXp: choice.requiresDoubleXp,
+            repeatable: true,
+            dailyLimit: 40,
+            dedupGroup: 'pvp_consolation',
+        });
     }
 
     return unknown();
@@ -454,6 +523,17 @@ function applyAward(mem, uid, data, opts) {
             orangeTickets: orangeTickets,
         };
     }
+    if (resolved.requiresDoubleXp && !(opts && opts.doubleXpActive)) {
+        return {
+            success: false,
+            error: 'Double XP is not active',
+            awarded: 0,
+            tickets: 0,
+            overflowAdded: 0,
+            pendingOverflow: pendingOverflow,
+            orangeTickets: orangeTickets,
+        };
+    }
     if (user.ban_reason) {
         return {
             success: true,
@@ -525,14 +605,21 @@ function applyAward(mem, uid, data, opts) {
         if (resolved.triviaQuiz) daily.triviaQuiz = (daily.triviaQuiz || 0) + grant.awarded;
         store.daily[uid] = daily;
         store.counts[countKey] = usedCount + 1;
-        if (resolved.badge) store.claims[badgeKey] = true;
-        else store.claims[claimKey] = true;
+        if (!resolved.badge) store.claims[claimKey] = true;
+    }
+    // A badge earned at the daily cap is still saved. The XP stays dropped.
+    if (resolved.badge && grant.awarded === 0) {
+        store.claims[badgeKey] = true;
+        store.counts[countKey] = usedCount + 1;
+    } else if (resolved.badge && grant.awarded > 0) {
+        store.claims[badgeKey] = true;
     }
 
     return {
         success: true,
         awarded: grant.awarded,
         dropped: grant.dropped,
+        badgeSaved: !!resolved.badge,
         tickets: 0,
         overflowAdded: 0,
         overflowRedeemed: 0,
