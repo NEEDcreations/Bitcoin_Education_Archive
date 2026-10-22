@@ -660,5 +660,56 @@ test('previous bank answers grade for 72 hours and cannot be claimed twice', fun
     assert.ok(questBody.includes('serverNow: now'));
 });
 
+test('one edited question still completes the previous part once', function() {
+    const prevQuests = cloneQuests(function(bank) {
+        const row = bank.whitepaper.filter(function(item) { return item.questIndex === 0; })[0];
+        row.q = 'OLD ' + row.q;
+        row.a = 'OLD ' + row.a;
+    });
+    const oldRows = prevQuests.whitepaper.filter(function(row) { return row.questIndex === 0; });
+    const currentText = reward.questionsFor('whitepaper', 0).map(function(question) { return question.q; });
+    assert.strictEqual(currentText.indexOf(oldRows[0].q), -1);
+    assert.ok(currentText.indexOf(oldRows[1].q) !== -1);
+    const prev = {
+        validUntil: NOW + GRACE_MS,
+        trivia: reward.banks.trivia,
+        quests: prevQuests,
+        learning: reward.banks.learning,
+    };
+    const answers = oldRows.map(function(row) {
+        return { q: row.q, topicKey: 'whitepaper', questIndex: 0, chosen: row.a };
+    });
+    const first = reward.gradeQuestSubmission({
+        topicKey: 'whitepaper',
+        questIndex: 0,
+        answers: answers,
+        prev: prev,
+        serverNow: NOW,
+    });
+    assert.strictEqual(first.score, 5);
+    assert.strictEqual(first.pts, 100);
+    assert.strictEqual(first.completeSet, true);
+    assert.strictEqual(first.completionKey, 'quest_whitepaper__1');
+    const paid = reward.settleQuizReward({
+        graded: first, dailyUsed: 0, questsToday: 0, banned: false, alreadyPerfect: false,
+    });
+    assert.strictEqual(paid.awarded, 100);
+    assert.strictEqual(paid.completionKey, 'quest_whitepaper__1');
+    const second = reward.settleQuizReward({
+        graded: first, dailyUsed: 100, questsToday: 1, banned: false, alreadyPerfect: true,
+    });
+    assert.strictEqual(second.awarded, 0);
+    assert.strictEqual(second.pts, 0);
+    assert.strictEqual(second.reason, 'already-perfect');
+    assert.strictEqual(second.completionKey, '');
+
+    const questBody = callableBody(read('functions/src/questCallables.js'), 'gradeQuest');
+    const checkAt = questBody.indexOf('completionDoc.exists');
+    const writeAt = questBody.indexOf('if (settled.completionKey && completionRef)');
+    assert.ok(checkAt > 0 && writeAt > checkAt);
+    assert.ok(questBody.indexOf('legacyPartRecorded') < writeAt);
+    assert.ok(questBody.includes('reward.questCompletionKey(graded.topicKey, graded.questIndex)'));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

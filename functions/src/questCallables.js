@@ -176,8 +176,15 @@ const gradeQuest = onCall(async (data, context) => {
     const rateRef = db.collection('rate_limits').doc('quest_' + uid);
     const dailyQuestRef = userRef.collection('daily_action_counts').doc(dayKey + '_quest');
     const dailyPtsRef = userRef.collection('daily_points').doc(dayKey);
-    const completionRef = (graded.ok && graded.completionKey)
-        ? userRef.collection('quest_completions').doc(graded.completionKey)
+    // Look the part up even when this submission will not record a new
+    // completion. A previous-bank match and a failed completion write still
+    // have to see a part that was already finished.
+    const partKey = graded.completionKey
+        || (graded.ok && graded.topicKey && Number.isInteger(graded.questIndex) && graded.questIndex >= 0
+            ? reward.questCompletionKey(graded.topicKey, graded.questIndex)
+            : '');
+    const completionRef = partKey
+        ? userRef.collection('quest_completions').doc(partKey)
         : null;
 
     return db.runTransaction(async (tx) => {

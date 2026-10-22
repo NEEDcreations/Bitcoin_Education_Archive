@@ -323,6 +323,9 @@ function gradeQuestSubmission(data) {
         }
         if (correct) score++;
     }
+    // A full previous part still counts when only some questions changed.
+    // Unchanged questions are found in the current bank, so the rows can
+    // carry both bank tags and still be that previous part.
     const part = samePart(matched, { current: questParts, prev: olderParts });
     let pts = 0;
     if (score >= 3) {
@@ -341,24 +344,37 @@ function gradeQuestSubmission(data) {
     };
 }
 
+function partHashes(part) {
+    if (!part) return null;
+    const expected = Object.keys(part).sort();
+    if (expected.length !== 5) return null;
+    return expected;
+}
+
+function sameHashes(expected, matched) {
+    if (!expected) return false;
+    const got = matched.map(function(m) { return m.qHash; }).sort();
+    for (let i = 0; i < 5; i++) {
+        if (got[i] !== expected[i]) return false;
+    }
+    return true;
+}
+
+// The five questions are one part when they are exactly that part in the
+// current bank or exactly that part in the previous bank. Mixed bank tags
+// are fine: an edited question is previous-only, and the rest still resolve
+// from the current bank.
 function samePart(matched, partsByBank) {
     if (!matched || matched.length !== 5) return null;
     const topicKey = matched[0].topicKey;
     const questIndex = matched[0].questIndex;
-    const bank = matched[0].bank || 'current';
     for (let i = 1; i < matched.length; i++) {
         if (matched[i].topicKey !== topicKey || matched[i].questIndex !== questIndex) return null;
-        if ((matched[i].bank || 'current') !== bank) return null;
     }
-    const parts = partsByBank && partsByBank[bank];
-    const part = parts && parts[topicKey] && parts[topicKey][questIndex];
-    if (!part) return null;
-    const expected = Object.keys(part).sort();
-    if (expected.length !== 5) return null;
-    const got = matched.map(function(m) { return m.qHash; }).sort();
-    for (let i = 0; i < 5; i++) {
-        if (got[i] !== expected[i]) return null;
-    }
+    const banks = partsByBank || {};
+    const currentPart = banks.current && banks.current[topicKey] && banks.current[topicKey][questIndex];
+    const prevPart = banks.prev && banks.prev[topicKey] && banks.prev[topicKey][questIndex];
+    if (!sameHashes(partHashes(currentPart), matched) && !sameHashes(partHashes(prevPart), matched)) return null;
     return { topicKey: topicKey, questIndex: questIndex };
 }
 
@@ -394,8 +410,10 @@ function settleQuizReward(input) {
         return { awarded: 0, overflowAdded: 0, capped: false, pts: 0, score: score, reason: 'banned', completionKey: '', countQuest: false, blocked: true, banned: true };
     }
     // alreadyPerfect is a quest_completions doc, or a server key already
-    // stored on completedQuests. Either one only blocks a repeat payout.
-    const already = graded.completeSet && src.alreadyPerfect === true;
+    // stored on completedQuests. It blocks a repeat for this part on the
+    // current bank and on the previous bank during the grace window, including
+    // when this call will not write the completion doc.
+    const already = src.alreadyPerfect === true;
     const pts = already ? 0 : (graded.pts || 0);
     const split = splitDailyXp(src.dailyUsed || 0, pts, DAILY_QUIZ_XP_CAP);
     return {
