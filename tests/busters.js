@@ -31,13 +31,14 @@ test('service worker cache is v2281', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('timechain-tv.js?v=20261022_tctv7'));
+    assert.ok(html.includes('timechain-tv.js?v=20261022_tctv8'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv7'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv6'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv5'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv4'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv3'));
     assert.ok(read('timechain-tv.js').includes('data/tctv/'));
-    assert.ok(read('timechain-tv.js').includes('?v=20261022_tctv7'));
+    assert.ok(read('timechain-tv.js').includes('?v=20261022_tctv8'));
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261022_v2271/g) || []).length, 2);
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2268'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2266'));
