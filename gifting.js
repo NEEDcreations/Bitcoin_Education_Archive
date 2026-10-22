@@ -85,7 +85,9 @@ function _injectGiftingCSS() {
         '.gifting-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:480000;display:flex;align-items:center;justify-content:center;padding:16px;}',
         '.gifting-modal{background:var(--card-bg,#0f172a);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(247,147,26,0.12);max-height:90vh;overflow-y:auto;}',
         '.gift-open-btn,.cipher-open-btn,.key-send-btn{padding:8px 12px;border:none;border-radius:8px;color:#fff;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;}',
-        '.kc-card{display:flex;align-items:center;gap:10px;padding:12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:12px;}',
+        '.kc-card{display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg-side,#0f172a);border:1px solid var(--border,#333);border-radius:12px;}',
+        '.kc-accent{color:#f7931a;}.kc-locked{color:#a78bfa;}.kc-match{color:#34d399;}',
+        '[data-theme="light"] .kc-accent{color:#c2410c;}[data-theme="light"] .kc-locked{color:#6d28d9;}[data-theme="light"] .kc-match{color:#047857;}',
         '.gift-stage-box{position:relative;height:96px;display:flex;align-items:flex-end;justify-content:center;overflow:visible;}',
         '.gift-base{font-size:3.2rem;line-height:1;animation:giftBoxShake 0.72s ease-in-out;}',
         '.gift-lid{position:absolute;top:6px;font-size:1.5rem;animation:giftLidPop 0.5s ease-out 0.62s forwards;}',
@@ -814,7 +816,7 @@ function _card(el) {
 function _lockedCipherNote(parent, label) {
     var note = document.createElement('div');
     note.className = 'locked-cipher-note';
-    note.style.cssText = 'margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(167,139,250,0.35);background:rgba(167,139,250,0.08);';
+    note.style.cssText = 'margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(124,58,237,0.45);background:var(--bg-side);';
     var text = document.createElement('div');
     text.style.cssText = 'font-size:0.8rem;color:var(--text);line-height:1.45;';
     var which = label ? ('a ' + label + ' key') : 'a key with the same label, such as 3A';
@@ -822,7 +824,7 @@ function _lockedCipherNote(parent, label) {
     var chat = document.createElement('button');
     chat.type = 'button';
     chat.textContent = 'Open Global Chat';
-    chat.style.cssText = 'margin-top:8px;min-height:40px;padding:8px 12px;background:transparent;border:1px solid rgba(59,130,246,0.55);border-radius:8px;color:#93c5fd;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;';
+    chat.style.cssText = 'margin-top:8px;min-height:40px;padding:8px 12px;background:transparent;border:1px solid var(--link);border-radius:8px;color:var(--link);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;';
     chat.onclick = function() {
         if (typeof window.openGlobalChatForCipher === 'function') window.openGlobalChatForCipher();
     };
@@ -871,15 +873,16 @@ window.renderKeysAndCiphersPanel = async function(container) {
     el.appendChild(introRow);
 
     var heading = document.createElement('div');
-    heading.style.cssText = 'font-size:0.72rem;font-weight:800;color:#f7931a;letter-spacing:0.08em;text-transform:uppercase;margin:4px 0 8px;';
+    heading.className = 'kc-accent';
+    heading.style.cssText = 'font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;margin:4px 0 8px;';
     heading.textContent = 'Locked ciphers';
     el.appendChild(heading);
-    _lockedCipherNote(el);
 
     var cipherGroups = _group(data.ciphers);
     var ownGroups = _group(data.ownKeys);
     var peerGroups = _group(data.peerKeys);
     var labels = Object.keys(cipherGroups).sort();
+    if (labels.length) _lockedCipherNote(el);
 
     if (!labels.length) {
         var empty = document.createElement('div');
@@ -898,7 +901,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
         card.style.borderColor = match ? 'rgba(52,211,153,0.45)' : 'var(--border,#333)';
         var icon = document.createElement('div');
         icon.style.cssText = 'text-align:center;flex-shrink:0;';
-        icon.innerHTML = '<div style="font-size:1.4rem;">' + (match ? '🔓' : '🔒') + '</div><div style="font-family:monospace;font-weight:900;color:' + (match ? '#34d399' : '#a78bfa') + ';">' + _esc(label) + '</div>';
+        icon.innerHTML = '<div style="font-size:1.4rem;">' + (match ? '🔓' : '🔒') + '</div><div class="' + (match ? 'kc-match' : 'kc-locked') + '" style="font-family:monospace;font-weight:900;">' + _esc(label) + '</div>';
         card.appendChild(icon);
         var countBit = group.length > 1 ? ' You have ' + group.length + '.' : '';
         if (match) {
@@ -914,7 +917,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
             chat.type = 'button';
             chat.className = 'cipher-open-btn';
             chat.textContent = 'Open Global Chat';
-            chat.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid rgba(59,130,246,0.55);background:transparent;color:#93c5fd;font-weight:800;';
+            chat.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid var(--link);background:transparent;color:var(--link);font-weight:800;';
             chat.onclick = function() {
                 if (typeof window.openGlobalChatForCipher === 'function') window.openGlobalChatForCipher();
             };
@@ -931,7 +934,8 @@ window.renderKeysAndCiphersPanel = async function(container) {
     });
 
     var keyHead = document.createElement('div');
-    keyHead.style.cssText = 'font-size:0.72rem;font-weight:800;color:#f7931a;letter-spacing:0.08em;text-transform:uppercase;margin:14px 0 8px;';
+    keyHead.className = 'kc-accent';
+    keyHead.style.cssText = 'font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;margin:14px 0 8px;';
     keyHead.textContent = 'Your keys — send to peers';
     el.appendChild(keyHead);
 
@@ -946,7 +950,8 @@ window.renderKeysAndCiphersPanel = async function(container) {
         var group = ownGroups[label];
         var card = _card(el);
         var lab = document.createElement('div');
-        lab.style.cssText = 'font-family:monospace;font-weight:900;font-size:1.05rem;color:#f7931a;min-width:52px;flex-shrink:0;';
+        lab.className = 'kc-accent';
+        lab.style.cssText = 'font-family:monospace;font-weight:900;font-size:1.05rem;min-width:52px;flex-shrink:0;';
         lab.textContent = '🔑 ' + label;
         card.appendChild(lab);
         _copy(card,
@@ -959,12 +964,13 @@ window.renderKeysAndCiphersPanel = async function(container) {
         card.appendChild(send);
     });
     var hint = document.createElement('div');
-    hint.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin:2px 0 8px;';
+    hint.style.cssText = 'font-size:0.72rem;color:var(--text-dim);margin:2px 0 8px;';
     hint.textContent = 'Spare keys are for peers, or for a cipher with the same label.';
     el.appendChild(hint);
 
     var recvHead = document.createElement('div');
-    recvHead.style.cssText = 'font-size:0.72rem;font-weight:800;color:#a78bfa;letter-spacing:0.08em;text-transform:uppercase;margin:12px 0 8px;';
+    recvHead.className = 'kc-locked';
+    recvHead.style.cssText = 'font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;margin:12px 0 8px;';
     recvHead.textContent = 'Keys from peers';
     el.appendChild(recvHead);
     if (!data.peerKeys.length) {
@@ -976,7 +982,8 @@ window.renderKeysAndCiphersPanel = async function(container) {
     data.peerKeys.forEach(function(k) {
         var card = _card(el);
         var lab = document.createElement('div');
-        lab.style.cssText = 'font-family:monospace;font-weight:900;color:#a78bfa;flex-shrink:0;';
+        lab.className = 'kc-locked';
+        lab.style.cssText = 'font-family:monospace;font-weight:900;flex-shrink:0;';
         lab.textContent = '🔑 ' + (k.label || '');
         card.appendChild(lab);
         var hasCipher = (cipherGroups[k.label] || []).length > 0;
@@ -1002,7 +1009,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
     _renderMyWins(winsHost);
 
     var cap = document.createElement('div');
-    cap.style.cssText = 'font-size:0.72rem;color:var(--text-faint);text-align:center;margin-top:8px;';
+    cap.style.cssText = 'font-size:0.72rem;color:var(--text-dim);text-align:center;margin-top:8px;';
     cap.textContent = 'You can open up to ' + CIPHER_OPENS_PER_DAY + ' ciphers per day.';
     el.appendChild(cap);
 };
@@ -1295,18 +1302,18 @@ window.showPeerPickerForKeys = async function(keyIds) {
     overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
-    sheet.style.cssText = 'background:var(--card-bg,#0f172a);border:1px solid var(--border,#333);border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;';
+    sheet.style.cssText = 'background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;';
     var h = document.createElement('div');
     h.style.cssText = 'font-weight:800;color:#f7931a;margin-bottom:6px;';
     h.textContent = 'Send ' + ids.length + ' key' + (ids.length > 1 ? 's' : '') + ' to…';
     var sub = document.createElement('div');
-    sub.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;';
+    sub.style.cssText = 'font-size:0.75rem;color:#cbd5e1;margin-bottom:12px;';
     sub.textContent = 'Up to 3 keys per peer per day. One send, then it resets tomorrow.';
     sheet.appendChild(h);
     sheet.appendChild(sub);
     if (!peers.length) {
         var none = document.createElement('div');
-        none.style.cssText = 'font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;';
+        none.style.cssText = 'font-size:0.85rem;color:#cbd5e1;margin-bottom:10px;';
         none.textContent = 'You have no peers yet. Add one from Settings → Account → Peers, then come back.';
         sheet.appendChild(none);
     }
@@ -1314,7 +1321,7 @@ window.showPeerPickerForKeys = async function(keyIds) {
         var b = document.createElement('button');
         b.type = 'button';
         b.textContent = p.name;
-        b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px;padding:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:var(--text,#fff);font-weight:700;cursor:pointer;font-family:inherit;';
+        b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px;padding:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:#e2e8f0;font-weight:700;cursor:pointer;font-family:inherit;';
         b.onclick = async function() {
             b.disabled = true;
             b.textContent = 'Sending…';
@@ -1333,8 +1340,8 @@ window.showPeerPickerForKeys = async function(keyIds) {
         sheet.appendChild(b);
     });
     var close = _btn('Close', 'transparent');
-    close.style.border = '1px solid var(--border,#333)';
-    close.style.color = 'var(--text-muted)';
+    close.style.border = '1px solid #334155';
+    close.style.color = '#e2e8f0';
     close.style.width = '100%';
     close.onclick = function() { overlay.remove(); };
     sheet.appendChild(close);
@@ -1364,13 +1371,13 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
-    sheet.style.cssText = 'background:var(--card-bg,#0f172a);border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow:auto;border:1px solid var(--border,#333);';
+    sheet.style.cssText = 'background:#0f172a;color:#e2e8f0;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow:auto;border:1px solid #334155;';
     var h = document.createElement('div');
     h.style.cssText = 'font-weight:800;color:#f7931a;margin-bottom:8px;';
     h.textContent = 'Send keys to ' + (recipientName || 'peer');
     sheet.appendChild(h);
     var limit = document.createElement('div');
-    limit.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;line-height:1.4;';
+    limit.style.cssText = 'font-size:0.78rem;color:#cbd5e1;margin-bottom:10px;line-height:1.4;';
     limit.textContent = 'Up to 3 keys per peer per day. A key only opens a cipher with the same label.';
     sheet.appendChild(limit);
 
@@ -1385,12 +1392,12 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
         });
         if (alreadySent) {
             var blocked = document.createElement('div');
-            blocked.style.cssText = 'padding:10px;border-radius:8px;background:rgba(239,68,68,0.08);color:#ef4444;font-size:0.8rem;font-weight:700;margin-bottom:10px;';
+            blocked.style.cssText = 'padding:10px;border-radius:8px;background:rgba(252,165,165,0.12);color:#fca5a5;font-size:0.8rem;font-weight:700;margin-bottom:10px;';
             blocked.textContent = 'You already sent keys to this peer today.';
             sheet.appendChild(blocked);
             var closeBlocked = _btn('Close', 'transparent');
-            closeBlocked.style.border = '1px solid var(--border,#333)';
-            closeBlocked.style.color = 'var(--text-muted)';
+            closeBlocked.style.border = '1px solid #334155';
+            closeBlocked.style.color = '#e2e8f0';
             closeBlocked.style.width = '100%';
             closeBlocked.onclick = function() { overlay.remove(); };
             sheet.appendChild(closeBlocked);
@@ -1402,7 +1409,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
 
     if (!keys.length) {
         var none = document.createElement('div');
-        none.style.cssText = 'color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;';
+        none.style.cssText = 'color:#cbd5e1;font-size:0.85rem;margin-bottom:10px;';
         none.textContent = 'No keys to send. Open gifts from the daily wheel first.';
         sheet.appendChild(none);
     }
@@ -1416,7 +1423,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
             var chip = document.createElement('button');
             chip.type = 'button';
             chip.textContent = (on ? '✓ ' : '') + k.label;
-            chip.style.cssText = 'padding:8px 12px;font-family:monospace;font-weight:900;border-radius:8px;cursor:pointer;border:2px solid ' + (on ? '#f7931a' : 'rgba(247,147,26,0.3)') + ';background:' + (on ? 'rgba(247,147,26,0.2)' : 'transparent') + ';color:' + (on ? '#f7931a' : 'var(--text-muted)') + ';';
+            chip.style.cssText = 'padding:8px 12px;font-family:monospace;font-weight:900;border-radius:8px;cursor:pointer;border:2px solid ' + (on ? '#f7931a' : 'rgba(247,147,26,0.3)') + ';background:' + (on ? 'rgba(247,147,26,0.2)' : 'transparent') + ';color:' + (on ? '#f7931a' : '#cbd5e1') + ';';
             chip.onclick = function() {
                 var idx = selected.indexOf(k.id);
                 if (idx !== -1) selected.splice(idx, 1);
@@ -1453,8 +1460,8 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     sheet.appendChild(list);
     sheet.appendChild(send);
     var close = _btn('Close', 'transparent');
-    close.style.border = '1px solid var(--border,#333)';
-    close.style.color = 'var(--text-muted)';
+    close.style.border = '1px solid #334155';
+    close.style.color = '#e2e8f0';
     close.style.width = '100%';
     close.style.marginTop = '8px';
     close.onclick = function() { overlay.remove(); };

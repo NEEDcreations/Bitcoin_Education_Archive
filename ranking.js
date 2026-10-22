@@ -5015,13 +5015,17 @@ function showSettingsPage(tab) {
         // Peers / Gifts section - collapsible, above Advanced Account
         html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersGiftsBadge"></span> <span>▼</span></button>';
         html += '<div id="peersSectionContent" style="display:none;margin-bottom:12px;">';
-        html += '<style>@media(max-width:420px){.peer-action-row .peer-primary,.peer-action-row .peer-more{flex-basis:100%!important;}}</style>';
-        html += '<div style="padding:12px 14px;margin-bottom:10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.28);border-radius:12px;text-align:left;">';
+        html += '<style>@media(max-width:420px){.peer-action-row .peer-primary,.peer-action-row .peer-more{flex-basis:100%!important;}}'
+            + '#peersSectionContent .peer-sent{color:#f97316;}#peersSectionContent .peer-hold{color:#c4b5fd;}#peersSectionContent .peer-remove{color:#fca5a5;}'
+            + '[data-theme="light"] #peersSectionContent .peer-sent{color:#c2410c;}'
+            + '[data-theme="light"] #peersSectionContent .peer-hold{color:#6d28d9;}'
+            + '[data-theme="light"] #peersSectionContent .peer-remove{color:#b91c1c;}</style>';
+        html += '<div style="padding:12px 14px;margin-bottom:10px;background:var(--bg-side);border:1px solid rgba(247,147,26,0.45);border-radius:12px;text-align:left;">';
         html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">Peers are people you can send keys to. A key opens a locked cipher with the same label. You can send up to 3 keys to each peer, once a day.</div>';
         html += '</div>';
-        html += '<div style="padding:12px 14px;margin-bottom:12px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.35);border-radius:12px;text-align:left;">';
+        html += '<div style="padding:12px 14px;margin-bottom:12px;background:var(--bg-side);border:1px solid rgba(124,58,237,0.45);border-radius:12px;text-align:left;">';
         html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">🔒 Locked cipher: you need a key with the same label, such as 3A, to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key, or ask in Global Chat.</div>';
-        html += '<button type="button" onclick="if(typeof window.openGlobalChatForCipher===\'function\')window.openGlobalChatForCipher()" style="margin-top:8px;min-height:40px;padding:8px 12px;background:transparent;border:1px solid rgba(59,130,246,0.55);border-radius:8px;color:#93c5fd;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Global Chat</button>';
+        html += '<button type="button" onclick="if(typeof window.openGlobalChatForCipher===\'function\')window.openGlobalChatForCipher()" style="margin-top:8px;min-height:40px;padding:8px 12px;background:transparent;border:1px solid var(--link);border-radius:8px;color:var(--link);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Global Chat</button>';
         html += '</div>';
         html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:left;padding:4px 0 8px;">Loading...</div>';
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
@@ -6703,8 +6707,8 @@ function showSettingsPage(tab) {
                         var _safeName = (typeof escapeHtml === 'function' ? escapeHtml(name) : name);
                         var _safeUid = (typeof escapeHtml === 'function' ? escapeHtml(puid) : puid);
                         var _peerMarks = '';
-                        if (_keysSentToday) _peerMarks += '<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.35);color:#f7931a;font-size:0.72rem;font-weight:800;">Sent today</span>';
-                        if (_holdingKey) _peerMarks += '<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.35);color:#c4b5fd;font-size:0.72rem;font-weight:800;">Holding their key</span>';
+                        if (_keysSentToday) _peerMarks += '<span class="peer-sent" style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.35);font-size:0.72rem;font-weight:800;">Sent today</span>';
+                        if (_holdingKey) _peerMarks += '<span class="peer-hold" style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.45);font-size:0.72rem;font-weight:800;">Holding their key</span>';
                         var pLvl = typeof getLevel === 'function' ? getLevel(d.points || 0) : { name: 'Pleb', emoji: '🌱' };
                         var pStreak = d.streak || 0;
                         var pPosts = d.forumPosts || 0;
@@ -6730,31 +6734,31 @@ function showSettingsPage(tab) {
                         var summaryText = summaryParts.join(' · ');
                         var _sendLabel = _keysSentToday ? '🔑 Sent today' : '🔑 Send keys';
                         var _sendStyle = _keysSentToday
-                            ? 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-muted);'
+                            ? 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text);'
                             : 'background:linear-gradient(135deg,#f7931a,#ea580c);border:none;color:#fff;';
                         var _limitLine = _keysSentToday
                             ? 'Sent today. The limit is 3 keys per peer, once a day. You can send again tomorrow.'
                             : 'Up to 3 keys per peer per day.';
-                        peerHtml += '<div style="border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 10px;background:#0f172a;">' +
+                        peerHtml += '<div style="border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 10px;background:var(--bg-side);">' +
                             '<div style="font-size:1rem;font-weight:800;color:var(--heading);word-break:break-word;line-height:1.3;">🧡 ' + _safeName + '</div>' +
-                            '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-faint);line-height:1.4;">' + summaryText + '</div>' +
+                            '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-dim);line-height:1.4;">' + summaryText + '</div>' +
                             (_peerMarks ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + _peerMarks + '</div>' : '') +
                             '<div class="peer-action-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">' +
                                 '<button type="button" class="peer-primary" data-peer-action="send-keys" data-peer-uid="' + _safeUid + '" style="flex:1 1 160px;min-height:44px;padding:10px 12px;border-radius:10px;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;' + _sendStyle + '">' + _sendLabel + '</button>' +
                                 '<button type="button" class="peer-more" data-peer-action="more" data-peer-panel="' + pDetailId + '" aria-expanded="false" style="flex:1 1 140px;min-height:44px;padding:10px 12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">More options ▾</button>' +
                             '</div>' +
-                            '<div style="margin-top:6px;font-size:0.75rem;color:var(--text-muted);line-height:1.4;">' + _limitLine + '</div>' +
+                            '<div style="margin-top:6px;font-size:0.75rem;color:var(--text-dim);line-height:1.4;">' + _limitLine + '</div>' +
                             '<div style="display:flex;justify-content:flex-end;margin-top:4px;">' +
-                                '<button type="button" data-peer-action="remove" data-peer-uid="' + _safeUid + '" style="padding:6px 10px;background:transparent;border:1px solid rgba(239,68,68,0.35);border-radius:8px;color:#fca5a5;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>' +
+                                '<button type="button" class="peer-remove" data-peer-action="remove" data-peer-uid="' + _safeUid + '" style="padding:6px 10px;background:transparent;border:1px solid rgba(220,38,38,0.45);border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>' +
                             '</div>' +
-                            '<div id="' + pDetailId + '" style="display:none;margin-top:10px;padding:10px;background:#1e293b;border:1px solid var(--border);border-radius:10px;">' +
+                            '<div id="' + pDetailId + '" style="display:none;margin-top:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;">' +
                                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;">' +
                                     '<div style="color:var(--text-muted);">⭐ <b style="color:var(--text);">' + pXP + '</b> XP</div>' +
                                     '<div style="color:var(--text-muted);">🔥 <b style="color:var(--text);">' + pStreak + 'd</b> streak</div>' +
                                     '<div style="color:var(--text-muted);">🗣️ <b style="color:var(--text);">' + pPosts + '</b> posts</div>' +
                                     '<div style="color:var(--text-muted);">📅 <b style="color:var(--text);">' + (pWeekly > 0 ? '+' + pWeekly.toLocaleString() + ' XP this week' : 'No XP this week') + '</b></div>' +
                                 '</div>' +
-                                (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-faint);">' + pLastStr + '</div>' : '') +
+                                (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-dim);">' + pLastStr + '</div>' : '') +
                                 '<button type="button" data-peer-action="profile" data-peer-uid="' + _safeUid + '" style="margin-top:8px;width:100%;min-height:40px;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">View profile</button>' +
                             '</div>' +
                         '</div>';
@@ -8707,7 +8711,7 @@ window.confirmRemovePeer = function(uid, btnEl) {
     var yes = document.createElement('button');
     yes.type = 'button';
     yes.textContent = 'Remove peer';
-    yes.style.cssText = 'width:100%;min-height:44px;padding:10px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;';
+    yes.style.cssText = 'width:100%;min-height:44px;padding:10px;border:none;border-radius:10px;background:#b91c1c;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;';
     yes.onclick = function() {
         overlay.remove();
         window.managePeer('remove', uid, btnEl).then(function() {

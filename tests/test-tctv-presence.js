@@ -270,9 +270,11 @@ test('cache name is v2251 and the TV script cache-buster moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('timechain-tv.js?v=20261022_tctv3'));
-    assert.ok(html.includes('gifting.js?v=20261022_v2251'));
+    assert.ok(html.includes('gifting.js?v=20261022_lightfix'));
     assert.ok(html.includes('quests.js?v=20261022_v2251'));
-    assert.ok(html.includes('ranking.js?v=20261022_v2251'));
+    assert.ok(html.includes('ranking.js?v=20261022_lightfix'));
+    assert.ok(!html.includes('ranking.js?v=20261022_v2251'));
+    assert.ok(!html.includes('gifting.js?v=20261022_v2251'));
     assert.ok(html.includes('bundle.min.js?v=20261022_v2246'));
     assert.ok(html.includes('global-chat.js?v=20261022_v2251'));
     assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));

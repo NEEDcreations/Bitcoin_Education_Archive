@@ -390,8 +390,10 @@ queue.push(test('cache busters are v2251 and index.html matches 404.html', funct
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261022_v2251'));
-    assert.ok(html.includes('gifting.js?v=20261022_v2251'));
+    assert.ok(html.includes('ranking.js?v=20261022_lightfix'));
+    assert.ok(html.includes('gifting.js?v=20261022_lightfix'));
+    assert.strictEqual(html.includes('ranking.js?v=20261022_v2251'), false);
+    assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
     assert.ok(html.includes('bundle.min.js?v=20261022_v2246'));
     assert.ok(html.includes('global-chat.js?v=20261022_v2251'));
     assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));
