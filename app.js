@@ -2932,7 +2932,34 @@ window.nachoQuizAnswer = function(btn, correct) {
         return Math.max(local, firestore);
     };
 
+    // Stop Timechain TV whenever navigation leaves it: sidebar, go(), goHome(),
+    // and the back button. cleanupTimechainTV removes body.tctv-active, which
+    // is what hides the mobile top bar, and it stops the player and presence.
+    window.leaveTimechainTV = function(nextId) {
+        if (nextId === 'timechain-tv' || nextId === 'tv') return;
+        var body = document.body;
+        var active = !!(body && body.classList.contains('tctv-active')) || window._tctvActive === true;
+        if (!active) return;
+        if (nextId) window.currentPage = nextId;
+        if (typeof window.cleanupTimechainTV === 'function') {
+            try { window.cleanupTimechainTV(); }
+            catch (e) { console.warn('[tctv] cleanup failed', e); }
+        }
+        if (body && body.classList.contains('tctv-active')) body.classList.remove('tctv-active');
+        window._tctvActive = false;
+        var mbar = document.querySelector('.mobile-bar');
+        if (mbar) mbar.style.display = '';
+        if (typeof window._nachoRestorePosition === 'function') {
+            try { window._nachoRestorePosition(); } catch (e2) {}
+        }
+        if (typeof window.updateNachoAvatarForPage === 'function') {
+            try { window.updateNachoAvatarForPage(); } catch (e3) {}
+        }
+    };
+
     window.goHome = function goHome(fromPopState) {
+        window.currentPage = 'home';
+        window.leaveTimechainTV('home');
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
 
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
@@ -3720,6 +3747,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                 if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
             }
             return;
+        }
+        if (id === 'timechain-tv' || id === 'tv') window.currentPage = 'timechain-tv';
+        else {
+            window.currentPage = id || window.currentPage;
+            if (typeof window.leaveTimechainTV === 'function') window.leaveTimechainTV(id);
         }
         // Increment nav generation and capture it — any previously in-flight go() call
         // will see its captured navId !== window._navGeneration and abort after its await.
@@ -4890,6 +4922,12 @@ if (locked) {
             // Also check clean URL paths
             if (!hash && typeof _parseCleanUrl === 'function') {
                 hash = _parseCleanUrl() || '';
+            }
+            // Back/forward leaves TV even on branches that do not call go() or goHome().
+            var _popPage = hash || state.channel || 'home';
+            if (_popPage !== 'timechain-tv' && _popPage !== 'tv' && typeof window.leaveTimechainTV === 'function') {
+                window.currentPage = _popPage;
+                window.leaveTimechainTV(_popPage);
             }
 
             // GUARD STATE: user tried to leave the app — push them back to home

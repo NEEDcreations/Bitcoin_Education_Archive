@@ -16,7 +16,10 @@ const COUCH_NACHO_HTML = '<div style="position:relative;width:100%;height:100%;d
 
 // Check if we're on Timechain TV page
 function isTimechainTVPage() {
-    return window.currentPage === 'timechain-tv' || window.location.hash === '#timechain-tv';
+    if (window.currentPage) return window.currentPage === 'timechain-tv' || window.currentPage === 'tv';
+    var hash = window.location.hash || '';
+    var path = window.location.pathname || '';
+    return hash === '#timechain-tv' || hash === '#tv' || path === '/timechain-tv' || path === '/tv';
 }
 
 // Shared chrome so the live avatar and the Timechain TV swap stay identical.
@@ -2469,10 +2472,13 @@ if (document.readyState === 'loading') {
     }
 
     function onTv() {
+        // currentPage wins. A leftover tctv-active class must not keep the TV corner
+        // after go() / goHome() / back have already moved on.
+        if (window.currentPage) return window.currentPage === 'timechain-tv' || window.currentPage === 'tv';
         if (document.body && document.body.classList.contains('tctv-active')) return true;
         var hash = window.location.hash || '';
         var path = window.location.pathname || '';
-        return hash === '#timechain-tv' || hash === '#tv' || path.indexOf('timechain-tv') !== -1;
+        return hash === '#timechain-tv' || hash === '#tv' || path === '/timechain-tv' || path === '/tv';
     }
     function clearFixed(el) {
         if (!el) return;
