@@ -977,7 +977,7 @@ window.renderDailyQuote = function() {
     var el = document.getElementById('quoteOfDay');
     if (!el) return;
     if (qotdCache) { qotdPaint(el, qotdCache); return; }
-    fetch('data/quotes.json?v=20261022_v2282', { credentials: 'same-origin' })
+    fetch('data/quotes.json?v=20261022_v2313', { credentials: 'same-origin' })
         .then(function(r) {
             if (!r.ok) throw new Error('quotes');
             return r.json();

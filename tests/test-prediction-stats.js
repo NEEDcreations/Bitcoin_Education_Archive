@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const ps = require('../functions/src/predictionStats');
+const awardActions = require('../functions/src/awardActions');
 
 let passed = 0;
 let failed = 0;
@@ -511,7 +512,10 @@ test('client copy, aria hook, and server-only scoring are wired', function() {
     assert.ok(index.indexOf("actionKey === 'prediction_correct'") !== -1);
     assert.ok(index.indexOf("'prediction_correct': 25") === -1);
     assert.ok(index.indexOf("'prediction_correct': ['prediction_correct', 'correct prediction']") === -1);
-    assert.ok(index.indexOf("'prediction': 5") !== -1);
+    const made = awardActions.resolveAction({ action: '📈 Price prediction made', pts: 5 });
+    assert.strictEqual(made.ok, true);
+    assert.strictEqual(made.id, 'prediction');
+    assert.strictEqual(made.xp, 5);
 });
 
 test('create rule rejects a client server price, void, extra keys, and a missing resolved flag', function() {

@@ -1280,7 +1280,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                 // Store channel JSON URL for SW to cache
                 if ('caches' in window) {
                     caches.open('btc-offline-channels').then(function(cache) {
-                        cache.add(ch.file).catch(function() {});
+                        cache.add(typeof withDataCacheBuster === 'function' ? withDataCacheBuster(ch.file) : ch.file).catch(function() {});
                     });
                 }
                 cached[window.currentChannelId] = { ts: Date.now() };
@@ -1292,7 +1292,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                         delete cached[keys[i]];
                         if ('caches' in window) {
                             var file = CHANNELS[keys[i]] && CHANNELS[keys[i]].file;
-                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(file).catch(function() {}); });
+                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(typeof withDataCacheBuster === 'function' ? withDataCacheBuster(file) : file).catch(function() {}); });
                         }
                     }
                 }
