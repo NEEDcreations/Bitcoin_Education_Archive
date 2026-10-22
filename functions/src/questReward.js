@@ -13,6 +13,16 @@ const crypto = require('crypto');
 const banks = require('../reward-banks.json');
 const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
 
+// Previous published bank. build-reward-banks.js writes this when the
+// client banks change, with validUntil 72 hours later. Grading uses it
+// only for a question whose text or daily index matches that version.
+let prevDoc = null;
+try {
+    prevDoc = require('../reward-banks.prev.json');
+} catch (err) {
+    prevDoc = null;
+}
+
 const DAILY_QUIZ_XP_CAP = DAILY_POINTS_CAP;
 const TRIVIA_CORRECT_XP = 50;
 const QUEST_PERFECT_XP = 100;
@@ -103,15 +113,38 @@ function indexTopic(list) {
     return parts;
 }
 
-const questParts = {};
-Object.keys(banks.quests || {}).forEach(function(topic) {
-    questParts[topic] = indexTopic(banks.quests[topic]);
-});
+function indexQuestBank(quests) {
+    const parts = {};
+    Object.keys(quests || {}).forEach(function(topic) {
+        parts[topic] = indexTopic(quests[topic]);
+    });
+    return parts;
+}
+
+const questParts = indexQuestBank(banks.quests);
+const prevParts = prevDoc && prevDoc.quests ? indexQuestBank(prevDoc.quests) : null;
+
+function activePrevious(now, override) {
+    if (override === null) return null;
+    const src = override === undefined ? prevDoc : override;
+    if (!src || src.validUntil == null) return null;
+    if (!(Number(now) < Number(src.validUntil))) return null;
+    return src;
+}
+
+function previousQuestParts(prev) {
+    if (!prev || !prev.quests) return null;
+    if (prev === prevDoc) return prevParts;
+    return indexQuestBank(prev.quests);
+}
+
+function triviaQuestionFrom(item) {
+    if (!item || !Array.isArray(item.options)) return null;
+    return { q: item.q, options: item.options.slice(), answer: item.answer };
+}
 
 function triviaQuestion(index) {
-    const item = banks.trivia[index];
-    if (!item) return null;
-    return { q: item.q, options: item.options.slice(), answer: item.answer };
+    return triviaQuestionFrom(banks.trivia[index]);
 }
 
 function triviaLength() {
@@ -125,8 +158,8 @@ function questionsFor(topicKey, questIndex) {
     return Object.keys(part).map(function(hash) { return part[hash]; });
 }
 
-function lookupQuestion(topicKey, questIndex, ans) {
-    const topic = questParts[topicKey];
+function lookupQuestionIn(parts, topicKey, questIndex, ans) {
+    const topic = parts && parts[topicKey];
     if (!topic) return null;
     const part = topic[questIndex];
     if (!part) return null;
@@ -136,6 +169,10 @@ function lookupQuestion(topicKey, questIndex, ans) {
     const hash = ans && typeof ans.qHash === 'string' ? ans.qHash : '';
     if (hash && part[hash]) return part[hash];
     return null;
+}
+
+function lookupQuestion(topicKey, questIndex, ans) {
+    return lookupQuestionIn(questParts, topicKey, questIndex, ans);
 }
 
 function choiceCorrect(question, ans) {
@@ -169,20 +206,62 @@ function triviaChoiceCorrect(question, chosen) {
     return false;
 }
 
+function clientQuestionText(src) {
+    if (!src) return '';
+    if (typeof src.question === 'string') return src.question;
+    if (typeof src.q === 'string') return src.q;
+    return '';
+}
+
+// Today's question in the current bank, or in the previous bank while
+// validUntil is open. The previous copy is used only when the client's
+// index is that version's daily index and, if they sent question text,
+// the text matches too. One caller still records a single daily claim.
+function selectTriviaQuestion(src, now) {
+    const today = offsetDateKey(now);
+    const questionIndex = Number(src.questionIndex);
+    const currentIndex = triviaIndexForDay(today);
+    const currentQ = triviaQuestion(currentIndex);
+    const prev = activePrevious(now, src.prev);
+    const prevLen = prev && Array.isArray(prev.trivia) ? prev.trivia.length : 0;
+    const prevIndex = prevLen ? triviaIndexForDay(today, prevLen) : -1;
+    const prevQ = prevIndex >= 0 ? triviaQuestionFrom(prev.trivia[prevIndex]) : null;
+    const currentHit = Number.isInteger(questionIndex) && questionIndex === currentIndex;
+    const prevHit = !!(prevQ && Number.isInteger(questionIndex) && questionIndex === prevIndex);
+    if (!currentHit && !prevHit) {
+        return { ok: false, reason: 'wrong-question', questionIndex: currentIndex };
+    }
+    const text = clientQuestionText(src);
+    if (text) {
+        if (currentHit && currentQ && text === currentQ.q) return { ok: true, question: currentQ, questionIndex: currentIndex };
+        if (prevHit && prevQ && text === prevQ.q) return { ok: true, question: prevQ, questionIndex: prevIndex };
+        return { ok: false, reason: 'wrong-question', questionIndex: currentIndex };
+    }
+    if (currentHit && prevHit && currentQ && prevQ && currentQ.q !== prevQ.q) {
+        const prevRight = triviaChoiceCorrect(prevQ, src.chosen);
+        const currentRight = triviaChoiceCorrect(currentQ, src.chosen);
+        if (prevRight && !currentRight) return { ok: true, question: prevQ, questionIndex: prevIndex };
+        return { ok: true, question: currentQ, questionIndex: currentIndex };
+    }
+    if (prevHit && !currentHit && prevQ) return { ok: true, question: prevQ, questionIndex: prevIndex };
+    if (!currentQ) return { ok: false, reason: 'wrong-question', questionIndex: currentIndex };
+    return { ok: true, question: currentQ, questionIndex: currentIndex };
+}
+
 function gradeTrivia(input) {
     const src = input || {};
     const now = src.now == null ? Date.now() : src.now;
     const today = offsetDateKey(now);
     const dayKey = String(src.dayKey || '');
-    const questionIndex = Number(src.questionIndex);
     if (dayKey !== today) {
         return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'wrong-day' };
     }
-    const expected = triviaIndexForDay(today);
-    if (!Number.isInteger(questionIndex) || questionIndex !== expected) {
-        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'wrong-question', questionIndex: expected };
+    const selected = selectTriviaQuestion(src, now);
+    if (!selected.ok) {
+        return { ok: false, correct: false, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: selected.reason, questionIndex: selected.questionIndex };
     }
-    const question = triviaQuestion(expected);
+    const question = selected.question;
+    const expected = selected.questionIndex;
     const correct = triviaChoiceCorrect(question, src.chosen);
     if (src.banned === true) {
         return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected };
@@ -216,6 +295,9 @@ function gradeQuestSubmission(data) {
     }
     const fallbackTopic = sanitizeTopic(src.topicKey);
     const fallbackIndex = clampIndex(src.questIndex);
+    const now = src.serverNow == null ? Date.now() : src.serverNow;
+    const prev = activePrevious(now, src.prev);
+    const olderParts = previousQuestParts(prev);
     const seen = Object.create(null);
     const matched = [];
     let score = 0;
@@ -223,15 +305,25 @@ function gradeQuestSubmission(data) {
         const ans = objects[i];
         const topicKey = sanitizeTopic(ans.topicKey) || fallbackTopic;
         const questIndex = (ans.questIndex == null || ans.questIndex === '') ? fallbackIndex : clampIndex(ans.questIndex);
-        const question = lookupQuestion(topicKey, questIndex, ans);
+        let question = lookupQuestionIn(questParts, topicKey, questIndex, ans);
+        let bank = question ? 'current' : '';
+        if (!question && olderParts) {
+            question = lookupQuestionIn(olderParts, topicKey, questIndex, ans);
+            if (question) bank = 'prev';
+        }
         if (!question) continue;
         const seenKey = topicKey + ':' + questIndex + ':' + question.qHash;
         if (seen[seenKey]) continue;
         seen[seenKey] = true;
-        matched.push({ topicKey: topicKey, questIndex: questIndex, qHash: question.qHash });
-        if (choiceCorrect(question, ans)) score++;
+        matched.push({ topicKey: topicKey, questIndex: questIndex, qHash: question.qHash, bank: bank });
+        let correct = choiceCorrect(question, ans);
+        if (!correct && bank === 'current' && olderParts) {
+            const prior = lookupQuestionIn(olderParts, topicKey, questIndex, ans);
+            if (prior && choiceCorrect(prior, ans)) correct = true;
+        }
+        if (correct) score++;
     }
-    const part = samePart(matched);
+    const part = samePart(matched, { current: questParts, prev: olderParts });
     let pts = 0;
     if (score >= 3) {
         if (src.isRetry === true) pts = QUEST_RETRY_XP;
@@ -249,14 +341,17 @@ function gradeQuestSubmission(data) {
     };
 }
 
-function samePart(matched) {
+function samePart(matched, partsByBank) {
     if (!matched || matched.length !== 5) return null;
     const topicKey = matched[0].topicKey;
     const questIndex = matched[0].questIndex;
+    const bank = matched[0].bank || 'current';
     for (let i = 1; i < matched.length; i++) {
         if (matched[i].topicKey !== topicKey || matched[i].questIndex !== questIndex) return null;
+        if ((matched[i].bank || 'current') !== bank) return null;
     }
-    const part = questParts[topicKey] && questParts[topicKey][questIndex];
+    const parts = partsByBank && partsByBank[bank];
+    const part = parts && parts[topicKey] && parts[topicKey][questIndex];
     if (!part) return null;
     const expected = Object.keys(part).sort();
     if (expected.length !== 5) return null;

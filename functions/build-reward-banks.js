@@ -5,12 +5,19 @@
 // functions/reward-banks.json. Cloud Functions grade from that file.
 // build.sh runs this. tests/test-quest-reward.js fails if the committed
 // file drifts from the client sources.
+//
+// When the committed bank differs from the fresh build, the previous
+// committed bank is saved as functions/reward-banks.prev.json with
+// validUntil 72 hours later. A second run that does not change the bank
+// leaves that snapshot and its timestamp alone.
 
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'functions', 'reward-banks.json');
+const PREV = path.join(ROOT, 'functions', 'reward-banks.prev.json');
+const GRACE_MS = 72 * 60 * 60 * 1000;
 
 function matchBracket(src, openIndex, openChar, closeChar) {
     let depth = 0;
@@ -118,18 +125,49 @@ function buildBanks() {
     return { trivia: triviaOut, quests: quests, learning: learning };
 }
 
+function bankBody(doc) {
+    if (!doc || !Array.isArray(doc.trivia) || !doc.quests || !doc.learning) return null;
+    return { trivia: doc.trivia, quests: doc.quests, learning: doc.learning };
+}
+
+// Previous committed banks, kept for GRACE_MS after a content change.
+// Identical banks do not refresh validUntil or replace an existing snapshot.
+function snapshotPrevious(committed, fresh, now, existingPrev) {
+    const previous = bankBody(committed);
+    if (!previous) return existingPrev || null;
+    const next = bankBody(fresh);
+    const same = !!next && JSON.stringify(previous) === JSON.stringify(next);
+    if (same && existingPrev && existingPrev.validUntil != null) return existingPrev;
+    return {
+        validUntil: Number(now) + GRACE_MS,
+        trivia: previous.trivia,
+        quests: previous.quests,
+        learning: previous.learning,
+    };
+}
+
+function readJson(file) {
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
 function main() {
     const banks = buildBanks();
+    const committed = readJson(OUT);
+    const existingPrev = readJson(PREV);
+    const prev = snapshotPrevious(committed, banks, Date.now(), existingPrev);
     fs.writeFileSync(OUT, JSON.stringify(banks));
+    if (prev && prev !== existingPrev) fs.writeFileSync(PREV, JSON.stringify(prev));
     const questCount = Object.keys(banks.quests).reduce(function(n, key) {
         return n + banks.quests[key].length;
     }, 0);
     const learnCount = Object.keys(banks.learning).reduce(function(n, key) {
         return n + banks.learning[key].length;
     }, 0);
-    console.log('reward-banks.json trivia=' + banks.trivia.length + ' quiz=' + questCount + ' learning=' + learnCount);
+    const until = prev && prev.validUntil ? new Date(prev.validUntil).toISOString() : 'none';
+    console.log('reward-banks.json trivia=' + banks.trivia.length + ' quiz=' + questCount + ' learning=' + learnCount + ' prevUntil=' + until);
 }
 
 if (require.main === module) main();
 
-module.exports = { buildBanks: buildBanks };
+module.exports = { buildBanks: buildBanks, snapshotPrevious: snapshotPrevious, GRACE_MS: GRACE_MS };
