@@ -1,6 +1,8 @@
 'use strict';
 
-// Same daily cap gradeQuest uses: 500 points on the offset-day daily_points doc.
+// Quiz and trivia rewards use this cap: 500 points on the offset-day
+// daily_points doc. gradeQuest is the main grading path and already used 500.
+// awardPoints keeps a separate 1,000 cap for other actions.
 // Points past the cap go to pendingOverflow instead of the balance.
 
 const DAILY_POINTS_CAP = 500;
