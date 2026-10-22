@@ -262,15 +262,6 @@ function resolvePhrase(action, ctx) {
         });
     }
 
-    if (action === 'tctv_watch_10m') {
-        return done({
-            id: 'tctv_watch_10m',
-            xp: 10,
-            repeatable: true,
-            dailyLimit: 100,
-            cooldownMs: 600000,
-        });
-    }
     if (action === '💬 Global Chat') {
         return done({ id: 'chat_message', xp: 5, repeatable: true, dailyLimit: 200, cooldownMs: 3000 });
     }
@@ -456,6 +447,10 @@ function resolveAction(input) {
 
     if (actionKey === 'prediction_correct' || PREDICTION_RESULT.test(action)) {
         return { ok: false, error: 'Prediction results are scored on the server', awarded: 0, tickets: 0 };
+    }
+    // 100 XP and 1 orange ticket, once per offset day, from tctvWatchHeartbeat.
+    if (action === 'tctv_watch_10m' || actionKey === 'tctv_watch_10m') {
+        return { ok: false, error: 'Timechain TV watch rewards are granted by the server', awarded: 0, tickets: 0 };
     }
     if (actionKey && !ALLOWED_ACTION_KEYS[actionKey]) return unknown();
 

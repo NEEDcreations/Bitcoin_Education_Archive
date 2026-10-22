@@ -188,7 +188,6 @@ test('legit client phrases keep today amounts', function () {
         [{ action: 'Daily Spin', pts: 50 }, 50],
         [{ action: 'Daily Spin', pts: 100 }, 50],
         [{ action: 'Daily Spin', pts: 200 }, 50],
-        [{ action: 'tctv_watch_10m', pts: 10 }, 10],
         [{ action: '💬 Global Chat', pts: 5 }, 5],
         [{ action: '🔥 3-day chat streak!', pts: 10 }, 10],
         [{ action: '🔥 3-day chat streak!', pts: 20 }, 20],
@@ -242,6 +241,12 @@ test('legit client phrases keep today amounts', function () {
     assert.strictEqual(badQuest.ok, false);
     const badSpin = awardActions.resolveAction({ action: 'Daily Spin', pts: 40 });
     assert.strictEqual(badSpin.ok, false);
+    const tctv = awardActions.resolveAction({ action: 'tctv_watch_10m', pts: 10 });
+    assert.strictEqual(tctv.ok, false);
+    assert.strictEqual(tctv.awarded, 0);
+    assert.strictEqual(tctv.tickets, 0);
+    const tctvInflated = awardActions.resolveAction({ action: 'tctv_watch_10m', pts: 100 });
+    assert.strictEqual(tctvInflated.ok, false);
 });
 
 test('server source no longer keyword-matches or banks overflow', function () {

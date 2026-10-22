@@ -8622,3 +8622,8 @@ exports.claimReplyBonus = replyBonusFns.claimReplyBonus;
 const { bindDeleteAccount } = require('./src/deleteAccount');
 const deleteAccountFns = bindDeleteAccount(functionsV1, admin, db);
 exports.deleteAccount = deleteAccountFns.deleteAccount;
+
+// Daily Timechain TV watch reward. Presence counting stays on
+// tctvAggregatePresence; this callable only credits watch time.
+const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
+exports.tctvWatchHeartbeat = tctvWatchHeartbeat;

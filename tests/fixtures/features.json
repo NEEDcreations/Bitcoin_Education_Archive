@@ -34,6 +34,7 @@
 {"id":"raffle","name":"Orange ticket raffle","group":"Shop & items","open":"Nook","deep":null,"term":"raffle","q":"how does the raffle work","page":"_raffle","w":["raffle"]},
 {"id":"gift-bag","name":"Gift bag","group":"Shop & items","open":"Nook","deep":null,"term":"gift bag","q":"what is the gift bag","page":"_giftbag","w":["gift bag"]},
 {"id":"wheel","name":"Daily spin wheel","group":"Rewards","open":"showSpinWheel()","deep":null,"term":"spin","q":"where is the daily spin wheel","page":"_spin","w":["spin","wheel"]},
+{"id":"tctv-watch","name":"Watch 10 minutes of Timechain TV","group":"Rewards","open":"startTctvDailyWatch()","deep":"#timechain-tv","term":"watch 10","q":"how do i watch 10 minutes of timechain tv","page":null,"w":["10","watch"]},
 {"id":"gifts","name":"Gifts (open after spin)","group":"Rewards","open":"post-spin modal / openAllPostSpinGifts(); Settings → Account → Peers","deep":null,"term":"gifts","q":"how do i open my gifts","page":"_gifts","w":["gift"]},
 {"id":"ciphers","name":"Locked ciphers","group":"Rewards","open":"Nook → Inventory","deep":null,"term":"cipher","q":"how do i open a locked cipher","page":"_ciphers","w":["cipher"]},
 {"id":"keys","name":"Keys (send to peers, 3/peer/day)","group":"Rewards","open":"Inventory or Settings → Account → Peers → Send keys","deep":null,"term":"keys","q":"how do i get a key for my cipher","page":"_keys","w":["cipher","peer"]},

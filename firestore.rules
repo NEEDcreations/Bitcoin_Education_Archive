@@ -106,6 +106,9 @@ service cloud.firestore {
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
                         'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
                         'orangeTickets', 'tickets',
+                        // Timechain TV daily watch (tctvWatchHeartbeat only)
+                        'tctvWatchSeconds', 'tctvWatchDay', 'tctvWatchLastCredit',
+                        'tctvWatchAwardedDay', 'tctvWatchToastSeen',
                         // Streak / activity (CF-managed)
                         'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
                         'readChannels', 'visitedChannelsList',
@@ -2025,6 +2028,15 @@ service cloud.firestore {
     }
     match /shoutout_limits/{limitId} {
       allow read, write: if false;
+    }
+
+    // Daily Timechain TV watch ledger. The owner may read progress for the
+    // home button. Watch time, the daily claim, XP, and orange tickets are
+    // written only by tctvWatchHeartbeat (Admin SDK). Clients cannot write.
+    match /tctv_watch/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
     }
 
     match /{document=**} {

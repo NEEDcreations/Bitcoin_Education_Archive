@@ -6,24 +6,18 @@
 
 const { splitDailyXp } = require('./dailyXp');
 const { isSatsBanned } = require('./cipherClaim');
+const { offsetDateKey } = require('./offsetDay');
 
 const SAY_HI_XP = 50;
 const SAY_HI_TICKETS = 1;
 // Same cap awardPoints enforces and the client tells people about (1,000).
 const SAY_HI_DAILY_CAP = 1000;
-// 5 AM UTC. Same boundary as getOffsetDateKey() and the daily spin's getDailyKey().
-const RESET_HOUR_UTC = 5;
 // "hi" is the shortest real greeting this button asks for. One character is not.
 const MIN_SAY_HI_CHARS = 2;
 const MAX_SAY_HI_CHARS = 300;
 // Firestore request.time and the arm timestamp can differ by a little.
 const ARM_SKEW_MS = 15000;
 const SAY_HI_RATE_MS = 3000;
-
-function offsetDateKey(nowMs) {
-    const shifted = new Date(Number(nowMs) - RESET_HOUR_UTC * 3600 * 1000);
-    return shifted.toISOString().slice(0, 10);
-}
 
 function timestampMs(ts) {
     if (!ts) return 0;

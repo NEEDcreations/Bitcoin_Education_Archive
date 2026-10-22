@@ -172,6 +172,10 @@
             if (typeof win.showTCTV === 'function') win.showTCTV();
             else if (typeof win.go === 'function') win.go('timechain-tv');
         };
+        if (k === 'tctvwatch') return function () {
+            if (typeof win.startTctvDailyWatch === 'function') win.startTctvDailyWatch();
+            else if (typeof win.go === 'function') win.go('timechain-tv');
+        };
         return goOpen(f.arg || f.id);
     }
 
@@ -581,6 +585,13 @@
             how: 'Open the Lightning page and connect with a Lightning address, WebLN, or NWC.',
             follow: 'Want to save just an address in Settings instead?',
             hash: 'lightning', aliases: ['lightning', 'lightning-wallet'], kind: 'go', arg: 'lightning' }),
+        R({ id: 'tctv-watch', title: 'Watch 10 minutes of Timechain TV', group: 'Rewards', term: 'watch 10', priority: 72,
+            kw: 'watch 10 minutes daily challenge timechain tv reward xp orange tickets',
+            desc: 'Watch 10 minutes of Timechain TV in a day to earn 100 XP and 1 orange ticket.',
+            how: 'Tap Watch TV next to the daily spin. It opens Timechain TV and starts playback. The button shows minutes watched, then Done.',
+            follow: 'Want the Timechain TV channels themselves?',
+            hash: 'app/tctv-watch', aliases: ['tctv-watch'], kind: 'tctvwatch',
+            openFns: ['startTctvDailyWatch', 'go'] }),
         R({ id: 'tv', title: 'Timechain TV', group: 'Media', term: 'tv', priority: 60,
             kw: 'tv timechain television watch video',
             desc: 'Timechain TV plays Bitcoin videos around the clock.',
@@ -930,6 +941,7 @@
         if (/bitcoin buddy|\bbuddy\b/.test(s)) return 'buddy';
         if (/plebtalk|\bforum\b/.test(s)) return 'forum';
         if (/marketplace|lightningmart|\bmarket\b/.test(s) && !/cap|stock/.test(s)) return 'marketplace';
+        if (/watch 10|10 minutes of timechain|10 min of timechain|daily tv challenge|tctv daily watch/.test(s)) return 'tctv-watch';
         if (/timechain tv|\btv\b/.test(s)) return 'tv';
         if (/bitcoin music|bitcoin beats|\bbeats\b|dj mode|where can i listen/.test(s)) return 'beats';
         if (/mempool|network stats|bitcoin dashboard|\bdashboard\b/.test(s)) return 'dashboard';

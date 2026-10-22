@@ -5571,31 +5571,11 @@ window._tctvStartTracker = function() {
             }
         } catch(e) {}
 
-        // Every 10 minutes (cumulative) award 1 ticket + up to 10 XP
-        // Daily TCTV XP cap: max 50 XP/day (5 x 10-min blocks) to prevent idle farming
+        // Badges still use this browser's minute count. XP and the orange
+        // ticket are granted only by tctvWatchHeartbeat.
         if (total % 10 === 0) {
-            if (typeof awardTickets === 'function') {
-                awardTickets(1, 'TCTV watch');
-            }
             if (typeof checkBadges === 'function') {
                 checkBadges();
-            }
-            var _tctvDay = new Date().toISOString().split('T')[0];
-            var _tctvXpKey = 'btc_tctv_xp_' + _tctvDay;
-            var _tctvXpToday = parseInt(localStorage.getItem(_tctvXpKey) || '0', 10);
-            if (_tctvXpToday < 50) {
-                var _tctvGrant = (typeof awardPoints === 'function') ? awardPoints(10, 'tctv_watch_10m') : null;
-                localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
-                Promise.resolve(_tctvGrant).then(function(result) {
-                    var paid = result && result.data && result.data.tickets > 0;
-                    if (typeof showToast === 'function') {
-                        showToast(paid
-                            ? '📺 +10 XP & 🎫 +1 Ticket — Thanks for watching Timechain TV!'
-                            : '📺 +10 XP — Thanks for watching Timechain TV!');
-                    }
-                }).catch(function() {});
-            } else if (typeof showToast === 'function') {
-                showToast('📺 Keep watching! (TCTV XP cap reached for today)');
             }
         } else if (total === 1) {
             if (typeof showToast === 'function') {

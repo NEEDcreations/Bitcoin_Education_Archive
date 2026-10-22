@@ -622,7 +622,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2299'"));
     const notesHtml = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 1600);
+    const latest = notesHtml.slice(notesHtml.indexOf('Latest updates'), notesHtml.indexOf('Latest updates') + 4000);
     assert.ok(latest.includes('Replying to someone in Global Chat can now earn you bonus XP.'));
     assert.ok(latest.includes('Nacho is back to his classic look everywhere.'));
     assert.ok(notesHtml.includes('Marketplace fixed: you can post, edit, remove and save listings again.'));
