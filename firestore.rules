@@ -1195,6 +1195,10 @@ service cloud.firestore {
                     && (!('createdAt' in request.resource.data)
                         || request.resource.data.createdAt == request.time)
                     && !request.resource.data.keys().hasAny(['xp', 'tickets', 'sats', 'points', 'orangeTickets', 'badgeId', 'freezes']);
+      // `resolved` is server-only (managePeer, openGift, decryptCipher, pvpResolveRound).
+      // sendKeys only adds key ids on the same admin write. Clients may change
+      // `read` and nothing else, so a client-written resolved value cannot stick.
+      // Rewards must never read it.
       allow update: if request.auth != null
                     && request.auth.uid == resource.data.recipientId
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])

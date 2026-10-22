@@ -313,7 +313,9 @@ queue.push(test('managePeer send reads in one batch and writes the request with 
     assert.ok(send.includes('revReqRef.get()'));
     assert.strictEqual((send.match(/await /g) || []).length, 2, 'send should await the parallel read and the batch commit only');
     assert.ok(send.includes('batch.set(reqRef,'));
-    assert.ok(send.includes("batch.set(db.collection('notifications').doc(),"));
+    assert.ok(send.includes("const notifRef = db.collection('notifications').doc()"));
+    assert.ok(send.includes('batch.set(notifRef,'));
+    assert.ok(send.includes('notifId: notifRef.id'));
     assert.ok(send.includes("type: 'peer_request'"));
     assert.strictEqual(send.includes('notifications\')\n            .add') || send.includes(".add({"), false);
     const checks = [
@@ -391,8 +393,10 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
     assert.ok(html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('gifting.js?v=20261022_v2254'));
-    assert.ok(html.includes('notifications.js?v=20261022_v2262'));
+    assert.ok(html.includes('gifting.js?v=20261022_v2274'));
+    assert.strictEqual(html.includes('gifting.js?v=20261022_v2254'), false);
+    assert.ok(html.includes('notifications.js?v=20261022_v2274'));
+    assert.strictEqual(html.includes('notifications.js?v=20261022_v2262'), false);
     assert.strictEqual(html.includes('notifications.js?v=20261022_v2254'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2251'), false);
@@ -423,7 +427,14 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2267'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2274'"));
+    assert.strictEqual(sw.includes('btc-archive-v2273'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2272'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2271'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2270'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2269'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2268'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2267'), false);
     assert.strictEqual(sw.includes('btc-archive-v2266'), false);
     assert.strictEqual(sw.includes('btc-archive-v2265'), false);
     assert.strictEqual(sw.includes('btc-archive-v2264'), false);

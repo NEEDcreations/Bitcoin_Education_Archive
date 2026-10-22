@@ -9,6 +9,7 @@ const functions = require('firebase-functions');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const db = admin.firestore();
+const notifResolved = require('./notifResolved');
 
 function countWins(answers) {
   return (answers || []).filter(a => a && a.won).length;
@@ -27,6 +28,25 @@ exports.pvpResolveRound = onDocumentWritten('pvp_matches/{matchId}', async (even
     const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
     if (!change.after.exists) return null;
     const data = change.after.data();
+
+    // A finished or forfeited match is no longer an invite. Stamp any
+    // notification that pointed at it. This write is display-only.
+    if (data.status === 'finished' || data.status === 'forfeit') {
+        try {
+            await notifResolved.stampMatching(db, {
+                state: data.status === 'finished' ? 'joined' : 'expired',
+                whereField: 'targetId',
+                whereValue: context.params.matchId,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                filter: {
+                    type: 'pvp',
+                    targetId: context.params.matchId,
+                    state: data.status === 'finished' ? 'joined' : 'expired',
+                },
+            });
+        } catch (e) { console.warn('[pvpResolveRound] resolve notice failed'); }
+        return null;
+    }
 
     // Only process active matches — prevents re-trigger after CF writes status
     if (data.status !== 'active') return null;
