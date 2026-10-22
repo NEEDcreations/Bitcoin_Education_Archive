@@ -398,7 +398,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2251'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
     assert.ok(html.includes('bundle.min.js?v=20261022_v2268'));
-    assert.ok(html.includes('global-chat.js?v=20261022_v2267'));
+    assert.ok(html.includes('global-chat.js?v=20261022_v2280'));
+    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2267'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2265'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2264'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2266'), false);
@@ -412,7 +413,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(html.includes('features.registry.js?v=20261022_v2266'));
     assert.strictEqual(html.includes('features.registry.js?v=20261022_v2265'), false);
     assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));
-    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 4);
+    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2280/g) || []).length, 4);
+    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 0);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2251/g) || []).length, 0);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2246'), false);
@@ -424,8 +426,10 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2268'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2280'"));
     assert.strictEqual(sw.includes('nacho-fly.svg'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2270'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2268'), false);
     assert.strictEqual(sw.includes('btc-archive-v2267'), false);
     assert.strictEqual(sw.includes('btc-archive-v2266'), false);
     assert.strictEqual(sw.includes('btc-archive-v2265'), false);
