@@ -33,6 +33,8 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     db.settings({ preferRest: true });
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
+const { createPredictionJobs } = require('./src/predictionJobs');
+const predictionJobs = createPredictionJobs(db, admin);
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -2916,6 +2918,12 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     // Badge ID for server-side dedup (optional - only sent for badge_earned actions)
     const badgeId = (data.badgeId || '').replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 60);
 
+    // Correct/wrong is scored only by resolvePredictions. A hostile client must
+    // not be able to grant itself the 25 XP prediction_correct award.
+    if (actionKey === 'prediction_correct' || /prediction_correct|correct prediction|correct price prediction/i.test(action)) {
+        return { success: false, error: 'Prediction results are scored on the server', awarded: 0 };
+    }
+
     // ── SERVER-SIDE BADGE VALUE CATALOG ──
     // Every badge the client can earn mapped to its exact XP value.
     // If a badgeId is not in this map it is rejected - closes the money-printer exploit
@@ -3233,7 +3241,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         'beats_comment': 10,          // Comment on Beats
         'irl_host': 15,               // Host IRL event
         'prediction': 5,              // Make prediction
-        'prediction_correct': 25,     // Correct prediction
         'welcome_bonus': 5,           // First visit
         'anon_merge': 500,            // Anonymous data merge (capped)
         'story_chapter': 15,          // Nacho story chapter
@@ -3304,7 +3311,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         'beats_comment': ['beats_comment', 'comment on bitcoin beats'],
         'irl_host': ['irl_host', 'host irl'],
         'prediction': ['prediction'],
-        'prediction_correct': ['prediction_correct', 'correct prediction'],
         'welcome_bonus': ['welcome bonus', 'welcome_bonus'],
         'anon_merge': ['anon_merge', 'anonymous progress'],
         'story_chapter': ['completed chapter', 'story_chapter'],
@@ -3855,67 +3861,62 @@ exports.backfillBestStreak = functionsV1.https.onCall(async (data, context) => {
 });
 
 // ---- Resolve Predictions (runs every 6 hours) ----
-exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: 'UTC' }, async (event) => {
-    const snap = await db.collection('active_predictions').where('resolved', '==', false).get();
-    if (snap.empty) return;
+// Scoring is server-only. Clients may create active_predictions with uid,
+// direction, price, time, and resolved:false. The start price is fetched here
+// and stored in prediction_server, which clients cannot write. Clients cannot
+// write prediction_stats, delete the active doc, or bump the community total.
+async function _btcUsd() {
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+    const data = await res.json();
+    return data && data.bitcoin && data.bitcoin.usd ? data.bitcoin.usd : 0;
+}
 
-    const now = Date.now();
-    const batch = db.batch();
-    let resolved = 0;
-    let correct = 0;
-    let total = 0;
-
-    // Fetch current BTC price
-    let currentPrice = 0;
+exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
     try {
-        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-        const data = await res.json();
-        if (data && data.bitcoin && data.bitcoin.usd) currentPrice = data.bitcoin.usd;
-    } catch(e) {
-        console.error('Failed to fetch BTC price:', e);
-        return;
+        const result = await predictionJobs.resolveDue(_btcUsd);
+        console.log('[resolvePredictions]', JSON.stringify(result));
+    } catch (e) {
+        console.error('[resolvePredictions] failed:', e);
     }
-    if (!currentPrice) return;
+});
 
-    snap.forEach(doc => {
-        const pred = doc.data();
-        // Only resolve after 24 hours (prediction window)
-        if (now - pred.time < 24 * 60 * 60 * 1000) return;
-
-        const diff = currentPrice - pred.price;
-        const isCorrect = (pred.direction === 'up' && diff > 0) || (pred.direction === 'down' && diff < 0);
-
-        // Update user's prediction stats
-        const userRef = db.collection('users').doc(pred.uid);
-        const inc = admin.firestore.FieldValue.increment;
-        const userUpdate = {
-            'predictions.total': inc(1),
-            'predictions.lastResolved': now
-        };
-        if (isCorrect) {
-            userUpdate['predictions.correct'] = inc(1);
-        }
-        batch.set(userRef, userUpdate, { merge: true });
-
-        // Delete the active prediction
-        batch.delete(doc.ref);
-
-        if (isCorrect) correct++;
-        total++;
-        resolved++;
-    });
-
-    // Update global stats
-    if (total > 0) {
-        const globalRef = db.collection('stats').doc('predictions');
-        const inc = admin.firestore.FieldValue.increment;
-        const globalUpdate = { total: inc(total) };
-        if (correct > 0) globalUpdate.correct = inc(correct);
-        batch.set(globalRef, globalUpdate, { merge: true });
+// On create, always fetch BTC and store it in prediction_server, ignoring any
+// client price or void flag. Copy that server price onto predPending so the
+// card can show "pending" with one read. Totals stay untouched until resolve.
+exports.syncPredictionPending = onDocumentWritten('active_predictions/{uid}', async (event) => {
+    const uid = event.params.uid;
+    const after = event.data.after;
+    if (!after.exists) return null;
+    try {
+        await predictionJobs.syncPending(uid, after.data() || {}, _btcUsd);
+    } catch (e) {
+        console.error('[syncPredictionPending]', uid, e.message);
     }
+    return null;
+});
 
-    if (resolved > 0) await batch.commit();
-    console.log(`Resolved ${resolved} predictions: ${correct}/${total} correct. BTC price: $${currentPrice}`);
+// Monday 05:00 UTC — same boundary as resetWeeklyXP.
+// Each of the top 5 (min 5 resolved, not isSatsBanned) gets 25 orange tickets.
+exports.payWeeklyPredictors = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
+    try {
+        const result = await predictionJobs.payout('weekly', new Date());
+        console.log('[payWeeklyPredictors]', JSON.stringify({ action: result.action, periodId: result.periodId, winners: (result.due || []).length, reset: result.reset }));
+    } catch (e) {
+        console.error('[payWeeklyPredictors] failed:', e);
+    }
+    return null;
+});
+
+// 1st of the month 00:00 UTC — same boundary as resetMonthlyXP.
+// Each of the top 5 (min 15 resolved, not isSatsBanned) gets 50 orange tickets.
+exports.payMonthlyPredictors = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
+    try {
+        const result = await predictionJobs.payout('monthly', new Date());
+        console.log('[payMonthlyPredictors]', JSON.stringify({ action: result.action, periodId: result.periodId, winners: (result.due || []).length, reset: result.reset }));
+    } catch (e) {
+        console.error('[payMonthlyPredictors] failed:', e);
+    }
+    return null;
 });
 
 // ---- One-time backfill global community stats ----

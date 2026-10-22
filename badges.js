@@ -4,6 +4,28 @@
 // Bitcoin Education Archive - Achievement Badges
 // =============================================
 
+// Server stats win once prediction_stats has loaded. Until then, the frozen
+// users.predictions aggregate still unlocks badges earned before the move.
+function _predBadgeCounts() {
+    var empty = { total: 0, correct: 0, bestStreak: 0 };
+    if (typeof currentUser === 'undefined' || !currentUser) return empty;
+    var server = currentUser._serverPred;
+    if (server) {
+        return {
+            total: server.total || 0,
+            correct: server.correct || 0,
+            bestStreak: server.bestStreak || 0
+        };
+    }
+    var legacy = currentUser.predictions;
+    if (!legacy) return empty;
+    return {
+        total: legacy.total || 0,
+        correct: legacy.correct || 0,
+        bestStreak: legacy.bestStreak || 0
+    };
+}
+
 const BADGE_DEFS = [
     // ---- Ghost Mode & Onboarding Badges ----
     { id: 'ghost_mode', name: 'Ghost Mode', emoji: '👻', desc: 'Exploring the Archive anonymously — your progress is at risk!', check: () => (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.isAnonymous), pts: 0, hidden: false },
@@ -131,8 +153,8 @@ const BADGE_DEFS = [
     { id: 'sats_5k', name: 'Sat Whale', emoji: '🧊', desc: 'Claimed 5,000 sats total', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 5000, pts: 250 },
 
     // ---- Prediction Badges ----
-    { id: 'predict_1', name: 'Oracle', emoji: '🎱', desc: 'Made your first price prediction', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.total || 0 : 0) >= 1, pts: 10 },
-    { id: 'predict_correct_5', name: 'Crystal Ball', emoji: '🏐', desc: '5 correct predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 5, pts: 75 },
+    { id: 'predict_1', name: 'Oracle', emoji: '🎱', desc: 'Made your first price prediction', check: () => _predBadgeCounts().total >= 1, pts: 10 },
+    { id: 'predict_correct_5', name: 'Crystal Ball', emoji: '🏐', desc: '5 correct predictions', check: () => _predBadgeCounts().correct >= 5, pts: 75 },
 
     // ---- Milestone Badges ----
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
@@ -180,8 +202,8 @@ const BADGE_DEFS = [
     { id: 'react_50', name: 'Reaction King', emoji: '❤️', desc: 'Reacted to 50 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 50, pts: 50 },
 
     // ---- Prediction Streaks (expand existing) ----
-    { id: 'predict_streak_3', name: 'Oracle Streak', emoji: '🎯', desc: '3 correct predictions in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.bestStreak || 0 : 0) >= 3, pts: 50 },
-    { id: 'predict_streak_10', name: 'Nostradamus', emoji: '🔮', desc: '10 correct predictions in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.bestStreak || 0 : 0) >= 10, pts: 250 },
+    { id: 'predict_streak_3', name: 'Oracle Streak', emoji: '🎯', desc: '3 correct predictions in a row', check: () => _predBadgeCounts().bestStreak >= 3, pts: 50 },
+    { id: 'predict_streak_10', name: 'Nostradamus', emoji: '🔮', desc: '10 correct predictions in a row', check: () => _predBadgeCounts().bestStreak >= 10, pts: 250 },
 
     // ---- Spin Wheel Badges ----
     { id: 'spin_30', name: 'Lucky Spinner', emoji: '🎰', desc: 'Spun the wheel 30 days total', check: () => parseInt(localStorage.getItem('btc_spin_count') || '0') >= 30, pts: 75 },
@@ -279,10 +301,10 @@ const BADGE_DEFS = [
     { id: 'tip_received_50', name: 'Community Darling', emoji: '🌟', desc: 'Received 50 tips from others', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 50, pts: 500 },
 
     // ---- Price Predictions ----
-    { id: 'predict_10', name: 'Market Watcher', emoji: '📊', desc: 'Made 10 price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.total || 0 : 0) >= 10, pts: 25 },
-    { id: 'predict_50', name: 'Chartist', emoji: '📈', desc: 'Made 50 price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.total || 0 : 0) >= 50, pts: 75 },
-    { id: 'predict_correct_25', name: 'Pattern Reader', emoji: '🌊', desc: '25 correct price predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 25, pts: 200 },
-    { id: 'predict_correct_100', name: 'Time Traveler', emoji: '⏳', desc: '100 correct price predictions — you can see the future', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 100, pts: 750 },
+    { id: 'predict_10', name: 'Market Watcher', emoji: '📊', desc: 'Made 10 price predictions', check: () => _predBadgeCounts().total >= 10, pts: 25 },
+    { id: 'predict_50', name: 'Chartist', emoji: '📈', desc: 'Made 50 price predictions', check: () => _predBadgeCounts().total >= 50, pts: 75 },
+    { id: 'predict_correct_25', name: 'Pattern Reader', emoji: '🌊', desc: '25 correct price predictions', check: () => _predBadgeCounts().correct >= 25, pts: 200 },
+    { id: 'predict_correct_100', name: 'Time Traveler', emoji: '⏳', desc: '100 correct price predictions — you can see the future', check: () => _predBadgeCounts().correct >= 100, pts: 750 },
 
     // ---- IRL Attendance ----
     { id: 'irl_attend_1', name: 'Show Up', emoji: '📍', desc: 'RSVPed to your first IRL event', check: () => parseInt(localStorage.getItem('btc_irl_attended') || '0') >= 1, pts: 25 },
@@ -417,8 +439,8 @@ const BADGE_DEFS = [
     { id: 'dj_listener_100', name: 'Super Fan',     emoji: '🌟', desc: 'Tuned in to 100 DJ sets',               check: () => parseInt(localStorage.getItem('btc_dj_listens') || '0') >= 100, pts: 400 },
 
     // ---- Predictions: accuracy badge ----
-    { id: 'predict_correct_50',    name: 'Half-Oracle',          emoji: '🌙', desc: '50 correct price predictions',                    check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 50,  pts: 400 },
-    { id: 'predict_accuracy_70',   name: 'Precision Forecaster', emoji: '🎯', desc: 'Hit 70%+ accuracy across 20+ predictions',         check: () => { if (typeof currentUser === 'undefined' || !currentUser || !currentUser.predictions) return false; var p=currentUser.predictions; var t=p.total||0; var c=p.correct||0; return t>=20 && (c/t)>=0.7; }, pts: 200 },
+    { id: 'predict_correct_50',    name: 'Half-Oracle',          emoji: '🌙', desc: '50 correct price predictions',                    check: () => _predBadgeCounts().correct >= 50,  pts: 400 },
+    { id: 'predict_accuracy_70',   name: 'Precision Forecaster', emoji: '🎯', desc: 'Hit 70%+ accuracy across 20+ predictions',         check: () => { var p = _predBadgeCounts(); return p.total >= 20 && (p.correct / p.total) >= 0.7; }, pts: 200 },
 
     // ---- Nacho: dressed up ----
     { id: 'nacho_dressed', name: 'Fashion Forward', emoji: '👗', desc: "Equipped a closet item on Nacho", check: () => { try { return Object.keys(JSON.parse(localStorage.getItem('btc_nacho_equipped_multi') || '{}')).length >= 1; } catch(e) { return false; } }, pts: 15 },

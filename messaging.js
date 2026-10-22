@@ -693,16 +693,8 @@ window.showUserProfile = function(uid) {
                 profileStat('💀', (u.pvpLosses || 0) + 'L', 'PVP Losses') +
                 profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
             '</div>' : '') +
-            // Prediction Stats (only show if they've made predictions)
-            (u.predictions && u.predictions.total > 0 ? (function() {
-                var ps = u.predictions;
-                var pPct = ps.total > 0 ? Math.round((ps.correct / ps.total) * 100) : 0;
-                return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
-                    profileStat('📈', ps.total, 'Predictions') +
-                    profileStat('🎯', pPct + '%', 'Accuracy') +
-                    profileStat('🔥', ps.bestStreak || ps.streak || 0, 'Best Streak') +
-                '</div>';
-            })() : '') +
+            // Own prediction stats are filled from prediction_stats after render.
+            '<div id="profilePredStats"></div>' +
             // Lightning Address & Tip button — always show for other signed-in users
             ((!_isOwnProfile && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? (function() {
                 // Stash tip data on window to avoid inline-onclick escaping issues
@@ -747,6 +739,22 @@ window.showUserProfile = function(uid) {
         var div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstChild);
+        if (auth && auth.currentUser && auth.currentUser.uid === uid && typeof window._loadMyPredictionStats === 'function') {
+            window._loadMyPredictionStats(function(stats) {
+                var node = document.getElementById('profilePredStats');
+                if (!node) return;
+                var total = stats ? (Number(stats.predTotal) || 0) : 0;
+                if (!total) { node.innerHTML = ''; return; }
+                var correct = Number(stats.predCorrect) || 0;
+                var pPct = Math.round((correct / total) * 100);
+                var best = Number(stats.predBestStreak) || Number(stats.predStreak) || 0;
+                node.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
+                    profileStat('📈', total, 'Predictions') +
+                    profileStat('🎯', pPct + '%', 'Accuracy') +
+                    profileStat('🔥', best, 'Best Streak') +
+                '</div>';
+            });
+        }
     }).catch(function(err) {
         console.error('Profile load error:', err);
         var modal = document.getElementById('userProfileModal');

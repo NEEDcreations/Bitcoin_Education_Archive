@@ -141,7 +141,15 @@ service cloud.firestore {
                         // Peer partnership levels (CF-only via updatePeerLevelAfterGift)
                         'peerData',
                         // Immutable identity
-                        'created', 'createdAt', 'uid'
+                        'created', 'createdAt', 'uid',
+                        // Price-prediction stats are server-only (resolvePredictions).
+                        // The nested `predictions` map used to be client-incremented.
+                        'predictions',
+                        'predCorrect', 'predTotal', 'predLastResult', 'predAccuracy',
+                        'predPending', 'predStreak', 'predBestStreak', 'reachedAt', 'reachedSort',
+                        'weekKey', 'weekCorrect', 'weekTotal', 'weekAccuracy', 'weekReachedAt', 'weekReachedSort',
+                        'monthKey', 'monthCorrect', 'monthTotal', 'monthAccuracy', 'monthReachedAt', 'monthReachedSort',
+                        'qualifiesAllTime', 'qualifiesWeek', 'qualifiesMonth'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
@@ -288,32 +296,11 @@ service cloud.firestore {
                                 'totalQuestions', 'upvotes', 'downvotes', 'lastUpdated',
                                 'topics', 'sources'
                             ]);
-      // Global prediction stats — per-key +1 only, auth'd non-anon.
-      // Mirrors stats/global pattern. Accepts either:
-      //   • 1-key write: total += 1 (wrong prediction)
-      //   • 2-key write: total += 1 AND correct += 1 (correct prediction)
-      allow create: if statId == 'predictions'
-                    && request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.total is int
-                    && request.resource.data.correct is int
-                    && request.resource.data.total <= 1
-                    && request.resource.data.correct <= 1
-                    && request.resource.data.total >= 0
-                    && request.resource.data.correct >= 0;
-      allow update: if statId == 'predictions'
-                    && request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && (
-                      // Wrong prediction: only total changes, +1
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total'])
-                        && request.resource.data.total == resource.data.get('total', 0) + 1)
-                      ||
-                      // Correct prediction: total and correct both change, each +1
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'correct'])
-                        && request.resource.data.total == resource.data.get('total', 0) + 1
-                        && request.resource.data.correct == resource.data.get('correct', 0) + 1)
-                    );
+      // Community prediction totals (stats/predictions) are written only by
+      // resolvePredictions via the Admin SDK. The old client +1 rules are
+      // closed so a hostile client cannot inflate community accuracy.
+      // No allow matches statId == 'predictions', so client writes are denied.
+      // Read stays open via `allow read: if true` above.
       // ─── Global community stats ───
       // Authenticated (non-anonymous) users may increment whitelisted counters
       // by exactly +1 per write (watchTimeMinutes allows +1..+5 for batched TCTV pings).
@@ -325,7 +312,7 @@ service cloud.firestore {
       // Risk: a determined attacker with a console can inflate counters, but these
       // are cosmetic engagement metrics only — no points, sats, or access granted.
       // Worst case: admin calls resetCommunityStats() to reset.
-      // Mirrors the stats/predictions pattern above.
+      // Cosmetic engagement counters only — no points, sats, or access.
       allow update, create: if statId == 'global'
                              && request.auth != null
                              && isAdmin();
@@ -372,13 +359,16 @@ service cloud.firestore {
     }
 
     // Active predictions (for server-side resolution)
-    // [AUDIT FIX L-NEW-11] Prevent backdating predictions
+    // [AUDIT FIX L-NEW-11] Prevent backdating predictions.
+    // hasOnly rejects a client-supplied serverStartPrice, void, or any other key.
+    // resolved must be false so the open prediction is eligible for scoring.
     match /active_predictions/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create: if request.auth != null
                     && request.auth.uid == uid
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.keys().hasAll(['direction', 'price', 'uid', 'time'])
+                    && request.resource.data.keys().hasOnly(['uid', 'direction', 'price', 'time', 'resolved'])
+                    && request.resource.data.resolved == false
                     && request.resource.data.direction is string
                     && (request.resource.data.direction == 'up' || request.resource.data.direction == 'down')
                     && request.resource.data.uid == request.auth.uid
@@ -386,7 +376,39 @@ service cloud.firestore {
                     && request.resource.data.time == request.time;
       // No updates allowed — predictions are immutable once placed
       allow update: if false;
-      allow delete: if request.auth != null && request.auth.uid == uid;
+      // Clients must not delete a prediction to dodge server scoring.
+      allow delete: if false;
+    }
+
+    // Per-user prediction stats. Owner can read their own doc (the price card
+    // and the qualification line). Clients cannot write any field.
+    match /prediction_stats/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // Immutable resolved predictions. Owner may read their own history.
+    match /prediction_records/{recordId} {
+      allow get: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow list: if request.auth != null
+                  && resource.data.uid == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    // Weekly/monthly Top Predictors payout lock. Server only.
+    match /prediction_payouts/{periodId} {
+      allow read, write: if false;
+      match /winners/{winnerId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Server-fetched start price for one prediction. Document id is {uid}_{time}.
+    // Clients cannot read or write it. The resolver scores only a doc that has
+    // serverPriceSetAt, which only the Admin SDK sets.
+    match /prediction_server/{docId} {
+      allow read, write: if false;
     }
 
     // =============================================

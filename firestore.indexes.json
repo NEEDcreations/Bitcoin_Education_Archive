@@ -516,6 +516,41 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "qualifiesAllTime", "order": "ASCENDING" },
+        { "fieldPath": "predAccuracy", "order": "DESCENDING" },
+        { "fieldPath": "predCorrect", "order": "DESCENDING" },
+        { "fieldPath": "predTotal", "order": "DESCENDING" },
+        { "fieldPath": "reachedSort", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "weekKey", "order": "ASCENDING" },
+        { "fieldPath": "qualifiesWeek", "order": "ASCENDING" },
+        { "fieldPath": "weekAccuracy", "order": "DESCENDING" },
+        { "fieldPath": "weekCorrect", "order": "DESCENDING" },
+        { "fieldPath": "weekTotal", "order": "DESCENDING" },
+        { "fieldPath": "weekReachedSort", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "monthKey", "order": "ASCENDING" },
+        { "fieldPath": "qualifiesMonth", "order": "ASCENDING" },
+        { "fieldPath": "monthAccuracy", "order": "DESCENDING" },
+        { "fieldPath": "monthCorrect", "order": "DESCENDING" },
+        { "fieldPath": "monthTotal", "order": "DESCENDING" },
+        { "fieldPath": "monthReachedSort", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
