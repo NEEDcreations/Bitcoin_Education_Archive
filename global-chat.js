@@ -1296,6 +1296,7 @@ window.sendGlobalChat = function() {
         if (docRef && docRef.id) {
             bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '', messageId: docRef.id });
             if (typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+            if (replyData.replyTo) _maybeClaimReplyBonus(docRef.id);
         }
     }).catch(function(err) {
         console.error('[CHAT] Send error:', err);
@@ -2291,6 +2292,7 @@ window.sendGifMessage = function(url, caption) {
     if (_gifCaption) msgData.caption = _gifCaption;
 
     // Include reply if active
+    var replyToId = _replyTo && _replyTo._id ? String(_replyTo._id) : '';
     if (_replyTo) {
         msgData.replyTo = _replyTo._id;
         msgData.replyToName = _replyTo.name;
@@ -2303,6 +2305,7 @@ window.sendGifMessage = function(url, caption) {
     db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
         bridgeToTelegram({ user: username, text: '', gifUrl: url });
         if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+        if (replyToId && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
     }).catch(function(e) {
         if (typeof showToast === 'function') showToast('Failed to send GIF');
     });
@@ -2675,6 +2678,7 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 // Bridge https URL to Telegram
                 bridgeToTelegram({ user: username, text: caption || '', imageUrl: url });
                 if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+                if (replyCopy && replyCopy.id && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
             });
         })
        .catch(function(e) {
@@ -4252,6 +4256,31 @@ if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'f
     try { auth.onAuthStateChanged(function() { setTimeout(_paintSayHiButton, 600); }); } catch (e) {}
 }
 // SAY-HI END
+// REPLY-BONUS START
+// Hidden. Nothing in the chat UI mentions this. The server decides the XP.
+function _maybeClaimReplyBonus(messageId) {
+    if (!messageId || typeof messageId !== 'string') return;
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(messageId)) return;
+    if (typeof firebase === 'undefined' || !firebase.functions || !firebase.appCheck) return;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    firebase.appCheck().getToken(false).then(function() {
+        return firebase.functions().httpsCallable('claimReplyBonus')({ messageId: messageId });
+    }).then(function(res) {
+        var data = (res && res.data) || {};
+        if (data.showToast !== true) return;
+        var n = Math.round(Number(data.xp));
+        if (!isFinite(n) || n <= 0 || n > 50) return;
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.points = (Number(currentUser.points) || 0) + n;
+        }
+        if (typeof updateRankUI === 'function') updateRankUI();
+        var text = data.first === true
+            ? '\uD83D\uDCAC +' + n + ' XP for joining the conversation!'
+            : '+' + n + ' XP';
+        if (typeof showToast === 'function') showToast(text);
+    }).catch(function() {});
+}
+// REPLY-BONUS END
 window.formatChatText = formatChatText;
 console.log('[CHAT] Global chat module loaded');
 }();
