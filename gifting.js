@@ -82,7 +82,7 @@ function _injectGiftingCSS() {
         '@keyframes decryptReveal{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}',
         '@keyframes decryptConfetti{to{transform:translateY(220px) rotate(720deg);opacity:0}}',
         '@keyframes decryptPulse{0%,100%{text-shadow:0 0 8px #f7931a}50%{text-shadow:0 0 24px #f7931a}}',
-        '.gifting-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:120000;display:flex;align-items:center;justify-content:center;padding:16px;}',
+        '.gifting-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:480000;display:flex;align-items:center;justify-content:center;padding:16px;}',
         '.gifting-modal{background:var(--card-bg,#0f172a);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(247,147,26,0.12);max-height:90vh;overflow-y:auto;}',
         '.gift-open-btn,.cipher-open-btn,.key-send-btn{padding:8px 12px;border:none;border-radius:8px;color:#fff;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;}',
         '.kc-card{display:flex;align-items:center;gap:10px;padding:12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:12px;}',
@@ -426,6 +426,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     var overlay = document.createElement('div');
     overlay.id = 'postSpinGiftOverlay';
     overlay.className = 'gifting-overlay';
+    overlay.style.zIndex = '480000';
 
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
@@ -457,7 +458,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
         var label = document.createElement('div');
         label.style.cssText = 'flex:1;color:var(--text-muted);font-size:0.85rem;';
         label.textContent = 'Gift ' + (i + 1);
-        var btn = _btn('Open');
+        var btn = _btn('Open gift');
         btn.style.padding = '7px 14px';
         btn.style.fontSize = '0.8rem';
         btn.className = 'gift-open-btn';
@@ -810,6 +811,27 @@ function _card(el) {
     return d;
 }
 
+function _lockedCipherNote(parent, label) {
+    var note = document.createElement('div');
+    note.className = 'locked-cipher-note';
+    note.style.cssText = 'margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(167,139,250,0.35);background:rgba(167,139,250,0.08);';
+    var text = document.createElement('div');
+    text.style.cssText = 'font-size:0.8rem;color:var(--text);line-height:1.45;';
+    var which = label ? ('a ' + label + ' key') : 'a key with the same label, such as 3A';
+    text.textContent = '🔒 Locked cipher: you need ' + which + ' to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key, or ask in Global Chat.';
+    var chat = document.createElement('button');
+    chat.type = 'button';
+    chat.textContent = 'Open Global Chat';
+    chat.style.cssText = 'margin-top:8px;min-height:40px;padding:8px 12px;background:transparent;border:1px solid rgba(59,130,246,0.55);border-radius:8px;color:#93c5fd;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;';
+    chat.onclick = function() {
+        if (typeof window.openGlobalChatForCipher === 'function') window.openGlobalChatForCipher();
+    };
+    note.appendChild(text);
+    note.appendChild(chat);
+    parent.appendChild(note);
+    return note;
+}
+
 function _copy(parent, title, explain) {
     var mid = document.createElement('div');
     mid.style.cssText = 'flex:1;min-width:0;';
@@ -852,6 +874,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
     heading.style.cssText = 'font-size:0.72rem;font-weight:800;color:#f7931a;letter-spacing:0.08em;text-transform:uppercase;margin:4px 0 8px;';
     heading.textContent = 'Locked ciphers';
     el.appendChild(heading);
+    _lockedCipherNote(el);
 
     var cipherGroups = _group(data.ciphers);
     var ownGroups = _group(data.ownKeys);
@@ -885,11 +908,20 @@ window.renderKeysAndCiphersPanel = async function(container) {
                 'A matching key opens this cipher. Opening uses up the key and the cipher.' + fromWhom + countBit);
         } else {
             _copy(card,
-                'Need key ' + label + ' from a peer',
-                'This cipher stays locked until you have a ' + label + ' key. Ask a peer to send one, or open more gifts.' + countBit);
+                '🔒 Locked cipher ' + label,
+                'You need a ' + label + ' key to open it. Keys come from daily wheel gifts. Ask a peer to send you that key, or ask in Global Chat.' + countBit);
+            var chat = document.createElement('button');
+            chat.type = 'button';
+            chat.className = 'cipher-open-btn';
+            chat.textContent = 'Open Global Chat';
+            chat.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid rgba(59,130,246,0.55);background:transparent;color:#93c5fd;font-weight:800;';
+            chat.onclick = function() {
+                if (typeof window.openGlobalChatForCipher === 'function') window.openGlobalChatForCipher();
+            };
+            card.appendChild(chat);
         }
         if (match && !satsOff) {
-            var open = _btn('Open', 'linear-gradient(135deg,#34d399,#10b981)');
+            var open = _btn('Open cipher', 'linear-gradient(135deg,#34d399,#10b981)');
             open.className = 'cipher-open-btn';
             open.disabled = _cipherBusy;
             if (_cipherBusy) open.style.opacity = '0.55';
@@ -920,7 +952,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
         _copy(card,
             'Send to a peer',
             'A spare ' + label + ' key opens a matching cipher, or you can give it to a friend. One send of up to 3 keys per peer each day. You have ' + group.length + '.');
-        var send = _btn('Send');
+        var send = _btn('Send keys');
         send.className = 'key-send-btn';
         var ids = group.slice(0, 3).map(function(k) { return k.id; });
         send.onclick = function() { window.showPeerPickerForKeys(ids); };
@@ -1066,6 +1098,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     var overlay = document.createElement('div');
     overlay.id = 'decryptCipherOverlay';
     overlay.className = 'gifting-overlay';
+    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     var own = key.status === 'inventory';
@@ -1173,6 +1206,7 @@ window.showCipherClaim = function(win) {
     var overlay = document.createElement('div');
     overlay.id = 'cipherClaimOverlay';
     overlay.className = 'gifting-overlay';
+    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     modal.style.textAlign = 'left';
@@ -1258,6 +1292,7 @@ window.showPeerPickerForKeys = async function(keyIds) {
     var overlay = document.createElement('div');
     overlay.id = 'peerPickerOverlay';
     overlay.className = 'gifting-overlay';
+    overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
     sheet.style.cssText = 'background:var(--card-bg,#0f172a);border:1px solid var(--border,#333);border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;';
@@ -1266,7 +1301,7 @@ window.showPeerPickerForKeys = async function(keyIds) {
     h.textContent = 'Send ' + ids.length + ' key' + (ids.length > 1 ? 's' : '') + ' to…';
     var sub = document.createElement('div');
     sub.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;';
-    sub.textContent = 'One send per peer each day, up to 3 keys.';
+    sub.textContent = 'Up to 3 keys per peer per day. One send, then it resets tomorrow.';
     sheet.appendChild(h);
     sheet.appendChild(sub);
     if (!peers.length) {
@@ -1326,6 +1361,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     var overlay = document.createElement('div');
     overlay.id = 'keyPickerOverlay';
     overlay.className = 'gifting-overlay';
+    overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
     sheet.style.cssText = 'background:var(--card-bg,#0f172a);border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow:auto;border:1px solid var(--border,#333);';
@@ -1333,6 +1369,10 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     h.style.cssText = 'font-weight:800;color:#f7931a;margin-bottom:8px;';
     h.textContent = 'Send keys to ' + (recipientName || 'peer');
     sheet.appendChild(h);
+    var limit = document.createElement('div');
+    limit.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;line-height:1.4;';
+    limit.textContent = 'Up to 3 keys per peer per day. A key only opens a cipher with the same label.';
+    sheet.appendChild(limit);
 
     var today = _utcDay();
     var offset = (typeof getDailyKey === 'function') ? getDailyKey() : today;
@@ -1463,6 +1503,9 @@ window.openNookInventory = function() {
         window._questHubTab = 'nook';
         window._nookSubTab = 'inventory';
         if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+        var hub = document.getElementById('questHubOverlay');
+        var settings = document.getElementById('usernameModal');
+        if (hub && settings && settings.classList.contains('open')) hub.style.zIndex = '450000';
     }, 120);
 };
 
