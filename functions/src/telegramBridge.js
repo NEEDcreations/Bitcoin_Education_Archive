@@ -54,6 +54,8 @@ function toTelegramText(text) {
     out = out.replace(/<span\b[^>]*\bdata-profile-uid\s*=\s*["'][^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, '$1');
     out = out.replace(/<[^>]*>/g, '');
     out = out.replace(/@\[([^\]]+)\]\([^)]*\)/g, '@$1');
+    // Activity shoutouts deep-link in chat. Telegram needs a tappable URL.
+    out = out.replace(/\[([^\]]+)\]\(#((?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]+)\)/g, 'https://bitcoineducation.quest/#$2');
     out = out.replace(/\[([^\]]+)\]\(#[^)]*\)/g, '$1');
     out = out.replace(/%%[A-Za-z0-9_]+%%/g, '');
     out = out.replace(/[ \t]{2,}/g, ' ');
@@ -205,6 +207,15 @@ async function mirrorShoutoutOnce(options) {
             url: opts.url,
         });
     };
+    const dropTelegram = opts.deleteTelegram || function(args) {
+        return deleteTelegramMessage({
+            chatId: args.chatId,
+            messageId: args.messageId,
+            env: env,
+            fetch: opts.fetch,
+            token: opts.token,
+        });
+    };
 
     try {
         if (!docId) return { mirrored: false, reason: 'no_doc' };
@@ -224,6 +235,21 @@ async function mirrorShoutoutOnce(options) {
             safeLog(log, 'warn', secret, '[telegramBridge] mirror was not confirmed');
             return { mirrored: false, reason: result && result.error ? result.error : 'unconfirmed' };
         }
+        // Retract can delete the chat doc while this post is in flight, before
+        // telegramMsgId is linked. If the Nacho doc is gone, drop the copy we
+        // just created instead of leaving an orphan on Telegram.
+        const still = await getDoc(docId);
+        if (!still || still.uid !== 'nacho-bot') {
+            try {
+                await dropTelegram({
+                    chatId: result.chatId,
+                    messageId: result.telegramMsgId,
+                });
+            } catch (dropErr) {
+                safeLog(log, 'warn', secret, '[telegramBridge] telegram cleanup failed');
+            }
+            return { mirrored: false, reason: 'removed' };
+        }
         await updateDoc(docId, {
             telegramMsgId: String(result.telegramMsgId),
             telegramChatId: String(result.chatId),
@@ -237,6 +263,29 @@ async function mirrorShoutoutOnce(options) {
     } catch (err) {
         safeLog(log, 'warn', secret, '[telegramBridge] mirror failed: ' + (err && err.message ? err.message : 'error'));
         return { mirrored: false, reason: 'error' };
+    }
+}
+
+// Best-effort. A missing token or a bridge error still lets the chat doc be removed.
+async function deleteTelegramMessage(opts) {
+    const o = opts || {};
+    const env = o.env || process.env;
+    const token = o.token != null ? o.token : (env.TG_BOT_TOKEN || '');
+    const chatId = o.chatId;
+    const messageId = o.messageId;
+    if (!token || chatId == null || chatId === '' || messageId == null || messageId === '') {
+        return { deleted: false, reason: 'skipped' };
+    }
+    try {
+        const fetchImpl = o.fetch || defaultFetchImpl();
+        const res = await fetchImpl('https://api.telegram.org/bot' + token + '/deleteMessage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+        });
+        return { deleted: !!(res && res.ok), reason: res && res.ok ? 'ok' : 'rejected' };
+    } catch (err) {
+        return { deleted: false, reason: 'error' };
     }
 }
 
@@ -254,4 +303,5 @@ module.exports = {
     extractTelegramIds: extractTelegramIds,
     postToTelegramBridge: postToTelegramBridge,
     mirrorShoutoutOnce: mirrorShoutoutOnce,
+    deleteTelegramMessage: deleteTelegramMessage,
 };

@@ -294,6 +294,40 @@ test('normal bridge posts keep the caller username and ignore data.user', functi
     assert.ok(giftSrc.indexOf('mirrorShoutoutOnce') !== -1);
 });
 
+test('a Telegram copy is deleted when the chat doc is gone before the id is linked', async function() {
+    let reads = 0;
+    const updates = [];
+    const deletes = [];
+    const removed = await bridge.mirrorShoutoutOnce({
+        docId: 'shoutout_forum_post1',
+        text: '📝 @phil just posted in PlebTalk: "Halving"',
+        getDoc: async function() {
+            reads += 1;
+            if (reads > 1) return null;
+            return { uid: 'nacho-bot', text: 'hi', activityRef: 'forum:post1' };
+        },
+        updateDoc: async function() { updates.push('stamp'); },
+        deleteTelegram: async function(args) { deletes.push(String(args.chatId) + ':' + String(args.messageId)); },
+        post: async function() { return { ok: true, telegramMsgId: '77', chatId: '-100' }; },
+    });
+    assert.strictEqual(removed.mirrored, false);
+    assert.strictEqual(removed.reason, 'removed');
+    assert.deepStrictEqual(deletes, ['-100:77']);
+    assert.strictEqual(updates.length, 0);
+
+    const replaced = await bridge.mirrorShoutoutOnce({
+        docId: 'shoutout_forum_post1',
+        getDoc: async function() {
+            return { uid: 'uid_phil', text: 'not nacho' };
+        },
+        updateDoc: async function() { throw new Error('should not stamp a replaced doc'); },
+        deleteTelegram: async function(args) { deletes.push('replaced:' + args.messageId); },
+        post: async function() { return { ok: true, telegramMsgId: '88', chatId: '-100' }; },
+    });
+    assert.strictEqual(replaced.reason, 'removed');
+    assert.ok(deletes.indexOf('replaced:88') !== -1);
+});
+
 test('the backfill script is dry-run unless --apply and only accepts shoutouts', function() {
     assert.deepStrictEqual(cli.parseArgs(['shoutout_gift_abc']), { id: 'shoutout_gift_abc', apply: false });
     assert.deepStrictEqual(cli.parseArgs(['shoutout_gift_abc', '--apply']), { id: 'shoutout_gift_abc', apply: true });

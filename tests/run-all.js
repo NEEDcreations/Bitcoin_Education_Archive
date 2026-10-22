@@ -15,6 +15,7 @@ const TESTS = [
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
     { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
     { name: 'Nacho Shoutout', file: 'test-shoutout.js' },
+    { name: 'Activity Shoutouts', file: 'test-activity-shoutout.js' },
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
