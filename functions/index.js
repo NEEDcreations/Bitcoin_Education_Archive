@@ -2998,6 +2998,7 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
                 notifId: revDoc.data().notifId,
                 whereField: 'fromUid',
                 whereValue: targetUid,
+                recipientId: uid,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 filter: { type: 'peer_request', recipientId: uid, fromUid: targetUid, state: 'accepted' },
             });
@@ -3051,6 +3052,7 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
                 notifId: declinedNotifId,
                 whereField: 'fromUid',
                 whereValue: targetUid,
+                recipientId: uid,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 filter: { type: 'peer_request', recipientId: uid, fromUid: targetUid, state: 'declined' },
             });
@@ -3071,6 +3073,7 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
                 notifId: cancelledNotifId,
                 whereField: 'fromUid',
                 whereValue: uid,
+                recipientId: targetUid,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 filter: { type: 'peer_request', recipientId: targetUid, fromUid: uid, state: 'expired' },
             });

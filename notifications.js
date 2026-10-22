@@ -293,7 +293,7 @@ function notifLiveState(n, live) {
         if (!reqId && from && myUid) reqId = from + '_' + myUid;
         if (!reqId || !notifHas(live.peerRequests, reqId)) return '';
         var req = live.peerRequests[reqId];
-        if (!req) return 'declined';
+        if (!req) return 'expired';
         if (req.status === 'accepted') return 'accepted';
         if (req.status === 'pending') return '';
         if (req.status === 'declined') return 'declined';
@@ -318,12 +318,15 @@ function notifLiveState(n, live) {
         if (keyIds.length) {
             if (!live.keys) return '';
             var openKey = false;
+            var missingKey = false;
             for (var ki = 0; ki < keyIds.length; ki++) {
                 if (!notifHas(live.keys, keyIds[ki])) return '';
                 var key = live.keys[keyIds[ki]];
-                if (key && (key.status === 'inventory' || key.status === 'sent')) openKey = true;
+                if (!key) { missingKey = true; continue; }
+                if (key.status === 'inventory' || key.status === 'sent') openKey = true;
             }
-            return openKey ? '' : 'claimed';
+            if (openKey) return '';
+            return missingKey ? 'expired' : 'claimed';
         }
         var sender = notifSafeId(n.fromUid, 128) ? n.fromUid : '';
         if (!sender || !notifHas(live.keysBySender, sender)) return '';
@@ -499,7 +502,8 @@ function bindNotifCards(root, closeAfter) {
 }
 
 var _notifLookCache = Object.create(null);
-var NOTIF_LOOK_TTL = 20000;
+var NOTIF_LOOK_TTL = 60000;
+var NOTIF_LIVE_CAP = 15;
 
 function notifCacheGet(key) {
     var hit = _notifLookCache[key];
@@ -561,12 +565,43 @@ function notifCallAlreadyDone(err) {
     return /already-exists|already opened|already handled|already-opened/i.test(code);
 }
 
-function notifMarkReadQuiet(id) {
-    if (!notifSafeId(id, 128) || typeof db === 'undefined' || !db) return;
+function notifReadDenied(err) {
+    var code = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+    return /permission-denied/i.test(code);
+}
+
+// One batch for every resolved row painted this pass. A failed commit
+// forgets the ids so the next open can try again.
+function notifMarkReadBatch(ids) {
+    if (typeof db === 'undefined' || !db) return;
     window._notifReadSent = window._notifReadSent || Object.create(null);
-    if (window._notifReadSent[id]) return;
-    window._notifReadSent[id] = true;
-    db.collection('notifications').doc(id).update({ read: true }).catch(function() {});
+    var pending = [];
+    (ids || []).forEach(function(id) {
+        if (!notifSafeId(id, 128) || window._notifReadSent[id]) return;
+        window._notifReadSent[id] = true;
+        pending.push(id);
+    });
+    if (!pending.length) return;
+    if (typeof db.batch !== 'function') {
+        pending.forEach(function(id) {
+            db.collection('notifications').doc(id).update({ read: true }).catch(function() {
+                delete window._notifReadSent[id];
+            });
+        });
+        return;
+    }
+    var step = 400;
+    for (var start = 0; start < pending.length; start += step) {
+        (function(slice) {
+            var batch = db.batch();
+            slice.forEach(function(id) {
+                batch.update(db.collection('notifications').doc(id), { read: true });
+            });
+            batch.commit().catch(function() {
+                slice.forEach(function(id) { delete window._notifReadSent[id]; });
+            });
+        })(pending.slice(start, start + step));
+    }
 }
 
 function notifGetDoc(coll, id) {
@@ -577,7 +612,14 @@ function notifGetDoc(coll, id) {
         var data = snap.exists ? (snap.data() || {}) : null;
         notifCacheSet(key, data);
         return data;
-    }).catch(function() { return undefined; });
+    }).catch(function(err) {
+        // Rules read resource.data, so a deleted doc is permission-denied
+        // rather than exists:false. Treat that as gone. Other errors stay
+        // unloaded so a blip does not expire a live invite.
+        if (!notifReadDenied(err)) return undefined;
+        notifCacheSet(key, null);
+        return null;
+    });
 }
 
 function notifBuddyId(a, b) {
@@ -585,7 +627,8 @@ function notifBuddyId(a, b) {
     return a < b ? (a + '_' + b) : (b + '_' + a);
 }
 
-// One parallel wave of reads, reused for 20s. Stored resolved notices are skipped.
+// One parallel wave of reads, reused for 60s. Only the first visible rows
+// of each kind are checked. Stored resolved notices are skipped.
 async function notifLoadActionSources(rows, myUid) {
     var live = {
         myUid: myUid || '',
@@ -604,6 +647,7 @@ async function notifLoadActionSources(rows, myUid) {
     var peerReqs = Object.create(null);
     var gifts = Object.create(null);
     var keys = Object.create(null);
+    var keySenders = Object.create(null);
     var needKeyScan = false;
     var matches = Object.create(null);
     var buddies = Object.create(null);
@@ -626,7 +670,10 @@ async function notifLoadActionSources(rows, myUid) {
             var ids = Array.isArray(n.keyIds) ? n.keyIds : [];
             var any = false;
             ids.forEach(function(id) { if (notifSafeId(id, 64)) { keys[id] = true; any = true; } });
-            if (!any && notifSafeId(n.fromUid, 128)) needKeyScan = true;
+            if (!any && notifSafeId(n.fromUid, 128)) {
+                needKeyScan = true;
+                keySenders[n.fromUid] = true;
+            }
         } else if (type === 'pvp' || targetType === 'pvp') {
             if (notifSafeId(n.targetId, 128)) matches[n.targetId] = true;
         } else if (type === 'buddy' || targetType === 'buddy') {
@@ -651,17 +698,17 @@ async function notifLoadActionSources(rows, myUid) {
             live.peers = map;
         }).catch(function() {}));
     }
-    Object.keys(peerReqs).slice(0, 40).forEach(function(id) {
+    Object.keys(peerReqs).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
         jobs.push(notifGetDoc('peer_requests', id).then(function(data) {
             if (data !== undefined) live.peerRequests[id] = data;
         }));
     });
-    Object.keys(gifts).slice(0, 40).forEach(function(id) {
+    Object.keys(gifts).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
         jobs.push(notifGetDoc('gifts', id).then(function(data) {
             if (data !== undefined) live.gifts[id] = data;
         }));
     });
-    Object.keys(keys).slice(0, 40).forEach(function(id) {
+    Object.keys(keys).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
         jobs.push(notifGetDoc('keys', id).then(function(data) {
             if (data !== undefined) live.keys[id] = data;
         }));
@@ -671,21 +718,29 @@ async function notifLoadActionSources(rows, myUid) {
         var scanned = notifCacheGet(scanKey);
         var applyScan = function(map) { live.keysBySender = map; };
         if (scanned !== undefined) applyScan(scanned);
-        else jobs.push(db.collection('keys').where('ownerId', '==', myUid).limit(80).get().then(function(snap) {
+        else jobs.push(Promise.all([
+            db.collection('keys').where('ownerId', '==', myUid).where('status', '==', 'inventory').orderBy('createdAt', 'desc').limit(40).get(),
+            db.collection('keys').where('ownerId', '==', myUid).where('status', '==', 'sent').orderBy('createdAt', 'desc').limit(40).get()
+        ]).then(function(snaps) {
             var map = Object.create(null);
-            snap.forEach(function(doc) {
-                var d = doc.data() || {};
-                var sender = notifSafeId(d.sentBy, 128) ? d.sentBy : '';
-                if (!sender) return;
+            snaps.forEach(function(snap) {
+                snap.forEach(function(doc) {
+                    var d = doc.data() || {};
+                    var sender = notifSafeId(d.sentBy, 128) ? d.sentBy : '';
+                    if (!sender) return;
+                    if (!map[sender]) map[sender] = { total: 0, open: 0 };
+                    map[sender].total++;
+                    if (d.status === 'inventory' || d.status === 'sent') map[sender].open++;
+                });
+            });
+            Object.keys(keySenders).slice(0, NOTIF_LIVE_CAP).forEach(function(sender) {
                 if (!map[sender]) map[sender] = { total: 0, open: 0 };
-                map[sender].total++;
-                if (d.status === 'inventory' || d.status === 'sent') map[sender].open++;
             });
             notifCacheSet(scanKey, map);
             applyScan(map);
         }).catch(function() {}));
     }
-    Object.keys(matches).slice(0, 20).forEach(function(id) {
+    Object.keys(matches).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
         jobs.push(notifGetDoc('pvp_matches', id).then(function(data) {
             if (data !== undefined) live.matches[id] = data;
         }));
@@ -693,7 +748,7 @@ async function notifLoadActionSources(rows, myUid) {
             if (data !== undefined) live.lobbies[id] = data;
         }));
     });
-    Object.keys(buddies).slice(0, 20).forEach(function(id) {
+    Object.keys(buddies).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
         var pair = id.indexOf('_') !== -1 ? id : notifBuddyId(myUid, id);
         jobs.push(Promise.all([
             pair ? notifGetDoc('buddy_matches', pair) : Promise.resolve(undefined),
@@ -706,12 +761,12 @@ async function notifLoadActionSources(rows, myUid) {
             else if (match === null && pool === null) live.buddies[id] = null;
         }));
     });
-    Object.keys(listings).slice(0, 20).forEach(function(id) {
+    Object.keys(listings).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
         jobs.push(notifGetDoc('marketplace', id).then(function(data) {
             if (data !== undefined) live.listings[id] = data;
         }));
     });
-    Object.keys(convos).slice(0, 20).forEach(function(id) {
+    Object.keys(convos).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
         jobs.push(notifGetDoc('dm_conversations', id).then(function(data) {
             if (data === undefined) return;
             if (!data) { live.convos[id] = null; return; }
@@ -727,11 +782,13 @@ async function notifLoadActionSources(rows, myUid) {
 
 function notifPaintRows(rows, variant, live, closeAfter) {
     var html = '';
+    var markRead = [];
     (rows || []).forEach(function(row) {
         notifRememberRow(row.id, row.n, variant, live, closeAfter);
         html += notifCardHtml(row.id, row.n, variant, live);
-        if (notifActionState(row.n, live) && row.n && !row.n.read) notifMarkReadQuiet(row.id);
+        if (notifActionState(row.n, live) && row.n && !row.n.read) markRead.push(row.id);
     });
+    notifMarkReadBatch(markRead);
     return html;
 }
 
@@ -742,14 +799,53 @@ function notifCallableErrorDone(err, action) {
     return false;
 }
 
+function notifRewardLabel(rw) {
+    if (!rw) return 'Gift opened';
+    if (rw.shoutoutConverted) return rw.conversionMessage || "You already got a Nacho shoutout this week, so here's +100 XP!";
+    if (rw.rewardType === 'tickets') {
+        var tickets = rw.ticketCount || 1;
+        return '+' + tickets + ' Orange Ticket' + (tickets > 1 ? 's' : '');
+    }
+    if (rw.rewardType === 'xp_bonus') return '+' + (rw.xpAmount || 50) + ' XP';
+    if (rw.rewardType === 'xp_tickets') {
+        var bits = ['+' + (rw.xpAmount || 50) + ' XP'];
+        if ((rw.ticketCount || 0) > 0) bits.push('+' + rw.ticketCount + ' ticket' + (rw.ticketCount > 1 ? 's' : ''));
+        return bits.join(' and ');
+    }
+    if (rw.rewardType === 'streak_shield') return 'Streak Shield';
+    if (rw.rewardType === 'closet_item') return rw.itemName || 'Closet item';
+    if (rw.rewardType === 'nacho_shoutout') return 'Nacho Shoutout';
+    if (rw.rewardType === 'keys') {
+        var labels = (rw.keyLabels || []).join(', ');
+        var count = (rw.keyLabels || []).length;
+        return count + ' key' + (count === 1 ? '' : 's') + (labels ? ' (' + labels + ')' : '');
+    }
+    if (rw.rewardType === 'locked_ciphers') {
+        var cipherLabels = (rw.cipherLabels || []).join(', ');
+        var cipherCount = (rw.cipherLabels || []).length;
+        return cipherCount + ' locked cipher' + (cipherCount === 1 ? '' : 's') + (cipherLabels ? ' (' + cipherLabels + ')' : '');
+    }
+    if (rw.rewardType === 'sats') {
+        var amt = Number(rw.satsAmount || 0).toLocaleString();
+        if (rw.satsStatus === 'pending') return amt + ' sats — Phil will pay this one';
+        return amt + ' sats';
+    }
+    return 'Gift opened';
+}
+
 async function notifOpenGift(giftId, notifId) {
     notifOptimistic(notifId, 'opened');
-    notifMarkReadQuiet(notifId);
+    notifMarkReadBatch([notifId]);
     try {
-        var fn = firebase.functions().httpsCallable('openGift');
-        await fn({ giftId: giftId });
+        if (typeof window.openGiftFromNotice === 'function') {
+            await window.openGiftFromNotice(giftId);
+        } else {
+            var fn = firebase.functions().httpsCallable('openGift');
+            var res = await fn({ giftId: giftId });
+            var rw = res && res.data ? res.data.reward : null;
+            if (typeof showToast === 'function') showToast('🎁 ' + notifRewardLabel(rw));
+        }
         notifCacheDrop('gifts/' + giftId);
-        if (typeof showToast === 'function') showToast('🎁 Gift opened');
     } catch (err) {
         if (notifCallAlreadyDone(err)) {
             if (typeof showToast === 'function') showToast('Gift already opened');

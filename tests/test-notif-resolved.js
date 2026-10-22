@@ -73,8 +73,8 @@ test('old peer notices fall back to the request doc and the peer list', () => {
     const accepted = card(base, { myUid: 'me', peers: { alias_uid: true }, peerRequests: { alias_uid_me: null } });
     assertPill(accepted, 'Accepted ✓');
 
-    const declined = card(base, { myUid: 'me', peers: {}, peerRequests: { alias_uid_me: null } });
-    assertPill(declined, 'Declined');
+    const gone = card(base, { myUid: 'me', peers: {}, peerRequests: { alias_uid_me: null } });
+    assertPill(gone, 'Expired');
 
     const unknown = card(base, { myUid: 'me' });
     assert.ok(unknown.indexOf('notif-peer-btn') !== -1, unknown);
@@ -90,7 +90,8 @@ test('gift and key notices follow opened, claimed, and expired', () => {
 
     const keys = { type: 'keys_received', message: 'keys', keyIds: ['k1', 'k2'], read: true };
     assert.ok(card(keys, { keys: { k1: { status: 'consumed' }, k2: { status: 'sent' } } }).indexOf('notif-keys-btn') !== -1);
-    assertPill(card(keys, { keys: { k1: { status: 'consumed' }, k2: null } }), 'Already claimed');
+    assertPill(card(keys, { keys: { k1: { status: 'consumed' }, k2: { status: 'consumed' } } }), 'Already claimed');
+    assertPill(card(keys, { keys: { k1: { status: 'consumed' }, k2: null } }), 'Expired');
     assertPill(card({ type: 'keys_received', fromUid: 'sender_1', read: true }, {
         keysBySender: { sender_1: { total: 2, open: 0 } },
     }), 'Already claimed');
@@ -144,8 +145,15 @@ test('the panel updates a row before the call and restores it if the call fails'
     const gift = src.slice(src.indexOf('async function notifOpenGift'), src.indexOf('function notifAmountChips') === -1 ? src.length : src.indexOf('// Show notifications panel'));
     assert.ok(src.indexOf('async function notifOpenGift') !== -1);
     assert.ok(src.indexOf("notifOptimistic(notifId, 'opened')") < src.indexOf("httpsCallable('openGift')"));
+    assert.ok(src.indexOf('window.openGiftFromNotice') < src.indexOf("httpsCallable('openGift')"));
+    assert.ok(src.indexOf('notifRewardLabel(rw)') !== -1);
     assert.ok(src.indexOf('notifRollback(notifId)') !== -1);
     assert.ok(src.indexOf('openGiftModal(\'') === -1);
+    assert.strictEqual(sandbox.notifRewardLabel({ rewardType: 'tickets', ticketCount: 3 }), '+3 Orange Tickets');
+    assert.strictEqual(sandbox.notifRewardLabel({ rewardType: 'xp_bonus', xpAmount: 50 }), '+50 XP');
+    const gifting = read('gifting.js');
+    assert.ok(gifting.indexOf('window.openGiftFromNotice') !== -1);
+    assert.ok(gifting.indexOf("_toast('🎁 ' + _rewardLabel(rw)") !== -1);
 });
 
 test('server stamps are display-only and clients still cannot write resolved', () => {
@@ -181,8 +189,55 @@ test('server stamps are display-only and clients still cannot write resolved', (
     assert.ok(read('functions/src/gifting.js').indexOf("state: 'opened'") !== -1);
     assert.ok(read('functions/src/gifting.js').indexOf('stampConsumedKey') !== -1);
     assert.ok(read('functions/src/gifting.js').indexOf('keyIds: keyIds') !== -1);
-    assert.ok(read('functions/src/pvpResolve.js').indexOf("state: data.status === 'finished' ? 'joined' : 'expired'") !== -1);
+    const pvp = read('functions/src/pvpResolve.js');
+    assert.ok(pvp.indexOf("data.status === 'finished' ? 'joined' : 'expired'") !== -1);
+    assert.ok(pvp.indexOf('beforeStatus !== data.status') !== -1);
+    assert.ok(pvp.indexOf('recipientId: recipientId') !== -1);
+    const peers = read('functions/index.js');
+    assert.ok(peers.indexOf('recipientId: uid') !== -1);
+    assert.ok(peers.indexOf('recipientId: targetUid') !== -1);
+    assert.ok(src.indexOf('NOTIF_LOOK_TTL = 60000') !== -1);
+    assert.ok(src.indexOf('NOTIF_LIVE_CAP = 15') !== -1);
+    assert.ok(src.indexOf(".orderBy('createdAt', 'desc')") !== -1);
+    assert.ok(src.indexOf('db.batch()') !== -1);
+    assert.ok(src.indexOf('permission-denied') !== -1);
+    assert.ok(src.indexOf('.limit(80)') === -1);
+    assert.ok(src.indexOf('.slice(0, 40)') === -1);
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
+test('a denied or missing source read is expired and stamps stay on the recipient', () => {
+    assert.strictEqual(sandbox.notifReadDenied({ code: 'permission-denied' }), true);
+    assert.strictEqual(sandbox.notifReadDenied({ code: 'unavailable' }), false);
+    assert.strictEqual(sandbox.notifLiveState({
+        type: 'dm', targetType: 'dm', targetId: 'convo_gone',
+    }, { convos: { convo_gone: null }, myUid: 'me' }), 'expired');
+});
+
+const lib = require('../functions/src/notifResolved');
+const wheres = [];
+const query = {
+    where: function(field, op, value) { wheres.push([field, op, value]); return query; },
+    limit: function() { return query; },
+    get: function() { return Promise.resolve({ docs: [] }); },
+};
+lib.stampMatching({ collection: function() { return query; } }, {
+    state: 'accepted',
+    whereField: 'fromUid',
+    whereValue: 'alice',
+    recipientId: 'bob',
+    timestamp: 'ts',
+}).then(function() {
+    try {
+        assert.deepStrictEqual(wheres, [['fromUid', '==', 'alice'], ['recipientId', '==', 'bob']]);
+        console.log('✅ fallback lookup is limited to the recipient');
+        passed++;
+    } catch (e) {
+        console.log('❌ fallback lookup is limited to the recipient: ' + e.message);
+        failed++;
+    }
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+}).catch(function(e) {
+    console.log('❌ fallback lookup is limited to the recipient: ' + e.message);
+    process.exit(1);
+});

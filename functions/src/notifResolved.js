@@ -81,9 +81,22 @@ async function stampMatching(db, spec) {
     const opts = spec || {};
     const ids = [];
     if (validId(opts.notifId)) ids.push(opts.notifId);
-    if (opts.whereField && opts.whereValue != null && opts.whereValue !== '' && db && typeof db.collection === 'function') {
+    const clauses = [];
+    if (opts.whereField && opts.whereValue != null && opts.whereValue !== '') {
+        clauses.push({ field: String(opts.whereField), value: opts.whereValue });
+    }
+    // Equality on recipientId keeps a shared fromUid or targetId from
+    // stamping someone else's notices, and stops their rows using up the limit.
+    if (opts.recipientId != null && opts.recipientId !== '') {
+        clauses.push({ field: 'recipientId', value: opts.recipientId });
+    }
+    if (clauses.length && db && typeof db.collection === 'function') {
         try {
-            const snap = await db.collection('notifications').where(opts.whereField, '==', opts.whereValue).limit(opts.limit || 20).get();
+            let query = db.collection('notifications');
+            clauses.forEach(function(clause) {
+                query = query.where(clause.field, '==', clause.value);
+            });
+            const snap = await query.limit(opts.limit || 20).get();
             const docs = (snap && snap.docs ? snap.docs : []).map(function(d) {
                 return { id: d.id, data: (d.data && d.data()) || {} };
             });

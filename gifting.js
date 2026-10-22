@@ -524,9 +524,21 @@ function _markGiftRow(giftId, rw, failed) {
 async function _openGiftRequest(giftId) {
     var res = await _callCF('openGift', { giftId: giftId });
     var rw = (res.data && res.data.reward) ? res.data.reward : { rewardType: 'tickets', ticketCount: 1 };
+    window._openedGiftRewards = window._openedGiftRewards || [];
     window._openedGiftRewards.push(rw);
     return rw;
 }
+
+// Notifications call this so the same reveal, sound, and reward label
+// run when a gift is opened from the panel.
+window.openGiftFromNotice = async function(giftId) {
+    var rw = await _openGiftRequest(giftId);
+    _playGiftChime();
+    _confetti();
+    _toast('🎁 ' + _rewardLabel(rw), rw && rw.shoutoutConverted ? 6000 : 4500);
+    try { await _refreshHoldingsViews(); } catch (e) {}
+    return rw;
+};
 
 window.openSingleGift = async function(giftId) {
     _unlockAudio();
