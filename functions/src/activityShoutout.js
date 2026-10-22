@@ -10,6 +10,7 @@ const {
     activityHourDocId,
     activityIds,
     applyActivityRate,
+    activityRemovedState,
 } = require('./shoutout');
 const { publishShoutoutOnce } = require('./shoutoutPublish');
 const { mirrorShoutoutOnce, deleteTelegramMessage } = require('./telegramBridge');
@@ -185,6 +186,7 @@ async function announceActivity(opts) {
         authorLimitRef: db.collection('shoutout_limits').doc(activityLimitDocId(kind, freshUid)),
         hourLimitRef: db.collection('shoutout_limits').doc(activityHourDocId(freshUid)),
         globalLimitRef: db.collection('shoutout_limits').doc('global'),
+        sourceRef: db.collection(sourceCollection(kind)).doc(ids.id),
         nowMs: nowMs,
     });
     if (published && (published.wrote || published.reason === 'already_posted')) {
@@ -208,15 +210,7 @@ async function announceActivity(opts) {
 
 // A listing or post left the public feed. Marketplace removal sets status
 // 'deleted' and deletedAt. Forum posts are hard-deleted today; the same
-// check covers a later soft-delete or hide. 'sold' stays up.
-function activityRemovedState(data) {
-    if (!data || typeof data !== 'object') return false;
-    if (data.deletedAt != null && data.deletedAt !== '') return true;
-    if (data.deleted === true || data.removed === true || data.hidden === true) return true;
-    const status = String(data.status || '').toLowerCase();
-    return status === 'deleted' || status === 'removed' || status === 'hidden';
-}
-
+// check covers a later soft-delete, hide, or moderation. 'sold' stays up.
 function activityShouldRetract(before, after) {
     return activityRemovedState(after) && !activityRemovedState(before || {});
 }

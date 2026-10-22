@@ -670,6 +670,11 @@ test('a soft-delete or hide is the change that pulls a shoutout', function() {
     assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'hidden' }), true);
     assert.strictEqual(activityShouldRetract({}, { hidden: true }), true);
     assert.strictEqual(activityShouldRetract({}, { deletedAt: { seconds: 1 } }), true);
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { moderated: true }), true);
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { moderationHidden: true }), true);
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'moderated' }), true);
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'banned' }), true);
+    assert.strictEqual(activityShouldRetract({ moderated: true }, { moderated: true, views: 2 }), false);
     assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'sold' }), false);
     assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'active', replyCount: 2 }), false);
     assert.strictEqual(activityShouldRetract({ status: 'deleted', deletedAt: 1 }, { status: 'deleted', deletedAt: 1, views: 3 }), false);
@@ -722,6 +727,94 @@ queue.push(later('marking a listing deleted removes the Nacho post, and a sale d
     });
     assert.strictEqual(hidden.deleted, true);
     assert.strictEqual(db.docs['global_chat/shoutout_forum_post1'], undefined);
+
+    db.docs['global_chat/shoutout_forum_post2'] = {
+        uid: 'nacho-bot', activityRef: 'forum:post2', text: 'posted',
+        telegramChatId: '3', telegramMsgId: '4',
+    };
+    const moderated = await retractIfRemoved({
+        kind: 'forum', id: 'post2', db: db,
+        before: { title: 'Live' },
+        after: { title: 'Live', status: 'moderated', moderated: true },
+        deleteTelegram: async function(args) { dropped.push('mod:' + args.messageId); },
+    });
+    assert.strictEqual(moderated.deleted, true);
+    assert.ok(dropped.indexOf('mod:4') !== -1);
+    assert.strictEqual(db.docs['global_chat/shoutout_forum_post2'], undefined);
+}));
+
+function changeSourceAfterFreshRead(db, docPath, next) {
+    const real = db.collection.bind(db);
+    const colName = docPath.split('/')[0];
+    const docId = docPath.split('/')[1];
+    let reads = 0;
+    db.collection = function(name) {
+        const col = real(name);
+        if (name !== colName) return col;
+        const origDoc = col.doc.bind(col);
+        col.doc = function(id) {
+            const r = origDoc(id);
+            if (id !== docId) return r;
+            const realGet = r.get.bind(r);
+            r.get = async function() {
+                reads += 1;
+                const snap = await realGet();
+                if (reads === 1) next();
+                return snap;
+            };
+            return r;
+        };
+        return col;
+    };
+}
+
+queue.push(later('the write re-reads the source and skips a post removed during the grace window', async function() {
+    const db = memoryDb();
+    seedActivity(db, 'forum', 'post1', forumItem());
+    changeSourceAfterFreshRead(db, 'forum_posts/post1', function() {
+        delete db.docs['forum_posts/post1'];
+    });
+    const gone = await announceActivity({
+        kind: 'forum', id: 'post1', db: db, admin: admin, graceMs: 0, nowMs: 5000,
+        eventData: forumItem(),
+        mirror: async function() { throw new Error('removed post should not mirror'); },
+    });
+    assert.strictEqual(gone.posted, false);
+    assert.strictEqual(gone.reason, 'deleted');
+    assert.strictEqual(db.docs['global_chat/shoutout_forum_post1'], undefined);
+    assert.strictEqual(db.docs['shoutout_claims/shoutout_forum_post1'].status, 'skipped');
+    assert.strictEqual(db.docs['shoutout_claims/shoutout_forum_post1'].reason, 'deleted');
+    assert.strictEqual(db.docs['shoutout_limits/global'], undefined);
+
+    const moderatedDb = memoryDb();
+    seedActivity(moderatedDb, 'forum', 'post2', forumItem());
+    changeSourceAfterFreshRead(moderatedDb, 'forum_posts/post2', function() {
+        const live = moderatedDb.docs['forum_posts/post2'];
+        moderatedDb.docs['forum_posts/post2'] = Object.assign({}, live, { status: 'moderated', moderated: true });
+    });
+    const moderated = await announceActivity({
+        kind: 'forum', id: 'post2', db: moderatedDb, admin: admin, graceMs: 0, nowMs: 5000,
+        eventData: forumItem(),
+        mirror: async function() { throw new Error('moderated post should not mirror'); },
+    });
+    assert.strictEqual(moderated.posted, false);
+    assert.strictEqual(moderated.reason, 'hidden');
+    assert.strictEqual(moderatedDb.docs['global_chat/shoutout_forum_post2'], undefined);
+    assert.strictEqual(moderatedDb.docs['shoutout_claims/shoutout_forum_post2'].reason, 'hidden');
+
+    const soldDb = memoryDb();
+    seedActivity(soldDb, 'marketplace', 'list1', listingItem());
+    changeSourceAfterFreshRead(soldDb, 'marketplace/list1', function() {
+        const live = soldDb.docs['marketplace/list1'];
+        soldDb.docs['marketplace/list1'] = Object.assign({}, live, { status: 'sold' });
+    });
+    const sold = await announceActivity({
+        kind: 'marketplace', id: 'list1', db: soldDb, admin: admin, graceMs: 0, nowMs: 8000,
+        eventData: listingItem(),
+        mirror: async function() {},
+    });
+    assert.strictEqual(sold.posted, true);
+    assert.strictEqual(soldDb.docs['global_chat/shoutout_market_list1'].uid, 'nacho-bot');
 }));
 
 test('formatChatText chips a multi-word name before posted and listed', function() {

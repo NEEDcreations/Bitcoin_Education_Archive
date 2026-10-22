@@ -7,7 +7,14 @@
 // uses shoutout_claims/{docId}, which clients cannot write, so a retry or a
 // pre-created chat id still posts exactly once.
 
-const { applyActivityRate } = require('./shoutout');
+const { applyActivityRate, activityItemSkip, activityRemovedState } = require('./shoutout');
+
+function sourceRemovalReason(kind, data) {
+    if (!data) return 'deleted';
+    const skip = activityItemSkip(kind, data);
+    if (skip === 'deleted' || skip === 'hidden') return skip;
+    return 'deleted';
+}
 
 function nachoChatMessage(plan, serverTimestamp) {
     const msg = {
@@ -50,6 +57,7 @@ async function publishShoutoutOnce(opts) {
     const authorLimitRef = o.authorLimitRef || null;
     const hourLimitRef = o.hourLimitRef || null;
     const globalLimitRef = o.globalLimitRef || null;
+    const sourceRef = o.sourceRef || null;
     const nowMs = typeof o.nowMs === 'number' ? o.nowMs : Date.now();
     if (!db || !admin || !plan.docId || !plan.collection) return { wrote: false, reason: 'bad_plan' };
     if (plan.activityRef && (!claimRef || !authorLimitRef || !hourLimitRef || !globalLimitRef)) {
@@ -66,6 +74,7 @@ async function publishShoutoutOnce(opts) {
         const authorSnap = authorLimitRef ? await t.get(authorLimitRef) : null;
         const hourSnap = hourLimitRef ? await t.get(hourLimitRef) : null;
         const globalSnap = globalLimitRef ? await t.get(globalLimitRef) : null;
+        const sourceSnap = sourceRef ? await t.get(sourceRef) : null;
         const chat = chatSnap.exists ? (chatSnap.data() || {}) : null;
 
         if (!plan.activityRef) {
@@ -86,6 +95,23 @@ async function publishShoutoutOnce(opts) {
                     reason: claim.status === 'posted' ? 'already_posted' : 'skipped',
                     skip: claim.reason || '',
                 };
+            }
+            // The grace-window read can be stale. This read is in the same
+            // transaction as the chat write, so a delete or hide that landed
+            // in between does not still produce a shoutout.
+            if (sourceRef) {
+                const sourceData = sourceSnap && sourceSnap.exists ? (sourceSnap.data() || {}) : null;
+                if (!sourceData || activityRemovedState(sourceData)) {
+                    const reason = sourceRemovalReason(plan.activityKind, sourceData);
+                    t.set(claimRef, {
+                        status: 'skipped',
+                        reason: reason,
+                        activityRef: plan.activityRef,
+                        authorUid: plan.mentionUid || '',
+                        atMs: nowMs,
+                    });
+                    return { wrote: false, reason: reason };
+                }
             }
             if (chat && chat.uid === 'nacho-bot' && chat.activityRef === plan.activityRef) {
                 t.set(claimRef, {

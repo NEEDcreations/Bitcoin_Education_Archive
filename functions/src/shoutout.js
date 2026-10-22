@@ -154,6 +154,19 @@ function formatPublicPrice(item) {
     return Math.round(n).toLocaleString('en-US') + ' sats';
 }
 
+// Shared by the posting skip and the later removal. A sale (status sold)
+// stays up. Moderated, banned, and hidden posts match the posting check
+// so a post moderated after the shoutout still loses it.
+function activityRemovedState(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (data.deletedAt != null && data.deletedAt !== '') return true;
+    if (data.deleted === true || data.removed === true || data.hidden === true) return true;
+    if (data.moderated === true || data.moderationHidden === true) return true;
+    const status = String(data.status || '').toLowerCase();
+    return status === 'deleted' || status === 'removed' || status === 'hidden'
+        || status === 'moderated' || status === 'banned';
+}
+
 function activityItemSkip(kind, data) {
     if (!data || typeof data !== 'object') return 'missing';
     if (data.deleted === true || data.removed === true) return 'deleted';
@@ -327,6 +340,7 @@ module.exports = {
     sanitizeActivityTitle: sanitizeActivityTitle,
     sanitizeActivityName: sanitizeActivityName,
     formatPublicPrice: formatPublicPrice,
+    activityRemovedState: activityRemovedState,
     activityItemSkip: activityItemSkip,
     activityAccountSkip: activityAccountSkip,
     activityLimitDocId: activityLimitDocId,

@@ -207,6 +207,15 @@ async function mirrorShoutoutOnce(options) {
             url: opts.url,
         });
     };
+    const dropTelegram = opts.deleteTelegram || function(args) {
+        return deleteTelegramMessage({
+            chatId: args.chatId,
+            messageId: args.messageId,
+            env: env,
+            fetch: opts.fetch,
+            token: opts.token,
+        });
+    };
 
     try {
         if (!docId) return { mirrored: false, reason: 'no_doc' };
@@ -225,6 +234,21 @@ async function mirrorShoutoutOnce(options) {
         if (!result || result.ok === false || !result.telegramMsgId || !result.chatId) {
             safeLog(log, 'warn', secret, '[telegramBridge] mirror was not confirmed');
             return { mirrored: false, reason: result && result.error ? result.error : 'unconfirmed' };
+        }
+        // Retract can delete the chat doc while this post is in flight, before
+        // telegramMsgId is linked. If the Nacho doc is gone, drop the copy we
+        // just created instead of leaving an orphan on Telegram.
+        const still = await getDoc(docId);
+        if (!still || still.uid !== 'nacho-bot') {
+            try {
+                await dropTelegram({
+                    chatId: result.chatId,
+                    messageId: result.telegramMsgId,
+                });
+            } catch (dropErr) {
+                safeLog(log, 'warn', secret, '[telegramBridge] telegram cleanup failed');
+            }
+            return { mirrored: false, reason: 'removed' };
         }
         await updateDoc(docId, {
             telegramMsgId: String(result.telegramMsgId),
