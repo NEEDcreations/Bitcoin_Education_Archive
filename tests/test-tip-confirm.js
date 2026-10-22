@@ -1,0 +1,109 @@
+// Tip confirmation: once per UTC day, XP only on a tipping challenge.
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const tip = require('../functions/src/tipConfirm');
+
+let passed = 0;
+let failed = 0;
+
+function test(name, fn) {
+    try {
+        fn();
+        console.log('✅ ' + name);
+        passed++;
+    } catch (e) {
+        console.log('❌ ' + name + ': ' + e.message);
+        failed++;
+    }
+}
+
+test('challenge ids match the client card, in order', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'mobile-ux.js'), 'utf8');
+    const start = src.indexOf('var DAILY_CHALLENGES');
+    const end = src.indexOf('function getDailyChallenge');
+    const ids = [];
+    const block = src.slice(start, end);
+    const re = /id:\s*'([^']+)'/g;
+    let match;
+    while ((match = re.exec(block))) ids.push(match[1]);
+    assert.deepStrictEqual(tip.CHALLENGE_IDS, ids);
+    assert.strictEqual(ids.length, 19);
+});
+
+test('a tip day awards 100 once, and a second call the same day does not', () => {
+    const today = '2026-10-22';
+    let challengeId = tip.challengeIdForDate(today);
+    // Walk a few days so the assertion does not depend on which challenge today is.
+    const tipDay = (function() {
+        for (let i = 0; i < 19; i++) {
+            const key = new Date(Date.parse(today + 'T00:00:00Z') + i * 86400000).toISOString().split('T')[0];
+            if (tip.isTippingChallenge(tip.challengeIdForDate(key))) return key;
+        }
+        return today;
+    })();
+    challengeId = tip.challengeIdForDate(tipDay);
+    const first = tip.decideTipConfirm({ today: tipDay, challengeId: challengeId, confirmedDate: '', verified: true });
+    assert.strictEqual(first.record, true);
+    assert.strictEqual(first.awardXp, 100);
+    const unverified = tip.decideTipConfirm({ today: tipDay, challengeId: challengeId, confirmedDate: '', verified: false });
+    assert.strictEqual(unverified.record, false);
+    assert.strictEqual(unverified.awardXp, 0);
+    assert.strictEqual(unverified.reason, 'unverified');
+    assert.strictEqual(first.challengeCompleted, true);
+    const second = tip.decideTipConfirm({ today: tipDay, challengeId: challengeId, confirmedDate: tipDay });
+    assert.strictEqual(second.record, false);
+    assert.strictEqual(second.awardXp, 0);
+    assert.strictEqual(second.already, true);
+});
+
+test('a non-tip day is recorded with no XP', () => {
+    const today = '2026-10-22';
+    let quiet = today;
+    for (let i = 0; i < 19; i++) {
+        const key = new Date(Date.parse(today + 'T00:00:00Z') + i * 86400000).toISOString().split('T')[0];
+        if (!tip.isTippingChallenge(tip.challengeIdForDate(key))) { quiet = key; break; }
+    }
+    const call = tip.decideTipConfirm({ today: quiet, challengeId: tip.challengeIdForDate(quiet), confirmedDate: '' });
+    assert.strictEqual(call.record, true);
+    assert.strictEqual(call.awardXp, 0);
+    assert.strictEqual(call.challengeCompleted, false);
+});
+
+test('LUD-21 settled verifies, and private or http URLs are refused', () => {
+    const hash = 'ab'.repeat(32);
+    assert.strictEqual(tip.interpretLud21(200, { settled: true }).verified, false);
+    assert.strictEqual(tip.interpretLud21(200, { settled: true, pr: hash }, hash).verified, true);
+    assert.strictEqual(tip.interpretLud21(200, { settled: true, pr: 'cd'.repeat(32) }, hash).reason, 'lud21-hash-mismatch');
+    assert.strictEqual(tip.interpretLud21(200, { settled: false }).reason, 'lud21-not-settled');
+    assert.strictEqual(tip.safeVerifyUrl('http://example.com/verify'), '');
+    assert.strictEqual(tip.safeVerifyUrl('https://127.0.0.1/verify'), '');
+    assert.strictEqual(tip.safeVerifyUrl('https://user:pass@example.com/v'), '');
+    assert.ok(tip.safeVerifyUrl('https://example.com/lnurl/verify').indexOf('https://example.com/') === 0);
+    assert.strictEqual(tip.normalizePaymentHash('AA'.repeat(32)).length, 64);
+    assert.strictEqual(tip.normalizePaymentHash('not-a-hash'), '');
+    assert.strictEqual(tip.interpretNwcLookup({ state: 'settled', type: 'outgoing', payment_hash: hash }, hash).reason, 'nwc-not-incoming');
+    assert.strictEqual(tip.interpretNwcLookup({ state: 'settled' }).verified, false);
+    assert.strictEqual(tip.interpretNwcLookup({ state: 'settled', type: 'incoming', payment_hash: hash }, hash).verified, true);
+    assert.strictEqual(tip.interpretNwcLookup({}).reason, 'nwc-not-incoming');
+    const limited = tip.tipRateDecision({ lastMs: 1000, windowStart: 1000, count: 1 }, 1000 + tip.TIP_RATE_MS - 1);
+    assert.strictEqual(limited.ok, false);
+    const allowed = tip.tipRateDecision({ lastMs: 1000, windowStart: 1000, count: 1 }, 1000 + tip.TIP_RATE_MS);
+    assert.strictEqual(allowed.ok, true);
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'tipService.js'), 'utf8');
+    const confirm = service.slice(service.indexOf('async function confirmTipSent'));
+    assert.ok(confirm.indexOf("collection('tip_confirmations')") < confirm.indexOf('verifyPayment('));
+    const verify = service.slice(service.indexOf('async function verifyPayment'), service.indexOf('async function takeTipRate'));
+    assert.ok(verify.indexOf('assertPublicHost') !== -1);
+    assert.ok(verify.indexOf('assertPublicHost') < verify.indexOf('tryLud21'));
+    assert.ok(verify.indexOf('verify-host-mismatch') < verify.indexOf('tryNwc'));
+    assert.ok(verify.indexOf('verify-host-blocked') < verify.indexOf('tryNwc'));
+    assert.ok(verify.indexOf("'self-tip'") < verify.indexOf('tryLud21'));
+    assert.ok(service.indexOf("collection('public_profiles')") !== -1);
+    assert.ok(service.indexOf("collection('tip_hashes')") !== -1);
+    assert.ok(service.indexOf('lookupInvoice') !== -1);
+    assert.ok(service.indexOf('interpretNwcLookup(invoice, hash)') !== -1);
+});
+
+console.log('\n' + passed + ' passed, ' + failed + ' failed');
+process.exit(failed > 0 ? 1 : 0);

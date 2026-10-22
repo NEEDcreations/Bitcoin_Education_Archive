@@ -308,13 +308,13 @@
         <tr><td>NWC connection string</td><td>Stored in sessionStorage (cleared when tab closes) for Lightning wallet connection</td></tr>
     </table>
 
-    <p>We do <strong>not</strong> collect your real name, physical location, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway). <strong>IP addresses are only collected during sats faucet claims</strong> for multi-account abuse detection — they are not collected during normal browsing, sign-in, or any other activity.</p>
+    <p>We do <strong>not</strong> collect your real name, physical location, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway). <strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, and once when you register a referral. The referral IP is not stored in raw form. The server keeps an HMAC of it in a server-only record with a 90-day expiry. Other users cannot read it. That record is deleted when you delete your account. IPs are not collected during normal browsing or sign-in.</p>
 
     <h2>2. How We Use Your Data</h2>
     <ul>
         <li>Display your rank and username on the leaderboard</li>
         <li>Track your progress, points, streaks, badges, and ticket earnings</li>
-        <li>Process referrals and verify referral qualifications (2,100+ points)</li>
+        <li>Process referrals and pay both sides 50 orange tickets when the referred friend reaches Maxi (2,140 points). The signup IP used for that check is stored only as an HMAC in a server-only record that expires after 90 days, and is not shown to the referrer or anyone else. Deleting your account deletes that record.</li>
         <li>Determine giveaway eligibility based on Orange Ticket count</li>
         <li>Send sign-in magic links to verify your email</li>
         <li>Send optional push notifications (only if you opt in)</li>
@@ -505,7 +505,7 @@
         <li>Comprehensive content moderation: profanity, hate speech, sexual content, self-harm, threats, and political extremism filtering</li>
         <li>Server-side point award validation via Cloud Functions (prevents client-side manipulation)</li>
         <li>Server-side daily point cap enforcement (500 pts/day, atomic transactions)</li>
-        <li>Device fingerprinting and IP-based multi-account detection for faucet claims</li>
+        <li>Device fingerprinting and IP-based multi-account detection for faucet claims and referral signup</li>
         <li>Invoice replay protection (SHA-256 hash deduplication)</li>
         <li>HTML sanitization on all user-generated content</li>
         <li>Client-side scam and phishing link detection in messages</li>
@@ -527,7 +527,7 @@
         <tr><td>Daily claim tracking</td><td>Enforce 1-claim-per-24-hours cooldown and 200 sats/day cap</td></tr>
         <tr><td>Lifetime total claimed</td><td>Enforce 15,000 sats lifetime cap per user</td></tr>
         <tr><td>Device fingerprint hash</td><td>Anti-abuse: detect multi-accounting (hashed, not personally identifiable)</td></tr>
-        <tr><td>IP address (at claim time only)</td><td>Anti-abuse: detect multiple accounts claiming from the same network</td></tr>
+        <tr><td>IP address (faucet claim, and once at referral signup)</td><td>Anti-abuse: detect multiple accounts on the same network. The referral copy is an HMAC in a server-only record that expires after 90 days and is deleted with the account.</td></tr>
         <tr><td>Server-side daily points tracking</td><td>Enforce 500 pts/day cap per user — tracked in Firebase, not browser</td></tr>
     </table>
 
@@ -538,7 +538,8 @@
         <li><strong>sats_daily</strong> — daily aggregate tracking (amount claimed per day, claim count)</li>
         <li><strong>daily_points</strong> — server-side daily point award tracking (total awarded per day, enforces 500/day cap)</li>
         <li><strong>faucet_stats</strong> — global faucet statistics (total distributed, active claimants)</li>
-        <li><strong>faucet_ip_log</strong> — IP addresses at claim time only (detects multi-account abuse per network)</li>
+        <li><strong>faucet_ip_log</strong> — IP addresses at claim time (detects multi-account abuse per network)</li>
+        <li><strong>referral_signals</strong> — an HMAC of the IP captured when a referral is registered, plus a 90-day expiry. Server-only. Not readable by other users. Deleted when the account-delete function runs.</li>
         <li><strong>faucet_fingerprints</strong> — device fingerprint hashes (detects multi-account abuse per device)</li>
     </ul>
 

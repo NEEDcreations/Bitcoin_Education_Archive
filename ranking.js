@@ -2349,6 +2349,23 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
+window._doubleXpUntilMs = function(u) {
+    if (!u) return 0;
+    var raw = u.doubleXpUntil != null && u.doubleXpUntil !== '' ? u.doubleXpUntil : u.doubleXPExpiry;
+    if (raw == null || raw === '') return 0;
+    if (typeof raw === 'number' && isFinite(raw)) return raw;
+    if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw);
+    if (typeof raw.toMillis === 'function') {
+        var ms = raw.toMillis();
+        return typeof ms === 'number' && isFinite(ms) ? ms : 0;
+    }
+    if (typeof raw === 'object') {
+        if (typeof raw.seconds === 'number') return raw.seconds * 1000;
+        if (typeof raw._seconds === 'number') return raw._seconds * 1000;
+    }
+    return 0;
+};
+
 async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
     if (!currentUser || !rankingReady) return;
 
@@ -2490,13 +2507,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     var _isBadgeEarned = !!(badgeId);
     var _eagerNotifyTs = null; // timestamp of eager log entry — used to correct it post-CF if capped
     try {
-        // 🎯 Double XP: check if active before sending points (client-side boost signal)
-        var doubleXPExpiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
-        var doubleXPActive = doubleXPExpiry > Date.now();
-        if (doubleXPActive && pts > 0) {
-            pts = Math.min(2200, pts * 2); // double, respect anti-abuse cap
-        }
-        // Eager notify AFTER double-XP so the logged amount matches what we sent to CF
+        // The server applies 2× from doubleXpUntil. The client must not multiply.
         if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
             _eagerNotifyTs = notifySelfPoints(pts, reason);
         }
@@ -2507,7 +2518,6 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
-        if (doubleXPActive) payload.doubleXP = true; // inform CF for logging
         if (extra && typeof extra === 'object') Object.assign(payload, extra);
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
@@ -2521,6 +2531,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             var overflowRedeemed = result.data.overflowRedeemed || 0;
             var overflowAdded = result.data.overflowAdded || 0;
             if (typeof result.data.pendingOverflow !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) currentUser.pendingOverflow = result.data.pendingOverflow;
+            if (result.data.doubleXpUntil && typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.doubleXpUntil = result.data.doubleXpUntil;
+                currentUser.doubleXPExpiry = result.data.doubleXpUntil;
+            }
             var pendingOverflow = result.data.pendingOverflow || 0;
             var totalAdded = awarded + overflowRedeemed;
             // For badge_earned: notify here (deferred from eager path above) - server confirmed it's real
@@ -3598,6 +3612,7 @@ window.showDeleteAccountConfirm = function() {
                     '<div>❌ Nacho chat history</div>' +
                     '<div>❌ Leaderboard ranking</div>' +
                     '<div>❌ Orange Tickets and quest progress</div>' +
+                    '<div>❌ Referral signup record</div>' +
                 '</div>' +
             '</div>' +
             '<div style="color:#ef4444;font-weight:700;font-size:0.85rem;text-align:center;margin-bottom:16px;">⚠️ This action is IRREVERSIBLE. There is no undo.</div>' +
@@ -3680,7 +3695,8 @@ window.confirmDeleteAccount = async function() {
         // [AUDIT FIX M5] Clear SW caches on account deletion
         if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
-        // 8. Delete Firebase Auth account
+        // 8. Delete the server-only referral signup record, then the Auth account.
+        try { await firebase.functions().httpsCallable('deleteMyReferralSignal')({}); } catch (e) { console.warn('Referral signal delete failed:', e); }
         await user.delete();
 
         // 9. Close overlay and show confirmation
@@ -5042,7 +5058,7 @@ function showSettingsPage(tab) {
         // Partnership levels info
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
         html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚡ Partnership Levels</div>';
-        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">When you open a cipher with a key a peer sent you, or you open a gift they sent under the old system, the partnership grows. Both of you earn XP at each level.</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">When you open a cipher with a key a peer sent you, the partnership grows. Both of you earn XP at each level.</div>';
         var _pLevels = [
             { emoji: '⬜', name: 'Unconfirmed',        gifts: '0 exchanges',   xp: '—',           desc: 'Just connected.' },
             { emoji: '🟨', name: 'Opening Channel',    gifts: '1 exchange',    xp: '+3,000 XP',   desc: 'First exchange. The channel is opening.' },

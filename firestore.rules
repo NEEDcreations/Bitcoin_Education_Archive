@@ -115,7 +115,7 @@ service cloud.firestore {
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
                         // Shop inventory (spendTickets CF manages these)
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
-                        'hintTokens', 'doubleXPCharges', 'doubleXPExpiry',
+                        'hintTokens', 'doubleXPCharges', 'doubleXPExpiry', 'doubleXpUntil',
                         'bonusSpins', 'raffleEntries', 'secondRigCharges',
                         // Bonus spin server flag (CF-only, one-time use)
                         'bonusSpinGranted',
@@ -139,7 +139,9 @@ service cloud.firestore {
                         'ciphersDecryptedToday', 'ciphersDecryptedDate',
                         'keysSentDate', 'keysSentTo',
                         'marketListings', 'marketMessages',
-                        'referralTicketsEarned', 'referralCode',
+                        'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited',
+                        'referredBy', 'referralVerified', 'scholarPoints', 'activeDayKeys',
+                        'tipChallengeDate', 'tipConfirmedDate',
                         'pointsDonated', 'donationBadges',
                         // Anonymous badge merge (CF-only, one-time guard)
                         'anonBadgesMerged',
@@ -189,6 +191,11 @@ service cloud.firestore {
                             && request.resource.data.country.size() >= 2
                             && request.resource.data.country.size() <= 60
                             && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
+                    // Home invite card. Owner may only store open, minimized, or dismissed.
+                    && (!('inviteCard' in request.resource.data)
+                        || request.resource.data.inviteCard == 'open'
+                        || request.resource.data.inviteCard == 'min'
+                        || request.resource.data.inviteCard == 'off')
                     && lightningLockOk();
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
@@ -240,6 +247,11 @@ service cloud.firestore {
       match /shop_purchases/{purchaseId} {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow write: if false; // Cloud Function (Admin SDK) only
+      }
+
+      // Tip confirmations — one doc per UTC day. Cloud Function writes only.
+      match /tip_confirmations/{dateId} {
+        allow read, write: if false;
       }
 
       // Per-user in-app notifications (shop, exchange, etc.) — owner read/update, CF creates
@@ -451,22 +463,44 @@ service cloud.firestore {
     // Format: docId is the UID of the new user being referred
     // =============================================
     match /referrals/{referralId} {
-      allow read: if request.auth != null;
-      // Only the referred user can create their own referral record
-      allow create: if request.auth != null
-                    && referralId == request.auth.uid
-                    && request.resource.data.referredUserUid == request.auth.uid;
-      // Client can update their own doc BUT cannot self-verify or self-award tickets.
-      // Those fields are Cloud-Function-only (verifyReferral admin path).
-      allow update: if request.auth != null
-                    && referralId == request.auth.uid
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                        'verified', 'verifiedAt', 'ticketsAwarded', 'rejectedAt',
-                        'rejectionFlags', 'referrerUid', 'referredUid', 'referrerCode'
-                    ]));
-      // Admin override (your personal email + ops email)
-      allow update: if request.auth != null
-                    && isAdmin();
+      // The two parties only. A referrerCode query cannot be proven by this
+      // rule, so the client filters on referrerUid.
+      allow read: if request.auth != null
+                  && (resource.data.referrerUid == request.auth.uid
+                      || resource.data.referredUserUid == request.auth.uid);
+      // Created and paid only by Cloud Functions. Clients cannot write a
+      // referral, verify it, or award tickets.
+      allow create, update, delete: if false;
+    }
+
+    // Signup IP and other fraud signals. Admin SDK only.
+    match /referral_signals/{signalId} {
+      allow read, write: if false;
+    }
+
+    // Hourly pending-referral cursor. Admin SDK only.
+    match /referral_scan/{docId} {
+      allow read, write: if false;
+    }
+
+    // Referral code index. Server writes one doc per user. Clients cannot
+    // mint or overwrite a code.
+    match /referralCodes/{code} {
+      allow read, write: if false;
+    }
+
+    match /tip_confirmations/{docId} {
+      allow read, write: if false;
+    }
+
+    // Payment hashes that already earned tip XP. Admin SDK only.
+    match /tip_hashes/{hashId} {
+      allow read, write: if false;
+    }
+
+    // Paid-referral timestamps used for the per-referrer cap. Admin SDK only.
+    match /referral_pay_limits/{uid} {
+      allow read, write: if false;
     }
 
     // =============================================

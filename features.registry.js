@@ -96,6 +96,9 @@
         if (k === 'sayhi') return function () {
             if (typeof win.openSayHi === 'function') win.openSayHi();
         };
+        if (k === 'invite') return function () {
+            if (typeof win.openInviteFriends === 'function') win.openInviteFriends(true);
+        };
         if (k === 'dms') return function () {
             if (typeof win.showInbox === 'function') win.showInbox();
             else if (typeof win.renderChatHub === 'function') win.renderChatHub('dms');
@@ -451,12 +454,13 @@
             how: 'Open the leaderboard to see badge progress, and the Nacho section of Settings for what you have equipped.',
             follow: 'Want the leaderboard standings too?',
             hash: 'app/badges', aliases: ['badges'], kind: 'lb', openFns: ['toggleLeaderboard'] }),
-        R({ id: 'referral', title: 'Referral program', group: 'Rewards', term: 'referral', priority: 70,
-            kw: 'referral refer a friend invite referral link maxi',
-            desc: 'When a friend you referred reaches Maxi rank, you both get 50 Orange Tickets.',
-            how: 'Copy your referral link in Settings → Account and share it. The 50 tickets land for both of you at Maxi rank, not when they merely sign up.',
+        R({ id: 'referral', title: 'Invite friends', group: 'Rewards', term: 'referral', priority: 78,
+            kw: 'referral refer a friend invite friends invite referral link maxi share link',
+            desc: 'Share your referral link from the home page. When a friend you refer reaches Maxi, you both get 50 orange tickets.',
+            how: 'Open Invite friends. Copy or share your referral link. Your friend signs up with it, reaches Maxi (2,140 XP), and you both get 50 orange tickets automatically.',
             follow: 'Want to check your Orange Ticket balance?',
-            hash: 'app/referral', aliases: ['referral', 'refer'], kind: 'settings', arg: 'account' }),
+            hash: 'app/referral', aliases: ['referral', 'refer', 'invite', 'invite-friends'], kind: 'invite',
+            openFns: ['openInviteFriends'] }),
         R({ id: 'sats', title: 'Claim sats', group: 'Rewards', term: 'faucet', priority: 70,
             kw: 'faucet claim sats withdraw payout sats',
             desc: 'The faucet lets you claim sats. The exact checks stay vague so it stays fair for real learners.',
