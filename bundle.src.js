@@ -8976,7 +8976,7 @@ function _actualRenderMarketplace(options) {
     }
 
     // Header
-    var html = '<div style="max-width:900px;margin:0 auto;padding:16px;">';
+    var html = '<div data-mkt-root="1" style="max-width:900px;margin:0 auto;padding:16px;">';
     html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
         '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
         '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
@@ -9000,7 +9000,7 @@ function _actualRenderMarketplace(options) {
 
     // Search bar
     html += '<div style="margin-bottom:14px;">' +
-        '<input type="text" id="marketSearch" placeholder="🔍 Search listings..." value="' + (searchQuery || '') + '" ' +
+        '<input type="text" id="marketSearch" placeholder="🔍 Search listings..." value="' + escapeHtml(searchQuery || '') + '" ' +
         'oninput="clearTimeout(window._mktSearchTimer);window._mktSearchTimer=setTimeout(function(){renderMarketplace({search:document.getElementById(\'marketSearch\').value,category:\'' + activeCategory + '\',sort:\'' + sortBy + '\'})},400)" ' +
         'style="width:100%;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;">' +
     '</div>';
@@ -9018,7 +9018,7 @@ function _actualRenderMarketplace(options) {
     for (var si = 0; si < sectionTabs.length; si++) {
         var sec = sectionTabs[si];
         var secActive = activeSection === sec.id;
-        html += '<button onclick="renderMarketplace({section:\'' + sec.id + '\',category:\'all\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+        html += '<button type="button" data-mkt-action="browse" data-mkt-section="' + escapeHtml(sec.id) + '" data-mkt-category="all" data-mkt-search="' + escapeHtml(searchQuery) + '" data-mkt-sort="' + escapeHtml(sortBy) + '" ' +
             'style="flex:1;padding:10px 8px;background:' + (secActive ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (secActive ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.8rem;font-weight:' + (secActive ? '700' : '500') + ';cursor:pointer;font-family:inherit;transition:0.2s;">' + sec.emoji + ' ' + sec.name + '</button>';
     }
     html += '</div>';
@@ -9113,12 +9113,12 @@ function _actualRenderMarketplace(options) {
     // Subcategory pills (filtered by active section)
     var visibleCats = activeSection === 'all' ? MARKETPLACE_CATEGORIES : MARKETPLACE_CATEGORIES.filter(function(c) { return c.section === activeSection; });
     html += '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;">';
-    html += '<button onclick="renderMarketplace({section:\'' + activeSection + '\',category:\'all\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+    html += '<button type="button" data-mkt-action="browse" data-mkt-section="' + escapeHtml(activeSection) + '" data-mkt-category="all" data-mkt-search="' + escapeHtml(searchQuery) + '" data-mkt-sort="' + escapeHtml(sortBy) + '" ' +
         'style="padding:6px 14px;border-radius:20px;border:1px solid ' + (activeCategory === 'all' ? 'var(--accent)' : 'var(--border)') + ';background:' + (activeCategory === 'all' ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (activeCategory === 'all' ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600;">All</button>';
     for (var c = 0; c < visibleCats.length; c++) {
         var cat = visibleCats[c];
         var isActive = activeCategory === cat.id;
-        html += '<button onclick="renderMarketplace({section:\'' + activeSection + '\',category:\'' + cat.id + '\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+        html += '<button type="button" data-mkt-action="browse" data-mkt-section="' + escapeHtml(activeSection) + '" data-mkt-category="' + escapeHtml(cat.id) + '" data-mkt-search="' + escapeHtml(searchQuery) + '" data-mkt-sort="' + escapeHtml(sortBy) + '" ' +
             'style="padding:6px 14px;border-radius:20px;border:1px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';background:' + (isActive ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (isActive ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600;">' + cat.emoji + ' ' + cat.name + '</button>';
     }
     html += '</div>';
@@ -9127,7 +9127,7 @@ function _actualRenderMarketplace(options) {
     // Sort dropdown
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
         '<span id="marketResultCount" style="font-size:0.75rem;color:var(--text-faint);">Loading...</span>' +
-        '<select id="marketSort" onchange="renderMarketplace({section:\'' + activeSection + '\',category:\'' + activeCategory + '\',search:\'' + searchQuery + '\',sort:this.value})" ' +
+        '<select id="marketSort" data-mkt-action="sort" data-mkt-section="' + escapeHtml(activeSection) + '" data-mkt-category="' + escapeHtml(activeCategory) + '" data-mkt-search="' + escapeHtml(searchQuery) + '" ' +
         'style="padding:6px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-family:inherit;">';
     for (var s = 0; s < SORT_OPTIONS.length; s++) {
         html += '<option value="' + SORT_OPTIONS[s].id + '"' + (sortBy === SORT_OPTIONS[s].id ? ' selected' : '') + '>' + SORT_OPTIONS[s].label + '</option>';
@@ -9227,7 +9227,7 @@ function loadMarketListings(category, search, sort, section) {
             else if (l.priceSats >= 1000) priceDisplay = Math.floor(l.priceSats / 1000) + 'K sats';
             else priceDisplay = l.priceSats.toLocaleString() + ' sats';
 
-            return '<div onclick="renderMarketplace({listingId:\'' + l.id + '\'})" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+            return '<div data-mkt-action="open" data-listing-id="' + escapeHtml(l.id) + '" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                 // Image or placeholder
                 (l.imageUrl
                     ? '<div style="width:100%;aspect-ratio:1;background:url(\'' + (l.imageUrl && /^(https:\/\/|data:image\/)/.test(l.imageUrl) ? l.imageUrl.replace(/['"\\()<>]/g, '') : '') + '\') center/cover;border-bottom:1px solid var(--border);"></div>'
@@ -9239,7 +9239,7 @@ function loadMarketListings(category, search, sort, section) {
                     (satsToUSD(l.priceSats) ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:4px;">' + satsToUSD(l.priceSats) + '</div>' : '<div style="margin-bottom:4px;"></div>') +
                     '<div style="display:flex;justify-content:space-between;align-items:center;">' +
                         '<span style="font-size:0.65rem;color:' + condColor + ';font-weight:600;">' + condLabel + '</span>' +
-                        '<span onclick="event.stopPropagation();toggleMarketSave(\'' + l.id + '\')"  style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
+                        '<span data-mkt-action="save" data-listing-id="' + escapeHtml(l.id) + '" style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -9255,7 +9255,7 @@ function loadMarketListings(category, search, sort, section) {
                     snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; if (d.status === 'active') fallbackListings.push(d); });
                     if (fallbackListings.length > 0) {
                         grid.innerHTML = fallbackListings.map(function(l) {
-                            return '<div onclick="renderMarketplace({listingId:\'' + l.id + '\'})" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                            return '<div data-mkt-action="open" data-listing-id="' + escapeHtml(l.id) + '" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                                 '<div style="font-size:0.9rem;font-weight:700;color:var(--heading);margin-bottom:4px;">' + escapeHtml(l.title || 'Untitled') + '</div>' +
                                 '<div style="font-size:0.8rem;color:var(--accent);font-weight:800;">⚡ ' + (l.priceSats || 0).toLocaleString() + ' sats</div>' +
                                 '</div>';
@@ -9315,7 +9315,7 @@ function renderListingDetail(container, listingId) {
 
         var timeAgo = getTimeAgo(l.createdAt ? l.createdAt.toDate() : new Date());
 
-        var html = '<div style="max-width:600px;margin:0 auto;padding:16px;">';
+        var html = '<div data-mkt-root="1" style="max-width:600px;margin:0 auto;padding:16px;">';
 
         // Back button
         html += '<button onclick="history.back()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back</button>';
@@ -9352,8 +9352,8 @@ function renderListingDetail(container, listingId) {
         // Seller info
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Seller</div>' +
-            '<div onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (l.sellerUid || '') + '\')"  style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
-                '<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:700;">' + (l.sellerName ? l.sellerName.charAt(0).toUpperCase() : '?') + '</div>' +
+            '<div data-mkt-action="profile" data-seller-uid="' + escapeHtml(l.sellerUid || '') + '" style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
+                '<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:700;">' + escapeHtml(l.sellerName ? l.sellerName.charAt(0).toUpperCase() : '?') + '</div>' +
                 '<div style="flex:1;">' +
                     '<div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + escapeHtml(l.sellerName || 'Anonymous') + '</div>' +
                     (l.sellerRank ? '<div style="font-size:0.7rem;color:var(--text-muted);">' + escapeHtml(l.sellerRank) + '</div>' : '') +
@@ -9365,10 +9365,10 @@ function renderListingDetail(container, listingId) {
         // Action buttons
         if (!isOwner) {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button data-listing-id="' + escapeHtml(l.id) + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" onclick="contactSeller(this.dataset.listingId,this.dataset.sellerName)"  style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
-                '<button onclick="toggleMarketSave(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
-                '<button data-seller-uid="' + escapeHtml(l.sellerUid || '') + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" onclick="if(typeof reportUser===\'function\')reportUser(this.dataset.sellerUid,this.dataset.sellerName)"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
-                (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
+                '<button data-mkt-action="contact" data-listing-id="' + escapeHtml(l.id) + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
+                '<button data-mkt-action="save" data-listing-id="' + escapeHtml(l.id) + '" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
+                '<button data-mkt-action="report" data-seller-uid="' + escapeHtml(l.sellerUid || '') + '" data-seller-name="' + escapeHtml(l.sellerName || '') + '" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
+                (isAdmin ? '<button data-mkt-action="delete" data-listing-id="' + escapeHtml(l.id) + '" style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
             '</div>';
             // Safety notice
             html += '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
@@ -9381,8 +9381,8 @@ function renderListingDetail(container, listingId) {
             }
         } else {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button onclick="editListing(\'' + l.id + '\')"  style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">✏️ Edit</button>' +
-                '<button onclick="deleteListing(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Delete</button>' +
+                '<button data-mkt-action="edit" data-listing-id="' + escapeHtml(l.id) + '" style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">✏️ Edit</button>' +
+                '<button data-mkt-action="delete" data-listing-id="' + escapeHtml(l.id) + '" style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Delete</button>' +
             '</div>';
         }
 
@@ -9482,7 +9482,6 @@ window.submitListing = function() {
         if (typeof showToast === 'function') showToast('⏳ Wait 60 seconds between listings');
         return;
     }
-    _lastMktListingTime = _mktNow;
     var title = (document.getElementById('mktTitle').value || '').trim();
     var price = parseInt(document.getElementById('mktPrice').value);
     var category = document.getElementById('mktCategory').value;
@@ -9498,64 +9497,111 @@ window.submitListing = function() {
     if (!title || title.length < 3) { showToast('Please enter a title (3+ characters)'); return; }
     if (!price || price < 1 || price > 100000000000) { showToast('Price must be between 1 and 100B sats'); return; }
 
-    var sellerName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anonymous';
-    var sellerRank = '';
-    if (typeof currentUser !== 'undefined' && currentUser && typeof getLevel === 'function') {
-        var lv = getLevel(currentUser.points || 0);
-        sellerRank = lv.emoji + ' ' + lv.name;
+    if (!auth || !auth.currentUser) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to create a listing!');
+        return;
     }
 
-    var listing = {
-        title: title,
-        description: desc,
-        priceSats: price,
-        category: category,
-        condition: condition,
-        imageUrl: imageUrl || null,
-        lightningAddress: lightning || null,
-        shipping: shipping,
-        localPickup: local,
-        sellerUid: auth.currentUser.uid,
-        sellerName: sellerName,
-        sellerRank: sellerRank,
-        status: 'active',
-        views: 0,
-        saves: 0,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    };
+    window._mktSubmitting = true;
 
-    db.collection('marketplace').add(listing).then(function() {
-        window._mktUploadedImage = null;
-        var overlay = document.getElementById('createListingOverlay');
-        if (overlay) overlay.remove();
-        if (typeof showToast === 'function') showToast('🛒 Listing posted!');
-        if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
-        if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
-        if (typeof showToast === 'function') setTimeout(function(){ showToast('🎫 +1 Orange Ticket for posting a listing!'); }, 800);
-        // Track for badge
-        if (auth && auth.currentUser) {
-            db.collection('users').doc(auth.currentUser.uid).update({
-                marketListings: firebase.firestore.FieldValue.increment(1)
-            }).catch(function(e) { console.error('[marketplace] Error:', e); });
-            if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketListings = (currentUser.marketListings || 0) + 1;
+    function finishSubmit(err) {
+        window._mktSubmitting = false;
+        if (!err) return;
+        console.error('Marketplace post error:', err);
+        showToast('Error posting: ' + (err.code || err.message || 'Unknown error'));
+    }
+
+    // Profile username only. An empty name is allowed when the profile has none.
+    // Anything else is rejected by the rules, so a crafted client cannot impersonate.
+    function sellerNameFromProfile(userDoc) {
+        if (userDoc && userDoc.exists) {
+            var profile = userDoc.data() || {};
+            if (typeof profile.username === 'string') return profile.username;
         }
-        renderMarketplace();
-    }).catch(function(e) {
-        console.error('Marketplace post error:', e);
-        showToast('Error posting: ' + (e.code || e.message || 'Unknown error'));
+        return '';
+    }
+
+    function sendListing(sellerName) {
+        if (typeof sellerName !== 'string' || sellerName.trim().length === 0) {
+            window._mktSubmitting = false;
+            if (typeof showToast === 'function') showToast('Set a username before posting a listing');
+            if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            return;
+        }
+        _lastMktListingTime = Date.now();
+        var sellerRank = '';
+        if (typeof currentUser !== 'undefined' && currentUser && typeof getLevel === 'function') {
+            var lv = getLevel(currentUser.points || 0);
+            sellerRank = lv.emoji + ' ' + lv.name;
+        }
+        if (sellerRank.length > 40) sellerRank = sellerRank.substring(0, 40);
+
+        var listing = {
+            title: title,
+            description: desc,
+            priceSats: price,
+            category: category,
+            condition: condition,
+            imageUrl: imageUrl || null,
+            lightningAddress: lightning || null,
+            shipping: shipping,
+            localPickup: local,
+            sellerUid: auth.currentUser.uid,
+            sellerName: sellerName,
+            sellerRank: sellerRank,
+            status: 'active',
+            views: 0,
+            saves: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        };
+
+        db.collection('marketplace').add(listing).then(function() {
+            window._mktUploadedImage = null;
+            var overlay = document.getElementById('createListingOverlay');
+            if (overlay) overlay.remove();
+            if (typeof showToast === 'function') showToast('🛒 Listing posted!');
+            if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
+            if (typeof awardTickets === 'function') awardTickets(1, 'Marketplace listing');
+            if (typeof showToast === 'function') setTimeout(function(){ showToast('🎫 +1 Orange Ticket for posting a listing!'); }, 800);
+            // The listing counter is written by onMarketplaceListingCount.
+            if (auth && auth.currentUser) refreshMarketListingBadges(auth.currentUser.uid);
+            renderMarketplace();
+            finishSubmit();
+        }).catch(function(e) {
+            finishSubmit(e);
+        });
+    }
+
+    db.collection('users').doc(auth.currentUser.uid).get().then(function(userDoc) {
+        sendListing(sellerNameFromProfile(userDoc));
+    }).catch(function() {
+        var fallback = (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.username === 'string') ? currentUser.username : '';
+        sendListing(fallback);
     });
 };
 
 // ---- Save/Unsave Listings ----
 window.toggleMarketSave = function(listingId) {
+    if (!auth || !auth.currentUser) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to save listings');
+        return;
+    }
+    var uid = auth.currentUser.uid;
     var saved = safeJSON('btc_market_saved', []);
     var idx = saved.indexOf(listingId);
+    var listingRef = db.collection('marketplace').doc(listingId);
     if (idx !== -1) {
         saved.splice(idx, 1);
-        db.collection('marketplace').doc(listingId).update({ saves: firebase.firestore.FieldValue.increment(-1) }).catch(function(e) { console.error('[marketplace] Error:', e); });
+        listingRef.update({
+            saves: firebase.firestore.FieldValue.increment(-1),
+            savedBy: firebase.firestore.FieldValue.arrayRemove(uid)
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
     } else {
         saved.push(listingId);
-        db.collection('marketplace').doc(listingId).update({ saves: firebase.firestore.FieldValue.increment(1) }).catch(function(e) { console.error('[marketplace] Error:', e); });
+        listingRef.update({
+            saves: firebase.firestore.FieldValue.increment(1),
+            savedBy: firebase.firestore.FieldValue.arrayUnion(uid)
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
     }
     localStorage.setItem('btc_market_saved', JSON.stringify(saved));
     // Sync to Firestore
@@ -9582,7 +9628,7 @@ window.contactSeller = function(listingId, sellerName) {
         '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:20px;padding:24px;max-width:400px;width:100%;">' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">💬 Message ' + escapeHtml(sellerName) + '</div>' +
         '<textarea id="mktMessage" rows="4" placeholder="Hi! I\'m interested in your listing..." style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;"></textarea>' +
-        '<button onclick="sendMarketMessage(\'' + listingId + '\')"  style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Message ⚡</button>' +
+        '<button data-mkt-action="message" data-listing-id="' + escapeHtml(listingId) + '" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Message ⚡</button>' +
         '</div></div>';
     var div = document.createElement('div');
     div.innerHTML = html;
@@ -9648,7 +9694,7 @@ window.showMyListings = function(fromPopState) {
         .where('sellerUid', '==', auth.currentUser.uid)
         .orderBy('createdAt', 'desc')
         .get().then(function(snap) {
-            var html = '<div style="max-width:600px;margin:0 auto;padding:16px;">';
+            var html = '<div data-mkt-root="1" style="max-width:600px;margin:0 auto;padding:16px;">';
             html += '<button onclick="history.back()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back to LightningMart</button>';
             html += '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:16px;">📋 My Listings</div>';
 
@@ -9666,7 +9712,7 @@ window.showMyListings = function(fromPopState) {
                         '</div>' +
                         '<div style="display:flex;gap:8px;align-items:center;">' +
                             '<span style="font-size:0.65rem;color:' + statusColor + ';font-weight:700;text-transform:uppercase;">' + (l.status || 'active') + '</span>' +
-                            (l.status === 'active' ? '<button onclick="markSold(\'' + doc.id + '\')"  style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
+                            (l.status === 'active' ? '<button data-mkt-action="sold" data-listing-id="' + escapeHtml(doc.id) + '" style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
                         '</div>' +
                     '</div>';
                 });
@@ -9781,7 +9827,7 @@ window.editListing = function(listingId) {
             if (imgEl && l.imageUrl && !l.imageUrl.startsWith('data:')) imgEl.value = l.imageUrl || '';
             if (lnEl) lnEl.value = l.lightningAddress || '';
             if (shipEl) shipEl.checked = !!l.shipping;
-            if (localEl) localEl.checked = !!l.local;
+            if (localEl) localEl.checked = !!(l.localPickup || l.local);
             // Change header and button to "Update"
             var overlay = document.getElementById('createListingOverlay');
             if (overlay) {
@@ -9813,7 +9859,7 @@ window.updateExistingListing = function(listingId) {
     var local = document.getElementById('mktLocal').checked;
 
     if (!title || title.length < 3) { showToast('Please enter a title (3+ characters)'); return; }
-    if (!price || price < 1) { showToast('Please enter a price in sats'); return; }
+    if (!price || price < 1 || price > 100000000000) { showToast('Price must be between 1 and 100B sats'); return; }
 
     var updateData = {
         title: title.substring(0, 80),
@@ -9824,6 +9870,7 @@ window.updateExistingListing = function(listingId) {
         lightningAddress: lightning,
         shipping: shipping,
         local: local,
+        localPickup: local,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
     if (imageUrl) updateData.imageUrl = imageUrl;
@@ -9845,7 +9892,7 @@ window.deleteListing = function(listingId) {
     if (!confirm(isAdmin ? 'Admin: Delete this listing?' : 'Delete this listing?')) return;
     db.collection('marketplace').doc(listingId).update({
         status: 'deleted',
-        deletedBy: isAdmin ? 'admin' : 'owner',
+        deletedBy: auth.currentUser.uid,
         deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }).then(function() {
         showToast('🗑️ Listing deleted');
@@ -9953,6 +10000,102 @@ window.clearMktImage = function() {
     var fileInput = document.getElementById('mktImageFile');
     if (fileInput) fileInput.value = '';
 };
+
+function refreshMarketListingBadges(uid) {
+    if (!db || !uid) return;
+    var started = (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.marketListings === 'number')
+        ? currentUser.marketListings : 0;
+    var tries = 0;
+    function tick() {
+        db.collection('users').doc(uid).get().then(function(snap) {
+            var data = snap.exists ? (snap.data() || {}) : {};
+            var n = data.marketListings;
+            if (typeof n === 'number' && n > started) {
+                if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketListings = n;
+                if (typeof checkBadges === 'function') checkBadges();
+                return;
+            }
+            tries += 1;
+            if (tries < 8) setTimeout(tick, 500);
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
+    }
+    setTimeout(tick, 400);
+}
+
+function mktInMarketplace(node) {
+    var el = node;
+    while (el && el !== document) {
+        if (el.id === 'contactSellerOverlay' || el.id === 'createListingOverlay') return true;
+        if (el.getAttribute && el.getAttribute('data-mkt-root') === '1') return true;
+        el = el.parentNode;
+    }
+    return false;
+}
+
+function mktActionEl(node) {
+    while (node && node !== document) {
+        if (node.getAttribute && node.getAttribute('data-mkt-action')) return node;
+        node = node.parentNode;
+    }
+    return null;
+}
+
+function mktOnClick(ev) {
+    var el = mktActionEl(ev.target);
+    if (!el || !mktInMarketplace(el)) return;
+    var action = el.getAttribute('data-mkt-action');
+    var id = el.getAttribute('data-listing-id') || '';
+    if (action === 'save') {
+        ev.stopPropagation();
+        window.toggleMarketSave(id);
+        return;
+    }
+    if (action === 'open') {
+        window.renderMarketplace({ listingId: id });
+        return;
+    }
+    if (action === 'edit') { window.editListing(id); return; }
+    if (action === 'delete') { window.deleteListing(id); return; }
+    if (action === 'sold') { window.markSold(id); return; }
+    if (action === 'profile') {
+        if (typeof showUserProfile === 'function') showUserProfile(el.getAttribute('data-seller-uid') || '');
+        return;
+    }
+    if (action === 'contact') {
+        window.contactSeller(id, el.getAttribute('data-seller-name') || '');
+        return;
+    }
+    if (action === 'report') {
+        if (typeof reportUser === 'function') reportUser(el.getAttribute('data-seller-uid') || '', el.getAttribute('data-seller-name') || '');
+        return;
+    }
+    if (action === 'message') { window.sendMarketMessage(id); return; }
+    if (action === 'browse') {
+        window.renderMarketplace({
+            section: el.getAttribute('data-mkt-section') || '',
+            category: el.getAttribute('data-mkt-category') || 'all',
+            search: el.getAttribute('data-mkt-search') || '',
+            sort: el.getAttribute('data-mkt-sort') || 'newest'
+        });
+    }
+}
+
+function mktOnChange(ev) {
+    var el = ev.target;
+    if (!el || !mktInMarketplace(el) || el.getAttribute('data-mkt-action') !== 'sort') return;
+    window.renderMarketplace({
+        section: el.getAttribute('data-mkt-section') || '',
+        category: el.getAttribute('data-mkt-category') || 'all',
+        search: el.getAttribute('data-mkt-search') || '',
+        sort: el.value || 'newest'
+    });
+}
+
+if (!window._mktClicksBound) {
+    window._mktClicksBound = true;
+    document.addEventListener('click', mktOnClick);
+    document.addEventListener('change', mktOnChange);
+}
 
 function getTimeAgo(date) {
     var seconds = Math.floor((new Date() - date) / 1000);

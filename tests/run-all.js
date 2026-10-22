@@ -10,6 +10,9 @@ const path = require('path');
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
+    { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Marketplace Client', file: 'test-marketplace.js' },
+    { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
@@ -28,7 +31,6 @@ const TESTS = [
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
-    { name: 'Cache Busters', file: 'busters.js' },
 ];
 
 let allPassed = true;

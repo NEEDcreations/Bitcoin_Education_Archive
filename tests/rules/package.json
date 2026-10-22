@@ -1,0 +1,9 @@
+{
+  "name": "marketplace-rules-tests",
+  "private": true,
+  "description": "Emulator test for marketplace Firestore rules. See marketplace-rules.js.",
+  "dependencies": {
+    "@firebase/rules-unit-testing": "3.0.4",
+    "firebase": "10.14.1"
+  }
+}
