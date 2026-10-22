@@ -21,6 +21,7 @@ const TESTS = [
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
+    { name: 'Timechain TV Daily Watch', file: 'test-tctv-watch.js' },
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },

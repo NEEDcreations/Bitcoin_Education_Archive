@@ -253,9 +253,14 @@ test('single-field index is declared for tctv_presence.ts', () => {
     assert.ok(orders.includes('ASCENDING:COLLECTION'));
 });
 
-test('cache name is v2265 and the TV script cache-buster moved', () => {
+test('cache name is v2270 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2265'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2270'"));
+    assert.ok(!sw.includes('btc-archive-v2269'));
+    assert.ok(!sw.includes('btc-archive-v2268'));
+    assert.ok(!sw.includes('btc-archive-v2267'));
+    assert.ok(!sw.includes('btc-archive-v2266'));
+    assert.ok(!sw.includes('btc-archive-v2265'));
     assert.ok(!sw.includes('btc-archive-v2264'));
     assert.ok(!sw.includes('btc-archive-v2263'));
     assert.ok(!sw.includes('btc-archive-v2262'));
@@ -279,7 +284,9 @@ test('cache name is v2265 and the TV script cache-buster moved', () => {
     assert.ok(!sw.includes('btc-archive-v2240'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('timechain-tv.js?v=20261022_tctv3'));
+    assert.ok(html.includes('timechain-tv.js?v=20261022_v2266'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv3'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261022_tctvwatch'));
     assert.ok(html.includes('gifting.js?v=20261022_v2254'));
     assert.ok(html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(!html.includes('notifications.js?v=20261022_v2254'));
@@ -301,7 +308,7 @@ test('cache name is v2265 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('global-chat.js?v=20261022_v2261'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2252'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2251'));
-    assert.ok(html.includes('features.registry.js?v=20261022_v2265'));
+    assert.ok(html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2250'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2246'));

@@ -8951,3 +8951,8 @@ const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;
 exports.claimSayHi = sayHiFns.claimSayHi;
+
+// Daily Timechain TV watch reward. Presence counting stays on
+// tctvAggregatePresence; this callable only credits watch time.
+const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
+exports.tctvWatchHeartbeat = tctvWatchHeartbeat;

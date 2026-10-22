@@ -129,6 +129,41 @@
             --secondary: #e2e8f0; --text-secondary: #475569;
         }
 
+        .tctv-watch-chip {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            max-width: calc(100% - 16px);
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: var(--bg-side);
+            color: var(--text);
+            border: 1px solid var(--border);
+            font-size: 0.72rem;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.35);
+        }
+        .tctv-watch-chip-bar {
+            width: 48px;
+            height: 4px;
+            border-radius: 99px;
+            background: var(--border);
+            overflow: hidden;
+            flex: 0 0 auto;
+        }
+        .tctv-watch-chip-fill {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: var(--accent);
+        }
+
         /* TCTV fixed UI elements high z-index Fix */
         #tctvNoise, #tctvOverlay { z-index: 100000 !important; }
         /* Fix guest sign-up banner visibility globally across all apps */
@@ -1203,6 +1238,7 @@
                 </div>
                 <div id="em-quick-actions" style="display:grid;gap:8px;margin-top:16px;margin-bottom:16px;">
                     <button id="nqSpinBtn" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
+                    <button id="tctvWatchBtn" onclick="if(typeof startTctvDailyWatch==='function')startTctvDailyWatch()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="tctvWatchEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">📺</span><span id="tctvWatchLabel">Watch TV</span></button>
                     <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                     <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho's Story</button>
                     <button id="sayHiBtn" onclick="if(typeof openSayHi==='function')openSayHi();else{window._pendingSayHi=true;if(window._loadDeferred)window._loadDeferred();}" aria-label="Say hi to the community" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="sayHiBtnEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">👋</span><span id="sayHiBtnLabel">Say hi</span><span id="sayHiBtnSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">to the community</span></button>
@@ -1482,7 +1518,8 @@
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261022_v2265" defer fetchpriority="high"></script>
-    <script src="features.registry.js?v=20261022_v2265" defer></script>
+    <script src="features.registry.js?v=20261022_v2266" defer></script>
+    <script src="tctv-watch.js?v=20261022_v2266" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>
     <script src="onboarding.js?v=20261013_1908" defer></script>
     <script src="learning-quests.js?v=20261014_0554" defer></script>
@@ -1506,7 +1543,7 @@
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20260810_0418',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
-            'timechain-tv.js?v=20261022_tctv3',
+            'timechain-tv.js?v=20261022_v2266',
             'learning-quests.js?v=20261014_0554',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20260609_pop'
         ];
@@ -1573,8 +1610,8 @@
             'quests':        ['quests.js?v=20261022_v2263'],
             'questhub':      ['quests.js?v=20261022_v2263'],
             'app':           ['quests.js?v=20261022_v2263'],
-            'timechain-tv':  ['timechain-tv.js?v=20261022_tctv3'],
-            'tv':            ['timechain-tv.js?v=20261022_tctv3']
+            'timechain-tv':  ['timechain-tv.js?v=20261022_v2266'],
+            'tv':            ['timechain-tv.js?v=20261022_v2266']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {
