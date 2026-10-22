@@ -1,8 +1,8 @@
 // Cache-buster pin. Live gh-pages is btc-archive-v2272.
 // This branch is btc-archive-v2278. bundle.min.js stays on v2271.
-// global-chat.js stays on v2272 until the deletion UI bump.
-// features.registry.js stays on v2266. notifications.js stays on v2262.
-// ranking.js is 20261022_acctdel. index.html and 404.html must stay identical.
+// global-chat.js is 20261022_acctdel. features.registry.js stays on v2266.
+// notifications.js stays on v2262. ranking.js is 20261022_acctdel.
+// index.html and 404.html must stay identical.
 // The precache keeps the classic Nacho deer and does not include nacho-fly.svg.
 const assert = require('assert');
 const fs = require('fs');
@@ -41,7 +41,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('ranking.js?v=20261022_acctdel'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261022_v2272'));
+    assert.ok(html.includes('global-chat.js?v=20261022_acctdel'));
+    assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2265'));

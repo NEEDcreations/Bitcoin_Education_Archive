@@ -59,7 +59,8 @@ function createFakeDb(initial) {
         docs.set(key, Object.assign({}, initial[key]));
     });
     const commits = [];
-    const db = { docs: docs, commits: commits, gets: 0 };
+    const listCalls = [];
+    const db = { docs: docs, commits: commits, gets: 0, listCalls: listCalls };
 
     function docRef(docPath) {
         const ref = {
@@ -78,6 +79,7 @@ function createFakeDb(initial) {
                 };
             },
             listCollections: async function() {
+                listCalls.push(docPath);
                 const prefix = docPath + '/';
                 const names = new Set();
                 for (const key of docs.keys()) {
@@ -229,7 +231,6 @@ function world() {
             imageUrl: 'https://cdn.example/a.png', gifUrl: 'https://cdn.example/a.gif', caption: 'cap', faction: 'hornet',
         },
         'global_chat/m2': { uid: 'u2', name: 'Bob', text: 'I quote you', replyTo: 'm1', replyToName: 'Alice', replyToText: 'hello secret' },
-        'global_chat/m3': { uid: 'u2', name: 'Bob', text: 'unrelated' },
         'global_chat/already': { uid: 'deleted', name: '[deleted]', text: '[deleted]', replyTo: 'z' },
         'notifications/n1': { recipientId: 'u1', message: 'inbox' },
         'notifications/n2': { senderId: 'u1', recipientId: 'u2', senderName: 'Alice', message: 'sent' },
@@ -274,6 +275,53 @@ function world() {
         'satoshiFavor/personalBests/users/u1': { username: 'Alice', best: 9 },
         'global_chat_meta/live_dj/dj_queue/u1': { uid: 'u1', name: 'Alice' },
         'totp_secrets/u1': { secret: 'should-go' },
+        'global_chat/nacho1': {
+            uid: 'nacho-bot', name: '🦌 Nacho', mentionUid: 'u1',
+            text: 'Shoutout to @Alice and also @Bob stays',
+        },
+        'global_chat/m3': { uid: 'u2', name: 'Bob', text: 'unrelated', reactions: { '🔥': ['u1', 'u2'] } },
+        'announcements/a1': { text: 'announce', reactions: { '🎉': ['u1', 'u9'] } },
+        'shoutout_claims/claim1': { authorUid: 'u1' },
+        'shoutout_claims/claim2': { authorUid: 'u2' },
+        'shoutout_limits/forum_u1': { count: 2 },
+        'shoutout_limits/market_u1': { count: 1 },
+        'shoutout_limits/hour_u1': { count: 1 },
+        'shoutout_limits/global': { count: 9 },
+        'gift_secrets/g1': { ownerId: 'u1', reward: 'secret' },
+        'gift_secrets/loose': { ownerId: 'u1', reward: 'loose' },
+        'gift_secrets/keep': { ownerId: 'u2', reward: 'theirs' },
+        'gift_pending_pairs/u1_u2': { n: 1 },
+        'gift_pending_pairs/u2_u1': { n: 1 },
+        'gift_pending_pairs/u2_u3': { n: 1 },
+        'raid_bosses/b1': { name: 'boss' },
+        'raid_bosses/b1/participants/u1': { username: 'Alice', contributed: 12 },
+        'raid_bosses/b1/participants/u2': { username: 'Bob', contributed: 4 },
+        'raid_daily_caps/u1_2026-10-22_chat': { contributed: 3 },
+        'raid_daily_caps/u2_2026-10-22_chat': { contributed: 1 },
+        'raid_deck_completions/b1_u1_deck': { uid: 'u1', deck: 'deck' },
+        'raid_deck_completions/b1_u2_deck': { uid: 'u2', deck: 'deck' },
+        'action_cooldowns/u1_chat_message': { t: 1 },
+        'action_cooldowns/u2_chat_message': { t: 1 },
+        'rate_limits/bridge_u1': { n: 1 },
+        'rate_limits/v4v_u1': { n: 1 },
+        'rate_limits/sayhi_u1': { n: 1 },
+        'rate_limits/announce_u1': { n: 1 },
+        'rate_limits/nostr_203_0_113_8': { n: 1 },
+        'totp_rate_limits/u1': { n: 1 },
+        'totp_rate_limits/u1_verify': { n: 1 },
+        'weekly_challenges/w1': { participants: { u1: true, u2: true } },
+        'weekly_challenges/w1/user_contribs/u1_chat': { count: 2 },
+        'weekly_challenges/w1/user_contribs/u2_chat': { count: 1 },
+        'leaderboard_winners/week': { winners: [{ uid: 'u1', username: 'Alice', xp: 10 }, { uid: 'u2', username: 'Bob', xp: 3 }] },
+        'stats/raffle_2026-09_snapshot': {
+            winner: 'Alice', winnerUid: 'u1',
+            allEntrants: { u1: { username: 'Alice', entries: 4 }, u2: { username: 'Bob', entries: 1 } },
+        },
+        'satoshiFavor/current': { lowestHashThisWindowUid: 'u1', lowestHashThisWindowUsername: 'Alice' },
+        'satoshiFavor/current/contributors/u1_chat': { uid: 'u1', username: 'Alice', points: 5 },
+        'buddy_matches/bm1': { user1: { uid: 'u1', name: 'Alice' }, user2: { uid: 'u2', name: 'Bob' } },
+        'pvp_matches/pm1': { player1: { uid: 'u2' }, player2: { uid: 'u1' } },
+        'hotTopics/latest': { summary: 'public topics' },
     };
     for (let i = 0; i < del.BATCH_LIMIT + 50; i++) {
         data['notifications/bulk' + String(i).padStart(4, '0')] = { recipientId: 'u1', message: 'n' + i };
@@ -302,6 +350,18 @@ const RETAINED_KEYS = [
     'reports/rep1',
     'satoshiFavor/current/cooldowns/u1_rig1',
 ];
+
+function okAuth(db, capPath) {
+    const calls = [];
+    return {
+        calls: calls,
+        revokeRefreshTokens: async function(uid) { calls.push('revoke:' + uid); },
+        deleteUser: async function(uid) {
+            calls.push('delete:' + uid);
+            if (db && capPath) calls.push(db.docs.has(capPath) ? 'caps-present' : 'caps-gone');
+        },
+    };
+}
 
 function auth(uid, extras) {
     return Object.assign({ uid: uid, token: { auth_time: 1000, admin: false } }, extras || {});
@@ -378,8 +438,13 @@ function auth(uid, extras) {
             'meetup-builder/u1/plan.jpg',
             'beats/u2/keep.mp3',
         ]);
-        const summary = await del.purgeAccount({ db: db, bucket: bucket, uid: 'u1', documentIdField: '__name__' });
+        const authApi = okAuth(db, 'users/u1/daily_points/2026-10-22');
+        const summary = await del.purgeAccount({ db: db, bucket: bucket, authApi: authApi, uid: 'u1', documentIdField: '__name__' });
         assert.strictEqual(summary.anonymizedChat, 1);
+        assert.strictEqual(summary.authDeleted, true);
+        assert.ok(authApi.calls.indexOf('revoke:u1') !== -1);
+        assert.ok(authApi.calls.indexOf('revoke:u1') < authApi.calls.indexOf('delete:u1'));
+        assert.ok(authApi.calls.indexOf('caps-present') !== -1);
         assert.ok(db.commits.some(function(n) { return n === del.BATCH_LIMIT; }), 'a batch should fill to the limit');
         assert.ok(db.commits.every(function(n) { return n <= del.BATCH_LIMIT; }));
 
@@ -416,6 +481,12 @@ function auth(uid, extras) {
         assert.strictEqual(quote.replyToName, '[deleted]');
         assert.strictEqual(quote.replyToText, '[deleted]');
         assert.strictEqual(db.docs.get('global_chat/m3').text, 'unrelated');
+        assert.deepStrictEqual(db.docs.get('global_chat/m3').reactions, { '🔥': ['u2'] });
+        assert.strictEqual(db.docs.get('global_chat/nacho1').mentionUid, '');
+        assert.ok(db.docs.get('global_chat/nacho1').text.indexOf('@[deleted]') !== -1);
+        assert.ok(db.docs.get('global_chat/nacho1').text.indexOf('@Bob') !== -1);
+        assert.strictEqual(db.docs.get('global_chat/nacho1').uid, 'nacho-bot');
+        assert.deepStrictEqual(db.docs.get('announcements/a1').reactions, { '🎉': ['u9'] });
         assert.strictEqual(db.docs.get('global_chat/already').replyTo, 'z');
 
         assert.strictEqual(db.docs.has('notifications/n1'), false);
@@ -466,6 +537,58 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('satoshiFavor/current/session_hashes/u1').count, 4);
         assert.strictEqual(db.docs.get('satoshiFavor/current/hashes/h1').username, '[deleted]');
         assert.strictEqual(db.docs.get('satoshiFavor/current/hashes/h1').value, '000abc');
+        assert.strictEqual(db.docs.get('satoshiFavor/current').lowestHashThisWindowUsername, '[deleted]');
+        assert.strictEqual(db.docs.get('satoshiFavor/current').lowestHashThisWindowUid, 'u1');
+        assert.strictEqual(db.docs.get('satoshiFavor/current/contributors/u1_chat').username, '[deleted]');
+        assert.strictEqual(db.docs.get('satoshiFavor/current/contributors/u1_chat').points, 5);
+        assert.strictEqual(db.docs.get('raid_bosses/b1/participants/u1').username, '[deleted]');
+        assert.strictEqual(db.docs.get('raid_bosses/b1/participants/u1').contributed, 12);
+        assert.strictEqual(db.docs.get('raid_bosses/b1/participants/u2').username, 'Bob');
+        assert.strictEqual(db.docs.has('raid_deck_completions/b1_u1_deck'), false);
+        assert.ok(db.docs.has('raid_deck_completions/b1_u2_deck'));
+        assert.strictEqual(db.docs.has('shoutout_claims/claim1'), false);
+        assert.ok(db.docs.has('shoutout_claims/claim2'));
+        assert.strictEqual(db.docs.has('shoutout_limits/forum_u1'), false);
+        assert.strictEqual(db.docs.has('shoutout_limits/market_u1'), false);
+        assert.strictEqual(db.docs.has('shoutout_limits/hour_u1'), false);
+        assert.strictEqual(db.docs.get('shoutout_limits/global').count, 9);
+        assert.strictEqual(db.docs.has('gift_secrets/g1'), false);
+        assert.strictEqual(db.docs.has('gift_secrets/loose'), false);
+        assert.strictEqual(db.docs.get('gift_secrets/keep').ownerId, 'u2');
+        assert.strictEqual(db.docs.has('gift_pending_pairs/u1_u2'), false);
+        assert.strictEqual(db.docs.has('gift_pending_pairs/u2_u1'), false);
+        assert.ok(db.docs.has('gift_pending_pairs/u2_u3'));
+        assert.strictEqual(db.docs.has('action_cooldowns/u1_chat_message'), false);
+        assert.ok(db.docs.has('action_cooldowns/u2_chat_message'));
+        assert.strictEqual(db.docs.has('raid_daily_caps/u1_2026-10-22_chat'), false);
+        assert.ok(db.docs.has('raid_daily_caps/u2_2026-10-22_chat'));
+        assert.strictEqual(db.docs.has('rate_limits/bridge_u1'), false);
+        assert.strictEqual(db.docs.has('rate_limits/v4v_u1'), false);
+        assert.strictEqual(db.docs.has('rate_limits/sayhi_u1'), false);
+        assert.strictEqual(db.docs.has('rate_limits/announce_u1'), false);
+        assert.strictEqual(db.docs.get('rate_limits/nostr_203_0_113_8').n, 1);
+        assert.strictEqual(db.docs.has('totp_rate_limits/u1'), false);
+        assert.strictEqual(db.docs.has('totp_rate_limits/u1_verify'), false);
+        assert.strictEqual(db.docs.get('weekly_challenges/w1').participants.u1, undefined);
+        assert.strictEqual(db.docs.get('weekly_challenges/w1').participants.u2, true);
+        assert.strictEqual(db.docs.has('weekly_challenges/w1/user_contribs/u1_chat'), false);
+        assert.strictEqual(db.docs.get('weekly_challenges/w1/user_contribs/u2_chat').count, 1);
+        assert.strictEqual(db.docs.get('leaderboard_winners/week').winners[0].username, '[deleted]');
+        assert.strictEqual(db.docs.get('leaderboard_winners/week').winners[0].xp, 10);
+        assert.strictEqual(db.docs.get('leaderboard_winners/week').winners[1].username, 'Bob');
+        const raffle = db.docs.get('stats/raffle_2026-09_snapshot');
+        assert.strictEqual(raffle.winner, '[deleted]');
+        assert.strictEqual(raffle.winnerUid, 'u1');
+        assert.strictEqual(raffle.allEntrants.u1.username, '[deleted]');
+        assert.strictEqual(raffle.allEntrants.u1.entries, 4);
+        assert.strictEqual(raffle.allEntrants.u2.username, 'Bob');
+        assert.strictEqual(db.docs.has('buddy_matches/bm1'), false);
+        assert.strictEqual(db.docs.has('pvp_matches/pm1'), false);
+        assert.strictEqual(db.docs.get('hotTopics/latest').summary, 'public topics');
+        assert.ok(db.listCalls.indexOf('users/u1') !== -1);
+        ['notifications/n1', 'keys/k1', 'peer_requests/pr1', 'dm_conversations/u1_u2', 'push_tokens/u1'].forEach(function(leaf) {
+            assert.strictEqual(db.listCalls.indexOf(leaf), -1, leaf);
+        });
 
         assert.deepStrictEqual(snapshot(db, RETAINED_KEYS), before);
         ['beats/u1/', 'beats-covers/u1/', 'avatars/u1/'].forEach(function(prefix) {
@@ -478,7 +601,7 @@ function auth(uid, extras) {
 
         const chatAfter = JSON.stringify(db.docs.get('global_chat/m1'));
         const commitsAfter = db.commits.length;
-        const again = await del.purgeAccount({ db: db, bucket: bucket, uid: 'u1', documentIdField: '__name__' });
+        const again = await del.purgeAccount({ db: db, bucket: bucket, authApi: okAuth(), uid: 'u1', documentIdField: '__name__' });
         assert.strictEqual(again.anonymizedChat, 0);
         assert.strictEqual(JSON.stringify(db.docs.get('global_chat/m1')), chatAfter);
         assert.deepStrictEqual(snapshot(db, RETAINED_KEYS), before);
@@ -493,11 +616,11 @@ function auth(uid, extras) {
             'faucet_ledger/u4': { satsWithdrawn: 10 },
         });
         const bucket = createBucket([]);
-        const first = await del.purgeAccount({ db: db, bucket: bucket, uid: 'u4', documentIdField: '__name__' });
+        const first = await del.purgeAccount({ db: db, bucket: bucket, authApi: okAuth(), uid: 'u4', documentIdField: '__name__' });
         assert.strictEqual(first.anonymizedChat, 0);
         assert.strictEqual(db.docs.has('users/u4'), false);
         assert.strictEqual(db.docs.get('faucet_ledger/u4').satsWithdrawn, 10);
-        await del.purgeAccount({ db: db, bucket: bucket, uid: 'u4', documentIdField: '__name__' });
+        await del.purgeAccount({ db: db, bucket: bucket, authApi: okAuth(), uid: 'u4', documentIdField: '__name__' });
         assert.strictEqual(db.docs.get('faucet_ledger/u4').satsWithdrawn, 10);
         assert.ok(bucket.calls.indexOf('avatars/u4/') !== -1);
     });
@@ -525,9 +648,11 @@ function auth(uid, extras) {
         );
 
         const db = createFakeDb({ 'users/victim': { username: 'Vic' }, 'faucet_ledger/victim': { satsWithdrawn: 7 } });
+        const adminAuth = okAuth();
         const adminHandlers = del.createDeleteAccountHandlers({
             db: db,
             bucket: createBucket(['beats/victim/a.mp3']),
+            authApi: adminAuth,
             HttpsError: HttpsError,
             nowSec: function() { return now; },
             documentIdField: '__name__',
@@ -538,6 +663,8 @@ function auth(uid, extras) {
         );
         assert.strictEqual(result.ok, true);
         assert.strictEqual(result.byAdmin, true);
+        assert.strictEqual(result.authDeleted, true);
+        assert.ok(adminAuth.calls.indexOf('delete:victim') !== -1);
         assert.strictEqual(db.docs.has('users/victim'), false);
         assert.strictEqual(db.docs.get('faucet_ledger/victim').satsWithdrawn, 7);
     });
@@ -546,6 +673,7 @@ function auth(uid, extras) {
         const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
         assert.ok(ranking.includes("httpsCallable('deleteAccount')"));
         assert.ok(ranking.includes('user.delete()'));
+        assert.ok(ranking.includes('auth/user-not-found'));
         assert.strictEqual(ranking.includes("collection('conversations')"), false);
         assert.strictEqual(ranking.includes("collection('dm_conversations')"), false);
         assert.strictEqual(ranking.includes("collection('forum_posts')"), false);
@@ -560,6 +688,111 @@ function auth(uid, extras) {
         // The reward sentence in the terms is unchanged. Privacy still describes the check.
         const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
         assert.ok(terms.includes('The referral reward at Maxi is 50 Orange Tickets for the person who shared the link and 50 Orange Tickets for the referred account.'));
+        assert.ok(terms.includes('Settings includes a referral card with your personal link and a copy button.'));
+        assert.strictEqual(terms.includes('You can mark a notice read or delete it'), false);
+        assert.ok(terms.includes('You can mark a notice read.'));
+        assert.ok(terms.includes('Nacho may announce a new thread in Global Chat.'));
+        assert.ok(terms.includes('Nacho may announce a new listing in Global Chat.'));
+        assert.ok(privacy.includes('deletes the Firebase sign-in itself'));
+        assert.ok(privacy.includes('other person\'s messages'));
+        assert.ok(privacy.includes('deleted for both people'));
+        const chat = fs.readFileSync(path.join(root, 'global-chat.js'), 'utf8');
+        assert.ok(chat.includes("m.uid === 'deleted'"));
+        assert.ok(chat.includes('!isDeleted'));
+        assert.ok(chat.includes("uid !== 'deleted'"));
+    });
+
+    test('comments.authorId has a collection-group index, and other deletion queries stay single-field', function() {
+        const indexes = JSON.parse(fs.readFileSync(path.join(root, 'firestore.indexes.json'), 'utf8'));
+        const override = (indexes.fieldOverrides || []).find(function(item) {
+            return item.collectionGroup === 'comments' && item.fieldPath === 'authorId';
+        });
+        assert.ok(override, 'missing comments.authorId override');
+        const scopes = (override.indexes || []).map(function(item) { return item.queryScope + ':' + item.order; }).sort();
+        assert.deepStrictEqual(scopes, [
+            'COLLECTION:ASCENDING',
+            'COLLECTION:DESCENDING',
+            'COLLECTION_GROUP:ASCENDING',
+            'COLLECTION_GROUP:DESCENDING',
+        ]);
+        assert.strictEqual(del.INDEX_AUDIT.collectionGroupQueries.length, 1);
+        assert.strictEqual(del.INDEX_AUDIT.collectionGroupQueries[0].collection, 'comments');
+        assert.strictEqual(del.INDEX_AUDIT.collectionGroupQueries[0].field, 'authorId');
+        del.INDEX_AUDIT.collectionQueries.forEach(function(query) {
+            assert.ok(query.op === '==' || query.op === 'array-contains' || query.op === 'in', query.collection);
+            assert.strictEqual(query.field.indexOf(','), -1, query.field);
+            assert.strictEqual(query.orderBy, '__name__');
+        });
+        const src = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+        assert.strictEqual((src.match(/collectionGroup\(/g) || []).length, 1);
+        assert.ok(src.includes("collectionGroup('comments')"));
+        assert.ok(src.includes('timeoutSeconds: 540'));
+        assert.ok(src.includes("memory: '1GB'"));
+        assert.ok(src.includes('deleteUser'));
+        assert.ok(src.includes('revokeRefreshTokens'));
+    });
+
+    test('a shoutout keeps every @mention except the tagged user', function() {
+        const both = del.anonymizeMentionText('Shoutout to @Alice and @Bob', 'Alice');
+        assert.strictEqual(both, 'Shoutout to @[deleted] and @Bob');
+        const twice = del.anonymizeMentionText('Go send @Alice a request, @Alice', 'Alice');
+        assert.strictEqual(twice, 'Go send @[deleted] a request, @[deleted]');
+        const unknown = del.anonymizeMentionText('Hi @Alice and @Bob', '');
+        assert.strictEqual(unknown, 'Hi @[deleted] and @Bob');
+        assert.deepStrictEqual(del.reactionsWithoutUid({ '🔥': ['u1', 'u2'], '✨': ['u1'] }, 'u1'), { '🔥': ['u2'] });
+    });
+
+    await testAsync('caps stay when auth deletion fails, and a missing user still clears them', async function() {
+        const db = createFakeDb(world());
+        const failing = {
+            calls: [],
+            revokeRefreshTokens: async function(uid) { this.calls.push('revoke:' + uid); },
+            deleteUser: async function(uid) {
+                this.calls.push('delete:' + uid);
+                const err = new Error('unavailable');
+                err.code = 'auth/internal-error';
+                throw err;
+            },
+        };
+        await assert.rejects(
+            del.purgeAccount({ db: db, bucket: createBucket([]), authApi: failing, uid: 'u1', documentIdField: '__name__' }),
+            function(err) { return err.code === 'auth/internal-error'; }
+        );
+        assert.ok(failing.calls.indexOf('delete:u1') !== -1);
+        assert.ok(db.docs.has('users/u1/daily_points/2026-10-22'));
+        assert.ok(db.docs.has('users/u1/daily_action_counts/2026-10-22'));
+        assert.ok(db.docs.has('users/u1/badge_awards/b1'));
+        assert.ok(db.docs.has('shoutout_limits/forum_u1'));
+        assert.ok(db.docs.has('action_cooldowns/u1_chat_message'));
+        assert.ok(db.docs.has('raid_daily_caps/u1_2026-10-22_chat'));
+
+        const missing = {
+            revokeRefreshTokens: async function() {
+                const err = new Error('gone');
+                err.code = 'auth/user-not-found';
+                throw err;
+            },
+            deleteUser: async function() {
+                const err = new Error('gone');
+                err.code = 'auth/user-not-found';
+                throw err;
+            },
+        };
+        const summary = await del.purgeAccount({
+            db: db,
+            bucket: createBucket([]),
+            authApi: missing,
+            uid: 'u1',
+            documentIdField: '__name__',
+        });
+        assert.strictEqual(summary.authDeleted, true);
+        assert.strictEqual(db.docs.has('users/u1/daily_points/2026-10-22'), false);
+        assert.strictEqual(db.docs.has('users/u1/daily_action_counts/2026-10-22'), false);
+        assert.strictEqual(db.docs.has('users/u1/badge_awards/b1'), false);
+        assert.strictEqual(db.docs.has('shoutout_limits/forum_u1'), false);
+        assert.strictEqual(db.docs.has('action_cooldowns/u1_chat_message'), false);
+        assert.ok(db.docs.has('shoutout_limits/global'));
+        assert.ok(db.docs.has('rate_limits/nostr_203_0_113_8'));
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

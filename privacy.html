@@ -121,7 +121,7 @@
         <tr><td>Copyright confirmation</td><td>Record that uploader confirmed rights ownership</td></tr>
     </table>
     <div class="warn">
-        <strong>⚠️ Music uploads are public.</strong> Any audio you upload to Bitcoin Beats (including bulk album/EP uploads of up to 20 tracks) is visible and playable by all users. You must own the copyright or have permission to upload. See our <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;">Terms of Service</a> for copyright and takedown policies.
+        <strong>⚠️ Music uploads are public.</strong> Any audio you upload to Bitcoin Beats (including bulk album/EP uploads of up to 20 tracks) is visible and playable by all users. You must own the copyright or have permission to upload. Third-party tracks are shown with the source credit, such as the artist, the feed title, or Wavlake. A takedown request goes to <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a>. See our <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;">Terms of Service</a> for the copyright and takedown policy. We do not send your account id to Wavlake.
     </div>
 
     <h3>Global Chat (stored in Firebase)</h3>
@@ -326,7 +326,7 @@
     <ul>
         <li>Display your rank and username on the leaderboard</li>
         <li>Track your progress, points, streaks, badges, and ticket earnings</li>
-        <li>Process referrals and verify referral qualifications (2,100+ points)</li>
+        <li>Process referrals and verify referral qualifications (2,100+ points). Settings includes a referral card with your personal link and a copy button</li>
         <li>Determine giveaway eligibility based on Orange Ticket count</li>
         <li>Send sign-in magic links to verify your email</li>
         <li>Send optional web push notifications to devices you opt in, using the category switches in Settings</li>
@@ -507,23 +507,26 @@
         <li><strong>Disable sounds</strong> — in Settings → Prefs</li>
         <li><strong>Disable push notifications</strong> — in Settings → Prefs or your browser settings</li>
     </ul>
-    <p>Delete runs on the server. The button calls the <code>deleteAccount</code> function, then deletes the Firebase sign-in. Only that account, with a recent sign-in, or an admin, can start it. Running it again after the data is already gone is safe. This browser then clears site data whose keys start with <code>btc_</code>, session storage, and the service-worker cache. There is no waiting period in the app.</p>
+    <p>Delete runs on the server. The button calls the <code>deleteAccount</code> function. That function deletes the Firebase sign-in itself, for the account owner and for an admin, and it revokes refresh tokens. Daily points, daily action counts, and badge awards are removed only in that same step, after the sign-in is gone, so those caps cannot be reset while the account still exists. Only that account, with a recent sign-in, or an admin, can start it. Running it again after the data is already gone is safe. This browser then clears site data whose keys start with <code>btc_</code>, session storage, and the service-worker cache. If the server already removed the sign-in, this browser treats that as finished. There is no waiting period in the app.</p>
     <p>The server deletes:</p>
     <ul>
-        <li>Your user profile and the records stored under it, including daily points, daily action counts, badge awards, shop purchases, Proof of Walk data, connected-app records, the in-profile notification list, and the sats withdrawal list stored on the profile. A profile photo saved on that document is deleted with it</li>
+        <li>Your user profile and the records stored under it, including shop purchases, Proof of Walk data, connected-app records, the in-profile notification list, and the sats withdrawal list stored on the profile. A profile photo saved on that document is deleted with it. Daily points, daily action counts, and badge awards are removed in the same step that deletes the sign-in</li>
         <li>Your public profile, and a <code>usernames/</code> reservation when one exists for that account</li>
-        <li>Direct message threads you are in, from <code>dm_conversations</code>, including the messages in those threads. An older <code>conversations</code> collection is cleared the same way when it still has your threads</li>
+        <li>Direct message threads you are in, from <code>dm_conversations</code>, including every message in those threads. That removes the other person's messages in the thread as well. An older <code>conversations</code> collection is cleared the same way when it still has your threads</li>
         <li>Forum posts and replies, articles and article replies, marketplace listings and marketplace messages, suggestions, certificates, and IRL events you created</li>
         <li>Bitcoin Beats tracks you uploaded, comments on those tracks, and comments you wrote on other tracks</li>
         <li>Files in Storage under your account: Beats audio (<code>beats/</code>), Beats cover art (<code>beats-covers/</code>), avatars (<code>avatars/</code>), chat images, DM images, article images, article covers, IRL photos, and meetup-builder uploads</li>
-        <li>Notifications in your inbox and notifications you sent</li>
+        <li>Notifications in your inbox and notifications you sent. You can mark a notice read. The app does not delete a single notice. Read and unread status is removed with the account</li>
         <li>Push tokens for the account, including <code>push_tokens/{uid}</code> and its <code>devices</code></li>
-        <li>Authenticator-app secrets, presence, Timechain TV presence and view-day rows, the buddy-pool entry, the PvP lobby entry, and PvP matches you were in</li>
-        <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it</li>
+        <li>Authenticator-app secrets, presence, Timechain TV presence and view-day rows, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
+        <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it. Gift secrets you hold are deleted, and pending gift-pair records that name your account are deleted</li>
+        <li>Shoutout claim records that name your account. Nacho posts in Global Chat that tagged you have the tag removed and your name in that post replaced with <code>[deleted]</code>. Other people's names in the same post stay. Your account id is removed from reactions on Global Chat messages and announcements</li>
+        <li>Your username on raid participation rows and on Satoshi's Favor contributor rows. The contribution count stays. The same replacement is applied to raffle snapshots and leaderboard winner history. The payout record stays</li>
+        <li>After the sign-in is deleted: your shoutout rate rows, action cooldowns, raid daily caps, weekly challenge contribution rows, and the per-account rate-limit rows for the chat bridge, Beats imports, Say hi, and announcements</li>
         <li>Your giveaway entry, visit row, open prediction, and prediction stats</li>
         <li>Your Global Chat DJ queue entry and your Satoshi's Favor personal best</li>
     </ul>
-    <p>Global Chat messages you wrote stay in place, because other messages point at them. The server replaces your name and the message text with <code>[deleted]</code>, clears images, GIFs, and captions on those messages, and replaces quotes of those messages with <code>[deleted]</code>. The reply link stays so the thread still lines up.</p>
+    <p>Global Chat messages you wrote stay in place, because other messages point at them. The server replaces your name and the message text with <code>[deleted]</code>, clears images, GIFs, and captions on those messages, and replaces quotes of those messages with <code>[deleted]</code>. The reply link stays so the thread still lines up. The chat hides the profile, reply, and tip controls on a deleted message.</p>
     <p>We keep some records after deletion so someone cannot wipe an abuse trail or a payout that already happened:</p>
     <ul>
         <li><strong>Faucet ledger, invoice records, and the IP, device, and related faucet logs.</strong> The withdrawal list on the profile is deleted. These server records stay so a new account cannot reset the lifetime sats cap or hide a claim</li>
@@ -534,6 +537,7 @@
         <li><strong>Admin audit logs and reports</strong> filed for moderation</li>
         <li><strong>Prediction payout and prediction record ledgers</strong></li>
         <li><strong>Satoshi's Favor hash records and cooldowns.</strong> The name on the hash record is replaced with <code>[deleted]</code>. The hash and the cooldown stay so the game limits cannot be reset</li>
+        <li><strong>Shared rate-limit rows keyed by IP address, the global shoutout limit, and public topic summaries.</strong> Those are not a copy of your profile. Deleting one account does not erase them</li>
     </ul>
     <p>A Global Chat message may already have been copied to the linked Telegram group. Deleting the account does not remove that Telegram copy. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> if something of yours is still visible and should not be.</p>
 

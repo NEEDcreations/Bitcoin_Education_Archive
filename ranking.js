@@ -3645,8 +3645,15 @@ window.confirmDeleteAccount = async function() {
         // [AUDIT FIX M5] Clear SW caches on account deletion
         if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
-        // Firebase Auth still requires a recent login for this call.
-        await user.delete();
+        // The server already deletes the Firebase user. This call finishes a
+        // session that is still cached in the browser. user-not-found means
+        // the server completed that step.
+        try {
+            await user.delete();
+        } catch (authErr) {
+            var authCode = authErr && authErr.code;
+            if (authCode !== 'auth/user-not-found' && authCode !== 'auth/user-token-expired') throw authErr;
+        }
 
         // 9. Close overlay and show confirmation
         var overlay = document.getElementById('deleteAccountOverlay');
