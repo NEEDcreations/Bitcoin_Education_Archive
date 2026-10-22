@@ -6391,8 +6391,8 @@ function showSettingsPage(tab) {
                         reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
                             '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
                             '<div style="display:flex;gap:6px;">' +
-                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
-                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
+                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
                             '</div></div>';
                     });
                 }
@@ -6468,7 +6468,7 @@ function showSettingsPage(tab) {
                                 _peerMarks +
                                 '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">' + summaryText + '</span>' +
                                 '<button onclick="var el=document.getElementById(\'' + pDetailId + '\');var arr=this.querySelector(\'span\');if(el.style.display===\'none\'){el.style.display=\'block\';arr.textContent=\'▲\';}else{el.style.display=\'none\';arr.textContent=\'▼\';}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;"><span>▼</span></button>' +
-                                '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
+                                '<button onclick="window.managePeer(\'remove\',\'' + puid + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
                             '</div>' +
                             // Expandable detail panel
                             '<div id="' + pDetailId + '" style="display:none;margin-top:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +
@@ -8339,25 +8339,97 @@ window._sendGiftToPeerFromDetail = function(peerUid, peerName) {
     }, 1500);
 };
 
-window.managePeer = async function(action, targetUid) {
+window.managePeer = async function(action, targetUid, btnEl) {
     if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Sign in first'); return; }
-    try {
-        var fn = firebase.functions().httpsCallable('managePeer');
-        var result = await fn({ action: action, targetUid: targetUid });
-        if (result && result.data && result.data.success) {
-            if (action === 'send')   { if (typeof showToast === 'function') showToast('Peer request sent! 🧡'); }
-            if (action === 'remove') { window._myPeers && window._myPeers.delete(targetUid); if (typeof showToast === 'function') showToast('Peer removed'); }
-            if (action === 'accept') {
-                window._myPeers = window._myPeers || new Set();
-                window._myPeers.add(targetUid);
-                if (typeof showToast === 'function') showToast('Peer accepted! 🧡');
-                if (typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
-            }
-        }
-    } catch(e) {
-        var msg = (e && e.message) || 'Error';
-        if (msg.includes('already-exists')) msg = 'Already sent or already peers';
-        if (typeof showToast === 'function') showToast(msg);
-        console.error('[managePeer]', e);
+    var key = String(action) + '\0' + String(targetUid);
+    window._peerInflight = window._peerInflight || {};
+    if (window._peerInflight[key]) return window._peerInflight[key];
+
+    var gate;
+    var job = new Promise(function(resolve) { gate = resolve; });
+    window._peerInflight[key] = job;
+
+    var labels = {
+        send: '🧡 Sent!',
+        accept: '🧡 Accepted!',
+        decline: 'Declined',
+        remove: 'Removed'
+    };
+    var toasts = {
+        send: 'Peer request sent! 🧡',
+        accept: 'Peer accepted! 🧡',
+        decline: 'Request declined',
+        remove: 'Peer removed'
+    };
+    var row = [];
+    if (btnEl && btnEl.parentElement && btnEl.parentElement.querySelectorAll) {
+        row = Array.prototype.slice.call(btnEl.parentElement.querySelectorAll('button'));
+    } else if (btnEl) {
+        row = [btnEl];
     }
+    var snap = row.map(function(b) {
+        return {
+            el: b,
+            text: b.textContent,
+            disabled: b.disabled,
+            opacity: b.style.opacity,
+            cursor: b.style.cursor,
+            background: b.style.background
+        };
+    });
+    row.forEach(function(b) { b.disabled = true; });
+    if (btnEl && labels[action]) {
+        btnEl.textContent = labels[action];
+        btnEl.style.cursor = 'default';
+        btnEl.style.opacity = '1';
+    }
+    if (toasts[action] && typeof showToast === 'function') showToast(toasts[action]);
+
+    var hadPeers = window._myPeers && typeof window._myPeers.has === 'function';
+    var wasPeer = !!(hadPeers && window._myPeers.has(targetUid));
+    if (action === 'accept') {
+        window._myPeers = window._myPeers || new Set();
+        window._myPeers.add(targetUid);
+    } else if (action === 'remove' && window._myPeers && typeof window._myPeers.delete === 'function') {
+        window._myPeers.delete(targetUid);
+    }
+
+    (async function() {
+        try {
+            var fn = firebase.functions().httpsCallable('managePeer');
+            var result = await fn({ action: action, targetUid: targetUid });
+            if (!(result && result.data && result.data.success)) {
+                var failed = new Error('Could not update peer');
+                failed.code = 'internal';
+                throw failed;
+            }
+            if (action === 'accept' && typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
+        } catch(e) {
+            var code = (e && e.code) ? String(e.code) : '';
+            var msg = (e && e.message) ? String(e.message) : 'Error';
+            if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) {
+                if (action === 'accept' && typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
+                return;
+            }
+            snap.forEach(function(s) {
+                s.el.disabled = s.disabled;
+                s.el.textContent = s.text;
+                s.el.style.opacity = s.opacity;
+                s.el.style.cursor = s.cursor;
+                s.el.style.background = s.background;
+            });
+            if (action === 'accept' && window._myPeers && !wasPeer && typeof window._myPeers.delete === 'function') {
+                window._myPeers.delete(targetUid);
+            }
+            if (action === 'remove' && wasPeer && window._myPeers && typeof window._myPeers.add === 'function') {
+                window._myPeers.add(targetUid);
+            }
+            if (typeof showToast === 'function') showToast(msg);
+            console.error('[managePeer]', e);
+        } finally {
+            if (window._peerInflight && window._peerInflight[key] === job) delete window._peerInflight[key];
+            gate();
+        }
+    })();
+    return job;
 };

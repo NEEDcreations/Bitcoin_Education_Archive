@@ -9,6 +9,30 @@ const fetch = require('node-fetch');
 
 admin.initializeApp();
 const db = admin.firestore();
+// REST instead of a gRPC channel. The gRPC handshake is a large part of a
+// gen1 cold start. settings() throws if it runs twice or after any other
+// Firestore method, so it has to happen here — before any collection read and
+// before src modules that capture admin.firestore() at load — and only once
+// per process.
+//
+// index.js is the shared gen1 entry, but Cloud Functions deploys each
+// function as its own revision. Only a function deployed after this change
+// picks it up. The first deploy is managePeer; every other function keeps
+// its previous bundle (and gRPC) until that function is deployed again.
+//
+// @google-cloud/firestore 7.11.6 (firebase-admin 12.7.0): preferRest stays
+// on HTTP/1.1 until something needs gRPC. The only such API is a snapshot
+// listener (DocumentReference/CollectionReference/Query onSnapshot). Calling
+// one loads gRPC and the client uses gRPC from then on, which drops the
+// cold-start win for the rest of that instance. There are no listeners in
+// functions/ today, so this is safe for every function that later deploys
+// this file. Triggers (onDocumentCreated and the rest) are event deliveries,
+// not client listeners, and are unaffected.
+const _preferRestGlobal = typeof globalThis !== 'undefined' ? globalThis : global;
+if (!_preferRestGlobal.__btcFirestorePreferRest) {
+    db.settings({ preferRest: true });
+    _preferRestGlobal.__btcFirestorePreferRest = true;
+}
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -2727,7 +2751,15 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
 
     // ── SEND ──────────────────────────────────────────────────────────────────
     if (action === 'send') {
-        const [userDoc, targetDoc] = await Promise.all([userRef.get(), targetRef.get()]);
+        // These five reads do not depend on each other. One round trip.
+        const [userDoc, targetDoc, outSnap, existDoc, revDoc] = await Promise.all([
+            userRef.get(),
+            targetRef.get(),
+            db.collection('peer_requests')
+                .where('from', '==', uid).where('status', '==', 'pending').limit(51).get(),
+            reqRef.get(),
+            revReqRef.get(),
+        ]);
         if (!userDoc.exists)   throw new functionsV1.https.HttpsError('not-found', 'Your account not found');
         if (!targetDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Target user not found');
 
@@ -2739,15 +2771,12 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
         }
 
         // Rate-limit: max 50 pending outgoing requests
-        const outSnap = await db.collection('peer_requests')
-            .where('from', '==', uid).where('status', '==', 'pending').limit(51).get();
         if (outSnap.size >= 50) {
             throw new functionsV1.https.HttpsError('resource-exhausted',
                 'Too many pending peer requests. Cancel some first.');
         }
 
         // Check for existing requests in either direction
-        const [existDoc, revDoc] = await Promise.all([reqRef.get(), revReqRef.get()]);
         if (existDoc.exists && existDoc.data().status === 'pending') {
             throw new functionsV1.https.HttpsError('already-exists', 'Peer request already sent');
         }
@@ -2756,16 +2785,16 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
                 'This user already sent you a request — check your notifications');
         }
 
-        await reqRef.set({
+        const batch = db.batch();
+        batch.set(reqRef, {
             from: uid, to: targetUid,
             fromUsername: ud.username || 'Bitcoiner',
             toUsername:   td.username || 'Bitcoiner',
             status: 'pending',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-
-        // Notify recipient
-        await db.collection('notifications').add({
+        // Same fields as the previous notifications.add(); the id is still random.
+        batch.set(db.collection('notifications').doc(), {
             recipientId: targetUid,
             senderId: uid,
             senderName: ud.username || 'Bitcoiner',
@@ -2777,13 +2806,17 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             read: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        await batch.commit();
         return { success: true };
     }
 
     // ── ACCEPT ─────────────────────────────────────────────────────────────────
     if (action === 'accept') {
-        // The request was sent from targetUid TO uid, so the doc is revReqRef
-        const revDoc = await revReqRef.get();
+        // The request was sent from targetUid TO uid, so the doc is revReqRef.
+        // The accepter's username is only needed for the notification, so it
+        // can be read in the same round trip. Badge counts are read after
+        // commit so peerCount includes this accept.
+        const [revDoc, userDoc] = await Promise.all([revReqRef.get(), userRef.get()]);
         if (!revDoc.exists || revDoc.data().status !== 'pending') {
             throw new functionsV1.https.HttpsError('not-found', 'Peer request not found or already handled');
         }
@@ -2791,16 +2824,12 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             throw new functionsV1.https.HttpsError('permission-denied', 'Not your request to accept');
         }
 
+        const ud = userDoc.exists ? userDoc.data() : {};
         const batch = db.batch();
         batch.update(revReqRef, { status: 'accepted', acceptedAt: admin.firestore.FieldValue.serverTimestamp() });
         batch.update(userRef,   { peers: admin.firestore.FieldValue.arrayUnion(targetUid), peerCount: admin.firestore.FieldValue.increment(1) });
         batch.update(targetRef, { peers: admin.firestore.FieldValue.arrayUnion(uid),       peerCount: admin.firestore.FieldValue.increment(1) });
-        await batch.commit();
-
-        // Notify the original sender that their request was accepted
-        const userDoc = await userRef.get();
-        const ud = userDoc.exists ? userDoc.data() : {};
-        await db.collection('notifications').add({
+        batch.set(db.collection('notifications').doc(), {
             recipientId: targetUid,
             senderId: uid,
             senderName: ud.username || 'Bitcoiner',
@@ -2812,6 +2841,7 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             read: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        await batch.commit();
 
         // Award badges if applicable (non-blocking)
         try {
@@ -2841,6 +2871,7 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
     }
 
     // ── DECLINE ────────────────────────────────────────────────────────────────
+    // The delete depends on this read (ownership). One read, one write.
     if (action === 'decline') {
         const revDoc = await revReqRef.get();
         if (!revDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Peer request not found');
@@ -2859,6 +2890,8 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
     }
 
     // ── REMOVE ─────────────────────────────────────────────────────────────────
+    // Membership is checked on the caller doc, then both user updates and
+    // both request deletes already commit in one batch.
     if (action === 'remove') {
         const userDoc = await userRef.get();
         if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');

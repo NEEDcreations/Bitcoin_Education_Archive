@@ -19,6 +19,7 @@ const TESTS = [
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
+    { name: 'Peer Request Speed', file: 'test-peer-request.js' },
 ];
 
 let allPassed = true;
