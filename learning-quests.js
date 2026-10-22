@@ -403,7 +403,7 @@ var LQ_TOPICS = [
         questions: [
             { q: 'Who created Bitcoin?', a: 'Satoshi Nakamoto, an anonymous person or group', wrong: ['The US Federal Reserve', 'A team at MIT', 'Mark Zuckerberg'] },
             { q: 'When was Bitcoin created?', a: '2009', wrong: ['1999', '2013', '2001'] },
-            { q: "What is Bitcoin's maximum supply?", a: '21 million BTC', wrong: ['1 billion', 'Unlimited', '100 million'] },
+            { q: 'If you edit only your own node so it accepts more than 21 million coins, what happens?', a: 'Other nodes reject the blocks you produce', wrong: ['The network raises the cap to match you', 'Your extra coins are paid from the subsidy', 'The whitepaper updates itself'] },
             { q: "What technology underpins Bitcoin's security?", a: 'Cryptography and proof of work', wrong: ['Government encryption standards', 'SQL databases', 'The SWIFT banking network'] },
             { q: 'Can anyone be denied access to Bitcoin?', a: 'No — Bitcoin is permissionless; anyone with internet access can use it', wrong: ['You must pass a KYC check', 'Only US citizens can hold it', 'Banks must approve your wallet'] },
             { q: 'What is censorship resistance?', a: 'No authority can block or reverse a valid Bitcoin transaction', wrong: ['Bitcoin is banned in most countries', 'Transactions require bank approval', 'Only miners can approve payments'] },
@@ -428,7 +428,7 @@ var LQ_TOPICS = [
         questions: [
             { q: 'What does a Bitcoin miner actually do?', a: 'Tries billions of random numbers (nonces) until a valid hash is found', wrong: ['Solves complex equations', 'Validates payment card transactions', 'Mines physical gold'] },
             { q: 'What is SHA-256?', a: "The hashing algorithm that secures Bitcoin's proof of work", wrong: ["The name of Bitcoin's first block", 'A government encryption standard for banking', "Bitcoin's smart contract language"] },
-            { q: 'What is a nonce?', a: 'A random number miners change to try to find a valid block hash', wrong: ['A type of Bitcoin transaction fee', 'The minimum mining difficulty', 'A node identifier'] },
+            { q: 'What does changing the nonce let a miner do?', a: 'Try a new hash without rewriting the transactions', wrong: ['Spend the coinbase immediately', 'Set the dollar price of the block', 'Skip the difficulty target'] },
             { q: 'What happens to the block reward every ~4 years?', a: 'It halves', wrong: ['It doubles', 'It stays the same', 'It is voted on by miners'] },
             { q: 'What is proof of work?', a: 'Evidence that computational energy was expended to produce a valid block', wrong: ['A legal document proving Bitcoin ownership', 'A government-issued mining license', 'A receipt from a pool'] },
             { q: 'Why is changing an old Bitcoin block nearly impossible?', a: "You'd have to redo all the proof of work for that block and every block after it", wrong: ['Old blocks are deleted after 10 years', 'The blockchain is stored on government servers', 'Satoshi hardcoded a lock after block 1000'] },
@@ -480,7 +480,7 @@ var LQ_TOPICS = [
             { q: 'What does "not your keys, not your coins" mean?', a: 'If someone else holds your private keys, they control your bitcoin — not you', wrong: ['Physical coins must be stored in a safe', "You can't spend bitcoin unless you mined it", 'Keys must be printed on physical paper'] },
             { q: 'What is a seed phrase?', a: 'A set of 12–24 words that can restore a Bitcoin wallet', wrong: ['A password to log into an exchange', 'A Bitcoin address for receiving funds', 'A QR code printed on hardware wallets'] },
             { q: 'What is the safest way to store your seed phrase?', a: 'Written on paper or engraved in metal, stored offline', wrong: ['Screenshot saved to iCloud', 'Text message to yourself', 'PDF saved on your computer'] },
-            { q: 'What is a hardware wallet?', a: 'A physical device that stores private keys offline, never exposing them to the internet', wrong: ['A special bank account for Bitcoin', 'An app that stores bitcoin on your phone', 'A USB drive with bitcoin files'] },
+            { q: 'Why keep the keys on a hardware signer instead of a laptop?', a: 'The signer can show the address and sign without putting the key on the computer', wrong: ['The laptop is not allowed to display a bitcoin address', 'A signer mines the next block for you', 'The device holds the coins themselves, not the keys'] },
             { q: 'What was FTX?', a: 'A centralized exchange that collapsed in 2022, causing billions in customer losses', wrong: ['A Bitcoin hardware wallet manufacturer', 'A layer-2 Lightning payment protocol', 'A Bitcoin mining pool'] },
             { q: 'What is a private key?', a: 'A secret number that proves ownership and authorizes Bitcoin transactions', wrong: ['Your username on an exchange', 'The password to your email', 'The recovery code for your phone'] },
             { q: 'What is the advantage of multi-signature (multisig) wallets?', a: 'Multiple keys must sign to authorize a transaction, reducing single-point-of-failure risk', wrong: ['They double the amount of bitcoin you can store', 'They are faster than regular wallets', 'Multisig wallets earn interest'] },
@@ -508,7 +508,7 @@ var LQ_TOPICS = [
             { q: 'What is a Lightning invoice?', a: 'A payment request with amount and destination encoded in a string', wrong: ['A tax document for Lightning transactions', 'A government license for node operators', 'A receipt from a banking partner'] },
             { q: 'What is the key advantage of Lightning for micropayments?', a: 'Near-zero fees and instant settlement make tiny payments economically viable', wrong: ['Lightning creates new bitcoin', 'There are no fees at all', 'Government subsidies cover the fees'] },
             { q: 'What must happen before using a Lightning channel?', a: 'An on-chain Bitcoin transaction to fund and open the channel', wrong: ['Registering with an exchange', 'Purchasing a Lightning license', 'Installing special hardware'] },
-            { q: 'What is a Lightning node?', a: 'Software that opens channels, routes payments, and earns fees for providing liquidity', wrong: ['A mining rig that earns block rewards', 'A government-approved payment processor', 'A bookmark in a Bitcoin app'] },
+            { q: 'A Lightning node earns routing fees only when?', a: 'Payments from other people actually pass through its channels', wrong: ['It finds a proof-of-work block', 'A bank licenses it as a payment processor', 'It is bookmarked in a phone app'] },
             { q: 'Can Lightning payments be censored by a bank?', a: 'No — Lightning is peer-to-peer and censorship-resistant like Bitcoin itself', wrong: ['Banks can block Lightning wallets', 'The Federal Reserve monitors all Lightning payments', 'Only large payments can be blocked'] }
         ],
         digDeeper: ['layer-2-lightning', 'fedi-ark', 'lightning_node', 'use-cases']
@@ -527,11 +527,11 @@ var LQ_TOPICS = [
             { headline: 'Scarcity Drives Value', body: 'Every dollar printed dilutes your savings. Bitcoin does the opposite: as adoption grows and supply stays fixed, each bitcoin becomes harder to acquire. It\'s why Bitcoiners HODL.' }
         ],
         questions: [
-            { q: 'How many bitcoin will ever exist?', a: '21 million', wrong: ['100 million', 'An unlimited supply', '1 trillion satoshis'] },
+            { q: 'The familiar 21 million figure is a round number. Issuance actually ends:', a: 'Slightly under 21 million, because rewards round down', wrong: ['Exactly 100 million', 'At an unlimited supply', 'After 1 trillion satoshis and no further coins'] },
             { q: 'What is a Bitcoin halving?', a: 'A scheduled event every ~4 years that cuts the block reward in half', wrong: ['A penalty for miners who produce invalid blocks', 'A protocol vote to reduce fees', 'A government tax on mining'] },
             { q: 'When does new Bitcoin creation stop entirely?', a: 'Around the year 2140', wrong: ['2030', '2050', 'Never — it slows but never stops'] },
             { q: "How does Bitcoin's supply model compare to fiat currency?", a: 'Bitcoin has a fixed, predictable supply; fiat can be printed in unlimited quantities', wrong: ['Both are unlimited', 'Fiat is scarcer than Bitcoin', 'They follow the same model'] },
-            { q: 'How much was the block reward after the April 2024 halving?', a: '3.125 BTC', wrong: ['6.25 BTC', '1 BTC', '50 BTC'] },
+            { q: 'From 50 BTC down to 3.125 BTC, how many cuts had the subsidy taken by the end of 2024?', a: 'Four', wrong: ['One', 'Two', 'Thirty-three'] },
             { q: 'What is the relationship between scarcity and value?', a: 'Scarcity combined with demand drives value — the less there is of something useful, the more it tends to be worth', wrong: ['Scarcity makes things cheaper', "Bitcoin's value is set by governments", 'Scarcity only matters for physical goods'] },
             { q: "What backs Bitcoin's value?", a: 'Scarcity, security, energy expenditure, and growing adoption', wrong: ['Gold reserves held by Satoshi', 'A government guarantee', 'The US dollar'] },
             { q: 'What is a satoshi?', a: 'The smallest unit of Bitcoin — 0.00000001 BTC', wrong: ["Bitcoin's founder's full name", 'A type of block reward', '1,000 bitcoin'] }
@@ -578,7 +578,7 @@ var LQ_TOPICS = [
         questions: [
             { q: 'Is Bitcoin anonymous?', a: 'No — Bitcoin is pseudonymous; all transactions are public on the blockchain', wrong: ['Yes — completely untraceable', 'Yes — the government confirmed this', 'Only if you use a VPN'] },
             { q: 'What is chain analysis?', a: 'The process of tracing Bitcoin transactions on the public blockchain to identify users', wrong: ['A way to mine faster', 'A technique to create new addresses', 'A type of Bitcoin audit by Satoshi'] },
-            { q: 'What is CoinJoin?', a: 'A privacy technique where multiple users combine transactions to obscure the sender/receiver trail', wrong: ['A way to merge multiple Bitcoin wallets into one', 'A Lightning Network routing protocol', 'A type of hardware wallet'] },
+            { q: 'Who shares a CoinJoin transaction with you?', a: 'Other people who added inputs to that same payment', wrong: ['Only your own wallets, merged into one address', 'The Lightning routing nodes along a path', 'A hardware wallet manufacturer'] },
             { q: 'What is KYC?', a: "Know Your Customer — identity verification required by regulated exchanges", wrong: ['Keep Your Coins — a self-custody rule', 'A Bitcoin address format', 'A type of Bitcoin node'] },
             { q: 'Why might someone prefer to buy Bitcoin without KYC?', a: 'To preserve financial privacy and avoid linking personal identity to their Bitcoin stack', wrong: ['KYC exchanges charge higher fees', 'Non-KYC bitcoin is worth more', 'Government law requires non-KYC purchases'] },
             { q: 'What does UTXO stand for?', a: 'Unspent Transaction Output — the fundamental unit of Bitcoin transactions', wrong: ['Universal Token Exchange Operations', 'User Tracking eXchange Output', 'Unlimited Transaction eXchange Order'] },

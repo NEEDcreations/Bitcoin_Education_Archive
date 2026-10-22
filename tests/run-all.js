@@ -29,6 +29,7 @@ const TESTS = [
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Content Banks', file: 'test-content-banks.js' },
 ];
 
 let allPassed = true;
