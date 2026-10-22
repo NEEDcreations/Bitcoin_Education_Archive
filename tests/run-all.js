@@ -29,10 +29,12 @@ const TESTS = [
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
+    { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
+    { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
 ];
 
 let allPassed = true;

@@ -98,8 +98,8 @@
       "text": "Lightning also required users to monitor and manage their channels, to ensure they have sufficient liquidity and prevent theft from their channels."
     },
     {
-      "text": "Pleb net - An organized group dedicated to Lightning Network education and node implementation:\nSite: https://plebnet.wiki/wiki/Main_Page\nTelegram: \nhttps://t.me/plebnet",
-      "link": "https://plebnet.wiki/wiki/Main_Page"
+      "text": "Pleb net - An organized group dedicated to Lightning Network education and node implementation:\nSite: https://web.archive.org/web/20251008000144/https://plebnet.wiki/wiki/Main_Page\nTelegram: \nhttps://t.me/plebnet",
+      "link": "https://web.archive.org/web/20251008000144/https://plebnet.wiki/wiki/Main_Page"
     },
     {
       "text": "Lightning not as private as we think?\nhttps://www.coindesk.com/tech/2020/04/21/researchers-surface-privacy-vulnerabilities-in-bitcoin-lightning-network-payments/?s=09",
@@ -430,7 +430,7 @@
     {
       "text": "Transaction fees, mastercard vs lightning",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_006_0.jpg"
+        "images/discord-may2026/discord_006_0.jpg"
       ]
     },
     {
@@ -441,8 +441,8 @@
       "text": "bitcoin’s lightning network also works exactly like this when making a payment\n\nMathematics, Physics.\n\nThis is Dr. Matthew Henderson's (@matthen2) animation modeling a lightning strike by finding the shortest path in a random maze, first by sending out a frontier through the maze — and then tracing it back. \n\nIt also looks like fungi, and how Japanese designed some subway networks.",
       "link": "https://x.com/i/status/2044098290581393875",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_017_0.png",
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_017_1.jpg"
+        "images/discord-may2026/discord_017_0.jpg",
+        "images/discord-may2026/discord_017_1.jpg"
       ]
     },
     {
