@@ -6,7 +6,6 @@ const admin = require('firebase-admin');
 const { authenticator } = require("otplib");
 const QRCode = require('qrcode');
 const fetch = require('node-fetch');
-const { createPredictionJobs } = require('./src/predictionJobs');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -34,6 +33,7 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     db.settings({ preferRest: true });
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
+const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin);
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
