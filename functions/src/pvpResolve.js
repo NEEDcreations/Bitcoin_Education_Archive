@@ -9,6 +9,7 @@ const functions = require('firebase-functions');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const db = admin.firestore();
+const notifResolved = require('./notifResolved');
 
 function countWins(answers) {
   return (answers || []).filter(a => a && a.won).length;
@@ -27,6 +28,35 @@ exports.pvpResolveRound = onDocumentWritten('pvp_matches/{matchId}', async (even
     const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
     if (!change.after.exists) return null;
     const data = change.after.data();
+    const before = change.before && change.before.exists ? change.before.data() : null;
+    const beforeStatus = before ? before.status : '';
+
+    // Stamp once, when the match first becomes finished or forfeit.
+    // Later writes to a finished match must not query notifications again.
+    // recipientId limits the stamp to the two players. Display-only.
+    if ((data.status === 'finished' || data.status === 'forfeit') && beforeStatus !== data.status) {
+        const state = data.status === 'finished' ? 'joined' : 'expired';
+        const players = [];
+        if (data.player1 && data.player1.uid) players.push(data.player1.uid);
+        if (data.player2 && data.player2.uid && players.indexOf(data.player2.uid) === -1) players.push(data.player2.uid);
+        try {
+            await Promise.all(players.map(function(recipientId) {
+                return notifResolved.stampMatching(db, {
+                    state: state,
+                    whereField: 'targetId',
+                    whereValue: context.params.matchId,
+                    recipientId: recipientId,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                    filter: {
+                        type: 'pvp',
+                        targetId: context.params.matchId,
+                        recipientId: recipientId,
+                        state: state,
+                    },
+                });
+            }));
+        } catch (e) { console.warn('[pvpResolveRound] resolve notice failed'); }
+    }
 
     // Only process active matches — prevents re-trigger after CF writes status
     if (data.status !== 'active') return null;

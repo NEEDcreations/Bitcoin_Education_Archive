@@ -15,6 +15,7 @@ const { rollCipherReward } = require('./cipherReward');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
 const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
 const rewardNotify = require('./rewardNotify');
+const notifResolved = require('./notifResolved');
 const {
     assessCipherClaim,
     isSatsBanned,
@@ -428,6 +429,16 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         if (shoutErr) console.warn('[openGift] nacho shoutout failed:', shoutErr.message);
     }
 
+    try {
+        await notifResolved.stampMatching(db, {
+            state: 'opened',
+            whereField: 'giftId',
+            whereValue: giftId,
+            timestamp: rewardStamp(),
+            filter: { type: 'gift_received', recipientId: uid, giftId: giftId, state: 'opened' },
+        });
+    } catch (e) { console.warn('[openGift] resolve notice failed:', e.message); }
+
     return { success: true, reward: publicReward(rewardResult || { rewardType: 'tickets', ticketCount: 1 }) };
 });
 
@@ -563,13 +574,14 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
         }
         const labelText = sentLabels.filter(Boolean).join(', ');
         const keyWord = sentLabels.length === 1 ? 'an ' + (labelText || 'key') : (labelText || (keyIds.length + ' keys'));
+        const keyNoticeKey = 'keys_' + uid + '_' + todayUtc;
         await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
             uid: recipientUid,
             type: 'keys_received',
             icon: '🔑',
             targetType: 'keys',
             message: '🔑 You received ' + keyWord + ' from @' + senderName,
-            onceKey: 'keys_' + uid + '_' + todayUtc,
+            onceKey: keyNoticeKey,
         }).concat(xpAwarded > 0 ? rewardNotify.plan({
             uid: uid,
             xp: xpAwarded,
@@ -579,6 +591,11 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             pointsDelta: xpAwarded,
             onceKey: 'keysend_' + recipientUid + '_' + todayUtc,
         }) : []));
+        const keyNoticeId = 'rn_' + rewardNotify.safeId(recipientUid) + '_' + rewardNotify.safeId(keyNoticeKey);
+        await db.collection('notifications').doc(keyNoticeId).update({
+            keyIds: keyIds,
+            fromUid: uid,
+        }).catch(function() {});
     } catch (e) { console.warn('[sendKeys] notification failed:', e.message); }
 
     return { success: true, keysSent: keyIds.length, xpAwarded: xpAwarded };
@@ -696,6 +713,10 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         try { await updatePeerLevelAfterGift(applied.keySentBy, uid); }
         catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
     }
+
+    try {
+        await notifResolved.stampConsumedKey(db, keyId, rewardStamp());
+    } catch (e) { console.warn('[decryptCipher] resolve notice failed:', e.message); }
 
     if (applied && applied.reward) {
         const r = applied.reward;

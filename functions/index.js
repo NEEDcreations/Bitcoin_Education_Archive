@@ -145,6 +145,7 @@ const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
+const notifResolved = require('./src/notifResolved');
 
 // ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
 // String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
@@ -2933,15 +2934,17 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
         }
 
         const batch = db.batch();
+        const notifRef = db.collection('notifications').doc();
         batch.set(reqRef, {
             from: uid, to: targetUid,
             fromUsername: ud.username || 'Bitcoiner',
             toUsername:   td.username || 'Bitcoiner',
             status: 'pending',
+            notifId: notifRef.id,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         // Same fields as the previous notifications.add(); the id is still random.
-        batch.set(db.collection('notifications').doc(), {
+        batch.set(notifRef, {
             recipientId: targetUid,
             senderId: uid,
             senderName: ud.username || 'Bitcoiner',
@@ -2989,6 +2992,17 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         await batch.commit();
+        try {
+            await notifResolved.stampMatching(db, {
+                state: 'accepted',
+                notifId: revDoc.data().notifId,
+                whereField: 'fromUid',
+                whereValue: targetUid,
+                recipientId: uid,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                filter: { type: 'peer_request', recipientId: uid, fromUid: targetUid, state: 'accepted' },
+            });
+        } catch (e) { console.warn('[managePeer] resolve notice failed:', e.message); }
 
         // Award badges if applicable (non-blocking)
         try {
@@ -3030,7 +3044,19 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
         const revDoc = await revReqRef.get();
         if (!revDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Peer request not found');
         if (revDoc.data().to !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your request to decline');
+        const declinedNotifId = revDoc.data().notifId;
         await revReqRef.delete();
+        try {
+            await notifResolved.stampMatching(db, {
+                state: 'declined',
+                notifId: declinedNotifId,
+                whereField: 'fromUid',
+                whereValue: targetUid,
+                recipientId: uid,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                filter: { type: 'peer_request', recipientId: uid, fromUid: targetUid, state: 'declined' },
+            });
+        } catch (e) { console.warn('[managePeer] resolve notice failed:', e.message); }
         return { success: true };
     }
 
@@ -3039,7 +3065,19 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
         const reqDoc = await reqRef.get();
         if (!reqDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Peer request not found');
         if (reqDoc.data().from !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your request to cancel');
+        const cancelledNotifId = reqDoc.data().notifId;
         await reqRef.delete();
+        try {
+            await notifResolved.stampMatching(db, {
+                state: 'expired',
+                notifId: cancelledNotifId,
+                whereField: 'fromUid',
+                whereValue: uid,
+                recipientId: targetUid,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                filter: { type: 'peer_request', recipientId: targetUid, fromUid: uid, state: 'expired' },
+            });
+        } catch (e) { console.warn('[managePeer] resolve notice failed:', e.message); }
         return { success: true };
     }
 

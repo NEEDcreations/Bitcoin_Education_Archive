@@ -250,13 +250,182 @@ function notifEscape(value) {
         .replace(/'/g, '&#39;');
 }
 
-function notifCardHtml(docId, n, variant) {
+// Server-written notification.resolved wins. Anything else is ignored so a
+// stray string cannot invent a state. Rewards never read this value.
+var NOTIF_RESOLVED_LABELS = {
+    accepted: 'Accepted ✓',
+    declined: 'Declined',
+    opened: 'Opened ✓',
+    expired: 'Expired',
+    claimed: 'Already claimed',
+    joined: 'Joined ✓',
+    matched: 'Matched ✓',
+    sold: 'Sold',
+    read: 'Read'
+};
+
+function notifSafeType(type) {
+    return (typeof type === 'string' && /^[a-z0-9_]{1,32}$/.test(type)) ? type : '';
+}
+
+function notifStoredResolved(n) {
+    var v = n && n.resolved;
+    return (typeof v === 'string' && NOTIF_RESOLVED_LABELS[v]) ? v : '';
+}
+
+function notifHas(map, id) {
+    return !!(map && id && Object.prototype.hasOwnProperty.call(map, id));
+}
+
+// live is filled by notifLoadActionSources. A missing key means "not loaded"
+// and stays actionable. null means the source doc is gone.
+function notifLiveState(n, live) {
+    live = live || {};
+    n = n || {};
+    var type = n.type || '';
+    var targetType = n.targetType || '';
+    var myUid = notifSafeId(live.myUid, 128) ? live.myUid : '';
+
+    if (type === 'peer_request') {
+        var from = notifSafeId(n.fromUid, 128) ? n.fromUid : '';
+        if (from && notifHas(live.peers, from) && live.peers[from]) return 'accepted';
+        var reqId = notifSafeId(n.targetId, 128) ? n.targetId : '';
+        if (!reqId && from && myUid) reqId = from + '_' + myUid;
+        if (!reqId || !notifHas(live.peerRequests, reqId)) return '';
+        var req = live.peerRequests[reqId];
+        if (!req) return 'expired';
+        if (req.status === 'accepted') return 'accepted';
+        if (req.status === 'pending') return '';
+        if (req.status === 'declined') return 'declined';
+        return 'declined';
+    }
+
+    if (type === 'gift_received') {
+        var giftId = notifSafeId(n.giftId, 64) ? n.giftId : '';
+        if (!giftId || !notifHas(live.gifts, giftId)) return '';
+        var gift = live.gifts[giftId];
+        if (!gift) return 'expired';
+        var gst = gift.status || '';
+        if (gst === 'opened') return 'opened';
+        if (gst === 'claimed' || gst === 'consumed') return 'claimed';
+        if (gst === 'expired') return 'expired';
+        if (gst === 'unopened' || gst === 'inventory' || gst === 'sent') return '';
+        return gst ? 'claimed' : '';
+    }
+
+    if (type === 'keys_received') {
+        var keyIds = Array.isArray(n.keyIds) ? n.keyIds.filter(function(id) { return notifSafeId(id, 64); }) : [];
+        if (keyIds.length) {
+            if (!live.keys) return '';
+            var openKey = false;
+            var missingKey = false;
+            for (var ki = 0; ki < keyIds.length; ki++) {
+                if (!notifHas(live.keys, keyIds[ki])) return '';
+                var key = live.keys[keyIds[ki]];
+                if (!key) { missingKey = true; continue; }
+                if (key.status === 'inventory' || key.status === 'sent') openKey = true;
+            }
+            if (openKey) return '';
+            return missingKey ? 'expired' : 'claimed';
+        }
+        var sender = notifSafeId(n.fromUid, 128) ? n.fromUid : '';
+        if (!sender || !notifHas(live.keysBySender, sender)) return '';
+        var bag = live.keysBySender[sender];
+        if (!bag || !bag.total) return 'expired';
+        return bag.open > 0 ? '' : 'claimed';
+    }
+
+    if (type === 'pvp' || targetType === 'pvp') {
+        var pid = notifSafeId(n.targetId, 128) ? n.targetId : '';
+        if (!pid) return '';
+        var sawMatch = notifHas(live.matches, pid);
+        var sawLobby = notifHas(live.lobbies, pid);
+        if (!sawMatch && !sawLobby) return '';
+        var match = sawMatch ? live.matches[pid] : undefined;
+        var lobby = sawLobby ? live.lobbies[pid] : undefined;
+        if (match && (match.status === 'finished' || match.status === 'complete')) return 'joined';
+        if (match && (match.status === 'forfeit' || match.status === 'expired' || match.status === 'cancelled')) return 'expired';
+        if (match && (match.status === 'active' || match.status === 'question_result')) return '';
+        if (lobby && lobby.status === 'waiting') return '';
+        if (lobby && lobby.status === 'matched') return 'joined';
+        if (sawMatch && sawLobby && !match && !lobby) return 'expired';
+        return '';
+    }
+
+    if (type === 'buddy' || targetType === 'buddy') {
+        var bid = notifSafeId(n.targetId, 128) ? n.targetId : '';
+        if (!bid || !notifHas(live.buddies, bid)) return '';
+        var buddy = live.buddies[bid];
+        if (buddy && buddy.matched) return 'matched';
+        if (buddy && buddy.waiting) return '';
+        return 'expired';
+    }
+
+    if (targetType === 'marketplace' || type === 'marketplace') {
+        var lid = notifSafeId(n.targetId, 128) ? n.targetId : '';
+        if (!lid || !notifHas(live.listings, lid)) return '';
+        var listing = live.listings[lid];
+        if (!listing) return 'expired';
+        if (listing.status === 'sold') return 'sold';
+        if (listing.status === 'deleted' || listing.status === 'removed' || listing.status === 'expired') return 'expired';
+        return '';
+    }
+
+    if (type === 'dm' || targetType === 'dm') {
+        var cid = notifSafeId(n.targetId, 128) ? n.targetId : '';
+        if (!cid || !notifHas(live.convos, cid)) return '';
+        var convo = live.convos[cid];
+        if (!convo) return 'expired';
+        if (convo.unread === 0) return 'read';
+        return '';
+    }
+
+    return '';
+}
+
+function notifActionState(n, live) {
+    var stored = notifStoredResolved(n);
+    if (stored) return stored;
+    return notifLiveState(n, live);
+}
+
+function notifPillHtml(state) {
+    var label = NOTIF_RESOLVED_LABELS[state];
+    if (!label) return '';
+    return '<div class="notif-status-pill" style="margin-top:6px;"><span style="display:inline-block;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-muted);font-size:0.72rem;font-weight:700;">' + notifEscape(label) + '</span></div>';
+}
+
+function notifActionsHtml(n, safeDoc, state) {
+    if (state) return notifPillHtml(state);
+    var fromUid = (n.type === 'peer_request' && notifSafeId(n.fromUid, 128)) ? n.fromUid : '';
+    var giftId = (n.type === 'gift_received' && notifSafeId(n.giftId, 64)) ? n.giftId : '';
+    var btn = 'width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;';
+    if (fromUid && safeDoc) {
+        return '<div class="notif-actions" style="display:flex;gap:6px;margin-top:6px;">' +
+            '<button type="button" class="notif-peer-btn" data-peer-action="accept" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
+            '<button type="button" class="notif-peer-btn" data-peer-action="decline" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+            '</div>';
+    }
+    if (n.type === 'keys_received') {
+        return '<div class="notif-actions" style="margin-top:6px;"><button type="button" class="notif-keys-btn" style="' + btn + '">🔑 See keys</button></div>';
+    }
+    if (giftId && safeDoc) {
+        return '<div class="notif-actions" style="margin-top:6px;">' +
+            '<button type="button" class="notif-open-gift" data-gift-id="' + notifEscape(giftId) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="' + btn + '">🎁 Open Gift</button>' +
+            '</div>';
+    }
+    if ((n.type === 'pvp' || n.targetType === 'pvp') && notifSafeId(n.targetId, 128) && safeDoc) {
+        return '<div class="notif-actions" style="margin-top:6px;"><button type="button" class="notif-go-btn" data-go="pvp" style="' + btn + '">Join match</button></div>';
+    }
+    return '';
+}
+
+function notifCardHtml(docId, n, variant, live) {
     n = n || {};
     var safeDoc = notifSafeId(docId, 128) ? docId : '';
     var target = notifSafeTarget(n.targetType, n.targetId);
-    var giftId = (n.type === 'gift_received' && notifSafeId(n.giftId, 64)) ? n.giftId : '';
-    var fromUid = (n.type === 'peer_request' && notifSafeId(n.fromUid, 64)) ? n.fromUid : '';
-    var isUnread = !n.read;
+    var state = notifActionState(n, live);
+    var isUnread = !n.read && !state;
     var sheet = variant === 'sheet';
     var timeStr = '';
     if (n.createdAt && n.createdAt.toDate) {
@@ -265,30 +434,17 @@ function notifCardHtml(docId, n, variant) {
             ? formatNotifTime(ts)
             : (typeof timeAgo === 'function' ? timeAgo(ts) : ts.toLocaleDateString());
     }
-    var extra = '';
-    if (fromUid && safeDoc) {
-        extra = '<div style="display:flex;gap:6px;margin-top:6px;">' +
-            '<button type="button" class="notif-peer-btn" data-peer-action="accept" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
-            '<button type="button" class="notif-peer-btn" data-peer-action="decline" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
-            '</div>';
-    }
-    if (n.type === 'keys_received') {
-        extra = '<div style="margin-top:6px;"><button type="button" class="notif-keys-btn" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
-    }
-    if (giftId && safeDoc) {
-        extra = '<div style="margin-top:6px;">' +
-            '<button type="button" class="notif-open-gift" data-gift-id="' + notifEscape(giftId) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
-            '</div>';
-    }
-    return '<div class="notif-card" data-notif-id="' + notifEscape(safeDoc) + '" data-target-type="' + notifEscape(target.type) + '" data-target-id="' + notifEscape(target.id) + '" data-unread="' + (isUnread ? '1' : '0') + '" style="padding:' + (sheet ? '12px 16px' : '10px') + ';border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;">' +
+    var extra = notifActionsHtml(n, safeDoc, state);
+    var bg = isUnread ? 'rgba(247,147,26,0.04)' : 'none';
+    return '<div class="notif-card" data-notif-id="' + notifEscape(safeDoc) + '" data-notif-type="' + notifEscape(notifSafeType(n.type)) + '" data-target-type="' + notifEscape(target.type) + '" data-target-id="' + notifEscape(target.id) + '" data-unread="' + (isUnread ? '1' : '0') + '"' + (state ? ' data-resolved="' + notifEscape(state) + '"' : '') + ' style="padding:' + (sheet ? '12px 16px' : '10px') + ';border-bottom:1px solid var(--border);background:' + bg + ';' + (state ? 'opacity:0.72;' : '') + 'cursor:pointer;">' +
         '<div style="display:flex;gap:' + (sheet ? '10px' : '8px') + ';align-items:flex-start;">' +
             '<span style="font-size:' + (sheet ? '1.2rem' : '1.1rem') + ';flex-shrink:0;">' + notifEscape(notifIcon(n)) + '</span>' +
             '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifEscape(n.message || '') + '</div>' +
+                '<div style="font-size:0.82rem;color:' + (state ? 'var(--text-muted)' : 'var(--text)') + ';line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifEscape(n.message || '') + '</div>' +
                 notifAmountChips(n) +
                 '<div style="font-size:' + (sheet ? '0.65rem' : '0.7rem') + ';color:var(--text-faint);margin-top:' + (sheet ? '3px' : '2px') + ';">' + notifEscape(timeStr) + '</div>' +
             '</div>' +
-            (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
+            (isUnread ? '<div class="notif-unread-dot" style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
         '</div>' + extra +
     '</div>';
 }
@@ -300,7 +456,10 @@ function bindNotifCards(root, closeAfter) {
             var id = row.getAttribute('data-notif-id') || '';
             var safe = notifSafeTarget(row.getAttribute('data-target-type') || '', row.getAttribute('data-target-id') || '');
             if (!notifSafeId(id, 128)) return;
-            handleNotifClick(id, safe.type, safe.id);
+            handleNotifClick(id, safe.type, safe.id, {
+                resolved: row.getAttribute('data-resolved') || '',
+                notifType: row.getAttribute('data-notif-type') || ''
+            });
             if (closeAfter && typeof toggleNotifOverlay === 'function') toggleNotifOverlay();
         });
         row.addEventListener('mouseover', function() { row.style.background = 'rgba(255,255,255,0.03)'; });
@@ -314,10 +473,7 @@ function bindNotifCards(root, closeAfter) {
             var giftId = btn.getAttribute('data-gift-id') || '';
             var id = btn.getAttribute('data-notif-id') || '';
             if (!notifSafeId(giftId, 64) || !notifSafeId(id, 128)) return;
-            if (typeof window.openGiftModal === 'function') {
-                window.openGiftModal(giftId);
-                try { db.collection('notifications').doc(id).update({ read: true }); } catch (err) {}
-            } else if (typeof showToast === 'function') showToast('Loading gifts...');
+            notifOpenGift(giftId, id);
         });
     });
     root.querySelectorAll('.notif-peer-btn').forEach(function(btn) {
@@ -326,7 +482,7 @@ function bindNotifCards(root, closeAfter) {
             var action = btn.getAttribute('data-peer-action') || '';
             var fromUid = btn.getAttribute('data-from-uid') || '';
             var id = btn.getAttribute('data-notif-id') || '';
-            if ((action !== 'accept' && action !== 'decline') || !notifSafeId(fromUid, 64) || !notifSafeId(id, 128)) return;
+            if ((action !== 'accept' && action !== 'decline') || !notifSafeId(fromUid, 128) || !notifSafeId(id, 128)) return;
             handlePeerNotifAction(action, fromUid, id, btn);
         });
     });
@@ -336,6 +492,368 @@ function bindNotifCards(root, closeAfter) {
             if (typeof window.openNookInventory === 'function') window.openNookInventory();
         });
     });
+    root.querySelectorAll('.notif-go-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (btn.getAttribute('data-go') === 'pvp' && typeof window.enterPVPMode === 'function') window.enterPVPMode();
+            if (closeAfter && typeof toggleNotifOverlay === 'function') toggleNotifOverlay();
+        });
+    });
+}
+
+var _notifLookCache = Object.create(null);
+var NOTIF_LOOK_TTL = 60000;
+var NOTIF_LIVE_CAP = 15;
+
+function notifCacheGet(key) {
+    var hit = _notifLookCache[key];
+    if (!hit || (Date.now() - hit.t) > NOTIF_LOOK_TTL) return undefined;
+    return hit.data;
+}
+
+function notifCacheSet(key, data) {
+    _notifLookCache[key] = { t: Date.now(), data: data };
+}
+
+function notifCacheDrop(key) {
+    delete _notifLookCache[key];
+}
+
+function notifRememberRow(id, n, variant, live, closeAfter) {
+    if (!notifSafeId(id, 128)) return;
+    window._notifRowData = window._notifRowData || Object.create(null);
+    window._notifRowData[id] = { n: n, variant: variant, live: live || {}, closeAfter: !!closeAfter };
+}
+
+function notifReplaceRow(id) {
+    var bag = window._notifRowData && window._notifRowData[id];
+    if (!bag || typeof document === 'undefined') return;
+    var row = document.querySelector('.notif-card[data-notif-id="' + id + '"]');
+    if (!row || !row.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = notifCardHtml(id, bag.n, bag.variant, bag.live);
+    var next = wrap.firstChild;
+    if (!next) return;
+    row.parentNode.replaceChild(next, row);
+    bindNotifCards({
+        querySelectorAll: function(sel) {
+            if (sel === '.notif-card') return [next];
+            return next.querySelectorAll(sel);
+        }
+    }, bag.closeAfter);
+}
+
+function notifOptimistic(id, state) {
+    var bag = window._notifRowData && window._notifRowData[id];
+    if (!bag || !NOTIF_RESOLVED_LABELS[state]) return;
+    bag._prevResolved = bag.n.resolved;
+    bag.n.resolved = state;
+    notifReplaceRow(id);
+}
+
+function notifRollback(id) {
+    var bag = window._notifRowData && window._notifRowData[id];
+    if (!bag) return;
+    if (bag._prevResolved) bag.n.resolved = bag._prevResolved;
+    else delete bag.n.resolved;
+    delete bag._prevResolved;
+    notifReplaceRow(id);
+}
+
+function notifCallAlreadyDone(err) {
+    var code = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+    return /already-exists|already opened|already handled|already-opened/i.test(code);
+}
+
+function notifReadDenied(err) {
+    var code = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+    return /permission-denied/i.test(code);
+}
+
+// One batch for every resolved row painted this pass. A failed commit
+// forgets the ids so the next open can try again.
+function notifMarkReadBatch(ids) {
+    if (typeof db === 'undefined' || !db) return;
+    window._notifReadSent = window._notifReadSent || Object.create(null);
+    var pending = [];
+    (ids || []).forEach(function(id) {
+        if (!notifSafeId(id, 128) || window._notifReadSent[id]) return;
+        window._notifReadSent[id] = true;
+        pending.push(id);
+    });
+    if (!pending.length) return;
+    if (typeof db.batch !== 'function') {
+        pending.forEach(function(id) {
+            db.collection('notifications').doc(id).update({ read: true }).catch(function() {
+                delete window._notifReadSent[id];
+            });
+        });
+        return;
+    }
+    var step = 400;
+    for (var start = 0; start < pending.length; start += step) {
+        (function(slice) {
+            var batch = db.batch();
+            slice.forEach(function(id) {
+                batch.update(db.collection('notifications').doc(id), { read: true });
+            });
+            batch.commit().catch(function() {
+                slice.forEach(function(id) { delete window._notifReadSent[id]; });
+            });
+        })(pending.slice(start, start + step));
+    }
+}
+
+function notifGetDoc(coll, id) {
+    var key = coll + '/' + id;
+    var cached = notifCacheGet(key);
+    if (cached !== undefined) return Promise.resolve(cached);
+    return db.collection(coll).doc(id).get().then(function(snap) {
+        var data = snap.exists ? (snap.data() || {}) : null;
+        notifCacheSet(key, data);
+        return data;
+    }).catch(function(err) {
+        // Rules read resource.data, so a deleted doc is permission-denied
+        // rather than exists:false. Treat that as gone. Other errors stay
+        // unloaded so a blip does not expire a live invite.
+        if (!notifReadDenied(err)) return undefined;
+        notifCacheSet(key, null);
+        return null;
+    });
+}
+
+function notifBuddyId(a, b) {
+    if (!notifSafeId(a, 128) || !notifSafeId(b, 128)) return '';
+    return a < b ? (a + '_' + b) : (b + '_' + a);
+}
+
+// One parallel wave of reads, reused for 60s. Only the first visible rows
+// of each kind are checked. Stored resolved notices are skipped.
+async function notifLoadActionSources(rows, myUid) {
+    var live = {
+        myUid: myUid || '',
+        peers: Object.create(null),
+        peerRequests: Object.create(null),
+        gifts: Object.create(null),
+        keys: Object.create(null),
+        keysBySender: Object.create(null),
+        matches: Object.create(null),
+        lobbies: Object.create(null),
+        buddies: Object.create(null),
+        listings: Object.create(null),
+        convos: Object.create(null)
+    };
+    var needPeers = false;
+    var peerReqs = Object.create(null);
+    var gifts = Object.create(null);
+    var keys = Object.create(null);
+    var keySenders = Object.create(null);
+    var needKeyScan = false;
+    var matches = Object.create(null);
+    var buddies = Object.create(null);
+    var listings = Object.create(null);
+    var convos = Object.create(null);
+
+    (rows || []).forEach(function(n) {
+        if (!n || notifStoredResolved(n)) return;
+        var type = n.type || '';
+        var targetType = n.targetType || '';
+        if (type === 'peer_request') {
+            needPeers = true;
+            var from = notifSafeId(n.fromUid, 128) ? n.fromUid : '';
+            var reqId = notifSafeId(n.targetId, 128) ? n.targetId : '';
+            if (!reqId && from && notifSafeId(myUid, 128)) reqId = from + '_' + myUid;
+            if (reqId) peerReqs[reqId] = true;
+        } else if (type === 'gift_received' && notifSafeId(n.giftId, 64)) {
+            gifts[n.giftId] = true;
+        } else if (type === 'keys_received') {
+            var ids = Array.isArray(n.keyIds) ? n.keyIds : [];
+            var any = false;
+            ids.forEach(function(id) { if (notifSafeId(id, 64)) { keys[id] = true; any = true; } });
+            if (!any && notifSafeId(n.fromUid, 128)) {
+                needKeyScan = true;
+                keySenders[n.fromUid] = true;
+            }
+        } else if (type === 'pvp' || targetType === 'pvp') {
+            if (notifSafeId(n.targetId, 128)) matches[n.targetId] = true;
+        } else if (type === 'buddy' || targetType === 'buddy') {
+            if (notifSafeId(n.targetId, 128)) buddies[n.targetId] = true;
+        } else if (targetType === 'marketplace' || type === 'marketplace') {
+            if (notifSafeId(n.targetId, 128)) listings[n.targetId] = true;
+        } else if (type === 'dm' || targetType === 'dm') {
+            if (notifSafeId(n.targetId, 128)) convos[n.targetId] = true;
+        }
+    });
+
+    var jobs = [];
+    if (needPeers && notifSafeId(myUid, 128)) {
+        var peerKey = 'users/' + myUid + '/peers';
+        var cachedPeers = notifCacheGet(peerKey);
+        if (cachedPeers !== undefined) live.peers = cachedPeers;
+        else jobs.push(db.collection('users').doc(myUid).get().then(function(snap) {
+            var map = Object.create(null);
+            var list = snap.exists && snap.data() && Array.isArray(snap.data().peers) ? snap.data().peers : [];
+            list.forEach(function(uid) { if (notifSafeId(uid, 128)) map[uid] = true; });
+            notifCacheSet(peerKey, map);
+            live.peers = map;
+        }).catch(function() {}));
+    }
+    Object.keys(peerReqs).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
+        jobs.push(notifGetDoc('peer_requests', id).then(function(data) {
+            if (data !== undefined) live.peerRequests[id] = data;
+        }));
+    });
+    Object.keys(gifts).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
+        jobs.push(notifGetDoc('gifts', id).then(function(data) {
+            if (data !== undefined) live.gifts[id] = data;
+        }));
+    });
+    Object.keys(keys).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
+        jobs.push(notifGetDoc('keys', id).then(function(data) {
+            if (data !== undefined) live.keys[id] = data;
+        }));
+    });
+    if (needKeyScan && notifSafeId(myUid, 128)) {
+        var scanKey = 'keys-owner/' + myUid;
+        var scanned = notifCacheGet(scanKey);
+        var applyScan = function(map) { live.keysBySender = map; };
+        if (scanned !== undefined) applyScan(scanned);
+        else jobs.push(Promise.all([
+            db.collection('keys').where('ownerId', '==', myUid).where('status', '==', 'inventory').orderBy('createdAt', 'desc').limit(40).get(),
+            db.collection('keys').where('ownerId', '==', myUid).where('status', '==', 'sent').orderBy('createdAt', 'desc').limit(40).get()
+        ]).then(function(snaps) {
+            var map = Object.create(null);
+            snaps.forEach(function(snap) {
+                snap.forEach(function(doc) {
+                    var d = doc.data() || {};
+                    var sender = notifSafeId(d.sentBy, 128) ? d.sentBy : '';
+                    if (!sender) return;
+                    if (!map[sender]) map[sender] = { total: 0, open: 0 };
+                    map[sender].total++;
+                    if (d.status === 'inventory' || d.status === 'sent') map[sender].open++;
+                });
+            });
+            Object.keys(keySenders).slice(0, NOTIF_LIVE_CAP).forEach(function(sender) {
+                if (!map[sender]) map[sender] = { total: 0, open: 0 };
+            });
+            notifCacheSet(scanKey, map);
+            applyScan(map);
+        }).catch(function() {}));
+    }
+    Object.keys(matches).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
+        jobs.push(notifGetDoc('pvp_matches', id).then(function(data) {
+            if (data !== undefined) live.matches[id] = data;
+        }));
+        jobs.push(notifGetDoc('pvp_lobby', id).then(function(data) {
+            if (data !== undefined) live.lobbies[id] = data;
+        }));
+    });
+    Object.keys(buddies).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
+        var pair = id.indexOf('_') !== -1 ? id : notifBuddyId(myUid, id);
+        jobs.push(Promise.all([
+            pair ? notifGetDoc('buddy_matches', pair) : Promise.resolve(undefined),
+            notifGetDoc('buddy_pool', id)
+        ]).then(function(pairDocs) {
+            var match = pairDocs[0];
+            var pool = pairDocs[1];
+            if (match) live.buddies[id] = { matched: true };
+            else if (pool) live.buddies[id] = { waiting: true };
+            else if (match === null && pool === null) live.buddies[id] = null;
+        }));
+    });
+    Object.keys(listings).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
+        jobs.push(notifGetDoc('marketplace', id).then(function(data) {
+            if (data !== undefined) live.listings[id] = data;
+        }));
+    });
+    Object.keys(convos).slice(0, NOTIF_LIVE_CAP).forEach(function(id) {
+        jobs.push(notifGetDoc('dm_conversations', id).then(function(data) {
+            if (data === undefined) return;
+            if (!data) { live.convos[id] = null; return; }
+            var unreadKey = 'unread_' + myUid;
+            if (!Object.prototype.hasOwnProperty.call(data, unreadKey)) return;
+            var unread = Number(data[unreadKey]);
+            live.convos[id] = { unread: isNaN(unread) ? 1 : unread };
+        }));
+    });
+    await Promise.all(jobs);
+    return live;
+}
+
+function notifPaintRows(rows, variant, live, closeAfter) {
+    var html = '';
+    var markRead = [];
+    (rows || []).forEach(function(row) {
+        notifRememberRow(row.id, row.n, variant, live, closeAfter);
+        html += notifCardHtml(row.id, row.n, variant, live);
+        if (notifActionState(row.n, live) && row.n && !row.n.read) markRead.push(row.id);
+    });
+    notifMarkReadBatch(markRead);
+    return html;
+}
+
+function notifCallableErrorDone(err, action) {
+    if (notifCallAlreadyDone(err)) return true;
+    var code = String((err && err.code) || '');
+    if (action === 'decline' && /not-found/i.test(code)) return true;
+    return false;
+}
+
+function notifRewardLabel(rw) {
+    if (!rw) return 'Gift opened';
+    if (rw.shoutoutConverted) return rw.conversionMessage || "You already got a Nacho shoutout this week, so here's +100 XP!";
+    if (rw.rewardType === 'tickets') {
+        var tickets = rw.ticketCount || 1;
+        return '+' + tickets + ' Orange Ticket' + (tickets > 1 ? 's' : '');
+    }
+    if (rw.rewardType === 'xp_bonus') return '+' + (rw.xpAmount || 50) + ' XP';
+    if (rw.rewardType === 'xp_tickets') {
+        var bits = ['+' + (rw.xpAmount || 50) + ' XP'];
+        if ((rw.ticketCount || 0) > 0) bits.push('+' + rw.ticketCount + ' ticket' + (rw.ticketCount > 1 ? 's' : ''));
+        return bits.join(' and ');
+    }
+    if (rw.rewardType === 'streak_shield') return 'Streak Shield';
+    if (rw.rewardType === 'closet_item') return rw.itemName || 'Closet item';
+    if (rw.rewardType === 'nacho_shoutout') return 'Nacho Shoutout';
+    if (rw.rewardType === 'keys') {
+        var labels = (rw.keyLabels || []).join(', ');
+        var count = (rw.keyLabels || []).length;
+        return count + ' key' + (count === 1 ? '' : 's') + (labels ? ' (' + labels + ')' : '');
+    }
+    if (rw.rewardType === 'locked_ciphers') {
+        var cipherLabels = (rw.cipherLabels || []).join(', ');
+        var cipherCount = (rw.cipherLabels || []).length;
+        return cipherCount + ' locked cipher' + (cipherCount === 1 ? '' : 's') + (cipherLabels ? ' (' + cipherLabels + ')' : '');
+    }
+    if (rw.rewardType === 'sats') {
+        var amt = Number(rw.satsAmount || 0).toLocaleString();
+        if (rw.satsStatus === 'pending') return amt + ' sats — Phil will pay this one';
+        return amt + ' sats';
+    }
+    return 'Gift opened';
+}
+
+async function notifOpenGift(giftId, notifId) {
+    notifOptimistic(notifId, 'opened');
+    notifMarkReadBatch([notifId]);
+    try {
+        if (typeof window.revealNotifGift === 'function') {
+            await window.revealNotifGift(giftId);
+        } else {
+            var fn = firebase.functions().httpsCallable('openGift');
+            var res = await fn({ giftId: giftId });
+            var rw = res && res.data ? res.data.reward : null;
+            if (typeof showToast === 'function') showToast('🎁 ' + notifRewardLabel(rw));
+        }
+        notifCacheDrop('gifts/' + giftId);
+    } catch (err) {
+        if (notifCallAlreadyDone(err)) {
+            if (typeof showToast === 'function') showToast('Gift already opened');
+            return;
+        }
+        notifRollback(notifId);
+        if (typeof showToast === 'function') showToast('Error: ' + ((err && err.message) || 'Try again'));
+    }
 }
 
 function notifAmountChips(n) {
@@ -453,10 +971,11 @@ window.showNotifications = async function() {
             return;
         }
 
-        var html = _localRewardHtml();
-        snap.forEach(function(doc) {
-            html += notifCardHtml(doc.id, doc.data(), 'panel');
-        });
+        var rows = [];
+        snap.forEach(function(doc) { rows.push({ id: doc.id, n: doc.data() || {} }); });
+        var live = { myUid: uid };
+        try { live = await notifLoadActionSources(rows.map(function(r) { return r.n; }), uid); } catch (err) {}
+        var html = _localRewardHtml() + notifPaintRows(rows, 'panel', live, false);
         list.innerHTML = html;
         bindNotifCards(list, false);
     } catch(e) {
@@ -467,20 +986,22 @@ window.showNotifications = async function() {
 
 // Peer notification action handler
 window.handlePeerNotifAction = async function(action, fromUid, notifId, btnEl) {
-    if (!btnEl) return;
-    btnEl.disabled = true;
-    btnEl.textContent = '...';
+    if (!btnEl || (action !== 'accept' && action !== 'decline')) return;
+    var state = action === 'accept' ? 'accepted' : 'declined';
+    notifOptimistic(notifId, state);
     try {
         var fn = firebase.functions().httpsCallable('managePeer');
         await fn({ action: action, targetUid: fromUid });
-        // Dismiss the notification row
-        var row = btnEl.closest('[data-notif-id]');
-        if (row) row.remove();
+        notifMarkReadQuiet(notifId);
+        var myUid = auth && auth.currentUser ? auth.currentUser.uid : '';
+        notifCacheDrop('peer_requests/' + (fromUid + '_' + myUid));
+        notifCacheDrop('users/' + myUid + '/peers');
         if (typeof showToast === 'function') {
             showToast(action === 'accept' ? 'Peer request accepted! 🧡' : 'Request declined');
         }
         if (action === 'accept') {
-            // Refresh peer cache
+            window._myPeers = window._myPeers || new Set();
+            if (typeof window._myPeers.add === 'function') window._myPeers.add(fromUid);
             if (auth && auth.currentUser && typeof db !== 'undefined') {
                 db.collection('users').doc(auth.currentUser.uid).get().then(function(snap) {
                     if (snap.exists) window._myPeers = new Set(snap.data().peers || []);
@@ -488,21 +1009,42 @@ window.handlePeerNotifAction = async function(action, fromUid, notifId, btnEl) {
             }
         }
     } catch(e) {
-        btnEl.disabled = false;
-        btnEl.textContent = action === 'accept' ? 'Accept' : 'Decline';
+        if (notifCallableErrorDone(e, action)) {
+            if (typeof showToast === 'function') showToast(action === 'accept' ? 'Already handled' : 'Request declined');
+            return;
+        }
+        notifRollback(notifId);
         if (typeof showToast === 'function') showToast('Error: ' + (e.message || 'Try again'));
     }
 };
 
 // Handle notification click — navigate to content
-window.handleNotifClick = async function(notifId, targetType, targetId) {
+window.handleNotifClick = async function(notifId, targetType, targetId, meta) {
     if (!notifSafeId(notifId, 128)) return;
     var safe = notifSafeTarget(targetType, targetId);
+    meta = meta || {};
+    var kind = notifSafeType(meta.notifType);
+    var resolved = notifStoredResolved({ resolved: meta.resolved });
     try { await db.collection('notifications').doc(notifId).update({ read: true }); } catch(e) {}
     var ov = document.getElementById('notifOverlay');
     if (ov) ov.remove();
     if (safe.type === 'forum_post' && safe.id) { if (typeof forumViewPost === 'function') forumViewPost(safe.id); }
     else if (safe.type === 'article' && safe.id) { if (typeof articleView === 'function') articleView(safe.id); }
+    else if (safe.type === 'marketplace' && safe.id) {
+        if (typeof go === 'function') go('marketplace');
+        if (typeof renderMarketplace === 'function') {
+            setTimeout(function() { renderMarketplace({ listingId: safe.id, _noHistory: true }); }, 60);
+        }
+    }
+    else if (safe.type === 'pvp' || kind === 'pvp') {
+        if (typeof window.enterPVPMode === 'function') window.enterPVPMode();
+    }
+    else if (safe.type === 'buddy' || kind === 'buddy') {
+        if (typeof window.showBuddyFinder === 'function') window.showBuddyFinder();
+    }
+    else if (kind === 'keys_received' || (resolved && kind === 'gift_received')) {
+        if (typeof window.openNookInventory === 'function') window.openNookInventory();
+    }
     else if (safe.type === 'dm' && safe.id) {
         // targetId is convoId (uid1_uid2). Extract the other user's UID and open their DM directly.
         try {
@@ -699,11 +1241,11 @@ window.renderNotifList = async function() {
             return;
         }
 
-        var html = _localRewardHtml();
-        snap.forEach(function(doc) {
-            html += notifCardHtml(doc.id, doc.data(), 'sheet');
-        });
-        body.innerHTML = html;
+        var rows = [];
+        snap.forEach(function(doc) { rows.push({ id: doc.id, n: doc.data() || {} }); });
+        var live = { myUid: auth.currentUser.uid };
+        try { live = await notifLoadActionSources(rows.map(function(r) { return r.n; }), auth.currentUser.uid); } catch (err) {}
+        body.innerHTML = _localRewardHtml() + notifPaintRows(rows, 'sheet', live, true);
         bindNotifCards(body, true);
     } catch(e) {
         console.warn('[notif] renderNotifList error:', e);
