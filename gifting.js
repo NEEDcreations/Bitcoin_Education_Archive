@@ -32,6 +32,13 @@ function _toast(msg, ms) {
     if (typeof showToast === 'function') showToast(msg, ms || 3500);
 }
 
+function _keySendToast(name, res) {
+    var awarded = res && res.data ? res.data.xpAwarded : null;
+    var xp = (typeof awarded === 'number') ? awarded : 25;
+    var extra = xp > 0 ? ' +' + xp + ' XP' : ' Daily XP cap reached.';
+    _toast('🔑 Sent to ' + name + '!' + extra);
+}
+
 function _injectGiftingCSS() {
     if (document.getElementById('giftingCSS')) return;
     var s = document.createElement('style');
@@ -615,7 +622,7 @@ async function _renderMyWins(el) {
     try {
         var res = await _callCF('listMyCipherWins', {});
         var wins = (res.data && res.data.wins) || [];
-        var open = wins.filter(function(w) { return w.status === 'claimable' || w.status === 'pending' || w.status === 'paying'; });
+        var open = wins.filter(function(w) { return w.status === 'claimable' || w.status === 'pending' || w.status === 'paying' || w.status === 'unknown'; });
         if (!open.length) { el.innerHTML = ''; return; }
         el.innerHTML = '';
         var h = document.createElement('div');
@@ -634,6 +641,7 @@ async function _renderMyWins(el) {
             s.style.cssText = 'font-size:0.72rem;color:var(--text-muted);';
             if (w.status === 'claimable') s.textContent = 'Cipher ' + (w.cipherLabel || '') + ' — ready to claim';
             else if (w.status === 'paying') s.textContent = 'Payment in progress';
+            else if (w.status === 'unknown') s.textContent = 'Payment needs confirmation. Don\'t claim again — Phil will sort it out.';
             else s.textContent = 'Cipher ' + (w.cipherLabel || '') + ' — Phil pays prizes of 1,000 sats and up';
             mid.appendChild(t);
             mid.appendChild(s);
@@ -878,8 +886,8 @@ window.showPeerPickerForKeys = async function(keyIds) {
             b.disabled = true;
             b.textContent = 'Sending…';
             try {
-                await _callCF('sendKeys', { keyIds: ids, recipientUid: p.uid });
-                _toast('🔑 Sent to ' + p.name + '! +25 XP');
+                var sent = await _callCF('sendKeys', { keyIds: ids, recipientUid: p.uid });
+                _keySendToast(p.name, sent);
                 overlay.remove();
                 var host = document.getElementById('nookKeysCiphers');
                 if (host) window.renderKeysAndCiphersPanel(host);
@@ -991,8 +999,8 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
         send.disabled = true;
         send.textContent = 'Sending…';
         try {
-            await _callCF('sendKeys', { keyIds: selected.slice(), recipientUid: recipientUid });
-            _toast('🔑 Sent to ' + (recipientName || 'your peer') + '! +25 XP');
+            var sentKeys = await _callCF('sendKeys', { keyIds: selected.slice(), recipientUid: recipientUid });
+            _keySendToast(recipientName || 'your peer', sentKeys);
             overlay.remove();
             var host = document.getElementById('nookKeysCiphers');
             if (host) window.renderKeysAndCiphersPanel(host);
@@ -1093,6 +1101,25 @@ window.renderCipherWinsAdmin = async function(container) {
                 ' · roll ' + (w.roll != null ? w.roll : '?');
             card.appendChild(line);
             card.appendChild(who);
+            if (w.flagForAdmin) {
+                var flag = document.createElement('div');
+                flag.style.cssText = 'color:#ef4444;font-weight:800;margin-top:4px;';
+                var why = w.claimBlockReason === 'sats_disabled' ? 'sats disabled' :
+                    (w.claimBlockReason === 'sats_disabled_and_banned' ? 'banned and sats disabled' : 'banned');
+                flag.textContent = 'Flagged: this account is ' + why + ' — do not pay this 1,000+ win.';
+                card.appendChild(flag);
+            } else if (w.claimBlocked) {
+                var blocked = document.createElement('div');
+                blocked.style.cssText = 'color:#f59e0b;font-weight:700;margin-top:4px;';
+                blocked.textContent = 'Sats are disabled or this account is banned.';
+                card.appendChild(blocked);
+            }
+            if (w.status === 'unknown') {
+                var held = document.createElement('div');
+                held.style.cssText = 'color:#f59e0b;font-weight:700;margin-top:4px;';
+                held.textContent = 'Payment not confirmed. Check the wallet before marking this paid.';
+                card.appendChild(held);
+            }
             if (w.status !== 'paid' || w.announced !== true) {
                 var b = _btn(w.status === 'paid' ? 'Post Nacho message' : 'Mark paid');
                 b.style.marginTop = '8px';
