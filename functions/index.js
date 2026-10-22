@@ -8979,3 +8979,16 @@ exports.claimSayHi = sayHiFns.claimSayHi;
 const { bindReplyBonus } = require('./src/replyBonus');
 const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
 exports.claimReplyBonus = replyBonusFns.claimReplyBonus;
+
+// Topic discussions. Clients read topic_discussions; these callables are the
+// only writers. postTopicComment awaits Nacho's reply before returning.
+const { createTopicDiscussion } = require('./src/topicDiscussion');
+const topicDiscussion = createTopicDiscussion({
+    db: db,
+    admin: admin,
+    HttpsError: functionsV1.https.HttpsError,
+});
+exports.postTopicComment = functionsV1.runWith({ timeoutSeconds: 30, memory: '256MB' }).https.onCall(topicDiscussion.postTopicComment);
+exports.reportTopicComment = functionsV1.https.onCall(topicDiscussion.reportTopicComment);
+exports.moderateTopicPost = functionsV1.https.onCall(topicDiscussion.moderateTopicPost);
+exports.deleteTopicComment = functionsV1.https.onCall(topicDiscussion.deleteTopicComment);

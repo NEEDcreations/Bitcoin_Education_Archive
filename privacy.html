@@ -329,6 +329,7 @@
         <li>Power the LightningMart marketplace (listings, buyer-seller communication)</li>
         <li>Host and stream user-uploaded music on Bitcoin Beats (including albums and EPs)</li>
         <li>Power Global Chat — display messages, online user counts, and enable real-time communication</li>
+        <li>Host topic discussions — store comments and questions on educational topics, show them publicly, and let Nacho answer questions</li>
         <li>Power DJ Mode — broadcast music, sound effects, and playback position to listeners</li>
         <li>Track chat activity, DJ sessions, and listener engagement for badge and reward systems</li>
         <li>Facilitate PVP quiz battles between users</li>
@@ -399,6 +400,7 @@
         <li>Your <strong>profile picture</strong> is visible on the leaderboard, PVP, and user profiles</li>
         <li>Your <strong>uploaded music tracks</strong> (including albums/EPs) on Bitcoin Beats are publicly playable by all users</li>
         <li>Your <strong>Global Chat messages</strong> are visible to all users in real time</li>
+        <li>Your <strong>topic discussion comments</strong> (username and comment text) are visible publicly on that topic, including to people who are not signed in</li>
         <li>Your <strong>DJ broadcasts</strong> (currently playing track, sound effects) are heard by all listeners</li>
         <li>Your <strong>online presence</strong> (username, active status) is visible via the online users counter</li>
         <li>Your <strong>PVP battle results</strong> may be displayed on leaderboards</li>
@@ -441,6 +443,7 @@
     <ul>
         <li>Questions you ask Nacho are first processed <strong>in your browser</strong> using keyword matching against 500+ curated Bitcoin Q&amp;A entries</li>
         <li>If no local answer is found, the question text is sent to our <strong>Cloudflare Workers AI proxy</strong> for AI-assisted answers using Meta Llama 4 Scout — only the question text is sent, with no username, user ID, or account data attached</li>
+        <li>When you ask a question in a topic discussion, our server sends that question text plus a short excerpt of the topic notes to the same Cloudflare Workers AI proxy. Your username and user ID are not included. The reply is posted in the thread as Nacho</li>
         <li>Nacho Mode chat history is stored <strong>only in your browser's localStorage</strong></li>
         <li>Question history (last 100 questions) is stored locally for analytics and improvement</li>
         <li>Nacho uses your username to personalize greetings — no other personal data is accessed</li>
@@ -462,7 +465,8 @@
         <li><strong>Spam detection</strong> — ALL CAPS, repeated characters, and excessive links are flagged</li>
         <li><strong>Username validation</strong> — ASCII-only enforcement prevents Unicode/homoglyph bypass attempts</li>
     </ul>
-    <p>Filtering is performed entirely in your browser. <strong>No message content is sent to external moderation APIs or third-party services.</strong> Blocked messages are never stored in Firebase.</p>
+    <p>Filtering for Global Chat, PlebTalk, DMs, usernames, and articles is performed in your browser. <strong>No message content is sent to external moderation APIs or third-party services.</strong> Blocked messages are never stored in Firebase.</p>
+    <p>Topic discussion comments are checked again on the server before they are stored. Hate, scams, spam, shortened links, and invite links are rejected and not stored. Other links are replaced, and ordinary profanity is masked. A question that Nacho answers is sent to the Cloudflare Workers AI proxy described in Section 8, as question text plus a topic excerpt only.</p>
 
     <h2>10. Messaging & Communication Safety</h2>
     <ul>
@@ -489,7 +493,7 @@
         <li><strong>Disable sounds</strong> — in Settings → Prefs</li>
         <li><strong>Disable push notifications</strong> — in Settings → Prefs or your browser settings</li>
     </ul>
-    <p>When you delete your account, all your data is permanently removed from our Firebase database, including messages, posts, listings, and reports. Local browser data must be cleared separately.</p>
+    <p>When you delete your account, all your data is permanently removed from our Firebase database, including messages, posts, listings, reports, and your topic discussion comments (those comments are deleted or anonymized). Local browser data must be cleared separately.</p>
 
     <h2>12. Children</h2>
     <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. The direct messaging feature is available only to registered users. If you are a parent and believe your child has provided personal information or been contacted inappropriately, please contact us immediately and we will take action.</p>

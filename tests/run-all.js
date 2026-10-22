@@ -32,6 +32,7 @@ const TESTS = [
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
+    { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
 ];
 
 let allPassed = true;

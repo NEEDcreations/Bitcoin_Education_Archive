@@ -11,7 +11,7 @@ const JS_FILES = [
     'nacho-closet.js', 'nacho-live.js', 'bitcoin-dashboard.js', 'mobile-ux.js', 'forum.js',
     'marketplace.js', 'messaging.js', 'engagement.js', 'badges.js',
     'tickets.js', 'features.js', 'quests.js', 'scholar.js', 'sw.js',
-    'channel_index.js'
+    'channel_index.js', 'topic-discussions.js', 'global-chat.js', 'notifications.js'
 ];
 
 let passed = 0, failed = 0;

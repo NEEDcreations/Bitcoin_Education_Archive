@@ -224,7 +224,8 @@ function notifIcon(n) {
 
 var NOTIF_TARGET_TYPES = {
     forum_post: 1, article: 1, dm: 1, peer_request: 1,
-    beats_track: 1, marketplace: 1, song: 1, chat: 1, pvp: 1, buddy: 1
+    beats_track: 1, marketplace: 1, song: 1, chat: 1, pvp: 1, buddy: 1,
+    topic_post: 1
 };
 
 function notifSafeId(value, max) {
@@ -280,7 +281,8 @@ function notifCardHtml(docId, n, variant) {
             '<button type="button" class="notif-open-gift" data-gift-id="' + notifEscape(giftId) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
             '</div>';
     }
-    return '<div class="notif-card" data-notif-id="' + notifEscape(safeDoc) + '" data-target-type="' + notifEscape(target.type) + '" data-target-id="' + notifEscape(target.id) + '" data-unread="' + (isUnread ? '1' : '0') + '" style="padding:' + (sheet ? '12px 16px' : '10px') + ';border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;">' +
+    var statusAttr = (n.status === 'completed') ? ' data-status="completed"' : '';
+    return '<div class="notif-card"' + statusAttr + ' data-notif-id="' + notifEscape(safeDoc) + '" data-target-type="' + notifEscape(target.type) + '" data-target-id="' + notifEscape(target.id) + '" data-unread="' + (isUnread ? '1' : '0') + '" style="padding:' + (sheet ? '12px 16px' : '10px') + ';border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;">' +
         '<div style="display:flex;gap:' + (sheet ? '10px' : '8px') + ';align-items:flex-start;">' +
             '<span style="font-size:' + (sheet ? '1.2rem' : '1.1rem') + ';flex-shrink:0;">' + notifEscape(notifIcon(n)) + '</span>' +
             '<div style="flex:1;min-width:0;">' +
@@ -520,6 +522,14 @@ window.handleNotifClick = async function(notifId, targetType, targetId) {
     else if (safe.type === 'peer_request') {
         if (typeof showSettingsPage === 'function') showSettingsPage('peers');
         return;
+    }
+    else if (safe.type === 'topic_post' && safe.id) {
+        try {
+            var topicNotice = await db.collection('notifications').doc(notifId).get();
+            var topicData = topicNotice.exists ? topicNotice.data() : null;
+            var topicChannel = topicData && topicData.topicChannel;
+            if (topicChannel && typeof window.bqOpenTopicPost === 'function') window.bqOpenTopicPost(topicChannel, safe.id);
+        } catch (e) {}
     }
 };
 

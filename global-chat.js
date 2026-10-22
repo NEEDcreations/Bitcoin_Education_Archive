@@ -810,7 +810,7 @@ function formatChatText(text, mentionUid) {
     var _inAppLinks = [];
     var _safeMentions = [];
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(match, label, route) {
-        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(route)) return label;
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128}|topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+)$/.test(route)) return label;
         var _deepId = '';
         var _action;
         if (route.indexOf('forum/post/') === 0) {
@@ -819,6 +819,11 @@ function formatChatText(text, mentionUid) {
         } else if (route.indexOf('marketplace/listing/') === 0) {
             _deepId = route.slice('marketplace/listing/'.length);
             _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenMarketListing==='function')window.bqOpenMarketListing('" + _deepId + "');";
+        } else if (route.indexOf('topic/') === 0) {
+            var _tp = route.split('/');
+            var _ch = _tp[1] || '';
+            var _pid = _tp[2] || '';
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenTopicPost==='function')window.bqOpenTopicPost('" + _ch + "','" + _pid + "');";
         } else if (route === 'pvp') {
             _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof enterPVPMode==='function')enterPVPMode();";
         } else if (route === 'nacho') {
