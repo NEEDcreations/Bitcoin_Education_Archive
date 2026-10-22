@@ -42,7 +42,7 @@
                     r.forEach(function(reg){ reg.unregister(); });
                 });
             }
-            setTimeout(function(){ location.replace(_href); }, 500);
+            setTimeout(function(){ if (location.href !== _href) history.replaceState(null, '', _href); location.reload(); }, 500);
             return;
         }
     }
@@ -549,7 +549,7 @@
         .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
         
         /* Search overlay — always out of normal flow; flex only when JS shows it */
-        #searchOverlay { position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; flex-shrink: 0 !important; flex-grow: 0 !important; width: 100% !important; height: 100% !important; }
+        #searchOverlay { position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; flex-shrink: 0 !important; flex-grow: 0 !important; width: 100% !important; height: 100% !important; background: var(--bg) !important; }
         #searchOverlay:not([data-open="1"]) { display: none !important; }
         /* Mobile nav bar */
         .mobile-bar { display: none; }
@@ -782,7 +782,7 @@
     <div id="btcTicker" style="height:32px;background:#030712;width:0;min-width:0;flex-shrink:0;overflow:visible;"></div>
     <!-- Mobile top bar -->
     <!-- Separate independent search overlay for better visibility over Nacho Mode -->
-    <div id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:rgba(0,0,0,0.85);padding:16px;flex-direction:column;">
+    <div id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);padding:16px;flex-direction:column;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div style="font-size:1.1rem;font-weight:800;color:var(--heading);">🔍 Search Archive</div>
             <button onclick="var _so=document.getElementById('searchOverlay');_so.style.display='none';_so.removeAttribute('data-open');" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
@@ -1464,7 +1464,7 @@
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script src="bundle.min.js?v=20261022_v2252" defer fetchpriority="high"></script>
     <script src="features.registry.js?v=20261022_v2252" defer></script>
-    <script src="patches.js?v=20260713_scrollfix" defer></script>
+    <script src="patches.js?v=20261022_v2252" defer></script>
     <script src="onboarding.js?v=20261013_1908" defer></script>
     <script src="learning-quests.js?v=20261014_0554" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->

@@ -294,8 +294,14 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     assert.strictEqual((quests.match(/if \(window\._bqDeepLinkHandled\) return;/g) || []).length, 2);
     assert.ok(html.indexOf('var _href = location.href') !== -1);
-    assert.ok(html.indexOf('location.replace(_href)') !== -1);
-    assert.ok(html.indexOf('location.reload()') === -1);
+    assert.ok(html.indexOf("if (location.href !== _href) history.replaceState(null, '', _href); location.reload();") !== -1);
+    assert.ok(html.indexOf('location.replace(_href)') === -1);
+    assert.ok(html.indexOf('id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);') !== -1);
+    assert.ok(html.indexOf('#searchOverlay {') !== -1 && html.indexOf('background: var(--bg) !important;') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261022_v2252') !== -1);
+    const patches = fs.readFileSync(path.join(root, 'patches.js'), 'utf8');
+    assert.ok(patches.indexOf('[data-theme="light"] #searchOverlay {\',"  background: var(--bg) !important;') !== -1);
+    assert.ok(patches.indexOf('#searchOverlay {\',"  background: rgba(255,255,255,0.95) !important;') === -1);
 });
 
 test('suppress swallows feature hashes and leaves channel taps alone', function () {
