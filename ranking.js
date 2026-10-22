@@ -4728,17 +4728,25 @@ function showSettingsPage(tab) {
         html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersGiftsBadge"></span> <span>▼</span></button>';
         html += '<div id="peersSectionContent" style="display:none;margin-bottom:12px;">';
         html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:20px 0;">Loading...</div>';
+        html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
+        html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🎡 Daily wheel and gifts</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Spin the daily wheel once a day. You earn 2 to 5 gifts. Open each gift right away — gifts are not stored. A gift can hold keys, locked ciphers, orange tickets, XP, a streak shield, a closet item, or a rare Nacho shoutout.</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Keys and locked ciphers carry labels such as 3A. A key opens the cipher with the same label. If you get a matching pair, open it right away. Otherwise send keys to peers: up to 3 keys per peer each day, and as many peers as you want.</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:10px;">You can open up to 21 ciphers per day. Most opens pay 50 to 250 XP and 0 to 10 orange tickets. Rare opens pay sats. Wins under 1,000 sats can be claimed with a Lightning invoice or address. Wins of 1,000 sats or more are paid by Phil.</div>';
+        html += '<div id="giftsTabContent"></div>';
+        html += '<button type="button" onclick="if(typeof window.openNookInventory===\'function\'){window.openNookInventory();}else if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},200);}" style="margin-top:8px;width:100%;padding:10px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Open keys and ciphers</button>';
+        html += '</div>';
         // Partnership levels info
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
         html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚡ Partnership Levels</div>';
-        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">As you and a peer exchange gifts, your partnership grows. Both of you earn XP at each level.</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">When you open a cipher with a key a peer sent you, or you open a gift they sent under the old system, the partnership grows. Both of you earn XP at each level.</div>';
         var _pLevels = [
-            { emoji: '⬜', name: 'Unconfirmed',        gifts: '0 gifts',   xp: '—',           desc: 'Just connected.' },
-            { emoji: '🟨', name: 'Opening Channel',    gifts: '1 gift',    xp: '+3,000 XP',   desc: 'First exchange. The channel is opening.' },
-            { emoji: '⚡', name: 'Routing Nodes',      gifts: '21 gifts',  xp: '+21,000 XP',  desc: 'You\'re routing value to each other.' },
-            { emoji: '⚙️', name: 'Adjusted Fees',      gifts: '44 gifts',  xp: '+44,000 XP',  desc: 'You\'ve dialled in the fee rate together.' },
-            { emoji: '🔗', name: 'Balanced Liquidity', gifts: '144 gifts', xp: '+50,000 XP',  desc: 'Inbound and outbound, perfectly balanced.' },
-            { emoji: '🟠', name: 'Wumbo Channel',      gifts: '210 gifts', xp: '+100,000 XP', desc: 'No limits. Big volume. Wumbo mode activated.' },
+            { emoji: '⬜', name: 'Unconfirmed',        gifts: '0 exchanges',   xp: '—',           desc: 'Just connected.' },
+            { emoji: '🟨', name: 'Opening Channel',    gifts: '1 exchange',    xp: '+3,000 XP',   desc: 'First exchange. The channel is opening.' },
+            { emoji: '⚡', name: 'Routing Nodes',      gifts: '21 exchanges',  xp: '+21,000 XP',  desc: 'You\'re routing value to each other.' },
+            { emoji: '⚙️', name: 'Adjusted Fees',      gifts: '44 exchanges',  xp: '+44,000 XP',  desc: 'You\'ve dialled in the fee rate together.' },
+            { emoji: '🔗', name: 'Balanced Liquidity', gifts: '144 exchanges', xp: '+50,000 XP',  desc: 'Inbound and outbound, perfectly balanced.' },
+            { emoji: '🟠', name: 'Wumbo Channel',      gifts: '210 exchanges', xp: '+100,000 XP', desc: 'No limits. Big volume. Wumbo mode activated.' },
         ];
         _pLevels.forEach(function(lvl) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -4751,11 +4759,7 @@ function showSettingsPage(tab) {
             html += '</div>';
         });
         html += '</div>';
-        // Gifts sub-section
-        html += '<div style="margin-top:12px;">';
-        html += '<div style="font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎁 Gifts</div>';
-        html += '<div id="giftsTabContent"><div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;">Loading gifts...</div></div>';
-        html += '</div>';
+        html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
         html += '</div>';
 
         // Advanced Account toggle - content renders BELOW this button
@@ -6142,16 +6146,29 @@ function showSettingsPage(tab) {
             if (typeof window.renderGiftsSettingsTab === 'function') {
                 window.renderGiftsSettingsTab();
             }
-            // Populate gift count badge on the Peers/Gifts button
+            if (window._isAdminClaim === true && typeof window.renderCipherWinsAdmin === 'function') {
+                window.renderCipherWinsAdmin('cipherWinsAdmin');
+            }
+            // Populate badge on the Peers/Gifts button (waiting gifts + keys held + ciphers)
             var _giftBadge = document.getElementById('peersGiftsBadge');
             if (_giftBadge && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous && typeof db !== 'undefined') {
                 var _uid = auth.currentUser.uid;
-                var _ownedC = (typeof currentUser !== 'undefined' && currentUser ? currentUser.ownedCosmetics || [] : []);
-                var _giftCap = _ownedC.indexOf('gift_bag') !== -1 ? 75 : 50;
-                db.collection('gifts').where('ownerId','==',_uid).where('status','==','inventory').limit(_giftCap + 1).get().then(function(snap) {
+                Promise.all([
+                    db.collection('gifts').where('ownerId','==',_uid).where('status','in',['unopened','inventory','sent']).limit(40).get(),
+                    db.collection('keys').where('ownerId','==',_uid).where('status','in',['inventory','sent']).limit(50).get(),
+                    db.collection('locked_ciphers').where('ownerId','==',_uid).where('status','==','inventory').limit(50).get(),
+                ]).then(function(results) {
                     var el = document.getElementById('peersGiftsBadge');
-                    if (el && snap.size > 0) {
-                        el.innerHTML = ' <span style="display:inline-block;background:rgba(247,147,26,0.2);border:1px solid rgba(247,147,26,0.4);border-radius:10px;padding:1px 7px;font-size:0.72rem;color:#f7931a;font-weight:800;">🎁 ' + snap.size + '</span>';
+                    if (!el) return;
+                    var giftCount   = results[0].size;
+                    var keyCount    = results[1].size;
+                    var cipherCount = results[2].size;
+                    var parts = [];
+                    if (giftCount   > 0) parts.push('🎁 ' + giftCount);
+                    if (keyCount    > 0) parts.push('🔑 ' + keyCount);
+                    if (cipherCount > 0) parts.push('🔒 ' + cipherCount);
+                    if (parts.length > 0) {
+                        el.innerHTML = ' <span style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.35);border-radius:10px;padding:1px 7px;font-size:0.72rem;color:#f7931a;font-weight:800;">' + parts.join(' · ') + '</span>';
                     }
                 }).catch(function(){});
             }
@@ -6333,6 +6350,30 @@ function showSettingsPage(tab) {
                 if (peers.length === 0) {
                     peerHtml = '<p style="color:var(--text-muted);text-align:center;padding:12px 0;">No peers yet. Find people on the leaderboard and add them!</p>';
                 } else {
+                    var _utcDay = new Date().toISOString().slice(0, 10);
+                    var _offsetDay = (typeof getDailyKey === 'function') ? getDailyKey() : _utcDay;
+                    var _sendDates = _utcDay === _offsetDay ? [_utcDay] : [_utcDay, _offsetDay];
+                    var _peerKeysSentToday = {};
+                    var _peerKeysHeld = {};
+                    if (userData.keysSentDate === _utcDay || userData.keysSentDate === _offsetDay) {
+                        (userData.keysSentTo || []).forEach(function(id) { _peerKeysSentToday[id] = true; });
+                    }
+                    var _indicatorLoads = await Promise.all([
+                        db.collection('key_send_pairs').where('senderUid', '==', uid).where('date', 'in', _sendDates).limit(100).get().catch(function() { return null; }),
+                        db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').limit(80).get().catch(function() { return null; })
+                    ]);
+                    if (_indicatorLoads[0]) {
+                        _indicatorLoads[0].forEach(function(doc) {
+                            var rec = doc.data().recipientUid;
+                            if (rec) _peerKeysSentToday[rec] = true;
+                        });
+                    }
+                    if (_indicatorLoads[1]) {
+                        _indicatorLoads[1].forEach(function(doc) {
+                            var from = doc.data().sentBy;
+                            if (from) _peerKeysHeld[from] = (_peerKeysHeld[from] || 0) + 1;
+                        });
+                    }
                     var peerDocs = await Promise.all(peers.slice(0, 50).map(function(p) {
                         return db.collection('public_profiles').doc(p).get();
                     }));
@@ -6340,6 +6381,11 @@ function showSettingsPage(tab) {
                         var d = snap.exists ? snap.data() : {};
                         var name = d.username || d.displayName || 'Bitcoiner';
                         var puid = peers[i];
+                        var _keysSentToday = !!_peerKeysSentToday[puid];
+                        var _holdingKey = !!_peerKeysHeld[puid];
+                        var _peerMarks = '';
+                        if (_keysSentToday) _peerMarks += '<span title="Keys already sent today" aria-label="Keys already sent today" style="font-size:1rem;color:#f7931a;flex-shrink:0;font-weight:900;line-height:1;">&#10140;</span>';
+                        if (_holdingKey) _peerMarks += '<span title="You are holding a key from this peer" aria-label="You are holding a key from this peer" style="font-size:0.95rem;flex-shrink:0;line-height:1;">&#128273;</span>';
                         var pLvl = typeof getLevel === 'function' ? getLevel(d.points || 0) : { name: 'Pleb', emoji: '🌱' };
                         var pStreak = d.streak || 0;
                         var pPosts = d.forumPosts || 0;
@@ -6365,8 +6411,9 @@ function showSettingsPage(tab) {
                         var summaryText = summaryParts.join(' · ');
                         peerHtml += '<div style="border-bottom:1px solid var(--border);padding:8px 0;">' +
                             // Header row: name + expand arrow + remove
-                            '<div style="display:flex;align-items:center;gap:8px;">' +
-                                '<span style="flex:1;font-size:0.9rem;cursor:pointer;color:var(--text);" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
+                            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                                '<span style="flex:1;font-size:0.9rem;cursor:pointer;color:var(--text);min-width:0;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
+                                _peerMarks +
                                 '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">' + summaryText + '</span>' +
                                 '<button onclick="var el=document.getElementById(\'' + pDetailId + '\');var arr=this.querySelector(\'span\');if(el.style.display===\'none\'){el.style.display=\'block\';arr.textContent=\'▲\';}else{el.style.display=\'none\';arr.textContent=\'▼\';}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;"><span>▼</span></button>' +
                                 '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
@@ -6381,7 +6428,9 @@ function showSettingsPage(tab) {
                                 '</div>' +
                                 (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-faint);">' + pLastStr + '</div>' : '') +
                                 '<button onclick="document.getElementById(\'' + pDetailId + '\').previousElementSibling.querySelector(\'button\').click()" style="margin-top:8px;width:100%;padding:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.72rem;cursor:pointer;">View Full Profile →</button>' +
-                                '<button onclick="window._sendGiftToPeerFromDetail(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\')" style="margin-top:6px;width:100%;padding:8px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.06));border:1px solid rgba(247,147,26,0.35);border-radius:8px;color:#f7931a;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Send Gift to increase Partnership</button>' +
+                                (_keysSentToday
+                                    ? '<div style="margin-top:6px;width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.78rem;font-weight:700;text-align:center;">&#10140; Keys already sent today</div>'
+                                    : '<button onclick="if(typeof window.showKeyPickerForPeer===\'function\'){window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\');}else{var _kpR=0;var _kpT=setInterval(function(){if(typeof window.showKeyPickerForPeer===\'function\'){clearInterval(_kpT);window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\');}else if(++_kpR>=20)clearInterval(_kpT);},500);}" style="margin-top:6px;width:100%;padding:8px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.06));border:1px solid rgba(247,147,26,0.35);border-radius:8px;color:#f7931a;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 Send Keys to ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</button>') +
                             '</div>' +
                         '</div>';
                     });
@@ -8108,27 +8157,16 @@ window._buyStreakFreeze = async function(amount) {
     }
 };
 
-// Send gift to a specific peer from the peer detail panel
-window._sendGiftToPeerFromDetail = async function(peerUid, peerName) {
-    if (typeof window.loadGiftInventory !== 'function') {
-        if (typeof showToast === 'function') showToast('Loading gifting system...', 2000);
-        // Fallback: open peers/gifts section in settings
-        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+// Old gift-send entry point. Gifts are opened, not forwarded; this sends keys.
+window._sendGiftToPeerFromDetail = function(peerUid, peerName) {
+    if (typeof window.showKeyPickerForPeer === 'function') {
+        window.showKeyPickerForPeer(peerUid, peerName);
         return;
     }
-    try {
-        var data = await window.loadGiftInventory();
-        if (!data.inventory || data.inventory.length === 0) {
-            if (typeof showToast === 'function') showToast('No gifts in inventory — earn them from the daily spin! 🎡', 4000);
-            return;
-        }
-        // Pick a gift and send directly to this peer
-        if (typeof window.sendGiftToPeer === 'function') {
-            window.sendGiftToPeer(data.inventory[0].id, peerUid, peerName, null);
-        }
-    } catch(e) {
-        if (typeof showToast === 'function') showToast('❌ Could not load gifts: ' + (e.message || 'error'), 3000);
-    }
+    if (typeof showToast === 'function') showToast('Loading keys...', 2000);
+    setTimeout(function() {
+        if (typeof window.showKeyPickerForPeer === 'function') window.showKeyPickerForPeer(peerUid, peerName);
+    }, 1500);
 };
 
 window.managePeer = async function(action, targetUid) {

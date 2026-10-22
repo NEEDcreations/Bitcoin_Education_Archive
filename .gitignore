@@ -5,3 +5,10 @@ scripts/
 .keys/
 firebase-debug.log
 images/
+.firebase/
+.wrangler/
+**/.wrangler/
+*.bak
+*.bak*
+*.working-backup
+*.src.bak

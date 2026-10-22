@@ -16649,6 +16649,7 @@ document.addEventListener('btcProfileSaved', function() {
             var today = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]); // 5 AM UTC reset — matches getDailyKey
             if (lastSpin === today) {
                 showToast('🎡 You already spun today! Come back tomorrow!');
+                if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
                 return;
             }
         }
@@ -16753,7 +16754,7 @@ document.addEventListener('btcProfileSaved', function() {
             var phase          = 1;      // 1 = free-spin, 2 = decelerate to target
             var totalRotP2     = 0;      // phase-2 total rotation (set when server resolves)
             var phase2Start    = 0;      // Date.now() when phase 2 begins
-            var phase2Duration = 3000;   // ms to decelerate once we have the result (ms)
+            var phase2Duration = 1500;   // ms to decelerate once we have the result (half the old 3s)
             var phase2AngleAt0 = 0;      // wheel angle at the moment phase 2 starts
             var serverError    = null;   // set if server call failed
             var serverData     = null;
@@ -16816,6 +16817,7 @@ document.addEventListener('btcProfileSaved', function() {
                             localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
                             var modal = document.getElementById('spinModal');
                             if (modal) modal.remove();
+                            if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
                             if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
                         } else {
                             if (typeof showToast === 'function') showToast('❌ Spin failed — try again.');
@@ -17042,12 +17044,72 @@ document.addEventListener('btcProfileSaved', function() {
                 if (typeof currentUser !== 'undefined' && currentUser) {
                     currentUser.lastSpinDate = _dk;
                 }
+                if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
             }
             } // end doSpin
         });
         
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
     };
+
+    function _hasSpunToday() {
+        var utc = new Date().toISOString().split('T')[0];
+        var offset = (typeof getDailyKey === 'function') ? getDailyKey() : utc;
+        var last = localStorage.getItem('btc_last_spin_date') || '';
+        if (last === utc || last === offset) return true;
+        var server = (typeof currentUser !== 'undefined' && currentUser && currentUser.lastSpinDate) ? String(currentUser.lastSpinDate) : '';
+        return server === utc || server === offset;
+    }
+
+    window._dismissSpinReminder = function() {
+        window._spinReminderDone = true;
+        var fab = document.getElementById('spinReminderFab');
+        if (fab) fab.remove();
+        var banner = document.getElementById('dailySpinBanner');
+        if (banner) { banner.style.display = 'none'; banner.innerHTML = ''; }
+    };
+
+    function _showSpinReminder() {
+        if (window._spinReminderDone || window._spinReminderShown) return;
+        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        if (_hasSpunToday()) return;
+        window._spinReminderShown = true;
+        if (typeof showToast === 'function') showToast('🎡 You have not spun the daily wheel yet today', 5000);
+        var fab = document.createElement('button');
+        fab.id = 'spinReminderFab';
+        fab.type = 'button';
+        fab.textContent = '🎡 Spin the daily wheel';
+        fab.setAttribute('aria-label', 'Spin the daily wheel');
+        fab.style.cssText = 'position:fixed;left:16px;bottom:78px;z-index:200002;padding:12px 16px;border:none;border-radius:999px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:inherit;box-shadow:0 6px 20px rgba(247,147,26,0.45);max-width:calc(100vw - 90px);';
+        fab.onclick = function() { if (typeof showSpinWheel === 'function') showSpinWheel(); };
+        document.body.appendChild(fab);
+        var banner = document.getElementById('dailySpinBanner');
+        if (banner) {
+            banner.style.display = 'block';
+            banner.innerHTML = '<button id="spinReminderBannerBtn" type="button" style="width:100%;max-width:500px;margin:0 auto;display:block;padding:12px 14px;border-radius:12px;border:1px solid rgba(247,147,26,0.45);background:rgba(247,147,26,0.12);color:#f7931a;font-weight:800;cursor:pointer;font-family:inherit;">🎡 You have not spun today. Tap to spin.</button>';
+            var bb = document.getElementById('spinReminderBannerBtn');
+            if (bb) bb.onclick = function() { if (typeof showSpinWheel === 'function') showSpinWheel(); };
+        }
+    }
+
+    (function _scheduleSpinReminder() {
+        var start = window._sessionStart || Date.now();
+        var wait = Math.max(0, 60000 - (Date.now() - start));
+        setTimeout(function() {
+            function tryShow() {
+                if (window._spinReminderDone || _hasSpunToday()) return true;
+                if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return false;
+                _showSpinReminder();
+                return true;
+            }
+            if (tryShow()) return;
+            var n = 0;
+            var timer = setInterval(function() {
+                n++;
+                if (tryShow() || n > 600) clearInterval(timer);
+            }, 1000);
+        }, wait);
+    })();
 
     // Preload local QR lib so donate modal can render instantly
     var _donateQRDataUri = null;
@@ -20175,12 +20237,14 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_weeklylb', title: '📅 Weekly Leaderboard', desc: 'Compete for the top weekly XP this week', keywords: 'weekly leaderboard rank compete xp weekly top players week wXP', action: 'toggleLeaderboard();setTimeout(function(){var b=document.querySelector(\'.lb-period-btn\');if(b)b.click();},300)' },
         { id: '_monthlylb', title: '📆 Monthly Leaderboard', desc: 'Monthly XP rankings — top players this month', keywords: 'monthly leaderboard rank compete xp monthly top players month mXP', action: 'toggleLeaderboard();setTimeout(function(){var btns=document.querySelectorAll(\'.lb-period-btn\');if(btns[1])btns[1].click();},300)' },
         { id: '_community', title: '🌍 Community Challenge', desc: 'Weekly community-wide challenge — complete goals together to unlock SF speed boost for everyone', keywords: 'community challenge weekly goal progress collective team together quiz completions unlock boost satoshi favor speed', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'community\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},100)' },
-        { id: '_gifts', title: '🎁 Gifts', desc: 'Earn gifts from the daily spin wheel and send them to your peers to build your partnership', keywords: 'gift gifts send receive earn inventory spin wheel peer partnership reward open gifting daily award gift bag give present surprise box orange tickets', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
-        { id: '_peers', title: '🧡 Peers', desc: 'Connect with other Bitcoiners as peers — send gifts, build partnerships, unlock XP rewards', keywords: 'peers peer connect partner partnership add friend request accept decline remove network community relationship channel open wumbo liquidity routing gifting exchange', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
-        { id: '_partnership', title: '⚡ Partnership Levels', desc: 'Build partnership levels with peers by exchanging gifts — from Opening Channel to Wumbo Channel', keywords: 'partnership level channel opening routing wumbo balanced liquidity adjusted fees peer xp reward unlock progress tier gifts exchanged level up earn', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
-        { id: '_giftbag', title: '🎒 Gift Bag', desc: 'Upgrade your gift inventory cap from 50 to 75 slots — buy from Nacho\'s Nook for 100 Orange Tickets', keywords: 'gift bag upgrade inventory cap slots 50 75 nook shop orange tickets buy capacity expand more gifts storage', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},100)' },
-        { id: '_openGifts', title: '📬 Open Received Gifts', desc: 'Open gifts sent to you by peers — earn Orange Tickets, XP, Streak Shields, or rare Closet items', keywords: 'open gift received inbox peer sent reward tickets xp streak shield closet item rare reveal nacho shoutout open box present', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';if(typeof window.renderGiftsSettingsTab===\'function\')window.renderGiftsSettingsTab();},300)},100)' },
-        { id: '_peerRequest', title: '🧡 Send Peer Request', desc: 'Add someone as a peer to start exchanging gifts and building your partnership level', keywords: 'peer request send add connect user invite accept friend partnership link network add peer', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
+        { id: '_gifts', title: '🎁 Gifts', desc: 'Spin the daily wheel for gifts, then open them for keys, locked ciphers, tickets, or XP', keywords: 'gift gifts send receive earn inventory spin wheel peer partnership reward open gifting daily award gift bag give present surprise box orange tickets cipher ciphers key keys decrypt decryption label puzzle unlock', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
+        { id: '_ciphers', title: '🔒 Locked ciphers', desc: 'Open a locked cipher with a key that has the same label. Keys and ciphers live in Nook/Inventory', keywords: 'cipher ciphers decrypt decryption key label unlock B2 3A 7F puzzle peer send receive daily locked open inventory animation signature hex', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
+        { id: '_keys', title: '🔑 Keys', desc: 'Send labeled keys to peers, up to 3 per peer each day. A matching key opens a locked cipher', keywords: 'key keys send peer label cipher unlock daily bundle inventory spin wheel gift B2 3A 7F matching label hex', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
+        { id: '_peers', title: '🧡 Peers', desc: 'Connect with other Bitcoiners, send them keys, and grow a partnership', keywords: 'peers peer connect partner partnership add friend request accept decline remove network community relationship channel open wumbo liquidity routing gifting exchange', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
+        { id: '_partnership', title: '⚡ Partnership Levels', desc: 'Partnerships grow when you open a cipher with a key a peer sent you, from Opening Channel to Wumbo Channel', keywords: 'partnership level channel opening routing wumbo balanced liquidity adjusted fees peer xp reward unlock progress tier gifts exchanged level up earn', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
+        { id: '_giftbag', title: '🎒 Gift Bag', desc: 'A shop keepsake in Nacho\'s Nook. Gifts are opened right away, and keys and ciphers live in Inventory', keywords: 'gift bag upgrade inventory cap slots nook shop orange tickets buy capacity expand more gifts storage', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},100)' },
+        { id: '_openGifts', title: '📬 Open gifts', desc: 'Open gifts from the daily wheel for keys, locked ciphers, tickets, XP, or a rare prize', keywords: 'open gift received inbox peer sent reward tickets xp streak shield closet item rare reveal nacho shoutout open box present', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';if(typeof window.checkPendingGifts===\'function\')window.checkPendingGifts();},300)},100)' },
+        { id: '_peerRequest', title: '🧡 Send Peer Request', desc: 'Add someone as a peer so you can send keys and build a partnership', keywords: 'peer request send add connect user invite accept friend partnership link network add peer', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
 
         // ── Security ──────────────────────────────────────────────────────────
         { id: '_2fa', title: '🔐 Two-Factor Authentication (2FA)', desc: 'Protect your account with SMS phone verification or an authenticator app', keywords: '2fa two factor authentication security phone sms verify protect account login sign in safe enable disable mfa multi factor second factor', action: "showSettings();setTimeout(function(){showSettingsPage('security')},100)" },

@@ -399,9 +399,94 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gifts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "sentAt",
           "order": "DESCENDING"
         }
+      ]
+    },
+    {
+      "collectionGroup": "locked_ciphers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerId", "order": "ASCENDING" },
+        { "fieldPath": "status",  "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "locked_ciphers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerId",   "order": "ASCENDING" },
+        { "fieldPath": "status",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "keys",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerId", "order": "ASCENDING" },
+        { "fieldPath": "status",  "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "keys",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerId",   "order": "ASCENDING" },
+        { "fieldPath": "status",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "keys",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerId", "order": "ASCENDING" },
+        { "fieldPath": "status",  "order": "ASCENDING" },
+        { "fieldPath": "label",   "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "keys",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sentTo",  "order": "ASCENDING" },
+        { "fieldPath": "status",  "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "key_send_pairs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "senderUid", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cipher_wins",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {

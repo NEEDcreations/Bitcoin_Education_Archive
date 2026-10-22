@@ -12,6 +12,7 @@ const admin = require('firebase-admin');
 const crypto = require('crypto');
 
 const db = admin.firestore();
+const { isSatsBanned, SATS_BANNED_ERROR } = require('./cipherClaim');
 
 // One-way hash of uid for public dedup (prevents uid exposure in readable docs)
 function uidHash(uid) {
@@ -517,7 +518,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
  * hashForFavor (onCall)
  * The mining/hashing function. Auth required.
  */
-exports.hashForFavor = onCall({ enforceAppCheck: true }, async (request) => {
+exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   const data = request.data;
   const context = request;
   if (!context.auth) {
@@ -588,13 +589,18 @@ exports.hashForFavor = onCall({ enforceAppCheck: true }, async (request) => {
   // Same for rig2: two requests both read secondRigCharges:1, both consumed, went to -1.
   // Fix: read user doc + consume booster/rig2 atomically inside the same tx as cooldown check.
   const userRef2 = db.collection('users').doc(uid);
+  const ledgerRef = db.collection('faucet_ledger').doc(uid);
   const currentCycleId = stateData.currentCycleId || 'unknown';
 
   const { value, isWinner } = await db.runTransaction(async (transaction) => {
     const cooldownDoc = await transaction.get(cooldownRef);
     const userDoc = await transaction.get(userRef2);
+    const ledgerDoc = await transaction.get(ledgerRef);
 
     const userData = userDoc.exists ? userDoc.data() : {};
+    if (isSatsBanned(userData, ledgerDoc.exists ? ledgerDoc.data() : null)) {
+      throw new HttpsError('failed-precondition', SATS_BANNED_ERROR);
+    }
     const boosterHashesAvail = userData.hashBoosterHashes || 0;
     const usingBooster = boosterHashesAvail > 0;
 

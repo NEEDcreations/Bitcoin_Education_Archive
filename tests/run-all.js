@@ -12,6 +12,8 @@ const TESTS = [
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
+    { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
+    { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
 ];
 
 let allPassed = true;

@@ -365,7 +365,8 @@
         const isCompact = context === 'chat';
 
         if (isActive) {
-            return `<div class="favor-banner-active" style="${isCompact?'padding:8px 12px;':'padding:12px 16px;margin-bottom:16px;'}background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;text-align:center;animation:favorPulse 2s ease-in-out infinite;cursor:pointer;" onclick="window.showQuestHub && window.showQuestHub(); window._questHubTab = 'favor'; setTimeout(function(){ if(window._renderQuestHubTab) window._renderQuestHubTab(); }, 50);"><div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;"><span style="font-size:${isCompact?'1.2rem':'1.5rem'};">✨⛏️</span><span style="font-size:${isCompact?'0.85rem':'1rem'};font-weight:800;color:var(--accent);">SATOSHI'S FAVOR</span><span style="font-size:${isCompact?'0.7rem':'0.8rem'};color:var(--text-muted);background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:6px;" id="${context}Countdown">--:--:--</span></div><div style="font-size:${isCompact?'0.65rem':'0.75rem'};color:var(--text-muted);margin-top:4px;">Mine now! Click to hash →</div></div><style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>`;
+            var hashLine = _satsDisabledNow() ? 'Sats are disabled on this account.' : 'Mine now! Click to hash →';
+            return `<div class="favor-banner-active" style="${isCompact?'padding:8px 12px;':'padding:12px 16px;margin-bottom:16px;'}background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;text-align:center;animation:favorPulse 2s ease-in-out infinite;cursor:pointer;" onclick="window.showQuestHub && window.showQuestHub(); window._questHubTab = 'favor'; setTimeout(function(){ if(window._renderQuestHubTab) window._renderQuestHubTab(); }, 50);"><div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;"><span style="font-size:${isCompact?'1.2rem':'1.5rem'};">✨⛏️</span><span style="font-size:${isCompact?'0.85rem':'1rem'};font-weight:800;color:var(--accent);">SATOSHI'S FAVOR</span><span style="font-size:${isCompact?'0.7rem':'0.8rem'};color:var(--text-muted);background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:6px;" id="${context}Countdown">--:--:--</span></div><div style="font-size:${isCompact?'0.65rem':'0.75rem'};color:var(--text-muted);margin-top:4px;">${hashLine}</div></div><style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>`;
         } else {
             const pct = Math.min(100, (points / POINTS_TARGET) * 100);
             const remaining = POINTS_TARGET - points;
@@ -420,6 +421,10 @@
         }
     }
 
+    function _satsDisabledNow() {
+        return window._satsDisabled === true || (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true);
+    }
+
     // ─── MINER MODAL ───
     window.openSatoshiFavorMiner = function() {
         if (!favorState || !favorState.favorActive) {
@@ -433,9 +438,11 @@
             db.collection('users').doc(uid).get().then(function(doc) {
                 if (doc.exists) {
                     var fresh = doc.data();
+                    window._satsDisabled = fresh.satsDisabled === true;
                     if (typeof currentUser !== 'undefined' && currentUser) {
                         currentUser.secondRigCharges = fresh.secondRigCharges || 0;
                         currentUser.hashBoosterHashes = fresh.hashBoosterHashes || 0;
+                        currentUser.satsDisabled = fresh.satsDisabled === true;
                     }
                 }
                 showMinerModal();
@@ -586,8 +593,10 @@
         var isEasyWindow = !!window._sfEasyWindowActive;
         var easyBtnLabel = '⚡ SUPERCHARGED (1 click = 10!)';
 
-        // Second rig buttons HTML
-        var hashBtnsHTML = hasSecondRig
+        // Second rig buttons HTML. Banned accounts see a message instead of the hash buttons.
+        var hashBtnsHTML = _satsDisabledNow()
+            ? '<div style="padding:12px;border-radius:12px;background:rgba(239,68,68,0.08);color:#ef4444;font-weight:700;font-size:0.85rem;text-align:center;margin-bottom:12px;">Sats are disabled on this account.</div>'
+            : hasSecondRig
             ? '<div style="display:flex;gap:8px;margin-bottom:16px;">' +
               '<button id="minerHashBtn" onclick="window.minerDoHash(1)" style="flex:1;padding:14px;background:linear-gradient(135deg,' + (isEasyWindow ? '#22c55e,#16a34a' : 'var(--accent),#e8720c') + ');border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;">' + (isEasyWindow ? easyBtnLabel : '⛏️ Hash #1') + '</button>' +
               '<button id="minerHashBtn2" onclick="window.minerDoHash(2)" style="flex:1;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;">⛏️ Hash #2</button>' +
@@ -893,6 +902,10 @@
         var output = document.getElementById('hashOutput');
         var msg = document.getElementById('hashMessage');
 
+        if (_satsDisabledNow()) {
+            if (msg) msg.textContent = 'Sats are disabled on this account.';
+            return { error: new Error('Sats are disabled on this account.') };
+        }
         if (!favorState || !favorState.favorActive) return null;
 
         var effectiveRate = _sfEffectiveRate();
@@ -961,6 +974,7 @@
 
     window.minerDoHash = async function(rig) {
         rig = rig || 1;
+        if (_satsDisabledNow()) { showToast('Sats are disabled on this account.'); return; }
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
             if (typeof showSignInPrompt === 'function') showSignInPrompt();
             else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
@@ -1419,8 +1433,8 @@
         var isActive = !!(favorState && favorState.favorActive && isFavorEffectivelyActive());
         var isLoggedIn = !!(typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
 
-        // Remove widget if SF ended or user logged out
-        if (!isActive || !isLoggedIn) {
+        // Remove widget if SF ended, the user logged out, or sats are disabled.
+        if (!isActive || !isLoggedIn || _satsDisabledNow()) {
             var existing = document.getElementById('sfFloatWidget');
             if (existing) {
                 existing.style.transform = 'scale(0)';
@@ -1571,6 +1585,7 @@
     window._sfFloatHash = async function() {
         var btn = document.getElementById('sfFloatBtn');
         var label = document.getElementById('sfFloatLabel');
+        if (_satsDisabledNow()) { showToast('Sats are disabled on this account.'); return; }
 
         // Check logged in
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
