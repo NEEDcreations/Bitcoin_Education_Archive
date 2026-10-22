@@ -54,6 +54,8 @@ function toTelegramText(text) {
     out = out.replace(/<span\b[^>]*\bdata-profile-uid\s*=\s*["'][^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, '$1');
     out = out.replace(/<[^>]*>/g, '');
     out = out.replace(/@\[([^\]]+)\]\([^)]*\)/g, '@$1');
+    // Activity shoutouts deep-link in chat. Telegram needs a tappable URL.
+    out = out.replace(/\[([^\]]+)\]\(#((?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]+)\)/g, 'https://bitcoineducation.quest/#$2');
     out = out.replace(/\[([^\]]+)\]\(#[^)]*\)/g, '$1');
     out = out.replace(/%%[A-Za-z0-9_]+%%/g, '');
     out = out.replace(/[ \t]{2,}/g, ' ');
@@ -240,6 +242,29 @@ async function mirrorShoutoutOnce(options) {
     }
 }
 
+// Best-effort. A missing token or a bridge error still lets the chat doc be removed.
+async function deleteTelegramMessage(opts) {
+    const o = opts || {};
+    const env = o.env || process.env;
+    const token = o.token != null ? o.token : (env.TG_BOT_TOKEN || '');
+    const chatId = o.chatId;
+    const messageId = o.messageId;
+    if (!token || chatId == null || chatId === '' || messageId == null || messageId === '') {
+        return { deleted: false, reason: 'skipped' };
+    }
+    try {
+        const fetchImpl = o.fetch || defaultFetchImpl();
+        const res = await fetchImpl('https://api.telegram.org/bot' + token + '/deleteMessage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+        });
+        return { deleted: !!(res && res.ok), reason: res && res.ok ? 'ok' : 'rejected' };
+    } catch (err) {
+        return { deleted: false, reason: 'error' };
+    }
+}
+
 module.exports = {
     DEFAULT_BRIDGE_URL: DEFAULT_BRIDGE_URL,
     DEFAULT_TIMEOUT_MS: DEFAULT_TIMEOUT_MS,
@@ -254,4 +279,5 @@ module.exports = {
     extractTelegramIds: extractTelegramIds,
     postToTelegramBridge: postToTelegramBridge,
     mirrorShoutoutOnce: mirrorShoutoutOnce,
+    deleteTelegramMessage: deleteTelegramMessage,
 };

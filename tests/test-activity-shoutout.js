@@ -8,10 +8,13 @@ const {
     sanitizeActivityTitle,
     applyActivityRate,
     ACTIVITY_AUTHOR_WINDOW_MS,
+    ACTIVITY_AUTHOR_HOUR_CAP,
     ACTIVITY_GLOBAL_CAP,
+    ACTIVITY_MIN_AGE_MS,
 } = require('../functions/src/shoutout');
 const { publishShoutoutOnce } = require('../functions/src/shoutoutPublish');
-const { announceActivity } = require('../functions/src/activityShoutout');
+const { announceActivity, retractActivity } = require('../functions/src/activityShoutout');
+const bridge = require('../functions/src/telegramBridge');
 
 const root = path.join(__dirname, '..');
 let passed = 0, failed = 0;
@@ -55,6 +58,7 @@ function memoryDb(seed) {
                     data: function() { return data ? Object.assign({}, data) : undefined; },
                 };
             },
+            delete: async function() { delete docs[docPath]; },
         };
     }
     return {
@@ -186,17 +190,77 @@ test('titles are stripped of html, markdown, links, and emails, then truncated',
     assert.ok(plan.text.indexOf('See') !== -1);
 });
 
-test('an email-shaped display name is not copied into chat', function() {
+test('the name comes from the user profile, and a forged author name is ignored', function() {
     const plan = planActivityShoutout({
         kind: 'forum',
         id: 'post1',
         uid: 'uid_phil',
-        item: forumItem({ authorName: 'phil@example.com' }),
+        item: forumItem({ authorName: '[click](https://evil.example) @NotPhil' }),
         user: user({ username: 'phil' }),
     });
     assert.strictEqual(plan.post, true);
     assert.ok(plan.text.indexOf('@phil just posted') !== -1);
-    assert.strictEqual(plan.text.indexOf('example.com'), -1);
+    assert.strictEqual(plan.text.indexOf('NotPhil'), -1);
+    assert.strictEqual(plan.text.indexOf('evil.example'), -1);
+    assert.strictEqual(plan.text.split('@').length - 1, 1);
+    const forged = planActivityShoutout({
+        kind: 'marketplace',
+        id: 'list1',
+        uid: 'uid_phil',
+        item: listingItem({ sellerName: 'Admin' }),
+        user: user({ username: 'phil@desk' }),
+    });
+    assert.strictEqual(forged.post, true);
+    assert.ok(forged.text.indexOf('@phildesk listed') !== -1);
+    assert.strictEqual(forged.text.indexOf('Admin'), -1);
+    assert.strictEqual(forged.text.split('@').length - 1, 1);
+});
+
+test('a title keeps exactly one @, the profile mention', function() {
+    const plan = planActivityShoutout({
+        kind: 'forum',
+        id: 'post1',
+        uid: 'uid_phil',
+        item: forumItem({ title: 'hello @other and @third' }),
+        user: user({ username: 'Dihn Aviney' }),
+    });
+    assert.strictEqual(plan.post, true);
+    assert.ok(plan.text.indexOf('@Dihn Aviney just posted') !== -1);
+    assert.strictEqual(plan.text.indexOf('@other'), -1);
+    assert.strictEqual(plan.text.indexOf('@third'), -1);
+    assert.strictEqual(plan.text.split('@').length - 1, 1);
+    assert.ok(plan.text.indexOf('hello other and third') !== -1);
+});
+
+test('a missing profile or a blocked name is not announced', function() {
+    assert.strictEqual(planActivityShoutout({
+        kind: 'forum', id: 'post1', uid: 'uid_phil', item: forumItem(), user: null,
+    }).reason, 'no_user');
+    assert.strictEqual(planActivityShoutout({
+        kind: 'forum', id: 'post1', uid: 'uid_phil', item: forumItem(), user: { banned: false },
+    }).reason, 'no_user');
+    assert.strictEqual(planActivityShoutout({
+        kind: 'forum', id: 'post1', uid: 'uid_phil', item: forumItem(),
+        user: user({ username: 'shit' }),
+    }).reason, 'profanity');
+    assert.strictEqual(planActivityShoutout({
+        kind: 'forum', id: 'post1', uid: 'uid_phil', item: forumItem(),
+        user: user({ username: 'phil@example.com' }),
+    }).reason, 'email');
+    assert.strictEqual(planActivityShoutout({
+        kind: 'forum', id: 'post1', uid: 'uid_phil', item: forumItem(),
+        user: user({ isAnonymous: true }),
+    }).reason, 'anonymous');
+    const fresh = Date.now();
+    assert.strictEqual(planActivityShoutout({
+        kind: 'forum', id: 'post1', uid: 'uid_phil', item: forumItem(),
+        user: user({ created: fresh }), nowMs: fresh,
+    }).reason, 'too_new');
+    const aged = planActivityShoutout({
+        kind: 'forum', id: 'post1', uid: 'uid_phil', item: forumItem(),
+        user: user({ created: fresh - ACTIVITY_MIN_AGE_MS }), nowMs: fresh,
+    });
+    assert.strictEqual(aged.post, true);
 });
 
 test('slurs, spam, and scam titles are not announced', function() {
@@ -272,9 +336,21 @@ test('author rate limit is 30 minutes per kind and the global cap is 10 an hour'
     const open = applyActivityRate({
         nowMs: now,
         author: { lastAtMs: now - ACTIVITY_AUTHOR_WINDOW_MS },
+        hour: { stamps: [] },
         global: { stamps: [] },
     });
     assert.strictEqual(open.allow, true);
+    assert.strictEqual(open.hour.stamps.length, 1);
+    const hourStamps = [];
+    for (let i = 0; i < ACTIVITY_AUTHOR_HOUR_CAP; i++) hourStamps.push(now - 1000);
+    const crowded = applyActivityRate({
+        nowMs: now,
+        author: {},
+        hour: { stamps: hourStamps },
+        global: { stamps: [] },
+    });
+    assert.strictEqual(crowded.allow, false);
+    assert.strictEqual(crowded.reason, 'author_hour');
     const stamps = [];
     for (let i = 0; i < ACTIVITY_GLOBAL_CAP; i++) stamps.push(now - 1000);
     const full = applyActivityRate({ nowMs: now, author: {}, global: { stamps: stamps } });
@@ -287,6 +363,25 @@ test('author rate limit is 30 minutes per kind and the global cap is 10 an hour'
     });
     assert.strictEqual(aged.allow, true);
     assert.strictEqual(aged.global.stamps.length, 1);
+});
+
+test('telegram activity links are absolute quest URLs', function() {
+    const forum = planActivityShoutout({
+        kind: 'forum', id: 'post1', uid: 'uid_phil', item: forumItem(), user: user(),
+    });
+    const market = planActivityShoutout({
+        kind: 'marketplace', id: 'list1', uid: 'uid_phil', item: listingItem(), user: user(),
+    });
+    assert.strictEqual(
+        bridge.toTelegramText(forum.text),
+        '📝 @phil just posted in PlebTalk: "Why the halving matters" → https://bitcoineducation.quest/#forum/post/post1'
+    );
+    assert.strictEqual(
+        bridge.toTelegramText(market.text),
+        '🛒 @phil listed a new item in the Marketplace: "Coldcard" for 1,500 sats → https://bitcoineducation.quest/#marketplace/listing/list1'
+    );
+    assert.strictEqual(bridge.toTelegramText(forum.text).indexOf('→ Read it'), -1);
+    assert.strictEqual(bridge.toTelegramText('[Raid](#raid)'), 'Raid');
 });
 
 const queue = [];
@@ -393,7 +488,21 @@ queue.push(later('author and global caps skip without a second chat message', as
     assert.strictEqual(market.posted, false);
     assert.strictEqual(marketPosted.posted, true);
     assert.strictEqual(db.docs['shoutout_limits/global'].stamps.length, 2);
+    assert.strictEqual(db.docs['shoutout_limits/hour_uid_phil'].stamps.length, 2);
     assert.ok(db.docs['global_chat/shoutout_market_list1'].text.indexOf('1,500 sats') !== -1);
+    seedActivity(db, 'forum', 'post3', forumItem({ title: 'A third thought' }));
+    let slept = 0;
+    const third = await announceActivity({
+        kind: 'forum', id: 'post3', db: db, admin: admin, graceMs: 10000,
+        nowMs: now + ACTIVITY_AUTHOR_WINDOW_MS + 5000,
+        eventData: forumItem({ title: 'A third thought' }),
+        sleep: async function() { slept += 1; },
+        mirror: async function() {},
+    });
+    assert.strictEqual(third.posted, false);
+    assert.strictEqual(third.reason, 'author_hour');
+    assert.strictEqual(slept, 0);
+    assert.strictEqual(db.docs['global_chat/shoutout_forum_post3'], undefined);
 }));
 
 queue.push(later('a deleted or banned post is not announced', async function() {
@@ -433,11 +542,25 @@ test('triggers reuse the shoutout writer and clients cannot post as Nacho', func
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     assert.ok(index.indexOf('exports.onForumShoutout') !== -1);
     assert.ok(index.indexOf('exports.onMarketplaceShoutout') !== -1);
+    assert.ok(index.indexOf('exports.onForumShoutoutDeleted') !== -1);
+    assert.ok(index.indexOf('exports.onMarketplaceShoutoutDeleted') !== -1);
+    assert.ok(index.indexOf('maxInstances: 10') !== -1 || index.indexOf('maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances') !== -1);
     assert.ok(index.indexOf("announceActivity({") !== -1);
+    assert.ok(index.indexOf('retractActivity({') !== -1);
     const activity = fs.readFileSync(path.join(root, 'functions', 'src', 'activityShoutout.js'), 'utf8');
     assert.ok(activity.indexOf('publishShoutoutOnce') !== -1);
     assert.ok(activity.indexOf('mirrorShoutoutOnce') !== -1);
+    assert.ok(activity.indexOf('deleteTelegramMessage') !== -1);
+    assert.strictEqual(activity.indexOf('authorName'), -1);
+    assert.strictEqual(activity.indexOf('sellerName'), -1);
     assert.strictEqual(activity.indexOf(".collection('global_chat').add"), -1);
+    const planner = fs.readFileSync(path.join(root, 'functions', 'src', 'shoutout.js'), 'utf8');
+    const planFn = planner.slice(planner.indexOf('function planActivityShoutout'));
+    assert.strictEqual(planFn.indexOf('item.authorName'), -1);
+    assert.strictEqual(planFn.indexOf('item.sellerName'), -1);
+    assert.strictEqual(planFn.indexOf('.authorName'), -1);
+    assert.strictEqual(planFn.indexOf('.sellerName'), -1);
+    assert.ok(planFn.indexOf('src.user.username') !== -1);
     const forum = fs.readFileSync(path.join(root, 'forum.js'), 'utf8');
     assert.strictEqual(forum.indexOf('nachoGlobalAnnounce'), -1);
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
@@ -454,6 +577,136 @@ test('triggers reuse the shoutout writer and clients cannot post as Nacho', func
     assert.ok(chat.indexOf('forum/post/') !== -1);
     assert.ok(chat.indexOf('marketplace/listing/') !== -1);
     assert.ok(chat.indexOf('window.formatChatText = formatChatText') !== -1);
+});
+
+queue.push(later('a guest account is skipped after the cheap checks, without sleeping when rate limited', async function() {
+    const now = 1_700_000_000_000;
+    const db = memoryDb();
+    seedActivity(db, 'forum', 'post1', forumItem());
+    let lookups = 0;
+    const guest = await announceActivity({
+        kind: 'forum', id: 'post1', db: db, admin: admin, graceMs: 0, nowMs: now,
+        eventData: forumItem(),
+        getAuthUser: async function() { lookups += 1; return { providerData: [] }; },
+        mirror: async function() {},
+    });
+    assert.strictEqual(guest.posted, false);
+    assert.strictEqual(guest.reason, 'anonymous');
+    assert.strictEqual(lookups, 1);
+    assert.strictEqual(db.docs['global_chat/shoutout_forum_post1'], undefined);
+    assert.strictEqual(db.docs['shoutout_claims/shoutout_forum_post1'].reason, 'anonymous');
+
+    const limited = memoryDb();
+    seedActivity(limited, 'forum', 'post9', forumItem());
+    limited.docs['shoutout_limits/forum_uid_phil'] = { lastAtMs: now - 1000 };
+    let slept = 0;
+    let guestLookups = 0;
+    const early = await announceActivity({
+        kind: 'forum', id: 'post9', db: limited, admin: admin, graceMs: 10000, nowMs: now,
+        eventData: forumItem(),
+        sleep: async function() { slept += 1; },
+        getAuthUser: async function() { guestLookups += 1; return { providerData: [{ providerId: 'google.com' }] }; },
+        mirror: async function() {},
+    });
+    assert.strictEqual(early.posted, false);
+    assert.strictEqual(early.reason, 'author_rate');
+    assert.strictEqual(slept, 0);
+    assert.strictEqual(guestLookups, 0);
+
+    let titleSlept = 0;
+    const noTitle = await announceActivity({
+        kind: 'forum', id: 'notitle', db: db, admin: admin, graceMs: 10000,
+        eventData: { authorId: 'uid_phil', body: 'no title yet' },
+        sleep: async function() { titleSlept += 1; },
+        mirror: async function() {},
+    });
+    assert.strictEqual(noTitle.posted, false);
+    assert.strictEqual(noTitle.reason, 'missing');
+    assert.strictEqual(titleSlept, 0);
+}));
+
+queue.push(later('deleting the source removes the matching Nacho post and its Telegram message', async function() {
+    const db = memoryDb();
+    db.docs['global_chat/shoutout_forum_post1'] = {
+        uid: 'nacho-bot',
+        activityRef: 'forum:post1',
+        text: 'hello',
+        telegramChatId: '-100',
+        telegramMsgId: '55',
+    };
+    db.docs['notifications/shoutout_forum_post1'] = { type: 'chat_mention' };
+    const dropped = [];
+    const removed = await retractActivity({
+        kind: 'forum', id: 'post1', db: db,
+        deleteTelegram: async function(args) { dropped.push(args.chatId + ':' + args.messageId); },
+    });
+    assert.strictEqual(removed.deleted, true);
+    assert.deepStrictEqual(dropped, ['-100:55']);
+    assert.strictEqual(db.docs['global_chat/shoutout_forum_post1'], undefined);
+    assert.strictEqual(db.docs['notifications/shoutout_forum_post1'], undefined);
+
+    db.docs['global_chat/shoutout_market_list1'] = { uid: 'uid_phil', activityRef: 'market:list1', text: 'fake' };
+    const mismatch = await retractActivity({
+        kind: 'marketplace', id: 'list1', db: db,
+        deleteTelegram: async function() { throw new Error('should not delete'); },
+    });
+    assert.strictEqual(mismatch.deleted, false);
+    assert.strictEqual(mismatch.reason, 'mismatch');
+    assert.strictEqual(db.docs['global_chat/shoutout_market_list1'].text, 'fake');
+}));
+
+test('formatChatText chips a multi-word name before posted and listed', function() {
+    const vm = require('vm');
+    function noop() {}
+    const document = {
+        addEventListener: noop,
+        removeEventListener: noop,
+        getElementById: function() { return null; },
+        createElement: function() { return { style: {}, appendChild: noop, addEventListener: noop }; },
+    };
+    const context = vm.createContext({
+        document: document,
+        console: console,
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        setInterval: setInterval,
+        clearInterval: clearInterval,
+        navigator: { userAgent: '' },
+        location: { hash: '', pathname: '/' },
+        history: { pushState: noop, replaceState: noop },
+        localStorage: { getItem: function() { return null; }, setItem: noop },
+        fetch: function() { return Promise.resolve({ json: function() { return {}; } }); },
+        addEventListener: noop,
+        removeEventListener: noop,
+        innerWidth: 1024,
+        innerHeight: 800,
+    });
+    context.window = context;
+    const chatSrc = fs.readFileSync(path.join(root, 'global-chat.js'), 'utf8');
+    for (let attempt = 0; attempt < 12; attempt++) {
+        try {
+            vm.runInContext(chatSrc, context, { filename: 'global-chat.js' });
+            break;
+        } catch (err) {
+            const missing = String(err && err.message || '').match(/^(\w+) is not defined$/);
+            if (!missing || attempt === 11) throw err;
+            context[missing[1]] = function() {};
+        }
+    }
+    const esc = function(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    const posted = '📝 @Dihn Aviney just posted in PlebTalk: "Halving" → [Read it](#forum/post/abc)';
+    const listed = '🛒 @Dihn Aviney listed a new item in the Marketplace: "Coldcard" → [View it](#marketplace/listing/xyz)';
+    const postedHtml = context.formatChatText(esc(posted), 'uid_dihn');
+    const listedHtml = context.formatChatText(esc(listed), 'uid_dihn');
+    assert.ok(postedHtml.indexOf('>@Dihn Aviney<') !== -1, postedHtml);
+    assert.ok(postedHtml.indexOf('data-profile-uid="uid_dihn"') !== -1);
+    assert.ok(postedHtml.indexOf('just posted') !== -1);
+    assert.ok(postedHtml.indexOf('bqOpenForumPost(\'abc\')') !== -1);
+    assert.ok(listedHtml.indexOf('>@Dihn Aviney<') !== -1, listedHtml);
+    assert.ok(listedHtml.indexOf('listed') !== -1);
+    assert.ok(listedHtml.indexOf('bqOpenMarketListing(\'xyz\')') !== -1);
+    const unicode = context.formatChatText(esc('📝 @佐藤 just posted in PlebTalk: "Note"'), 'uid_sato');
+    assert.ok(unicode.indexOf('>@佐藤<') !== -1, unicode);
 });
 
 Promise.all(queue).then(function() {

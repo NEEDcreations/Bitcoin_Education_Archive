@@ -98,28 +98,33 @@ function planShoutout(input) {
     };
 }
 
-// One Nacho post per author per 30 minutes, per kind, and about 10 an hour
-// across forum posts and marketplace listings together.
+// One Nacho post per author per 30 minutes for each kind, at most two an hour
+// across forum and marketplace together, and about 10 an hour for everyone.
+// A profile younger than a day is skipped when users/{uid}.created is set.
 const ACTIVITY_AUTHOR_WINDOW_MS = 30 * 60 * 1000;
+const ACTIVITY_AUTHOR_HOUR_MS = 60 * 60 * 1000;
+const ACTIVITY_AUTHOR_HOUR_CAP = 2;
 const ACTIVITY_GLOBAL_WINDOW_MS = 60 * 60 * 1000;
 const ACTIVITY_GLOBAL_CAP = 10;
 const ACTIVITY_TITLE_MAX = 80;
+const ACTIVITY_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
 function cleanActivityId(id) {
     const raw = String(id || '');
     return /^[A-Za-z0-9_-]{1,120}$/.test(raw) ? raw : '';
 }
 
-function publicActivityName(name) {
-    const clean = safeName(name);
-    if (!clean || clean.indexOf('@') !== -1) return 'a Bitcoiner';
-    return clean;
-}
-
-function pickActivityName(primary, fallback) {
-    const first = publicActivityName(primary);
-    if (first !== 'a Bitcoiner') return first;
-    return publicActivityName(fallback);
+// Display name comes only from users/{uid}.username. Strip the characters that
+// would let a profile name become a second @ or a markdown link in Nacho's post.
+function sanitizeActivityName(raw) {
+    let s = String(raw == null ? '' : raw);
+    s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+    s = s.replace(/https?:\/\/\S+/gi, ' ');
+    s = s.replace(/\bwww\.\S+/gi, ' ');
+    s = s.replace(/[\[\]()#*_~`@]/g, '');
+    s = s.replace(/[\r\n<>]/g, ' ');
+    s = s.replace(/\s+/g, ' ').trim().slice(0, 40);
+    return s;
 }
 
 function sanitizeActivityTitle(raw) {
@@ -131,6 +136,7 @@ function sanitizeActivityTitle(raw) {
     s = s.replace(/\bwww\.\S+/gi, ' ');
     s = s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ');
     s = s.replace(/[`*_~#<>\[\]\(\)\{\}]/g, ' ');
+    s = s.replace(/@/g, '');
     s = s.replace(/[\r\n\t]+/g, ' ');
     s = s.replace(/["“”]/g, "'");
     s = s.replace(/\s+/g, ' ').trim();
@@ -166,13 +172,17 @@ function activityItemSkip(kind, data) {
     return '';
 }
 
-function activityAccountSkip(user, ledger, addressLock) {
+function activityAccountSkip(user, ledger, addressLock, nowMs) {
     const u = user || {};
+    if (u.isAnonymous === true) return 'anonymous';
     if (u.banned === true || u.withdrawals_disabled === true) return 'banned';
     if (u.satsDisabled === true) return 'sats_disabled';
     if (ledger && ledger.banned === true) return 'banned';
     if (u.linkedBanned === true) return 'linked';
     if (addressLock && addressLock.banned === true) return 'linked';
+    const created = shoutoutAtMillis(u.created != null ? u.created : u.createdAt);
+    const now = typeof nowMs === 'number' ? nowMs : Date.now();
+    if (created != null && (now - created) < ACTIVITY_MIN_AGE_MS) return 'too_new';
     return '';
 }
 
@@ -180,6 +190,34 @@ function activityLimitDocId(kind, uid) {
     const clean = String(uid || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 120);
     if (!clean) return '';
     return (kind === 'marketplace' ? 'market_' : 'forum_') + clean;
+}
+
+function activityHourDocId(uid) {
+    const clean = String(uid || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 120);
+    if (!clean) return '';
+    return 'hour_' + clean;
+}
+
+function activityIds(kind, id) {
+    const clean = cleanActivityId(id);
+    if ((kind !== 'forum' && kind !== 'marketplace') || !clean) return null;
+    const docId = shoutoutDocId((kind === 'marketplace' ? 'market_' : 'forum_') + clean);
+    if (!docId) return null;
+    return {
+        id: clean,
+        docId: docId,
+        activityRef: (kind === 'marketplace' ? 'market:' : 'forum:') + clean,
+    };
+}
+
+function freshStamps(prev, nowMs, windowMs) {
+    const stamps = [];
+    const arr = Array.isArray(prev) ? prev : [];
+    for (let i = 0; i < arr.length; i++) {
+        const ts = Number(arr[i]);
+        if (isFinite(ts) && (nowMs - ts) < windowMs) stamps.push(ts);
+    }
+    return stamps;
 }
 
 function applyActivityRate(input) {
@@ -190,18 +228,19 @@ function applyActivityRate(input) {
     if (last != null && (nowMs - last) < ACTIVITY_AUTHOR_WINDOW_MS) {
         return { allow: false, reason: 'author_rate' };
     }
-    const prev = Array.isArray(src.global && src.global.stamps) ? src.global.stamps : [];
-    const stamps = [];
-    for (let i = 0; i < prev.length; i++) {
-        const ts = Number(prev[i]);
-        if (isFinite(ts) && (nowMs - ts) < ACTIVITY_GLOBAL_WINDOW_MS) stamps.push(ts);
+    const hourStamps = freshStamps(src.hour && src.hour.stamps, nowMs, ACTIVITY_AUTHOR_HOUR_MS);
+    if (hourStamps.length >= ACTIVITY_AUTHOR_HOUR_CAP) {
+        return { allow: false, reason: 'author_hour' };
     }
+    const stamps = freshStamps(src.global && src.global.stamps, nowMs, ACTIVITY_GLOBAL_WINDOW_MS);
     if (stamps.length >= ACTIVITY_GLOBAL_CAP) return { allow: false, reason: 'global_cap' };
+    hourStamps.push(nowMs);
     stamps.push(nowMs);
     return {
         allow: true,
         reason: 'ok',
         author: { lastAtMs: nowMs },
+        hour: { stamps: hourStamps },
         global: { stamps: stamps },
     };
 }
@@ -217,19 +256,30 @@ function planActivityShoutout(input) {
     if (!src.item || typeof src.item !== 'object') return { post: false, reason: 'missing' };
     const itemReason = activityItemSkip(kind, src.item);
     if (itemReason) return { post: false, reason: itemReason };
-    const accountReason = activityAccountSkip(src.user, src.ledger, src.addressLock);
+    if (!src.user || typeof src.user !== 'object') return { post: false, reason: 'no_user' };
+    const rawName = src.user.username;
+    if (rawName == null || !String(rawName).trim()) return { post: false, reason: 'no_user' };
+    const nowMs = typeof src.nowMs === 'number' ? src.nowMs : Date.now();
+    const accountReason = activityAccountSkip(src.user, src.ledger, src.addressLock, nowMs);
     if (accountReason) return { post: false, reason: accountReason };
+    if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(String(rawName))) {
+        return { post: false, reason: 'email' };
+    }
+    const nameBlocked = chatTextBlocked(String(rawName));
+    if (nameBlocked) return { post: false, reason: nameBlocked };
+    const name = sanitizeActivityName(rawName);
+    if (!name) return { post: false, reason: 'no_user' };
+    if (chatTextBlocked(name)) return { post: false, reason: 'profanity' };
     const rawTitle = src.item.title;
     const blocked = chatTextBlocked(String(rawTitle || ''));
     if (blocked) return { post: false, reason: blocked };
     let title = sanitizeActivityTitle(rawTitle);
     if (title && chatTextBlocked(title)) return { post: false, reason: 'profanity' };
     if (!title) title = kind === 'marketplace' ? 'a new item' : 'a new post';
-    const postedName = kind === 'marketplace' ? src.item.sellerName : src.item.authorName;
-    const name = pickActivityName(postedName, src.user && src.user.username);
-    const docId = shoutoutDocId((kind === 'marketplace' ? 'market_' : 'forum_') + id);
-    if (!docId) return { post: false, reason: 'bad_id' };
-    const activityRef = (kind === 'marketplace' ? 'market:' : 'forum:') + id;
+    const ids = activityIds(kind, id);
+    if (!ids) return { post: false, reason: 'bad_id' };
+    const docId = ids.docId;
+    const activityRef = ids.activityRef;
     let text;
     if (kind === 'forum') {
         text = '📝 @' + name + ' just posted in PlebTalk: "' + title + '" → [Read it](#forum/post/' + id + ')';
@@ -238,7 +288,9 @@ function planActivityShoutout(input) {
         const priceBit = price ? ' for ' + price : '';
         text = '🛒 @' + name + ' listed a new item in the Marketplace: "' + title + '"' + priceBit + ' → [View it](#marketplace/listing/' + id + ')';
     }
-    if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) return { post: false, reason: 'email' };
+    if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text.replace('@', ''))) {
+        return { post: false, reason: 'email' };
+    }
     return {
         post: true,
         reason: 'ok',
@@ -265,16 +317,21 @@ module.exports = {
     SHOUTOUT_CONVERSION_XP: SHOUTOUT_CONVERSION_XP,
     SHOUTOUT_CONVERTED_MESSAGE: SHOUTOUT_CONVERTED_MESSAGE,
     ACTIVITY_AUTHOR_WINDOW_MS: ACTIVITY_AUTHOR_WINDOW_MS,
+    ACTIVITY_AUTHOR_HOUR_MS: ACTIVITY_AUTHOR_HOUR_MS,
+    ACTIVITY_AUTHOR_HOUR_CAP: ACTIVITY_AUTHOR_HOUR_CAP,
     ACTIVITY_GLOBAL_WINDOW_MS: ACTIVITY_GLOBAL_WINDOW_MS,
     ACTIVITY_GLOBAL_CAP: ACTIVITY_GLOBAL_CAP,
     ACTIVITY_TITLE_MAX: ACTIVITY_TITLE_MAX,
+    ACTIVITY_MIN_AGE_MS: ACTIVITY_MIN_AGE_MS,
     cleanActivityId: cleanActivityId,
     sanitizeActivityTitle: sanitizeActivityTitle,
+    sanitizeActivityName: sanitizeActivityName,
     formatPublicPrice: formatPublicPrice,
     activityItemSkip: activityItemSkip,
     activityAccountSkip: activityAccountSkip,
     activityLimitDocId: activityLimitDocId,
+    activityHourDocId: activityHourDocId,
+    activityIds: activityIds,
     applyActivityRate: applyActivityRate,
     planActivityShoutout: planActivityShoutout,
-    publicActivityName: publicActivityName,
 };

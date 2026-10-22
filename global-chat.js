@@ -785,6 +785,18 @@ window.openRaidHub = function() {
     }, 100);
 };
 
+// Letters and numbers from any language, plus the characters usernames already allow.
+var _MENTION_STOP = 'just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed';
+function _mentionRe(flags) {
+    return new RegExp(
+        '@([\\p{L}\\p{N}_\\-\\u2026.]+(?: (?!(?:' + _MENTION_STOP + ')(?:[ !?\'\\n]|$))[\\p{L}\\p{N}_\\-\\u2026.]+)*)(?= (?:' + _MENTION_STOP + ')(?:[ !?]|$)| |\u2019s |\'s |[!?\u27A1]|$)',
+        flags || 'u'
+    );
+}
+function _mentionWordRe(flags) {
+    return new RegExp('@([\\p{L}\\p{N}_\\-\\u2026.]+)', flags || 'gu');
+}
+
 // Format chat text: links, #channels, @mentions, inline images/GIFs
 function formatChatText(text, mentionUid) {
     // Inline images/GIFs: render as image if it's a direct image URL
@@ -865,7 +877,7 @@ function formatChatText(text, mentionUid) {
         // If we have a direct uid (from level-up announcements etc), use it for the first @mention
         // Greedy multi-word match; terminators are keyword verbs or '!?' only — NOT bare punctuation
         // (bare : or . appear mid-sentence in "earned a badge:" and must NOT be swallowed into the link)
-        text = text.replace(/@([A-Za-z0-9_\\-\\u2026\\.]+(?:(?: )(?!(?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\\n]|$))[A-Za-z0-9_\\-\\u2026\\.]+)*)(?= (?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?]|$)/, function(match, name) {
+        text = text.replace(_mentionRe('u'), function(match, name) {
             _mentionHandled = true;
             var safeName = name.trim();
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
@@ -874,7 +886,7 @@ function formatChatText(text, mentionUid) {
         });
     }
     // Handle remaining @mentions without uid — try multi-word first (handles display names with spaces)
-    text = text.replace(/@([A-Za-z0-9_\\-\\u2026\\.]+(?:(?: )(?!(?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\\n]|$))[A-Za-z0-9_\\-\\u2026\\.]+)*)(?= (?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?]|$)/g, function(match, name) {
+    text = text.replace(_mentionRe('gu'), function(match, name) {
         if (_mentionHandled) return match; // already handled by uid branch above
         var safeName = name.trim().replace(/['"]/g, '');
         if (!safeName) return match;
@@ -900,7 +912,7 @@ function formatChatText(text, mentionUid) {
         return placeholder;
     });
     // Fallback: single-word @mentions (user-typed, no space in name)
-    text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+)/g, function(match, name) {
+    text = text.replace(_mentionWordRe('gu'), function(match, name) {
         var safeName = name.replace(/['"]/g, '').trim();
         if (!safeName) return match;
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
@@ -3787,7 +3799,7 @@ function _renderAnnouncementItem(doc, context) {
     var mentionUid = m.mentionUid || '';
     if (mentionUid) {
         // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
-        text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(_mentionRe('u'), function(_, rawName) {
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
@@ -3795,14 +3807,14 @@ function _renderAnnouncementItem(doc, context) {
         // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
         // No uid — try multi-word first (for system announcements missing uid)
         var _annMentionFound = false;
-        text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(_mentionRe('u'), function(_, rawName) {
             _annMentionFound = true;
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
         // Also handle any remaining single-word @mentions (user-typed in normal chat)
         if (!_annMentionFound) {
-            text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+)/g, function(_, uname) {
+            text = text.replace(_mentionWordRe('gu'), function(_, uname) {
                 return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
             });
         }

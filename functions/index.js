@@ -1,7 +1,7 @@
 const functions = require('firebase-functions');
 const functionsV1 = require('firebase-functions/v1');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const { authenticator } = require("otplib");
 const QRCode = require('qrcode');
@@ -1156,9 +1156,14 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
 // Nacho announces a new top-level PlebTalk post or Marketplace listing in
 // Global Chat, then mirrors it through the shoutout Telegram bridge.
 // Separate from onForumPost so a mail failure cannot drop the chat post.
-const { announceActivity } = require('./src/activityShoutout');
+const { announceActivity, retractActivity } = require('./src/activityShoutout');
 
-exports.onForumShoutout = onDocumentCreated('forum_posts/{postId}', async (event) => {
+const ACTIVITY_SHOUTOUT_OPTS = { maxInstances: 10 };
+
+exports.onForumShoutout = onDocumentCreated({
+    document: 'forum_posts/{postId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
     if (!event.data) return null;
     try {
         await announceActivity({
@@ -1166,6 +1171,7 @@ exports.onForumShoutout = onDocumentCreated('forum_posts/{postId}', async (event
             id: event.params.postId,
             db: db,
             admin: admin,
+            eventData: event.data.data(),
         });
     } catch (e) {
         console.error('[onForumShoutout] failed', e && e.message ? e.message : '');
@@ -1174,7 +1180,10 @@ exports.onForumShoutout = onDocumentCreated('forum_posts/{postId}', async (event
     return null;
 });
 
-exports.onMarketplaceShoutout = onDocumentCreated('marketplace/{listingId}', async (event) => {
+exports.onMarketplaceShoutout = onDocumentCreated({
+    document: 'marketplace/{listingId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
     if (!event.data) return null;
     try {
         await announceActivity({
@@ -1182,9 +1191,44 @@ exports.onMarketplaceShoutout = onDocumentCreated('marketplace/{listingId}', asy
             id: event.params.listingId,
             db: db,
             admin: admin,
+            eventData: event.data.data(),
         });
     } catch (e) {
         console.error('[onMarketplaceShoutout] failed', e && e.message ? e.message : '');
+        throw e;
+    }
+    return null;
+});
+
+exports.onForumShoutoutDeleted = onDocumentDeleted({
+    document: 'forum_posts/{postId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    try {
+        await retractActivity({
+            kind: 'forum',
+            id: event.params.postId,
+            db: db,
+        });
+    } catch (e) {
+        console.error('[onForumShoutoutDeleted] failed', e && e.message ? e.message : '');
+        throw e;
+    }
+    return null;
+});
+
+exports.onMarketplaceShoutoutDeleted = onDocumentDeleted({
+    document: 'marketplace/{listingId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    try {
+        await retractActivity({
+            kind: 'marketplace',
+            id: event.params.listingId,
+            db: db,
+        });
+    } catch (e) {
+        console.error('[onMarketplaceShoutoutDeleted] failed', e && e.message ? e.message : '');
         throw e;
     }
     return null;

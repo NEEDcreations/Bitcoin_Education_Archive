@@ -48,10 +48,11 @@ async function publishShoutoutOnce(opts) {
     const markerRef = o.markerRef || null;
     const claimRef = o.claimRef || null;
     const authorLimitRef = o.authorLimitRef || null;
+    const hourLimitRef = o.hourLimitRef || null;
     const globalLimitRef = o.globalLimitRef || null;
     const nowMs = typeof o.nowMs === 'number' ? o.nowMs : Date.now();
     if (!db || !admin || !plan.docId || !plan.collection) return { wrote: false, reason: 'bad_plan' };
-    if (plan.activityRef && (!claimRef || !authorLimitRef || !globalLimitRef)) {
+    if (plan.activityRef && (!claimRef || !authorLimitRef || !hourLimitRef || !globalLimitRef)) {
         return { wrote: false, reason: 'no_limit' };
     }
     const serverTimestamp = function() { return admin.firestore.FieldValue.serverTimestamp(); };
@@ -63,6 +64,7 @@ async function publishShoutoutOnce(opts) {
         const markerSnap = markerRef ? await t.get(markerRef) : null;
         const claimSnap = claimRef ? await t.get(claimRef) : null;
         const authorSnap = authorLimitRef ? await t.get(authorLimitRef) : null;
+        const hourSnap = hourLimitRef ? await t.get(hourLimitRef) : null;
         const globalSnap = globalLimitRef ? await t.get(globalLimitRef) : null;
         const chat = chatSnap.exists ? (chatSnap.data() || {}) : null;
 
@@ -97,6 +99,7 @@ async function publishShoutoutOnce(opts) {
             }
             const decision = applyActivityRate({
                 author: authorSnap && authorSnap.exists ? authorSnap.data() : null,
+                hour: hourSnap && hourSnap.exists ? hourSnap.data() : null,
                 global: globalSnap && globalSnap.exists ? globalSnap.data() : null,
                 nowMs: nowMs,
             });
@@ -111,6 +114,7 @@ async function publishShoutoutOnce(opts) {
                 return { wrote: false, reason: decision.reason };
             }
             t.set(authorLimitRef, decision.author);
+            t.set(hourLimitRef, decision.hour);
             t.set(globalLimitRef, decision.global);
             t.set(claimRef, {
                 status: 'posted',
