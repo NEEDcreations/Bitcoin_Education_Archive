@@ -145,6 +145,7 @@ const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
+const awardActions = require('./src/awardActions');
 
 // ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
 // String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
@@ -1157,6 +1158,7 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
 // Global Chat, then mirrors it through the shoutout Telegram bridge.
 // Separate from onForumPost so a mail failure cannot drop the chat post.
 const { announceActivity, retractActivity, retractIfRemoved } = require('./src/activityShoutout');
+const { countMarketplaceListing } = require('./src/marketListingCount');
 
 const ACTIVITY_SHOUTOUT_OPTS = { maxInstances: 10 };
 
@@ -1195,6 +1197,27 @@ exports.onMarketplaceShoutout = onDocumentCreated({
         });
     } catch (e) {
         console.error('[onMarketplaceShoutout] failed', e && e.message ? e.message : '');
+        throw e;
+    }
+    return null;
+});
+
+// Listing badge counter. Separate from the shoutout so a Nacho skip or its
+// grace delay does not drop the count. Idempotent per listing id.
+exports.onMarketplaceListingCount = onDocumentCreated({
+    document: 'marketplace/{listingId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try {
+        await countMarketplaceListing({
+            db: db,
+            admin: admin,
+            listingId: event.params.listingId,
+            data: event.data.data(),
+        });
+    } catch (e) {
+        console.error('[onMarketplaceListingCount] failed', e && e.message ? e.message : '');
         throw e;
     }
     return null;
@@ -3073,8 +3096,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     const actionKey = (data.actionKey || '').substring(0, 50);
     const action = (data.action || data.reason || '').substring(0, 100);
     const channelId = (data.channelId || '').substring(0, 100);
-    const tickets = Math.max(0, Math.min(50, parseInt(data.tickets) || 0));       // clamp: 0–50 (raid_damage_ticket max is 50)
-    const streakFreezes = Math.max(0, Math.min(5, parseInt(data.streakFreezes) || 0)); // clamp: 0–5 (shop max is 3)
+    // This callable never grants tickets or streak freezes. Those stay on the
+    // server flows that verify the grant themselves (referrals, daily spin,
+    // visit milestones, donations, shop, gifts, ciphers, leaderboards).
+    const tickets = 0;
+    const streakFreezes = 0;
     // Badge ID for server-side dedup (optional - only sent for badge_earned actions)
     const badgeId = (data.badgeId || '').replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 60);
 
@@ -3365,211 +3391,46 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         }
     }
 
-// ── ACTION-BASED POINT VALIDATION ──
-    // Server defines exact point values per action type. Client cannot choose amounts.
-    const ACTION_POINTS = {
-        'channel_read': 10,           // Open a new channel
-        'channel_read_bonus': 15,     // Read for 30 seconds
-        'read_time': 5,               // Periodic read time bonus
-        'daily_visit': 5,             // Daily visit base
-        'daily_visit_streak': 100,    // Streak bonus
-        'explore_10': 50,             // 10 channels explored
-        'explore_25': 50,             // 25% milestone
-        'explore_50': 100,            // 50% milestone
-        'explore_75': 200,            // 75% milestone
-        'explore_100': 500,           // 100% milestone
-        'daily_spin': 50,             // Max spin reward
-        'quest_complete': 100,        // Perfect quest
-        'quest_retry': 25,            // Quest retry
-        'quest_partial': 50,          // Quest 3+ correct
-        'scholar_cert': 2100,         // Scholar certification
-        'badge_earned': 30000,        // Ceiling only — actual pts are overridden by BADGE_VALUES lookup below
-        'pvp_victory': 50,            // PVP win (score-based, capped)
-        'pvp_practice': 10,           // PVP practice correct
-        'pvp_draw': 5,               // PVP draw
-        'pvp_consolation': 25,        // PVP loss consolation
-        'chat_message': 5,            // Global chat message
-        'chat_streak_3': 10,          // 3-day chat streak
-        'chat_streak_7': 25,          // 7-day chat streak
-        'forum_post': 10,             // Forum post
-        'forum_reply': 5,             // Forum reply
-        'article_publish': 30,        // Publish article
-        'article_read': 5,            // Read article
-        'article_comment': 5,         // Comment on article
-        'beats_upload': 50,           // Upload a song
-        'beats_listen': 10,           // Listen to full track
-        'beats_comment': 10,          // Comment on Beats
-        'irl_host': 15,               // Host IRL event
-        'prediction': 5,              // Make prediction
-        'welcome_bonus': 5,           // First visit
-        'anon_merge': 500,            // Anonymous data merge (capped)
-        'story_chapter': 15,          // Nacho story chapter
-        'story_final': 50,            // Final story chapter
-        'story_complete': 100,        // All story chapters
-        'trail_chapter': 25,          // Trail chapter
-        'trail_complete': 50,         // Trail completion
-        'lq_lesson': 50,              // Learning Quest lesson completed (first time)
-        'lq_quiz': 100,               // Learning Quest quiz passed (first time)
-        'lq_graduate': 250,           // All 8 Learning Quests completed
-        'ticket_bonus': 5,            // Per-ticket bonus (tickets × 5)
-        'streak_freeze': 0,           // Streak freeze only (no points)
-        'tickets_only': 0,            // Tickets only (no points)
-        'feedback': 5,                // Feedback bonus
-        'tctv_watch_10m': 10,          // Timechain TV: 10 points per 10 minutes watched (cooldown enforced)
-        'quiz_correct': 10,            // Nacho Mode quiz correct answer
-        'trivia_correct': 50,          // Daily trivia correct answer
-        'trivia_attempt': 10,          // Daily trivia attempt (wrong answer)
-        'poll_vote': 50,               // Daily poll quest vote
-        'flex_action': 15,             // Daily FLEX healthy action (one per action-id per day) — now 15 pts
-        'combo_bonus': 250,            // Combo tier bonus (client specifies pts, capped at 250)
-        'weekly_challenge_contrib': 0, // Weekly challenge contribution (no direct pts, just tracking)
-        'daily_trifecta_ticket': 0,   // +1 ticket for completing daily trifecta (no direct pts)
-        'nacho_chat_ticket': 0,       // +1 ticket for first Nacho message of the day
-        'daily_chat_ticket': 0,       // +2 tickets for first global chat message of the day
-        'dj_set_ticket': 0,           // +5 tickets for DJ set
-        'beats_upload_ticket': 0,     // +10 tickets for beat upload
-        'flashcard_ticket': 0,        // +5 tickets for flashcard deck complete
-        'pvp_win_ticket': 0,          // +1 ticket for PvP win
-        'raid_damage_ticket': 0,      // +N tickets for raid damage dealt
-        'forum_post_ticket': 0,       // +1 ticket for forum post
-        'marketplace_listing_ticket': 0, // +1 ticket for marketplace listing
-        'irl_listing_ticket': 0,      // +1 ticket for IRL listing
-        'strava_connect_ticket': 0,   // +5 tickets for Strava first connect (one-time)
-        'tctv_watch_ticket': 0,       // +1 ticket per 15 min of TCTV
-    };
-
-    // Look up max allowed points for this action using keyword matching
-    const actionLower = action.toLowerCase();
-    const ACTION_KEYWORDS = {
-        'channel_read': ['channel explored', 'channel_read', 'new channel'],
-        'read_time': ['read_time', 'read time'],
-        'daily_visit': ['daily visit', 'daily_visit'],
-        'daily_visit_streak': ['streak!', 'day streak'],
-        'explore_10': ['explore_10', 'explorer bonus', '10 channels'],
-        'explore_25': ['explore_25', '25%'],
-        'explore_50': ['explore_50', '50%'],
-        'explore_75': ['explore_75', '75%'],
-        'explore_100': ['explore_100', 'archive complete', '100%'],
-        'daily_spin': ['daily spin', 'spin'],
-        'quest_complete': ['quest:', 'quest_complete'],
-        'scholar_cert': ['scholar', 'certification', '🎓'],
-        'badge_earned': ['badge:', 'badge_earned'],
-        'pvp_victory': ['pvp victory', 'pvp win'],
-        'pvp_practice': ['pvp practice'],
-        'pvp_draw': ['pvp draw'],
-        'pvp_consolation': ['pvp consolation', 'pvp loss'],
-        'chat_message': ['chat_message', 'global chat'],
-        'chat_streak_3': ['chat_streak_3', '3-day chat'],
-        'chat_streak_7': ['chat_streak_7', '7-day chat'],
-        'forum_post': ['forum_post', 'forum post'],
-        'forum_reply': ['forum_reply', 'forum reply'],
-        'article_publish': ['article_publish', 'publish article'],
-        'article_read': ['article_read', 'read article'],
-        'article_comment': ['article_comment', 'article comment'],
-        'beats_upload': ['beats_upload', 'upload'],
-        'beats_listen': ['beats_listen', 'listened to', 'full track'],
-        'beats_comment': ['beats_comment', 'comment on bitcoin beats'],
-        'irl_host': ['irl_host', 'host irl'],
-        'prediction': ['prediction'],
-        'welcome_bonus': ['welcome bonus', 'welcome_bonus'],
-        'anon_merge': ['anon_merge', 'anonymous progress'],
-        'story_chapter': ['completed chapter', 'story_chapter'],
-        'story_complete': ['completed nacho', 'story_complete'],
-        'trail_chapter': ['trail_chapter', 'trail chapter'],
-        'trail_complete': ['trail_complete'],
-        'lq_lesson': ['📖 learning quest:', 'lq_lesson'],
-        'lq_quiz': ['lq_quiz'],
-        'lq_graduate': ['📖 learning quest graduate', 'lq_graduate'],
-        'ticket_bonus': ['ticket', '🎫'],
-        'streak_freeze': ['streak freeze', 'streak_freeze', '🧊'],
-        'tickets_only': ['tickets_only'],
-        'feedback': ['feedback'],
-        'tctv_watch_10m': ['tctv_watch', 'timechain tv', 'watching timechain'],
-        'quiz_correct': ['quiz correct', 'quiz_correct', '🎮 quiz'],
-        'trivia_correct': ['trivia quest correct', 'trivia_correct', '🧠 trivia quest correct'],
-        'trivia_attempt': ['trivia quest attempt', 'trivia_attempt', '🧠 trivia quest attempt'],
-        'poll_vote': ['poll quest vote', 'poll_vote', '📊 poll quest vote'],
-
-        'flex_action': ['💪 flex:', '🎯 Daily Challenge:'],
-        'combo_bonus': ['combo', '🔥 Trio Combo', '💥 MEGA COMBO', '🏆 LEGENDARY COMBO', '🎯 Daily 3 Complete'],
-        'daily_trifecta_ticket': ['daily trifecta'],
-        'nacho_chat_ticket': ['daily nacho chat'],
-        'daily_chat_ticket': ['daily chat'],
-        'dj_set_ticket': ['dj set'],
-        'beats_upload_ticket': ['beat uploaded'],
-        'flashcard_ticket': ['flashcard deck complete'],
-        'pvp_win_ticket': ['pvp win'],
-        'raid_damage_ticket': ['raid damage'],
-        'forum_post_ticket': ['forum post'],
-        'marketplace_listing_ticket': ['marketplace listing'],
-        'irl_listing_ticket': ['irl listing'],
-        'strava_connect_ticket': ['strava connect'],
-        'tctv_watch_ticket': ['tctv watch'],
-    };
-
-    let pts = 0;
-    let matchedAction = null;
-
-    // Priority 1: Explicit actionKey (exact enum match - not gameable)
-    if (actionKey && ACTION_POINTS.hasOwnProperty(actionKey)) {
-        matchedAction = actionKey;
-        pts = ACTION_POINTS[actionKey];
+// ── EXACT ACTION ALLOWLIST ──
+    // Keyword and substring matching used to let any client phrase containing
+    // "ticket" collect Orange Tickets. Amounts, per-day limits, and dedup keys
+    // now come from awardActions. Client ticket counts are ignored.
+    const resolved = awardActions.resolveAction({
+        actionKey: actionKey,
+        action: action,
+        badgeId: badgeId,
+        channelId: channelId,
+        flexActionId: data.flexActionId,
+        comboTier: data.comboTier,
+        pts: data.pts,
+    });
+    if (!resolved.ok) {
+        return { success: false, error: resolved.error || 'Unknown action', awarded: 0, tickets: 0 };
     }
 
-    // Priority 2: Keyword matching (backward compat - will be deprecated)
-    if (!matchedAction) {
-        for (const [key, keywords] of Object.entries(ACTION_KEYWORDS)) {
-            for (const kw of keywords) {
-                if (actionLower.includes(kw.toLowerCase())) {
-                    pts = ACTION_POINTS[key];
-                    matchedAction = key;
-                    break;
-                }
-            }
-            if (matchedAction) break;
-        }
-    }
-
-    // Reject unknown actions - no backward-compat fallback
-    if (!matchedAction) {
-        return { success: false, error: 'Unknown action', awarded: 0 };
-    }
-
-    // If client sent explicit pts, cap at the action max
-    if (data.pts !== undefined && data.pts !== null) {
-        const requestedPts = parseInt(data.pts);
-        if (!isNaN(requestedPts) && requestedPts >= 0) {
-            pts = Math.min(requestedPts, pts);
-        }
-    }
-
-    // For badge_earned: override pts from server catalog; reject unknown badges entirely.
-    // This closes the money-printer exploit: previously any badgeId minted the full
-    // 21,000-pt ceiling. Now pts are always server-authoritative and unknown badges
-    // are rejected rather than silently accepted.
+    let pts = resolved.xp;
+    let matchedAction = resolved.id;
     let badgeKnown = false;
-    if (matchedAction === 'badge_earned') {
+    if (resolved.badge) {
         if (!badgeId || !Object.prototype.hasOwnProperty.call(BADGE_VALUES, badgeId)) {
             console.warn('[awardPoints] badge_earned rejected: unknown badgeId:', badgeId, 'uid:', uid);
-            return { success: false, error: 'Unknown badge' };
+            return { success: false, error: 'Unknown badge', awarded: 0, tickets: 0 };
         }
-        pts = BADGE_VALUES[badgeId]; // server value always wins
+        pts = BADGE_VALUES[badgeId];
         badgeKnown = true;
+        matchedAction = 'badge_earned';
     }
 
-    const absMax = (matchedAction === 'badge_earned') ? 100000 : 2200;
+    const absMax = badgeKnown ? 100000 : 2200;
     if (pts < 0 || pts > absMax) {
-        return { success: false, error: 'Invalid points amount' };
+        return { success: false, error: 'Invalid points amount', awarded: 0, tickets: 0 };
     }
-    if (pts === 0 && !tickets && !streakFreezes && !channelId) {
-        return { success: false, error: 'Nothing to award' };
+    if (pts === 0) {
+        return { success: false, error: 'Nothing to award', awarded: 0, tickets: 0 };
     }
 
     const reason = action;
-
-    // ── ATOMIC UPDATES ──
-    const DAILY_CAP = 1000;
-    const today = new Date().toISOString().split('T')[0]; // UTC midnight — kept for raw audit logs only
+    const DAILY_CAP = awardActions.DAILY_CAP;
     const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
     const userRef = db.collection('users').doc(uid);
     const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
@@ -3578,163 +3439,46 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         ? db.collection('notifications').doc(rewardNotify.groupDocId(uid, rewardGroup, offsetToday))
         : null;
 
-    // ACTION COOLDOWN: Atomic read-then-write (Fix M-NEW-13)
-    const ACTION_COOLDOWNS = {
-        'chat_message': 3000,
-        'forum_post': 60000,
-        'forum_reply': 10000,
-        'beats_comment': 10000,
-        'article_comment': 10000,
-        'tctv_watch_10m': 600000, // 10 minutes (Fix: server-side verification)
-    };
-    const cooldownRef = (matchedAction && ACTION_COOLDOWNS[matchedAction])
+    const cooldownRef = (resolved.cooldownMs > 0)
         ? db.collection('action_cooldowns').doc(uid + '_' + matchedAction)
         : null;
-
-    // DAILY ACTION COUNT LIMIT: Cap certain actions per UTC day independent of point cap.
-    // badge_earned: max 10 per UTC day — limits blast radius of catalog farming even if
-    // a badge ID is guessed. Honest users earn far fewer badges per day than 10.
-    const ACTION_DAILY_LIMITS = {
-        'badge_earned': 10,
-    };
-    const dailyActionRef = (matchedAction && ACTION_DAILY_LIMITS[matchedAction])
-        ? userRef.collection('daily_action_counts').doc(today + '_' + matchedAction)
-        : null;
+    const countRef = userRef.collection('daily_action_counts').doc(awardActions.countDocId(resolved, offsetToday));
+    const badgeAwardRef = badgeKnown ? userRef.collection('badge_awards').doc(badgeId) : null;
 
     let transactionResult = null;
     try {
         transactionResult = await db.runTransaction(async (t) => {
-            // ── PHASE 1: ALL READS (Firestore requires reads before writes) ──
-
-            // Pre-compute all ref keys we may need to read
-            const DAILY_TICKET_ACTIONS = [
-                'daily_trifecta_ticket', 'nacho_chat_ticket', 'daily_chat_ticket',
-                'pvp_win_ticket', 'flashcard_ticket',
-                'forum_post_ticket', 'marketplace_listing_ticket', 'irl_listing_ticket',
-                'tctv_watch_ticket',
-            ];
-            const flexId = matchedAction === 'flex_action'
-                ? (data.flexActionId || '').replace(/[^a-z0-9_]/g, '').substring(0, 30)
-                : null;
-            const comboTier = matchedAction === 'combo_bonus'
-                ? (data.comboTier || '').replace(/[^a-z0-9_]/g, '').substring(0, 20)
-                : null;
-
-            const badgeAwardRef = badgeKnown ? userRef.collection('badge_awards').doc(badgeId) : null;
-            const triviaRef = (matchedAction === 'trivia_correct' || matchedAction === 'trivia_attempt')
-                ? userRef.collection('daily_action_counts').doc(offsetToday + '_trivia') : null;
-            const pollRef = matchedAction === 'poll_vote'
-                ? userRef.collection('daily_action_counts').doc(offsetToday + '_poll_vote') : null;
-            const dtRef = DAILY_TICKET_ACTIONS.includes(matchedAction)
-                ? userRef.collection('daily_action_counts').doc(offsetToday + '_' + matchedAction) : null;
-            const stravaRef = matchedAction === 'strava_connect_ticket'
-                ? userRef.collection('lifetime_awards').doc('strava_connect') : null;
-            const countedRef = (matchedAction === 'dj_set_ticket' || matchedAction === 'beats_upload_ticket' || matchedAction === 'raid_damage_ticket')
-                ? userRef.collection('daily_action_counts').doc(today + '_' + matchedAction) : null;
-            const flexRef = flexId ? userRef.collection('daily_action_counts').doc(today + '_flex_' + flexId) : null;
-            const comboRef = comboTier ? userRef.collection('daily_action_counts').doc(today + '_combo_' + comboTier) : null;
-
-            // Execute all reads in parallel
-            const readPromises = [
+            const [
+                cooldownDoc, badgeAwardDoc, countDoc, userDoc, dailyDoc, rewardGroupDoc
+            ] = await Promise.all([
                 cooldownRef ? t.get(cooldownRef) : Promise.resolve(null),
                 badgeAwardRef ? t.get(badgeAwardRef) : Promise.resolve(null),
-                triviaRef ? t.get(triviaRef) : Promise.resolve(null),
-                pollRef ? t.get(pollRef) : Promise.resolve(null),
-                dtRef ? t.get(dtRef) : Promise.resolve(null),
-                stravaRef ? t.get(stravaRef) : Promise.resolve(null),
-                countedRef ? t.get(countedRef) : Promise.resolve(null),
-                flexRef ? t.get(flexRef) : Promise.resolve(null),
-                comboRef ? t.get(comboRef) : Promise.resolve(null),
-                dailyActionRef ? t.get(dailyActionRef) : Promise.resolve(null),
+                t.get(countRef),
                 t.get(userRef),
                 t.get(dailyPtsRef),
                 rewardGroupRef ? t.get(rewardGroupRef) : Promise.resolve(null),
-            ];
-            const [
-                cooldownDoc, badgeAwardDoc, triviaDoc, pollDoc, dtDoc,
-                stravaDoc, countedDoc, flexDoc, comboDoc,
-                dailyActionDoc, userDoc, dailyDoc, rewardGroupDoc
-            ] = await Promise.all(readPromises);
+            ]);
 
-            // ── PHASE 2: ALL VALIDATION (throws abort transaction before any writes) ──
-
-            // 1. Cooldown check
             if (cooldownDoc && cooldownDoc.exists) {
                 const lastAction = cooldownDoc.data().ts;
                 const lastTime = lastAction ? (lastAction.toDate ? lastAction.toDate() : new Date(lastAction)) : null;
-                const cooldownMs = ACTION_COOLDOWNS[matchedAction];
-                if (lastTime && (Date.now() - lastTime.getTime()) < cooldownMs) {
+                if (lastTime && (Date.now() - lastTime.getTime()) < resolved.cooldownMs) {
                     throw new Error('TOO_FAST');
                 }
             }
-
-            // 1a. Badge dedup
             if (badgeAwardDoc && badgeAwardDoc.exists) {
                 throw new Error('BADGE_ALREADY_AWARDED:' + badgeId);
             }
 
-            // 1c. Daily dedup for trivia
-            if (triviaDoc && triviaDoc.exists) {
-                throw new Error('ALREADY_CLAIMED_TODAY:trivia');
-            }
-            // Daily dedup for poll
-            if (pollDoc && pollDoc.exists) {
-                throw new Error('ALREADY_CLAIMED_TODAY:poll');
-            }
-            // Daily dedup for single-ticket-per-day
-            if (dtDoc && dtDoc.exists) {
-                throw new Error('ALREADY_CLAIMED_TODAY:' + matchedAction);
-            }
-            // strava one-time check
-            if (stravaDoc && stravaDoc.exists) {
-                throw new Error('ALREADY_AWARDED:strava_connect');
-            }
-            // dj_set / beats_upload / raid_damage daily max
-            if (countedDoc) {
-                const currentCount = countedDoc.exists ? (countedDoc.data().count || 0) : 0;
-                const MAX = matchedAction === 'raid_damage_ticket' ? 50 : 10;
-                if (currentCount >= MAX) {
-                    throw new Error('DAILY_LIMIT_REACHED:' + matchedAction);
-                }
-            }
-            // flex dedup
-            if (matchedAction === 'flex_action') {
-                if (!flexId) throw new Error('FLEX_MISSING_ACTION_ID');
-                if (flexDoc && flexDoc.exists) throw new Error('ALREADY_CLAIMED_TODAY:flex_' + flexId);
-            }
-            // combo dedup
-            if (matchedAction === 'combo_bonus') {
-                if (!comboTier) throw new Error('COMBO_MISSING_TIER');
-                if (comboDoc && comboDoc.exists) throw new Error('ALREADY_CLAIMED_TODAY:combo_' + comboTier);
-            }
-            // 1b. Per-day action count anti-spam
-            let dailyActionUsed = 0;
-            if (dailyActionDoc && dailyActionDoc.exists) {
-                dailyActionUsed = dailyActionDoc.data().count || 0;
-                const limit = ACTION_DAILY_LIMITS[matchedAction];
-                if (limit && dailyActionUsed >= limit) {
-                    throw new Error('DAILY_ACTION_LIMIT:' + matchedAction + ':' + limit);
-                }
+            const usedCount = countDoc && countDoc.exists ? (countDoc.data().count || 0) : 0;
+            if (usedCount >= resolved.dailyLimit) {
+                throw new Error('DAILY_ACTION_LIMIT:' + matchedAction + ':' + resolved.dailyLimit);
             }
 
             if (!userDoc.exists) throw new Error('User not found');
             const userData = userDoc.data();
+            if (userData.ban_reason) throw new Error('BANNED');
 
-            // [SECURITY FIX] Badge proof-of-earning: server-side condition checks.
-            //
-            // The badge catalog is public (client JS). Without this check, any valid badge
-            // ID can be submitted to awardPoints and immediately claim XP + write a
-            // badge_awards record — no conditions verified. This was worth ~382k XP total.
-            //
-            // Approach: for badges whose conditions map to server-authoritative fields,
-            // verify those fields here inside the transaction before writing anything.
-            //
-            // Milestone badges (hall_of_fame → satoshis_cipher): conditions are based on
-            // number of distinct badges owned. visibleBadges is an array maintained
-            // atomically by awardPoints CF — clients cannot write it (Firestore rules block it).
-            //
-            // Stat badges (streak_365, sats_21k): conditions are on bestStreak /
-            // satsWithdrawn which are also CF-only writes.
             if (matchedAction === 'badge_earned' && badgeKnown) {
                 const MILESTONE_BADGE_THRESHOLDS = {
                     'hall_of_fame':       50,
@@ -3754,7 +3498,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                         throw new Error('BADGE_CONDITION_NOT_MET:' + badgeId);
                     }
                 }
-                // Stat-based high-value badges
                 if (badgeId === 'streak_365') {
                     if ((userData.bestStreak || 0) < 365) {
                         console.warn(`[awardPoints] streak_365 rejected: bestStreak=${userData.bestStreak} uid=${uid}`);
@@ -3769,79 +3512,31 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 }
             }
 
-            // 2. Throttle for Daily Tickets
-            if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
-                if (userData.lastTicketDate === today) {
-                    throw new Error('ALREADY_CLAIMED_TODAY');
-                }
-            }
+            const nextCount = usedCount + 1;
+            const claimRef = badgeKnown
+                ? null
+                : userRef.collection('award_claims').doc(awardActions.claimId(resolved, offsetToday, nextCount));
+            const claimDoc = claimRef ? await t.get(claimRef) : null;
+            if (claimDoc && claimDoc.exists) throw new Error('ALREADY_CLAIMED');
 
-            // 3. Daily cap
             const dailyUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
+            const triviaQuizUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().triviaQuiz || 0) : 0;
+            const grant = awardActions.planGrant({
+                xp: pts,
+                dailyUsed: dailyUsed,
+                triviaQuizUsed: triviaQuizUsed,
+                triviaQuiz: resolved.triviaQuiz,
+                dailyCap: DAILY_CAP,
+                triviaCap: awardActions.TRIVIA_QUIZ_CAP,
+            });
+            const awarded = grant.awarded;
+            const capped = grant.capped;
+            const dropped = grant.dropped;
 
-            // 3a. OVERFLOW ROLLOVER (rebuilt 2026-04-22 per Phil)
-            // Users who exceed 500 pts/day now bank the excess in `pendingOverflow`
-            // and redeem up to 500 of it on their next active day. This:
-            //   - stops silently dropping points that honest users earned
-            //   - still respects the anti-abuse daily cap (max 500 redeemed per day)
-            //   - is server-authoritative (field is blocked from client writes)
-            const OVERFLOW_REDEEM_CAP = DAILY_CAP; // max overflow redeemed per day — matches the daily cap
-            const pendingOverflow = userData.pendingOverflow || 0;
-            const lastOverflowDate = userData.lastOverflowDate || null;
-
-            // Redeem yesterday's (or older) overflow into today's balance FIRST,
-            // before counting today's new award against the cap. Redemption itself
-            // bypasses the cap check (those points were already earned legitimately
-            // on a prior day) but is capped at 500/day so a huge backlog pays out
-            // over multiple days instead of all at once.
-            let overflowRedeemed = 0;
-            let pendingOverflowAfter = pendingOverflow;
-            if (pendingOverflow > 0 && lastOverflowDate && lastOverflowDate !== offsetToday) {
-                overflowRedeemed = Math.min(pendingOverflow, OVERFLOW_REDEEM_CAP);
-                pendingOverflowAfter = pendingOverflow - overflowRedeemed;
-            }
-
-            // Compute today's award against the daily cap. Any excess is added to
-            // pendingOverflow for a future day.
-            // EXCEPTION: badge_earned is a one-time lifetime award - always awarded in full,
-            // never capped or deferred to overflow. A 21,000-pt badge should land immediately.
-            let awarded = 0;
-            let capped = false;
-            let overflowAdded = 0;
-            if (pts > 0) {
-                // All XP — including badge awards — goes through the daily cap.
-                // Excess is banked in pendingOverflow and redeemed on future days.
-                // (Previously badgeKnown bypassed the cap entirely, awarding 21k+ in one shot.)
-                if (dailyUsed < DAILY_CAP) {
-                    awarded = pts;
-                    if (dailyUsed + pts > DAILY_CAP) {
-                        awarded = DAILY_CAP - dailyUsed;
-                        overflowAdded = pts - awarded;
-                    }
-                    if (awarded < 0) awarded = 0;
-                } else {
-                    // Already at cap - entire award goes to overflow
-                    overflowAdded = pts;
-                }
-                capped = (dailyUsed + awarded >= DAILY_CAP);
-            }
-
-            // 4. Build Atomic Update - channel tracking is a visit record (not a reward),
-            // so it happens regardless of whether the daily points cap is hit.
             const userUpdate = {};
-
-            // Record channel read server-side (tamper-resistant via arrayUnion)
-            // Used by faucet eligibility check (MIN_CHANNELS_READ).
-            // MUST run even when capped, otherwise users who hit the cap before
-            // reading 10 channels can never become faucet-eligible.
             let channelTracked = false;
-            // [SECURITY FIX] Validate channelId against the server-side catalog before
-            // writing to visitedChannelsList. Previously any string ≤100 chars was accepted,
-            // letting a client send 10 arbitrary channelId values to forge faucet eligibility
-            // (MIN_CHANNELS_READ = 10) without ever visiting a real channel.
             if (channelId && VALID_CHANNEL_IDS.has(channelId)) {
                 userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
-                // channelsVisited is a display counter - only bump on first read of this channel
                 const currentList = Array.isArray(userData.visitedChannelsList) ? userData.visitedChannelsList : [];
                 if (currentList.indexOf(channelId) === -1) {
                     userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
@@ -3851,101 +3546,58 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 console.warn('[awardPoints] channelId rejected — not in catalog:', channelId, 'uid:', uid);
             }
 
-            // Points/tickets/freezes - award today's legitimate portion PLUS any
-            // overflow we're redeeming from prior days.
-            const totalPointsOut = awarded + overflowRedeemed;
+            const totalPointsOut = awarded;
             if (totalPointsOut > 0) {
                 userUpdate.points = admin.firestore.FieldValue.increment(totalPointsOut);
-                // Weekly/monthly XP for leaderboard periods (only awarded points, not overflow redemption)
-                if (awarded > 0) {
-                    userUpdate.weeklyXP = admin.firestore.FieldValue.increment(awarded);
-                    userUpdate.monthlyXP = admin.firestore.FieldValue.increment(awarded);
-                }
-                if (tickets && awarded > 0) userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
-                if (streakFreezes && awarded > 0) userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
-                // Marks daily tickets as used (only if actually awarded)
-                if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
-                    userUpdate.lastTicketDate = today;
-                }
-            }
-
-            // Update overflow bank. Net change = new overflow added today minus what we redeemed.
-            if (overflowAdded > 0 || overflowRedeemed > 0) {
-                userUpdate.pendingOverflow = pendingOverflowAfter + overflowAdded;
-                userUpdate.lastOverflowDate = offsetToday;
+                userUpdate.weeklyXP = admin.firestore.FieldValue.increment(awarded);
+                userUpdate.monthlyXP = admin.firestore.FieldValue.increment(awarded);
             }
 
             const rankPrevById = await rewardNotify.readRankPrev(t, db, uid, userData.points || 0, totalPointsOut);
 
-            // ── PHASE 3: ALL WRITES ──
-
-            // Dedup stamps (badge, trivia, poll, tickets, strava, counted, flex, combo)
-            if (badgeAwardRef) {
-                t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action });
-                t.update(userRef, { visibleBadges: admin.firestore.FieldValue.arrayUnion(badgeId) });
+            if (awarded > 0 && badgeAwardRef) {
+                t.set(badgeAwardRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: action });
+                userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(badgeId);
             }
-            if (triviaRef) {
-                t.set(triviaRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            if (awarded > 0 && claimRef) {
+                t.set(claimRef, {
+                    action: matchedAction,
+                    xp: awarded,
+                    day: offsetToday,
+                    at: admin.firestore.FieldValue.serverTimestamp(),
+                });
             }
-            if (pollRef) {
-                t.set(pollRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
+            if (awarded > 0) {
+                t.set(countRef, {
+                    count: nextCount,
+                    lastAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
             }
-            if (dtRef) {
-                t.set(dtRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: matchedAction });
-            }
-            if (stravaRef) {
-                t.set(stravaRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp() });
-            }
-            if (countedRef) {
-                const currentCount = countedDoc && countedDoc.exists ? (countedDoc.data().count || 0) : 0;
-                t.set(countedRef, { count: currentCount + 1, lastAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            }
-            if (flexRef) {
-                t.set(flexRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'flex_action', flexId });
-            }
-            if (comboRef) {
-                t.set(comboRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), action: 'combo_bonus', comboTier });
-            }
-
-            // Write user doc if we have anything to write (channel visit and/or points)
             if (Object.keys(userUpdate).length > 0) {
                 t.update(userRef, userUpdate);
             }
-
-            // Daily points tracker bumps by everything that counted against today's cap.
-            // Overflow redemption does NOT count against the cap (paying out previously-earned
-            // points), so we only track the `awarded` portion.
             if (awarded > 0) {
-                t.set(dailyPtsRef, { total: dailyUsed + awarded, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                const dailyWrite = {
+                    total: dailyUsed + awarded,
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+                };
+                if (resolved.triviaQuiz) dailyWrite.triviaQuiz = triviaQuizUsed + awarded;
+                t.set(dailyPtsRef, dailyWrite, { merge: true });
             }
-
-            // Cooldown stamp only when points were awarded (so capped calls don't burn cooldown)
-            if (cooldownRef && (awarded > 0 || overflowAdded > 0)) {
+            if (cooldownRef && awarded > 0) {
                 t.set(cooldownRef, { ts: admin.firestore.FieldValue.serverTimestamp() });
             }
 
-            // Per-day action count - increment even when points hit daily cap
-            // (so 5-upload hard limit applies regardless of point balance)
-            if (dailyActionRef) {
-                t.set(dailyActionRef, {
-                    count: admin.firestore.FieldValue.increment(1),
-                    lastAt: admin.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            }
-
-            // Display-only. A failure here must not roll back the grant.
             try {
-                const ticketsOut = (tickets && awarded > 0) ? tickets : 0;
-                const freezesOut = (streakFreezes && awarded > 0) ? streakFreezes : 0;
                 const rewardSpec = {
                     uid: uid,
                     action: matchedAction,
                     reason: reason,
                     day: offsetToday,
                     xp: awarded,
-                    tickets: ticketsOut,
-                    freezes: freezesOut,
-                    badgeId: badgeAwardRef ? badgeId : null,
+                    tickets: 0,
+                    freezes: 0,
+                    badgeId: (awarded > 0 && badgeAwardRef) ? badgeId : null,
                     pointsBefore: userData.points || 0,
                     pointsDelta: totalPointsOut,
                     prevById: rankPrevById,
@@ -3953,53 +3605,59 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 if (rewardGroup) {
                     rewardSpec.existing = rewardGroupDoc && rewardGroupDoc.exists ? rewardGroupDoc.data() : null;
                 }
-                const rewardPlans = rewardNotify.plan(rewardSpec);
-                if (overflowRedeemed > 0) {
-                    rewardPlans.push.apply(rewardPlans, rewardNotify.plan({
-                        uid: uid,
-                        onceKey: 'overflow_' + offsetToday,
-                        day: offsetToday,
-                        xp: overflowRedeemed,
-                        sourceLabel: 'overflow redeemed from an earlier day',
-                        pointsDelta: 0,
-                    }));
-                }
-                rewardNotify.apply(t, db, admin.firestore.FieldValue.serverTimestamp(), rewardPlans);
+                rewardNotify.apply(t, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan(rewardSpec));
             } catch (notifyErr) {
                 console.warn('[awardPoints] reward notify skipped:', notifyErr && notifyErr.message);
             }
 
             return {
                 awarded: awarded,
-                capped,
+                capped: capped,
+                dropped: dropped,
                 dailyUsed: dailyUsed + awarded,
-                overflowAdded,
-                overflowRedeemed,
-                pendingOverflow: pendingOverflowAfter + overflowAdded,
-                channelTracked: channelTracked
+                overflowAdded: 0,
+                overflowRedeemed: 0,
+                pendingOverflow: userData.pendingOverflow || 0,
+                channelTracked: channelTracked,
             };
         });
     } catch (e) {
         if (e.message === 'TOO_FAST') {
-            return { success: false, error: 'Too fast - wait a moment', cooldown: true };
+            return { success: false, error: 'Too fast - wait a moment', cooldown: true, awarded: 0, tickets: 0 };
+        }
+        if (e.message === 'BANNED') {
+            return { success: true, awarded: 0, tickets: 0, banned: true };
         }
         if (e.message && e.message.startsWith('BADGE_ALREADY_AWARDED:')) {
-            return { success: false, error: 'Badge already awarded', badgeDuplicate: true };
+            return { success: false, error: 'Badge already awarded', badgeDuplicate: true, awarded: 0, tickets: 0 };
         }
         if (e.message && e.message.startsWith('BADGE_CONDITION_NOT_MET:')) {
-            return { success: false, error: 'Badge condition not met', badgeConditionFailed: true };
+            return { success: false, error: 'Badge condition not met', badgeConditionFailed: true, awarded: 0, tickets: 0 };
         }
         if (e.message && e.message.startsWith('DAILY_ACTION_LIMIT:')) {
             const parts = e.message.split(':');
             const limit = parts[2];
-            return { success: false, error: 'Daily limit reached for this action (max ' + limit + '/day). Try again tomorrow.', dailyActionCapped: true };
+            return { success: false, error: 'Daily limit reached for this action (max ' + limit + '/day). Try again tomorrow.', dailyActionCapped: true, awarded: 0, tickets: 0 };
         }
-        if (e.message && e.message.startsWith('ALREADY_CLAIMED_TODAY')) {
-            return { success: false, error: 'Daily tickets already claimed today.', dailyActionCapped: true };
+        if (e.message === 'ALREADY_CLAIMED' || (e.message && e.message.startsWith('ALREADY_CLAIMED'))) {
+            return { success: false, error: 'Already claimed', awarded: 0, tickets: 0, dailyActionCapped: true };
         }
         console.error('[AWARD_POINTS_TRANS_ERR]', e);
-        return { success: false, error: 'Internal error' };
+        return { success: false, error: 'Internal error', awarded: 0, tickets: 0 };
     }
+
+    return {
+        success: true,
+        awarded: transactionResult.awarded,
+        tickets: 0,
+        capped: transactionResult.capped,
+        dropped: transactionResult.dropped,
+        dailyUsed: transactionResult.dailyUsed,
+        overflowAdded: 0,
+        overflowRedeemed: 0,
+        pendingOverflow: transactionResult.pendingOverflow,
+        channelTracked: transactionResult.channelTracked,
+    };
 
     // (dead-code block below removed 2026-04-16 - was a leftover from a pre-refactor commit that prevented Cloud Functions deploys)
 });
@@ -5043,8 +4701,8 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
     // AUDIT FIX (2026-04-22): gradeQuest was writing points directly to user doc,
     // bypassing the 500 pts/day cap. Now it routes through daily_points with a
     // hard cap AND enforces a per-day quest grading limit to stop abuse.
-    const DAILY_QUEST_LIMIT = 3;   // max completed quests per UTC day
-    const DAILY_POINTS_CAP = 500;  // matches awardPoints cap exactly
+    const DAILY_QUEST_LIMIT = 3;   // max completed quests per offset day
+    const DAILY_POINTS_CAP = 500;  // shared trivia + quiz + quest ceiling
     const today = new Date().toISOString().split('T')[0]; // UTC midnight — kept for raw audit logs only
     const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
     const dailyQuestRef = userRef.collection('daily_action_counts').doc(offsetToday + '_quest');
@@ -5082,58 +4740,55 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
             else if (score >= 3) pts = 50;
         }
 
-        // Route points through daily_points cap (same as awardPoints CF).
-        // Excess goes into pendingOverflow (server-managed, redeemed on future days).
+        // Quest XP shares the 500 trivia/quiz ceiling and the 500 daily total.
+        // Anything past either cap is dropped. Banned accounts receive 0.
         let awarded = 0;
         let capped = false;
-        let overflowAdded = 0;
+        let dropped = 0;
         if (pts > 0) {
             const userDoc = await tx.get(userRef);
             const userData = userDoc.exists ? userDoc.data() : {};
-            const dailyDoc = await tx.get(dailyPtsRef);
-            const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-            if (dailyUsed < DAILY_POINTS_CAP) {
-                awarded = pts;
-                if (dailyUsed + pts > DAILY_POINTS_CAP) {
-                    awarded = DAILY_POINTS_CAP - dailyUsed;
-                    overflowAdded = pts - awarded;
-                }
-                if (awarded < 0) awarded = 0;
+            if (userData.ban_reason) {
+                dropped = pts;
             } else {
-                overflowAdded = pts;
-            }
-            capped = (dailyUsed + awarded >= DAILY_POINTS_CAP);
-            const questRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, awarded);
-
-            const userUpdate = {};
-            if (awarded > 0) {
-                userUpdate.points = admin.firestore.FieldValue.increment(awarded);
-                tx.set(dailyPtsRef, {
-                    total: dailyUsed + awarded,
-                    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            }
-            if (overflowAdded > 0) {
-                userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(overflowAdded);
-                userUpdate.lastOverflowDate = offsetToday;
-            }
-            if (Object.keys(userUpdate).length > 0) {
-                tx.update(userRef, userUpdate);
-            }
-            if (awarded > 0) {
-                try {
-                    rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
-                        uid: uid,
-                        onceKey: 'quest_' + String(questId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60),
-                        xp: awarded,
-                        sourceLabel: 'a quest',
-                        icon: '🏆',
-                        pointsBefore: userData.points || 0,
-                        pointsDelta: awarded,
-                        prevById: questRankPrev,
-                    }));
-                } catch (notifyErr) {
-                    console.warn('[QUEST] reward notify skipped:', notifyErr && notifyErr.message);
+                const dailyDoc = await tx.get(dailyPtsRef);
+                const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
+                const triviaQuizUsed = dailyDoc.exists ? (dailyDoc.data().triviaQuiz || 0) : 0;
+                const grant = awardActions.planGrant({
+                    xp: pts,
+                    dailyUsed: dailyUsed,
+                    triviaQuizUsed: triviaQuizUsed,
+                    triviaQuiz: true,
+                    dailyCap: DAILY_POINTS_CAP,
+                    triviaCap: awardActions.TRIVIA_QUIZ_CAP,
+                });
+                awarded = grant.awarded;
+                capped = grant.capped;
+                dropped = grant.dropped;
+                const questRankPrev = await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, awarded);
+                if (awarded > 0) {
+                    tx.update(userRef, {
+                        points: admin.firestore.FieldValue.increment(awarded),
+                    });
+                    tx.set(dailyPtsRef, {
+                        total: dailyUsed + awarded,
+                        triviaQuiz: triviaQuizUsed + awarded,
+                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    try {
+                        rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                            uid: uid,
+                            onceKey: 'quest_' + String(questId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60),
+                            xp: awarded,
+                            sourceLabel: 'a quest',
+                            icon: '🏆',
+                            pointsBefore: userData.points || 0,
+                            pointsDelta: awarded,
+                            prevById: questRankPrev,
+                        }));
+                    } catch (notifyErr) {
+                        console.warn('[QUEST] reward notify skipped:', notifyErr && notifyErr.message);
+                    }
                 }
             }
         }
@@ -8962,3 +8617,9 @@ const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;
 exports.claimSayHi = sayHiFns.claimSayHi;
+
+// Hidden reply bonus. App Check is required, same as claimSats. The handler
+// grants XP only inside a transaction after it reads the chat message.
+const { bindReplyBonus } = require('./src/replyBonus');
+const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
+exports.claimReplyBonus = replyBonusFns.claimReplyBonus;

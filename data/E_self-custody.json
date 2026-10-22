@@ -15,8 +15,11 @@
       "link": "https://www.reddit.com/r/keepkey/comments/7xdjcd/passphrase_compatibility/"
     },
     {
-      "text": "<b>PUBLIC KEY VS PRIVATE KEY</b>\n\n<i>(under construction)</i>\n\n<b>MULTI SIGNATURE WALLET</b>\n\n<i>(under construction)</i>\n\nA multi signature (multisig) setup is one that avoids a single point of failure in a normal hardware wallet. For example, in a 2/3 multisig setup, if one wallet gets compromised or lost, your bitcoin can still be accessed by use of the other two wallets combined.\n\nI have no idea what this means but I feel like once I do it'll be important for multisig\nhttps://twitter.com/murchandamus/status/1262062602298916865?t=7e5I9CHS0lpUMQesmgbqzQ&s=19\n\nCasa is a multi sig service. They also have inheritance planning:\nhttps://keys.casa/\n\n<b>WALLET RECOVERY</b>\nhttps://walletsrecovery.org/",
-      "link": "https://twitter.com/murchandamus/status/1262062602298916865?t=7e5I9CHS0lpUMQesmgbqzQ&s=19"
+      "text": "<b>PUBLIC KEY VS PRIVATE KEY</b>\n\nA private key is the secret that can spend the bitcoin it controls. A public key is derived from that private key and can be shared. An address is derived from the public key. Knowing the address or the public key does not reveal the private key. If the private key, or the seed that generates it, is lost, that bitcoin cannot be spent.\n\n<b>MULTI SIGNATURE WALLET</b>\n\nA multi signature (multisig) setup is one that avoids a single point of failure in a normal hardware wallet. For example, in a 2/3 multisig setup, if one wallet gets compromised or lost, your bitcoin can still be accessed by use of the other two wallets combined.\n\nI have no idea what this means but I feel like once I do it'll be important for multisig\nhttps://twitter.com/murchandamus/status/1262062602298916865?t=7e5I9CHS0lpUMQesmgbqzQ&s=19\n\nCasa is a multi sig service. They also have inheritance planning:\nhttps://keys.casa/\n\n<b>WALLET RECOVERY</b>\nhttps://walletsrecovery.org/",
+      "link": "https://twitter.com/murchandamus/status/1262062602298916865?t=7e5I9CHS0lpUMQesmgbqzQ&s=19",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://en.bitcoin.it/wiki/Private_key",
+      "sourceLabel": "Bitcoin Wiki: private key"
     },
     {
       "text": "<b>GENERATING A SEED</b>\nChances of a wallet generating an existing seed is the chance of picking an atom of a grain of sand (average of 43 quintillion atoms per grain) on one of the planets (estimated 7.5 quintillion grains of sand on Earth) in one of the 2 trillion galaxies (average of 1.6 planets per galaxy) in the entire universe (metaphor by Andreas)."
@@ -26,8 +29,8 @@
       "link": "https://twitter.com/NEEDcreations/status/1458141109398343683?t=Evx0Ogupxu6Cf-nQ02CMSg&s=19"
     },
     {
-      "text": "Security guide:\nhttps://bitcoinsecurity.guide/",
-      "link": "https://bitcoinsecurity.guide/",
+      "text": "Security guide:\nhttps://bitcoin.org/en/secure-your-wallet",
+      "link": "https://bitcoin.org/en/secure-your-wallet",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/experienced/self-custody_371_self-custody_bitcoinsecurity.guide.jpg"
       ]
