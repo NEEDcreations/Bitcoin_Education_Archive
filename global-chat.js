@@ -4119,7 +4119,8 @@ window.openSayHi = function() {
     window._sayHiAwaitingSend = true;
     _openSayHiChat();
     if (typeof firebase === 'undefined' || !firebase.functions) return;
-    _sayHiAppCheck().then(function() {
+    // Kept so a message sent before this returns still claims after the arm.
+    window._sayHiArmPromise = _sayHiAppCheck().then(function() {
         return _sayHiCallable('armSayHi')({});
     }).then(function(res) {
         var data = (res && res.data) || {};
@@ -4128,7 +4129,7 @@ window.openSayHi = function() {
             if (typeof currentUser !== 'undefined' && currentUser && data.day) currentUser.sayHiClaimedDay = data.day;
             _paintSayHiButton();
             _sayHiToast('You already said hi today.');
-            return;
+            return data;
         }
         if (data.success && typeof currentUser !== 'undefined' && currentUser && data.day) {
             currentUser.sayHiArmedDay = data.day;
@@ -4136,11 +4137,12 @@ window.openSayHi = function() {
             window._sayHiAwaitingSend = false;
             _sayHiToast('Say hi is unavailable on this account.');
         } else if (data.code === 'rate') {
-            _sayHiToast('Slow down a moment, then send your hello.');
+            // Double-tap while the send is still coming. The first arm stands.
         } else if (!data.success) {
             window._sayHiAwaitingSend = false;
             _sayHiToast('Could not start Say hi. Try again.');
         }
+        return data;
     }).catch(function() {
         _sayHiToast('Security check failed. Refresh the page and try again.');
     });
@@ -4157,7 +4159,9 @@ window._maybeClaimSayHi = function(messageId) {
     if (typeof firebase === 'undefined' || !firebase.functions) return;
     if (window._sayHiClaiming) return;
     window._sayHiClaiming = true;
-    _sayHiAppCheck().then(function() {
+    (window._sayHiArmPromise || Promise.resolve()).then(function() {
+        return _sayHiAppCheck();
+    }).then(function() {
         return _sayHiCallable('claimSayHi')({ messageId: messageId });
     }).then(function(res) {
         window._sayHiClaiming = false;

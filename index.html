@@ -575,6 +575,12 @@
             .ch-btn { font-size: 0.85rem; padding: 9px 12px; }
         }
 
+        /* Daily row: 4–6 buttons in two rows on a phone, one wrapping row above that. */
+        #em-quick-actions { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+        @media (max-width: 480px) {
+            #em-quick-actions { grid-template-columns: repeat(3, 1fr); }
+        }
+
         /* Mobile breakpoint */
         @media (max-width: 900px) {
             #mobileSearchBtn { display: flex !important; }
@@ -1195,7 +1201,7 @@
 
                         <!-- Support moved to bottom -->
                 </div>
-                <div id="em-quick-actions" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:8px;margin-top:16px;margin-bottom:16px;">
+                <div id="em-quick-actions" style="display:grid;gap:8px;margin-top:16px;margin-bottom:16px;">
                     <button id="nqSpinBtn" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
                     <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                     <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho's Story</button>

@@ -382,7 +382,12 @@ test('client names a message id and does not render user text or hold a secret',
     assert.strictEqual(section.includes('innerHTML'), false);
     assert.ok(section.includes('textContent'));
     assert.ok(section.includes('getToken(false)'));
+    assert.ok(section.includes('window._sayHiArmPromise'));
+    assert.ok(section.includes('window._sayHiArmPromise || Promise.resolve()'));
     assert.ok(section.includes("claimSayHi"));
+    const armRateAt = section.indexOf("data.code === 'rate'");
+    const armRate = section.slice(armRateAt, section.indexOf('return data;', armRateAt));
+    assert.ok(armRate.indexOf('Slow down') === -1, 'arm rate stays silent');
     assert.ok(section.includes('messageId: messageId'));
     assert.ok(!section.includes('awardPoints'));
     assert.ok(!section.includes(".collection('users')"));
@@ -392,6 +397,8 @@ test('client names a message id and does not render user text or hold a secret',
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(html.includes('id="sayHiBtn"'));
     assert.ok(html.includes('openSayHi()'));
+    assert.ok(html.includes('#em-quick-actions { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }'));
+    assert.ok(html.includes('@media (max-width: 480px)') && html.includes('#em-quick-actions { grid-template-columns: repeat(3, 1fr); }'));
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2256'") === false);
     assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2256'"));
 });
