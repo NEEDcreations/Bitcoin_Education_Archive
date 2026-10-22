@@ -2437,14 +2437,14 @@ function _renderFavorTab(body) {
         html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:16px;animation:favorPulse 2s ease-in-out infinite;">' +
             '<div style="font-size:1.2rem;font-weight:800;color:var(--accent);margin-bottom:8px;">🎉 SATOSHI\'S FAVOR IS ACTIVE!</div>' +
             '<div style="font-size:2rem;font-weight:900;color:#fff;font-family:monospace;" id="favorTabTimer">' + remainingMin + 'm ' + remainingSec + 's</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Mine below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' to solve a block and earn a share of the reward!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Hash below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' (the current difficulty) to solve a block and earn a share of the reward!</div>' +
             '</div>' +
             '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
 
         var satsOff = (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true) || window._satsDisabled === true;
         html += satsOff
             ? '<div style="padding:12px;border-radius:12px;background:rgba(239,68,68,0.08);color:#ef4444;font-weight:700;font-size:0.85rem;margin-bottom:12px;">Sats are disabled on this account.</div>'
-            : '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">✨⛏️ Start Mining</button>';
+            : '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">✨⛏️ Start Hashing</button>';
     } else {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">' +
@@ -2508,10 +2508,10 @@ function _renderFavorTab(body) {
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
         '• Level up to Maxi ranks = 5 points each<br>' +
         '• Level up to Papa John or higher = 10 points<br>' +
-        '• At 21 points, a mining (simulation) competition opens for 60 minutes<br>' +
+        '• At 21 points, a hashing (simulation) competition opens for 60 minutes<br>' +
         '• Extra points beyond 21 add +3 min each (even while active!)<br>' +
         '• 10 hashes max per minute per user (60 second cooldown)<br>' +
-        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' = you solved a block!<br><br>' +
+        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' (the current difficulty) = you solved a block!<br><br>' +
         '<strong style="color:var(--accent);">Pool mining rewards:</strong><br>' +
         '• Every 5 blocks found triggers a <strong>21,000 sat distribution</strong><br>' +
         '• If 5 different people each find a block — each earns <strong>4,200 sats</strong><br>' +
@@ -2844,7 +2844,7 @@ function _renderHasherRanksHTML(users) {
         html += '</div>'; // close hasherRanksMore
         html += '<button onclick="(function(){var m=document.getElementById(\'hasherRanksMore\');var b=document.getElementById(\'hasherRanksMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()" id="hasherRanksMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
     }
-    return html || '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
+    return html || '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to hash!</div>';
 }
 // Tap handler for hash difficulty tooltip — works on both mobile (tap) and desktop (click)
 window._sfHashTap = function(rowId, diffTarget) {
@@ -3279,7 +3279,7 @@ function _loadFavorLeaderboards() {
         var el = document.getElementById('favorTopHashes');
         if (!el) return;
         if (!doc.exists || !doc.data().entries || doc.data().entries.length === 0) {
-            el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
+            el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to hash!</div>';
             return;
         }
         el.innerHTML = _renderTopHashesHTML(doc.data().entries);
@@ -3329,7 +3329,7 @@ function _loadFavorLeaderboards() {
             var el = document.getElementById('favorHasherRanks');
             if (!el) return;
             if (snap.empty) {
-                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
+                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to hash!</div>';
                 return;
             }
             var users = [];
@@ -5909,6 +5909,8 @@ if (typeof window._questHubRouteAdded === 'undefined') {
                 window._questHubTab = 'favor';
                 setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
             }, 100);
+        } else if (location.hash === '#questhub' || location.hash === '#raid' || location.hash === '#raid-hub') {
+            setTimeout(function() { if (typeof openRaidHub === 'function') openRaidHub(); }, 100);
         }
     });
     if (location.hash === '#quests') {
@@ -5919,6 +5921,8 @@ if (typeof window._questHubRouteAdded === 'undefined') {
             window._questHubTab = 'favor';
             setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
         }, 500);
+    } else if (location.hash === '#questhub' || location.hash === '#raid' || location.hash === '#raid-hub') {
+        setTimeout(function() { if (typeof openRaidHub === 'function') openRaidHub(); }, 500);
     }
 }
 

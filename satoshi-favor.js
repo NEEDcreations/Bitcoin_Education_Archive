@@ -242,7 +242,7 @@
                 sfState.currentWindowId = favorState.currentCycleId || null;
 
                 if (typeof window.forceShowBubble === 'function') {
-                    window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to mine! Click below to start hashing! ⛏️🦌", 'fire');
+                    window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to hash! Click below to start hashing! ⛏️🦌", 'fire');
                 }
                 _nachoSFAnnounce('start');
             } else if (!nowActive && _prevFavorActive) {
@@ -365,7 +365,7 @@
         const isCompact = context === 'chat';
 
         if (isActive) {
-            var hashLine = _satsDisabledNow() ? 'Sats are disabled on this account.' : 'Mine now! Click to hash →';
+            var hashLine = _satsDisabledNow() ? 'Sats are disabled on this account.' : 'Hash now! Click to hash →';
             return `<div class="favor-banner-active" style="${isCompact?'padding:8px 12px;':'padding:12px 16px;margin-bottom:16px;'}background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;text-align:center;animation:favorPulse 2s ease-in-out infinite;cursor:pointer;" onclick="window.showQuestHub && window.showQuestHub(); window._questHubTab = 'favor'; setTimeout(function(){ if(window._renderQuestHubTab) window._renderQuestHubTab(); }, 50);"><div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;"><span style="font-size:${isCompact?'1.2rem':'1.5rem'};">✨⛏️</span><span style="font-size:${isCompact?'0.85rem':'1rem'};font-weight:800;color:var(--accent);">SATOSHI'S FAVOR</span><span style="font-size:${isCompact?'0.7rem':'0.8rem'};color:var(--text-muted);background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:6px;" id="${context}Countdown">--:--:--</span></div><div style="font-size:${isCompact?'0.65rem':'0.75rem'};color:var(--text-muted);margin-top:4px;">${hashLine}</div></div><style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>`;
         } else {
             const pct = Math.min(100, (points / POINTS_TARGET) * 100);
@@ -497,7 +497,7 @@
         if (inProgressThisWindow && displayStreak < 3) displayStreak = streak + 1;
 
         if (displayStreak === 0) {
-            return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Mine 3 windows in a row to earn a Supercharged Window!</div>';
+            return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Hash 3 windows in a row to earn a Supercharged Window!</div>';
         }
         var dots = '';
         for (var i = 0; i < 3; i++) {
@@ -615,8 +615,8 @@
             '<div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">' +
             '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.5rem;">✨⛏️</span>' +
-            '<div><div style="font-weight:800;color:var(--heading);">Satoshi\'s Favor Mining</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ' + DIFFICULTY_TARGET + ' · Solve a block!</div></div>' +
+            '<div><div style="font-weight:800;color:var(--heading);">Satoshi\'s Favor Hashing</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ' + DIFFICULTY_TARGET.toLocaleString() + ' (the current difficulty) · Solve a block!</div></div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><button onclick="window.closeSatoshiFavorMiner()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">← Back</button><button onclick="window._qhReopenOnMinerClose=false;window.closeSatoshiFavorMiner()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">✕</button></div>' +
             '</div>' +
@@ -628,7 +628,7 @@
             // Feature 4: Heat meter
             _buildHeatMeterHTML() +
             '<div id="sfRateInfoBox" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
-            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you solve a block and win a share of 21,000 sats! That\'s a 1 in 5,000 chance per hash (~0.02%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
+            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the current difficulty), you solve a block and win a share of 21,000 sats! That\'s a 1 in 5,000 chance per hash (~0.02%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
@@ -636,13 +636,13 @@
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;min-height:148px;display:flex;flex-direction:column;align-items:center;justify-content:center;">' +
             '<div id="minerVisual" style="font-size:4rem;line-height:1;transition:transform 0.1s;">⛏️</div>' +
-            '<div id="hashOutput" style="font-size:1.3rem;font-weight:800;margin-top:8px;font-family:monospace;color:var(--heading);">Ready to mine</div>' +
+            '<div id="hashOutput" style="font-size:1.3rem;font-weight:800;margin-top:8px;font-family:monospace;color:var(--heading);">Ready to hash</div>' +
             '<div id="hashMessage" style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;min-height:2.4em;line-height:1.2;"></div>' +
             // Feature 3: Near-miss toast container — visibility toggle keeps layout stable
             '<div id="sfNearMissToast" style="visibility:hidden;margin-top:8px;padding:8px 12px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.4);border-radius:10px;font-size:0.8rem;font-weight:700;color:#f7931a;"></div>' +
             '</div>' +
             '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px;font-size:0.8rem;">' +
-            '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET + '</div></div>' +
+            '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET.toLocaleString() + ' (the current difficulty)</div></div>' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:5,000</div></div>' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 1</div><div id="hashCooldown" style="font-weight:800;color:var(--accent);">Ready</div></div>' +
             (hasSecondRig ? '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 2</div><div id="hashCooldown2" style="font-weight:800;color:#8b5cf6;">Ready</div></div>' : '') +
@@ -1338,7 +1338,7 @@
                 localStorage.setItem('btc_sf_activations', _sfAct.toString());
                 var activateMsg = '⛏️ SATOSHI\'S FAVOR IS NOW ACTIVE!';
                 if (howEarned) activateMsg += ' ' + howEarned;
-                activateMsg += ' Mine now for 60 minutes! ➡️ [Satoshi\'s Favor](#favor)';
+                activateMsg += ' Hash now for 60 minutes! ➡️ [Satoshi\'s Favor](#favor)';
                 window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, (auth && auth.currentUser) ? auth.currentUser.uid : '');
             } else if (data.favorActive && wasFavorActive) {
                 if (typeof window.nachoGlobalAnnounce === 'function') {

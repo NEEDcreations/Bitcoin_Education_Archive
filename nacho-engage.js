@@ -210,8 +210,10 @@ window.showNachoTrivia = function() {
 
     if (typeof setPose === 'function') setPose('think');
 
-    // Mark as interactive — prevents auto-hide
+    // Mark as interactive trivia — only the X can dismiss it
     bubble.setAttribute('data-interactive', 'true');
+    bubble.setAttribute('data-trivia', '1');
+    window._nachoTriviaXClose = false;
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
 
     var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--heading,#fff);font-size:0.9rem;">🧠 Quick Trivia! (+' + t.pts + ' pts)</div>' +
@@ -244,9 +246,13 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
         }
     }
 
-    // Keep bubble open — prevent click-outside and auto-hide from dismissing
+    // Keep bubble open — outside clicks and timers must not dismiss the result
     var bubble = document.getElementById('nacho-bubble');
-    if (bubble) bubble.setAttribute('data-interactive', 'true');
+    if (bubble) {
+        bubble.setAttribute('data-interactive', 'true');
+        bubble.setAttribute('data-trivia', '1');
+    }
+    window._nachoTriviaXClose = false;
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
 
     // Temporarily remove click-outside handlers so user can read the result
@@ -270,7 +276,7 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
     }
 
     textEl.innerHTML += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:8px;padding:6px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">Ask Nacho a question 🦌</button>';
-    textEl.innerHTML += '<button onclick="hideBubble(true)" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Dismiss</button>';
+    textEl.innerHTML += '<button onclick="event.stopPropagation();window._nachoTriviaXClose=true;hideBubble(true)" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Dismiss</button>';
 };
 
 // ---- Nacho Friendship Level ----

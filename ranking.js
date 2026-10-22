@@ -3764,7 +3764,7 @@ window.updateNachoNameUI = function(name) {
     // Nacho avatar name label
     var avatarName = document.querySelector('.nacho-name');
     if (avatarName) {
-        avatarName.innerHTML = name.toUpperCase() + '<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span>';
+        avatarName.innerHTML = name.toUpperCase() + '<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span>';
     }
     // Closet header
     var closetHeaders = document.querySelectorAll('[id*="nachoCloset"]');
