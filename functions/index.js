@@ -599,10 +599,14 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Missing pubkey, sig, or event');
     }
 
-    // Rate limiting: max 5 nostrAuth calls per IP per hour (atomic transaction)
+    // Rate limiting: max 5 nostrAuth calls per IP per hour (atomic transaction).
+    // The doc id is a keyed hash. The address is not stored.
     const nostrIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (nostrIP !== 'unknown') {
-        const nostrRateRef = db.collection('rate_limits').doc('nostr_' + nostrIP.replace(/[./]/g, '_'));
+        const { networkRateDocId } = require('./src/rateLimitSalt');
+        const nostrNow = Date.now();
+        const nostrRateRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'nostr_', nostrIP, nostrNow));
+        const nostrExpire = new Date(nostrNow + 24 * 60 * 60 * 1000);
         await db.runTransaction(async (tx) => {
             const nostrRateDoc = await tx.get(nostrRateRef);
             if (nostrRateDoc.exists) {
@@ -612,12 +616,12 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
                     if ((rd.attempts || 0) >= 5) {
                         throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many sign-in attempts. Try again later.');
                     }
-                    tx.update(nostrRateRef, { attempts: (rd.attempts || 0) + 1 });
+                    tx.update(nostrRateRef, { attempts: (rd.attempts || 0) + 1, expireAt: nostrExpire });
                 } else {
-                    tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                    tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: nostrExpire });
                 }
             } else {
-                tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: nostrExpire });
             }
         });
     }
@@ -748,10 +752,14 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
 
 // Step 1: Generate a challenge (k1) and return LNURL
 exports.lnAuthChallenge = functionsV1.https.onCall(async (data, context) => {
-    // Rate limiting: max 10 challenges per IP per hour (atomic transaction)
+    // Rate limiting: max 10 challenges per IP per hour (atomic transaction).
+    // The doc id is a keyed hash. The address is not stored.
     const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (lnIP !== 'unknown') {
-        const lnRateRef = db.collection('rate_limits').doc('lnauth_' + lnIP.replace(/[./]/g, '_'));
+        const { networkRateDocId } = require('./src/rateLimitSalt');
+        const lnNow = Date.now();
+        const lnRateRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'lnauth_', lnIP, lnNow));
+        const lnExpire = new Date(lnNow + 24 * 60 * 60 * 1000);
         await db.runTransaction(async (tx) => {
             const lnRateDoc = await tx.get(lnRateRef);
             if (lnRateDoc.exists) {
@@ -759,12 +767,12 @@ exports.lnAuthChallenge = functionsV1.https.onCall(async (data, context) => {
                 const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
                 if (ws && (Date.now() - ws.getTime()) < 3600000) {
                     if ((rd.attempts || 0) >= 10) throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many requests. Try again later.');
-                    tx.update(lnRateRef, { attempts: (rd.attempts || 0) + 1 });
+                    tx.update(lnRateRef, { attempts: (rd.attempts || 0) + 1, expireAt: lnExpire });
                 } else {
-                    tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                    tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: lnExpire });
                 }
             } else {
-                tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp(), expireAt: lnExpire });
             }
         });
     }
@@ -7997,6 +8005,17 @@ exports.cleanupExpiredLobbies = onSchedule({ schedule: 'every 60 minutes', timeZ
         }
     } catch (e) {
         console.error('[PVP CLEANUP] Error:', e.message);
+    }
+    try {
+        const { deleteExpiredRateRows } = require('./src/rateLimitSalt');
+        const swept = await deleteExpiredRateRows(db, Date.now(), {
+            documentIdField: admin.firestore.FieldPath.documentId(),
+        });
+        if (swept.rateLimits || swept.salts || swept.legacy) {
+            console.log('[RATE CLEANUP] Deleted', swept.rateLimits, 'expired limits,', swept.salts, 'salts,', swept.legacy, 'legacy address rows');
+        }
+    } catch (e) {
+        console.error('[RATE CLEANUP] Error:', e.message);
     }
     return null;
 });

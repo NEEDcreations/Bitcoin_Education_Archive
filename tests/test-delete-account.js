@@ -1272,6 +1272,135 @@ function auth(uid, extras) {
         assert.ok(adminDb.docs.has('totp_secrets/admin'));
     });
 
+    await testAsync('a missing secret never uses the public daily string', async function() {
+        const crypto = require('crypto');
+        const saltMod = require(path.join(root, 'functions', 'src', 'rateLimitSalt'));
+        const prev = process.env.DELETE_RATE_IP_SECRET;
+        delete process.env.DELETE_RATE_IP_SECRET;
+        try {
+            assert.throws(function() { del.deletionIpDocId('203.0.113.9', 5000, ''); }, /missing/);
+            assert.throws(function() { del.deletionIpDocId('203.0.113.9', 5000, 'delete-rate-1970-01-01'); }, /missing/);
+            const publicId = 'deleteip_' + crypto.createHmac('sha256', 'delete-rate-1970-01-01').update('203.0.113.9|1970-01-01').digest('hex').slice(0, 40);
+            const now = 1000 + del.REAUTH_MAX_AGE_SEC;
+            const db = createFakeDb({ 'users/u1': { username: 'Alice' } });
+            const handlers = del.createDeleteAccountHandlers({
+                db: db,
+                bucket: createBucket([]),
+                authApi: okAuth(),
+                HttpsError: HttpsError,
+                nowSec: function() { return now; },
+                nowMs: function() { return 5000; },
+                documentIdField: '__name__',
+            });
+            const context = {
+                auth: { uid: 'u1', token: { auth_time: 1000 } },
+                rawRequest: { headers: { 'x-forwarded-for': '203.0.113.9' } },
+            };
+            await handlers.deleteAccount({}, context);
+            const saltDoc = db.docs.get('rate_limit_salts/1970-01-01');
+            assert.ok(saltDoc, 'server salt was not created');
+            assert.ok(/^[a-f0-9]{64}$/.test(saltDoc.salt));
+            assert.notStrictEqual(saltDoc.salt, 'delete-rate-1970-01-01');
+            const ipDoc = del.deletionIpDocId('203.0.113.9', 5000, saltDoc.salt);
+            assert.notStrictEqual(ipDoc, publicId);
+            const row = db.docs.get('rate_limits/' + ipDoc);
+            assert.strictEqual(row.count, 1);
+            assert.strictEqual(JSON.stringify(row).indexOf('203.0.113.9'), -1);
+            assert.strictEqual(ipDoc.indexOf('203.0.113.9'), -1);
+            await handlers.deleteAccount({}, context);
+            assert.strictEqual(db.docs.get('rate_limit_salts/1970-01-01').salt, saltDoc.salt);
+            assert.strictEqual(db.docs.get('rate_limits/' + ipDoc).count, 2);
+
+            process.env.DELETE_RATE_IP_SECRET = 'delete-rate-1970-01-01';
+            const ignored = createFakeDb({ 'users/u9': { username: 'Nine' } });
+            const ignoredHandlers = del.createDeleteAccountHandlers({
+                db: ignored,
+                bucket: createBucket([]),
+                authApi: okAuth(),
+                HttpsError: HttpsError,
+                nowSec: function() { return now; },
+                nowMs: function() { return 5000; },
+                documentIdField: '__name__',
+            });
+            await ignoredHandlers.deleteAccount({}, {
+                auth: { uid: 'u9', token: { auth_time: 1000 } },
+                rawRequest: { headers: { 'x-forwarded-for': '203.0.113.9' } },
+            });
+            const ignoredSalt = ignored.docs.get('rate_limit_salts/1970-01-01').salt;
+            assert.ok(/^[a-f0-9]{64}$/.test(ignoredSalt));
+            const ignoredId = del.deletionIpDocId('203.0.113.9', 5000, ignoredSalt);
+            assert.notStrictEqual(ignoredId, publicId);
+            assert.ok(ignored.docs.has('rate_limits/' + ignoredId));
+
+            const broken = createFakeDb({ 'users/u8': { username: 'Eight' } });
+            broken.runTransaction = async function() { throw new Error('salt store down'); };
+            const brokenHandlers = del.createDeleteAccountHandlers({
+                db: broken,
+                bucket: createBucket([]),
+                authApi: okAuth(),
+                HttpsError: HttpsError,
+                nowSec: function() { return now; },
+                nowMs: function() { return 5000; },
+                documentIdField: '__name__',
+            });
+            delete process.env.DELETE_RATE_IP_SECRET;
+            await assert.rejects(
+                brokenHandlers.deleteAccount({}, {
+                    auth: { uid: 'u8', token: { auth_time: 1000 } },
+                    rawRequest: { headers: { 'x-forwarded-for': '203.0.113.9' } },
+                }),
+                function(err) { return /missing|salt store down/.test(err.message); }
+            );
+            for (const key of broken.docs.keys()) {
+                assert.strictEqual(key.indexOf('rate_limits/deleteip_'), -1, key);
+                assert.notStrictEqual(key, 'rate_limits/' + publicId);
+            }
+
+            const src = fs.readFileSync(path.join(root, 'functions', 'src', 'rateLimitSalt.js'), 'utf8');
+            const accountSrc = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+            const indexSrc = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+            const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+            assert.ok(src.includes('crypto.randomBytes(32)'));
+            assert.ok(!src.includes("secret || ('delete-rate-'"));
+            assert.ok(!src.includes("'delete-rate-' +"));
+            assert.ok(!accountSrc.includes('delete-rate-'));
+            assert.ok(!indexSrc.includes("nostr_' + nostrIP.replace"));
+            assert.ok(!indexSrc.includes("lnauth_' + lnIP.replace"));
+            assert.ok(indexSrc.includes('networkRateDocId'));
+            assert.ok(indexSrc.includes('deleteExpiredRateRows'));
+            assert.ok(rules.includes('match /rate_limit_salts/{docId}'));
+            assert.ok(rules.slice(rules.indexOf('match /rate_limit_salts/{docId}'), rules.indexOf('match /rate_limit_salts/{docId}') + 120).includes('allow read, write: if false'));
+            assert.strictEqual(saltMod.PUBLIC_RATE_KEY.test('delete-rate-1970-01-01'), true);
+        } finally {
+            if (prev == null) delete process.env.DELETE_RATE_IP_SECRET;
+            else process.env.DELETE_RATE_IP_SECRET = prev;
+        }
+    });
+
+    await testAsync('expired rate rows and legacy address ids are deleted by the cleanup', async function() {
+        const saltMod = require(path.join(root, 'functions', 'src', 'rateLimitSalt'));
+        const hashed = 'a'.repeat(40);
+        const db = createFakeDb({
+            'rate_limits/deleteip_expired': { count: 1, expireAt: new Date(1000) },
+            'rate_limits/deleteip_fresh': { count: 1, expireAt: new Date(Date.now() + 86400000) },
+            'rate_limits/nostr_203_0_113_8': { n: 1 },
+            'rate_limits/lnauth_198_51_100_7': { n: 1 },
+            ['rate_limits/nostr_' + hashed]: { attempts: 1, expireAt: new Date(Date.now() + 86400000) },
+            'rate_limit_salts/1970-01-01': { salt: 'b'.repeat(64), expireAt: new Date(1000) },
+            'rate_limit_salts/2099-01-01': { salt: 'c'.repeat(64), expireAt: new Date(Date.now() + 86400000) },
+        });
+        const swept = await saltMod.deleteExpiredRateRows(db, Date.now(), { documentIdField: '__name__' });
+        assert.ok(swept.rateLimits >= 1);
+        assert.ok(swept.legacy >= 2);
+        assert.strictEqual(db.docs.has('rate_limits/deleteip_expired'), false);
+        assert.ok(db.docs.has('rate_limits/deleteip_fresh'));
+        assert.strictEqual(db.docs.has('rate_limits/nostr_203_0_113_8'), false);
+        assert.strictEqual(db.docs.has('rate_limits/lnauth_198_51_100_7'), false);
+        assert.ok(db.docs.has('rate_limits/nostr_' + hashed));
+        assert.strictEqual(db.docs.has('rate_limit_salts/1970-01-01'), false);
+        assert.ok(db.docs.has('rate_limit_salts/2099-01-01'));
+    });
+
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
 })();

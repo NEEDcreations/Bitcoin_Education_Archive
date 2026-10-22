@@ -34,8 +34,12 @@
 // Per-day caps and other user-keyed limit docs are removed only after the
 // Firebase Auth user is deleted in this same call.
 
-const crypto = require('crypto');
 const { requireSecondFactor } = require('./requireSecondFactor');
+const {
+    deletionIpDocId,
+    isUsableSecret,
+    loadRateLimitSecret,
+} = require('./rateLimitSalt');
 
 const BATCH_LIMIT = 400;
 const QUERY_PAGE = 200;
@@ -57,8 +61,10 @@ const DELETE_RATE_MAX_UID = 3;
 const DELETE_RATE_MAX_IP = 8;
 const DELETE_RATE_MAX_ANON_IP = 2;
 const DELETE_RATE_TTL_MS = 24 * 60 * 60 * 1000;
-// expireAt is a timestamp. Turn on the Firestore TTL policy for
-// rate_limits.expireAt at deploy time. firebase.json does not declare it.
+// expireAt is a timestamp. Before deploy, enable the Firestore TTL policy:
+//   gcloud firestore fields ttls update expireAt --collection-group=rate_limits --enable-ttl
+// firebase.json does not declare TTL. cleanupExpiredLobbies also deletes
+// rows whose expireAt has passed, so a missing policy does not keep them.
 
 const STORAGE_PREFIXES = [
     'beats/',
@@ -258,13 +264,6 @@ function isAnonymousAuth(auth) {
     return !!(firebase && firebase.sign_in_provider === 'anonymous');
 }
 
-function deletionIpDocId(ip, nowMs, secret) {
-    const day = new Date(nowMs).toISOString().slice(0, 10);
-    const key = secret || ('delete-rate-' + day);
-    const hash = crypto.createHmac('sha256', key).update(String(ip) + '|' + day).digest('hex').slice(0, 40);
-    return 'deleteip_' + hash;
-}
-
 // Rightmost X-Forwarded-For entry is the one the platform appends.
 function clientIpFromContext(context) {
     const req = context && context.rawRequest;
@@ -294,12 +293,14 @@ async function enforceDeleteRateLimit(db, spec) {
     const ip = options.ip;
     const anonymous = options.anonymous === true;
     const nowMs = options.nowMs;
+    let secret = options.ipSecret;
+    if (!isUsableSecret(secret)) secret = await loadRateLimitSecret(db, nowMs);
     const limits = [];
     if (!options.byAdmin && callerUid) {
         limits.push({ id: 'delete_' + callerUid, max: DELETE_RATE_MAX_UID });
     }
     limits.push({
-        id: deletionIpDocId(ip, nowMs, options.ipSecret || process.env.DELETE_RATE_IP_SECRET || ''),
+        id: deletionIpDocId(ip, nowMs, secret),
         max: anonymous ? DELETE_RATE_MAX_ANON_IP : (options.byAdmin ? 30 : DELETE_RATE_MAX_IP),
         expireAt: new Date(nowMs + DELETE_RATE_TTL_MS),
     });
@@ -1099,7 +1100,6 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
 }
 
 function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, nowMs, documentIdField, ipSecret }) {
-    const rateSecret = ipSecret != null ? ipSecret : (process.env.DELETE_RATE_IP_SECRET || '');
     return {
         async deleteAccount(data, context) {
             const now = typeof nowSec === 'function'
@@ -1120,7 +1120,7 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                     anonymous: anonymous,
                     ip: clientIpFromContext(context),
                     nowMs: clock,
-                    ipSecret: rateSecret,
+                    ipSecret: ipSecret,
                 });
             } catch (err) {
                 if (err && err.code === 'resource-exhausted') {
