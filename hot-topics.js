@@ -1,6 +1,6 @@
 // hot-topics.js — Bitcoin Hot Topics sidebar section
 // Lazy-loaded. Fetches cached data from Firestore (populated weekly by Firebase Function).
-// Version: 20260628
+// Version: 20261022
 
 (function () {
     'use strict';
@@ -14,6 +14,7 @@
         x:          { icon: '𝕏', label: 'X (Twitter)', color: '#1d9bf0' },
         reddit:     { icon: '🟠', label: 'Reddit',      color: '#ff4500' },
         bitcointalk:{ icon: '🟡', label: 'BitcoinTalk', color: '#f7931a' },
+        stackernews:{ icon: '⚡', label: 'Stacker News', color: '#f7931a' },
         web:        { icon: '🌐', label: 'Web',         color: '#888' },
     };
 
@@ -23,7 +24,7 @@
         if (!container) return;
 
         if (!data || !data.topics || !data.topics.length) {
-            container.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:0.78rem;">No hot topics yet — check back Friday.</div>';
+            container.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:0.78rem;">No hot topics yet — check back Sunday.</div>';
             return;
         }
 
