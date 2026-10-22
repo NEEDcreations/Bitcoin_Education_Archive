@@ -206,6 +206,27 @@ async function announceActivity(opts) {
     };
 }
 
+// A listing or post left the public feed. Marketplace removal sets status
+// 'deleted' and deletedAt. Forum posts are hard-deleted today; the same
+// check covers a later soft-delete or hide. 'sold' stays up.
+function activityRemovedState(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (data.deletedAt != null && data.deletedAt !== '') return true;
+    if (data.deleted === true || data.removed === true || data.hidden === true) return true;
+    const status = String(data.status || '').toLowerCase();
+    return status === 'deleted' || status === 'removed' || status === 'hidden';
+}
+
+function activityShouldRetract(before, after) {
+    return activityRemovedState(after) && !activityRemovedState(before || {});
+}
+
+async function retractIfRemoved(opts) {
+    const o = opts || {};
+    if (!activityShouldRetract(o.before, o.after)) return { deleted: false, reason: 'still_live' };
+    return retractActivity(o);
+}
+
 async function retractActivity(opts) {
     const o = opts || {};
     const kind = normalizeKind(o.kind);
@@ -243,6 +264,9 @@ async function retractActivity(opts) {
 module.exports = {
     announceActivity: announceActivity,
     retractActivity: retractActivity,
+    retractIfRemoved: retractIfRemoved,
+    activityRemovedState: activityRemovedState,
+    activityShouldRetract: activityShouldRetract,
     cheapActivityGate: cheapActivityGate,
     ACTIVITY_GRACE_MS: ACTIVITY_GRACE_MS,
 };

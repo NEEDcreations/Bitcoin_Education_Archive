@@ -1156,7 +1156,7 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
 // Nacho announces a new top-level PlebTalk post or Marketplace listing in
 // Global Chat, then mirrors it through the shoutout Telegram bridge.
 // Separate from onForumPost so a mail failure cannot drop the chat post.
-const { announceActivity, retractActivity } = require('./src/activityShoutout');
+const { announceActivity, retractActivity, retractIfRemoved } = require('./src/activityShoutout');
 
 const ACTIVITY_SHOUTOUT_OPTS = { maxInstances: 10 };
 
@@ -1229,6 +1229,49 @@ exports.onMarketplaceShoutoutDeleted = onDocumentDeleted({
         });
     } catch (e) {
         console.error('[onMarketplaceShoutoutDeleted] failed', e && e.message ? e.message : '');
+        throw e;
+    }
+    return null;
+});
+
+// In-app marketplace removal sets status 'deleted' and deletedAt instead of
+// deleting the document. Forum posts are deleted outright; this still clears
+// a shoutout if a post is later marked deleted, removed, or hidden.
+exports.onForumShoutoutUpdated = onDocumentUpdated({
+    document: 'forum_posts/{postId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try {
+        await retractIfRemoved({
+            kind: 'forum',
+            id: event.params.postId,
+            db: db,
+            before: event.data.before.data(),
+            after: event.data.after.data(),
+        });
+    } catch (e) {
+        console.error('[onForumShoutoutUpdated] failed', e && e.message ? e.message : '');
+        throw e;
+    }
+    return null;
+});
+
+exports.onMarketplaceShoutoutUpdated = onDocumentUpdated({
+    document: 'marketplace/{listingId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try {
+        await retractIfRemoved({
+            kind: 'marketplace',
+            id: event.params.listingId,
+            db: db,
+            before: event.data.before.data(),
+            after: event.data.after.data(),
+        });
+    } catch (e) {
+        console.error('[onMarketplaceShoutoutUpdated] failed', e && e.message ? e.message : '');
         throw e;
     }
     return null;

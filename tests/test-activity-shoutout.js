@@ -13,7 +13,7 @@ const {
     ACTIVITY_MIN_AGE_MS,
 } = require('../functions/src/shoutout');
 const { publishShoutoutOnce } = require('../functions/src/shoutoutPublish');
-const { announceActivity, retractActivity } = require('../functions/src/activityShoutout');
+const { announceActivity, retractActivity, retractIfRemoved, activityShouldRetract } = require('../functions/src/activityShoutout');
 const bridge = require('../functions/src/telegramBridge');
 
 const root = path.join(__dirname, '..');
@@ -544,6 +544,9 @@ test('triggers reuse the shoutout writer and clients cannot post as Nacho', func
     assert.ok(index.indexOf('exports.onMarketplaceShoutout') !== -1);
     assert.ok(index.indexOf('exports.onForumShoutoutDeleted') !== -1);
     assert.ok(index.indexOf('exports.onMarketplaceShoutoutDeleted') !== -1);
+    assert.ok(index.indexOf('exports.onForumShoutoutUpdated') !== -1);
+    assert.ok(index.indexOf('exports.onMarketplaceShoutoutUpdated') !== -1);
+    assert.ok(index.indexOf('retractIfRemoved({') !== -1);
     assert.ok(index.indexOf('maxInstances: 10') !== -1 || index.indexOf('maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances') !== -1);
     assert.ok(index.indexOf("announceActivity({") !== -1);
     assert.ok(index.indexOf('retractActivity({') !== -1);
@@ -577,6 +580,12 @@ test('triggers reuse the shoutout writer and clients cannot post as Nacho', func
     assert.ok(chat.indexOf('forum/post/') !== -1);
     assert.ok(chat.indexOf('marketplace/listing/') !== -1);
     assert.ok(chat.indexOf('window.formatChatText = formatChatText') !== -1);
+    const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
+    const latestAt = notes.indexOf('Latest updates');
+    const previousAt = notes.indexOf('PREVIOUS PATCH');
+    assert.ok(latestAt !== -1 && previousAt > latestAt);
+    const latest = notes.slice(latestAt, previousAt);
+    assert.ok(latest.indexOf('Nacho now gives a shout in Global Chat when someone starts a new PlebTalk thread or posts a Marketplace listing.') !== -1);
 });
 
 queue.push(later('a guest account is skipped after the cheap checks, without sleeping when rate limited', async function() {
@@ -653,6 +662,66 @@ queue.push(later('deleting the source removes the matching Nacho post and its Te
     assert.strictEqual(mismatch.deleted, false);
     assert.strictEqual(mismatch.reason, 'mismatch');
     assert.strictEqual(db.docs['global_chat/shoutout_market_list1'].text, 'fake');
+}));
+
+test('a soft-delete or hide is the change that pulls a shoutout', function() {
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'deleted', deletedAt: 1 }), true);
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'removed' }), true);
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'hidden' }), true);
+    assert.strictEqual(activityShouldRetract({}, { hidden: true }), true);
+    assert.strictEqual(activityShouldRetract({}, { deletedAt: { seconds: 1 } }), true);
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'sold' }), false);
+    assert.strictEqual(activityShouldRetract({ status: 'active' }, { status: 'active', replyCount: 2 }), false);
+    assert.strictEqual(activityShouldRetract({ status: 'deleted', deletedAt: 1 }, { status: 'deleted', deletedAt: 1, views: 3 }), false);
+});
+
+queue.push(later('marking a listing deleted removes the Nacho post, and a sale does not', async function() {
+    const db = memoryDb();
+    db.docs['global_chat/shoutout_market_list1'] = {
+        uid: 'nacho-bot',
+        activityRef: 'market:list1',
+        text: 'listed',
+        telegramChatId: '9',
+        telegramMsgId: '8',
+    };
+    const dropped = [];
+    const sold = await retractIfRemoved({
+        kind: 'marketplace', id: 'list1', db: db,
+        before: { status: 'active' },
+        after: { status: 'sold' },
+        deleteTelegram: async function() { dropped.push('sold'); },
+    });
+    assert.strictEqual(sold.deleted, false);
+    assert.strictEqual(sold.reason, 'still_live');
+    assert.strictEqual(db.docs['global_chat/shoutout_market_list1'].text, 'listed');
+    const gone = await retractIfRemoved({
+        kind: 'marketplace', id: 'list1', db: db,
+        before: { status: 'active' },
+        after: { status: 'deleted', deletedAt: 5, deletedBy: 'owner' },
+        deleteTelegram: async function(args) { dropped.push(args.messageId); },
+    });
+    assert.strictEqual(gone.deleted, true);
+    assert.deepStrictEqual(dropped, ['8']);
+    assert.strictEqual(db.docs['global_chat/shoutout_market_list1'], undefined);
+
+    db.docs['global_chat/shoutout_forum_post1'] = {
+        uid: 'nacho-bot', activityRef: 'forum:post1', text: 'posted',
+    };
+    const edit = await retractIfRemoved({
+        kind: 'forum', id: 'post1', db: db,
+        before: { title: 'Old' },
+        after: { title: 'New', edited: true },
+        deleteTelegram: async function() { throw new Error('edit should stay'); },
+    });
+    assert.strictEqual(edit.reason, 'still_live');
+    const hidden = await retractIfRemoved({
+        kind: 'forum', id: 'post1', db: db,
+        before: { title: 'New' },
+        after: { title: 'New', hidden: true },
+        deleteTelegram: async function() {},
+    });
+    assert.strictEqual(hidden.deleted, true);
+    assert.strictEqual(db.docs['global_chat/shoutout_forum_post1'], undefined);
 }));
 
 test('formatChatText chips a multi-word name before posted and listed', function() {
