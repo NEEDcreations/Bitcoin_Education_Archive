@@ -1258,9 +1258,12 @@
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
+        // Fullscreen Nacho Mode replaces the bubble deer with the big Nacho.
+        // Suspend is visual only — minimized state in localStorage is left alone.
+        if (typeof window.suspendNacho === 'function') window.suspendNacho();
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
         var mbar = document.querySelector('.mobile-bar');
         if (mbar) mbar.style.display = 'none';
@@ -2867,9 +2870,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (screen) screen.remove();
 
         // Restore everything that was hidden on enter
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = '';
         });
+        if (typeof window.resumeNacho === 'function') window.resumeNacho();
         // Restore mobile top bar
         var mbar = document.querySelector('.mobile-bar');
         if (mbar && window.innerWidth <= 900) mbar.style.display = 'flex';
@@ -5107,17 +5111,8 @@ if (locked) {
         if (h) {
             window._nachoDirectLinkCooldown = Date.now() + 120000;
             window._directLinkMode = true;
-            // Hide Nacho on direct links (visual-only, don't persist to localStorage)
-            function _directLinkHideNacho() {
-                var nc = document.getElementById('nacho-container');
-                var nt = document.getElementById('nacho-toggle');
-                if (nc) nc.classList.add('hidden');
-                if (nt) nt.style.display = 'none';
-                window._nachoAutoHidden = true;
-            }
-            _directLinkHideNacho();
-            setTimeout(_directLinkHideNacho, 1000);
-            setTimeout(_directLinkHideNacho, 2500);
+            // Bubble Nacho stays on screen for direct links. The cooldown only
+            // holds auto speech bubbles so a deep link is not interrupted.
             // Minimize sign-in banner
             sessionStorage.setItem('btc_signin_banner_dismissed', '1');
             // Gradually re-enable features after cooldown (staggered)
@@ -5128,10 +5123,9 @@ if (locked) {
                 sessionStorage.removeItem('btc_signin_banner_dismissed');
                 if (typeof updateUserDisplay === 'function') updateUserDisplay();
             }, 150000);
-            // 120s: allow Nacho bubble + bring him back
+            // 120s: allow Nacho speech bubbles again. He was visible the whole time.
             setTimeout(function() {
                 window._nachoDirectLinkCooldown = 0;
-                if (typeof showNacho === 'function' && localStorage.getItem('btc_nacho_hidden') !== 'user') showNacho();
             }, 120000);
         }
         // Hash routing is handled by the IIFE handleHash() below and its 800ms load fallback.
