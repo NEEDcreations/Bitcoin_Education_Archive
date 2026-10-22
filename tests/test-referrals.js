@@ -28,7 +28,7 @@ test('crossing Maxi is only the upward threshold', () => {
     assert.strictEqual(referrals.crossedMaxi(2140, 2200), false);
     assert.strictEqual(referrals.crossedMaxi(2139, 2139), false);
     assert.strictEqual(referrals.MAXI_POINTS, 2140);
-    assert.strictEqual(referrals.REFERRAL_TICKETS, 100);
+    assert.strictEqual(referrals.REFERRAL_TICKETS, 50);
 });
 
 test('a paid referral is not paid again', () => {
@@ -49,13 +49,13 @@ test('a paid referral is not paid again', () => {
     assert.strictEqual(stamped.reason, 'already-paid');
 });
 
-test('Maxi pays 100 once, and fraud blocks payment', () => {
+test('Maxi pays 50 to each side once, and fraud blocks payment', () => {
     const referred = user('pleb0001XXXX', { points: 2140 });
     const referrer = user('refcode0REFR', { referralCode: 'refcode0' });
     const pending = { status: 'pending', ticketsAwarded: false, referrerUid: referrer.uid };
     const pay = referrals.assessReferralPayout({ referral: pending, referred: referred, referrer: referrer });
     assert.strictEqual(pay.action, 'pay');
-    assert.strictEqual(pay.ticketsEach, 100);
+    assert.strictEqual(pay.ticketsEach, 50);
 
     const flagged = referrals.assessReferralPayout({
         referral: Object.assign({}, pending, { status: 'flagged' }),

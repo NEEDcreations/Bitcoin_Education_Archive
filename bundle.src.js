@@ -2147,13 +2147,13 @@ setTimeout(initBadges, 2000);
 // =============================================
 // Earn <svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets:
 //   +1 per daily login
-//   +100 per verified referral (referred user reaches Maxi, 2,140 pts)
+//   +50 per verified referral (referred user reaches Maxi, 2,140 pts)
 // =============================================
 
 const TICKET_CONFIG = {
     dailyLogin: 1,
-    referral: 100,
-    referralSignupBonus: 100,  // Tickets awarded to both sides when the referred user reaches Maxi
+    referral: 50,
+    referralSignupBonus: 50,  // Tickets awarded to both sides when the referred user reaches Maxi
     referralPointsThreshold: 2140,  // Maxi rank threshold
     pointsPerTicket: 5,  // Each ticket earned = 5 points towards reward system
 };
@@ -2303,7 +2303,7 @@ function renderTicketsSection() {
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets</div>' +
         '<div style="color:#f7931a;font-weight:800;font-size:1.3rem;">' + tickets + '</div></div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Earn tickets by logging in daily (+1), spinning the daily wheel, and referring friends (+100 per verified referral!). Each ticket earned also awards <strong style="color:#f7931a;">5 bonus points</strong>!<br><br>' +
+        'Earn tickets by logging in daily (+1), spinning the daily wheel, and referring friends (+50 per verified referral!). Each ticket earned also awards <strong style="color:#f7931a;">5 bonus points</strong>!<br><br>' +
         '🏆 <strong style="color:#eab308;">The more tickets you have, the higher your chances in future giveaways!</strong>' +
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
@@ -2314,7 +2314,7 @@ function renderTicketsSection() {
         '<div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">' +
         '<div style="font-size:1.2rem;">🤝</div>' +
         '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Referral</div>' +
-        '<div style="color:var(--accent);font-weight:700;font-size:0.85rem;">+100 tickets</div></div></div>' +
+        '<div style="color:var(--accent);font-weight:700;font-size:0.85rem;">+50 tickets</div></div></div>' +
         '</div>';
 
     return html;
@@ -2330,7 +2330,7 @@ function renderReferralSection() {
     let html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Referral Program</div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Share your link with friends. You and your friend each earn <strong style="color:#f7931a;">100 Orange Tickets</strong> when they reach Maxi (2,140 points).' +
+        'Share your link with friends. You and your friend each earn <strong style="color:#f7931a;">50 Orange Tickets</strong> when they reach Maxi (2,140 points).' +
         '</div>' +
         '<div style="position:relative;margin-bottom:12px;">' +
         '<input type="text" id="referralLinkInput" readonly value="' + link + '" style="width:100%;padding:10px 80px 10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;box-sizing:border-box;" onclick="this.select()">' +

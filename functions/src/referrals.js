@@ -1,11 +1,11 @@
 'use strict';
 
 // Pure referral decisions. Firestore I/O lives in referralService.js.
-// Nobody has been paid yet: the award is 100 orange tickets to each side,
+// Nobody has been paid yet: the award is 50 orange tickets to each side,
 // exactly once, when the referee reaches Maxi (2,140 points).
 
 const MAXI_POINTS = 2140;
-const REFERRAL_TICKETS = 100;
+const REFERRAL_TICKETS = 50;
 const CODE_LENGTH = 8;
 
 const BLOCKING_FLAGS = {
