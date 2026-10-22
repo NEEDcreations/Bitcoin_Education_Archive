@@ -8820,3 +8820,10 @@ exports.claimCipherWin = claimCipherWin;
 exports.listMyCipherWins = listMyCipherWins;
 exports.adminListCipherWins = adminListCipherWins;
 exports.adminMarkCipherWinPaid = adminMarkCipherWinPaid;
+
+// Daily say-hi. App Check is required, same as claimSats. The handlers
+// grant XP and tickets only inside a transaction keyed by uid + server day.
+const { bindSayHi } = require('./src/sayHi');
+const sayHiFns = bindSayHi(functionsV1, admin, db);
+exports.armSayHi = sayHiFns.armSayHi;
+exports.claimSayHi = sayHiFns.claimSayHi;

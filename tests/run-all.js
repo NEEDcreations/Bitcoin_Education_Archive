@@ -23,6 +23,7 @@ const TESTS = [
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
+    { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
