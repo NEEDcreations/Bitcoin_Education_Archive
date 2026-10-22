@@ -518,11 +518,11 @@
         <li>Files in Storage under your account: Beats audio (<code>beats/</code>), Beats cover art (<code>beats-covers/</code>), avatars (<code>avatars/</code>), chat images, DM images, article images, article covers, IRL photos, and meetup-builder uploads</li>
         <li>Notifications in your inbox and notifications you sent. You can mark a notice read. The app does not delete a single notice. Read and unread status is removed with the account</li>
         <li>Push tokens for the account, including <code>push_tokens/{uid}</code> and its <code>devices</code></li>
-        <li>Authenticator-app secrets, presence, Timechain TV presence and view-day rows, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
-        <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it. Gift secrets you hold are deleted, and pending gift-pair records that name your account are deleted</li>
-        <li>Shoutout claim records that name your account. Nacho posts in Global Chat that tagged you have the tag removed and your name in that post replaced with <code>[deleted]</code>. Other people's names in the same post stay. Your account id is removed from reactions on Global Chat messages and announcements</li>
-        <li>Your username on raid participation rows and on Satoshi's Favor contributor rows. The contribution count stays. The same replacement is applied to raffle snapshots and leaderboard winner history. The payout record stays</li>
-        <li>After the sign-in is deleted: your shoutout rate rows, action cooldowns, raid daily caps, weekly challenge contribution rows, and the per-account rate-limit rows for the chat bridge, Beats imports, Say hi, and announcements</li>
+        <li>Authenticator-app secrets, presence, Timechain TV presence, view-day rows, and channel ratings, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
+        <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it. Gift secrets you hold are deleted. Pending gift-pair records that name your account are deleted after the sign-in is gone</li>
+        <li>Nacho posts in Global Chat that tagged you have the tag removed and your name in that post replaced with <code>[deleted]</code>. Other people's names in the same post stay. Your account id is removed from reactions on the newest Global Chat messages and announcements (about the latest 2,000 of each). An older message can still list it</li>
+        <li>Your username on raid participation rows, raid winner rows, and Satoshi's Favor contributor rows. The contribution count and the sats awarded stay. The same replacement is applied to raffle snapshots and leaderboard winner history. The payout record stays</li>
+        <li>After the sign-in is deleted: your shoutout claim and rate rows, action cooldowns, raid daily caps, raid deck completions, weekly challenge contribution rows, key-send pair records, quiz and exam answer keys, the daily faucet cap and Proof of Walk dedupe rows stored on the profile, and the per-account rate-limit rows for the chat bridge, Beats imports, Say hi, announcements, and account deletion. Files in Storage are removed in that same step, after the sign-in is gone</li>
         <li>Your giveaway entry, visit row, open prediction, and prediction stats</li>
         <li>Your Global Chat DJ queue entry and your Satoshi's Favor personal best</li>
     </ul>
@@ -537,7 +537,7 @@
         <li><strong>Admin audit logs and reports</strong> filed for moderation</li>
         <li><strong>Prediction payout and prediction record ledgers</strong></li>
         <li><strong>Satoshi's Favor hash records and cooldowns.</strong> The name on the hash record is replaced with <code>[deleted]</code>. The hash and the cooldown stay so the game limits cannot be reset</li>
-        <li><strong>Shared rate-limit rows keyed by IP address, the global shoutout limit, and public topic summaries.</strong> Those are not a copy of your profile. Deleting one account does not erase them</li>
+        <li><strong>Shared rate-limit rows keyed by IP address, including the limit on how often account deletion can be started from one network, the global shoutout limit, and public topic summaries.</strong> Those are not a copy of your profile. Deleting one account does not erase them</li>
     </ul>
     <p>A Global Chat message may already have been copied to the linked Telegram group. Deleting the account does not remove that Telegram copy. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> if something of yours is still visible and should not be.</p>
 
@@ -555,7 +555,7 @@
         <li>Comprehensive content moderation: profanity, hate speech, sexual content, self-harm, threats, and political extremism filtering</li>
         <li>Server-side point award validation via Cloud Functions (prevents client-side manipulation)</li>
         <li>Server-side daily point cap enforcement (500 pts/day, atomic transactions)</li>
-        <li>Firebase App Check on some actions, including sats claims and Say hi. Calls without a valid token are rejected</li>
+        <li>Firebase App Check on some actions, including sats claims, Say hi, and account deletion. Calls without a valid token are rejected</li>
         <li>Rate limits on sign-in, chat, messages, and other actions</li>
         <li>Abuse checks that can refuse a reward or restrict an account. We do not publish how those checks work</li>
         <li>HTML sanitization on all user-generated content</li>

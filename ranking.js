@@ -3633,7 +3633,7 @@ window.confirmDeleteAccount = async function() {
 
         // Server wipe. The owner must have signed in recently. Data deletes
         // happen in the Cloud Function, not from this browser.
-        await firebase.functions().httpsCallable('deleteAccount')({});
+        await firebase.functions().httpsCallable('deleteAccount', { timeout: 540000 })({});
 
         var keysToRemove = [];
         for (var i = 0; i < localStorage.length; i++) {

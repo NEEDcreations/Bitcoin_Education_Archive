@@ -6926,6 +6926,7 @@ async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
             period: winnerKey,
             label,
             winners,
+            uids: winners.map(function(w) { return w.uid; }),
             ticketsPerWinner,
             settledAt: admin.firestore.FieldValue.serverTimestamp(),
         });

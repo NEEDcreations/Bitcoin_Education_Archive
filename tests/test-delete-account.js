@@ -41,17 +41,37 @@ function HttpsError(code, message) {
     return err;
 }
 
-function matchFilters(data, filters) {
+function matchFilters(data, filters, docId) {
     return filters.every(function(f) {
-        const val = f.field.split('.').reduce(function(obj, key) {
+        const name = typeof f.field === 'string' ? f.field : '';
+        const isId = name === '__name__' || name === '__documentId__';
+        const val = isId ? docId : name.split('.').reduce(function(obj, key) {
             return obj == null ? undefined : obj[key];
         }, data);
         if (f.op === '==') return val === f.value;
+        if (f.op === '>=') return val >= f.value;
+        if (f.op === '>') return val > f.value;
+        if (f.op === '<=') return val <= f.value;
+        if (f.op === '<') return val < f.value;
         if (f.op === 'array-contains') return Array.isArray(val) && val.indexOf(f.value) !== -1;
         if (f.op === 'in') return Array.isArray(f.value) && f.value.indexOf(val) !== -1;
         throw new Error('bad op ' + f.op);
     });
 }
+
+// Empty reads of these collections are the full-database scans deleteAccount
+// must not do. A matching orderBy is a capped read. A filter is the user's rows.
+const SCAN_BANNED = {
+    global_chat: 'ts',
+    announcements: 'ts',
+    raid_bosses: 'startTime',
+    leaderboard_winners: 'settledAt',
+    action_cooldowns: '',
+    raid_daily_caps: '',
+    gift_pending_pairs: '',
+    stats: '',
+    user_contribs: '',
+};
 
 function createFakeDb(initial) {
     const docs = new Map();
@@ -94,15 +114,25 @@ function createFakeDb(initial) {
         return ref;
     }
 
-    function makeQuery(mode, filters, limitN, cursor) {
+    function makeQuery(mode, filters, limitN, cursor, orderField) {
         return {
             where: function(field, op, value) {
-                return makeQuery(mode, filters.concat([{ field: field, op: op, value: value }]), limitN, cursor);
+                return makeQuery(mode, filters.concat([{ field: field, op: op, value: value }]), limitN, cursor, orderField);
             },
-            orderBy: function() { return makeQuery(mode, filters, limitN, cursor); },
-            limit: function(n) { return makeQuery(mode, filters, n, cursor); },
-            startAfter: function(doc) { return makeQuery(mode, filters, limitN, doc); },
+            orderBy: function(field) { return makeQuery(mode, filters, limitN, cursor, field); },
+            limit: function(n) { return makeQuery(mode, filters, n, cursor, orderField); },
+            startAfter: function(doc) { return makeQuery(mode, filters, limitN, doc, orderField); },
             get: async function() {
+                const name = mode.kind === 'group'
+                    ? mode.name
+                    : String(mode.path || '').split('/').pop();
+                if (mode.kind === 'group' && filters.length === 0) {
+                    throw new Error('unbounded group ' + name);
+                }
+                if (filters.length === 0 && Object.prototype.hasOwnProperty.call(SCAN_BANNED, name)) {
+                    const required = SCAN_BANNED[name];
+                    if (!required || orderField !== required) throw new Error('unbounded scan ' + name);
+                }
                 db.gets++;
                 const rows = [];
                 for (const [key, data] of docs) {
@@ -115,7 +145,7 @@ function createFakeDb(initial) {
                     } else if (parts[parts.length - 2] !== mode.name) {
                         continue;
                     }
-                    if (!matchFilters(data, filters)) continue;
+                    if (!matchFilters(data, filters, parts[parts.length - 1])) continue;
                     rows.push({ path: key, id: parts[parts.length - 1] });
                 }
                 rows.sort(function(a, b) { return a.path < b.path ? -1 : a.path > b.path ? 1 : 0; });
@@ -159,7 +189,19 @@ function createFakeDb(initial) {
 
     db.collection = collection;
     db.collectionGroup = function(name) {
-        return makeQuery({ kind: 'group', name: name }, [], null, null);
+        return makeQuery({ kind: 'group', name: name }, [], null, null, null);
+    };
+    db.runTransaction = async function(fn) {
+        const tx = {
+            get: function(ref) { return ref.get(); },
+            set: function(ref, data) { docs.set(ref.path, Object.assign({}, data)); },
+            update: function(ref, data) {
+                if (!docs.has(ref.path)) throw new Error('update missing ' + ref.path);
+                docs.set(ref.path, Object.assign({}, docs.get(ref.path), data));
+            },
+            delete: function(ref) { docs.delete(ref.path); },
+        };
+        return fn(tx);
     };
     db.batch = function() {
         const ops = [];
@@ -209,6 +251,9 @@ function world() {
         'users/u1/badge_awards/b1': { badge: 'x' },
         'users/u1/sats_withdrawals/w1': { amount: 100, invoice: 'lnbc...' },
         'users/u1/notifications/in1': { message: 'profile inbox' },
+        'users/u1/sats_daily/2026-10-22': { claimed: 1 },
+        'users/u1/proof_of_walk/act1': { id: 'act1' },
+        'users/u1/proof_of_walk_stats/daily': { n: 1 },
         'users/u2': { username: 'Bob', points: 3 },
         'public_profiles/u1': { username: 'Alice', points: 10 },
         'public_profiles/u2': { username: 'Bob' },
@@ -296,6 +341,9 @@ function world() {
         'raid_bosses/b1': { name: 'boss' },
         'raid_bosses/b1/participants/u1': { username: 'Alice', contributed: 12 },
         'raid_bosses/b1/participants/u2': { username: 'Bob', contributed: 4 },
+        'raid_bosses/b1/winners/u1': { uid: 'u1', username: 'Alice', satsAwarded: 1000 },
+        'raid_bosses/b1/winners/u2': { uid: 'u2', username: 'Bob', satsAwarded: 1000 },
+        'raid_bosses/old/participants/u1': { uid: 'u1', username: 'Alice', contributed: 1 },
         'raid_daily_caps/u1_2026-10-22_chat': { contributed: 3 },
         'raid_daily_caps/u2_2026-10-22_chat': { contributed: 1 },
         'raid_deck_completions/b1_u1_deck': { uid: 'u1', deck: 'deck' },
@@ -317,6 +365,16 @@ function world() {
             winner: 'Alice', winnerUid: 'u1',
             allEntrants: { u1: { username: 'Alice', entries: 4 }, u2: { username: 'Bob', entries: 1 } },
         },
+        'stats/global': { chatMessages: 10 },
+        'stats/countries': { counts: { US: 1 } },
+        'key_send_pairs/u1_u2': { senderUid: 'u1', recipientUid: 'u2' },
+        'key_send_pairs/u9_u1': { senderUid: 'u9', recipientUid: 'u1' },
+        'key_send_pairs/u2_u3': { senderUid: 'u2', recipientUid: 'u3' },
+        'quest_answer_keys/q1': { uid: 'u1', answer: '21' },
+        'quest_answer_keys/q2': { uid: 'u2', answer: '1' },
+        'scholar_exam_keys/e1': { uid: 'u1' },
+        'channel_ratings/rate1': { userId: 'u1', rating: 5 },
+        'channel_ratings/rate2': { userId: 'u2', rating: 4 },
         'satoshiFavor/current': { lowestHashThisWindowUid: 'u1', lowestHashThisWindowUsername: 'Alice' },
         'satoshiFavor/current/contributors/u1_chat': { uid: 'u1', username: 'Alice', points: 5 },
         'buddy_matches/bm1': { user1: { uid: 'u1', name: 'Alice' }, user2: { uid: 'u2', name: 'Bob' } },
@@ -351,7 +409,7 @@ const RETAINED_KEYS = [
     'satoshiFavor/current/cooldowns/u1_rig1',
 ];
 
-function okAuth(db, capPath) {
+function okAuth(db, capPath, extras) {
     const calls = [];
     return {
         calls: calls,
@@ -359,6 +417,9 @@ function okAuth(db, capPath) {
         deleteUser: async function(uid) {
             calls.push('delete:' + uid);
             if (db && capPath) calls.push(db.docs.has(capPath) ? 'caps-present' : 'caps-gone');
+            (extras || []).forEach(function(item) {
+                calls.push(item.label + ':' + (item.present() ? 'present' : 'gone'));
+            });
         },
     };
 }
@@ -438,13 +499,24 @@ function auth(uid, extras) {
             'meetup-builder/u1/plan.jpg',
             'beats/u2/keep.mp3',
         ]);
-        const authApi = okAuth(db, 'users/u1/daily_points/2026-10-22');
+        const authApi = okAuth(db, 'users/u1/daily_points/2026-10-22', [
+            { label: 'storage', present: function() { return bucket.files.has('beats/u1/song.mp3'); } },
+            { label: 'dedupe', present: function() { return db.docs.has('raid_deck_completions/b1_u1_deck'); } },
+            { label: 'claims', present: function() { return db.docs.has('shoutout_claims/claim1'); } },
+            { label: 'pairs', present: function() { return db.docs.has('gift_pending_pairs/u1_u2'); } },
+            { label: 'walk', present: function() { return db.docs.has('users/u1/proof_of_walk/act1'); } },
+        ]);
         const summary = await del.purgeAccount({ db: db, bucket: bucket, authApi: authApi, uid: 'u1', documentIdField: '__name__' });
         assert.strictEqual(summary.anonymizedChat, 1);
         assert.strictEqual(summary.authDeleted, true);
         assert.ok(authApi.calls.indexOf('revoke:u1') !== -1);
         assert.ok(authApi.calls.indexOf('revoke:u1') < authApi.calls.indexOf('delete:u1'));
         assert.ok(authApi.calls.indexOf('caps-present') !== -1);
+        assert.ok(authApi.calls.indexOf('storage:present') !== -1);
+        assert.ok(authApi.calls.indexOf('dedupe:present') !== -1);
+        assert.ok(authApi.calls.indexOf('claims:present') !== -1);
+        assert.ok(authApi.calls.indexOf('pairs:present') !== -1);
+        assert.ok(authApi.calls.indexOf('walk:present') !== -1);
         assert.ok(db.commits.some(function(n) { return n === del.BATCH_LIMIT; }), 'a batch should fill to the limit');
         assert.ok(db.commits.every(function(n) { return n <= del.BATCH_LIMIT; }));
 
@@ -544,6 +616,12 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('raid_bosses/b1/participants/u1').username, '[deleted]');
         assert.strictEqual(db.docs.get('raid_bosses/b1/participants/u1').contributed, 12);
         assert.strictEqual(db.docs.get('raid_bosses/b1/participants/u2').username, 'Bob');
+        assert.strictEqual(db.docs.get('raid_bosses/b1/winners/u1').username, '[deleted]');
+        assert.strictEqual(db.docs.get('raid_bosses/b1/winners/u1').satsAwarded, 1000);
+        assert.strictEqual(db.docs.get('raid_bosses/b1/winners/u1').uid, 'u1');
+        assert.strictEqual(db.docs.get('raid_bosses/b1/winners/u2').username, 'Bob');
+        assert.strictEqual(db.docs.get('raid_bosses/old/participants/u1').username, '[deleted]');
+        assert.strictEqual(db.docs.get('raid_bosses/old/participants/u1').contributed, 1);
         assert.strictEqual(db.docs.has('raid_deck_completions/b1_u1_deck'), false);
         assert.ok(db.docs.has('raid_deck_completions/b1_u2_deck'));
         assert.strictEqual(db.docs.has('shoutout_claims/claim1'), false);
@@ -582,6 +660,19 @@ function auth(uid, extras) {
         assert.strictEqual(raffle.allEntrants.u1.username, '[deleted]');
         assert.strictEqual(raffle.allEntrants.u1.entries, 4);
         assert.strictEqual(raffle.allEntrants.u2.username, 'Bob');
+        assert.strictEqual(db.docs.get('stats/global').chatMessages, 10);
+        assert.strictEqual(db.docs.get('stats/countries').counts.US, 1);
+        assert.strictEqual(db.docs.has('channel_ratings/rate1'), false);
+        assert.ok(db.docs.has('channel_ratings/rate2'));
+        assert.strictEqual(db.docs.has('key_send_pairs/u1_u2'), false);
+        assert.strictEqual(db.docs.has('key_send_pairs/u9_u1'), false);
+        assert.ok(db.docs.has('key_send_pairs/u2_u3'));
+        assert.strictEqual(db.docs.has('quest_answer_keys/q1'), false);
+        assert.ok(db.docs.has('quest_answer_keys/q2'));
+        assert.strictEqual(db.docs.has('scholar_exam_keys/e1'), false);
+        assert.strictEqual(db.docs.has('users/u1/sats_daily/2026-10-22'), false);
+        assert.strictEqual(db.docs.has('users/u1/proof_of_walk/act1'), false);
+        assert.strictEqual(db.docs.has('users/u1/proof_of_walk_stats/daily'), false);
         assert.strictEqual(db.docs.has('buddy_matches/bm1'), false);
         assert.strictEqual(db.docs.has('pvp_matches/pm1'), false);
         assert.strictEqual(db.docs.get('hotTopics/latest').summary, 'public topics');
@@ -671,7 +762,7 @@ function auth(uid, extras) {
 
     test('the client calls the server wipe and does not delete Firestore itself', function() {
         const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
-        assert.ok(ranking.includes("httpsCallable('deleteAccount')"));
+        assert.ok(ranking.includes("httpsCallable('deleteAccount', { timeout: 540000 })"));
         assert.ok(ranking.includes('user.delete()'));
         assert.ok(ranking.includes('auth/user-not-found'));
         assert.strictEqual(ranking.includes("collection('conversations')"), false);
@@ -715,21 +806,50 @@ function auth(uid, extras) {
             'COLLECTION_GROUP:ASCENDING',
             'COLLECTION_GROUP:DESCENDING',
         ]);
-        assert.strictEqual(del.INDEX_AUDIT.collectionGroupQueries.length, 1);
-        assert.strictEqual(del.INDEX_AUDIT.collectionGroupQueries[0].collection, 'comments');
-        assert.strictEqual(del.INDEX_AUDIT.collectionGroupQueries[0].field, 'authorId');
+        const groups = del.INDEX_AUDIT.collectionGroupQueries.map(function(query) {
+            return query.collection + '.' + query.field;
+        }).sort();
+        assert.deepStrictEqual(groups, [
+            'comments.authorId',
+            'participants.uid',
+            'participants.username',
+            'winners.uid',
+        ]);
         del.INDEX_AUDIT.collectionQueries.forEach(function(query) {
             assert.ok(query.op === '==' || query.op === 'array-contains' || query.op === 'in', query.collection);
             assert.strictEqual(query.field.indexOf(','), -1, query.field);
             assert.strictEqual(query.orderBy, '__name__');
         });
+        ['winners.uid', 'participants.uid', 'participants.username'].forEach(function(key) {
+            const parts = key.split('.');
+            const override = (indexes.fieldOverrides || []).find(function(item) {
+                return item.collectionGroup === parts[0] && item.fieldPath === parts[1];
+            });
+            assert.ok(override, 'missing override ' + key);
+            const scopes = (override.indexes || []).map(function(item) { return item.queryScope + ':' + item.order; }).sort();
+            assert.deepStrictEqual(scopes, [
+                'COLLECTION:ASCENDING',
+                'COLLECTION:DESCENDING',
+                'COLLECTION_GROUP:ASCENDING',
+                'COLLECTION_GROUP:DESCENDING',
+            ]);
+        });
         const src = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
-        assert.strictEqual((src.match(/collectionGroup\(/g) || []).length, 1);
         assert.ok(src.includes("collectionGroup('comments')"));
+        assert.ok(src.includes("collectionGroup('winners')"));
+        assert.ok(src.includes("collectionGroup('participants')"));
         assert.ok(src.includes('timeoutSeconds: 540'));
         assert.ok(src.includes("memory: '1GB'"));
+        assert.ok(src.includes('enforceAppCheck: true'));
         assert.ok(src.includes('deleteUser'));
         assert.ok(src.includes('revokeRefreshTokens'));
+        assert.ok(src.includes('REACTION_SCAN_CAP'));
+        assert.ok(src.includes("'\\uf8ff'") || src.includes('\\uf8ff'));
+        assert.strictEqual(src.includes("collectDocs(db.collection('global_chat'),"), false);
+        assert.strictEqual(src.includes("collectDocs(db.collection('raid_bosses'),"), false);
+        assert.strictEqual(src.includes("collectDocs(db.collection('stats'),"), false);
+        assert.strictEqual(src.includes("collectDocs(db.collection('gift_pending_pairs'),"), false);
+        assert.strictEqual(src.includes("collectDocs(db.collection('action_cooldowns'),"), false);
     });
 
     test('a shoutout keeps every @mention except the tagged user', function() {
@@ -754,8 +874,9 @@ function auth(uid, extras) {
                 throw err;
             },
         };
+        const bucket = createBucket(['beats/u1/song.mp3']);
         await assert.rejects(
-            del.purgeAccount({ db: db, bucket: createBucket([]), authApi: failing, uid: 'u1', documentIdField: '__name__' }),
+            del.purgeAccount({ db: db, bucket: bucket, authApi: failing, uid: 'u1', documentIdField: '__name__' }),
             function(err) { return err.code === 'auth/internal-error'; }
         );
         assert.ok(failing.calls.indexOf('delete:u1') !== -1);
@@ -765,6 +886,13 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('shoutout_limits/forum_u1'));
         assert.ok(db.docs.has('action_cooldowns/u1_chat_message'));
         assert.ok(db.docs.has('raid_daily_caps/u1_2026-10-22_chat'));
+        assert.ok(db.docs.has('shoutout_claims/claim1'));
+        assert.ok(db.docs.has('key_send_pairs/u1_u2'));
+        assert.ok(db.docs.has('gift_pending_pairs/u1_u2'));
+        assert.ok(db.docs.has('users/u1/sats_daily/2026-10-22'));
+        assert.ok(db.docs.has('users/u1/proof_of_walk/act1'));
+        assert.ok(db.docs.has('quest_answer_keys/q1'));
+        assert.ok(bucket.files.has('beats/u1/song.mp3'));
 
         const missing = {
             revokeRefreshTokens: async function() {
@@ -793,6 +921,82 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.has('action_cooldowns/u1_chat_message'), false);
         assert.ok(db.docs.has('shoutout_limits/global'));
         assert.ok(db.docs.has('rate_limits/nostr_203_0_113_8'));
+    });
+
+    await testAsync('a guest delete skips chat, raid, raffle, and weekly, and still removes the sign-in', async function() {
+        const db = createFakeDb(world());
+        const now = 1000 + del.REAUTH_MAX_AGE_SEC;
+        const authApi = okAuth();
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: authApi,
+            HttpsError: HttpsError,
+            nowSec: function() { return now; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+        });
+        const result = await handlers.deleteAccount({}, {
+            auth: { uid: 'u1', token: { auth_time: 1000, firebase: { sign_in_provider: 'anonymous' } } },
+            rawRequest: { headers: { 'x-forwarded-for': '198.51.100.8, 203.0.113.9' } },
+        });
+        assert.strictEqual(result.light, true);
+        assert.strictEqual(result.authDeleted, true);
+        assert.ok(authApi.calls.indexOf('delete:u1') !== -1);
+        assert.strictEqual(db.docs.get('global_chat/m1').uid, 'u1');
+        assert.strictEqual(db.docs.get('global_chat/m1').text, 'hello secret');
+        assert.deepStrictEqual(db.docs.get('global_chat/m3').reactions['🔥'], ['u1', 'u2']);
+        assert.strictEqual(db.docs.get('raid_bosses/b1/winners/u1').username, 'Alice');
+        assert.strictEqual(db.docs.get('weekly_challenges/w1').participants.u1, true);
+        assert.ok(db.docs.has('weekly_challenges/w1/user_contribs/u1_chat'));
+        assert.strictEqual(db.docs.has('users/u1'), false);
+        assert.strictEqual(db.docs.has('forum_posts/p1'), false);
+        assert.strictEqual(db.docs.has('users/u1/daily_points/2026-10-22'), false);
+        assert.strictEqual(db.docs.get('rate_limits/deleteip_203_0_113_9').count, 1);
+        assert.ok(db.docs.has('rate_limits/nostr_203_0_113_8'));
+    });
+
+    await testAsync('account deletion is rate limited per account and per network', async function() {
+        const now = 1000 + del.REAUTH_MAX_AGE_SEC;
+        const db = createFakeDb({ 'users/u1': { username: 'Alice' }, 'faucet_ledger/u1': { satsWithdrawn: 3 } });
+        db.docs.set('rate_limits/delete_u1', { windowStart: 5000, count: del.DELETE_RATE_MAX_UID });
+        const authApi = okAuth();
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: authApi,
+            HttpsError: HttpsError,
+            nowSec: function() { return now; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+        });
+        await assert.rejects(
+            handlers.deleteAccount({}, { auth: auth('u1', { token: { auth_time: 1000 } }) }),
+            function(err) { return err.code === 'resource-exhausted'; }
+        );
+        assert.strictEqual(authApi.calls.length, 0);
+        assert.ok(db.docs.has('users/u1'));
+        assert.strictEqual(db.docs.get('faucet_ledger/u1').satsWithdrawn, 3);
+
+        const anonDb = createFakeDb({ 'users/guest': { username: 'Guest' } });
+        anonDb.docs.set('rate_limits/deleteip_203_0_113_9', { windowStart: 5000, count: del.DELETE_RATE_MAX_ANON_IP });
+        const anonHandlers = del.createDeleteAccountHandlers({
+            db: anonDb,
+            bucket: createBucket([]),
+            authApi: okAuth(),
+            HttpsError: HttpsError,
+            nowSec: function() { return now; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+        });
+        await assert.rejects(
+            anonHandlers.deleteAccount({}, {
+                auth: { uid: 'guest', token: { auth_time: 1000, firebase: { sign_in_provider: 'anonymous' } } },
+                rawRequest: { headers: { 'x-forwarded-for': '10.0.0.1, 203.0.113.9' } },
+            }),
+            function(err) { return err.code === 'resource-exhausted'; }
+        );
+        assert.ok(anonDb.docs.has('users/guest'));
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

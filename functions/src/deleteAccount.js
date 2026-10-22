@@ -12,10 +12,19 @@
 //    id). That needs the comments.authorId field override in
 //    firestore.indexes.json. The override replaces automatic indexes, so it
 //    lists COLLECTION and COLLECTION_GROUP, ascending and descending.
-// 3. A whole-collection page ordered only by document id (reactions, gift
-//    pairs, winner lists, and user-keyed limit ids). The automatic __name__
-//    index serves that.
+// 3. A document-id range, `>= uid_` and `< uid_\uf8ff` (or `raffle_` for
+//    snapshot ids). That is the automatic __name__ index. It reads this
+//    account's rows, not the whole collection.
+// 4. A collection-group equality on winners.uid, participants.uid, or
+//    participants.username, then orderBy(document id). Each field has a
+//    field override with COLLECTION and COLLECTION_GROUP, both directions.
+//    Winner rows outside raid_bosses are read and then skipped.
+// 5. A bounded read: the newest messages by ts (reactions), recent
+//    leaderboard history by settledAt, and recent raid bosses by startTime.
+//    weekly_challenges parents are paged because the participant flag is a
+//    map. Each week's user_contribs rows are a document-id range.
 // Direct document gets do not need an index.
+// Anonymous callers skip chat, raid, raffle, and weekly passes.
 //
 // Financial and abuse records in RETAINED_COLLECTIONS are never written.
 // Per-day caps and other user-keyed limit docs are removed only after the
@@ -28,6 +37,15 @@ const REAUTH_MAX_AGE_SEC = 5 * 60;
 const DELETED_LABEL = '[deleted]';
 const DELETED_UID = 'deleted';
 const UID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+const ID_RANGE_END = '\uf8ff';
+// Reaction maps are not queryable per uid. Read only the newest messages.
+const REACTION_SCAN_CAP = 2000;
+const LEADERBOARD_SCAN_CAP = 240;
+const RAID_BOSS_LOOKUP_CAP = 80;
+const DELETE_RATE_WINDOW_MS = 60 * 60 * 1000;
+const DELETE_RATE_MAX_UID = 3;
+const DELETE_RATE_MAX_IP = 8;
+const DELETE_RATE_MAX_ANON_IP = 2;
 
 const STORAGE_PREFIXES = [
     'beats/',
@@ -57,6 +75,13 @@ const USER_SUBCOLLECTIONS = [
     'proof_of_walk_stats',
     'shop_purchases',
     'notifications',
+];
+
+// Dedupe rows. Removed only after the Auth user is deleted, with the caps.
+const DEFERRED_USER_SUBCOLLECTIONS = [
+    'sats_daily',
+    'proof_of_walk',
+    'proof_of_walk_stats',
 ];
 
 // These stay so a deleted account cannot reset a cap, hide a payout, or
@@ -114,45 +139,62 @@ const DELETION_QUERIES = [
     ['peerRelationships', 'uid2', '==', []],
     ['channel_ratings', 'userId', '==', []],
     ['tctv_view_days', 'viewerId', '==', []],
-    ['key_send_pairs', 'senderUid', '==', []],
-    ['key_send_pairs', 'recipientUid', '==', []],
     ['buddy_matches', 'user1.uid', '==', []],
     ['buddy_matches', 'user2.uid', '==', []],
     ['pvp_matches', 'player1.uid', '==', []],
     ['pvp_matches', 'player2.uid', '==', []],
     ['certs', 'uid', '==', []],
+    ['gifts', 'ownerId', '==', []],
+    ['gift_secrets', 'ownerId', '==', []],
+    ['usernames', 'uid', '==', []],
+];
+
+// Deleted only after deleteUser succeeds. A timeout before that keeps them.
+const DEFERRED_QUERIES = [
+    ['key_send_pairs', 'senderUid', '==', []],
+    ['key_send_pairs', 'recipientUid', '==', []],
     ['quest_answer_keys', 'uid', '==', []],
     ['scholar_exam_keys', 'uid', '==', []],
     ['shoutout_claims', 'authorUid', '==', []],
-    ['gifts', 'ownerId', '==', []],
-    ['gift_secrets', 'ownerId', '==', []],
     ['raid_deck_completions', 'uid', '==', []],
-    ['usernames', 'uid', '==', []],
 ];
 
 const COLLECTION_GROUP_QUERIES = [
     { collection: 'comments', field: 'authorId', op: '==', orderBy: '__name__' },
+    { collection: 'winners', field: 'uid', op: '==', orderBy: '__name__' },
+    { collection: 'participants', field: 'uid', op: '==', orderBy: '__name__' },
+    { collection: 'participants', field: 'username', op: '==', orderBy: '__name__' },
 ];
 
-// Paged by document id only. No extra field filter, so no composite index.
-const DOCUMENT_ID_SCANS = [
-    'gift_pending_pairs',
-    'global_chat',
-    'announcements',
-    'leaderboard_winners',
-    'stats',
-    'weekly_challenges',
-    'raid_bosses',
-    'action_cooldowns',
-    'raid_daily_caps',
+// Document-id ranges. The end is the prefix plus U+F8FF, not a full scan.
+const ID_RANGE_QUERIES = [
+    { collection: 'action_cooldowns', prefix: 'uid_' },
+    { collection: 'raid_daily_caps', prefix: 'uid_' },
+    { collection: 'gift_pending_pairs', prefix: 'uid_' },
+    { collection: 'weekly_challenges/{week}/user_contribs', prefix: 'uid_' },
+    { collection: 'stats', prefix: 'raffle_' },
+];
+
+// Reads that are not one account's rows. Each one is capped or is the
+// small weekly parent (the participant flag is a map, so it has no uid index).
+const BOUNDED_READS = [
+    { collection: 'global_chat', orderBy: 'ts', direction: 'desc', cap: REACTION_SCAN_CAP },
+    { collection: 'announcements', orderBy: 'ts', direction: 'desc', cap: REACTION_SCAN_CAP },
+    { collection: 'leaderboard_winners', orderBy: 'settledAt', direction: 'desc', cap: LEADERBOARD_SCAN_CAP },
+    { collection: 'raid_bosses', orderBy: 'startTime', direction: 'desc', cap: RAID_BOSS_LOOKUP_CAP },
+    { collection: 'weekly_challenges', orderBy: '__name__', reason: 'participant map' },
 ];
 
 const INDEX_AUDIT = {
-    collectionQueries: DELETION_QUERIES.map(function(row) {
+    collectionQueries: DELETION_QUERIES.concat(DEFERRED_QUERIES).concat([
+        ['gifts', 'sentBy', '==', []],
+        ['leaderboard_winners', 'uids', 'array-contains', []],
+    ]).map(function(row) {
         return { collection: row[0], field: row[1], op: row[2], orderBy: '__name__' };
     }),
     collectionGroupQueries: COLLECTION_GROUP_QUERIES,
-    documentIdScans: DOCUMENT_ID_SCANS,
+    idRangeQueries: ID_RANGE_QUERIES,
+    boundedReads: BOUNDED_READS,
 };
 
 function authorizeDeleteAccount(auth, data, nowSec) {
@@ -177,6 +219,87 @@ function authorizeDeleteAccount(auth, data, nowSec) {
         }
     }
     return { ok: true, uid: target, byAdmin: !ownerCall };
+}
+
+function isAnonymousAuth(auth) {
+    const firebase = auth && auth.token && auth.token.firebase;
+    return !!(firebase && firebase.sign_in_provider === 'anonymous');
+}
+
+function sanitizeRateKey(value) {
+    const cleaned = String(value || 'unknown').replace(/[^A-Za-z0-9]/g, '_').slice(0, 80);
+    return cleaned || 'unknown';
+}
+
+// Rightmost X-Forwarded-For entry is the one the platform appends.
+function clientIpFromContext(context) {
+    const req = context && context.rawRequest;
+    const headers = (req && req.headers) || {};
+    let forwarded = headers['x-forwarded-for'] || headers['X-Forwarded-For'] || '';
+    if (Array.isArray(forwarded)) forwarded = forwarded.join(',');
+    const parts = String(forwarded).split(',').map(function(part) { return part.trim(); }).filter(Boolean);
+    let ip = parts.length ? parts[parts.length - 1] : '';
+    if (!ip && req) {
+        const sock = req.socket || req.connection || {};
+        ip = String(sock.remoteAddress || req.ip || '').trim();
+    }
+    ip = String(ip || 'unknown').replace(/^::ffff:/i, '');
+    return ip || 'unknown';
+}
+
+function rateWindowStartMs(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (value && typeof value.toMillis === 'function') return value.toMillis();
+    if (value && typeof value.toDate === 'function') return value.toDate().getTime();
+    return 0;
+}
+
+async function enforceDeleteRateLimit(db, spec) {
+    const options = spec || {};
+    const callerUid = options.callerUid;
+    const ip = options.ip;
+    const anonymous = options.anonymous === true;
+    const nowMs = options.nowMs;
+    const limits = [];
+    if (!options.byAdmin && callerUid) {
+        limits.push({ id: 'delete_' + callerUid, max: DELETE_RATE_MAX_UID });
+    }
+    limits.push({
+        id: 'deleteip_' + sanitizeRateKey(ip),
+        max: anonymous ? DELETE_RATE_MAX_ANON_IP : (options.byAdmin ? 30 : DELETE_RATE_MAX_IP),
+    });
+    if (!db || typeof db.runTransaction !== 'function') {
+        throw new Error('Rate limit storage is required');
+    }
+    await db.runTransaction(async function(tx) {
+        const snaps = [];
+        for (let i = 0; i < limits.length; i++) {
+            const ref = db.collection('rate_limits').doc(limits[i].id);
+            snaps.push({ ref: ref, max: limits[i].max, snap: await tx.get(ref) });
+        }
+        const writes = [];
+        for (let i = 0; i < snaps.length; i++) {
+            const item = snaps[i];
+            const data = item.snap && item.snap.exists ? (item.snap.data() || {}) : {};
+            const start = rateWindowStartMs(data.windowStart);
+            const age = nowMs - start;
+            const inWindow = !!start && age < DELETE_RATE_WINDOW_MS && age >= -60000;
+            const count = inWindow ? (Number(data.count) || 0) : 0;
+            if (count >= item.max) {
+                const err = new Error('Too many account deletions from this network. Try again later.');
+                err.code = 'resource-exhausted';
+                throw err;
+            }
+            writes.push({
+                ref: item.ref,
+                data: {
+                    windowStart: inWindow ? data.windowStart : nowMs,
+                    count: count + 1,
+                },
+            });
+        }
+        writes.forEach(function(item) { tx.set(item.ref, item.data); });
+    });
 }
 
 function rootCollection(path) {
@@ -309,14 +432,21 @@ function createBatcher(db) {
     };
 }
 
-async function collectDocs(query, documentIdField) {
+async function collectDocs(query, documentIdField, opts) {
+    const options = opts || {};
+    const cap = options.cap > 0 ? options.cap : 0;
     const out = [];
     const seen = new Set();
     let cursor = null;
     for (let page = 0; page < 10000; page++) {
+        if (cap && out.length >= cap) break;
         let q = query;
-        if (documentIdField && typeof q.orderBy === 'function') q = q.orderBy(documentIdField);
-        q = q.limit(QUERY_PAGE);
+        if (documentIdField && !options.ordered && typeof q.orderBy === 'function') {
+            q = q.orderBy(documentIdField);
+        }
+        const pageSize = cap ? Math.min(QUERY_PAGE, cap - out.length) : QUERY_PAGE;
+        if (pageSize <= 0) break;
+        q = q.limit(pageSize);
         if (cursor && typeof q.startAfter === 'function') q = q.startAfter(cursor);
         const snap = await q.get();
         if (!snap || snap.empty || !snap.docs || snap.docs.length === 0) break;
@@ -328,10 +458,25 @@ async function collectDocs(query, documentIdField) {
             out.push(doc);
             added++;
         });
-        if (added === 0 || snap.size < QUERY_PAGE) break;
+        if (added === 0 || snap.size < pageSize) break;
         cursor = snap.docs[snap.docs.length - 1];
     }
     return out;
+}
+
+function idPrefixStart(prefix) {
+    return prefix;
+}
+
+function idPrefixEnd(prefix) {
+    return prefix + ID_RANGE_END;
+}
+
+async function collectIdPrefix(collectionRef, prefix, documentIdField) {
+    const query = collectionRef
+        .where(documentIdField, '>=', idPrefixStart(prefix))
+        .where(documentIdField, '<', idPrefixEnd(prefix));
+    return collectDocs(query, documentIdField);
 }
 
 function collectionNameOf(col) {
@@ -444,8 +589,10 @@ async function anonymizeMentions(db, batcher, uid, username, documentIdField) {
     }
 }
 
-async function stripReactionUid(db, batcher, collectionName, uid, documentIdField) {
-    const docs = await collectDocs(db.collection(collectionName), documentIdField);
+async function stripReactionUid(db, batcher, collectionName, uid) {
+    let query = db.collection(collectionName);
+    if (typeof query.orderBy === 'function') query = query.orderBy('ts', 'desc');
+    const docs = await collectDocs(query, null, { ordered: true, cap: REACTION_SCAN_CAP });
     for (let i = 0; i < docs.length; i++) {
         const data = docs[i].data() || {};
         const next = reactionsWithoutUid(data.reactions, uid);
@@ -493,33 +640,107 @@ async function anonymizeFavorNames(db, batcher, uid, documentIdField) {
     }
 }
 
-async function anonymizeRaidParticipants(db, batcher, uid, documentIdField) {
-    const bosses = await collectDocs(db.collection('raid_bosses'), documentIdField);
-    for (let i = 0; i < bosses.length; i++) {
-        const ref = bosses[i].ref.collection('participants').doc(uid);
-        const snap = await ref.get();
-        if (!snap.exists) continue;
-        const data = snap.data() || {};
-        if (data.username && data.username !== DELETED_LABEL) {
-            await batcher.update(ref, { username: DELETED_LABEL });
-        }
+async function anonymizeNameOnRef(batcher, ref, snap) {
+    if (!snap || !snap.exists) return;
+    const data = snap.data() || {};
+    if (data.username && data.username !== DELETED_LABEL) {
+        await batcher.update(ref, { username: DELETED_LABEL });
     }
 }
 
-async function anonymizeWinnerLists(db, batcher, uid, documentIdField) {
-    const boards = await collectDocs(db.collection('leaderboard_winners'), documentIdField);
-    for (let i = 0; i < boards.length; i++) {
-        const data = boards[i].data() || {};
-        if (!Array.isArray(data.winners)) continue;
-        let changed = false;
-        const next = data.winners.map(function(winner) {
-            if (!winner || winner.uid !== uid || winner.username === DELETED_LABEL) return winner;
-            changed = true;
-            return Object.assign({}, winner, { username: DELETED_LABEL });
-        });
-        if (changed) await batcher.update(boards[i].ref, { winners: next });
+function isRaidPath(path) {
+    return String(path || '').indexOf('raid_bosses/') === 0;
+}
+
+async function anonymizeRaidParticipants(db, batcher, uid, username, documentIdField) {
+    const seen = new Set();
+    async function anonymizeParticipantDoc(doc) {
+        if (!doc || !doc.ref || !isRaidPath(doc.ref.path) || seen.has(doc.ref.path)) return;
+        const data = doc.data() || {};
+        if (doc.id !== uid && data.uid !== uid) return;
+        seen.add(doc.ref.path);
+        if (data.username && data.username !== DELETED_LABEL) {
+            await batcher.update(doc.ref, { username: DELETED_LABEL });
+        }
     }
-    const stats = await collectDocs(db.collection('stats'), documentIdField);
+    if (typeof db.collectionGroup === 'function') {
+        const winners = await collectDocs(
+            db.collectionGroup('winners').where('uid', '==', uid),
+            documentIdField
+        );
+        for (let i = 0; i < winners.length; i++) {
+            const doc = winners[i];
+            if (!isRaidPath(doc.ref.path)) continue;
+            await anonymizeNameOnRef(batcher, doc.ref, { exists: true, data: function() { return doc.data() || {}; } });
+        }
+        const byUid = await collectDocs(
+            db.collectionGroup('participants').where('uid', '==', uid),
+            documentIdField
+        );
+        for (let i = 0; i < byUid.length; i++) await anonymizeParticipantDoc(byUid[i]);
+        if (username && username !== DELETED_LABEL) {
+            const byName = await collectDocs(
+                db.collectionGroup('participants').where('username', '==', username),
+                documentIdField
+            );
+            for (let i = 0; i < byName.length; i++) await anonymizeParticipantDoc(byName[i]);
+        }
+    }
+    // Recent bosses, by document id, cover participant rows that have no uid field.
+    let bossesQuery = db.collection('raid_bosses');
+    if (typeof bossesQuery.orderBy === 'function') bossesQuery = bossesQuery.orderBy('startTime', 'desc');
+    const bosses = await collectDocs(bossesQuery, null, { ordered: true, cap: RAID_BOSS_LOOKUP_CAP });
+    for (let i = 0; i < bosses.length; i++) {
+        const participantRef = bosses[i].ref.collection('participants').doc(uid);
+        const winnerRef = bosses[i].ref.collection('winners').doc(uid);
+        const participant = await participantRef.get();
+        const winner = await winnerRef.get();
+        if (participant.exists) {
+            await anonymizeParticipantDoc({
+                id: uid,
+                ref: participantRef,
+                data: function() { return participant.data() || {}; },
+            });
+        }
+        await anonymizeNameOnRef(batcher, winnerRef, winner);
+    }
+}
+
+function anonymizeWinnerArray(winners, uid) {
+    if (!Array.isArray(winners)) return null;
+    let changed = false;
+    const next = winners.map(function(winner) {
+        if (!winner || winner.uid !== uid || winner.username === DELETED_LABEL) return winner;
+        changed = true;
+        return Object.assign({}, winner, { username: DELETED_LABEL });
+    });
+    return changed ? next : null;
+}
+
+async function anonymizeLeaderboardDoc(batcher, doc, uid) {
+    const data = doc.data() || {};
+    const next = anonymizeWinnerArray(data.winners, uid);
+    if (next) await batcher.update(doc.ref, { winners: next });
+}
+
+async function anonymizeWinnerLists(db, batcher, uid, documentIdField) {
+    const seen = new Set();
+    const tagged = await collectDocs(
+        db.collection('leaderboard_winners').where('uids', 'array-contains', uid),
+        documentIdField
+    );
+    for (let i = 0; i < tagged.length; i++) {
+        seen.add(tagged[i].ref.path);
+        await anonymizeLeaderboardDoc(batcher, tagged[i], uid);
+    }
+    let recent = db.collection('leaderboard_winners');
+    if (typeof recent.orderBy === 'function') recent = recent.orderBy('settledAt', 'desc');
+    const boards = await collectDocs(recent, null, { ordered: true, cap: LEADERBOARD_SCAN_CAP });
+    for (let i = 0; i < boards.length; i++) {
+        if (seen.has(boards[i].ref.path)) continue;
+        await anonymizeLeaderboardDoc(batcher, boards[i], uid);
+    }
+    const stats = await collectIdPrefix(db.collection('stats'), 'raffle_', documentIdField);
     for (let i = 0; i < stats.length; i++) {
         const id = stats[i].id || '';
         if (id.indexOf('raffle_') !== 0 || id.slice(-9) !== '_snapshot') continue;
@@ -537,27 +758,47 @@ async function anonymizeWinnerLists(db, batcher, uid, documentIdField) {
     }
 }
 
-async function clearWeeklyParticipantFlag(db, batcher, uid, documentIdField) {
-    const weeks = await collectDocs(db.collection('weekly_challenges'), documentIdField);
-    for (let i = 0; i < weeks.length; i++) {
-        const data = weeks[i].data() || {};
+async function loadWeeklyChallenges(db, documentIdField) {
+    return collectDocs(db.collection('weekly_challenges'), documentIdField);
+}
+
+async function clearWeeklyParticipantFlag(db, batcher, uid, documentIdField, weeks) {
+    const rows = weeks || await loadWeeklyChallenges(db, documentIdField);
+    for (let i = 0; i < rows.length; i++) {
+        const data = rows[i].data() || {};
         const participants = data.participants;
         if (!participants || typeof participants !== 'object' || !Object.prototype.hasOwnProperty.call(participants, uid)) continue;
         const next = Object.assign({}, participants);
         delete next[uid];
-        await batcher.update(weeks[i].ref, { participants: next });
+        await batcher.update(rows[i].ref, { participants: next });
     }
+    return rows;
 }
 
-function giftPairMatches(id, uid) {
-    return id.indexOf(uid + '_') === 0 || id.slice(-(uid.length + 1)) === ('_' + uid);
+async function giftRecipientPairIds(db, uid, documentIdField) {
+    const ids = new Set();
+    const owned = await collectDocs(db.collection('gifts').where('ownerId', '==', uid), documentIdField);
+    for (let i = 0; i < owned.length; i++) {
+        const sender = String((owned[i].data() || {}).sentBy || '');
+        if (!sender || sender === uid || sender.indexOf('/') !== -1 || !UID_RE.test(sender)) continue;
+        ids.add(sender + '_' + uid);
+    }
+    const sent = await collectDocs(db.collection('gifts').where('sentBy', '==', uid), documentIdField);
+    for (let i = 0; i < sent.length; i++) {
+        const owner = String((sent[i].data() || {}).ownerId || '');
+        if (!owner || owner.indexOf('/') !== -1 || !UID_RE.test(owner)) continue;
+        ids.add(uid + '_' + owner);
+    }
+    return ids;
 }
 
-async function deleteGiftPairs(db, batcher, uid, documentIdField) {
-    const docs = await collectDocs(db.collection('gift_pending_pairs'), documentIdField);
-    for (let i = 0; i < docs.length; i++) {
-        if (!giftPairMatches(docs[i].id, uid)) continue;
-        await batcher.remove(docs[i].ref);
+async function deleteGiftPairs(db, batcher, uid, pairIds, documentIdField) {
+    const prefixed = await collectIdPrefix(db.collection('gift_pending_pairs'), uid + '_', documentIdField);
+    for (let i = 0; i < prefixed.length; i++) await batcher.remove(prefixed[i].ref);
+    const ids = pairIds || new Set();
+    for (const id of ids) {
+        if (!id || id.indexOf('/') !== -1) continue;
+        await deleteExactIfPresent(db, batcher, 'gift_pending_pairs', id);
     }
 }
 
@@ -576,6 +817,7 @@ async function deleteUserTree(batcher, userRef, documentIdField) {
     for (let i = 0; i < cols.length; i++) {
         const name = collectionNameOf(cols[i]);
         if (CAP_SUBCOLLECTIONS.indexOf(name) !== -1) continue;
+        if (DEFERRED_USER_SUBCOLLECTIONS.indexOf(name) !== -1) continue;
         const children = await collectDocs(cols[i], documentIdField);
         for (let c = 0; c < children.length; c++) {
             await deleteDocTree(batcher, children[c].ref, [], documentIdField, false);
@@ -592,23 +834,15 @@ async function deleteExactIfPresent(db, batcher, collectionName, id) {
 }
 
 async function deleteIdPrefix(db, batcher, collectionName, uid, documentIdField) {
-    const docs = await collectDocs(db.collection(collectionName), documentIdField);
-    const prefix = uid + '_';
-    for (let i = 0; i < docs.length; i++) {
-        if (docs[i].id.indexOf(prefix) !== 0) continue;
-        await batcher.remove(docs[i].ref);
-    }
+    const docs = await collectIdPrefix(db.collection(collectionName), uid + '_', documentIdField);
+    for (let i = 0; i < docs.length; i++) await batcher.remove(docs[i].ref);
 }
 
-async function deleteWeeklyContribs(db, batcher, uid, documentIdField) {
-    const weeks = await collectDocs(db.collection('weekly_challenges'), documentIdField);
-    const prefix = uid + '_';
-    for (let i = 0; i < weeks.length; i++) {
-        const contribs = await collectDocs(weeks[i].ref.collection('user_contribs'), documentIdField);
-        for (let c = 0; c < contribs.length; c++) {
-            if (contribs[c].id.indexOf(prefix) !== 0) continue;
-            await batcher.remove(contribs[c].ref);
-        }
+async function deleteWeeklyContribs(db, batcher, uid, documentIdField, weeks) {
+    const rows = weeks || await loadWeeklyChallenges(db, documentIdField);
+    for (let i = 0; i < rows.length; i++) {
+        const contribs = await collectIdPrefix(rows[i].ref.collection('user_contribs'), uid + '_', documentIdField);
+        for (let c = 0; c < contribs.length; c++) await batcher.remove(contribs[c].ref);
     }
 }
 
@@ -630,11 +864,22 @@ async function deleteAuthUser(authApi, uid) {
     }
 }
 
-async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField) {
+async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField, opts) {
+    const options = opts || {};
     const userRef = db.collection('users').doc(uid);
     for (let i = 0; i < CAP_SUBCOLLECTIONS.length; i++) {
         const docs = await collectDocs(userRef.collection(CAP_SUBCOLLECTIONS[i]), documentIdField);
         for (let c = 0; c < docs.length; c++) await batcher.remove(docs[c].ref);
+    }
+    for (let i = 0; i < DEFERRED_USER_SUBCOLLECTIONS.length; i++) {
+        const docs = await collectDocs(userRef.collection(DEFERRED_USER_SUBCOLLECTIONS[i]), documentIdField);
+        for (let c = 0; c < docs.length; c++) {
+            await deleteDocTree(batcher, docs[c].ref, [], documentIdField, false);
+        }
+    }
+    for (let i = 0; i < DEFERRED_QUERIES.length; i++) {
+        const q = DEFERRED_QUERIES[i];
+        await deleteWhere(db, batcher, q[0], q[1], q[2], uid, q[3], documentIdField);
     }
     const exact = [
         ['shoutout_limits', 'forum_' + uid],
@@ -644,6 +889,7 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField) {
         ['rate_limits', 'v4v_' + uid],
         ['rate_limits', 'sayhi_' + uid],
         ['rate_limits', 'announce_' + uid],
+        ['rate_limits', 'delete_' + uid],
         ['totp_rate_limits', uid],
         ['totp_rate_limits', uid + '_verify'],
         ['totp_rate_limits', uid + '_disable'],
@@ -653,7 +899,8 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField) {
     }
     await deleteIdPrefix(db, batcher, 'action_cooldowns', uid, documentIdField);
     await deleteIdPrefix(db, batcher, 'raid_daily_caps', uid, documentIdField);
-    await deleteWeeklyContribs(db, batcher, uid, documentIdField);
+    await deleteGiftPairs(db, batcher, uid, options.pairIds, documentIdField);
+    if (!options.light) await deleteWeeklyContribs(db, batcher, uid, documentIdField, options.weeks);
 }
 
 async function deleteStorageForUser(bucket, uid) {
@@ -671,22 +918,30 @@ async function deleteStorageForUser(bucket, uid) {
     return prefixes;
 }
 
-async function purgeAccount({ db, bucket, authApi, uid, documentIdField }) {
+async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }) {
     if (!UID_RE.test(uid)) throw new Error('Invalid uid');
     const batcher = createBatcher(db);
+    const guest = light === true;
 
     const userSnap = await db.collection('users').doc(uid).get();
     const userData = userSnap.exists ? (userSnap.data() || {}) : null;
     const username = userData && (userData.username || userData.displayName) ? (userData.username || userData.displayName) : '';
+    // Read pair ids before the gift docs are deleted. The recipient side is
+    // sender_uid, which a uid_ range cannot see.
+    const pairIds = await giftRecipientPairIds(db, uid, documentIdField);
 
-    const chat = await anonymizeGlobalChat(db, batcher, uid, documentIdField);
-    await anonymizeMentions(db, batcher, uid, username, documentIdField);
-    await stripReactionUid(db, batcher, 'global_chat', uid, documentIdField);
-    await stripReactionUid(db, batcher, 'announcements', uid, documentIdField);
+    let chat = { anonymized: 0, ids: [] };
+    let weeks = null;
+    if (!guest) {
+        chat = await anonymizeGlobalChat(db, batcher, uid, documentIdField);
+        await anonymizeMentions(db, batcher, uid, username, documentIdField);
+        await stripReactionUid(db, batcher, 'global_chat', uid);
+        await stripReactionUid(db, batcher, 'announcements', uid);
+        await anonymizeRaidParticipants(db, batcher, uid, username, documentIdField);
+        await anonymizeWinnerLists(db, batcher, uid, documentIdField);
+        weeks = await clearWeeklyParticipantFlag(db, batcher, uid, documentIdField);
+    }
     await anonymizeFavorNames(db, batcher, uid, documentIdField);
-    await anonymizeRaidParticipants(db, batcher, uid, documentIdField);
-    await anonymizeWinnerLists(db, batcher, uid, documentIdField);
-    await clearWeeklyParticipantFlag(db, batcher, uid, documentIdField);
     await deleteUsernameReservations(db, batcher, uid, userData, documentIdField);
 
     let deletedDocs = 0;
@@ -697,7 +952,6 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField }) {
         deletedDocs += found.length;
     }
     await deleteOwnedGifts(db, batcher, uid, documentIdField);
-    await deleteGiftPairs(db, batcher, uid, documentIdField);
 
     if (typeof db.collectionGroup === 'function') {
         const comments = await collectDocs(
@@ -749,20 +1003,25 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField }) {
     deletedDocs++;
 
     await batcher.flush();
-    const storagePrefixes = await deleteStorageForUser(bucket, uid);
     await deleteAuthUser(authApi, uid);
-    await wipeCapsAndUserLimits(db, batcher, uid, documentIdField);
+    await wipeCapsAndUserLimits(db, batcher, uid, documentIdField, {
+        light: guest,
+        pairIds: pairIds,
+        weeks: weeks,
+    });
     await batcher.flush();
+    const storagePrefixes = await deleteStorageForUser(bucket, uid);
     return {
         uid: uid,
         anonymizedChat: chat.anonymized,
         deletedDocs: deletedDocs,
         storagePrefixes: storagePrefixes,
         authDeleted: true,
+        light: guest,
     };
 }
 
-function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, documentIdField }) {
+function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, nowMs, documentIdField }) {
     return {
         async deleteAccount(data, context) {
             const now = typeof nowSec === 'function'
@@ -770,12 +1029,31 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                 : (typeof nowSec === 'number' ? nowSec : Math.floor(Date.now() / 1000));
             const decision = authorizeDeleteAccount(context && context.auth, data || {}, now);
             if (!decision.ok) throw new HttpsError(decision.code, decision.message);
+            const clock = typeof nowMs === 'function'
+                ? nowMs()
+                : (typeof nowMs === 'number' ? nowMs : Date.now());
+            const anonymous = isAnonymousAuth(context && context.auth);
+            try {
+                await enforceDeleteRateLimit(db, {
+                    callerUid: context.auth.uid,
+                    byAdmin: decision.byAdmin,
+                    anonymous: anonymous,
+                    ip: clientIpFromContext(context),
+                    nowMs: clock,
+                });
+            } catch (err) {
+                if (err && err.code === 'resource-exhausted') {
+                    throw new HttpsError('resource-exhausted', err.message);
+                }
+                throw err;
+            }
             const summary = await purgeAccount({
                 db: db,
                 bucket: bucket,
                 authApi: authApi,
                 uid: decision.uid,
                 documentIdField: documentIdField,
+                light: anonymous && !decision.byAdmin,
             });
             return {
                 ok: true,
@@ -785,6 +1063,7 @@ function createDeleteAccountHandlers({ db, bucket, authApi, HttpsError, nowSec, 
                 deletedDocs: summary.deletedDocs,
                 storagePrefixes: summary.storagePrefixes,
                 authDeleted: summary.authDeleted,
+                light: summary.light,
             };
         },
     };
@@ -799,13 +1078,22 @@ function bindDeleteAccount(functionsV1, admin, db) {
         documentIdField: admin.firestore.FieldPath.documentId(),
     });
     return {
-        deleteAccount: functionsV1.runWith({ timeoutSeconds: 540, memory: '1GB' }).https.onCall(handlers.deleteAccount),
+        deleteAccount: functionsV1.runWith({
+            timeoutSeconds: 540,
+            memory: '1GB',
+            enforceAppCheck: true,
+        }).https.onCall(handlers.deleteAccount),
     };
 }
 
 module.exports = {
     BATCH_LIMIT: BATCH_LIMIT,
     QUERY_PAGE: QUERY_PAGE,
+    REACTION_SCAN_CAP: REACTION_SCAN_CAP,
+    LEADERBOARD_SCAN_CAP: LEADERBOARD_SCAN_CAP,
+    RAID_BOSS_LOOKUP_CAP: RAID_BOSS_LOOKUP_CAP,
+    DELETE_RATE_MAX_UID: DELETE_RATE_MAX_UID,
+    DELETE_RATE_MAX_ANON_IP: DELETE_RATE_MAX_ANON_IP,
     REAUTH_MAX_AGE_SEC: REAUTH_MAX_AGE_SEC,
     DELETED_LABEL: DELETED_LABEL,
     DELETED_UID: DELETED_UID,

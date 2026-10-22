@@ -169,6 +169,7 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
     // Update participant doc (store scaled damage, not raw metric amount)
     const scaledDamage = Math.round(effectiveAmount * damageScale * 1000) / 1000;
     const participantUpdate = {
+      uid,
       contributed: admin.firestore.FieldValue.increment(scaledDamage),
       lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -207,7 +208,7 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
 
   // Persist username on participant doc
   try {
-    await activeBossRef.collection('participants').doc(uid).set({ username }, { merge: true });
+    await activeBossRef.collection('participants').doc(uid).set({ username, uid }, { merge: true });
   } catch (e) {}
 
   // Recalculate total from all participants
