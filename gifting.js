@@ -1082,8 +1082,24 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     catch (e) { err = e.message || 'Could not open the cipher'; }
     await anim;
 
+    // Clean up local state first, so stale cards and Open buttons go away
+    // even when the user closed the overlay mid-animation.
+    var staleErr = !!err && /already (opened|used|sent)|not found/i.test(String(err));
+    if (!err) {
+        _noteSpent(key.id, cipherId);
+        _dropMatchBanner(cipherLabel);
+        (window._openedGiftRewards || []).forEach(function(rwGift) {
+            if (!rwGift.keyIds) return;
+            rwGift.keyIds = rwGift.keyIds.filter(function(id) { return id !== key.id; });
+        });
+    } else if (staleErr) {
+        if (/cipher/i.test(String(err))) { _noteSpent(null, cipherId); _dropMatchBanner(cipherLabel); }
+        if (/key/i.test(String(err))) _noteSpent(key.id, null);
+    }
+    var refreshPromise = (!err || staleErr) ? _refreshHoldingsViews().catch(function() {}) : null;
+
     var resultDiv = document.getElementById('dcResult');
-    if (!overlay.parentNode) return;
+    if (!overlay.parentNode) { if (refreshPromise) await refreshPromise; return; }
     if (statusEl) statusEl.textContent = '';
     if (hexEl) hexEl.style.display = 'none';
     if (err) {
@@ -1097,6 +1113,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
             close.onclick = function() { overlay.remove(); };
             resultDiv.appendChild(close);
         }
+        if (refreshPromise) await refreshPromise;
         return;
     }
 
@@ -1135,15 +1152,8 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     }
     _confetti();
     _toast('🔓 Cipher ' + cipherLabel + ' opened! ' + _rewardLabel(rw));
-    _noteSpent(key.id, cipherId);
-    _dropMatchBanner(cipherLabel);
-    var rewards = window._openedGiftRewards || [];
-    rewards.forEach(function(rwGift) {
-        if (!rwGift.keyIds) return;
-        rwGift.keyIds = rwGift.keyIds.filter(function(id) { return id !== key.id; });
-    });
-    await _refreshHoldingsViews();
-};
+    await refreshPromise;
+}
 
 // ─── Claim a small sats win ──────────────────────────────────────────────────
 
