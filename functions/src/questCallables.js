@@ -5,7 +5,8 @@
 // (users.satsDisabled or faucet_ledger.banned) receive nothing.
 // Grading uses questReward.js and the bundled bank, never client answer keys.
 // A perfect part is stored under users/{uid}/quest_completions.
-// The profile array the browser can edit is not consulted.
+// An older server key on completedQuests (quest_<topic> for part 1,
+// quest_<topic>__N for part N) also blocks a repeat payout. It never grants one.
 // A payout also writes a bell notification, same as the other reward callables.
 
 const functionsV1 = require('firebase-functions/v1');
@@ -188,7 +189,8 @@ const gradeQuest = onCall(async (data, context) => {
             graded: graded,
             banned: banned,
             dailyUsed: dailyUsed,
-            alreadyPerfect: !!(completionDoc && completionDoc.exists),
+            alreadyPerfect: !!(completionDoc && completionDoc.exists)
+                || reward.legacyPartRecorded(user.completedQuests, graded.topicKey, graded.questIndex),
             questsToday: questsToday,
         }) : { awarded: 0, reason: graded.reason || 'need-text-answers' };
         const awarded = settled.awarded || 0;
