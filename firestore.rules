@@ -82,6 +82,8 @@ service cloud.firestore {
                         'forumPosts', 'forumReplies', 'lastSpinDate',
                         // Gifting system (CF-only)
                         'lastGiftSpinDate', 'giftsOpenedToday', 'giftsOpenedDate',
+                        'ciphersDecryptedToday', 'ciphersDecryptedDate',
+                        'keysSentDate', 'keysSentTo',
                         'marketListings', 'marketMessages',
                         'referralTicketsEarned', 'referralCode',
                         'pointsDonated', 'donationBadges',
@@ -1584,6 +1586,34 @@ service cloud.firestore {
     // One-pending-per-pair tracker — CF (Admin SDK) only
     // docId = {senderUid}_{recipientUid}; set on send, deleted on open
     match /gift_pending_pairs/{pairId} {
+      allow read, write: if false;
+    }
+
+    // Keys — owner (and the person who sent it) may read. Writes are Cloud Functions only.
+    match /keys/{keyId} {
+      allow read: if request.auth != null
+                  && (resource.data.ownerId == request.auth.uid
+                      || resource.data.sentBy == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Locked ciphers — only the owner may read. Writes are Cloud Functions only.
+    match /locked_ciphers/{cipherId} {
+      allow read: if request.auth != null
+                  && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // One send per sender+recipient per day. Sender may read their own pair docs.
+    match /key_send_pairs/{pairId} {
+      allow read: if request.auth != null
+                  && resource.data.senderUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Sats-win ledger. Server-only and append-only from the client's point of view.
+    // Admins read it through adminListCipherWins; winners claim through claimCipherWin.
+    match /cipher_wins/{winId} {
       allow read, write: if false;
     }
 
