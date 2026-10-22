@@ -3651,6 +3651,10 @@ var CRISIS_RESPONSE = "Hey {name}, I'm just a deer, but I care about you. 🧡 I
     "<strong>🌍 International:</strong> <a href='https://findahelpline.com/' target='_blank' rel='noopener' style='color:#f7931a;'>findahelpline.com</a><br><br>" +
     "You matter, {name}. Please reach out. 💛";
 
+function nachoCrisisAnswer(text) {
+    return /call or text 988|crisis text line|findahelpline\.com|i care about you/i.test(String(text || ''));
+}
+
 function nachoSafetyCheck(q) {
     var text = String(q || '');
     if (isCrisis(text)) return { type: 'crisis', answer: CRISIS_RESPONSE };
@@ -4134,12 +4138,13 @@ function renderNachoAnswer(textEl, answerHtml, match) {
         '</div>';
     }
 
+    var _safetyReply = match && (match.type === 'crisis' || match.type === 'harm' || match.suppressFollowUps || nachoCrisisAnswer(answerHtml));
     // One follow-up chip. The same sentence is not also written into the answer.
-    if (match && match.followUp && String(answerHtml).indexOf(String(match.followUp).slice(0, 24)) === -1 && String(answerHtml).indexOf('data-bq-chip') === -1) {
+    if (!_safetyReply && match && match.followUp && String(answerHtml).indexOf(String(match.followUp).slice(0, 24)) === -1 && String(answerHtml).indexOf('data-bq-chip') === -1) {
         var _fuText = String(match.followUp).replace(/[<>]/g, '');
         var _fuAttr = _fuText.replace(/[\\'"]/g, '');
         html += '<button data-bq-chip="1" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + _fuAttr + '\';nachoAnswer();}},150)" style="display:block;width:100%;margin-top:8px;padding:5px 8px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_fuText) + '</button>';
-    } else if (match && match.answer && String(answerHtml).indexOf('data-bq-chip') === -1) {
+    } else if (!_safetyReply && match && match.answer && String(answerHtml).indexOf('data-bq-chip') === -1) {
         var followUps = typeof nachoFollowUps === 'function' ? nachoFollowUps(match.answer) : [];
         if (followUps.length > 0) {
             html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#333);">' +
@@ -4227,6 +4232,10 @@ window.nachoAnswer = function() {
                     else setPose('brain');
                 }
 
+                if (result.type === 'crisis' || result.type === 'harm' || result.suppressFollowUps) {
+                    window._bqLastFollowUp = '';
+                    if (result.answer) result.answer = String(result.answer).replace(/<(button|div)[^>]*data-bq-chip[\s\S]*?<\/\1>/gi, '');
+                }
                 var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + (result.answer || 'Hmm, try asking another way! 🦌') + '</div>';
 
                 // Add channel link if available
@@ -4875,7 +4884,8 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
     // ---- STEP 1: Safety (instant, hardcoded) ----
     if (isCrisis(q)) {
-        callback({ type: 'crisis', answer: pq(CRISIS_RESPONSE) });
+        window._bqLastFollowUp = '';
+        callback({ type: 'crisis', answer: pq(CRISIS_RESPONSE), suppressFollowUps: true, followUp: '' });
         return;
     }
 
@@ -5113,6 +5123,7 @@ window.nachoConvoAIAnswer = nachoConvoAIAnswer;
 window.isInappropriate = isInappropriate;
 window.isCrisis = isCrisis;
 window.nachoSafetyCheck = nachoSafetyCheck;
+window.nachoCrisisAnswer = nachoCrisisAnswer;
 window.isFinancialAdvice = isFinancialAdvice;
 window.deepContentSearch = deepContentSearch;
 window.nachoWebSearch = nachoWebSearch;
@@ -5295,6 +5306,10 @@ if (typeof NACHO_KB !== 'undefined') {
 // Every topic funnels toward Bitcoin maximalism — scarcity, sovereignty, sound money.
 window.nachoFollowUps = function(answerText) {
     if (!answerText) return [];
+    if ((typeof window.nachoCrisisAnswer === 'function' && window.nachoCrisisAnswer(answerText)) || window._bqSuppressFollowUps) {
+        window._bqLastFollowUp = '';
+        return [];
+    }
     if (String(answerText).indexOf('data-bq-chip') !== -1) return [];
     if (window._bqLastFollowUp && String(answerText).indexOf(String(window._bqLastFollowUp).slice(0, 24)) !== -1) {
         return [];

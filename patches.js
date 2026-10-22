@@ -150,42 +150,13 @@
     };
     (function() {
         function _installSearchClear() {
+            // The old clear control was parented to the overlay and sat mid-screen.
+            var stray = document.getElementById('searchClearBtn');
+            if (stray && stray.parentNode) stray.parentNode.removeChild(stray);
             var overlay = document.getElementById('searchOverlay');
-            if (!overlay) { setTimeout(_installSearchClear, 500); return; }
-            var inp = document.getElementById('searchOverlayInput');
-            if (!inp) return;
-            if (document.getElementById('searchClearBtn')) return;
-            var wrapper = inp.parentNode;
-            var origStyle = getComputedStyle(inp);
-            if (wrapper.style.position !== 'relative' && getComputedStyle(wrapper).position !== 'relative') {
-                wrapper.style.position = 'relative';
+            if (overlay && overlay.getAttribute('data-open') === '1' && overlay.style.display === 'block') {
+                overlay.style.display = 'flex';
             }
-            var btn = document.createElement('button');
-            btn.id = 'searchClearBtn';
-            btn.innerHTML = '✕';
-            btn.setAttribute('aria-label', 'Clear search');
-            btn.style.cssText = 'position:absolute;right:10px;top:50%;transform:translateY(-50%);' +
-                'background:none;border:none;color:var(--text-muted);font-size:1.1rem;cursor:pointer;' +
-                'padding:4px 6px;display:none;z-index:5;line-height:1;touch-action:manipulation;' +
-                '-webkit-tap-highlight-color:transparent;';
-            inp.parentNode.style.position = 'relative';
-            inp.parentNode.style.display = 'block';
-            inp.parentNode.appendChild(btn);
-            inp.style.paddingRight = '36px';
-            function syncBtn() {
-                btn.style.display = inp.value.length > 0 ? 'flex' : 'none';
-            }
-            inp.addEventListener('input', syncBtn);
-            inp.addEventListener('focus', syncBtn);
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                inp.value = '';
-                if (typeof doSearch === 'function') doSearch('');
-                inp.focus();
-                syncBtn();
-            });
-            setInterval(syncBtn, 500);
         }
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(_installSearchClear, 300);

@@ -2271,13 +2271,16 @@ if (window.DeviceMotionEvent) {
 
 // Inject username into message text — replaces {name} placeholder
 window.personalize = function(text) {
-    var name = nachoUserName();
-    
-    // Replace {name}
+    var name = (nachoUserName() || '').trim();
+
+    // Empty name must not eat the space in "Hey {name}, I'm" or leave "You matter ."
     if (!name) {
-        text = text.replace(/,?\s*\{name\}\s*,?\s*/g, function(match) {
-            if (match.indexOf(',') === 0 && match.lastIndexOf(',') > 0) return ', ';
-            return match.charAt(0) === ',' ? ' ' : '';
+        text = text.replace(/[ \t]*,?[ \t]*\{name\}[ \t]*,?[ \t]*/g, function(match, offset, str) {
+            var after = str.slice(offset + match.length);
+            if (/^[.,!?;:]/.test(after)) return '';
+            var before = str.slice(0, offset);
+            if (before && !/\s$/.test(before) && after && !/^\s/.test(after)) return ' ';
+            return '';
         });
     } else {
         text = text.replace(/\{name\}/g, name);

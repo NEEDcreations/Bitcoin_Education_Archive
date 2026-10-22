@@ -757,6 +757,8 @@ window.loadEarlierMessages = function() {
 
 // Open Quest Hub on the Raid tab. quests.js is lazy-loaded, so wait for it.
 window.openRaidHub = function() {
+    var lock = window._bqHubLock;
+    if (lock && lock.tab && lock.tab !== 'raid' && Date.now() < lock.until) return;
     window._questHubTab = 'raid';
     function openNow() {
         if (typeof window.showQuestHub !== 'function') return false;

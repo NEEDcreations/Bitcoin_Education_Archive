@@ -3484,6 +3484,20 @@ window.showQuestHub = function() {
     document.body.appendChild(overlay);
 
     _renderQuestHubTab();
+    // A deep link may have chosen Nook/Inventory before this default render.
+    // Apply it again after Quest Hub's own init, including the deferred pass.
+    if (window._bqHubLock && window._bqHubLock.tab && Date.now() < window._bqHubLock.until) {
+        window._questHubTab = window._bqHubLock.tab;
+        if (window._bqHubLock.sub) window._nookSubTab = window._bqHubLock.sub;
+        _renderQuestHubTab();
+        setTimeout(function () {
+            var lock = window._bqHubLock;
+            if (!lock || !lock.tab || Date.now() > lock.until) return;
+            window._questHubTab = lock.tab;
+            if (lock.sub) window._nookSubTab = lock.sub;
+            if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+        }, 400);
+    }
 
     // History: push state so browser/swipe back closes/reopens Quest Hub
     // Save the current path so close buttons can restore it without history.back()
