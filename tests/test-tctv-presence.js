@@ -253,12 +253,13 @@ test('single-field index is declared for tctv_presence.ts', () => {
     assert.ok(orders.includes('ASCENDING:COLLECTION'));
 });
 
-test('cache name is v2239 and the TV script cache-buster moved', () => {
+test('cache name is v2242 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2239'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2242'"));
+    assert.ok(!sw.includes('btc-archive-v2241'));
+    assert.ok(!sw.includes('btc-archive-v2240'));
+    assert.ok(!sw.includes('btc-archive-v2239'));
     assert.ok(!sw.includes('btc-archive-v2238'));
-    assert.ok(!sw.includes('btc-archive-v2237'));
-    assert.ok(!sw.includes('btc-archive-v2236'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('timechain-tv.js?v=20261022_tctv3'));

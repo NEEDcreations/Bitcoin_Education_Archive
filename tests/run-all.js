@@ -18,6 +18,7 @@ const TESTS = [
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
+    { name: 'Hot Topics', file: 'test-hot-topics.js' },
 ];
 
 let allPassed = true;

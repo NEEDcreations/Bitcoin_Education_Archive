@@ -7653,63 +7653,33 @@ exports.useBonusSpin = functionsV1.https.onCall(async (data, context) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HOT TOPICS — Weekly Bitcoin trending topics aggregator
-// Runs every Friday at 22:00 America/New_York (= Saturday 02:00–03:00 UTC)
-// Sources: Brave Search (via nacho worker) + Reddit JSON + BitcoinTalk HTML
-// AI: Cloudflare Workers AI Llama 4 Scout (free, uses existing CF credentials)
+// Runs every Sunday at 22:00 America/New_York (= Monday 02:00–03:00 UTC)
+// Sources: X API v2 recent search, Reddit RSS, Stacker News, BitcoinTalk, Brave web search
+// AI: Cloudflare Workers AI Llama 4 Scout with JSON mode, repair, and retries
 // Stores result in Firestore: hotTopics/latest
 // ─────────────────────────────────────────────────────────────────────────────
 
 const { onSchedule: onScheduleV2 } = require('firebase-functions/v2/scheduler');
+const hotTopics = require('./src/hotTopics');
 
-// Trigger: Friday 10 PM Eastern (America/New_York handles DST automatically)
-// Quality gate: reject fallback/template topics before they reach Firestore
-function isRealTopics(topics) {
-    if (!topics || !topics.length) return false;
-    const SLOP_PHRASES = [
-        'the bitcoin community is actively discussing',
-        'multiple perspectives are circulating',
-        'community members see positive developments',
-        'others raise concerns and call for more caution',
-        'discussion',
-    ];
-    // Reject if ANY topic summary contains boilerplate phrases
-    for (const t of topics) {
-        const summary = (t.summary || '').toLowerCase();
-        const sideTexts = (t.sides || []).map(s => (s.summary || '').toLowerCase()).join(' ');
-        if (SLOP_PHRASES.slice(0, 4).some(p => summary.includes(p))) {
-            console.warn('[HotTopics] Quality gate rejected topic (boilerplate detected):', t.title);
-            return false;
-        }
-        // Require specificity: summary must contain at least one of: a year, a BIP number, a proper noun (capitalized word 4+ chars)
-        const hasSpecificity = /20\d{2}|BIP-?\d+|[A-Z][a-z]{3,}/.test(t.summary || '');
-        if (!hasSpecificity) {
-            console.warn('[HotTopics] Quality gate rejected topic (no specificity):', t.title);
-            return false;
-        }
-    }
-    return true;
-}
-
+// Trigger: Sunday 10 PM Eastern (America/New_York handles DST automatically).
+// Deploying this function updates the Cloud Scheduler job to the new cron.
+// The quality gate still rejects template topics.
 exports.refreshHotTopics = onScheduleV2({
-    schedule: '0 22 * * 5',
+    schedule: '0 22 * * 0',
     timeZone: 'America/New_York',
     timeoutSeconds: 540,
     memory: '512MiB',
-}, async (event) => {
+}, async () => {
     console.log('[HotTopics] Starting weekly refresh...');
     try {
-        const topics = await buildHotTopics();
-        if (!isRealTopics(topics)) {
-            // AI failed and fallback produced slop — leave existing data intact
-            console.warn('[HotTopics] Quality gate failed — keeping existing Firestore data intact, not overwriting with fallback slop');
-            return;
-        }
-        await db.collection('hotTopics').doc('latest').set({
-            topics,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            version: 1,
+        await hotTopics.runHotTopicsJob({
+            mode: 'schedule',
+            env: process.env,
+            db: db,
+            admin: admin,
+            listAdminUids: _listAdminClaimUids,
         });
-        console.log('[HotTopics] Saved', topics.length, 'real topics to Firestore');
     } catch (err) {
         console.error('[HotTopics] Fatal error:', err);
     }
@@ -7721,13 +7691,20 @@ exports.refreshHotTopics = onScheduleV2({
 exports.refreshHotTopicsHttp = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
-        const topics = await buildHotTopics();
-        await db.collection('hotTopics').doc('latest').set({
-            topics,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            version: 1,
+        const result = await hotTopics.runHotTopicsJob({
+            mode: 'http',
+            env: process.env,
+            db: db,
+            admin: admin,
+            listAdminUids: _listAdminClaimUids,
         });
-        res.json({ ok: true, topicsCount: topics.length, topics });
+        res.json({
+            ok: true,
+            topicsCount: result.topics.length,
+            saved: result.saved,
+            sources: result.sourceReport,
+            topics: result.topics,
+        });
     } catch (err) {
         console.error('[HotTopics] HTTP trigger error:', err);
         res.status(500).json({ error: err.message });
@@ -7738,524 +7715,26 @@ exports.refreshHotTopicsHttp = functionsV1.https.onRequest(async (req, res) => {
 exports.refreshHotTopicsForce = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
-        const topics = await buildHotTopics();
-        const passed = isRealTopics(topics);
-        await db.collection('hotTopics').doc('latest').set({
-            topics,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            version: 1,
-            qualityGatePassed: passed,
+        const result = await hotTopics.runHotTopicsJob({
+            mode: 'force',
+            env: process.env,
+            db: db,
+            admin: admin,
+            listAdminUids: _listAdminClaimUids,
         });
-        res.json({ ok: true, topicsCount: topics.length, qualityGatePassed: passed, topics });
+        res.json({
+            ok: true,
+            topicsCount: result.topics.length,
+            qualityGatePassed: result.qualityGatePassed,
+            saved: result.saved,
+            sources: result.sourceReport,
+            topics: result.topics,
+        });
     } catch (err) {
         console.error('[HotTopics] Force refresh error:', err);
         res.status(500).json({ error: err.message });
     }
 });
-
-// ── Core builder ─────────────────────────────────────────────────────────────
-async function buildHotTopics() {
-    // Step 1: Discover trending Bitcoin topics from multiple sources
-    const rawSignals = await gatherTrendingSignals();
-
-    // Step 2: Cluster signals into 2-3 unified topic threads
-    const topics = await clusterAndSummarize(rawSignals);
-
-    return topics;
-}
-
-// ── Step 1: Gather raw trending signals ──────────────────────────────────────
-// Phil's curated Bitcoin X list — 44 accounts
-const CURATED_X_ACCOUNTS = [
-    // OG thinkers / authors / podcasters
-    'BigSeanHarris','francispouliot_','parkeralewis','TomerStrolight','MartyBent',
-    'giacomozucco','ck_SNARKs','stephanlivera','Princey21M','real_vijay',
-    'Erikcason','knutsvanholm','CedYoungelman','Bquittem','NeilJacobs',
-    'jimmysong','gladstein','saifedean','JeffBooth','nvk',
-    // Educators / media / builders
-    'PlebUnderground','BitcoinPierre','w_s_bitcoin','HodlTarantula','parman_the',
-    'LukeMikic21','denverbitcoin','Coinicarus','timevalueofbtc','CryptoCloaks',
-    'IIICapital','_Checkmatey_','CitizenBitcoin','FractalEncrypt','Croesus_BTC',
-    'hodlonaut','LynAldenContact','JoeConsorti','notgrubles',
-    // Additional from screenshots
-    'JoeCarlasare','thetrocro','TheGuySwann','jackmallers','BTCsessions',
-];
-
-async function gatherTrendingSignals() {
-    const signals = [];
-    const fetches = [
-        fetchCuratedXPosts(),
-        fetchRedditHot(),
-        fetchBitcoinTalkHot(),
-        fetchWebTrending(),
-    ];
-    const results = await Promise.allSettled(fetches);
-    results.forEach((r, i) => {
-        if (r.status === 'fulfilled' && Array.isArray(r.value)) {
-            signals.push(...r.value);
-        } else {
-            console.warn('[HotTopics] Source', i, 'failed:', r.reason);
-        }
-    });
-    console.log('[HotTopics] Gathered', signals.length, 'raw signals');
-    return signals;
-}
-
-// ── Reddit r/Bitcoin hot posts ────────────────────────────────────────────────
-// ── Curated X accounts (Phil's Bitcoin list) ── search recent posts ──────────────
-async function fetchCuratedXPosts() {
-    const now = new Date();
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const dateStr = months[now.getUTCMonth()] + ' ' + now.getUTCFullYear();
-
-    // Batch accounts into groups of 5 for OR queries
-    const batches = [];
-    for (let i = 0; i < CURATED_X_ACCOUNTS.length; i += 5) {
-        batches.push(CURATED_X_ACCOUNTS.slice(i, i + 5));
-    }
-
-    const results = [];
-    for (const batch of batches) {
-        const usernameClause = batch.map(u => '@' + u).join(' OR ');
-        const queries = [
-            '(' + usernameClause + ') site:x.com ' + dateStr,
-            '(' + usernameClause + ') bitcoin site:x.com ' + dateStr,
-        ];
-        for (const q of queries) {
-            try {
-                const items = await searchWeb(q, 3, 'pw');
-                results.push(...items.map(r => ({ ...r, source: 'x' })));
-            } catch (e) {
-                console.warn('[HotTopics] Curated X search failed:', e.message);
-            }
-        }
-    }
-
-    // Deduplicate by URL
-    const seen = new Set();
-    return results.filter(r => {
-        if (seen.has(r.url)) return false;
-        seen.add(r.url);
-        return true;
-    });
-}
-
-
-async function fetchRedditHot() {
-    const url = 'https://www.reddit.com/r/Bitcoin/hot.json?limit=25&raw_json=1';
-    const resp = await fetch(url, {
-        headers: {
-            'User-Agent': 'BitcoinEducationArchive/1.0 (https://bitcoineducation.quest)',
-            'Accept': 'application/json',
-        },
-    });
-    if (!resp.ok) throw new Error('Reddit HTTP ' + resp.status);
-    const json = await resp.json();
-    if (!json.data || !json.data.children) throw new Error('Reddit: unexpected shape');
-
-    return json.data.children
-        .filter(p => p.data && !p.data.stickied && p.data.score > 100)
-        .slice(0, 15)
-        .map(p => ({
-            source: 'reddit',
-            title: p.data.title,
-            url: 'https://reddit.com' + p.data.permalink,
-            score: p.data.score,
-            comments: p.data.num_comments,
-            body: (p.data.selftext || '').substring(0, 300),
-        }));
-}
-
-// ── BitcoinTalk board scraper (HTML) ──────────────────────────────────────────
-async function fetchBitcoinTalkHot() {
-    // Board 1 = Bitcoin Discussion. Scrape thread list HTML.
-    const url = 'https://bitcointalk.org/index.php?board=1.0';
-    const resp = await fetch(url, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; BitcoinEducationArchive/1.0)',
-            'Accept': 'text/html',
-        },
-    });
-    if (!resp.ok) throw new Error('BitcoinTalk HTTP ' + resp.status);
-    const html = await resp.text();
-
-    // Extract thread titles + links from SMF board markup
-    const threads = [];
-    const re = /<span id="msg_\d+"><a href="(https:\/\/bitcointalk\.org\/index\.php\?topic=[^"]+)"[^>]*>([^<]+)<\/a><\/span>/g;
-    let m;
-    while ((m = re.exec(html)) !== null && threads.length < 20) {
-        const title = m[2].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
-        if (title.length > 10) {
-            threads.push({
-                source: 'bitcointalk',
-                title,
-                url: m[1],
-                score: 50,
-                comments: 0,
-                body: '',
-            });
-        }
-    }
-    return threads;
-}
-
-// ── Web search for viral Bitcoin content ──────────────────────────────────────
-async function fetchWebTrending() {
-    // Build date-aware queries so results are inherently recent even without Brave freshness filter
-    const now = new Date();
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const month = months[now.getUTCMonth()];
-    const year = now.getUTCFullYear();
-    const dateStr = month + ' ' + year; // e.g. 'June 2026'
-    const queries = [
-        // X/Twitter viral posts this week
-        { q: 'bitcoin viral news controversy ' + dateStr, freshness: 'pw' },
-        { q: 'bitcoin debate site:x.com OR site:twitter.com ' + dateStr, freshness: 'pw' },
-        { q: 'bitcoin BIP proposal site:x.com ' + dateStr, freshness: 'pw' },
-        // Reddit this week
-        { q: 'bitcoin debate reddit.com/r/Bitcoin ' + dateStr, freshness: 'pw' },
-        { q: 'bitcoin controversial trending reddit ' + dateStr, freshness: 'pw' },
-        // General Bitcoin news/debate this week
-        { q: 'bitcoin community debate controversy ' + dateStr, freshness: 'pw' },
-        { q: 'bitcoin news controversy trending ' + dateStr, freshness: 'pw' },
-        { q: 'bitcoin discussion bitcointalk.org ' + dateStr, freshness: 'pw' },
-    ];
-
-    const results = [];
-    for (const entry of queries) {
-        try {
-            const items = await searchWeb(entry.q, 4, entry.freshness);
-            results.push(...items);
-        } catch (e) {
-            console.warn('[HotTopics] Web search failed for:', entry.q, e.message);
-        }
-    }
-    return results;
-}
-
-// Web search using your existing Brave Search worker
-// freshness: 'pw' = past week, 'pd' = past day, 'pm' = past month
-async function searchWeb(query, limit, freshness) {
-    limit = limit || 5;
-    freshness = freshness || 'pw'; // default: past week only
-    const workerUrl = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/search?q=' +
-        encodeURIComponent(query) + '&count=' + limit + '&freshness=' + freshness;
-    const resp = await fetch(workerUrl, { headers: { 'Accept': 'application/json' } });
-    if (!resp.ok) throw new Error('Brave worker HTTP ' + resp.status);
-    const json = await resp.json();
-    return (json.results || []).slice(0, limit).map(r => ({
-        source: 'web',
-        title: r.title || '',
-        url: r.url || '',
-        score: 30,
-        comments: 0,
-        body: r.snippet || '',
-    }));
-}
-
-// ── Step 2: Cluster + AI summarize ────────────────────────────────────────────
-async function clusterAndSummarize(signals) {
-    if (!signals.length) {
-        return [{
-            title: 'Bitcoin Community Updates',
-            summary: 'No trending topics detected this week. Check back next Friday for the latest Bitcoin debates.',
-            heatScore: 10,
-            sides: [],
-            posts: [],
-        }];
-    }
-
-    // Build a compact signal digest for the AI prompt (keep token cost low)
-    // Filter stale signals: only keep posts from current year or unverifiable sources (x/reddit)
-    const currentYear = new Date().getUTCFullYear().toString();
-    const freshSignals = signals.filter(s => {
-        if (!s.url) return true; // keep if no URL
-        // Always keep x-curated and reddit — they already have freshness=pw
-        if (s.source === 'x' || s.source === 'reddit') return true;
-        // For web/bitcointalk: only keep if URL contains current year or no year pattern
-        const yearMatch = s.url.match(/20\d{2}/);
-        if (!yearMatch) return true; // no year in URL, keep
-        return yearMatch[0] === currentYear; // only keep if this year
-    });
-    // Deduplicate by title prefix (catches near-duplicate sources)
-    const seenTitles = new Set();
-    const dedupedSignals = freshSignals.filter(s => {
-        const key = s.title.substring(0, 50).toLowerCase().replace(/[^a-z0-9]/g,'');
-        if (seenTitles.has(key)) return false;
-        seenTitles.add(key);
-        return true;
-    });
-    const digest = dedupedSignals.slice(0, 60).map((s, i) =>
-        (i + 1) + '. [' + (s.source === 'x' ? 'x-curated' : s.source) + '] ' + s.title + (s.body ? ' — ' + s.body.substring(0, 250) : '')
-    ).join('\n');
-
-    const prompt = `You are an expert Bitcoin analyst reviewing this week's most discussed and debated Bitcoin topics across Reddit, BitcoinTalk, X (Twitter), and the web.
-
-IMPORTANT: Posts marked [x] are from a curated list of high-signal Bitcoin thought leaders including @MartyBent, @nvk, @jimmysong, @gladstein, @saifedean, @parkeralewis, @JeffBooth, @giacomozucco, @stephanlivera, @knutsvanholm and others. Weight these HEAVILY when identifying trending topics — if multiple of these accounts are discussing the same topic, it is almost certainly a hot topic this week.
-
-Here are the raw post titles and snippets gathered this week (numbered for reference):
-
-${digest}
-
-KNOWN FACTS (use these — do not contradict or speculate):
-- BIP-110 = a proposed temporary 1-year soft fork to restrict arbitrary data (Ordinals/inscriptions) in Bitcoin transactions. Author targets spam/non-monetary use. Miner signaling sits at ~0.3% as of June 2026. Chain split risk looms in August 2026.
-- BIP-360 = Pay-to-Quantum-Resistant-Hash proposal to make Bitcoin outputs resistant to quantum computers. Proposed by Jameson Lopp.
-- If a topic involves a BIP, state the BIP number and what it actually does — never invent a description.
-
-STRICT RULES:
-- NEVER invent a person's position. Only attribute a stance (FOR or AGAINST) to someone if a source above explicitly shows them arguing that position. If the sources are unclear, use "proponents argue..." or "critics argue..." without naming anyone.
-- The FOR side and AGAINST side must cite DIFFERENT people. Never put the same person on both sides.
-- If you cannot find clear evidence of who is FOR vs AGAINST from the sources, describe the positions in general terms — do not name names.
-- Do not hallucinate quotes, positions, or names not present in the source data. This is the most important rule.
-
-Your task: identify the 2-3 hottest, most technically specific, most contested Bitcoin topics from the sources above.
-
-CRITICAL QUALITY RULES:
-- Only output a topic if you have REAL signal from the sources above — specific claims, a named proposal, a named person, a concrete event, or a specific number/stat.
-- If the sources only hint at a broad theme (e.g. "ETF" or "mining") with no specific debate, DO NOT output that as a topic — omit it entirely. 2 good topics beats 3 generic ones.
-- NEVER write a topic summary like "The community is actively discussing X" or "Multiple perspectives are circulating" — those are filler and will be rejected. Every sentence must contain a specific fact, name, proposal, claim, or stat.
-- If you genuinely cannot find 2 specific debated topics from the sources, output just 1. If none, output 0 topics with an empty array.
-
-For each qualifying topic:
-1. Write a neutral 3-sentence overview: name the specific proposal, actor, event, or claim. Use the KNOWN FACTS above if relevant. Be concrete — include names, numbers, dates.
-2. Write 2-3 sentences for the FOR side: who supports it (only from sources), what specific benefits they cite, and what outcome they want.
-3. Write 2-3 sentences for the AGAINST side: who opposes it (different people), what specific risks or objections they raise.
-4. Assign a heatScore 1-100 based on controversy and community volume.
-
-Do NOT include sources or URLs — those will be fetched separately. Focus on accuracy and specificity.
-
-Return ONLY valid JSON, no markdown fences, no explanation outside the JSON:
-{
-  "topics": [
-    {
-      "title": "Punchy specific topic name (5 words max, include BIP number or protocol name if relevant)",
-      "summary": "3-sentence neutral overview with specific names, proposals, or stats",
-      "heatScore": 75,
-      "sides": [
-        { "stance": "for", "label": "The case FOR", "summary": "2-3 sentences with specific arguments and who makes them" },
-        { "stance": "against", "label": "The case AGAINST", "summary": "2-3 sentences with specific objections and who raises them" }
-      ],
-      "postIndices": []
-    }
-  ]
-}`;
-
-    // AI priority: optional OpenAI/Anthropic keys → Cloudflare Workers AI (Llama 3.1) → keyword fallback
-    const aiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
-    let aiTopics = null;
-
-    try {
-        if (aiKey && aiKey.startsWith('sk-ant')) {
-            aiTopics = await callClaude(prompt, aiKey);
-        } else if (aiKey) {
-            aiTopics = await callOpenAI(prompt, aiKey);
-        } else {
-            // Use Cloudflare Workers AI (Llama 3.1 8B) — free, already set up
-            aiTopics = await callCloudflareLlama(prompt);
-        }
-    } catch (aiErr) {
-        console.warn('[HotTopics] AI call failed, using keyword fallback:', aiErr.message);
-        aiTopics = null;
-    }
-
-    if (!aiTopics || !aiTopics.topics) return fallbackCluster(signals);
-
-    // Two-pass source attribution:
-    // Pass 1 — AI identifies topics (no sources yet)
-    // Pass 2 — targeted Brave search per topic to find real, on-topic sources
-    // Sources only included if the search actually returns relevant results.
-    // No sources > hallucinated sources.
-
-    const topicResults = await Promise.all(aiTopics.topics.slice(0, 3).map(async t => {
-        // Targeted search: use the topic title + key terms as the query
-        const searchQuery = t.title + ' bitcoin ' + new Date().getUTCFullYear();
-        let posts = [];
-        try {
-            const searchResults = await searchWeb(searchQuery, 6, 'pm');
-            // Filter: only include results whose title/snippet meaningfully relate to the topic
-            // Simple relevance check: at least one key word from topic title appears in result
-            const topicWords = t.title.toLowerCase()
-                .replace(/[^a-z0-9 ]/g, '')
-                .split(' ')
-                .filter(w => w.length > 3); // skip short/stop words
-            const relevant = searchResults.filter(r => {
-                const text = (r.title + ' ' + r.body).toLowerCase();
-                return topicWords.some(w => text.includes(w));
-            });
-            posts = relevant
-                .filter(s => s.source !== 'bitcointalk')
-                .slice(0, 4)
-                .map(s => ({ source: s.source, title: s.title, url: s.url }));
-        } catch (e) {
-            console.warn('[HotTopics] Source search failed for "' + t.title + '":', e.message);
-            // posts stays empty — no sources beats wrong sources
-        }
-
-        // Collect @usernames from the targeted sources for attribution sanitization
-        const sourcedNames = new Set();
-        posts.forEach(p => {
-            const m = (p.title + ' ' + p.url).match(/@([A-Za-z0-9_]+)/g) || [];
-            m.forEach(n => sourcedNames.add(n.toLowerCase()));
-        });
-        // Also pull names from any original signals that matched this topic by postIndices
-        (t.postIndices || []).slice(0, 8).forEach(idx => {
-            const s = dedupedSignals[idx - 1];
-            if (!s) return;
-            const m = (s.title + ' ' + (s.body || '')).match(/@([A-Za-z0-9_]+)/g) || [];
-            m.forEach(n => sourcedNames.add(n.toLowerCase()));
-        });
-
-        // Sanitize sides: strip @mentions that aren\'t backed by a source
-        const sanitizeSide = (text) => {
-            if (!text) return text;
-            return text.replace(/@([A-Za-z0-9_]+)/g, (match) => {
-                if (sourcedNames.has(match.toLowerCase())) return match;
-                return 'some community members';
-            });
-        };
-
-        const sides = (t.sides || []).slice(0, 2).map(side => ({
-            ...side,
-            summary: sanitizeSide(side.summary),
-        }));
-
-        return {
-            title: t.title || 'Hot Bitcoin Topic',
-            summary: t.summary || '',
-            heatScore: Math.min(100, Math.max(0, t.heatScore || 50)),
-            sides,
-            posts, // empty array = no sources shown; that's fine and honest
-        };
-    }));
-
-    return topicResults;
-}
-
-// Call Cloudflare Workers AI (Llama 4 Scout) via REST — uses existing CF_ACCOUNT_ID + CF_API_TOKEN
-async function callCloudflareLlama(prompt) {
-    const accountId = process.env.CF_ACCOUNT_ID;
-    const apiToken = process.env.CF_AI_TOKEN; // Workers AI token (separate from CDN token)
-    if (!accountId || !apiToken) throw new Error('Missing CF_ACCOUNT_ID or CF_API_TOKEN');
-    const url = 'https://api.cloudflare.com/client/v4/accounts/' + accountId +
-        '/ai/run/@cf/meta/llama-4-scout-17b-16e-instruct';
-    const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + apiToken,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            messages: [
-                { role: 'system', content: 'You are a Bitcoin analyst. Return only valid JSON, no markdown fences, no explanation outside the JSON. Be specific and concrete — never output filler summaries like "the community is discussing X". Every sentence must contain a real fact, name, proposal, claim, or statistic from the provided sources.' },
-                { role: 'user', content: prompt },
-            ],
-            max_tokens: 3000,
-        }),
-    });
-    if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error('CF Workers AI HTTP ' + resp.status + ': ' + errText.substring(0, 200));
-    }
-    const json = await resp.json();
-    // Extract text — handle multiple CF Workers AI response shapes:
-    // Llama 4 Scout: json.result.response (object already parsed)
-    // Llama 3.x openai-compat: json.result.choices[0].message.content (string)
-    // Fallback: json.choices, json.result as string
-    let parsed = null;
-    if (json.result && json.result.response && typeof json.result.response === 'object') {
-        // Llama 4 Scout returns parsed JSON object directly in result.response
-        parsed = json.result.response;
-    } else {
-        const text =
-            (json.result && json.result.choices && json.result.choices[0] && json.result.choices[0].message && json.result.choices[0].message.content) ||
-            (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) ||
-            (typeof json.result === 'string' ? json.result : null) ||
-            (typeof json.result?.response === 'string' ? json.result.response : null);
-        if (!text) throw new Error('CF Workers AI: no text in response — ' + JSON.stringify(json).substring(0, 300));
-        // Strip markdown fences if present
-        const cleaned = String(text).replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-        // Fix unquoted keys just in case
-        const fixedJson = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-        parsed = JSON.parse(fixedJson);
-    }
-    return parsed;
-}
-
-async function callClaude(prompt, apiKey) {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: 'claude-3-haiku-20240307',
-            max_tokens: 1200,
-            messages: [{ role: 'user', content: prompt }],
-        }),
-    });
-    if (!resp.ok) throw new Error('Claude HTTP ' + resp.status);
-    const json = await resp.json();
-    const text = json.content && json.content[0] && json.content[0].text;
-    return JSON.parse(text);
-}
-
-async function callOpenAI(prompt, apiKey) {
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + apiKey,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            max_tokens: 1200,
-            temperature: 0.3,
-            messages: [{ role: 'user', content: prompt }],
-        }),
-    });
-    if (!resp.ok) throw new Error('OpenAI HTTP ' + resp.status);
-    const json = await resp.json();
-    const text = json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
-    return JSON.parse(text);
-}
-
-// Fallback: no AI key — group by keyword, pick top 3 clusters
-function fallbackCluster(signals) {
-    const keywords = ['BIP', 'lightning', 'fee', 'halving', 'ETF', 'mining', 'taproot', 'fork', 'ordinals', 'layer 2'];
-    const clusters = {};
-    signals.forEach(s => {
-        const titleLower = s.title.toLowerCase();
-        let matched = false;
-        for (const kw of keywords) {
-            if (titleLower.includes(kw.toLowerCase())) {
-                clusters[kw] = clusters[kw] || [];
-                clusters[kw].push(s);
-                matched = true;
-                break;
-            }
-        }
-        if (!matched) {
-            clusters['General'] = clusters['General'] || [];
-            clusters['General'].push(s);
-        }
-    });
-
-    return Object.entries(clusters)
-        .sort((a, b) => b[1].length - a[1].length)
-        .slice(0, 3)
-        .map(([kw, posts]) => ({
-            title: kw + ' Discussion',
-            summary: 'The Bitcoin community is actively discussing ' + kw + ' this week. Multiple perspectives are circulating across Reddit, BitcoinTalk, and social media.',
-            heatScore: Math.min(90, posts.length * 10),
-            sides: [
-                { stance: 'for', label: 'Supporters say', summary: 'Community members see positive developments and opportunities in recent ' + kw + ' discussions.' },
-                { stance: 'against', label: 'Critics say', summary: 'Others raise concerns and call for more caution or analysis before drawing conclusions.' },
-            ],
-            posts: posts.slice(0, 4).map(p => ({ source: p.source, title: p.title, url: p.url })),
-        }));
-}
 // ─────────────────────────────────────────────────────────────────────────────
 // END HOT TOPICS
 // ─────────────────────────────────────────────────────────────────────────────
