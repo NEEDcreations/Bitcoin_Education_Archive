@@ -23,6 +23,7 @@ const {
     lookupSettlement,
     adminClaimFlag,
 } = require('./cipherClaim');
+const { planShoutout } = require('./shoutout');
 
 const db = admin.firestore();
 
@@ -106,14 +107,88 @@ function publicReward(reward) {
     return out;
 }
 
-async function postNacho(text) {
-    await db.collection('global_chat').add({
+async function postNacho(text, mentionUid) {
+    // isNachoAuto must be false. The global chat listener only shows
+    // isNachoAuto == false, so a true flag writes a message nobody sees.
+    // mentionUid is what turns the first @username into a profile tag.
+    const msg = {
         uid: 'nacho-bot',
         name: 'Nacho 🦌',
         text: text,
-        isNachoAuto: true,
+        isNachoAuto: false,
         ts: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (mentionUid) msg.mentionUid = mentionUid;
+    await db.collection('global_chat').add(msg);
+}
+
+// One chat message per prize. The doc id is the prize id, and the gift or
+// cipher is marked in the same transaction, so a retry cannot double-post.
+async function publishShoutout(markerRef, plan) {
+    const chatRef = db.collection(plan.collection).doc(plan.docId);
+    const notifRef = db.collection('notifications').doc(plan.docId);
+    await db.runTransaction(async (t) => {
+        const marker = await t.get(markerRef);
+        const existing = await t.get(chatRef);
+        const posted = marker.exists && marker.data().shoutoutPosted === true;
+        if (posted || existing.exists) {
+            if (!posted && marker.exists) t.update(markerRef, { shoutoutPosted: true });
+            return;
+        }
+        t.update(markerRef, {
+            shoutoutPosted: true,
+            shoutoutAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        t.set(chatRef, {
+            uid: plan.authorUid,
+            name: plan.authorName,
+            text: plan.text,
+            isNachoAuto: plan.isNachoAuto,
+            mentionUid: plan.mentionUid,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const preview = String(plan.text || '').slice(0, 50);
+        t.set(notifRef, {
+            recipientId: plan.mentionUid,
+            senderId: 'nacho-bot',
+            senderName: 'Nacho 🦌',
+            type: 'chat_mention',
+            message: '💬 @Nacho mentioned you in Global Chat: "' + preview + '"',
+            targetType: 'chat',
+            targetId: plan.docId,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
     });
+}
+
+async function maybeAnnounceShoutout(opts) {
+    const userRef = db.collection('users').doc(opts.uid);
+    const ledgerRef = db.collection('faucet_ledger').doc(opts.uid);
+    const [uSnap, lSnap, mSnap] = await Promise.all([
+        userRef.get(),
+        ledgerRef.get(),
+        opts.markerRef.get(),
+    ]);
+    const user = uSnap.exists ? uSnap.data() : {};
+    const ledger = lSnap.exists ? lSnap.data() : null;
+    const marker = mSnap.exists ? mSnap.data() : {};
+    const plan = planShoutout({
+        rewardType: 'nacho_shoutout',
+        banned: isSatsBanned(user, ledger),
+        alreadyPosted: marker.shoutoutPosted === true,
+        username: user.username,
+        uid: opts.uid,
+        prizeId: opts.prizeId,
+    });
+    if (!plan.post) {
+        if (plan.reason === 'banned' && marker.shoutoutPosted !== true) {
+            await opts.markerRef.set({ shoutoutSkipped: 'banned' }, { merge: true }).catch(function() {});
+        }
+        return plan;
+    }
+    await publishShoutout(opts.markerRef, plan);
+    return plan;
 }
 
 function nachoSatsText(username, amount) {
@@ -280,11 +355,15 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
     }
 
     if (rewardResult && rewardResult.rewardType === 'nacho_shoutout') {
-        try {
-            const uSnap = await userRef.get();
-            const uName = uSnap.exists ? safeName(uSnap.data().username) : 'a Bitcoiner';
-            await postNacho('🎁✨ ULTRA RARE GIFT! @' + uName + ' just opened a gift and got a Nacho Shoutout — the rarest prize in the archive! 🦌⚡ Go add @' + uName + ' as a peer! 🧡₿');
-        } catch (e) { console.warn('[openGift] nacho shoutout failed:', e.message); }
+        var shoutErr = null;
+        for (var attempt = 0; attempt < 3; attempt++) {
+            try {
+                await maybeAnnounceShoutout({ uid: uid, prizeId: 'gift_' + giftId, markerRef: giftRef });
+                shoutErr = null;
+                break;
+            } catch (e) { shoutErr = e; }
+        }
+        if (shoutErr) console.warn('[openGift] nacho shoutout failed:', shoutErr.message);
     }
 
     return { success: true, reward: publicReward(rewardResult || { rewardType: 'tickets', ticketCount: 1 }) };
@@ -541,6 +620,14 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
     }
 
+    // Cipher odds do not roll a shoutout today (sats, or XP and tickets).
+    // If a cipher prize is ever a shoutout, it posts the same way a gift does.
+    if (applied && applied.reward && applied.reward.rewardType === 'nacho_shoutout') {
+        try {
+            await maybeAnnounceShoutout({ uid: uid, prizeId: 'cipher_' + cipherId, markerRef: cipherRef });
+        } catch (e) { console.warn('[decryptCipher] nacho shoutout failed:', e.message); }
+    }
+
     const pub = publicReward(applied.reward);
     pub.opensToday = applied.opensToday;
     pub.opensMax = CIPHER_OPENS_PER_DAY;
@@ -741,7 +828,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
         }
 
         try {
-            await postNacho(nachoSatsText(username, amount));
+            await postNacho(nachoSatsText(username, amount), uid);
             await winRef.update({ announced: true });
         } catch (e) { console.warn('[claimCipherWin] nacho failed:', e.message); }
 
@@ -901,6 +988,7 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
     const winRef = db.collection('cipher_wins').doc(winId);
     let username = 'a Bitcoiner';
+    let winnerUid = '';
     let amount = 0;
     let shouldAnnounce = false;
 
@@ -909,6 +997,7 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
         if (!winDoc.exists) throw httpsError('not-found', 'Win not found');
         const win = winDoc.data();
         username = win.username || username;
+        winnerUid = win.uid || '';
         amount = win.amount || 0;
         if (win.status === 'paid' && win.announced === true) {
             throw httpsError('already-exists', 'Already marked paid');
@@ -932,7 +1021,7 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
     });
 
     if (shouldAnnounce) {
-        try { await postNacho(nachoSatsText(username, amount)); }
+        try { await postNacho(nachoSatsText(username, amount), winnerUid); }
         catch (e) {
             console.warn('[adminMarkCipherWinPaid] nacho failed:', e.message);
             await winRef.update({ announced: false }).catch(function() {});

@@ -73,6 +73,10 @@ function _injectGiftingCSS() {
     s.textContent = [
         '@keyframes giftBounce{0%{transform:scale(0.5)}60%{transform:scale(1.15)}100%{transform:scale(1)}}',
         '@keyframes giftShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-8deg)}40%{transform:rotate(8deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(5deg)}}',
+        '@keyframes giftBoxShake{0%,100%{transform:rotate(0) translateY(0)}12%{transform:rotate(-9deg)}28%{transform:rotate(9deg)}44%{transform:rotate(-6deg)}60%{transform:rotate(6deg)}76%{transform:rotate(-2deg) translateY(-3px)}88%{transform:rotate(0) translateY(-8px)}}',
+        '@keyframes giftLidPop{0%{transform:translateY(0) rotate(0);opacity:1}45%{transform:translateY(-30px) rotate(-16deg);opacity:1}100%{transform:translateY(-52px) rotate(-28deg);opacity:0}}',
+        '@keyframes giftSpark{0%{transform:translate(0,0) scale(0.3);opacity:0}25%{opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1);opacity:0}}',
+        '@keyframes giftPrizePop{0%{transform:scale(0.3);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}',
         '@keyframes giftReveal{from{opacity:0;transform:scale(0.86)}to{opacity:1;transform:scale(1)}}',
         '@keyframes decryptScan{0%{opacity:0.45}50%{opacity:1}100%{opacity:0.45}}',
         '@keyframes decryptReveal{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}',
@@ -81,7 +85,15 @@ function _injectGiftingCSS() {
         '.gifting-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:120000;display:flex;align-items:center;justify-content:center;padding:16px;}',
         '.gifting-modal{background:var(--card-bg,#0f172a);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(247,147,26,0.12);max-height:90vh;overflow-y:auto;}',
         '.gift-open-btn,.cipher-open-btn,.key-send-btn{padding:8px 12px;border:none;border-radius:8px;color:#fff;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;}',
-        '@media (max-width:700px){.gifting-modal{padding:18px 14px;border-radius:16px;}}'
+        '.kc-card{display:flex;align-items:center;gap:10px;padding:12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:12px;}',
+        '.gift-stage-box{position:relative;height:96px;display:flex;align-items:flex-end;justify-content:center;overflow:visible;}',
+        '.gift-base{font-size:3.2rem;line-height:1;animation:giftBoxShake 0.72s ease-in-out;}',
+        '.gift-lid{position:absolute;top:6px;font-size:1.5rem;animation:giftLidPop 0.5s ease-out 0.62s forwards;}',
+        '.gift-prize-pop{position:absolute;top:8px;font-size:1.8rem;animation:giftPrizePop 0.45s ease-out 0.78s both;}',
+        '@media (max-width:700px){.gifting-modal{padding:18px 14px;border-radius:16px;}}',
+        '.kc-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:2px 0 10px;flex-wrap:wrap;}',
+        '.kc-intro p{flex:1;min-width:160px;margin:0;}',
+        '@media (max-width:520px){.kc-card{flex-wrap:wrap;}.kc-card .cipher-open-btn,.kc-card .key-send-btn{width:100%;}.kc-intro{flex-direction:column;align-items:flex-start;}}'
     ].join('');
     document.head.appendChild(s);
 }
@@ -127,6 +139,174 @@ function _rewardLabel(rw) {
     return 'Reward';
 }
 
+var _spentKeys = {};
+var _spentCiphers = {};
+var _cipherBusy = false;
+var _giftsOpening = {};
+var _openAllBusy = false;
+var _forceServerHoldings = false;
+
+function _soundOn() {
+    try {
+        if (typeof window.audioEnabled === 'boolean' && window.audioEnabled === false) return false;
+        if (localStorage.getItem('btc_audio') === 'false') return false;
+        if (typeof window.audioVolume === 'number' && window.audioVolume <= 0) return false;
+        var stored = parseFloat(localStorage.getItem('btc_volume') || '');
+        if (isFinite(stored) && stored <= 0) return false;
+    } catch (e) { return true; }
+    return true;
+}
+
+function _soundGain() {
+    var v = 0.5;
+    if (typeof window.audioVolume === 'number' && isFinite(window.audioVolume)) v = window.audioVolume;
+    else {
+        try {
+            var stored = parseFloat(localStorage.getItem('btc_volume') || '');
+            if (isFinite(stored)) v = stored;
+        } catch (e) { /* keep the modest default */ }
+    }
+    return Math.max(0.04, Math.min(0.18, v * 0.28));
+}
+
+function _audioCtx() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!window._sharedAudioCtx) {
+        try { window._sharedAudioCtx = new AC(); } catch (e) { return null; }
+    }
+    return window._sharedAudioCtx;
+}
+
+function _unlockAudio() {
+    var ctx = _audioCtx();
+    if (ctx && ctx.state === 'suspended') {
+        try { var p = ctx.resume(); if (p && p.catch) p.catch(function() {}); } catch (e) { /* iOS may reject until a tap */ }
+    }
+    if (ctx) {
+        try {
+            var buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+            var src = ctx.createBufferSource();
+            src.buffer = buf;
+            var silent = ctx.createGain();
+            silent.gain.value = 0;
+            src.connect(silent);
+            silent.connect(ctx.destination);
+            src.start(0);
+        } catch (e) { /* the tap still resumed the context */ }
+    }
+    return ctx;
+}
+
+function _noiseBurst(ctx, when, dur, gainVal, freq) {
+    var n = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    var buf = ctx.createBuffer(1, n, ctx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = freq;
+    filter.Q.value = 0.7;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(gainVal, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(ctx.destination);
+    src.start(when);
+    src.stop(when + dur + 0.02);
+}
+
+function _tone(ctx, when, dur, freq, gainVal, type) {
+    var osc = ctx.createOscillator();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, when);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.001, gainVal), when + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(when);
+    osc.stop(when + dur + 0.02);
+    return osc;
+}
+
+function _playGiftChime() {
+    if (!_soundOn()) return;
+    var ctx = _unlockAudio();
+    if (!ctx) return;
+    try {
+        var t = ctx.currentTime + 0.02;
+        var g = _soundGain();
+        _noiseBurst(ctx, t + 0.55, 0.09, g * 0.9, 900);
+        _tone(ctx, t + 0.55, 0.12, 520, g * 0.7, 'triangle');
+        _tone(ctx, t + 0.66, 0.28, 880, g * 0.55, 'sine');
+        _tone(ctx, t + 0.78, 0.36, 1320, g * 0.4, 'sine');
+    } catch (e) { /* sound is optional */ }
+}
+
+function _playUnlockSound() {
+    if (!_soundOn()) return;
+    var ctx = _unlockAudio();
+    if (!ctx) return;
+    try {
+        var t = ctx.currentTime + 0.02;
+        var g = _soundGain();
+        _noiseBurst(ctx, t, 0.045, g * 0.7, 1800);
+        _noiseBurst(ctx, t + 0.18, 0.04, g * 0.6, 1400);
+        _noiseBurst(ctx, t + 0.36, 0.04, g * 0.55, 1100);
+        _noiseBurst(ctx, t + 0.54, 0.045, g * 0.5, 900);
+        var whoosh = ctx.createOscillator();
+        whoosh.type = 'sine';
+        whoosh.frequency.setValueAtTime(90, t + 0.15);
+        whoosh.frequency.linearRampToValueAtTime(180, t + 0.55);
+        whoosh.frequency.linearRampToValueAtTime(55, t + 1.05);
+        var wg = ctx.createGain();
+        wg.gain.setValueAtTime(0.0001, t + 0.15);
+        wg.gain.linearRampToValueAtTime(g * 0.45, t + 0.4);
+        wg.gain.linearRampToValueAtTime(0.001, t + 1.05);
+        whoosh.connect(wg);
+        wg.connect(ctx.destination);
+        whoosh.start(t + 0.15);
+        whoosh.stop(t + 1.08);
+        _tone(ctx, t + 1.05, 0.22, 70, g * 0.85, 'sine');
+        _noiseBurst(ctx, t + 1.05, 0.08, g * 0.5, 180);
+    } catch (e) { /* sound is optional */ }
+}
+
+function _paintSoundBtn(btn) {
+    if (!btn) return;
+    var on = _soundOn();
+    btn.textContent = on ? '🔊 Sound on' : '🔇 Sound off';
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
+function _toggleAppSound(btn) {
+    _unlockAudio();
+    if (typeof toggleAudio === 'function') toggleAudio();
+    else {
+        var on = !_soundOn();
+        window.audioEnabled = on;
+        try { localStorage.setItem('btc_audio', on ? 'true' : 'false'); } catch (e) { /* private mode */ }
+    }
+    _paintSoundBtn(btn);
+    var other = document.getElementById(btn && btn.id === 'giftSoundToggle' ? 'nookSoundToggle' : 'giftSoundToggle');
+    if (other) _paintSoundBtn(other);
+}
+
+function _soundButton(id) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = id;
+    btn.style.cssText = 'padding:7px 12px;background:transparent;color:var(--text-muted);border:1px solid var(--border,#333);border-radius:10px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
+    _paintSoundBtn(btn);
+    btn.onclick = function() { _toggleAppSound(btn); };
+    return btn;
+}
+
 function _playHex(el, ms) {
     return new Promise(function(resolve) {
         if (!el) { setTimeout(resolve, ms); return; }
@@ -142,6 +322,32 @@ function _playHex(el, ms) {
             el.style.animation = 'none';
             resolve();
         }, ms);
+    });
+}
+
+function _playGiftOpen(stage) {
+    return new Promise(function(resolve) {
+        if (!stage) { setTimeout(resolve, 1200); return; }
+        stage.style.display = 'block';
+        stage.style.fontFamily = 'inherit';
+        stage.style.background = 'transparent';
+        stage.style.minHeight = '96px';
+        stage.innerHTML = '<div class="gift-stage-box" aria-hidden="true"><div class="gift-lid">✨</div><div class="gift-base">🎁</div><div class="gift-prize-pop">🎉</div></div>';
+        var box = stage.querySelector('.gift-stage-box');
+        var sparks = ['✦', '✧', '✨', '⭐'];
+        for (var i = 0; i < 8; i++) {
+            var s = document.createElement('span');
+            s.textContent = sparks[i % sparks.length];
+            s.style.cssText = 'position:absolute;left:50%;top:42%;font-size:0.95rem;pointer-events:none;animation:giftSpark 0.7s ease-out ' + (0.62 + i * 0.03) + 's forwards;';
+            s.style.setProperty('--dx', ((i - 3.5) * 16) + 'px');
+            s.style.setProperty('--dy', (-18 - (i % 3) * 14) + 'px');
+            box.appendChild(s);
+        }
+        setTimeout(function() {
+            stage.style.display = 'none';
+            stage.innerHTML = '';
+            resolve();
+        }, 1200);
     });
 }
 
@@ -251,6 +457,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
         var btn = _btn('Open');
         btn.style.padding = '7px 14px';
         btn.style.fontSize = '0.8rem';
+        btn.className = 'gift-open-btn';
         btn.onclick = function() { window.openSingleGift(g.id); };
         row.appendChild(icon);
         row.appendChild(label);
@@ -268,6 +475,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     actions.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;';
     var openAll = _btn('Open all');
     openAll.id = 'openAllGiftsBtn';
+    openAll.className = 'gift-open-btn';
     openAll.onclick = function() { window.openAllPostSpinGifts(); };
     var later = _btn(opts.pending ? 'Not now' : 'Close', 'transparent');
     later.style.border = '1px solid var(--border,#333)';
@@ -278,6 +486,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
     };
     actions.appendChild(openAll);
     actions.appendChild(later);
+    actions.appendChild(_soundButton('giftSoundToggle'));
     modal.appendChild(actions);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
@@ -314,29 +523,29 @@ async function _openGiftRequest(giftId) {
 }
 
 window.openSingleGift = async function(giftId) {
+    _unlockAudio();
+    if (_openAllBusy || Object.keys(_giftsOpening).length) return;
+    _giftsOpening[giftId] = true;
+    _playGiftChime();
     _injectGiftingCSS();
+    var giftBtns = document.querySelectorAll('#postSpinGiftOverlay .gift-open-btn');
+    for (var gi = 0; gi < giftBtns.length; gi++) giftBtns[gi].disabled = true;
     var row = document.getElementById('giftRow_' + giftId);
     if (row) {
         var old = row.querySelector('button');
         if (old) { old.disabled = true; old.textContent = 'Opening…'; }
     }
     var stage = document.getElementById('giftAnimStage');
-    if (stage) {
-        stage.style.display = 'block';
-        stage.textContent = '🔓 Unlocking gift…';
-    }
-    var anim = _playHex(stage, 700);
+    var anim = _playGiftOpen(stage);
     try {
         var rw = await _openGiftRequest(giftId);
         await anim;
-        if (stage) stage.style.display = 'none';
         _markGiftRow(giftId, rw, false);
         _confetti();
         _toast('🎁 ' + _rewardLabel(rw));
-        _showGiftFollowUp();
+        await _refreshHoldingsViews();
     } catch (e) {
         await anim;
-        if (stage) stage.style.display = 'none';
         _markGiftRow(giftId, null, true);
         if (row) {
             var retry = _btn('Try again');
@@ -346,36 +555,52 @@ window.openSingleGift = async function(giftId) {
             row.appendChild(retry);
         }
         _toast('❌ ' + (e.message || 'Could not open that gift'));
+    } finally {
+        delete _giftsOpening[giftId];
+        if (!_openAllBusy && !Object.keys(_giftsOpening).length) {
+            var left = document.querySelectorAll('#postSpinGiftOverlay .gift-open-btn');
+            for (var bi = 0; bi < left.length; bi++) left[bi].disabled = false;
+        }
     }
 };
 
 window.openAllPostSpinGifts = async function() {
+    _unlockAudio();
+    if (_openAllBusy || Object.keys(_giftsOpening).length) return;
+    _openAllBusy = true;
+    _playGiftChime();
     var gifts = window._postSpinGifts || [];
     var openAll = document.getElementById('openAllGiftsBtn');
     if (openAll) { openAll.disabled = true; openAll.textContent = 'Opening…'; }
+    var rows = document.querySelectorAll('#postSpinGiftList .gift-open-btn');
+    rows.forEach(function(b) { b.disabled = true; });
     var stage = document.getElementById('giftAnimStage');
+    var anim = _playGiftOpen(stage);
     for (var i = 0; i < gifts.length; i++) {
         var g = gifts[i];
+        if (_giftsOpening[g.id]) continue;
         var row = document.getElementById('giftRow_' + g.id);
         if (row && row.querySelector('button') == null && row.textContent.indexOf('✓') !== -1) continue;
+        _giftsOpening[g.id] = true;
         if (row) row.style.opacity = '0.7';
-        if (stage) { stage.style.display = 'block'; stage.textContent = '🎁'; }
-        var anim = _playHex(stage, 550);
         try {
             var rw = await _openGiftRequest(g.id);
-            await anim;
             _markGiftRow(g.id, rw, false);
         } catch (e) {
-            await anim;
             _markGiftRow(g.id, null, true);
         }
+        delete _giftsOpening[g.id];
     }
-    if (stage) stage.style.display = 'none';
-    if (openAll) { openAll.textContent = 'All opened'; openAll.style.background = '#34d399'; }
-    _confetti();
-    _showGiftFollowUp();
-    var summary = _summarize(window._openedGiftRewards || []);
-    if (summary) _toast('🎁 Opened! ' + summary, 4500);
+    try {
+        await anim;
+        if (openAll) { openAll.textContent = 'All opened'; openAll.style.background = '#34d399'; }
+        _confetti();
+        await _refreshHoldingsViews();
+        var summary = _summarize(window._openedGiftRewards || []);
+        if (summary) _toast('🎁 Opened! ' + summary, 4500);
+    } finally {
+        _openAllBusy = false;
+    }
 };
 
 function _summarize(list) {
@@ -399,53 +624,92 @@ function _summarize(list) {
     return parts.join(' · ');
 }
 
+function _noteSpent(keyId, cipherId) {
+    if (keyId) _spentKeys[keyId] = true;
+    if (cipherId) _spentCiphers[cipherId] = true;
+}
+
+function _dropMatchBanner(label) {
+    var nodes = document.querySelectorAll('[data-match-label]');
+    for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].getAttribute('data-match-label') === label) nodes[i].remove();
+    }
+}
+
+function _setCipherButtonsDisabled(disabled) {
+    var btns = document.querySelectorAll('.cipher-open-btn');
+    for (var i = 0; i < btns.length; i++) {
+        btns[i].disabled = !!disabled;
+        btns[i].style.opacity = disabled ? '0.55' : '';
+    }
+}
+
+async function _refreshHoldingsViews() {
+    var host = document.getElementById('nookKeysCiphers');
+    if (host && typeof window.renderKeysAndCiphersPanel === 'function') {
+        _forceServerHoldings = true;
+        await window.renderKeysAndCiphersPanel(host);
+    }
+    var box = document.getElementById('giftFollowUp');
+    if (box) {
+        _forceServerHoldings = true;
+        await _showGiftFollowUp();
+    }
+    if (typeof window.refreshGiftBadges === 'function') await window.refreshGiftBadges();
+}
+
 async function _showGiftFollowUp() {
     var box = document.getElementById('giftFollowUp');
     if (!box) return;
     var rewards = window._openedGiftRewards || [];
     var keyIds = [];
     rewards.forEach(function(rw) {
-        (rw.keyIds || []).forEach(function(id) { keyIds.push(id); });
+        (rw.keyIds || []).forEach(function(id) {
+            if (!_spentKeys[id]) keyIds.push(id);
+        });
     });
     box.innerHTML = '';
     if (keyIds.length) {
         var note = document.createElement('div');
-        note.style.cssText = 'font-size:0.8rem;color:var(--text);margin-bottom:8px;';
-        note.textContent = 'You got ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '. Send ' + (keyIds.length > 3 ? 'up to 3 of them' : (keyIds.length > 1 ? 'them' : 'it')) + ' to a peer?';
+        note.style.cssText = 'font-size:0.8rem;color:var(--text);margin-bottom:4px;';
+        note.textContent = 'Send to a peer';
+        var explain = document.createElement('div');
+        explain.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;';
+        explain.textContent = 'You got ' + keyIds.length + ' spare key' + (keyIds.length > 1 ? 's' : '') + '. Send up to 3 to one peer today, or keep one to open a matching cipher.';
         var send = _btn('Send keys to a peer');
         send.style.width = '100%';
         send.style.marginBottom = '8px';
         var ids = keyIds.slice(0, 3);
         send.onclick = function() { window.showPeerPickerForKeys(ids); };
         box.appendChild(note);
+        box.appendChild(explain);
         box.appendChild(send);
     }
     try {
         var matches = await _matchingLabels();
-        if (!matches.length) return;
-        var satsOff = await _readSatsDisabled();
-        if (satsOff) {
-            _satsOffNote(box);
-            return;
-        }
-        matches.forEach(function(m) {
+        var satsOff = matches.length ? await _readSatsDisabled() : false;
+        if (satsOff) _satsOffNote(box);
+        if (!satsOff) matches.forEach(function(m) {
             var banner = document.createElement('div');
+            banner.setAttribute('data-match-label', m.label);
             banner.style.cssText = 'margin-top:8px;padding:10px;border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.35);text-align:left;';
             var t = document.createElement('div');
-            t.style.cssText = 'font-weight:800;color:#34d399;font-size:0.85rem;margin-bottom:6px;';
-            t.textContent = 'You have a matching ' + m.label + ' key and cipher. Open it now?';
+            t.style.cssText = 'font-weight:800;color:#34d399;font-size:0.85rem;margin-bottom:2px;';
+            t.textContent = 'You have the ' + m.label + ' key! Open ' + m.label + ' cipher';
+            var explain = document.createElement('div');
+            explain.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;';
+            explain.textContent = 'A matching key opens this cipher. Opening uses up the key and the cipher.';
             var b = _btn('Open ' + m.label, 'linear-gradient(135deg,#34d399,#10b981)');
+            b.className = 'cipher-open-btn';
             b.style.width = '100%';
+            b.disabled = _cipherBusy;
             b.onclick = function() { window.openCipherWithMatch(m.cipherId, m.label); };
             banner.appendChild(t);
+            banner.appendChild(explain);
             banner.appendChild(b);
             box.appendChild(banner);
         });
     } catch (e) { /* inventory read can fail before rules deploy */ }
-    if (typeof window.renderKeysAndCiphersPanel === 'function') {
-        var host = document.getElementById('nookKeysCiphers');
-        if (host) window.renderKeysAndCiphersPanel(host);
-    }
 }
 
 async function _matchingLabels() {
@@ -465,23 +729,53 @@ async function _matchingLabels() {
 
 // ─── Holdings ────────────────────────────────────────────────────────────────
 
+function _qget(q, server) {
+    if (!server) return q.get();
+    return q.get({ source: 'server' }).catch(function() { return q.get(); });
+}
+
 async function _loadHoldings() {
     var empty = { ownKeys: [], peerKeys: [], ciphers: [] };
     if (!_isSignedIn() || typeof db === 'undefined') return empty;
     var uid = _getUid();
+    var server = _forceServerHoldings;
+    _forceServerHoldings = false;
     try {
         var snaps = await Promise.all([
-            db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(100).get(),
-            db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').limit(100).get(),
-            db.collection('locked_ciphers').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(200).get(),
+            _qget(db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(100), server),
+            _qget(db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').limit(100), server),
+            _qget(db.collection('locked_ciphers').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(200), server),
         ]);
         function map(snap) { return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }); }
-        return { ownKeys: map(snaps[0]), peerKeys: map(snaps[1]), ciphers: map(snaps[2]) };
+        return {
+            ownKeys: map(snaps[0]).filter(function(k) { return !_spentKeys[k.id]; }),
+            peerKeys: map(snaps[1]).filter(function(k) { return !_spentKeys[k.id]; }),
+            ciphers: map(snaps[2]).filter(function(c) { return !_spentCiphers[c.id]; }),
+        };
     } catch (e) {
         console.warn('[gifting] holdings:', e.message);
         return empty;
     }
 }
+
+window.refreshGiftBadges = async function() {
+    var el = document.getElementById('peersGiftsBadge');
+    if (!_isSignedIn() || typeof db === 'undefined') return;
+    var uid = _getUid();
+    try {
+        _forceServerHoldings = true;
+        var holdings = await _loadHoldings();
+        var giftSnap = await _qget(db.collection('gifts').where('ownerId', '==', uid).where('status', 'in', ['unopened', 'inventory', 'sent']).limit(40), true);
+        if (!el) return;
+        var parts = [];
+        if (giftSnap.size > 0) parts.push('🎁 ' + giftSnap.size);
+        var keyCount = holdings.ownKeys.length + holdings.peerKeys.length;
+        if (keyCount > 0) parts.push('🔑 ' + keyCount);
+        if (holdings.ciphers.length > 0) parts.push('🔒 ' + holdings.ciphers.length);
+        if (!parts.length) { el.innerHTML = ''; return; }
+        el.innerHTML = ' <span style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.35);border-radius:10px;padding:1px 7px;font-size:0.72rem;color:#f7931a;font-weight:800;">' + parts.join(' · ') + '</span>';
+    } catch (e) { /* badge is decorative */ }
+};
 
 window.loadKeyInventory = async function() {
     var h = await _loadHoldings();
@@ -505,9 +799,25 @@ function _group(list) {
 
 function _card(el) {
     var d = document.createElement('div');
-    d.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:12px;';
+    d.className = 'kc-card';
+    d.style.marginBottom = '8px';
     el.appendChild(d);
     return d;
+}
+
+function _copy(parent, title, explain) {
+    var mid = document.createElement('div');
+    mid.style.cssText = 'flex:1;min-width:0;';
+    var t = document.createElement('div');
+    t.style.cssText = 'font-weight:800;font-size:0.88rem;color:var(--heading,#fff);';
+    t.textContent = title;
+    var s = document.createElement('div');
+    s.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-top:2px;line-height:1.35;';
+    s.textContent = explain;
+    mid.appendChild(t);
+    mid.appendChild(s);
+    parent.appendChild(mid);
+    return mid;
 }
 
 window.renderKeysAndCiphersPanel = async function(container) {
@@ -523,6 +833,15 @@ window.renderKeysAndCiphersPanel = async function(container) {
     var satsOff = await _readSatsDisabled();
     el.innerHTML = '';
     if (satsOff) _satsOffNote(el);
+
+    var introRow = document.createElement('div');
+    introRow.className = 'kc-intro';
+    var intro = document.createElement('p');
+    intro.style.cssText = 'font-size:0.78rem;color:var(--text-muted);line-height:1.4;';
+    intro.textContent = 'A key and a cipher with the same label, like F6, are a pair. Open the pair, or send a spare key to a peer.';
+    introRow.appendChild(intro);
+    introRow.appendChild(_soundButton('nookSoundToggle'));
+    el.appendChild(introRow);
 
     var heading = document.createElement('div');
     heading.style.cssText = 'font-size:0.72rem;font-weight:800;color:#f7931a;letter-spacing:0.08em;text-transform:uppercase;margin:4px 0 8px;';
@@ -550,25 +869,25 @@ window.renderKeysAndCiphersPanel = async function(container) {
         card.style.marginBottom = '8px';
         card.style.borderColor = match ? 'rgba(52,211,153,0.45)' : 'var(--border,#333)';
         var icon = document.createElement('div');
-        icon.style.textAlign = 'center';
+        icon.style.cssText = 'text-align:center;flex-shrink:0;';
         icon.innerHTML = '<div style="font-size:1.4rem;">' + (match ? '🔓' : '🔒') + '</div><div style="font-family:monospace;font-weight:900;color:' + (match ? '#34d399' : '#a78bfa') + ';">' + _esc(label) + '</div>';
-        var mid = document.createElement('div');
-        mid.style.cssText = 'flex:1;min-width:0;';
-        var title = document.createElement('div');
-        title.style.cssText = 'font-weight:800;font-size:0.88rem;color:var(--heading,#fff);';
-        title.textContent = '× ' + group.length;
-        var sub = document.createElement('div');
-        sub.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-top:2px;';
-        if (peerKey) sub.textContent = 'Matching key from ' + (peerKey.sentByName || 'a peer') + '.';
-        else if (ownKey) sub.textContent = 'You have your own ' + label + ' key. You can open this.';
-        else sub.textContent = 'Needs a ' + label + ' key from you or a peer.';
-        mid.appendChild(title);
-        mid.appendChild(sub);
         card.appendChild(icon);
-        card.appendChild(mid);
+        var countBit = group.length > 1 ? ' You have ' + group.length + '.' : '';
+        if (match) {
+            var fromWhom = peerKey ? (' This one came from ' + (peerKey.sentByName || 'a peer') + '.') : ' This one is yours.';
+            _copy(card,
+                'You have the ' + label + ' key! Open ' + label + ' cipher',
+                'A matching key opens this cipher. Opening uses up the key and the cipher.' + fromWhom + countBit);
+        } else {
+            _copy(card,
+                'Need key ' + label + ' from a peer',
+                'This cipher stays locked until you have a ' + label + ' key. Ask a peer to send one, or open more gifts.' + countBit);
+        }
         if (match && !satsOff) {
             var open = _btn('Open', 'linear-gradient(135deg,#34d399,#10b981)');
             open.className = 'cipher-open-btn';
+            open.disabled = _cipherBusy;
+            if (_cipherBusy) open.style.opacity = '0.55';
             open.onclick = function() { window.openCipherWithMatch(group[0].id, label); };
             card.appendChild(open);
         }
@@ -589,24 +908,22 @@ window.renderKeysAndCiphersPanel = async function(container) {
     ownLabels.forEach(function(label) {
         var group = ownGroups[label];
         var card = _card(el);
-        card.style.marginBottom = '8px';
         var lab = document.createElement('div');
-        lab.style.cssText = 'font-family:monospace;font-weight:900;font-size:1.05rem;color:#f7931a;min-width:52px;';
+        lab.style.cssText = 'font-family:monospace;font-weight:900;font-size:1.05rem;color:#f7931a;min-width:52px;flex-shrink:0;';
         lab.textContent = '🔑 ' + label;
-        var qty = document.createElement('div');
-        qty.style.cssText = 'flex:1;font-size:0.85rem;font-weight:700;';
-        qty.textContent = '× ' + group.length;
+        card.appendChild(lab);
+        _copy(card,
+            'Send to a peer',
+            'A spare ' + label + ' key opens a matching cipher, or you can give it to a friend. One send of up to 3 keys per peer each day. You have ' + group.length + '.');
         var send = _btn('Send');
         send.className = 'key-send-btn';
         var ids = group.slice(0, 3).map(function(k) { return k.id; });
         send.onclick = function() { window.showPeerPickerForKeys(ids); };
-        card.appendChild(lab);
-        card.appendChild(qty);
         card.appendChild(send);
     });
     var hint = document.createElement('div');
     hint.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin:2px 0 8px;';
-    hint.textContent = 'Up to 3 keys per peer each day. You can send to as many peers as you like.';
+    hint.textContent = 'Spare keys are for peers, or for a cipher with the same label.';
     el.appendChild(hint);
 
     var recvHead = document.createElement('div');
@@ -621,17 +938,21 @@ window.renderKeysAndCiphersPanel = async function(container) {
     }
     data.peerKeys.forEach(function(k) {
         var card = _card(el);
-        card.style.marginBottom = '8px';
         var lab = document.createElement('div');
-        lab.style.cssText = 'font-family:monospace;font-weight:900;color:#a78bfa;';
+        lab.style.cssText = 'font-family:monospace;font-weight:900;color:#a78bfa;flex-shrink:0;';
         lab.textContent = '🔑 ' + (k.label || '');
-        var from = document.createElement('div');
-        from.style.cssText = 'flex:1;font-size:0.78rem;color:var(--text-muted);';
-        from.textContent = 'from ' + (k.sentByName || 'a peer');
         card.appendChild(lab);
-        card.appendChild(from);
-        if (!satsOff && (cipherGroups[k.label] || []).length) {
+        var hasCipher = (cipherGroups[k.label] || []).length > 0;
+        _copy(card,
+            'From ' + (k.sentByName || 'a peer'),
+            hasCipher
+                ? 'You have the ' + k.label + ' key! Open the ' + k.label + ' cipher above.'
+                : 'Hold this until you get a ' + k.label + ' cipher from a gift.');
+        if (!satsOff && hasCipher) {
             var open = _btn('Open ' + k.label, 'linear-gradient(135deg,#34d399,#10b981)');
+            open.className = 'cipher-open-btn';
+            open.disabled = _cipherBusy;
+            if (_cipherBusy) open.style.opacity = '0.55';
             open.onclick = function() { window.openCipherWithMatch(cipherGroups[k.label][0].id, k.label); };
             card.appendChild(open);
         }
@@ -693,28 +1014,43 @@ async function _renderMyWins(el) {
 
 async function _findKeyForLabel(label) {
     var uid = _getUid();
-    var peer = await db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').where('label', '==', label).limit(1).get();
-    if (!peer.empty) return Object.assign({ id: peer.docs[0].id }, peer.docs[0].data());
-    var own = await db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').where('label', '==', label).limit(1).get();
-    if (!own.empty) return Object.assign({ id: own.docs[0].id }, own.docs[0].data());
-    return null;
+    function pick(snap) {
+        if (!snap || !snap.docs) return null;
+        for (var i = 0; i < snap.docs.length; i++) {
+            if (!_spentKeys[snap.docs[i].id]) return Object.assign({ id: snap.docs[i].id }, snap.docs[i].data());
+        }
+        return null;
+    }
+    async function query(status) {
+        var q = db.collection('keys').where('ownerId', '==', uid).where('status', '==', status).where('label', '==', label).limit(5);
+        return pick(await _qget(q, true));
+    }
+    return (await query('sent')) || (await query('inventory'));
 }
 
-window.openCipherWithMatch = async function(cipherId, label) {
-    if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
-    if (await _readSatsDisabled()) { _toast(SATS_OFF_MSG); return; }
-    _injectGiftingCSS();
-    var key = null;
-    try { key = await _findKeyForLabel(label); } catch (e) { _toast('Could not look up a matching key'); return; }
-    if (!key) { _toast('You need a ' + label + ' key to open this cipher'); return; }
-    window.decryptCipherModal(cipherId, label, key);
+window.openCipherWithMatch = function(cipherId, label) {
+    window.decryptCipherModal(cipherId, label, null);
 };
 
-window.decryptCipherModal = async function(cipherId, cipherLabel, knownKey) {
+window.decryptCipherModal = function(cipherId, cipherLabel, knownKey) {
+    _unlockAudio();
+    if (_cipherBusy) return;
+    _cipherBusy = true;
+    _setCipherButtonsDisabled(true);
+    _decryptCipherModal(cipherId, cipherLabel, knownKey).then(function() {
+        _cipherBusy = false;
+        _setCipherButtonsDisabled(false);
+    }, function() {
+        _cipherBusy = false;
+        _setCipherButtonsDisabled(false);
+    });
+};
+
+async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
     if (await _readSatsDisabled()) { _toast(SATS_OFF_MSG); return; }
     _injectGiftingCSS();
-    var key = knownKey || null;
+    var key = (knownKey && !_spentKeys[knownKey.id]) ? knownKey : null;
     if (!key) {
         try { key = await _findKeyForLabel(cipherLabel); } catch (e) { key = null; }
     }
@@ -739,14 +1075,31 @@ window.decryptCipherModal = async function(cipherId, cipherLabel, knownKey) {
 
     var hexEl = document.getElementById('dcHex');
     var statusEl = document.getElementById('dcStatus');
+    _playUnlockSound();
     var anim = _playHex(hexEl, 1200);
     var result, err;
     try { result = await _callCF('decryptCipher', { cipherId: cipherId, keyId: key.id }); }
     catch (e) { err = e.message || 'Could not open the cipher'; }
     await anim;
 
+    // Clean up local state first, so stale cards and Open buttons go away
+    // even when the user closed the overlay mid-animation.
+    var staleErr = !!err && /already (opened|used|sent)|not found/i.test(String(err));
+    if (!err) {
+        _noteSpent(key.id, cipherId);
+        _dropMatchBanner(cipherLabel);
+        (window._openedGiftRewards || []).forEach(function(rwGift) {
+            if (!rwGift.keyIds) return;
+            rwGift.keyIds = rwGift.keyIds.filter(function(id) { return id !== key.id; });
+        });
+    } else if (staleErr) {
+        if (/cipher/i.test(String(err))) { _noteSpent(null, cipherId); _dropMatchBanner(cipherLabel); }
+        if (/key/i.test(String(err))) _noteSpent(key.id, null);
+    }
+    var refreshPromise = (!err || staleErr) ? _refreshHoldingsViews().catch(function() {}) : null;
+
     var resultDiv = document.getElementById('dcResult');
-    if (!overlay.parentNode) return;
+    if (!overlay.parentNode) { if (refreshPromise) await refreshPromise; return; }
     if (statusEl) statusEl.textContent = '';
     if (hexEl) hexEl.style.display = 'none';
     if (err) {
@@ -760,6 +1113,7 @@ window.decryptCipherModal = async function(cipherId, cipherLabel, knownKey) {
             close.onclick = function() { overlay.remove(); };
             resultDiv.appendChild(close);
         }
+        if (refreshPromise) await refreshPromise;
         return;
     }
 
@@ -798,9 +1152,8 @@ window.decryptCipherModal = async function(cipherId, cipherLabel, knownKey) {
     }
     _confetti();
     _toast('🔓 Cipher ' + cipherLabel + ' opened! ' + _rewardLabel(rw));
-    var host = document.getElementById('nookKeysCiphers');
-    if (host) window.renderKeysAndCiphersPanel(host);
-};
+    await refreshPromise;
+}
 
 // ─── Claim a small sats win ──────────────────────────────────────────────────
 
@@ -927,10 +1280,10 @@ window.showPeerPickerForKeys = async function(keyIds) {
             b.textContent = 'Sending…';
             try {
                 var sent = await _callCF('sendKeys', { keyIds: ids, recipientUid: p.uid });
+                ids.forEach(function(id) { _noteSpent(id); });
                 _keySendToast(p.name, sent);
                 overlay.remove();
-                var host = document.getElementById('nookKeysCiphers');
-                if (host) window.renderKeysAndCiphersPanel(host);
+                await _refreshHoldingsViews();
             } catch (e) {
                 b.disabled = false;
                 b.textContent = p.name;
@@ -1039,11 +1392,12 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
         send.disabled = true;
         send.textContent = 'Sending…';
         try {
-            var sentKeys = await _callCF('sendKeys', { keyIds: selected.slice(), recipientUid: recipientUid });
+            var sentIds = selected.slice();
+            var sentKeys = await _callCF('sendKeys', { keyIds: sentIds, recipientUid: recipientUid });
+            sentIds.forEach(function(id) { _noteSpent(id); });
             _keySendToast(recipientName || 'your peer', sentKeys);
             overlay.remove();
-            var host = document.getElementById('nookKeysCiphers');
-            if (host) window.renderKeysAndCiphersPanel(host);
+            await _refreshHoldingsViews();
         } catch (e) {
             send.disabled = false;
             send.textContent = 'Send keys';
