@@ -204,6 +204,100 @@ function updateDMBadge() {
     }
 }
 
+function notifIcon(n) {
+    if (n && n.icon && String(n.icon).length <= 8 && String(n.icon).indexOf('<') === -1) return n.icon;
+    var icons = {
+        upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔',
+        level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊',
+        welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔',
+        sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', buddy: '🤝',
+        leaderboard_reward: '🏆', security: '🔐', reward: '✨', inventory: '🎒'
+    };
+    var icon = (n && icons[n.type]) || '🔔';
+    if (n && n.type === 'peer_request') icon = '🧡';
+    if (n && n.type === 'peer_accepted') icon = '🧡';
+    if (n && n.type === 'gift_received') icon = '🎁';
+    if (n && n.type === 'keys_received') icon = '🔑';
+    if (n && n.type === 'peer_level_up') icon = '⚡';
+    return icon;
+}
+
+function notifAmountChips(n) {
+    if (!n) return '';
+    var chips = [];
+    function chip(v, label, bg) {
+        var num = Number(v);
+        if (!num) return;
+        var sign = num > 0 ? '+' : '';
+        chips.push('<span style="display:inline-block;margin:4px 6px 0 0;padding:2px 8px;border-radius:999px;background:' + bg + ';color:var(--text);font-size:0.68rem;font-weight:800;line-height:1.4;">' + sign + num.toLocaleString() + ' ' + label + '</span>');
+    }
+    chip(n.xp, 'XP', 'rgba(247,147,26,0.18)');
+    chip(n.tickets, '🎟️', 'rgba(249,115,22,0.18)');
+    chip(n.sats, 'sats', 'rgba(234,179,8,0.2)');
+    chip(n.freezes, '🧊', 'rgba(56,189,248,0.18)');
+    if (!chips.length) return '';
+    return '<div style="display:flex;flex-wrap:wrap;margin-top:2px;">' + chips.join('') + '</div>';
+}
+
+function _localRewardList() {
+    try { return JSON.parse(localStorage.getItem('btc_local_reward_notices') || '[]'); }
+    catch (e) { return []; }
+}
+
+function _stashLocalReward(id, message, icon, kind) {
+    if (!id || !message) return;
+    try {
+        var list = _localRewardList();
+        if (list.some(function(x) { return x.id === id; })) return;
+        list.push({ id: String(id).slice(0, 120), message: String(message).slice(0, 180), icon: icon || '🔔', kind: kind || '', ts: Date.now(), read: false });
+        if (list.length > 80) list = list.slice(list.length - 80);
+        localStorage.setItem('btc_local_reward_notices', JSON.stringify(list));
+    } catch (e) {}
+    if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
+}
+
+function _isSignedInAccount() {
+    return !!(auth && auth.currentUser && !auth.currentUser.isAnonymous);
+}
+
+// Signed-in badge/rank notices come from Cloud Functions. Titles, hidden
+// badges, and closet drops are still awarded in the browser, so those stay
+// on this device for every user. Anonymous progress is entirely local.
+function _visibleLocalRewards() {
+    var list = _localRewardList();
+    if (!_isSignedInAccount()) return list;
+    return list.filter(function(n) {
+        return n.kind === 'title' || n.kind === 'hidden' || n.kind === 'closet';
+    });
+}
+
+function _localRewardHtml() {
+    var visible = _visibleLocalRewards();
+    if (!visible.length) return '';
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };
+    var html = '';
+    for (var i = visible.length - 1; i >= 0; i--) {
+        var n = visible[i];
+        html += '<div style="padding:12px 16px;border-bottom:1px solid var(--border);background:' + (n.read ? 'none' : 'rgba(247,147,26,0.04)') + ';">' +
+            '<div style="display:flex;gap:10px;align-items:flex-start;">' +
+                '<span style="font-size:1.2rem;flex-shrink:0;">' + notifIcon(n) + '</span>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">' + esc(n.message || '') + '</div>' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">On this device</div>' +
+                '</div>' +
+            '</div></div>';
+    }
+    try {
+        var seen = {};
+        visible.forEach(function(n) { seen[n.id] = true; });
+        var list = _localRewardList();
+        list.forEach(function(n) { if (seen[n.id]) n.read = true; });
+        localStorage.setItem('btc_local_reward_notices', JSON.stringify(list));
+    } catch (e) {}
+    if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
+    return html;
+}
+
 // Show notifications panel
 window.showNotifications = async function() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
@@ -237,21 +331,19 @@ window.showNotifications = async function() {
 
         var list = document.getElementById('notifList');
         if (!list) return;
-        if (snap.empty) { list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);">No notifications yet! 🦌</div>'; return; }
+        if (snap.empty) {
+            var onlyLocal = _localRewardHtml();
+            list.innerHTML = onlyLocal || '<div style="text-align:center;padding:30px;color:var(--text-faint);">No notifications yet! 🦌</div>';
+            return;
+        }
 
-        var html = '';
+        var html = _localRewardHtml();
         snap.forEach(function(doc) {
             var n = doc.data();
             var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
             var timeStr = n.createdAt && n.createdAt.toDate ? (typeof timeAgo === 'function' ? timeAgo(n.createdAt.toDate()) : n.createdAt.toDate().toLocaleDateString()) : '';
             var isUnread = !n.read;
-            var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', security: '🔐' };
-            var icon = icons[n.type] || '🔔';
-            if (n.type === 'peer_request') icon = '🧡';
-            if (n.type === 'peer_accepted') icon = '🧡';
-            if (n.type === 'gift_received') icon = '🎁';
-            if (n.type === 'keys_received') icon = '🔑';
-            if (n.type === 'peer_level_up') icon = '⚡';
+            var icon = notifIcon(n);
 
             var extraHtml = '';
             if (n.type === 'peer_request' && n.fromUid) {
@@ -276,6 +368,7 @@ window.showNotifications = async function() {
                     '<span style="font-size:1.1rem;flex-shrink:0;">' + icon + '</span>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + esc(n.message || '') + '</div>' +
+                        notifAmountChips(n) +
                         '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">' + timeStr + '</div>' +
                     '</div>' +
                     (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
@@ -518,24 +611,19 @@ window.renderNotifList = async function() {
             .get();
 
         if (snap.empty) {
-            body.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.85rem;">No notifications yet!</div></div>';
+            var onlyLocal = _localRewardHtml();
+            body.innerHTML = onlyLocal || '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.85rem;">No notifications yet!</div></div>';
             return;
         }
 
-        var html = '';
-        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', buddy: '🤝', leaderboard_reward: '🏆', security: '🔐' };
+        var html = _localRewardHtml();
         snap.forEach(function(doc) {
             var n = doc.data();
             var e = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };
             var ts = n.createdAt && n.createdAt.toDate ? n.createdAt.toDate() : null;
             var timeStr = ts ? formatNotifTime(ts) : '';
             var isUnread = !n.read;
-            var icon = icons[n.type] || '🔔';
-            if (n.type === 'peer_request') icon = '🧡';
-            if (n.type === 'peer_accepted') icon = '🧡';
-            if (n.type === 'gift_received') icon = '🎁';
-            if (n.type === 'keys_received') icon = '🔑';
-            if (n.type === 'peer_level_up') icon = '⚡';
+            var icon = notifIcon(n);
 
             var extraHtml = '';
             if (n.type === 'peer_request' && n.fromUid) {
@@ -560,6 +648,7 @@ window.renderNotifList = async function() {
                     '<span style="font-size:1.2rem;flex-shrink:0;">' + icon + '</span>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + e(n.message || '') + '</div>' +
+                        notifAmountChips(n) +
                         '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + timeStr + '</div>' +
                     '</div>' +
                     (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
@@ -594,45 +683,23 @@ updateNotifBadge = function() {
 // ---- Self-Notifications (local events → Firestore) ----
 // Notify on level up (leaderboard rank)
 window.notifySelfLevelUp = function(minPts, levelName, emoji) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system',
-        senderName: 'System',
-        type: 'level_up',
-        message: (emoji || '🎉') + ' You ranked up to ' + (levelName || 'a new level') + '! (' + (minPts || 0) + '+ pts)',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // Signed-in rank-ups are written once by the Cloud Function that grants the XP
+    // (doc id rank_<uid>_<slug>). Anonymous and logged-out progress never reaches it.
+    if (_isSignedInAccount()) return;
+    _stashLocalReward('rank_' + (levelName || minPts), (emoji || '🎉') + ' Rank up: ' + (levelName || 'a new level') + '!', emoji || '🎉', 'rank');
 };
 
 // Notify on badge unlock
 window.notifySelfBadge = function(badgeName, badgeEmoji) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'badge',
-        message: (badgeEmoji || '🏅') + ' Badge unlocked: ' + (badgeName || 'New Badge') + '!',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // Signed-in catalog badges are notified once by awardPoints (badge_<uid>_<id>).
+    // Anonymous earns stay on this device: rules block anonymous notification writes.
+    if (_isSignedInAccount()) return;
+    _stashLocalReward('badge_' + (badgeName || 'badge'), (badgeEmoji || '🏅') + ' New badge: ' + (badgeName || 'New badge') + '!', badgeEmoji || '🏅', 'badge');
 };
 
 // Notify on quest complete
 window.notifySelfQuest = function(questName) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'quest',
-        message: '🏆 Quest complete: ' + (questName || 'Quest') + '! Check your rewards.',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // gradeQuest writes the feed entry. Client creates of type quest are rejected.
 };
 
 // Notify on tip received (includes sender name)
@@ -671,58 +738,24 @@ window.notifySpinAvailable = function() {
 
 // Notify price prediction result
 window.notifyPredictionResult = function(correct, direction) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'prediction',
-        message: correct ? '📊 ✅ Your price prediction was correct! Bitcoin went ' + (direction || 'up') + '.' : '📊 ❌ Your price prediction was wrong. Better luck tomorrow!',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // resolvePredictions writes the result. XP still arrives through awardPoints.
 };
 
 // Notify spin wheel result
 window.notifySelfSpin = function(rewardText) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'spin',
-        message: '🎡 Daily Spin: ' + (rewardText || 'You won a prize!'),
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // dailySpin writes the feed entry inside the same transaction as the grant.
 };
 
 // Notify referral reward
 window.notifySelfReferral = function(ticketsEarned) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'referral',
-        message: '👥 Referral verified! You earned ' + ticketsEarned + ' Orange Ticket' + (ticketsEarned > 1 ? 's' : '') + '!',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // verifyReferral writes both ticket notices. Client creates are rejected.
 };
 
 // Notify Nacho closet item unlock
 window.notifySelfClosetItem = function(itemName, itemEmoji) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'closet',
-        message: (itemEmoji || '👔') + ' New Nacho closet item: ' + (itemName || 'Unknown') + '! Equip it in Settings.',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // The spin function records a generic closet drop. The specific item is
+    // chosen in the browser, so the named unlock stays on this device, once.
+    _stashLocalReward('closet_' + (itemName || 'item'), (itemEmoji || '👔') + ' New closet item: ' + (itemName || 'Unknown') + '!', itemEmoji || '👔', 'closet');
 };
 
 // Notify @mention in global chat
@@ -782,10 +815,14 @@ if (typeof auth !== 'undefined' && auth) {
 
 // Count unread points notifications
 function _getUnreadPointsCount() {
+    var local = 0;
+    try {
+        local = _visibleLocalRewards().filter(function(e) { return !e.read; }).length;
+    } catch (e) {}
     try {
         var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-        return log.filter(function(e) { return !e.read; }).length;
-    } catch(e) { return 0; }
+        return log.filter(function(e) { return !e.read; }).length + local;
+    } catch(e) { return local; }
 }
 
 // Update badge to include points count
@@ -863,16 +900,7 @@ function _renderPointsTab() {
 
 // Notify on sats claim
 window.notifySelfSatsClaim = function(amount) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'sats',
-        message: '⚡ You claimed ' + amount + ' sats! Check your Lightning wallet.',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // claimSats writes the notice only after the wallet payment succeeds.
 };
 
 // Notify on forum reply to your post
@@ -952,16 +980,7 @@ window.notifyDMReceived = function(recipientId, senderName) {
 
 // Notify on daily streak milestone
 window.notifySelfStreak = function(streakDays) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'streak',
-        message: '🔥 ' + streakDays + '-day streak! Keep it going!',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // recordDailyVisit writes the streak ticket / freeze notice.
 };
 
 // Notify on exploration milestone
@@ -1077,3 +1096,79 @@ window.showPartnershipLevelUpPopup = function(notifData) {
         }, 12000);
     });
 };
+
+
+// Client-awarded titles, hidden badges, and module badges. The live copies
+// live in the bundle, so this wraps them after they exist. Each id is written
+// once (localStorage). Signed-in catalog badges stay on the server.
+var CLIENT_AWARD_COPY = {"hidden":{"genesis":{"e":"📜","n":"Genesis Reader","d":"Read the whitepaper channel"},"nacho_curious":{"e":"❓","n":"Curious Deer","d":"Ask Nacho your first question"},"ticket_bronze":{"e":"🐟","n":"Ticket Fish","d":"Earn 25 Orange Tickets"},"ticket_silver":{"e":"🦈","n":"Ticket Shark","d":"Earn 50 Orange Tickets"},"ticket_gold":{"e":"🐋","n":"Ticket Whale","d":"Earn 100 Orange Tickets"},"nacho_10q":{"e":"🔍","n":"Inquisitive Buck","d":"Ask Nacho 10 questions"},"collector":{"e":"💎","n":"Collector","d":"Save 10+ topics to favorites"},"first_post":{"e":"📣","n":"Town Crier","d":"Make your first Pleb Talk post"},"first_reply":{"e":"💬","n":"Conversationalist","d":"Reply to a forum post"},"market_seller":{"e":"🏪","n":"Merchant","d":"List an item on Lightning Mart"},"market_buyer":{"e":"🛍️","n":"Shopper","d":"Contact a seller on the marketplace"},"donor_100":{"e":"🫷","n":"Giving Pleb","d":"Donate 100 XP for charity"},"donor_500":{"e":"💛","n":"Stack Sharer","d":"Donate 500 XP for charity"},"donor_1000":{"e":"🧡","n":"Community Builder","d":"Donate 1,000 XP for charity"},"donor_5000":{"e":"❤️","n":"Archive Patron","d":"Donate 5,000 XP for charity"},"donor_10000":{"e":"🔥","n":"Sats Saint","d":"Donate 10,000 XP for charity"},"donor_25000":{"e":"⚡","n":"Lightning Philanthropist","d":"Donate 25,000 XP for charity"},"donor_100000":{"e":"👑","n":"Legend of the Archive","d":"Donate 100,000 XP for charity"},"night_owl":{"e":"🦉","n":"Night Owl","d":"Visit the archive after midnight"},"speed_runner":{"e":"⚡","n":"Speed Runner","d":"Visit 15+ channels in one session"},"scholar":{"e":"🎓","n":"Bitcoin Scholar","d":"Pass the Scholar Certification"},"nacho_20q":{"e":"🏅","n":"20 Questions","d":"Ask Nacho 20 questions"},"explorer_10":{"e":"🗺️","n":"Curious Pleb","d":"Explore 10 topics"},"explorer_25":{"e":"🐇","n":"Rabbit Holer","d":"Explore 25 topics"},"explorer_50":{"e":"📚","n":"Half Stack","d":"Explore 50 topics"},"explorer_100":{"e":"💯","n":"Century Club","d":"Explore 100 topics"},"explorer_all":{"e":"👑","n":"Archive Master","d":"Explore every single topic"},"marathon":{"e":"🏃","n":"Marathon Reader","d":"Spent 30+ minutes reading in one session"},"early_adopter":{"e":"🌅","n":"Early Adopter","d":"Browsing between 5am and 7am"},"weekend_warrior":{"e":"🎉","n":"Weekend Warrior","d":"Learning Bitcoin on a weekend"},"triple_threat":{"e":"🎯","n":"Triple Threat","d":"Completed a quest, sent a chat message, and read a channel in one session"},"nacho_50q":{"e":"🧙","n":"Nacho Sage","d":"Ask Nacho 50 questions"},"bookmark_collector":{"e":"📚","n":"Bookmark Hoarder","d":"Bookmarked 20+ messages"},"pvp_streak":{"e":"🔱","n":"Undefeated","d":"Won 5 PVP battles in a row"},"sats_maxed":{"e":"👑","n":"Faucet King","d":"Claimed all 15,000 sats from the faucet"},"streak_freeze":{"e":"🧊","n":"Ice Shield","d":"Used a streak freeze to save your streak"},"nacho_closet_full":{"e":"👗","n":"Fashionista","d":"Unlocked all Nacho closet items from the spin wheel"},"ghost_reader":{"e":"👻","n":"Ghost Reader","d":"Visited the archive every day for a week without earning any points"},"whitepaper_pilgrim":{"e":"📜","n":"Whitepaper Pilgrim","d":"Read the whitepaper channel 10 times in separate sessions"},"insomniac":{"e":"🌑","n":"Insomniac","d":"Visited the archive between 2am and 4am on 3 separate occasions"},"contrarian":{"e":"🙃","n":"The Contrarian","d":"Voted against the majority in 10 daily polls"},"block_42":{"e":"🎱","n":"Block 42","d":"Discovered something hidden in the archive"},"rabbit_hole":{"e":"🕳️","n":"Rabbit Hole","d":"Spent 3 hours straight learning in one session"},"the_plebeian":{"e":"🫡","n":"The Plebeian","d":"Reached the leaderboard top 100 without a single referral"},"silent_donor":{"e":"🤫","n":"Silent Donor","d":"Donated XP to charity without ever sharing your referral link"},"dust_collector":{"e":"🧹","n":"Dust Collector","d":"Claimed sats from the faucet 21 days in a row"},"hash_obsessed":{"e":"⛏️","n":"Hash Obsessed","d":"Contributed 25,000 hashes to Satoshi\\"},"search_sleuth":{"e":"🔎","n":"Search Sleuth","d":"Used every search in the archive — topics, users, badges, forum, marketplace, beats, and GIFs"},"nacho_friend":{"e":"🦌","n":"Nacho's Friend","d":"Interact with Nacho"},"donor_50000":{"e":"🏆","n":"Satoshi's Steward","d":"Donate 50,000 XP for charity"}},"titles":{"the_completionist":{"e":"🗺️","n":"The Completionist","d":"Mapped every corner of the Archive"},"quest_legend":{"e":"⚔️","n":"Quest Legend","d":"A hundred quests. Countless battles won."},"hash_lord":{"e":"☄️","n":"Hash Lord","d":"10,000 nonces ground into dust"},"hash_god":{"e":"⚡","n":"Hash God","d":"100,000 hashes. You ARE the network."},"satoshis_chosen":{"e":"💎","n":"Satoshi's Chosen","d":"Fortune favors the relentless"},"block_solver":{"e":"🌞","n":"Block Solver","d":"Cracked the code. Won the sats."},"hodler_supreme":{"e":"🪩","n":"HODLer Supreme","d":"365 days. No days off."},"the_satellite":{"e":"🛰️","n":"The Satellite","d":"100 hours deep in the Timechain"},"timechain_surfer":{"e":"🏄","n":"Timechain Surfer","d":"Surfed 100 channels. Seen it all."},"chat_legend":{"e":"📯","n":"Chat Legend","d":"The voice of the Archive"},"the_devoted":{"e":"💠","n":"The Devoted","d":"30 days of relentless conversation"},"pvp_legend":{"e":"🥇","n":"PVP Legend","d":"100 wins. Undefeated in Bitcoin knowledge."},"raid_warlord":{"e":"🔱","n":"Raid Warlord","d":"100 damage dealt. Bosses tremble."},"dragon_slayer":{"e":"🐲","n":"Dragon Slayer","d":"Ten bosses defeated. A true slayer."},"the_viral_plebian":{"e":"👑","n":"The Viral Plebian","d":"Orange-pilled 100 souls"},"satoshis_disciple":{"e":"🟠","n":"Satoshi's Disciple","d":"365 Daily Trifectas. Absolute dedication."},"trifecta_legend":{"e":"🏆","n":"Trifecta Legend","d":"90 consecutive days of learning, trivia, and polling"},"double_scholar":{"e":"🏛️","n":"Double Scholar","d":"Bitcoin Scholar AND Protocol Expert"},"trivia_titan":{"e":"🏅","n":"Trivia Titan","d":"100 correct answers. Living Bitcoin encyclopedia."},"the_devotee":{"e":"🔱","n":"The Devotee","d":"30-day trivia streak. No excuses."},"vinyl_master":{"e":"🎼","n":"Vinyl Master","d":"100 songs broadcast to the Archive"},"nachos_confidant":{"e":"🤫","n":"Nacho's Confidant","d":"500 conversations with the deer himself"},"regional_leader":{"e":"🌆","n":"Regional Leader","d":"10 Bitcoin events hosted. The community builder."},"twenty_one_million":{"e":"₿","n":"21 Million Dreams","d":"Claimed 21,000 sats. Lived the number."},"proof_of_pain":{"e":"🕱️","n":"Proof of Pain","d":"1,000 terrible hashes. Respect."},"trail_master":{"e":"🏁","n":"Trail Master","d":"Completed every trail Nacho laid out"},"to_the_moon":{"e":"🌕","n":"To the Moon","d":"Walked 5,000km. Unreal."},"democracy_maxi":{"e":"⚖️","n":"Democracy Maxi","d":"100 polls voted. The voice of reason."},"sat_slinger":{"e":"💰","n":"Sat Slinger","d":"10,000 sats tipped. Pure generosity."},"community_darling":{"e":"🌟","n":"Community Darling","d":"50 tips received from the Archive community"},"time_traveler":{"e":"⏳","n":"Time Traveler","d":"100 correct predictions. Saw the future."},"the_long_walker":{"e":"💎","n":"The Long Walker","d":"30-day Proof of Walk streak. Committed."},"chancellor":{"e":"📰","n":"Chancellor on Brink","d":"50 badges. The banks are already nervous."},"the_archivist_t":{"e":"🏛️","n":"The Archivist","d":"100 badges. You don't use the Archive — you are it."},"hall_of_fame_t":{"e":"🏆","n":"Hall of Fame","d":"150 badges. A true legend."},"satoshis_revenge_t":{"e":"⚔️","n":"Satoshi's Revenge","d":"200 badges. The network never forgets."},"satoshis_vendetta_t":{"e":"🗡️","n":"Satoshi's Vendetta","d":"250 badges. Deeper than most will ever go."},"satoshis_ghost_t":{"e":"👻","n":"Satoshi's Ghost","d":"300 badges. So rare nobody knows if it's been done."},"satoshis_covenant_t":{"e":"📜","n":"Satoshi's Covenant","d":"350 badges. Bound to the protocol, forever."},"satoshis_cipher_t":{"e":"🔐","n":"Satoshi's Cipher","d":"400 badges. You have cracked something most never will."},"grand_scholar":{"e":"🎓","n":"Grand Scholar","d":"All certifications and trails. The complete picture."},"jack_of_all_t":{"e":"🃏","n":"Jack of All Trades","d":"A badge in every category. Truly well-rounded."},"master_miner_t":{"e":"⛏️","n":"Master Miner","d":"Every mining badge earned. The forge never cools."},"satoshi_scholar_t":{"e":"🎓","n":"Satoshi Scholar","d":"The Scholar Set complete. Knowledge is sovereignty."},"community_pillar_t":{"e":"🌐","n":"Community Pillar","d":"The Social Set done. The Archive runs on people like you."},"diamond_hands_set_t":{"e":"💎","n":"Diamond Hands","d":"The Streak Set finished. Unbreakable."},"arena_champion_t":{"e":"👑","n":"Arena Champion","d":"The Fighter Set complete. Dominant."},"archive_builder_t":{"e":"🔧","n":"Archive Builder","d":"The Builder Set done. You shaped this place."},"world_traveler_t":{"e":"🗺️","n":"World Traveler","d":"The Explorer Set complete. Every path walked."},"bitcoin_cal_hero_t":{"e":"🎊","n":"Bitcoin Calendar Hero","d":"All calendar badges. You never miss a Bitcoin holiday."},"challenge_master_t":{"e":"🏅","n":"Challenge Master","d":"The Daily Set complete. Every day, every challenge."},"timechain_veteran_t":{"e":"🛸","n":"Timechain Veteran","d":"The TCTV Set complete. You've seen everything."},"lightning_lord_t":{"e":"⚡","n":"Lightning Lord","d":"The Lightning Set complete. Pure Bitcoin velocity."},"trail_blazer_t":{"e":"🏔️","n":"Trail Blazer","d":"The Trails Set blazed. Nacho is proud."},"beats_maestro_t":{"e":"🎤","n":"Beats Maestro","d":"The Beats Set complete. Music and Bitcoin forever."},"trifecta_god_t":{"e":"🌞","n":"Trifecta God","d":"The Trifecta Set complete. Daily discipline personified."},"irl_set_t":{"e":"🏟️","n":"IRL Champion","d":"The IRL Set complete. Bitcoin isn't just on a screen."},"spin_set_t":{"e":"🎰","n":"Wheel of Fortune","d":"The Spin Set complete. Fortune favored you enough."},"pow_set_t":{"e":"👟","n":"Proof of Walker","d":"The Proof of Walk Set complete. Every step counted."},"chat_immortal_t":{"e":"♾️","n":"Chat Immortal","d":"1,000 messages. You are the chat."},"reaction_god_t":{"e":"🔮","n":"Reaction God","d":"500 reactions. You feel everything."},"dj_legend_t":{"e":"🎛️","n":"DJ Legend","d":"50 DJ sets. The decks are your home."},"super_fan_t":{"e":"🌟","n":"Super Fan","d":"100 DJ sets listened to. Front row every time."},"audiophile_t":{"e":"🎧","n":"The Audiophile","d":"500 tracks on Bitcoin Beats. Pure devotion."},"forum_legend_t":{"e":"🏛️","n":"Forum Legend","d":"100 forum posts. Your words shaped the debate."},"staff_writer_t":{"e":"🗞️","n":"Staff Writer","d":"10 articles published. The pen is mightier."},"unstoppable_pvp_t":{"e":"💥","n":"Unstoppable","d":"5 PVP wins in a row. Nobody can touch you."},"diamond_hands_100_t":{"e":"💎","n":"Diamond Hands","d":"100-day streak. Most quit long ago."},"wheel_addict_t":{"e":"🎡","n":"Wheel Addict","d":"30-day spin streak. Fortune favors the consistent."},"century_spinner_t":{"e":"🏅","n":"Century Spinner","d":"100 spins. No shame, only gains."},"precision_forecaster_t":{"e":"🎯","n":"Precision Forecaster","d":"70%+ accuracy across 20+ predictions. You see the chart."},"nostradamus_t":{"e":"🔮","n":"Nostradamus","d":"10 correct in a row. The oracle speaks."},"flex_legend_t":{"e":"🦁","n":"Flex Legend","d":"1,000 Flex actions. Physical and financial sovereignty."},"full_stack_human_t":{"e":"🧬","n":"Full Stack Human","d":"Every Flex action done. The complete sovereign."},"legend_mode_t":{"e":"🏆","n":"Legend Mode","d":"All 8 features in one session. A true Archive legend."},"nachos_bestie_t":{"e":"🧡","n":"Nacho's Bestie","d":"250 Nacho interactions. He considers you a friend."},"super_spreader_t":{"e":"📡","n":"Super Spreader","d":"Referred 50 people. Orange pill machine."},"sat_hoarder_t":{"e":"🏦","n":"Sat Hoarder","d":"10,000 sats claimed. The stack begins."},"favor_champion_t":{"e":"🏅","n":"Favor Champion","d":"10× Satoshi's Favor activated. The community owes you."},"golden_nonce_t":{"e":"✨","n":"Golden Nonce","d":"Hash under 100,000. Almost divine luck."},"asic_mode_t":{"e":"🖥️","n":"ASIC Mode","d":"1,000 SF hashes. Dedicated."},"summit_conqueror_t":{"e":"🏔️","n":"Summit Conqueror","d":"The hardest Nacho trail. The summit was yours."},"pow_titan_t":{"e":"🌍","n":"The Titan","d":"1,000 km walked. A thousand kilometers of conviction."},"story_master_t":{"e":"🦧","n":"Story Master","d":"All 7 chapters of Nacho's Story. You know the whole tale."},"scene_regular_t":{"e":"🗺️","n":"Scene Regular","d":"5 IRL events attended. You show up in person."},"tip_magnet_t":{"e":"🧲","n":"Tip Magnet","d":"10 tips received. The community loves what you bring."},"community_hero_t":{"e":"⚡","n":"Community Hero","d":"Participated in a weekly community challenge. Showed up."},"sovereign_individual":{"e":"🗽","n":"Sovereign Individual","d":"200 days of orange-pilled devotion"}}};
+
+function _clientAwardMessage(meta, fallbackName, label) {
+    var emoji = (meta && meta.e) || '🏅';
+    var name = (meta && meta.n) || fallbackName || 'New badge';
+    var desc = meta && meta.d ? ' ' + meta.d : '';
+    return { icon: emoji, message: (emoji + ' ' + label + ': ' + name + '!' + desc).slice(0, 180) };
+}
+
+function _installClientAwardNotices() {
+    if (typeof window.checkHiddenBadges === 'function' && !window.checkHiddenBadges._rn) {
+        var origHidden = window.checkHiddenBadges;
+        var wrappedHidden = function() {
+            var before = [];
+            try { before = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]'); } catch (e) {}
+            var ret = origHidden.apply(this, arguments);
+            var after = [];
+            try { after = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]'); } catch (e2) {}
+            after.forEach(function(id) {
+                if (before.indexOf(id) !== -1) return;
+                var built = _clientAwardMessage((CLIENT_AWARD_COPY.hidden || {})[id], id, 'New badge');
+                _stashLocalReward('hbadge_' + id, built.message, built.icon, 'hidden');
+            });
+            return ret;
+        };
+        wrappedHidden._rn = true;
+        window.checkHiddenBadges = wrappedHidden;
+    }
+    if (typeof window.awardHiddenBadge === 'function' && !window.awardHiddenBadge._rn) {
+        var origAward = window.awardHiddenBadge;
+        var wrappedAward = function(badgeId, toastMsg, pts) {
+            var before = [];
+            try { before = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]'); } catch (e) {}
+            var ret = origAward.apply(this, arguments);
+            if (before.indexOf(badgeId) !== -1) return ret;
+            if (!_isSignedInAccount()) return ret;
+            var meta = (CLIENT_AWARD_COPY.hidden || {})[badgeId];
+            var built = meta
+                ? _clientAwardMessage(meta, badgeId, 'New badge')
+                : { icon: '🏅', message: ('🏅 New badge: ' + (toastMsg || badgeId || 'New badge') + '!').slice(0, 180) };
+            _stashLocalReward('hbadge_' + (badgeId || toastMsg || 'badge'), built.message, built.icon, 'hidden');
+            return ret;
+        };
+        wrappedAward._rn = true;
+        window.awardHiddenBadge = wrappedAward;
+    }
+    if (typeof window._checkAndAwardTitles === 'function' && !window._checkAndAwardTitles._rn) {
+        var origTitles = window._checkAndAwardTitles;
+        var wrappedTitles = function() {
+            var before = [];
+            try {
+                before = ((typeof currentUser !== 'undefined' && currentUser && currentUser.earnedTitles) || []).slice();
+            } catch (e) {}
+            var ret = origTitles.apply(this, arguments);
+            var after = [];
+            try {
+                after = (typeof currentUser !== 'undefined' && currentUser && currentUser.earnedTitles) || [];
+            } catch (e2) {}
+            after.forEach(function(id) {
+                if (before.indexOf(id) !== -1) return;
+                var built = _clientAwardMessage((CLIENT_AWARD_COPY.titles || {})[id], id, 'New title');
+                _stashLocalReward('title_' + id, built.message, built.icon, 'title');
+            });
+            return ret;
+        };
+        wrappedTitles._rn = true;
+        window._checkAndAwardTitles = wrappedTitles;
+    }
+}
+_installClientAwardNotices();
+setInterval(_installClientAwardNotices, 2000);

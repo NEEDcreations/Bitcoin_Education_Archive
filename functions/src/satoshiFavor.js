@@ -13,6 +13,7 @@ const crypto = require('crypto');
 
 const db = admin.firestore();
 const { isSatsBanned, SATS_BANNED_ERROR } = require('./cipherClaim');
+const rewardNotify = require('./rewardNotify');
 
 // One-way hash of uid for public dedup (prevents uid exposure in readable docs)
 function uidHash(uid) {
@@ -592,7 +593,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   const ledgerRef = db.collection('faucet_ledger').doc(uid);
   const currentCycleId = stateData.currentCycleId || 'unknown';
 
-  const { value, isWinner } = await db.runTransaction(async (transaction) => {
+  const { value, isWinner, usedBooster, spentRig } = await db.runTransaction(async (transaction) => {
     const cooldownDoc = await transaction.get(cooldownRef);
     const userDoc = await transaction.get(userRef2);
     const ledgerDoc = await transaction.get(ledgerRef);
@@ -657,7 +658,12 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     if (timestamps.length > effectiveRateLimit + 10) timestamps = timestamps.slice(-effectiveRateLimit - 10);
     transaction.set(cooldownRef, { timestamps });
 
-    return { value: val, isWinner: winner };
+    return {
+      value: val,
+      isWinner: winner,
+      usedBooster: usingBooster,
+      spentRig: rigNum === 2 && !rig2AlreadyUnlocked,
+    };
   });
 
   // Write hash doc outside transaction (not security-critical, just record-keeping)
@@ -830,6 +836,19 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           ts: epochTs,
         }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
         console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
+        const share = Math.floor(21000 / Math.max(1, blocks.length));
+        const seen = {};
+        for (let bi = 0; bi < blocks.length; bi++) {
+          const winnerUid = blocks[bi] && blocks[bi].uid;
+          if (!winnerUid || seen[winnerUid]) continue;
+          seen[winnerUid] = true;
+          await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+            uid: winnerUid,
+            onceKey: 'sfepoch_' + epochNum,
+            icon: '⛏️',
+            message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + share.toLocaleString('en-US') + ' sats.',
+          }));
+        }
       } catch (e) {
         console.warn('[FAVOR] Epoch completion announcement failed:', e.message);
       }
@@ -916,6 +935,33 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     }).catch(e => console.warn('[FAVOR] Win announcements post failed:', e.message));
 
     console.log(`[FAVOR] WIN posted to chat for ${safeUsername}, hash=${value}`);
+    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+      uid,
+      onceKey: 'sfblock_' + (stateData.currentCycleId || 'cycle') + '_' + value,
+      icon: '⛏️',
+      message: '⛏️ You solved a block in Satoshi\'s Favor (hash ' + Number(value).toLocaleString('en-US') + ').',
+    }));
+  }
+
+  const hashPlans = [];
+  if (usedBooster) {
+    hashPlans.push.apply(hashPlans, rewardNotify.plan({
+      uid: uid,
+      action: 'sf_booster_hash',
+      boosterHashes: -1,
+      day: new Date().toISOString().slice(0, 10),
+      icon: '⚡',
+    }));
+  }
+  if (spentRig) {
+    hashPlans.push.apply(hashPlans, rewardNotify.plan({
+      uid: uid,
+      icon: '⚡',
+      message: '-1 second rig charge: rig 2 unlocked for this window',
+    }));
+  }
+  if (hashPlans.length) {
+    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), hashPlans);
   }
 
   return {

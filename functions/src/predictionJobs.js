@@ -3,6 +3,7 @@
  * and the weekly/monthly ticket payout. Ordering rules live in predictionStats.js.
  */
 const ps = require('./predictionStats');
+const rewardNotify = require('./rewardNotify');
 
 function createPredictionJobs(db, admin) {
     async function readChunked(refs) {
@@ -166,15 +167,23 @@ function createPredictionJobs(db, admin) {
                 resolvedAt: now
             });
             tx.delete(activeRef);
-            if (applied.correct && userSnap.exists) {
+            const pointsBefore = userSnap.exists ? (Number(userSnap.data().points) || 0) : 0;
+            const xp = (applied.correct && userSnap.exists) ? ps.CORRECT_XP : 0;
+            if (xp > 0) {
                 const inc = admin.firestore.FieldValue.increment;
                 tx.update(userRef, {
-                    points: inc(ps.CORRECT_XP),
-                    weeklyXP: inc(ps.CORRECT_XP),
-                    monthlyXP: inc(ps.CORRECT_XP)
+                    points: inc(xp),
+                    weeklyXP: inc(xp),
+                    monthlyXP: inc(xp)
                 });
             }
-            return { correct: applied.correct === true };
+            return {
+                correct: applied.correct === true,
+                uid: liveUid,
+                direction: live.direction === 'down' ? 'down' : 'up',
+                xp: xp,
+                pointsBefore: pointsBefore
+            };
         });
     }
 
@@ -250,6 +259,21 @@ function createPredictionJobs(db, admin) {
                 else if (result && result.correct !== undefined && !result.duplicate) {
                     total++;
                     if (result.correct) correct++;
+                    if (result.uid) {
+                        const day = new Date(now).toISOString().slice(0, 10);
+                        const went = result.direction === 'down' ? 'down' : 'up';
+                        await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                            uid: result.uid,
+                            onceKey: 'predict_' + day + '_' + String(result.uid).slice(0, 12),
+                            icon: '📊',
+                            xp: result.xp || 0,
+                            pointsBefore: result.pointsBefore || 0,
+                            pointsDelta: result.xp || 0,
+                            message: result.correct
+                                ? ('📊 Your price prediction was correct. Bitcoin went ' + went + '.')
+                                : ('📊 Your price prediction missed. Bitcoin did not go ' + went + '.'),
+                        }));
+                    }
                 }
             } catch (e) {
                 console.error('[resolvePredictions]', doc.id, e.message);
