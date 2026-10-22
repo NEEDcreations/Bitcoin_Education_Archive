@@ -6039,7 +6039,9 @@ exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
                 athlete_profile: data.athlete ? data.athlete.profile : '',
                 updated_at: admin.firestore.FieldValue.serverTimestamp()
             });
-            await grantServerTickets(uid, 'strava_connect_ticket');
+            await grantServerTickets(uid, 'strava_connect_ticket', {
+                athleteId: data.athlete && data.athlete.id,
+            });
             return res.redirect('https://bitcoineducation.quest/#explore?strava=success');
         } else {
             console.error("Strava exchange error:", data);

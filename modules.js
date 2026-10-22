@@ -546,17 +546,15 @@ function renderTrailExamResults() {
                             window.contributeSatoshiFavor('badge_earned', _modBadgeId).catch(function(){});
                     }).catch(function(){});
             }
-            if (typeof awardOrangeTickets === 'function') awardOrangeTickets(mod.ticketReward, mod.emoji + ' ' + mod.name + ' Trail');
-
             // Award badge
             if (typeof awardHiddenBadge === 'function') awardHiddenBadge(mod.badgeId, mod.badgeName + ' — Completed ' + mod.name + '!');
 
             // Confetti!
             if (typeof launchConfetti === 'function') launchConfetti();
-            if (typeof showToast === 'function') showToast(mod.emoji + ' ' + mod.name + ' COMPLETE! +' + mod.pointsReward + ' pts + 🎫' + mod.ticketReward + ' tickets!');
+            if (typeof showToast === 'function') showToast(mod.emoji + ' ' + mod.name + ' COMPLETE! +' + mod.pointsReward + ' pts');
             // Notify trail completion
             if (typeof sendNotification === 'function' && typeof auth !== 'undefined' && auth && auth.currentUser) {
-                var _trailNotifData = { recipientId: auth.currentUser.uid, senderId: 'system', senderName: 'System', type: 'quest', message: mod.emoji + ' Trail Complete: ' + mod.name + '! +' + mod.pointsReward + ' pts + 🎫' + mod.ticketReward + ' tickets!', targetType: null, targetId: null, read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+                var _trailNotifData = { recipientId: auth.currentUser.uid, senderId: 'system', senderName: 'System', type: 'quest', message: mod.emoji + ' Trail Complete: ' + mod.name + '! +' + mod.pointsReward + ' pts', targetType: null, targetId: null, read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
                 db.collection('notifications').add(_trailNotifData).catch(function() {});
             }
         }

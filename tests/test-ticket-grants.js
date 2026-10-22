@@ -23,11 +23,28 @@ test('fixed grants keep the old amounts and day keys', () => {
     assert.strictEqual(ticketGrants.get('pvp_win_ticket'), null);
 });
 
-test('raid tickets follow the damage and the 50 cap', () => {
+test('raid tickets follow the damage and stop at 10 a day', () => {
     assert.strictEqual(ticketGrants.raidTickets(12.9), 12);
     assert.strictEqual(ticketGrants.raidTickets(0.4), 0);
-    assert.strictEqual(ticketGrants.raidTickets(80), 50);
-    assert.strictEqual(ticketGrants.ACTIONS.raid_damage_ticket.maxGrants, 50);
+    assert.strictEqual(ticketGrants.ACTIONS.raid_damage_ticket.dailyTickets, 10);
+    let used = 0;
+    function take(damage) {
+        const n = ticketGrants.planRaidTickets(damage, used);
+        used += n;
+        return n;
+    }
+    assert.strictEqual(take(250), 10);
+    assert.strictEqual(take(240), 0);
+    assert.strictEqual(used, 10);
+    used = 7;
+    assert.strictEqual(take(6), 3);
+    assert.strictEqual(take(50), 0);
+    assert.strictEqual(used, 10);
+    const src = fs.readFileSync(path.join(__dirname, '..', 'functions/src/grantServerTickets.js'), 'utf8');
+    const tx = src.slice(src.indexOf('runTransaction'), src.indexOf('return { tickets: tickets }'));
+    assert.ok(tx.indexOf('planRaidTickets') > 0);
+    assert.ok(tx.indexOf('countData.tickets') > 0);
+    assert.ok(tx.indexOf('countWrite.tickets') > 0);
 });
 
 test('tctv and trifecta tickets come from the verified award', () => {
@@ -97,14 +114,25 @@ test('the server hooks grant each listed ticket and skip PvP', () => {
         assert.ok(index.indexOf(name) > 0, name);
     });
     assert.ok(index.indexOf('pvp_win_ticket') === -1);
-    assert.ok(raid.indexOf('flashcard_ticket') > 0);
-    assert.ok(raid.indexOf('raid_damage_ticket') > 0);
+    assert.ok(raid.indexOf("metric === 'flashcardCompletions' && effectiveAmount > 0") > 0);
+    assert.ok(raid.indexOf('flashcard_ticket') > raid.indexOf('effectiveAmount > 0'));
+    assert.ok(raid.indexOf('damage: scaledDamage') > 0);
+    assert.ok(index.indexOf('athleteId: data.athlete && data.athlete.id') > 0);
+    assert.strictEqual(ticketGrants.stravaTicketAllowed(false, false, 99), true);
+    assert.strictEqual(ticketGrants.stravaTicketAllowed(true, false, 99), false);
+    assert.strictEqual(ticketGrants.stravaTicketAllowed(false, true, 99), false);
+    assert.strictEqual(ticketGrants.stravaTicketAllowed(false, false, ''), false);
     const tickets = fs.readFileSync(path.join(root, 'tickets.js'), 'utf8');
     const bundle = fs.readFileSync(path.join(root, 'bundle.min.js'), 'utf8');
     assert.ok(tickets.indexOf('Orange Ticket — Welcome back') === -1);
     assert.ok(bundle.indexOf('Orange Ticket for posting in PlebTalk') === -1);
     assert.ok(bundle.indexOf('Orange Ticket for posting a listing') === -1);
-    assert.ok(bundle.indexOf('+1 Ticket — Thanks for watching') === -1);
+    assert.ok(bundle.indexOf('🎫 +1 Ticket — Keep watching') === -1);
+    assert.ok(bundle.indexOf('Ticket + XP every 10 min') === -1);
+    assert.ok(bundle.indexOf('e.data.tickets>0') > 0);
+    assert.ok(bundle.indexOf('awardOrangeTickets(5,"🎯 Daily challenge!")') === -1);
+    const modules = fs.readFileSync(path.join(root, 'modules.js'), 'utf8');
+    assert.ok(modules.indexOf('awardOrangeTickets') === -1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -15,36 +15,69 @@ async function grantServerTickets(uid, action, opts) {
     if (!spec || !uid || uid === 'unknown' || uid === 'nacho-bot' || uid === 'system') {
         return { tickets: 0 };
     }
-    const tickets = ticketGrants.amountFor(action, opts && opts.tickets);
-    if (!(tickets > 0)) return { tickets: 0 };
+    const athleteKey = ticketGrants.stravaAthleteKey(opts && opts.athleteId);
+    if (action === 'strava_connect_ticket' && !athleteKey) return { tickets: 0 };
+
+    const preview = spec.dailyTickets
+        ? ticketGrants.planRaidTickets(opts && opts.damage != null ? opts.damage : (opts && opts.tickets), 0)
+        : ticketGrants.amountFor(action, opts && opts.tickets);
+    if (!(preview > 0)) return { tickets: 0 };
 
     const day = ticketGrants.offsetDay();
     const userRef = db().collection('users').doc(uid);
-    const countRef = spec.maxGrants
+    const countRef = (spec.maxGrants || spec.dailyTickets)
         ? userRef.collection('daily_action_counts').doc(day + '_' + action)
+        : null;
+    const athleteRef = athleteKey
+        ? db().collection('strava_ticket_athletes').doc(athleteKey)
         : null;
 
     try {
         return await db().runTransaction(async (t) => {
             const userDoc = await t.get(userRef);
             const countDoc = countRef ? await t.get(countRef) : null;
+            const athleteDoc = athleteRef ? await t.get(athleteRef) : null;
             if (!userDoc.exists) return { tickets: 0 };
             const user = userDoc.data() || {};
             if (user.ban_reason) return { tickets: 0 };
 
-            const used = countDoc && countDoc.exists ? (countDoc.data().count || 0) : 0;
+            const countData = countDoc && countDoc.exists ? countDoc.data() : {};
+            const used = countData.count || 0;
             if (spec.maxGrants && used >= spec.maxGrants) return { tickets: 0 };
 
-            const claimId = ticketGrants.claimId(action, day, spec.maxGrants ? used + 1 : null);
+            let tickets = preview;
+            if (spec.dailyTickets) {
+                tickets = ticketGrants.planRaidTickets(
+                    opts && opts.damage != null ? opts.damage : (opts && opts.tickets),
+                    countData.tickets || 0
+                );
+                if (!(tickets > 0)) return { tickets: 0 };
+            }
+            const claimId = ticketGrants.claimId(action, day, (spec.maxGrants || spec.dailyTickets) ? used + 1 : null);
             const claimRef = userRef.collection('award_claims').doc(claimId);
             const claimDoc = await t.get(claimRef);
-            if (claimDoc.exists) return { tickets: 0 };
+            if (action === 'strava_connect_ticket') {
+                if (!ticketGrants.stravaTicketAllowed(!!(athleteDoc && athleteDoc.exists), claimDoc.exists, athleteKey)) {
+                    return { tickets: 0 };
+                }
+            } else if (claimDoc.exists) {
+                return { tickets: 0 };
+            }
 
             if (countRef) {
-                t.set(countRef, {
+                const countWrite = {
                     count: used + 1,
                     lastAt: admin.firestore.FieldValue.serverTimestamp(),
-                }, { merge: true });
+                };
+                if (spec.dailyTickets) countWrite.tickets = (countData.tickets || 0) + tickets;
+                t.set(countRef, countWrite, { merge: true });
+            }
+            if (athleteRef) {
+                t.set(athleteRef, {
+                    uid: uid,
+                    athleteId: athleteKey,
+                    at: admin.firestore.FieldValue.serverTimestamp(),
+                });
             }
             t.set(claimRef, {
                 action: action,

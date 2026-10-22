@@ -291,12 +291,11 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
     // (the tx handles this; this branch is a no-op safety fallback)
   }
 
-  if (metric === 'flashcardCompletions') {
+  if (metric === 'flashcardCompletions' && effectiveAmount > 0) {
     await grantServerTickets(uid, 'flashcard_ticket');
   }
-  const raidTicketCount = ticketGrants.raidTickets(scaledDamage);
-  if (raidTicketCount > 0) {
-    await grantServerTickets(uid, 'raid_damage_ticket', { tickets: raidTicketCount });
+  if (scaledDamage > 0) {
+    await grantServerTickets(uid, 'raid_damage_ticket', { damage: scaledDamage });
   }
 
   return {

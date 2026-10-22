@@ -5493,22 +5493,22 @@ window._tctvStartTracker = function() {
             var _tctvXpKey = 'btc_tctv_xp_' + _tctvDay;
             var _tctvXpToday = parseInt(localStorage.getItem(_tctvXpKey) || '0', 10);
             if (_tctvXpToday < 50) {
-                if (typeof awardPoints === 'function') {
-                    awardPoints(10, 'tctv_watch_10m');
-                }
+                var _tctvGrant = (typeof awardPoints === 'function') ? awardPoints(10, 'tctv_watch_10m') : null;
                 localStorage.setItem(_tctvXpKey, String(_tctvXpToday + 10));
-                if (typeof showToast === 'function') {
-                    showToast('📺 +10 XP — Thanks for watching Timechain TV!');
-                }
-            } else {
-                if (typeof showToast === 'function') {
-                    showToast('📺 🎫 +1 Ticket — Keep watching! (TCTV XP cap reached for today)');
-                }
+                Promise.resolve(_tctvGrant).then(function(result) {
+                    var paid = result && result.data && result.data.tickets > 0;
+                    if (typeof showToast === 'function') {
+                        showToast(paid
+                            ? '📺 +10 XP & 🎫 +1 Ticket — Thanks for watching Timechain TV!'
+                            : '📺 +10 XP — Thanks for watching Timechain TV!');
+                    }
+                }).catch(function() {});
+            } else if (typeof showToast === 'function') {
+                showToast('📺 Keep watching! (TCTV XP cap reached for today)');
             }
         } else if (total === 1) {
-            // First minute toast
             if (typeof showToast === 'function') {
-                showToast('📺 Watching Timechain TV — Ticket + XP every 10 min!');
+                showToast('📺 Watching Timechain TV!');
             }
         }
     }, 60000); // 1 minute interval

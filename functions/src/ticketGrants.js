@@ -6,7 +6,7 @@
 
 const RESET_HOUR_UTC = 5;
 const RAID_MAX_PER_GRANT = 50;
-const RAID_MAX_GRANTS = 50;
+const RAID_DAILY_TICKETS = 10;
 
 const ACTIONS = {
     daily_trifecta_ticket: { tickets: 1, label: 'the daily trifecta' },
@@ -18,7 +18,7 @@ const ACTIONS = {
     irl_listing_ticket: { tickets: 1, label: 'an IRL listing' },
     tctv_watch_ticket: { tickets: 1, label: 'watching Timechain TV' },
     strava_connect_ticket: { tickets: 5, once: true, label: 'connecting Strava' },
-    raid_damage_ticket: { maxPerGrant: RAID_MAX_PER_GRANT, maxGrants: RAID_MAX_GRANTS, label: 'raid damage' },
+    raid_damage_ticket: { maxPerGrant: RAID_MAX_PER_GRANT, dailyTickets: RAID_DAILY_TICKETS, label: 'raid damage' },
 };
 
 function offsetDay(nowMs) {
@@ -49,6 +49,23 @@ function amountFor(action, requested) {
 
 function raidTickets(damage) {
     return amountFor('raid_damage_ticket', damage);
+}
+
+// Daily ticket total, not a per-call count. A 250 XP day or 240 watch
+// minutes still stops at 10. `usedToday` is the tickets field on the raid count doc.
+function planRaidTickets(damage, usedToday) {
+    const want = raidTickets(damage);
+    const used = Math.max(0, Math.floor(Number(usedToday) || 0));
+    const room = Math.max(0, RAID_DAILY_TICKETS - used);
+    return Math.min(want, room);
+}
+
+function stravaAthleteKey(athleteId) {
+    return String(athleteId == null ? '' : athleteId).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
+}
+
+function stravaTicketAllowed(athleteClaimed, userClaimed, athleteId) {
+    return !!stravaAthleteKey(athleteId) && !athleteClaimed && !userClaimed;
 }
 
 function doubleXpActive(expiry, nowMs) {
@@ -90,12 +107,15 @@ function bonusTickets(actionId, awarded, proofs) {
 module.exports = {
     ACTIONS: ACTIONS,
     RAID_MAX_PER_GRANT: RAID_MAX_PER_GRANT,
-    RAID_MAX_GRANTS: RAID_MAX_GRANTS,
+    RAID_DAILY_TICKETS: RAID_DAILY_TICKETS,
     offsetDay: offsetDay,
     get: get,
     claimId: claimId,
     amountFor: amountFor,
     raidTickets: raidTickets,
+    planRaidTickets: planRaidTickets,
+    stravaAthleteKey: stravaAthleteKey,
+    stravaTicketAllowed: stravaTicketAllowed,
     doubleXpActive: doubleXpActive,
     bonusTickets: bonusTickets,
 };
