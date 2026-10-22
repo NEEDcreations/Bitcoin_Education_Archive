@@ -127,7 +127,20 @@ function buildCSP(nonce) {
 
         "img-src 'self' data: blob: https:",         // Broad: GIF picker, user avatars, YouTube thumbs
 
-        "media-src 'self' blob: https:",             // Audio (Beats), image uploads
+        // Beats audio: our Storage copies plus the open-music hosts we stream.
+        // Wavlake enclosures are op3.dev -> d12wklypp119aj.cloudfront.net.
+        "media-src 'self' blob: data:" +
+            " https://firebasestorage.googleapis.com" +
+            " https://*.firebasestorage.app" +
+            " https://storage.googleapis.com" +
+            " https://op3.dev" +
+            " https://d12wklypp119aj.cloudfront.net" +
+            " https://archive.org" +
+            " https://*.archive.org" +
+            " https://incompetech.com" +
+            " https://www.incompetech.com" +
+            " https://wavlake.com" +
+            " https://www.wavlake.com",
 
         // frame-src: iframes the app legitimately embeds
         // *** ADDING A NEW EMBED? ADD IT HERE TOO or the browser will block it. ***

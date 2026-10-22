@@ -2870,6 +2870,15 @@ window.djFilterTracks = function(query) {
     });
 };
 
+function djPlayableUrl(track) {
+    if (!track || track.hidden === true) return '';
+    if (typeof window._beatsPlayableUrl === 'function') return window._beatsPlayableUrl(track) || '';
+    function https(url) {
+        return (typeof url === 'string' && /^https:\/\//i.test(url.trim())) ? url.trim() : '';
+    }
+    return https(track.streamUrl) || https(track.audioUrl);
+}
+
 window.djAddToQueue = function(idx) {
     if (window._djUpNext.length >= 3) {
         if (typeof showToast === 'function') showToast('Queue full (max 3)');
@@ -2877,7 +2886,7 @@ window.djAddToQueue = function(idx) {
     }
     var tracks = window._beatsQueue || [];
     var t = tracks[idx];
-    if (!t) return;
+    if (!t || t.hidden === true) return;
     // Don't add duplicates
     for (var i = 0; i < window._djUpNext.length; i++) {
         if (window._djUpNext[i].id === t.id) {
@@ -2909,8 +2918,8 @@ function hookDJAutoQueue() {
                     return;
                 }
             }
-            // Track not in current list — try playing by URL
-            if (next.audioUrl && typeof beatsPlayTrack === 'function') {
+            // Track not in current list — try playing by stream or storage URL
+            if (djPlayableUrl(next) && typeof beatsPlayTrack === 'function') {
                 window._beatsQueue.push(next);
                 beatsPlayTrack(window._beatsQueue.length - 1);
             }
@@ -2933,7 +2942,7 @@ function djGoLive(uid, username, track) {
         trackTitle: track.title || 'Untitled',
         trackArtist: track.artist || track.authorName || 'Unknown',
         trackCoverArt: track.coverArt || '',
-        trackAudioUrl: track.audioUrl || '',
+        trackAudioUrl: djPlayableUrl(track),
         trackId: track.id || '',
         artistUid: track.authorId || '',
         songCount: 1,
@@ -2993,7 +3002,7 @@ function djGoLive(uid, username, track) {
                 updateData.trackTitle = t.title || 'Untitled';
                 updateData.trackArtist = t.artist || t.authorName || 'Unknown';
                 updateData.trackCoverArt = t.coverArt || '';
-                updateData.trackAudioUrl = t.audioUrl || '';
+                updateData.trackAudioUrl = djPlayableUrl(t);
                 updateData.trackId = t.id || '';
                 updateData.artistUid = t.authorId || '';
                 updateData.songCount = _djSongCount;

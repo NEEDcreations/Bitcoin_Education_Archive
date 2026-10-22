@@ -205,6 +205,13 @@ async function queryFirestore(env, collection, limit) {
   });
 }
 
+function beatsPlayableUrl(t) {
+  if (!t || t.hidden === true) return '';
+  var stream = (typeof t.streamUrl === 'string' && /^https:\/\//i.test(t.streamUrl)) ? t.streamUrl : '';
+  var audio = (typeof t.audioUrl === 'string' && /^https:\/\//i.test(t.audioUrl)) ? t.audioUrl : '';
+  return stream || audio;
+}
+
 // ---- Nacho DJ ----
 async function nachoDJCheck(env) {
   // Read current DJ state
@@ -222,8 +229,8 @@ async function nachoDJCheck(env) {
   var tracks = await queryFirestore(env, 'beats_tracks', 200);
   if (tracks.length === 0) return { status: 'no_tracks' };
 
-  // Filter tracks that have an audioUrl
-  tracks = tracks.filter(function(t) { return t.audioUrl; });
+  // Skip hidden tracks. Prefer the publisher's enclosure over a Storage copy.
+  tracks = tracks.filter(function(t) { return beatsPlayableUrl(t); });
   if (tracks.length === 0) return { status: 'no_playable_tracks' };
 
   // If Nacho is already DJing, check if current track has expired
@@ -255,7 +262,7 @@ async function nachoDJCheck(env) {
     trackTitle: { stringValue: track.title || 'Untitled' },
     trackArtist: { stringValue: track.artist || track.authorName || 'Unknown' },
     trackCoverArt: { stringValue: track.coverArt || '' },
-    trackAudioUrl: { stringValue: track.audioUrl || '' },
+    trackAudioUrl: { stringValue: beatsPlayableUrl(track) },
     trackId: { stringValue: track._id || '' },
     artistUid: { stringValue: track.authorId || '' },
     trackDuration: { integerValue: String(dur) },

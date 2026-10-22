@@ -29,6 +29,8 @@ const TESTS = [
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Beats import', file: 'test-beats-import.js' },
+    { name: 'Beats credits', file: 'test-beats-credits.js' },
 ];
 
 let allPassed = true;

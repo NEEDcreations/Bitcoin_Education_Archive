@@ -7,6 +7,27 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.get('admin', false) == true;
     }
 
+    // License, credit, hide, and stream fields are Admin SDK only.
+    function beatsCatalogLocked() {
+      return !request.resource.data.keys().hasAny([
+        'hidden', 'hiddenReason', 'needsReview', 'streamUrl',
+        'license', 'licenseUrl', 'licenseProofUrl', 'attribution', 'pageUrl',
+        'source', 'sourceUrl', 'feedUrl', 'feedTitle',
+        'v4vGuid', 'v4vSplits', 'v4vLicense', 'archiveLicense', 'hasV4VSplits',
+        'artistDocId', 'audioVerified', 'mood', 'claimed', 'isrc'
+      ]);
+    }
+
+    function beatsCatalogUntouched() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'hidden', 'hiddenReason', 'needsReview', 'streamUrl',
+        'license', 'licenseUrl', 'licenseProofUrl', 'attribution', 'pageUrl',
+        'source', 'sourceUrl', 'feedUrl', 'feedTitle',
+        'v4vGuid', 'v4vSplits', 'v4vLicense', 'archiveLicense', 'hasV4VSplits',
+        'artistDocId', 'audioVerified', 'mood', 'claimed', 'isrc'
+      ]);
+    }
+
     // Client-created notification ids. Server Admin SDK writes are not checked here.
     function notifIdOk(v) {
       return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
@@ -814,11 +835,28 @@ service cloud.firestore {
                     && (!('releaseDate' in request.resource.data)
                         || request.resource.data.releaseDate == ''
                         || (request.resource.data.releaseDate is string
-                            && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
+                            && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+                    && beatsCatalogLocked()
+                    && request.resource.data.keys().hasOnly([
+                        'title', 'artist', 'genre', 'audioUrl', 'audioData', 'coverUrl', 'coverArt',
+                        'duration', 'authorId', 'authorName', 'plays', 'likes', 'copyrightConfirmed',
+                        'createdAt', 'albumId', 'albumTitle', 'albumType', 'trackNumber',
+                        'albumTotalTracks', 'albumYear', 'releaseDate', 'description'
+                    ])
+                    && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
+                    && (!('likes' in request.resource.data) || request.resource.data.likes == 0)
+                    && (!('audioUrl' in request.resource.data)
+                        || request.resource.data.audioUrl.matches('^https://.*'));
       allow update: if request.auth != null
+                    && beatsCatalogUntouched()
                     && (
-                      // Author can update their own track (with coverUrl + XSS validation)
+                      // Author edits stay on the fields the edit and album forms send.
                       (resource.data.authorId == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                          'title', 'artist', 'genre', 'coverUrl', 'coverArt', 'releaseDate',
+                          'description', 'albumId', 'albumTitle', 'albumType', 'trackNumber',
+                          'albumTotalTracks', 'albumYear', 'duration'
+                        ])
                         && (!('coverUrl' in request.resource.data)
                             || request.resource.data.coverUrl == ''
                             || request.resource.data.coverUrl == null
@@ -843,6 +881,12 @@ service cloud.firestore {
                               && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
                               && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
                           )))
+                      // Comment count moves by one. The caller cannot touch catalog fields.
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount'])
+                          && request.resource.data.commentCount is int
+                          && request.resource.data.commentCount >= 0
+                          && (request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1
+                              || request.resource.data.commentCount == resource.data.get('commentCount', 0) - 1))
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid

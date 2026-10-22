@@ -6913,6 +6913,7 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
     const trackDoc = await admin.firestore().collection('beats_tracks').doc(trackId).get();
     if (!trackDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const track    = trackDoc.data();
+    if (track.hidden === true) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const splits   = (track.v4vSplits || []).filter(s => s.split > 0);
 
     if (splits.length === 0) throw new functionsV1.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
@@ -8835,16 +8836,24 @@ exports.nachoRadioTick = onSchedule({
         return;
     }
 
+    function nachoPlayableUrl(t) {
+        if (!t || t.hidden === true) return '';
+        const stream = typeof t.streamUrl === 'string' && /^https:\/\//i.test(t.streamUrl) ? t.streamUrl.trim() : '';
+        const audio = typeof t.audioUrl === 'string' && /^https:\/\//i.test(t.audioUrl) ? t.audioUrl.trim() : '';
+        return stream || audio;
+    }
+
     let candidates = [];
     snap.forEach(d => {
         const t = d.data();
+        const playable = nachoPlayableUrl(t);
         if (
-            t.audioUrl &&
+            playable &&
             (t.duration || 0) >= 60 &&
             t.genre !== 'podcast' &&
             !playedRecently.includes(d.id)
         ) {
-            candidates.push({ id: d.id, ...t });
+            candidates.push({ id: d.id, ...t, _playable: playable });
         }
     });
 
@@ -8854,8 +8863,9 @@ exports.nachoRadioTick = onSchedule({
         candidates = [];
         snap.forEach(d => {
             const t = d.data();
-            if (t.audioUrl && (t.duration || 0) >= 60 && t.genre !== 'podcast') {
-                candidates.push({ id: d.id, ...t });
+            const playable = nachoPlayableUrl(t);
+            if (playable && (t.duration || 0) >= 60 && t.genre !== 'podcast') {
+                candidates.push({ id: d.id, ...t, _playable: playable });
             }
         });
         playedRecently.length = 0;
@@ -8882,7 +8892,7 @@ exports.nachoRadioTick = onSchedule({
         trackId:        track.id,
         trackTitle:     track.title     || 'Untitled',
         trackArtist:    track.artist    || track.authorName || 'Unknown',
-        trackAudioUrl:  track.audioUrl,
+        trackAudioUrl:  track._playable || track.streamUrl || track.audioUrl,
         trackCoverArt:  track.coverArt  || track.coverUrl  || '',
         trackDuration:  track.duration  || 180,
         trackStartedAt: admin.firestore.FieldValue.serverTimestamp(),
