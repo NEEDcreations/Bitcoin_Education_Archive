@@ -271,6 +271,19 @@ function questCompletionKey(topicKey, questIndex) {
     return 'quest_' + topicKey + '__' + (questIndex + 1);
 }
 
+// Keys the old gradeQuest wrote onto users.completedQuests. Part 1 used
+// quest_<topic>. Later parts, and part 1 after the part-specific write,
+// used quest_<topic>__N. A match only blocks another payout.
+function legacyPartRecorded(completed, topicKey, questIndex) {
+    const list = Array.isArray(completed) ? completed : [];
+    const topic = String(topicKey || '');
+    const part = questIndex + 1;
+    if (!topic || part < 1) return false;
+    if (list.indexOf('quest_' + topic + '__' + part) !== -1) return true;
+    if (part === 1 && list.indexOf('quest_' + topic) !== -1) return true;
+    return false;
+}
+
 function settleQuizReward(input) {
     const src = input || {};
     const graded = src.graded || {};
@@ -285,8 +298,8 @@ function settleQuizReward(input) {
     if (src.banned === true) {
         return { awarded: 0, overflowAdded: 0, capped: false, pts: 0, score: score, reason: 'banned', completionKey: '', countQuest: false, blocked: true, banned: true };
     }
-    // alreadyPerfect comes from users/{uid}/quest_completions, not the
-    // client-editable completedQuests array.
+    // alreadyPerfect is a quest_completions doc, or a server key already
+    // stored on completedQuests. Either one only blocks a repeat payout.
     const already = graded.completeSet && src.alreadyPerfect === true;
     const pts = already ? 0 : (graded.pts || 0);
     const split = splitDailyXp(src.dailyUsed || 0, pts, DAILY_QUIZ_XP_CAP);
@@ -324,5 +337,6 @@ module.exports = {
     gradeTrivia: gradeTrivia,
     gradeQuestSubmission: gradeQuestSubmission,
     questCompletionKey: questCompletionKey,
+    legacyPartRecorded: legacyPartRecorded,
     settleQuizReward: settleQuizReward,
 };

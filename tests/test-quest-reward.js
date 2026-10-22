@@ -247,6 +247,48 @@ test('the daily quiz cap holds and banned accounts are paid nothing', function()
     assert.strictEqual(banned.completionKey, '');
 });
 
+test('an old server completion key blocks that part and nothing else', function() {
+    const part1 = reward.gradeQuestSubmission({
+        answers: answersFor('whitepaper', 0, function(question) { return question.a; }),
+    });
+    const part2 = reward.gradeQuestSubmission({
+        answers: answersFor('whitepaper', 1, function(question) { return question.a; }),
+    });
+    assert.strictEqual(reward.legacyPartRecorded(['quest_whitepaper'], 'whitepaper', 0), true);
+    assert.strictEqual(reward.legacyPartRecorded(['quest_whitepaper'], 'whitepaper', 1), false);
+    assert.strictEqual(reward.legacyPartRecorded(['quest_whitepaper__1'], 'whitepaper', 0), true);
+    assert.strictEqual(reward.legacyPartRecorded(['quest_whitepaper__2'], 'whitepaper', 1), true);
+    assert.strictEqual(reward.legacyPartRecorded(['quest_whitepaper__2'], 'whitepaper', 0), false);
+    assert.strictEqual(reward.legacyPartRecorded(['q__whitepaper__1'], 'whitepaper', 0), false);
+
+    function settle(graded, completed) {
+        return reward.settleQuizReward({
+            graded: graded,
+            dailyUsed: 0,
+            questsToday: 0,
+            banned: false,
+            alreadyPerfect: reward.legacyPartRecorded(completed, graded.topicKey, graded.questIndex),
+        });
+    }
+    const blocked = settle(part1, ['quest_whitepaper']);
+    assert.strictEqual(blocked.awarded, 0);
+    assert.strictEqual(blocked.pts, 0);
+    assert.strictEqual(blocked.reason, 'already-perfect');
+    assert.strictEqual(blocked.completionKey, '');
+
+    const part2Blocked = settle(part2, ['quest_whitepaper__2']);
+    assert.strictEqual(part2Blocked.awarded, 0);
+    assert.strictEqual(part2Blocked.reason, 'already-perfect');
+
+    const part2Paid = settle(part2, ['quest_whitepaper', 'q__whitepaper__2']);
+    assert.strictEqual(part2Paid.awarded, 100);
+    assert.strictEqual(part2Paid.completionKey, 'quest_whitepaper__2');
+
+    const clientIdOnly = settle(part1, ['q__whitepaper__1']);
+    assert.strictEqual(clientIdOnly.awarded, 100);
+    assert.strictEqual(clientIdOnly.completionKey, 'quest_whitepaper__1');
+});
+
 test('the functions bank matches the client trivia, quiz, and learning files', function() {
     const fresh = buildBanks();
     const committed = JSON.parse(read('functions/reward-banks.json'));
@@ -267,7 +309,8 @@ test('callables enforce App Check, bans, and rate limits, and ignore client keys
     assert.ok(callables.includes("require('./rewardNotify')"));
     assert.ok(callables.includes('quest_completions'));
     assert.ok(callables.includes('claimDoc.data().correct === true'));
-    assert.strictEqual(callables.includes('completedQuests'), false);
+    assert.ok(callables.includes('reward.legacyPartRecorded(user.completedQuests, graded.topicKey, graded.questIndex)'));
+    assert.strictEqual(callables.includes('completedQuests:'), false);
     assert.strictEqual(callables.includes('quest_answer_keys'), false);
     assert.ok(index.includes('Quiz and trivia rewards are graded on the server'));
     assert.strictEqual(index.includes("'trivia_correct': 50"), false);
