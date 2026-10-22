@@ -1292,28 +1292,52 @@ service cloud.firestore {
     }
 
     match /tctv_presence/{viewerId} {
-      // Publicly readable so every client can render the live counter.
-      allow read: if true;
-      // Allow both signed-in and anonymous viewers to register presence.
-      // Signed-in users use their auth.uid as the viewerId.
-      // Anonymous users use a 'v_' + random id from localStorage.
-      // Payload is tightly validated to prevent abuse.
+      // Clients render the counter from tctv_counts/live. Listing this
+      // collection is what used to read every stale presence doc, so list
+      // stays closed. A single-doc get is still allowed.
+      allow get: if true;
+      allow list: if false;
+      // Signed-in viewers must write viewerId == request.auth.uid.
+      // Logged-out viewers use a v_ id from localStorage, and only when
+      // the request itself is unauthenticated.
+      // ts must be the server timestamp so a client cannot pin itself fresh.
+      // expiresAt is optional so pages still on the previous script keep
+      // working. The new script always sends it (~10 min ahead) for the
+      // TTL policy on tctv_presence.expiresAt. The window is wide on
+      // purpose: a skewed clock can still write, and a client still cannot
+      // push expiry out by days. The minute job deletes by ts, not expiresAt.
       allow create, update: if
         (
           (request.auth != null && viewerId == request.auth.uid)
-          || (viewerId.matches('^v_[a-z0-9]{5,40}$'))
+          || (request.auth == null && viewerId.matches('^v_[a-z0-9]{5,40}$'))
         )
-        && request.resource.data.keys().hasOnly(['station', 'ts', 'tsClient'])
+        && request.resource.data.keys().hasOnly(['station', 'ts', 'tsClient', 'expiresAt'])
         && request.resource.data.station is string
         && request.resource.data.station.size() > 0
         && request.resource.data.station.size() < 50
+        && request.resource.data.ts == request.time
+        && (
+          !('expiresAt' in request.resource.data)
+          || (
+            request.resource.data.expiresAt is timestamp
+            && request.resource.data.expiresAt > request.time - duration.value(12, 'h')
+            && request.resource.data.expiresAt < request.time + duration.value(2, 'h')
+          )
+        )
         && (!('tsClient' in request.resource.data) || request.resource.data.tsClient is number);
-      // Anyone can delete their own presence doc on exit/unload.
       // Auth-uid docs: only the owning user can delete.
       // v_ anon docs: open delete (worst case: griefer evicts strangers; they'll auto-re-register in <30s).
       allow delete: if
         (request.auth != null && viewerId == request.auth.uid)
         || viewerId.matches('^v_[a-z0-9]{5,40}$');
+    }
+
+    // One aggregate doc for the live viewer counter. Written only by
+    // tctvAggregatePresence. Clients listen to this doc instead of scanning presence.
+    match /tctv_counts/{docId} {
+      allow get: if docId == 'live';
+      allow list: if false;
+      allow write: if false;
     }
 
     // AI Tools open tracking — anyone can create, no reads/updates/deletes
