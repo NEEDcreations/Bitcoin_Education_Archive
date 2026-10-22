@@ -3,7 +3,9 @@
 // DRY RUN by default: prints what would change and writes nothing.
 // Usage:
 //   node apply_tctv_import.js --file /path/to/repo/timechain-tv.js [--new new-videos.json]
-//        [--remove-dead dead-existing-ids.txt] [--seed 42] [--write]
+//        [--meta new-videos-meta.json] [--remove-dead dead-existing-ids.txt] [--seed 42] [--write]
+//   Every new entry needs a positive integer duration (1..43200) that matches a
+//   YouTube contentDetails duration in the meta file within 2 seconds. P0D is refused.
 // Behaviour:
 //   - Existing entries keep their exact original text; new entries are inserted at
 //     seeded-random positions inside each station's videos array (no full reshuffle).
@@ -15,7 +17,22 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const FILE = opt('--file'); const NEW = opt('--new', __dirname + '/new-videos.json');
+const META = opt('--meta', NEW.replace(/[^/]+$/, 'new-videos-meta.json'));
 const DEAD = opt('--remove-dead', null); const WRITE = args.includes('--write');
+const MAX_DURATION = 43200;
+function isoDurationSeconds(iso) {
+  if (typeof iso !== 'string' || iso === 'P0D' || iso === 'PT0S') return NaN;
+  const m = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/.exec(iso);
+  if (!m) return NaN;
+  return Math.round((+m[1] || 0) * 86400 + (+m[2] || 0) * 3600 + (+m[3] || 0) * 60 + (+m[4] || 0));
+}
+function verifiedSeconds(rec) {
+  if (!rec || rec.duration === 'P0D' || rec.duration === 0) return NaN;
+  const iso = (rec.contentDetails && rec.contentDetails.duration) || rec.durationIso || rec.contentDetailsDuration;
+  if (typeof iso === 'string') return isoDurationSeconds(iso);
+  if (Number.isInteger(rec.duration) && rec.duration >= 1) return rec.duration;
+  return NaN;
+}
 let seed = parseInt(opt('--seed', '20261022'), 10);
 if (!FILE) { console.error('need --file path/to/timechain-tv.js'); process.exit(1); }
 const rand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -46,6 +63,12 @@ const src = fs.readFileSync(FILE, 'utf8');
 const { start, end, arr } = parseStations(src);
 const existing = new Set(); arr.forEach(st => st.videos.forEach(v => existing.add(v.id)));
 const incoming = JSON.parse(fs.readFileSync(NEW, 'utf8'));
+if (!fs.existsSync(META)) { console.error('refusing import: no meta file with YouTube contentDetails durations at ' + META); process.exit(1); }
+const metaRaw = JSON.parse(fs.readFileSync(META, 'utf8'));
+const verified = new Map();
+function addRec(rec) { if (rec && rec.id) verified.set(rec.id, verifiedSeconds(rec)); }
+if (Array.isArray(metaRaw)) metaRaw.forEach(addRec);
+else Object.keys(metaRaw).forEach(k => { const val = metaRaw[k]; if (Array.isArray(val)) val.forEach(addRec); else addRec(val); });
 const dead = DEAD ? new Set(fs.readFileSync(DEAD, 'utf8').split(/\s+/).filter(Boolean)) : new Set();
 
 const plan = {}; const seen = new Set(); let refused = 0;
@@ -53,7 +76,9 @@ for (const st of incoming) {
   if (!arr.find(x => x.id === st.id)) throw new Error('unknown station ' + st.id);
   plan[st.id] = [];
   for (const v of st.videos) {
-    if (!/^[A-Za-z0-9_-]{11}$/.test(v.id) || typeof v.title !== 'string' || !(v.duration > 0)) throw new Error('bad entry ' + JSON.stringify(v));
+    if (!/^[A-Za-z0-9_-]{11}$/.test(v.id) || typeof v.title !== 'string' || !Number.isInteger(v.duration) || v.duration < 1 || v.duration > MAX_DURATION) throw new Error('bad entry ' + JSON.stringify(v));
+    const sec = verified.get(v.id);
+    if (!Number.isInteger(sec) || sec < 1 || sec > MAX_DURATION || Math.abs(v.duration - sec) > 2) throw new Error('unverified contentDetails duration ' + v.id);
     if (existing.has(v.id) || seen.has(v.id)) { refused++; continue; }
     seen.add(v.id); plan[st.id].push(v);
   }

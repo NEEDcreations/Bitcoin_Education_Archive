@@ -77,6 +77,27 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Station lists: network-first, then the cached copy. A miss must fail.
+  // A 200 {} body looks like an empty catalog and marks Timechain TV ready.
+  if (/\.json(\?|$)/i.test(url.pathname) && url.pathname.includes('data/tctv/')) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return response;
+        }
+        return caches.match(event.request).then(cached => cached || response);
+      }).catch(() =>
+        caches.match(event.request).then(cached => cached || new Response('', {
+          status: 504,
+          statusText: 'offline'
+        }))
+      )
+    );
+    return;
+  }
+
   // JSON data files: network-first with cache fallback (includes offline channel cache)
   if (/\.json(\?|$)/i.test(url.pathname) && (url.pathname.includes('data/') || url.pathname.includes('channels/'))) {
     event.respondWith(

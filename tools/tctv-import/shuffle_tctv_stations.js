@@ -7,6 +7,8 @@
 //   node tools/tctv-import/shuffle_tctv_stations.js --file timechain-tv.js [--seed 20261022] [--write]
 //   node tools/tctv-import/shuffle_tctv_stations.js --dir data/tctv [--seed 20261022] [--write]
 // Dry run unless --write. Station order is unchanged. Entry text is unchanged.
+// Refuses to write (exit 1) if any entry lacks an 11-char id, a string title,
+// or a positive integer duration from 1s to 12h.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -17,6 +19,14 @@ const DIR = opt('--dir', null);
 const WRITE = args.includes('--write');
 let seed = parseInt(opt('--seed', '20261022'), 10);
 if (!FILE && !DIR) { console.error('need --file timechain-tv.js or --dir data/tctv'); process.exit(1); }
+const ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const MAX_DURATION = 43200;
+function badEntry(v, where) {
+  if (!v || typeof v.id !== 'string' || !ID_RE.test(v.id) || typeof v.title !== 'string' || !Number.isInteger(v.duration) || v.duration < 1 || v.duration > MAX_DURATION) {
+    return where + ' id=' + (v && v.id) + ' duration=' + JSON.stringify(v && v.duration);
+  }
+  return '';
+}
 
 // Same generator as tools/tctv-import/apply_tctv_import.js
 const rand = () => {
@@ -39,15 +49,23 @@ function fisherYates(list) {
 if (DIR) {
   const files = fs.readdirSync(DIR).filter(name => name.endsWith('.json')).sort();
   if (!files.length) { console.error('no json in ' + DIR); process.exit(1); }
-  let moved = 0;
-  for (const name of files) {
+  const loaded = files.map(name => {
     const full = path.join(DIR, name);
     const videos = JSON.parse(fs.readFileSync(full, 'utf8'));
     if (!Array.isArray(videos)) throw new Error(name + ' is not an array');
+    return { name, full, videos };
+  });
+  const bad = [];
+  loaded.forEach(file => file.videos.forEach((v, i) => { const msg = badEntry(v, file.name + '#' + i); if (msg) bad.push(msg); }));
+  if (bad.length) { console.error(bad.slice(0, 12).join('\n')); console.error('refusing shuffle: ' + bad.length + ' entries failed the duration check'); process.exit(1); }
+  let moved = 0;
+  for (const file of loaded) {
+    const name = file.name;
+    const videos = file.videos;
     const before = videos[0] && videos[0].id;
     fisherYates(videos);
     if (videos[0] && videos[0].id !== before) moved++;
-    if (WRITE) fs.writeFileSync(full, JSON.stringify(videos));
+    if (WRITE) fs.writeFileSync(file.full, JSON.stringify(videos));
     console.log(name.padEnd(28), String(videos.length).padStart(5), 'first', videos[0] ? videos[0].id : '-');
   }
   console.log((WRITE ? 'WROTE' : 'DRY RUN') + ' ' + files.length + ' station files, ' + moved + ' first-ids changed');
@@ -92,6 +110,9 @@ for (const st of arr) {
   const vEnd = matchClose(region, vStart, '[', ']');
   const spans = topLevelObjects(region, vStart + 1, vEnd);
   const entries = spans.map(([a, b]) => region.slice(a, b));
+  const bad = [];
+  entries.forEach((text, i) => { let v; try { v = Function('return ' + text)(); } catch (err) { bad.push(st.id + '#' + i + ' unparsable'); return; } const msg = badEntry(v, st.id + '#' + i); if (msg) bad.push(msg); });
+  if (bad.length) { console.error(bad.slice(0, 12).join('\n')); console.error('refusing shuffle: ' + bad.length + ' entries failed the duration check'); process.exit(1); }
   const sep = spans.length > 1 ? region.slice(spans[0][1], spans[1][0]) : ',\n                ';
   const lead = spans.length ? region.slice(vStart + 1, spans[0][0]) : '';
   const tail = spans.length ? region.slice(spans[spans.length - 1][1], vEnd) : '';
