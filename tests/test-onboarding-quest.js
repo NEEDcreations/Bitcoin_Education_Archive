@@ -13,6 +13,7 @@ const {
 } = require('../functions/src/onboardingQuest');
 const { assessUsername, reservationBlocks, HOLD_MS, ANON_SQUAT_MS } = require('../functions/src/usernamePolicy');
 const { groupUsernames } = require('../functions/scripts/backfill_usernames');
+const { networkRateDocIdFromSecret } = require('../functions/src/rateLimitSalt');
 
 const FRESH = { nonceAgeMs: 1000, guestAgeMs: 1000 };
 
@@ -272,9 +273,20 @@ test('guest merge never writes daily action counts and usernames survive a missi
     assert.ok(api.includes('enforceAppCheck: false'));
     assert.ok(api.includes('username_'));
     assert.ok(api.includes('username_ip_'));
+    assert.ok(api.includes('networkRateDocId'));
+    assert.ok(api.includes('expireAt: rateExpire'));
+    assert.ok(!api.includes('function usernameIpDocId'));
+    assert.ok(!api.includes('ip: ip'));
     assert.ok(api.includes('Try again shortly'));
     assert.ok(!api.includes('scanLegacyNames'));
     assert.ok(!api.includes('profileNameOwners'));
+    const hashed = networkRateDocIdFromSecret('username_ip_', '203.0.113.9', Date.UTC(2026, 9, 22), 'a'.repeat(32));
+    assert.ok(/^username_ip_[a-f0-9]{40}$/.test(hashed), hashed);
+    assert.ok(hashed.indexOf('203') === -1 && hashed.indexOf('113') === -1);
+    const same = networkRateDocIdFromSecret('username_ip_', '203.0.113.9', Date.UTC(2026, 9, 22), 'a'.repeat(32));
+    const nextDay = networkRateDocIdFromSecret('username_ip_', '203.0.113.9', Date.UTC(2026, 9, 23), 'a'.repeat(32));
+    assert.strictEqual(hashed, same);
+    assert.notStrictEqual(hashed, nextDay);
     const setAt = api.indexOf('async function setUsername');
     const rateAt = api.indexOf("doc('username_' + uid)", setAt);
     const markerAt = api.indexOf("doc('backfill')", setAt);

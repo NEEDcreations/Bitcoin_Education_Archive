@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const quest = require('./onboardingQuest');
 const names = require('./usernamePolicy');
 const faucetGuard = require('./faucetGuard');
+const rateSalt = require('./rateLimitSalt');
 const { isSatsBanned } = require('./cipherClaim');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
@@ -11,6 +12,7 @@ const USERNAME_HOUR_MS = 60 * 60 * 1000;
 const USERNAME_ATTEMPTS = 3;
 const USERNAME_APP_ATTEMPTS = 30;
 const USERNAME_IP_ATTEMPTS = 10;
+const USERNAME_RATE_TTL_MS = 24 * 60 * 60 * 1000;
 
 function httpsError(functionsV1, code, message) {
     return new functionsV1.https.HttpsError(code, message);
@@ -131,11 +133,6 @@ function writeDailyPoints(tx, admin, dailyRef, dailyUsed, grant) {
 function recentStamps(snap, nowMs) {
     const raw = snap && snap.exists && Array.isArray((snap.data() || {}).attempts) ? snap.data().attempts : [];
     return raw.filter(function (t) { return nowMs - Number(t) < USERNAME_HOUR_MS; });
-}
-
-function usernameIpDocId(ip) {
-    const clean = String(ip || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 80);
-    return 'username_ip_' + (clean || 'unknown');
 }
 
 function clearGuestNonce(tx, admin, anonRef) {
@@ -489,7 +486,14 @@ function registerOnboarding(deps) {
         const ip = faucetGuard.clientIpFromRequest(context && context.rawRequest) || 'unknown';
         const uidLimit = context && context.app ? USERNAME_APP_ATTEMPTS : USERNAME_ATTEMPTS;
         const uidRateRef = db.collection('rate_limits').doc('username_' + uid);
-        const ipRateRef = db.collection('rate_limits').doc(usernameIpDocId(ip));
+        let ipDocId = '';
+        try {
+            ipDocId = await rateSalt.networkRateDocId(db, 'username_ip_', ip, nowMs);
+        } catch (saltErr) {
+            throw httpsError(functionsV1, 'unavailable', 'Username check is unavailable right now. Try again shortly.');
+        }
+        const ipRateRef = db.collection('rate_limits').doc(ipDocId);
+        const rateExpire = new Date(nowMs + USERNAME_RATE_TTL_MS);
         const allowed = await db.runTransaction(async function (tx) {
             const uidSnap = await tx.get(uidRateRef);
             const ipSnap = await tx.get(ipRateRef);
@@ -498,8 +502,8 @@ function registerOnboarding(deps) {
             if (uidStamps.length >= uidLimit || ipStamps.length >= USERNAME_IP_ATTEMPTS) return false;
             uidStamps.push(nowMs);
             ipStamps.push(nowMs);
-            tx.set(uidRateRef, { attempts: uidStamps, uid: uid }, { merge: true });
-            tx.set(ipRateRef, { attempts: ipStamps }, { merge: true });
+            tx.set(uidRateRef, { attempts: uidStamps, uid: uid, expireAt: rateExpire }, { merge: true });
+            tx.set(ipRateRef, { attempts: ipStamps, expireAt: rateExpire }, { merge: true });
             return true;
         });
         if (!allowed) {

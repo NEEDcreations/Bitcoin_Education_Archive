@@ -175,6 +175,7 @@ function initRanking() {
             localStorage.removeItem('btc_anon_uid');
             localStorage.removeItem('btc_anon_data');
 
+            var guestHold = false;
             if (!existingDoc.exists) {
                 var _redirExtra = {};
                 if (user.email) _redirExtra.email = user.email;
@@ -194,7 +195,9 @@ function initRanking() {
                 // Anonymous data merge now handled minimally (points/visits are server-managed)
                 if (!existData.mergedAnon) {
                     try { await existingDoc.ref.update({ mergedAnon: true }); } catch (e) {}
-                    if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
+                    if (typeof tryLinkGuest === 'function') {
+                        try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+                    }
                     // Merge anonymous badges into existing account's visibleBadges.
                     // Anonymous users can't write to Firestore, so their badges are
                     // localStorage-only. mergeAnonBadges CF validates + unions them
@@ -214,12 +217,14 @@ function initRanking() {
                 }
             }
 
-            // Clean up old anonymous doc
-            if (anonUid && anonUid !== user.uid) {
+            if (!guestHold && typeof tryLinkGuest === 'function') {
+                try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+            }
+            // Clean up old anonymous doc once the merge is not waiting on 2FA.
+            if (anonUid && anonUid !== user.uid && !guestHold) {
                 try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
             }
 
-            if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
             loadUser(user.uid);
             updateAuthButton();
             if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
@@ -462,6 +467,17 @@ function guestLinkShouldDrop(error) {
     return error === 'expired' || error === 'one_guest' || error === 'guest_too_old' || error === 'already_linked' || error === 'bad_nonce';
 }
 
+function shouldSkipInPlaceLink(flagEmail, email) {
+    var flag = String(flagEmail || '').trim().toLowerCase();
+    var current = String(email || '').trim().toLowerCase();
+    return flag.length > 0 && flag === current;
+}
+
+function guestLinkIsMfaHold(message) {
+    var msg = String(message || '');
+    return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
+}
+
 function surfaceMfaRequired(err) {
     if (!err || err.code !== 'auth/multi-factor-auth-required') return false;
     if (typeof window._showMFASignInChallenge === 'function') {
@@ -496,9 +512,14 @@ async function finishEmailSignIn(email, _signInUrl) {
         }
 
         // Upgrade the guest in place when this email is new. Merge is the fallback.
+        // A previous resend means this code must not be spent on linkWithCredential.
         console.log('[Email Sign-In] Starting sign-in');
         var resultUser = null;
-        if (anonUser && anonUser.isAnonymous && firebase.auth.EmailAuthProvider && typeof anonUser.linkWithCredential === 'function') {
+        var skipInPlaceLink = false;
+        try {
+            skipInPlaceLink = shouldSkipInPlaceLink(localStorage.getItem('btc_skip_email_link'), email);
+        } catch (flagRead) {}
+        if (!skipInPlaceLink && anonUser && anonUser.isAnonymous && firebase.auth.EmailAuthProvider && typeof anonUser.linkWithCredential === 'function') {
             try {
                 var emailCred = firebase.auth.EmailAuthProvider.credentialWithLink(email, _signInUrl);
                 var linkedEmail = await anonUser.linkWithCredential(emailCred);
@@ -520,10 +541,12 @@ async function finishEmailSignIn(email, _signInUrl) {
             try {
                 const result = await auth.signInWithEmailLink(email, _signInUrl);
                 resultUser = result.user;
+                try { localStorage.removeItem('btc_skip_email_link'); } catch (clearFlag) {}
             } catch (signErr) {
                 var signPlan = planEmailSignInFailure(signErr && signErr.code);
                 if (signPlan === 'mfa') throw signErr;
                 if (signPlan === 'resend') {
+                    try { localStorage.setItem('btc_skip_email_link', String(email || '').trim().toLowerCase()); } catch (flagErr) {}
                     var resent = false;
                     try { resent = await sendMagicLink(email); } catch (sendErr) { resent = false; }
                     var consumed = new Error(resent
@@ -534,6 +557,9 @@ async function finishEmailSignIn(email, _signInUrl) {
                 }
                 throw signErr;
             }
+        }
+        if (resultUser) {
+            try { localStorage.removeItem('btc_skip_email_link'); } catch (clearFlag) {}
         }
         console.log('[Email Sign-In] Sign-in result:', resultUser ? resultUser.uid : 'no user');
         localStorage.removeItem('btc_signin_email');
@@ -588,10 +614,13 @@ async function finishEmailSignIn(email, _signInUrl) {
                 }
             }
         }
-        if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
+        var guestHold = false;
+        if (typeof tryLinkGuest === 'function') {
+            try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+        }
 
-        // Delete the old anonymous user document to prevent duplicates on leaderboard
-        if (anonUid && anonUid !== emailUid) {
+        // Keep the guest profile when the merge is waiting on the 2FA gate.
+        if (anonUid && anonUid !== emailUid && !guestHold) {
             try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
         }
 
@@ -1255,15 +1284,17 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
         if (Object.keys(_returnUpdates).length) {
             try { await existingDoc.ref.update(_returnUpdates); } catch(e) {}
         }
-        if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
         if (!existingDoc.data().email && user.email) {
             try { await existingDoc.ref.update({ email: user.email }); } catch(e) {}
         }
     }
-    if (anonUid && anonUid !== user.uid) {
+    var guestHold = false;
+    if (typeof tryLinkGuest === 'function') {
+        try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+    }
+    if (anonUid && anonUid !== user.uid && !guestHold) {
         try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
     }
-    if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
     loadUser(user.uid);
     if (!existingDoc.exists) {
         if (typeof attachReferral === 'function') attachReferral(user.uid);
@@ -2250,26 +2281,34 @@ window.stashGuestLink = stashGuestLink;
 
 async function tryLinkGuest() {
     var raw = localStorage.getItem('btc_guest_link');
-    if (!raw || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!raw || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return '';
     var parsed = null;
-    try { parsed = JSON.parse(raw); } catch (e) { return; }
-    if (!parsed || !parsed.anonUid || parsed.anonUid === auth.currentUser.uid) return;
+    try { parsed = JSON.parse(raw); } catch (e) { return ''; }
+    if (!parsed || !parsed.anonUid || parsed.anonUid === auth.currentUser.uid) return '';
     var fn = firebase.functions().httpsCallable('linkGuestAccount');
     var res = null;
     try {
         res = await fn({ anonUid: parsed.anonUid, nonce: parsed.nonce });
     } catch (e) {
         var code = e && e.code;
+        // #59's linkGuestAccount calls requireSecondFactor before it writes.
+        // Hold the token so that gate can merge after the session exists.
+        if (guestLinkIsMfaHold(e && e.message)) {
+            window._pendingGuestLink = true;
+            return 'mfa';
+        }
         if (code === 'functions/invalid-argument' || code === 'functions/permission-denied' || code === 'functions/not-found' || code === 'functions/failed-precondition' || code === 'functions/unauthenticated') {
             try { localStorage.removeItem('btc_guest_link'); } catch (dropErr) {}
         }
-        return;
+        return '';
     }
     var data = res && res.data ? res.data : {};
     if ((data.error && guestLinkShouldDrop(data.error)) || data.ok) {
         try { localStorage.removeItem('btc_guest_link'); } catch (dropOk) {}
     }
     if (data.ok && typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
+    window._pendingGuestLink = false;
+    return data.ok ? 'ok' : '';
 }
 window.tryLinkGuest = tryLinkGuest;
 
@@ -7432,7 +7471,7 @@ window.minimizeSignUpBanner = function() {
 };
 
 function clearUserLocalStorage(opts) {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
         // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
         // a cold-start race where checkBadges() fires before Firestore restores
         // visibleBadges, causing duplicate toast/celebration modals.

@@ -57,10 +57,23 @@ test('permanent guest-merge failures drop the stored token', function () {
     assert.strictEqual(plan.guestLinkShouldDrop(''), false);
 });
 
+test('a resend flag skips the in-place link for that email only', function () {
+    assert.strictEqual(plan.shouldSkipInPlaceLink('User@Example.com', 'user@example.com'), true);
+    assert.strictEqual(plan.shouldSkipInPlaceLink('', 'user@example.com'), false);
+    assert.strictEqual(plan.shouldSkipInPlaceLink('other@example.com', 'user@example.com'), false);
+});
+
+test('a 2FA gate holds the guest token instead of dropping it', function () {
+    assert.strictEqual(plan.guestLinkIsMfaHold('Authenticator session required'), true);
+    assert.strictEqual(plan.guestLinkIsMfaHold('Sign in again so your phone verification applies.'), true);
+    assert.strictEqual(plan.guestLinkIsMfaHold('Guest session could not be linked.'), false);
+    assert.strictEqual(plan.guestLinkIsMfaHold(''), false);
+});
+
 test('ranking.js uses the same email-link decisions and does not rethrow a bare email-already-in-use', function () {
     const src = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
     const moduleSrc = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'emailLinkPlan.js'), 'utf8');
-    ['function planEmailLinkFailure', 'function planEmailSignInFailure', 'function guestLinkShouldDrop'].forEach(function (name) {
+    ['function planEmailLinkFailure', 'function planEmailSignInFailure', 'function guestLinkShouldDrop', 'function shouldSkipInPlaceLink', 'function guestLinkIsMfaHold'].forEach(function (name) {
         const start = moduleSrc.indexOf(name);
         const next = moduleSrc.indexOf('\nfunction ', start + name.length);
         const body = moduleSrc.slice(start, next === -1 ? moduleSrc.indexOf('\nmodule.exports') : next).trim();
@@ -72,7 +85,15 @@ test('ranking.js uses the same email-link decisions and does not rethrow a bare 
     assert.ok(emailFn.includes('sendMagicLink'));
     assert.ok(emailFn.includes('auth/link-consumed'));
     assert.ok(emailFn.includes('surfaceMfaRequired'));
+    assert.ok(emailFn.includes('shouldSkipInPlaceLink'));
+    assert.ok(emailFn.includes("setItem('btc_skip_email_link'"));
+    assert.ok(emailFn.indexOf("setItem('btc_skip_email_link'") < emailFn.indexOf('sendMagicLink'));
+    assert.ok(emailFn.includes('!guestHold'));
     assert.ok(!emailFn.includes('&& linkErr.credential) {'));
+    const guestFn = src.slice(src.indexOf('async function tryLinkGuest'), src.indexOf('async function createUser'));
+    assert.ok(guestFn.indexOf('guestLinkIsMfaHold') < guestFn.indexOf("removeItem('btc_guest_link')"));
+    assert.ok(guestFn.includes('window._pendingGuestLink = true'));
+    assert.ok(guestFn.includes("return 'mfa'"));
     ['signInWithGoogle', 'signInWithFacebook', 'signInWithTwitter', 'signInWithGithub', 'nostrCompleteAuth', 'signInWithProvider'].forEach(function (name) {
         const at = src.indexOf('function ' + name) >= 0 ? src.indexOf('function ' + name) : src.indexOf(name + ' =');
         assert.ok(at > 0, name);
