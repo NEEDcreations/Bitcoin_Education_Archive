@@ -8425,6 +8425,8 @@ exports.nachoRadioTick = onSchedule({
 // GIFTING SYSTEM
 // =============================================
 // Gift secrets stored in separate collection (gift_secrets/{giftId})
+// ─── Cipher label pool (keep small for early community) ──────────────────────
+const CIPHER_LABELS = ['3A', '7F', 'B2', 'D9', '1C', '8E', 'A4', 'F6'];
 // ─── Gift reward types ───────────────────────────────────────────────────────
 // tickets 60% | xp_bonus 20% | streak_shield 8% | closet_item 10% | nacho_shoutout 2%
 const GIFT_CLOSET_ITEMS = [
@@ -8444,312 +8446,452 @@ const GIFT_CLOSET_ITEMS = [
     { id: 'cape_permanent',  name: 'Hero Cape',        emoji: '🦸' },
 ];
 
+// Gift reward distribution: keys 30% | locked_ciphers 20% | tickets 25% | xp 12% | shield 5% | nacho 5% | closet 3%
 function rollGiftReward() {
     const r = Math.random();
-    if (r < 0.60) {
-        // tickets — 60%
+    if (r < 0.30) {
+        // keys — 30%
+        const count = Math.random() < 0.55 ? 1 : Math.random() < 0.65 ? 2 : 3;
+        const keys = [];
+        for (let i = 0; i < count; i++)
+            keys.push(CIPHER_LABELS[Math.floor(Math.random() * CIPHER_LABELS.length)]);
+        return { rewardType: 'keys', keyLabels: keys };
+    } else if (r < 0.50) {
+        // locked_ciphers — 20%
+        const count = Math.random() < 0.7 ? 1 : 2;
+        const ciphers = [];
+        for (let i = 0; i < count; i++)
+            ciphers.push(CIPHER_LABELS[Math.floor(Math.random() * CIPHER_LABELS.length)]);
+        return { rewardType: 'locked_ciphers', cipherLabels: ciphers };
+    } else if (r < 0.75) {
+        // tickets — 25%
         const t = Math.random();
-        return { rewardType: 'tickets', ticketCount: t < 0.6 ? 1 : t < 0.9 ? 2 : 3 };
-    } else if (r < 0.80) {
-        // xp_bonus — 20%
+        return { rewardType: 'tickets', ticketCount: t < 0.55 ? 1 : t < 0.85 ? 2 : 3 };
+    } else if (r < 0.87) {
+        // xp_bonus — 12%
         const x = Math.random();
         return { rewardType: 'xp_bonus', xpAmount: x < 0.50 ? 50 : x < 0.85 ? 100 : 150 };
-    } else if (r < 0.88) {
-        // streak_shield — 8%
+    } else if (r < 0.92) {
+        // streak_shield — 5%
         return { rewardType: 'streak_shield' };
-    } else if (r < 0.98) {
-        // closet_item — 10%
+    } else if (r < 0.97) {
+        // nacho_shoutout — 5%
+        return { rewardType: 'nacho_shoutout' };
+    } else {
+        // closet_item — 3%
         const item = GIFT_CLOSET_ITEMS[Math.floor(Math.random() * GIFT_CLOSET_ITEMS.length)];
         return { rewardType: 'closet_item', itemId: item.id, itemName: item.name, itemEmoji: item.emoji };
-    } else {
-        // nacho_shoutout — 2% (ultra rare)
-        return { rewardType: 'nacho_shoutout' };
     }
 }
 
-// ticketCount never lives in the main gifts doc until revealed at open time
+// Cipher decrypt reward — significantly bigger since user accomplished a challenge
+// big_tickets 60% | big_xp 25% | rare_closet 10% | nacho 5%
+function rollCipherReward() {
+    const r = Math.random();
+    if (r < 0.60) {
+        // big tickets — 60%
+        const t = Math.random();
+        const count = t < 0.35 ? 5 : t < 0.65 ? 8 : t < 0.88 ? 13 : 21;
+        return { rewardType: 'tickets', ticketCount: count, isCipherReward: true };
+    } else if (r < 0.85) {
+        // big xp — 25%
+        const x = Math.random();
+        const xp = x < 0.45 ? 250 : x < 0.80 ? 500 : 1000;
+        return { rewardType: 'xp_bonus', xpAmount: xp, isCipherReward: true };
+    } else if (r < 0.95) {
+        // rare closet item — 10%
+        const item = GIFT_CLOSET_ITEMS[Math.floor(Math.random() * GIFT_CLOSET_ITEMS.length)];
+        return { rewardType: 'closet_item', itemId: item.id, itemName: item.name, itemEmoji: item.emoji, isCipherReward: true };
+    } else {
+        // nacho shoutout — 5%
+        return { rewardType: 'nacho_shoutout', isCipherReward: true };
+    }
+}
 
+// ─── Award Daily Gifts ─────────────────────────────────────────────────────────
+// Gifts are opened immediately after spin — no hoarding.
+// Returns gift ids + pre-rolled rewards so the client can animate opening.
 exports.awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous')
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to earn gifts');
-    }
-    const uid = context.auth.uid;
-    const today = getOffsetDateKey();
+
+    const uid     = context.auth.uid;
+    const today   = getOffsetDateKey();
     const userRef = db.collection('users').doc(uid);
 
-    // Check if already awarded today (outside transaction for fast-fail)
     const userSnap = await userRef.get();
     if (!userSnap.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
-    if (userSnap.data().lastGiftSpinDate === today) {
-        return { alreadyAwarded: true };
-    }
+    if (userSnap.data().lastGiftSpinDate === today) return { alreadyAwarded: true };
 
-    // Check inventory cap: 75 if user owns gift_bag upgrade, else 50
-    const userSnap2 = await userRef.get(); // re-fetch to get ownedCosmetics
-    const userCosmetics = userSnap2.exists ? (userSnap2.data().ownedCosmetics || []) : [];
-    const giftCap = userCosmetics.includes('gift_bag') ? 75 : 50;
+    // Weighted random gift count: 2(15%) 3(40%) 4(30%) 5(15%)
+    const gRoll = Math.random();
+    const giftsToAdd = gRoll < 0.15 ? 2 : gRoll < 0.55 ? 3 : gRoll < 0.85 ? 4 : 5;
 
-    const invSnap = await db.collection('gifts')
-        .where('ownerId', '==', uid)
-        .where('status', '==', 'inventory')
-        .limit(76).get();
-    const currentInventory = invSnap.size;
-    const giftsToAdd = Math.min(5, Math.max(0, giftCap - currentInventory));
+    const batch   = db.batch();
+    const gifts   = []; // returned to client for immediate opening
 
-    if (giftsToAdd === 0) {
-        // Still mark date so they don't keep calling
-        await userRef.update({ lastGiftSpinDate: today });
-        return { alreadyAwarded: false, giftsAdded: 0, message: 'Inventory full (50 max)' };
-    }
-
-    const batch = db.batch();
     for (let i = 0; i < giftsToAdd; i++) {
+        const reward = rollGiftReward();
         const giftRef = db.collection('gifts').doc();
-        const secretRef = db.collection('gift_secrets').doc(giftRef.id);
         batch.set(giftRef, {
-            ownerId: uid,
-            status: 'inventory',
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            ownerId:        uid,
+            status:         'unopened',
+            createdAt:      admin.firestore.FieldValue.serverTimestamp(),
             createdDateKey: today,
-            sentTo: null,
-            sentBy: null,
-            sentByName: null,
-            sentAt: null,
-            sentDateKey: null,
-            openedAt: null,
-            openedBy: null,
+            rewardType:     reward.rewardType, // store type on gift doc — no separate secret needed
+            rewardData:     reward,
         });
-        const rewardData = rollGiftReward();
-        batch.set(secretRef, {
-            ...rewardData,
-            ownerId: uid,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        gifts.push({ id: giftRef.id, rewardType: reward.rewardType, rewardData: reward });
     }
+
     batch.update(userRef, { lastGiftSpinDate: today });
     await batch.commit();
 
-    return { success: true, giftsAdded: giftsToAdd };
+    return { success: true, giftsAdded: giftsToAdd, gifts };
 });
 
-exports.sendGift = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
-        throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to send gifts');
-    }
-    const uid = context.auth.uid;
-    const giftId = (data.giftId || '').toString().trim();
-    const recipientUid = (data.recipientUid || '').toString().trim();
-
-    if (!giftId || giftId.length > 128) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid giftId');
-    if (!recipientUid || recipientUid.length > 128) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid recipientUid');
-    if (uid === recipientUid) throw new functionsV1.https.HttpsError('invalid-argument', 'Cannot send a gift to yourself');
-
-    const giftRef    = db.collection('gifts').doc(giftId);
-    const secretRef  = db.collection('gift_secrets').doc(giftId);
-    const senderRef  = db.collection('users').doc(uid);
-    const recipRef   = db.collection('users').doc(recipientUid);
-    const pairId     = uid + '_' + recipientUid; // one-pending-per-pair tracker
-    const pairRef    = db.collection('gift_pending_pairs').doc(pairId);
-    const today      = getOffsetDateKey();
-
-    await db.runTransaction(async (t) => {
-        const [giftDoc, secretDoc, senderDoc, recipDoc, pairDoc] = await Promise.all([
-            t.get(giftRef), t.get(secretRef), t.get(senderRef), t.get(recipRef), t.get(pairRef)
-        ]);
-
-        if (!giftDoc.exists)   throw new functionsV1.https.HttpsError('not-found',          'Gift not found');
-        if (!secretDoc.exists) throw new functionsV1.https.HttpsError('internal',            'Gift secret missing');
-        if (!senderDoc.exists) throw new functionsV1.https.HttpsError('not-found',           'Sender not found');
-        if (!recipDoc.exists)  throw new functionsV1.https.HttpsError('not-found',           'Recipient not found');
-
-        const gift   = giftDoc.data();
-        const sender = senderDoc.data();
-
-        if (gift.ownerId !== uid)          throw new functionsV1.https.HttpsError('permission-denied',   'Not your gift');
-        if (gift.status !== 'inventory')   throw new functionsV1.https.HttpsError('failed-precondition', 'Gift already sent or opened');
-
-        const peers = sender.peers || [];
-        if (!peers.includes(recipientUid)) throw new functionsV1.https.HttpsError('failed-precondition', 'You must be peers to send a gift');
-
-        // One-pending-per-pair check: block if a gift already awaits opening
-        if (pairDoc.exists) {
-            throw new functionsV1.https.HttpsError('failed-precondition',
-                'You already have a gift waiting for this person. They need to open it before you can send another! 🎁');
-        }
-
-        t.update(giftRef, {
-            ownerId:     recipientUid,
-            status:      'sent',
-            sentTo:      recipientUid,
-            sentBy:      uid,
-            sentByName:  sender.username || 'Bitcoiner',
-            sentAt:      admin.firestore.FieldValue.serverTimestamp(),
-            sentDateKey: today,
-        });
-        t.update(secretRef, { ownerId: recipientUid });
-        // Record the pending pair (blocks further sends until opened)
-        t.set(pairRef, {
-            senderUid:    uid,
-            recipientUid: recipientUid,
-            giftId:       giftId,
-            sentAt:       admin.firestore.FieldValue.serverTimestamp(),
-        });
-        // Award 25 XP to sender inside transaction (server-side direct increment)
-        t.update(senderRef, {
-            points:    admin.firestore.FieldValue.increment(25),
-            weeklyXP:  admin.firestore.FieldValue.increment(25),
-            monthlyXP: admin.firestore.FieldValue.increment(25),
-        });
-    });
-
-    // Notify recipient (outside transaction — non-critical)
-    try {
-        const senderSnap = await senderRef.get();
-        const sn = senderSnap.exists ? senderSnap.data() : {};
-        await db.collection('notifications').add({
-            recipientId: recipientUid,
-            senderId:    uid,
-            senderName:  sn.username || 'Bitcoiner',
-            type:        'gift_received',
-            message:     (sn.username || 'Someone') + ' sent you a gift! 🎁',
-            targetType:  'gift_received',
-            targetId:    giftId,
-            giftId:      giftId,
-            read:        false,
-            createdAt:   admin.firestore.FieldValue.serverTimestamp(),
-        });
-    } catch(e) { console.warn('[sendGift] notification failed:', e.message); }
-
-    return { success: true };
-});
-
+// ─── Open Gift ─────────────────────────────────────────────────────────────────
+// Called once per gift after the spin animation. Applies rewards to user inventory.
 exports.openGift = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous')
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to open gifts');
-    }
+
     const uid    = context.auth.uid;
     const giftId = (data.giftId || '').toString().trim();
-    if (!giftId || giftId.length > 128) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid giftId');
+    if (!giftId || giftId.length > 128)
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid giftId');
 
-    const giftRef   = db.collection('gifts').doc(giftId);
-    const secretRef = db.collection('gift_secrets').doc(giftId);
-    const userRef   = db.collection('users').doc(uid);
-    const today     = getOffsetDateKey();
+    const giftRef = db.collection('gifts').doc(giftId);
+    const userRef = db.collection('users').doc(uid);
+    const today   = getOffsetDateKey();
+    let rewardResult = null;
 
-    let ticketCount = 0;
-    let openGiftRewardResult = null;
     await db.runTransaction(async (t) => {
-        const [giftDoc, secretDoc, userDoc] = await Promise.all([
-            t.get(giftRef), t.get(secretRef), t.get(userRef)
-        ]);
-
-        if (!giftDoc.exists)   throw new functionsV1.https.HttpsError('not-found',          'Gift not found');
-        if (!secretDoc.exists) throw new functionsV1.https.HttpsError('internal',            'Gift secret missing');
-        if (!userDoc.exists)   throw new functionsV1.https.HttpsError('not-found',           'User not found');
-
+        const [giftDoc, userDoc] = await Promise.all([t.get(giftRef), t.get(userRef)]);
+        if (!giftDoc.exists)  throw new functionsV1.https.HttpsError('not-found',          'Gift not found');
+        if (!userDoc.exists)  throw new functionsV1.https.HttpsError('not-found',           'User not found');
         const gift = giftDoc.data();
         const user = userDoc.data();
-
         if (gift.ownerId !== uid)        throw new functionsV1.https.HttpsError('permission-denied',   'Not your gift');
         if (gift.status === 'opened')    throw new functionsV1.https.HttpsError('already-exists',      'Gift already opened');
-        if (gift.status !== 'sent')      throw new functionsV1.https.HttpsError('failed-precondition', 'Gift not in sent status');
-        if (gift.sentTo !== uid)         throw new functionsV1.https.HttpsError('permission-denied',   'Gift not addressed to you');
+        if (gift.status !== 'unopened')  throw new functionsV1.https.HttpsError('failed-precondition', 'Gift not ready to open');
 
-        // Daily open cap (transaction-safe counter on user doc)
-        const openedDate  = user.giftsOpenedDate  || '';
-        const openedToday = openedDate === today ? (user.giftsOpenedToday || 0) : 0;
-        if (openedToday >= 21) {
-            throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily gift open limit reached (21/day). Come back tomorrow!');
-        }
+        const reward     = gift.rewardData || rollGiftReward();
+        const userUpdate = {};
+        const now        = admin.firestore.FieldValue.serverTimestamp();
 
-        const secret = secretDoc.data();
-        const rewardType = secret.rewardType || 'tickets'; // backward compat: old gifts default to tickets
-        let rewardResult = { type: rewardType };
-
-        const userUpdate = {
-            giftsOpenedToday: openedToday + 1,
-            giftsOpenedDate:  today,
-        };
-
-        if (rewardType === 'tickets') {
-            const tc = secret.ticketCount || 1;
-            ticketCount = tc;
-            userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tc);
-            rewardResult.ticketCount = tc;
-        } else if (rewardType === 'xp_bonus') {
-            const xp = secret.xpAmount || 50;
+        if (reward.rewardType === 'tickets') {
+            userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount || 1);
+        } else if (reward.rewardType === 'xp_bonus') {
+            const xp = reward.xpAmount || 50;
             userUpdate.points    = admin.firestore.FieldValue.increment(xp);
             userUpdate.weeklyXP  = admin.firestore.FieldValue.increment(xp);
             userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
-            rewardResult.xpAmount = xp;
-        } else if (rewardType === 'streak_shield') {
+        } else if (reward.rewardType === 'streak_shield') {
             userUpdate.streakFreezes = admin.firestore.FieldValue.increment(1);
-        } else if (rewardType === 'closet_item') {
-            const itemId = secret.itemId;
-            const existing = userDoc.data().spinClosetItems || [];
-            if (!existing.includes(itemId)) {
-                userUpdate.spinClosetItems = admin.firestore.FieldValue.arrayUnion(itemId);
+        } else if (reward.rewardType === 'closet_item') {
+            const existing = user.spinClosetItems || [];
+            if (!existing.includes(reward.itemId)) {
+                userUpdate.spinClosetItems = admin.firestore.FieldValue.arrayUnion(reward.itemId);
             } else {
-                // Already owns it — fallback to 1 ticket
+                reward.rewardType  = 'tickets';
+                reward.ticketCount = 1;
+                reward.closetDupe  = true;
                 userUpdate.orangeTickets = admin.firestore.FieldValue.increment(1);
-                ticketCount = 1;
-                rewardResult = { type: 'tickets', ticketCount: 1, closetDupe: true };
             }
-            rewardResult.itemId    = secret.itemId;
-            rewardResult.itemName  = secret.itemName;
-            rewardResult.itemEmoji = secret.itemEmoji;
-        } else if (rewardType === 'nacho_shoutout') {
-            // post to chat handled after transaction
+        } else if (reward.rewardType === 'keys' && Array.isArray(reward.keyLabels)) {
+            // Write keys to keys collection inside transaction
+            for (const label of reward.keyLabels) {
+                const keyRef = db.collection('keys').doc();
+                t.set(keyRef, {
+                    ownerId: uid, label, status: 'inventory',
+                    createdAt: now, sentTo: null, sentBy: null, sentAt: null, consumedAt: null,
+                });
+            }
+        } else if (reward.rewardType === 'locked_ciphers' && Array.isArray(reward.cipherLabels)) {
+            // Write ciphers to locked_ciphers collection inside transaction
+            for (const label of reward.cipherLabels) {
+                const cRef = db.collection('locked_ciphers').doc();
+                t.set(cRef, {
+                    ownerId: uid, label, status: 'inventory',
+                    createdAt: now, openedAt: null,
+                });
+            }
+        } else if (reward.rewardType === 'nacho_shoutout') {
+            // handled after transaction
         }
 
-        t.update(giftRef, {
-            status:   'opened',
-            openedAt: admin.firestore.FieldValue.serverTimestamp(),
-            openedBy: uid,
-        });
-        t.delete(secretRef);
-        t.update(userRef, userUpdate);
-        // Clear the pending pair so sender can send again
-        const openPairId  = gift.sentBy + '_' + uid;
-        const openPairRef = db.collection('gift_pending_pairs').doc(openPairId);
-        t.delete(openPairRef);
-
-        // expose rewardResult to outer scope
-        Object.assign(rewardResult, { _resolved: true });
-        // store on outer var
-        openGiftRewardResult = rewardResult;
+        t.update(giftRef, { status: 'opened', openedAt: now, openedBy: uid });
+        if (Object.keys(userUpdate).length > 0) t.update(userRef, userUpdate);
+        rewardResult = reward;
     });
 
-    // ── Peer level update (after transaction commits) ────────────────────────
-    try {
-        const giftSnap = await giftRef.get();
-        const sentBy   = giftSnap.exists ? giftSnap.data().sentBy : null;
-        if (sentBy && sentBy !== uid) {
-            await updatePeerLevelAfterGift(sentBy, uid);
-        }
-    } catch (e) {
-        console.warn('[openGift] peerLevel update failed:', e.message);
-    }
-
-    // ── Nacho shoutout (after transaction + peer level) ───────────────────────
-    if (openGiftRewardResult && openGiftRewardResult.type === 'nacho_shoutout') {
+    // Nacho shoutout (after transaction)
+    if (rewardResult && rewardResult.rewardType === 'nacho_shoutout') {
         try {
             const uSnap = await userRef.get();
             const uName = uSnap.exists ? (uSnap.data().username || 'a Bitcoiner') : 'a Bitcoiner';
             await db.collection('global_chat').add({
-                uid:         'nacho-bot',
-                name:        'Nacho 🦌',
-                text:        '🎁✨ ULTRA RARE GIFT! @' + uName + ' just opened a gift and got the rarest prize in the archive — a Nacho Shoutout! 🦌⚡ They\'re a real one. Go add @' + uName + ' as a peer and show them some orange love! 🧡₿',
-                isNachoAuto: true,
-                ts:          admin.firestore.FieldValue.serverTimestamp(),
+                uid: 'nacho-bot', name: 'Nacho 🦌',
+                text: '🎁✨ ULTRA RARE GIFT! @' + uName + ' just opened a gift and got a Nacho Shoutout — the rarest prize in the archive! 🦌⚡ They\'re a real one. Go add @' + uName + ' as a peer! 🧡₿',
+                isNachoAuto: true, ts: admin.firestore.FieldValue.serverTimestamp(),
             });
-        } catch(e) {
-            console.warn('[openGift] Nacho shoutout failed:', e.message);
-        }
+        } catch(e) { console.warn('[openGift] nacho shoutout failed:', e.message); }
     }
 
-    return { success: true, reward: openGiftRewardResult || { type: 'tickets', ticketCount: ticketCount }, ticketCount: ticketCount };
+    return { success: true, reward: rewardResult };
+});
+// ─── Send Keys (new) ─────────────────────────────────────────────────────────
+// Sends 1-3 labeled keys to a peer. One send per sender+recipient per day.
+exports.sendKeys = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous')
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to send keys');
+
+    const uid            = context.auth.uid;
+    const recipientUid   = (data.recipientUid || '').toString().trim();
+    const keyIds         = Array.isArray(data.keyIds) ? data.keyIds.map(k => String(k).trim()).filter(Boolean) : [];
+    const bypassDailyLimit = data.bypassDailyLimit === true; // true only for send-back of wrong key
+    const today          = getOffsetDateKey();
+
+    if (!recipientUid || recipientUid.length > 128)
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid recipientUid');
+    if (uid === recipientUid)
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Cannot send keys to yourself');
+    if (keyIds.length < 1 || keyIds.length > 3)
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Send 1-3 keys');
+
+    const pairDocId  = `${uid}_${recipientUid}_${today}`;
+    const pairRef    = db.collection('key_send_pairs').doc(pairDocId);
+    const senderRef  = db.collection('users').doc(uid);
+    const recipRef   = db.collection('users').doc(recipientUid);
+    const keyRefs    = keyIds.map(id => db.collection('keys').doc(id));
+
+    await db.runTransaction(async (t) => {
+        const [pairDoc, senderDoc, recipDoc, ...keyDocs] = await Promise.all([
+            t.get(pairRef), t.get(senderRef), t.get(recipRef),
+            ...keyRefs.map(r => t.get(r)),
+        ]);
+
+        if (!senderDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Sender not found');
+        if (!recipDoc.exists)  throw new functionsV1.https.HttpsError('not-found', 'Recipient not found');
+
+        const sender = senderDoc.data();
+        const peers  = sender.peers || [];
+        if (!peers.includes(recipientUid))
+            throw new functionsV1.https.HttpsError('failed-precondition', 'You must be peers to send keys');
+
+        // Daily limit — waived for send-back (bypassDailyLimit)
+        if (!bypassDailyLimit && pairDoc.exists)
+            throw new functionsV1.https.HttpsError('failed-precondition',
+                'Already sent keys to this peer today. Come back tomorrow! 🔑');
+
+        for (const keyDoc of keyDocs) {
+            if (!keyDoc.exists)
+                throw new functionsV1.https.HttpsError('not-found', 'One or more keys not found');
+            const key = keyDoc.data();
+            if (key.ownerId !== uid)
+                throw new functionsV1.https.HttpsError('permission-denied', 'Not your key');
+            if (key.status !== 'inventory')
+                throw new functionsV1.https.HttpsError('failed-precondition', 'Key already sent or consumed');
+            if (!CIPHER_LABELS.includes(key.label))
+                throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid key label');
+        }
+
+        const now = admin.firestore.FieldValue.serverTimestamp();
+
+        // Mark each key as sent to recipient
+        for (let i = 0; i < keyDocs.length; i++) {
+            t.update(keyRefs[i], {
+                status:    'sent',
+                sentTo:    recipientUid,
+                sentBy:    uid,
+                sentAt:    now,
+                ownerId:   recipientUid, // transfer ownership so recipient can use it
+            });
+        }
+
+        // Write the daily send pair record (skip for send-back — no daily cap)
+        if (!bypassDailyLimit) {
+            t.set(pairRef, {
+                senderUid:    uid,
+                recipientUid: recipientUid,
+                keyIds:       keyIds,
+                date:         today,
+                createdAt:    now,
+            });
+        }
+
+        // Award +25 XP to sender (normal sends only, not send-backs)
+        if (!bypassDailyLimit) {
+            t.update(senderRef, {
+                points:    admin.firestore.FieldValue.increment(25),
+                weeklyXP:  admin.firestore.FieldValue.increment(25),
+                monthlyXP: admin.firestore.FieldValue.increment(25),
+            });
+        }
+    });
+
+    // Push notification to recipient (best-effort)
+    try {
+        const [sSnap, rSnap] = await Promise.all([
+            db.collection('users').doc(uid).get(),
+            db.collection('users').doc(recipientUid).get(),
+        ]);
+        const sName = sSnap.exists ? (sSnap.data().username || 'Someone') : 'Someone';
+        const rFcm  = rSnap.exists ? (rSnap.data().fcmToken || null) : null;
+        if (rFcm) {
+            await admin.messaging().send({
+                token: rFcm,
+                notification: {
+                    title: '🔑 Keys received!',
+                    body:  sName + ' sent you ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '!',
+                },
+                data: { type: 'keys_received', senderUid: uid },
+            });
+        }
+        // Firestore notification doc
+        await db.collection('notifications').add({
+            uid:        recipientUid,
+            type:       'keys_received',
+            message:    sName + ' sent you ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '! 🔑',
+            targetType: 'keys',
+            senderUid:  uid,
+            keyCount:   keyIds.length,
+            createdAt:  admin.firestore.FieldValue.serverTimestamp(),
+            read:       false,
+        });
+    } catch(e) { console.warn('[sendKeys] notification failed:', e.message); }
+
+    return { success: true, keysSent: keyIds.length };
+});
+
+// ─── Decrypt Cipher (new) ─────────────────────────────────────────────────────
+// Uses a peer-sent key to decrypt a locked cipher. 21 decrypts/day hard stop.
+exports.decryptCipher = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous')
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must use a real account to decrypt ciphers');
+
+    const uid      = context.auth.uid;
+    const cipherId = (data.cipherId || '').toString().trim();
+    const keyId    = (data.keyId    || '').toString().trim();
+    const today    = getOffsetDateKey();
+
+    if (!cipherId || cipherId.length > 128)
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid cipherId');
+    if (!keyId || keyId.length > 128)
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid keyId');
+
+    const cipherRef = db.collection('locked_ciphers').doc(cipherId);
+    const keyRef    = db.collection('keys').doc(keyId);
+    const userRef   = db.collection('users').doc(uid);
+
+    let decryptRewardResult = null;
+
+    await db.runTransaction(async (t) => {
+        const [cipherDoc, keyDoc, userDoc] = await Promise.all([
+            t.get(cipherRef), t.get(keyRef), t.get(userRef),
+        ]);
+
+        if (!cipherDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Cipher not found');
+        if (!keyDoc.exists)    throw new functionsV1.https.HttpsError('not-found', 'Key not found');
+        if (!userDoc.exists)   throw new functionsV1.https.HttpsError('not-found', 'User not found');
+
+        const cipher = cipherDoc.data();
+        const key    = keyDoc.data();
+        const user   = userDoc.data();
+
+        // Cipher must belong to caller, be in inventory (from their own gifts)
+        if (cipher.ownerId !== uid)
+            throw new functionsV1.https.HttpsError('permission-denied', 'Not your cipher');
+        if (cipher.status === 'opened')
+            throw new functionsV1.https.HttpsError('already-exists', 'Cipher already decrypted');
+        if (cipher.status !== 'inventory')
+            throw new functionsV1.https.HttpsError('failed-precondition', 'Cipher not available to decrypt');
+
+        // Key must belong to caller and have been received from a peer (status=sent, ownerId transferred)
+        if (key.ownerId !== uid)
+            throw new functionsV1.https.HttpsError('permission-denied', 'Not your key');
+        if (key.status === 'inventory')
+            throw new functionsV1.https.HttpsError('failed-precondition',
+                'You cannot use your own wheel keys — you need a key sent by a peer! 🔑');
+        if (key.status !== 'sent')
+            throw new functionsV1.https.HttpsError('failed-precondition', 'Key already consumed');
+
+        // Labels must match — validated client-side too but enforced here
+        if (key.label !== cipher.label)
+            throw new functionsV1.https.HttpsError('failed-precondition',
+                'LABEL_MISMATCH:' + key.label + ':' + cipher.label);
+
+        // Daily decrypt cap (21/day)
+        const decDate  = user.ciphersDecryptedDate  || '';
+        const decToday = decDate === today ? (user.ciphersDecryptedToday || 0) : 0;
+        if (decToday >= 21)
+            throw new functionsV1.https.HttpsError('resource-exhausted',
+                'Daily decrypt limit reached (21/day). Come back tomorrow! 🔒');
+
+        // Roll BIG cipher reward
+        const reward     = rollCipherReward();
+        const userUpdate = {
+            ciphersDecryptedToday: decToday + 1,
+            ciphersDecryptedDate:  today,
+        };
+
+        if (reward.rewardType === 'tickets') {
+            userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount || 5);
+        } else if (reward.rewardType === 'xp_bonus') {
+            const xp = reward.xpAmount || 250;
+            userUpdate.points    = admin.firestore.FieldValue.increment(xp);
+            userUpdate.weeklyXP  = admin.firestore.FieldValue.increment(xp);
+            userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
+        } else if (reward.rewardType === 'closet_item') {
+            const existing = user.spinClosetItems || [];
+            if (!existing.includes(reward.itemId)) {
+                userUpdate.spinClosetItems = admin.firestore.FieldValue.arrayUnion(reward.itemId);
+            } else {
+                // Already owns it — fallback to 5 tickets
+                reward.rewardType  = 'tickets';
+                reward.ticketCount = 5;
+                reward.closetDupe  = true;
+                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(5);
+            }
+        }
+        // nacho_shoutout handled after transaction
+
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        t.update(cipherRef, { status: 'opened', openedAt: now, openedBy: uid });
+        t.update(keyRef,    { status: 'consumed', consumedAt: now });
+        t.update(userRef, userUpdate);
+
+        decryptRewardResult = { ...reward, keyLabel: key.label, keySentBy: key.sentBy || null };
+    });
+
+    // Peer level update after decrypt (key.sentBy = peer who sent the key = the exchange partner)
+    try {
+        const keySentBy = decryptRewardResult && decryptRewardResult.keySentBy;
+        if (keySentBy && keySentBy !== uid) {
+            await updatePeerLevelAfterGift(keySentBy, uid);
+        }
+    } catch(e) { console.warn('[decryptCipher] peerLevel update failed:', e.message); }
+
+    // Nacho shoutout (after transaction)
+    if (decryptRewardResult && decryptRewardResult.rewardType === 'nacho_shoutout') {
+        try {
+            const uSnap = await userRef.get();
+            const uName = uSnap.exists ? (uSnap.data().username || 'a Bitcoiner') : 'a Bitcoiner';
+            await db.collection('global_chat').add({
+                uid: 'nacho-bot', name: 'Nacho 🦌',
+                text: '🔓✨ CIPHER CRACKED! @' + uName + ' just decrypted an ultra-rare cipher and scored a Nacho Shoutout — the rarest prize in the archive! 🦌⚡ Big brain energy. Go add @' + uName + ' as a peer! 🧡₿',
+                isNachoAuto: true, ts: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch(e) { console.warn('[decryptCipher] nacho shoutout failed:', e.message); }
+    }
+
+    return {
+        success: true,
+        reward:  decryptRewardResult || { rewardType: 'tickets', ticketCount: 5 },
+    };
 });

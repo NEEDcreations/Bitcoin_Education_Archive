@@ -4756,6 +4756,15 @@ function showSettingsPage(tab) {
         html += '<div style="font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎁 Gifts</div>';
         html += '<div id="giftsTabContent"><div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;">Loading gifts...</div></div>';
         html += '</div>';
+        // Ciphers & Keys sub-section
+        html += '<div style="margin-top:16px;border-top:1px solid var(--border,#1e293b);padding-top:14px;">';
+        html += '<div style="font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔐 Ciphers &amp; Keys</div>';
+        html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">Earn labeled keys &amp; locked ciphers from opening gifts. Send keys to peers so they can decrypt — they do the same for you. Coordinate in chat! 💬</div>';
+        html += '<div style="font-size:0.68rem;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">🔑 Your Keys</div>';
+        html += '<div id="keysTabContent"><div style="text-align:center;padding:10px;color:var(--text-muted);font-size:0.82rem;">Loading keys...</div></div>';
+        html += '<div style="font-size:0.68rem;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.8px;margin-top:14px;margin-bottom:6px;">🔒 Received Ciphers</div>';
+        html += '<div id="ciphersTabContent"><div style="text-align:center;padding:10px;color:var(--text-muted);font-size:0.82rem;">Loading ciphers...</div></div>';
+        html += '</div>';
         html += '</div>';
 
         // Advanced Account toggle - content renders BELOW this button
@@ -6142,16 +6151,33 @@ function showSettingsPage(tab) {
             if (typeof window.renderGiftsSettingsTab === 'function') {
                 window.renderGiftsSettingsTab();
             }
-            // Populate gift count badge on the Peers/Gifts button
+            // Populate cipher/key tabs
+            setTimeout(function() {
+                if (typeof window.renderKeysTab === 'function')    window.renderKeysTab('keysTabContent');
+                if (typeof window.renderCiphersTab === 'function') window.renderCiphersTab('ciphersTabContent');
+            }, 200);
+            // Populate badge on the Peers/Gifts button (gifts + keys + ciphers)
             var _giftBadge = document.getElementById('peersGiftsBadge');
             if (_giftBadge && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous && typeof db !== 'undefined') {
                 var _uid = auth.currentUser.uid;
                 var _ownedC = (typeof currentUser !== 'undefined' && currentUser ? currentUser.ownedCosmetics || [] : []);
                 var _giftCap = _ownedC.indexOf('gift_bag') !== -1 ? 75 : 50;
-                db.collection('gifts').where('ownerId','==',_uid).where('status','==','inventory').limit(_giftCap + 1).get().then(function(snap) {
+                Promise.all([
+                    db.collection('gifts').where('ownerId','==',_uid).where('status','==','inventory').limit(_giftCap + 1).get(),
+                    db.collection('keys').where('ownerId','==',_uid).where('status','==','inventory').limit(50).get(),
+                    db.collection('locked_ciphers').where('ownerId','==',_uid).where('status','==','received').limit(50).get(),
+                ]).then(function(results) {
                     var el = document.getElementById('peersGiftsBadge');
-                    if (el && snap.size > 0) {
-                        el.innerHTML = ' <span style="display:inline-block;background:rgba(247,147,26,0.2);border:1px solid rgba(247,147,26,0.4);border-radius:10px;padding:1px 7px;font-size:0.72rem;color:#f7931a;font-weight:800;">🎁 ' + snap.size + '</span>';
+                    if (!el) return;
+                    var giftCount   = results[0].size;
+                    var keyCount    = results[1].size;
+                    var cipherCount = results[2].size;
+                    var parts = [];
+                    if (giftCount   > 0) parts.push('🎁 ' + giftCount);
+                    if (keyCount    > 0) parts.push('🔑 ' + keyCount);
+                    if (cipherCount > 0) parts.push('🔒 ' + cipherCount);
+                    if (parts.length > 0) {
+                        el.innerHTML = ' <span style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.35);border-radius:10px;padding:1px 7px;font-size:0.72rem;color:#f7931a;font-weight:800;">' + parts.join(' · ') + '</span>';
                     }
                 }).catch(function(){});
             }
@@ -6381,7 +6407,8 @@ function showSettingsPage(tab) {
                                 '</div>' +
                                 (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-faint);">' + pLastStr + '</div>' : '') +
                                 '<button onclick="document.getElementById(\'' + pDetailId + '\').previousElementSibling.querySelector(\'button\').click()" style="margin-top:8px;width:100%;padding:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.72rem;cursor:pointer;">View Full Profile →</button>' +
-                                '<button onclick="window._sendGiftToPeerFromDetail(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\')" style="margin-top:6px;width:100%;padding:8px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.06));border:1px solid rgba(247,147,26,0.35);border-radius:8px;color:#f7931a;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Send Gift to increase Partnership</button>' +
+                                '<button onclick="if(typeof window.showKeyPickerForPeer===\'function\'){window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\',null);}else{var _kpR=0;var _kpT=setInterval(function(){if(typeof window.showKeyPickerForPeer===\'function\'){clearInterval(_kpT);window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\',null);}else if(++_kpR>=20)clearInterval(_kpT);},500);}" style="margin-top:6px;width:100%;padding:8px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.06));border:1px solid rgba(247,147,26,0.35);border-radius:8px;color:#f7931a;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 Send Keys to ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</button>' +
+                                '<button onclick="if(typeof window.showKeyPickerForPeer===\'function\'){window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\',null);}else{showToast(\'Loading...\',1500);setTimeout(function(){window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\',null);},1500);}" style="margin-top:6px;width:100%;padding:8px;background:linear-gradient(135deg,rgba(167,139,250,0.12),rgba(167,139,250,0.06));border:1px solid rgba(167,139,250,0.35);border-radius:8px;color:#a78bfa;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 Send Keys</button>' +
                             '</div>' +
                         '</div>';
                     });
