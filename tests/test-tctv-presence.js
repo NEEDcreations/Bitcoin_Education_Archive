@@ -70,8 +70,8 @@ test('two viewers on one station add', () => {
     const counts = {};
     lib.accumulatePresence(counts, { station: 'news', ts: ts(now - 1000) }, now);
     lib.accumulatePresence(counts, { station: 'news', ts: ts(now - 2000) }, now);
-    lib.accumulatePresence(counts, { station: 'art', ts: ts(now - 3000) }, now);
-    assert.deepStrictEqual(counts, { news: 2, art: 1 });
+    lib.accumulatePresence(counts, { station: 'music', ts: ts(now - 3000) }, now);
+    assert.deepStrictEqual(counts, { news: 2, music: 1 });
 });
 
 test('unchanged station maps skip the write', () => {
@@ -196,7 +196,7 @@ test('TV page presence code writes expiresAt and listens to one doc', () => {
     assert.strictEqual(typeof writes[0].data.tsClient, 'number');
     assert.ok(writes[0].data.expiresAt.millis >= writes[0].data.tsClient + 9 * 60 * 1000);
     assert.ok(writes[0].data.expiresAt.millis <= writes[0].data.tsClient + 11 * 60 * 1000);
-    assert.deepStrictEqual(intervals, [30000]);
+    assert.deepStrictEqual(intervals, [30000, 5000]);
     assert.strictEqual(listeners.length, 1);
     assert.strictEqual(listeners[0].name, 'tctv_counts');
     assert.strictEqual(listeners[0].id, 'live');
@@ -253,21 +253,20 @@ test('single-field index is declared for tctv_presence.ts', () => {
     assert.ok(orders.includes('ASCENDING:COLLECTION'));
 });
 
-test('cache name is v2238 and the TV script cache-buster moved', () => {
+test('cache name is v2239 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2238'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2239'"));
+    assert.ok(!sw.includes('btc-archive-v2238'));
     assert.ok(!sw.includes('btc-archive-v2237'));
     assert.ok(!sw.includes('btc-archive-v2236'));
-    assert.ok(!sw.includes('btc-archive-v2235'));
-    assert.ok(!sw.includes('btc-archive-v2234'));
-    assert.ok(!sw.includes('btc-archive-v2233'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('timechain-tv.js?v=20261022_tctv2'));
+    assert.ok(html.includes('timechain-tv.js?v=20261022_tctv3'));
     assert.ok(html.includes('gifting.js?v=20261022_shoutoutcap'));
     assert.ok(html.includes('quests.js?v=20261022_openpolish'));
     assert.ok(html.includes('ranking.js?v=20261022_appcheck'));
     assert.ok(html.includes('lightning.js?v=20261022_faucet'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv2'));
     assert.ok(!html.includes('timechain-tv.js?v=20261007_2230'));
 });
 
