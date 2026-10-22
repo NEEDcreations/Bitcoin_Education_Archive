@@ -238,9 +238,13 @@ test('rules block client writes to reward and onboarding fields', function () {
 });
 
 test('awardPoints refuses a nacho quest action string', function () {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
-    assert.ok(src.includes('nacho quest|onboarding quest'));
-    assert.ok(src.includes('claimOnboardingQuestStep'));
+    const actions = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'awardActions.js'), 'utf8');
+    const api = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'onboardingApi.js'), 'utf8');
+    const index = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    assert.ok(actions.includes('nacho quest|onboarding quest'));
+    assert.ok(api.includes('claimOnboardingQuestStep'));
+    assert.ok(index.includes('registerOnboarding'));
+    assert.ok(!actions.includes('NACHO_QUESTS'));
 });
 
 test('the client quest list matches the server modes', function () {
