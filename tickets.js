@@ -84,7 +84,8 @@ async function awardDailyTicket() {
         // Cloud Function now handles 'lastTicketDate' update server-side for security
         if (typeof awardPoints === 'function') {
             const result = await awardPoints(bonusPoints, '🎫 Daily tickets', null, ticketsToAdd);
-            if (!result || !result.success) return; // Silent return if already claimed or error
+            var awardData = result && (result.data || result);
+            if (!awardData || !awardData.success) return; // Silent return if already claimed or error
         }
         
         currentUser.lastTicketDate = today;
@@ -114,7 +115,7 @@ async function attachReferral(uid) {
         var fn = firebase.functions().httpsCallable('registerReferral');
         var result = await fn({ refCode: refCode });
         var data = result && result.data;
-        if (data && (data.success || data.reason === 'self')) {
+        if (data && (data.success || data.reason === 'self' || data.reason === 'late' || data.reason === 'account-age' || data.reason === 'points' || data.reason === 'exists')) {
             localStorage.removeItem('btc_referral_code');
             if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid && data.success) {
                 currentUser.referredBy = refCode;
@@ -133,15 +134,23 @@ async function checkReferralQualifications() {}
 async function ensureReferralCode() {}
 
 // ---- Get referral stats for display ----
+var _inviteStatsCache = { uid: '', at: 0, stats: null };
+var INVITE_STATS_MS = 5 * 60 * 1000;
+
 async function getReferralStats() {
     if (!currentUser || !db) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
+    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous)
+        ? auth.currentUser.uid : '';
+    if (!uid) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
 
-    const refCode = getReferralCode();
-    if (!refCode) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0 };
+    var now = Date.now();
+    if (_inviteStatsCache.uid === uid && _inviteStatsCache.stats && (now - _inviteStatsCache.at) < INVITE_STATS_MS) {
+        return _inviteStatsCache.stats;
+    }
 
     try {
         const snapshot = await db.collection('referrals')
-            .where('referrerCode', '==', refCode)
+            .where('referrerUid', '==', uid)
             .get();
 
         let total = snapshot.size;
@@ -155,8 +164,15 @@ async function getReferralStats() {
             else pending++;
         });
 
-        return { total: total, verified: verified, pending: pending, invited: total, maxi: verified };
+        var stats = { total: total, verified: verified, pending: pending, invited: total, maxi: verified };
+        _inviteStatsCache = { uid: uid, at: now, stats: stats };
+        return stats;
     } catch (e) {
+        var invited = parseInt(currentUser.referralInvited, 10);
+        var maxi = parseInt(currentUser.referralCount, 10) || 0;
+        if (!isNaN(invited)) {
+            return { total: invited, verified: maxi, pending: Math.max(0, invited - maxi), invited: invited, maxi: maxi };
+        }
         return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
     }
 }

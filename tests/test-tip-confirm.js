@@ -43,9 +43,13 @@ test('a tip day awards 100 once, and a second call the same day does not', () =>
         return today;
     })();
     challengeId = tip.challengeIdForDate(tipDay);
-    const first = tip.decideTipConfirm({ today: tipDay, challengeId: challengeId, confirmedDate: '' });
+    const first = tip.decideTipConfirm({ today: tipDay, challengeId: challengeId, confirmedDate: '', verified: true });
     assert.strictEqual(first.record, true);
     assert.strictEqual(first.awardXp, 100);
+    const unverified = tip.decideTipConfirm({ today: tipDay, challengeId: challengeId, confirmedDate: '', verified: false });
+    assert.strictEqual(unverified.record, false);
+    assert.strictEqual(unverified.awardXp, 0);
+    assert.strictEqual(unverified.reason, 'unverified');
     assert.strictEqual(first.challengeCompleted, true);
     const second = tip.decideTipConfirm({ today: tipDay, challengeId: challengeId, confirmedDate: tipDay });
     assert.strictEqual(second.record, false);
@@ -77,6 +81,18 @@ test('LUD-21 settled verifies, and private or http URLs are refused', () => {
     assert.strictEqual(tip.normalizePaymentHash('not-a-hash'), '');
     assert.strictEqual(tip.interpretNwcLookup({ state: 'settled' }).verified, true);
     assert.strictEqual(tip.interpretNwcLookup({}).reason, 'nwc-not-settled');
+    const limited = tip.tipRateDecision({ lastMs: 1000, windowStart: 1000, count: 1 }, 1000 + tip.TIP_RATE_MS - 1);
+    assert.strictEqual(limited.ok, false);
+    const allowed = tip.tipRateDecision({ lastMs: 1000, windowStart: 1000, count: 1 }, 1000 + tip.TIP_RATE_MS);
+    assert.strictEqual(allowed.ok, true);
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'tipService.js'), 'utf8');
+    const confirm = service.slice(service.indexOf('async function confirmTipSent'));
+    assert.ok(confirm.indexOf("collection('tip_confirmations')") < confirm.indexOf('verifyPayment('));
+    const verify = service.slice(service.indexOf('async function verifyPayment'), service.indexOf('async function takeTipRate'));
+    assert.ok(verify.indexOf('assertPublicHost') !== -1);
+    assert.ok(verify.indexOf('assertPublicHost') < verify.indexOf('tryLud21'));
+    assert.ok(verify.indexOf('verify-host-blocked') < verify.indexOf('tryNwc'));
+    assert.ok(service.indexOf('lookupInvoice') !== -1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

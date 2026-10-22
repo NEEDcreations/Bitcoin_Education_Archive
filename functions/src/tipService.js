@@ -1,11 +1,9 @@
 'use strict';
 
 // confirmTipSent records one tip confirmation per UTC day.
-// Verification is attempted only when it is cheap:
-//   1. LUD-21 verify URL (https, public host, no redirects)
-//   2. Our NWC lookupInvoice by payment hash, when NWC_URL is set
-// A miss, a timeout, or an invoice that is not ours falls back to the
-// confirmation. The tipping daily challenge XP is awarded at most once.
+// Today's lock is read before any network call. A LUD-21 host is resolved
+// and rejected if it is internal before it is fetched. The NWC wallet is
+// not queried until that guard passes. XP is awarded only after verification.
 
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
@@ -13,6 +11,7 @@ const fetch = require('node-fetch');
 const bolt11 = require('bolt11');
 const tipConfirm = require('./tipConfirm');
 const doubleXp = require('./doubleXp');
+const { assertPublicHost } = require('./publicHost');
 const { splitDailyXp } = require('./dailyXp');
 const { paymentHashFromDecoded } = require('./cipherClaim');
 
@@ -50,8 +49,8 @@ function hashFromInvoice(invoice) {
 }
 
 async function tryLud21(verifyUrl) {
-    const safe = tipConfirm.safeVerifyUrl(verifyUrl);
-    if (!safe) return { verified: false, reason: 'no-verify-url' };
+    const safe = String(verifyUrl || '');
+    if (safe.indexOf('https://') !== 0) return { verified: false, reason: 'no-verify-url' };
     try {
         const res = await fetch(safe, { timeout: 4000, size: 65536, redirect: 'manual' });
         if (res.status !== 200) return { verified: false, reason: 'lud21-unverified' };
@@ -85,14 +84,48 @@ async function verifyPayment(data) {
     const decodedHash = hashFromInvoice(data && data.invoice);
     const clientHash = tipConfirm.normalizePaymentHash(data && data.paymentHash);
     const paymentHash = decodedHash || clientHash;
-    const lud = await tryLud21(data && data.verifyUrl);
-    if (lud.verified) return Object.assign({ paymentHash: paymentHash }, lud);
+    const rawUrl = data && data.verifyUrl;
+    const supplied = String(rawUrl || '').trim();
+    let ludReason = 'no-verify-url';
+    if (supplied) {
+        const safe = tipConfirm.safeVerifyUrl(rawUrl);
+        if (!safe) return { verified: false, reason: 'bad-verify-url', paymentHash: paymentHash };
+        try {
+            await assertPublicHost(new URL(safe).hostname);
+        } catch (e) {
+            return { verified: false, reason: 'verify-host-blocked', paymentHash: paymentHash };
+        }
+        const lud = await tryLud21(safe);
+        if (lud.verified) return Object.assign({ paymentHash: paymentHash }, lud);
+        ludReason = lud.reason || 'lud21-unverified';
+    }
     if (paymentHash) {
         const nwc = await tryNwc(paymentHash);
         if (nwc.verified) return Object.assign({ paymentHash: paymentHash }, nwc);
-        return { verified: false, reason: lud.reason === 'no-verify-url' ? nwc.reason : lud.reason, paymentHash: paymentHash };
+        return { verified: false, reason: ludReason === 'no-verify-url' ? nwc.reason : ludReason, paymentHash: paymentHash };
     }
-    return { verified: false, reason: lud.reason || 'confirmation', paymentHash: '' };
+    return { verified: false, reason: ludReason, paymentHash: '' };
+}
+
+async function takeTipRate(uid, now) {
+    const ref = db().collection('rate_limits').doc('tip_' + uid);
+    let decision = { ok: false, reason: 'rate' };
+    await db().runTransaction(async function(t) {
+        const snap = await t.get(ref);
+        const prev = snap.exists ? snap.data() : {};
+        decision = tipConfirm.tipRateDecision({
+            lastMs: prev.lastCall,
+            windowStart: prev.windowStart,
+            count: prev.count || 0,
+        }, now);
+        if (!decision.ok) return;
+        t.set(ref, {
+            lastCall: admin.firestore.Timestamp.fromMillis(decision.lastMs),
+            windowStart: admin.firestore.Timestamp.fromMillis(decision.windowStart),
+            count: decision.count,
+        });
+    });
+    return decision;
 }
 
 async function confirmTipSent(data, context) {
@@ -101,10 +134,55 @@ async function confirmTipSent(data, context) {
     const today = tipConfirm.utcDateKey(now);
     const capDay = offsetDateKey(now);
     const challengeId = tipConfirm.challengeIdForDate(today);
-    const verification = await verifyPayment(data || {});
 
     const userRef = db().collection('users').doc(uid);
     const lockRef = userRef.collection('tip_confirmations').doc(today);
+    const existingLock = await lockRef.get();
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) throw httpsError('not-found', 'User not found');
+    const confirmedDate = existingLock.exists ? today : ((userSnap.data() || {}).tipConfirmedDate || '');
+    const early = tipConfirm.decideTipConfirm({
+        today: today,
+        challengeId: challengeId,
+        confirmedDate: confirmedDate,
+        verified: false,
+    });
+    if (early.already) {
+        return {
+            success: true,
+            already: true,
+            awarded: 0,
+            verified: existingLock.exists ? !!existingLock.data().verified : false,
+            challengeCompleted: false,
+            challengeId: challengeId,
+        };
+    }
+
+    const rate = await takeTipRate(uid, now);
+    if (!rate.ok) throw httpsError('resource-exhausted', 'Too many tip checks. Wait a moment and try again.');
+
+    let verification = { verified: false, reason: 'not-tip-day', paymentHash: '' };
+    if (tipConfirm.isTippingChallenge(challengeId)) {
+        verification = await verifyPayment(data || {});
+    }
+    const call = tipConfirm.decideTipConfirm({
+        today: today,
+        challengeId: challengeId,
+        confirmedDate: '',
+        verified: !!verification.verified,
+    });
+    if (!call.record) {
+        return {
+            success: false,
+            already: false,
+            awarded: 0,
+            verified: false,
+            verifyReason: verification.reason || call.reason || 'unverified',
+            challengeCompleted: false,
+            challengeId: challengeId,
+        };
+    }
+
     const dailyRef = userRef.collection('daily_points').doc(capDay);
     let result = null;
 
@@ -117,12 +195,7 @@ async function confirmTipSent(data, context) {
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
         const user = userDoc.data() || {};
         const confirmedDate = lockDoc.exists ? today : (user.tipConfirmedDate || '');
-        const call = tipConfirm.decideTipConfirm({
-            today: today,
-            challengeId: challengeId,
-            confirmedDate: confirmedDate,
-        });
-        if (!call.record) {
+        if (confirmedDate === today) {
             result = {
                 success: true,
                 already: true,

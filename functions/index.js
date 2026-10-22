@@ -149,46 +149,8 @@ const awardActions = require('./src/awardActions');
 const doubleXp = require('./src/doubleXp');
 const referralService = require('./src/referralService');
 const tipService = require('./src/tipService');
-
-// ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
-// String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
-// Call this BEFORE any outbound fetch to a user-supplied Lightning Address domain.
-async function assertPublicHost(hostname) {
-    // Strip port if present
-    const host = hostname.split(':')[0].toLowerCase();
-    let addresses;
-    try {
-        addresses = await dns.resolve4(host);
-        // Also try IPv6 in case v4 resolves fine but v6 is private
-        try {
-            const v6 = await dns.resolve6(host);
-            addresses = addresses.concat(v6);
-        } catch (_) { /* no AAAA record — fine */ }
-    } catch (e) {
-        throw new Error('DNS resolution failed for hostname: ' + host);
-    }
-    if (!addresses || addresses.length === 0) throw new Error('No DNS records for hostname: ' + host);
-    for (const addr of addresses) {
-        const a = addr.toLowerCase();
-        if (
-            a === '127.0.0.1' ||
-            a === '::1' ||
-            /^127\./.test(a) ||
-            /^10\./.test(a) ||
-            /^192\.168\./.test(a) ||
-            /^172\.(1[6-9]|2[0-9]|3[01])\./.test(a) ||
-            /^169\.254\./.test(a) ||        // AWS/GCP instance metadata
-            /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(a) || // RFC 6598 CGNAT
-            /^fd[0-9a-f]{2}:/i.test(a) ||   // ULA IPv6
-            /^fe80:/i.test(a) ||             // link-local IPv6
-            /^::ffff:127\./.test(a) ||       // v4-mapped loopback
-            /^0\./.test(a)                   // "this" network
-        ) {
-            console.error('[SSRF-DNS] Blocked private IP ' + addr + ' for host ' + host);
-            throw new Error('Lightning Address domain resolves to a private/restricted IP address.');
-        }
-    }
-}
+// DNS check shared with confirmTipSent. String-only host checks are not enough.
+const { assertPublicHost } = require('./src/publicHost');
 
 // ===== VALID CHANNEL CATALOG (server-authoritative) =====
 // Extracted from channel_index.js — used to reject fake channelId values
@@ -4180,8 +4142,9 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
-        const spinBoost = doubleXp.boostPoints(totalPts, userData, Date.now());
-        totalPts = spinBoost.points;
+        // The wheel is once a day and is not run through the daily points cap,
+        // so Double XP does not apply here.
+        const spinDoubled = false;
 
         // Atomic update
         const update = {};
@@ -4227,8 +4190,8 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             closet: reward.closet,
             rare: reward.rare,
             rareLabel,
-            doubled: spinBoost.doubled,
-            doubleXpUntil: spinBoost.until || 0,
+            doubled: spinDoubled,
+            doubleXpUntil: doubleXp.untilMillis(userData) || 0,
         };
     });
 
@@ -4518,8 +4481,7 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         if (passed) {
             // Award points server-side. Still increments directly (outside daily cap by design),
             // but now limited to ONCE per cert type thanks to the alreadyPassed gate above.
-            const scholarBoost = doubleXp.boostPoints(2100, userData, Date.now());
-            pointsAwarded = scholarBoost.points;
+            pointsAwarded = 2100;
             update.points = admin.firestore.FieldValue.increment(pointsAwarded);
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
@@ -6268,7 +6230,6 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
             pointsDonated: admin.firestore.FieldValue.increment(amount),
         };
         if (newBadges.length > 0) {
-            bonusPts = doubleXp.boostPoints(bonusPts, u, Date.now()).points;
             userUpdate.donationBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
             userUpdate.points = admin.firestore.FieldValue.increment(bonusPts);
             userUpdate.visibleBadges = admin.firestore.FieldValue.arrayUnion(...newBadges);
@@ -7202,12 +7163,10 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
                     const heroSnap = await pRef.get();
                     const heroBefore = heroSnap.exists ? (heroSnap.data().points || 0) : 0;
                     await badgeRef.set({ awardedAt: admin.firestore.FieldValue.serverTimestamp() });
-                    const pSnap = await pRef.get();
-                    const hero = doubleXp.boostPoints(100, pSnap.exists ? pSnap.data() : {}, Date.now());
                     await pRef.update({
-                        points: admin.firestore.FieldValue.increment(hero.points),
-                        weeklyXP: admin.firestore.FieldValue.increment(hero.points),
-                        monthlyXP: admin.firestore.FieldValue.increment(hero.points),
+                        points: admin.firestore.FieldValue.increment(100),
+                        weeklyXP: admin.firestore.FieldValue.increment(100),
+                        monthlyXP: admin.firestore.FieldValue.increment(100),
                         visibleBadges: admin.firestore.FieldValue.arrayUnion('weekly_hero'),
                     });
                     await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({

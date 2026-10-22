@@ -56,9 +56,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('Latest updates (v'), 'home link must not hardcode a version');
     assert.ok(html.includes('link.textContent = base + \' (\' + match[1] + \')\''));
     assert.ok(html.includes("/CACHE_NAME\\s*=\\s*'btc-archive-(v\\d+)'/"));
+    assert.ok(html.includes("fetch('/sw.js'"));
     assert.ok(!html.includes("const CACHE_NAME = 'btc-archive-v2279'"));
     var swVersion = read('sw.js').match(/CACHE_NAME\s*=\s*'btc-archive-(v\d+)'/);
-    assert.ok(swVersion && swVersion[1] === 'v2279');
+    assert.ok(swVersion && swVersion[1] === 'v2286');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {

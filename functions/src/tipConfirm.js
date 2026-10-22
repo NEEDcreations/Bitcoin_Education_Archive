@@ -34,6 +34,37 @@ function isTippingChallenge(challengeId) {
     return !!TIP_CHALLENGE_IDS[challengeId];
 }
 
+const TIP_RATE_MS = 15 * 1000;
+const TIP_RATE_HOUR_MS = 60 * 60 * 1000;
+const TIP_RATE_HOUR_MAX = 10;
+
+function timestampMs(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value === 'number' && isFinite(value)) return value;
+    if (typeof value === 'object' && typeof value._seconds === 'number') return value._seconds * 1000;
+    const parsed = Date.parse(value);
+    return isFinite(parsed) ? parsed : 0;
+}
+
+function tipRateDecision(prev, nowMs) {
+    const src = prev || {};
+    const now = Number(nowMs) || 0;
+    const last = timestampMs(src.lastMs);
+    const windowStart = timestampMs(src.windowStart);
+    const count = Number(src.count) || 0;
+    if (last && now - last < TIP_RATE_MS) return { ok: false, reason: 'rate' };
+    const sameHour = windowStart && now - windowStart < TIP_RATE_HOUR_MS;
+    if (sameHour && count >= TIP_RATE_HOUR_MAX) return { ok: false, reason: 'rate-hour' };
+    return {
+        ok: true,
+        reason: 'ok',
+        lastMs: now,
+        windowStart: sameHour ? windowStart : now,
+        count: sameHour ? count + 1 : 1,
+    };
+}
+
 function decideTipConfirm(input) {
     const src = input || {};
     const today = String(src.today || '');
@@ -57,6 +88,16 @@ function decideTipConfirm(input) {
             challengeCompleted: false,
             challengeId: challengeId,
             reason: 'not-tip-day',
+        };
+    }
+    if (src.verified !== true) {
+        return {
+            record: false,
+            awardXp: 0,
+            already: false,
+            challengeCompleted: false,
+            challengeId: challengeId,
+            reason: 'unverified',
         };
     }
     return {
@@ -128,6 +169,9 @@ module.exports = {
     utcDateKey: utcDateKey,
     challengeIdForDate: challengeIdForDate,
     isTippingChallenge: isTippingChallenge,
+    TIP_RATE_MS: TIP_RATE_MS,
+    timestampMs: timestampMs,
+    tipRateDecision: tipRateDecision,
     decideTipConfirm: decideTipConfirm,
     isPrivateHost: isPrivateHost,
     safeVerifyUrl: safeVerifyUrl,

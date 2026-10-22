@@ -139,7 +139,7 @@ service cloud.firestore {
                         'ciphersDecryptedToday', 'ciphersDecryptedDate',
                         'keysSentDate', 'keysSentTo',
                         'marketListings', 'marketMessages',
-                        'referralTicketsEarned', 'referralCode', 'referralCount',
+                        'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited',
                         'referredBy', 'referralVerified',
                         'tipChallengeDate', 'tipConfirmedDate',
                         'pointsDonated', 'donationBadges',
@@ -463,11 +463,25 @@ service cloud.firestore {
     // Format: docId is the UID of the new user being referred
     // =============================================
     match /referrals/{referralId} {
-      allow read: if request.auth != null;
+      // The two parties only. A referrerCode query cannot be proven by this
+      // rule, so the client filters on referrerUid.
+      allow read: if request.auth != null
+                  && (resource.data.referrerUid == request.auth.uid
+                      || resource.data.referredUserUid == request.auth.uid);
       // Created and paid only by Cloud Functions. Clients cannot write a
       // referral, verify it, or award tickets.
       allow create: if false;
       allow update: if isAdmin();
+    }
+
+    // Signup IP and other fraud signals. Admin SDK only.
+    match /referral_signals/{signalId} {
+      allow read, write: if false;
+    }
+
+    // Hourly pending-referral cursor. Admin SDK only.
+    match /referral_scan/{docId} {
+      allow read, write: if false;
     }
 
     // Referral code index. Server writes one doc per user. Clients cannot

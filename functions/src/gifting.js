@@ -316,7 +316,7 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         if (reward.rewardType === 'tickets') {
             userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount || 1);
         } else if (reward.rewardType === 'xp_bonus') {
-            const xp = doubleXp.boostPoints(reward.xpAmount || 50, user, Date.now()).points;
+            const xp = reward.xpAmount || 50;
             userUpdate.points = admin.firestore.FieldValue.increment(xp);
             userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
             userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
@@ -672,7 +672,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 paidBy: null,
             });
         } else {
-            const xp = doubleXp.boostPoints(reward.xpAmount || 50, user, Date.now()).points;
+            const xp = reward.xpAmount || 50;
             userUpdate.points = admin.firestore.FieldValue.increment(xp);
             userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
             userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);

@@ -8,14 +8,20 @@ const MAXI_POINTS = 2140;
 const REFERRAL_TICKETS = 50;
 const CODE_LENGTH = 8;
 
+const SIGNUP_WINDOW_MS = 72 * 60 * 60 * 1000;
+const SIGNUP_MAX_POINTS = 100;
+
 const BLOCKING_FLAGS = {
     'self': 'rejected',
     'sats-disabled': 'rejected',
+    'banned': 'rejected',
+    'ledger-banned': 'rejected',
     'same-fingerprint': 'flagged',
     'same-ip': 'flagged',
     'same-email': 'flagged',
     'same-lightning': 'flagged',
     'circular': 'flagged',
+    'linked-account': 'flagged',
 };
 
 function referralCodeForUid(uid) {
@@ -77,6 +83,8 @@ function fraudFlags(referred, referrer, signupIp) {
         flags.push('self');
     }
     if (referred.satsDisabled === true || referrer.satsDisabled === true) flags.push('sats-disabled');
+    if (referred.banned === true || referrer.banned === true) flags.push('banned');
+    if (referred.ledgerBanned === true || referrer.ledgerBanned === true) flags.push('ledger-banned');
     const fpA = String(referred.fingerprint || '').trim();
     const fpB = String(referrer.fingerprint || '').trim();
     if (fpA && fpB && fpA === fpB) flags.push('same-fingerprint');
@@ -119,6 +127,9 @@ function assessReferralPayout(input) {
     if (alreadyPaid(referral)) return { action: 'skip', reason: 'already-paid' };
     if (referral.status === 'flagged') return { action: 'skip', reason: 'flagged' };
     if (referral.status === 'rejected') return { action: 'skip', reason: 'rejected' };
+    if (referral.status === 'late' || referral.status === 'untrusted') {
+        return { action: 'skip', reason: referral.status };
+    }
     if (!referred || !referrer || !referred.uid || !referrer.uid) return { action: 'skip', reason: 'missing-user' };
     if (referred.uid === referrer.uid) return { action: 'reject', reason: 'self', flags: ['self'] };
     if ((Number(referred.points) || 0) < MAXI_POINTS) return { action: 'skip', reason: 'below-maxi' };
@@ -135,6 +146,31 @@ function assessReferralPayout(input) {
         referredUid: referred.uid,
         referrerUid: referrer.uid,
     };
+}
+
+// A referral is payable only for a new account: Auth creationTime within 72h
+// (fail closed when that time is missing) and points still under a small cap.
+// Outside that window the caller records `late` and never pays it.
+function registrationGate(input) {
+    const src = input || {};
+    const now = Number(src.nowMs) || 0;
+    const created = src.createdMs == null ? null : Number(src.createdMs);
+    const points = Number(src.points) || 0;
+    if (src.self) return { ok: false, status: 'rejected', reason: 'self', record: false };
+    if (created == null || !isFinite(created)) {
+        return { ok: false, status: 'late', reason: 'age-unknown', record: false };
+    }
+    const age = now - created;
+    if (age > SIGNUP_WINDOW_MS || age < -5 * 60 * 1000) {
+        return { ok: false, status: 'late', reason: 'account-age', record: true };
+    }
+    if (points > SIGNUP_MAX_POINTS) {
+        return { ok: false, status: 'late', reason: 'points', record: true };
+    }
+    if (src.linked) {
+        return { ok: false, status: 'flagged', reason: 'linked-account', record: true };
+    }
+    return { ok: true, status: 'pending', reason: 'new', record: true };
 }
 
 function resolveReferrerUid(code, users, codeIndex) {
@@ -208,48 +244,33 @@ function planBackfill(input) {
         const flags = referrer
             ? fraudFlags(Object.assign({ uid: user.uid }, user), Object.assign({ uid: referrerUid }, referrer), '')
             : [];
-        const status = referrer ? statusForFlags(flags) : 'pending';
+        // referredBy used to be client-writable, so a doc built only from it
+        // is untrusted and is never paid.
         recordsToCreate.push({
             referredUid: user.uid,
             referrerUid: referrerUid || '',
             referrerCode: code,
-            status: status,
+            status: 'untrusted',
             flags: flags,
-        });
-    });
-
-    const combined = [];
-    referrals.forEach(function(referral) {
-        const id = referredIdOf(referral);
-        if (!id) return;
-        combined.push(Object.assign({}, referral, { referredUid: id }));
-    });
-    recordsToCreate.forEach(function(record) {
-        combined.push({
-            referredUid: record.referredUid,
-            referrerUid: record.referrerUid,
-            referrerCode: record.referrerCode,
-            status: record.status,
-            flags: record.flags,
-            ticketsAwarded: false,
+            source: 'referredBy',
         });
     });
 
     const payouts = [];
-    combined.forEach(function(referral) {
-        if (alreadyPaid(referral)) return;
-        if (referral.status === 'flagged' || referral.status === 'rejected') return;
-        const referred = byUid[referral.referredUid];
+    referrals.forEach(function(referral) {
+        const id = referredIdOf(referral);
+        if (!id) return;
+        const row = Object.assign({}, referral, { referredUid: id });
+        if (alreadyPaid(row)) return;
+        if (row.status === 'flagged' || row.status === 'rejected' || row.status === 'late' || row.status === 'untrusted') return;
+        const referred = byUid[row.referredUid];
         if (!referred) return;
-        let referrerUid = referral.referrerUid || '';
-        if (!referrerUid && referral.referrerCode) {
-            referrerUid = resolveReferrerUid(referral.referrerCode, users, codeIndex);
+        let referrerUid = row.referrerUid || '';
+        if (!referrerUid && row.referrerCode) {
+            referrerUid = resolveReferrerUid(row.referrerCode, users, codeIndex);
         }
-        if (!referrerUid) {
-            const code = normalizeCode(referred.referredBy);
-            if (code) referrerUid = resolveReferrerUid(code, users, codeIndex);
-        }
-        if (!referrerUid || referrerUid === referral.referredUid) return;
+        if (!referrerUid || referrerUid === row.referredUid) return;
+        referral = row;
         const referrer = byUid[referrerUid];
         if (!referrer) return;
         const decision = assessReferralPayout({
@@ -283,12 +304,15 @@ function planBackfill(input) {
 module.exports = {
     MAXI_POINTS: MAXI_POINTS,
     REFERRAL_TICKETS: REFERRAL_TICKETS,
+    SIGNUP_WINDOW_MS: SIGNUP_WINDOW_MS,
+    SIGNUP_MAX_POINTS: SIGNUP_MAX_POINTS,
     BLOCKING_FLAGS: BLOCKING_FLAGS,
     referralCodeForUid: referralCodeForUid,
     normalizeCode: normalizeCode,
     isSelfReferral: isSelfReferral,
     crossedMaxi: crossedMaxi,
     alreadyPaid: alreadyPaid,
+    registrationGate: registrationGate,
     fraudFlags: fraudFlags,
     statusForFlags: statusForFlags,
     assessReferralPayout: assessReferralPayout,

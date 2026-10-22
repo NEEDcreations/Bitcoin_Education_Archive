@@ -536,6 +536,8 @@
         .invite-card[data-state="min"],
         .invite-card[data-state="guest"] { width: auto; max-height: none; overflow: visible; }
         @media (min-width: 901px) {
+            /* The notification bell is fixed at the top-right (44px, right 20px). */
+            .invite-card { right: 72px; }
             body.ticker-visible .invite-card { top: 48px; }
         }
         body:has(#searchOverlay[data-open="1"]) .invite-card { display: none !important; }
@@ -1132,7 +1134,7 @@
                     if (!link) return;
                     var base = '📋 Patch Notes — Latest updates';
                     link.textContent = base;
-                    fetch(new URL('sw.js', document.baseURI).href, { cache: 'no-cache' }).then(function (res) {
+                    fetch('/sw.js', { cache: 'no-cache' }).then(function (res) {
                         return res && res.ok ? res.text() : '';
                     }).then(function (text) {
                         var match = String(text || '').match(/CACHE_NAME\s*=\s*'btc-archive-(v\d+)'/);

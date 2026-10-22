@@ -1,5 +1,7 @@
 // Double XP window: multiply while active, stop at expiry, extend from the end.
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const doubleXp = require('../functions/src/doubleXp');
 
 let passed = 0;
@@ -53,6 +55,30 @@ test('a Firestore timestamp-shaped expiry still counts', () => {
     assert.strictEqual(boosted.doubled, true);
     assert.strictEqual(boosted.points, 100);
     assert.strictEqual(doubleXp.untilMillis({ doubleXpUntil: String(now + 1000) }), now + 1000);
+});
+
+test('one-time awards are not passed through boostPoints', () => {
+    const root = path.join(__dirname, '..');
+    function read(name) { return fs.readFileSync(path.join(root, name), 'utf8'); }
+    const index = read('functions/index.js');
+    const scholar = index.slice(index.indexOf('exports.gradeScholarExam'), index.indexOf('exports.startQuest'));
+    assert.ok(scholar.indexOf('boostPoints') === -1);
+    assert.ok(scholar.indexOf('pointsAwarded = 2100') !== -1);
+    const donate = index.slice(index.indexOf('exports.donatePoints'), index.indexOf('exports.searchUsers'));
+    assert.ok(donate.indexOf('boostPoints') === -1);
+    const weekly = index.slice(index.indexOf('exports.incrementWeeklyChallenge'), index.indexOf('exports.spendTickets'));
+    assert.ok(weekly.indexOf('boostPoints') === -1);
+    const award = index.slice(index.indexOf('exports.awardPoints'), index.indexOf('exports.getFaucetStats'));
+    assert.ok(award.indexOf("matchedAction === 'badge_earned'") !== -1);
+    assert.ok(award.indexOf('nacho quest') !== -1);
+    const gifting = read('functions/src/gifting.js');
+    const openGift = gifting.slice(gifting.indexOf('const openGift'), gifting.indexOf('const sendKeys'));
+    assert.ok(openGift.indexOf('boostPoints') === -1);
+    const decrypt = gifting.slice(gifting.indexOf('const decryptCipher'), gifting.indexOf('const claimCipherWin'));
+    assert.ok(decrypt.indexOf('boostPoints') === -1);
+    const keys = gifting.slice(gifting.indexOf('const sendKeys'), gifting.indexOf('const decryptCipher'));
+    assert.ok(keys.indexOf('boostPoints') !== -1);
+    assert.ok(read('functions/src/peerLevel.js').indexOf('boostPoints') === -1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

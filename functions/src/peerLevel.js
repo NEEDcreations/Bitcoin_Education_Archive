@@ -18,7 +18,6 @@
 
 const admin = require('firebase-admin');
 const rewardNotify = require('./rewardNotify');
-const { boostPoints } = require('./doubleXp');
 
 const db = admin.firestore();
 
@@ -111,14 +110,9 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
     };
 
     // ── XP award on level-up — server-side increment only ─────────────────
-    // Each peer is boosted from their own double-XP window.
-    const nowMs = Date.now();
-    const senderXp = (didLevelUp && newLevel.xp > 0)
-      ? boostPoints(newLevel.xp, senderDoc.data(), nowMs).points
-      : 0;
-    const recipXp = (didLevelUp && newLevel.xp > 0)
-      ? boostPoints(newLevel.xp, recipDoc.data(), nowMs).points
-      : 0;
+    // One-time level XP is not doubled.
+    const senderXp = (didLevelUp && newLevel.xp > 0) ? newLevel.xp : 0;
+    const recipXp = (didLevelUp && newLevel.xp > 0) ? newLevel.xp : 0;
     function xpFields(amount) {
       return {
         points:    admin.firestore.FieldValue.increment(amount),

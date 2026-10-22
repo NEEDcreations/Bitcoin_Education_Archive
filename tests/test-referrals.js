@@ -85,6 +85,71 @@ test('Maxi pays 50 to each side once, and fraud blocks payment', () => {
         referrer: referrer,
     });
     assert.strictEqual(banned.action, 'reject');
+
+    const userBanned = referrals.assessReferralPayout({
+        referral: pending,
+        referred: Object.assign({}, referred, { banned: true }),
+        referrer: referrer,
+    });
+    assert.strictEqual(userBanned.action, 'reject');
+    assert.ok(userBanned.flags.indexOf('banned') !== -1);
+
+    const ledgerBanned = referrals.assessReferralPayout({
+        referral: pending,
+        referred: referred,
+        referrer: Object.assign({}, referrer, { ledgerBanned: true }),
+    });
+    assert.strictEqual(ledgerBanned.action, 'reject');
+    assert.ok(ledgerBanned.flags.indexOf('ledger-banned') !== -1);
+
+    const late = referrals.assessReferralPayout({
+        referral: Object.assign({}, pending, { status: 'late' }),
+        referred: referred,
+        referrer: referrer,
+    });
+    assert.strictEqual(late.action, 'skip');
+    const untrusted = referrals.assessReferralPayout({
+        referral: Object.assign({}, pending, { status: 'untrusted' }),
+        referred: referred,
+        referrer: referrer,
+    });
+    assert.strictEqual(untrusted.action, 'skip');
+});
+
+test('a referral is accepted only for a new account under the points cap', () => {
+    const now = 1_700_000_000_000;
+    const fresh = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - 60 * 60 * 1000,
+        points: 20,
+    });
+    assert.strictEqual(fresh.ok, true);
+    assert.strictEqual(fresh.status, 'pending');
+    const old = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - referrals.SIGNUP_WINDOW_MS - 1,
+        points: 0,
+    });
+    assert.strictEqual(old.ok, false);
+    assert.strictEqual(old.status, 'late');
+    assert.strictEqual(old.record, true);
+    const rich = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - 1000,
+        points: referrals.SIGNUP_MAX_POINTS + 1,
+    });
+    assert.strictEqual(rich.status, 'late');
+    const unknown = referrals.registrationGate({ nowMs: now, createdMs: null, points: 0 });
+    assert.strictEqual(unknown.record, false);
+    assert.strictEqual(unknown.reason, 'age-unknown');
+    const linked = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - 1000,
+        points: 0,
+        linked: true,
+    });
+    assert.strictEqual(linked.status, 'flagged');
+    assert.strictEqual(linked.reason, 'linked-account');
 });
 
 function fixture() {
@@ -113,16 +178,42 @@ function fixture() {
     return { users: users, referrals: existing };
 }
 
-test('backfill creates the 7 missing records and pays the 6 at Maxi', () => {
+test('backfill lists the 7 referredBy-only records and does not pay them', () => {
     const data = fixture();
     assert.strictEqual(data.users.filter(function(u) { return u.referredBy; }).length, 25);
     assert.strictEqual(data.referrals.length, 18);
     const plan = referrals.planBackfill(data);
     assert.strictEqual(plan.counts.referralRecordsToCreate, 7);
-    assert.strictEqual(plan.counts.maxiPayouts, 6);
-    assert.strictEqual(plan.counts.ticketGrants, 12);
-    assert.strictEqual(plan.counts.notifications, 12);
+    assert.ok(plan.recordsToCreate.every(function(row) { return row.status === 'untrusted'; }));
+    assert.strictEqual(plan.counts.maxiPayouts, 0);
+    assert.strictEqual(plan.counts.ticketGrants, 0);
+    assert.strictEqual(plan.counts.notifications, 0);
     assert.ok(plan.counts.referralCodesToBackfill > 0);
+});
+
+test('backfill pays a referral doc that already exists and is at Maxi', () => {
+    const referred = user('plebpay1XXXX', { points: 2140, referredBy: 'refcode0' });
+    const referrer = user('refcode0REFR', { referralCode: 'refcode0', points: 5000 });
+    const plan = referrals.planBackfill({
+        users: [referred, referrer],
+        referrals: [{
+            id: referred.uid,
+            referredUserUid: referred.uid,
+            referrerUid: referrer.uid,
+            referrerCode: 'refcode0',
+            status: 'pending',
+            ticketsAwarded: false,
+        }],
+    });
+    assert.strictEqual(plan.counts.referralRecordsToCreate, 0);
+    assert.strictEqual(plan.counts.maxiPayouts, 1);
+    assert.strictEqual(plan.counts.ticketGrants, 2);
+    const onlyReferredBy = referrals.planBackfill({
+        users: [referred, referrer],
+        referrals: [],
+    });
+    assert.strictEqual(onlyReferredBy.counts.maxiPayouts, 0);
+    assert.strictEqual(onlyReferredBy.counts.referralRecordsToCreate, 1);
 });
 
 test('planning again after the writes is a no-op', () => {
@@ -170,7 +261,9 @@ test('an ambiguous code and a self referral are not paid', () => {
 test('backfill script defaults to dry-run and prints counts only', () => {
     const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'backfill_referrals.js'), 'utf8');
     assert.ok(src.indexOf("process.argv.indexOf('--apply')") !== -1);
+    assert.ok(src.indexOf("process.argv.indexOf('--approved')") !== -1);
     assert.ok(src.indexOf('dry-run only') !== -1);
+    assert.ok(src.indexOf('untrusted') !== -1);
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.ok(rules.indexOf("'referredBy'") !== -1);
     assert.ok(rules.indexOf("'doubleXpUntil'") !== -1);
@@ -193,7 +286,10 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(html.includes("onclick=\"openInviteFriends(true)\"") === false);
     assert.ok(tickets.includes('function openInviteFriends'));
     assert.ok(tickets.includes('function getReferralStats'));
-    assert.ok(tickets.includes("where('referrerCode'"));
+    assert.ok(tickets.includes("where('referrerUid'"));
+    assert.ok(tickets.includes('INVITE_STATS_MS'));
+    assert.ok(html.includes('fetch(\'/sw.js\''));
+    assert.ok(html.includes('.invite-card { right: 72px; }'));
     assert.ok(tickets.includes('linkEl.textContent = getReferralLink()'));
     assert.ok(tickets.includes('el.textContent = _inviteCountLine(stats)'));
     const copyBody = tickets.slice(tickets.indexOf('function copyInviteLink'), tickets.indexOf('function shareInviteLink'));
@@ -215,13 +311,30 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(service.includes("onceKey: 'referral_in_'"));
     assert.ok(service.includes("sourceLabel: 'a referral reaching Maxi'"));
     assert.ok(service.includes("sourceLabel: 'reaching Maxi with a referral'"));
+    assert.ok(service.includes("collection('referral_signals')"));
+    assert.ok(service.includes('registrationGate'));
+    assert.ok(service.includes('assessFingerprint'));
+    assert.ok(service.includes('faucet_ledger'));
+    assert.ok(service.indexOf('signupIp:') !== -1);
+    const payload = service.slice(service.indexOf('function referralPayload'), service.indexOf('async function registerReferral'));
+    assert.ok(payload.indexOf('signupIp') === -1);
+    assert.ok(rules.includes('resource.data.referrerUid == request.auth.uid'));
+    assert.ok(rules.includes('resource.data.referredUserUid == request.auth.uid'));
+    assert.ok(rules.includes('match /referral_signals/{signalId}'));
+    assert.ok(rules.includes('match /referral_scan/{docId}'));
+    const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
+    assert.ok(privacy.includes('server-only'));
+    assert.ok(privacy.includes('referral signup'));
     assert.ok(service.indexOf("collection('notifications')") === -1);
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
     assert.ok(terms.includes('2,140 points'));
     assert.ok(terms.includes('50 Orange Tickets'));
     assert.ok(!terms.includes('2,100+ points'));
+    assert.ok(!terms.includes('Double XP Charges'));
     const notes = fs.readFileSync(path.join(__dirname, '..', 'patch-notes.html'), 'utf8');
     assert.ok(notes.includes('Invite friends: share your link from the home page. When they reach Maxi, you both get 50 orange tickets.'));
+    assert.ok(notes.includes('Double XP starts when you buy it'));
+    assert.ok(notes.includes('I sent the tip'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
