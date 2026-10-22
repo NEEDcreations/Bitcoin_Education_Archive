@@ -45,7 +45,7 @@ function memoryDb(initial) {
 }
 
 test('a shoutout is mirrored once, as Nacho, and stamped for reactions', async function() {
-    const raw = '🎉 Shoutout to <span data-profile-uid="uid_phil">@phil</span>! They just unlocked a rare Nacho Shoutout. Go send @[phil](uid_phil) a peer request! 🤝';
+    const raw = '🎉 Shoutout to <span data-profile-uid="uid_phil">@phil</span>! They just unlocked a rare Nacho Shoutout. Go send phil a peer request! 🤝';
     const db = memoryDb({
         shoutout_gift_abc: { uid: 'nacho-bot', text: raw },
     });
@@ -64,7 +64,7 @@ test('a shoutout is mirrored once, as Nacho, and stamped for reactions', async f
     assert.strictEqual(posts.length, 1);
     assert.deepStrictEqual(posts[0], {
         user: '🦌 Nacho',
-        text: '🎉 Shoutout to @phil! They just unlocked a rare Nacho Shoutout. Go send @phil a peer request! 🤝',
+        text: '🎉 Shoutout to @phil! They just unlocked a rare Nacho Shoutout. Go send phil a peer request! 🤝',
         source: 'server',
         uid: 'nacho',
     });

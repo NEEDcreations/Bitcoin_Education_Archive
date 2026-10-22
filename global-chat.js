@@ -871,19 +871,27 @@ function formatChatText(text, mentionUid) {
         _hashLinks.push('<a href="#' + tag + '" onclick="' + onclick + '" title="' + (friendly ? friendly.replace(/"/g, '&quot;') : tag) + '" style="color:#f59e0b;font-weight:700;text-decoration:none;cursor:pointer;border-bottom:1px dotted rgba(245,158,11,0.4);">#' + tag + '</a>');
         return placeholder;
     });
-    // @mentions — clickable to open user profile
+    // @mentions — clickable to open user profile.
+    // _mentionRe is Unicode-aware (\p{L}\p{N}, u flag) so "José" is one chip.
+    // Stop at the verb ("just", "posted", "listed", …), a possessive, or ! ?.
     var _mentionHandled = false;
+    var _taggedName = '';
     if (mentionUid) {
-        // If we have a direct uid (from level-up announcements etc), use it for the first @mention
-        // Greedy multi-word match; terminators are keyword verbs or '!?' only — NOT bare punctuation
-        // (bare : or . appear mid-sentence in "earned a badge:" and must NOT be swallowed into the link)
+        // Known uid (shoutouts, level-ups): the first @name is the profile tag.
         text = text.replace(_mentionRe('u'), function(match, name) {
             _mentionHandled = true;
             var safeName = name.trim();
+            _taggedName = safeName;
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
             _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-profile-uid="' + esc(mentionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.profileUid)" title="View profile — tap to tip!">@' + safeName + '</span>');
             return placeholder;
         });
+        // Old shoutouts repeated @name. The second copy stays plain text
+        // (no chip, and not just the first word). The name is already escaped.
+        if (_taggedName) {
+            var _repeatRe = new RegExp('@' + _taggedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}_\\-\\u2026.])', 'gu');
+            text = text.replace(_repeatRe, function() { return _taggedName; });
+        }
     }
     // Handle remaining @mentions without uid — try multi-word first (handles display names with spaces)
     text = text.replace(_mentionRe('gu'), function(match, name) {
