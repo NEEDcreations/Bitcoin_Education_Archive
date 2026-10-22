@@ -1157,6 +1157,7 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
 // Global Chat, then mirrors it through the shoutout Telegram bridge.
 // Separate from onForumPost so a mail failure cannot drop the chat post.
 const { announceActivity, retractActivity, retractIfRemoved } = require('./src/activityShoutout');
+const { countMarketplaceListing } = require('./src/marketListingCount');
 
 const ACTIVITY_SHOUTOUT_OPTS = { maxInstances: 10 };
 
@@ -1195,6 +1196,27 @@ exports.onMarketplaceShoutout = onDocumentCreated({
         });
     } catch (e) {
         console.error('[onMarketplaceShoutout] failed', e && e.message ? e.message : '');
+        throw e;
+    }
+    return null;
+});
+
+// Listing badge counter. Separate from the shoutout so a Nacho skip or its
+// grace delay does not drop the count. Idempotent per listing id.
+exports.onMarketplaceListingCount = onDocumentCreated({
+    document: 'marketplace/{listingId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+}, async (event) => {
+    if (!event.data) return null;
+    try {
+        await countMarketplaceListing({
+            db: db,
+            admin: admin,
+            listingId: event.params.listingId,
+            data: event.data.data(),
+        });
+    } catch (e) {
+        console.error('[onMarketplaceListingCount] failed', e && e.message ? e.message : '');
         throw e;
     }
     return null;
