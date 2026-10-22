@@ -5748,60 +5748,69 @@ exports.auditWithdrawals = functionsV1.https.onRequest(async (req, res) => {
 
 // =============================================
 // TCTV Presence Aggregation - Scalable Live Viewer Counter
-// Runs every 10 seconds, aggregates presence docs into per-station counts
+// Once a minute. Reads only presence docs whose server timestamp `ts`
+// is inside the last 90 seconds (single-field range on tctv_presence.ts),
+// writes one aggregate doc at tctv_counts/live, and skips that write when
+// the per-station counts did not change. Deletes up to 100 docs older than
+// 10 minutes per run. Does not scan the collection.
 // =============================================
 exports.tctvAggregatePresence = onSchedule({
     schedule: 'every 1 minutes',
     timeZone: 'UTC',
     retryCount: 0,
 }, async (event) => {
+    const tctvPresence = require('./tctv-presence-lib');
     try {
         const now = Date.now();
-        const staleThreshold = 65000; // 65 seconds (matches client-side filter)
+        const freshStart = admin.firestore.Timestamp.fromMillis(now - tctvPresence.FRESH_MS);
+        const freshEnd = admin.firestore.Timestamp.fromMillis(now + tctvPresence.FUTURE_SKEW_MS);
+        const staleBefore = admin.firestore.Timestamp.fromMillis(now - tctvPresence.STALE_MS);
 
-        // Get all presence docs
-        const presenceSnap = await db.collection('tctv_presence').get();
+        // Range on one field uses the single-field index on ts.
+        // Far-future timestamps stay out of this query.
+        const presenceSnap = await db.collection('tctv_presence')
+            .where('ts', '>=', freshStart)
+            .where('ts', '<=', freshEnd)
+            .get();
 
-        // Aggregate by station
         const counts = {};
         presenceSnap.forEach(doc => {
-            const d = doc.data();
-            if (!d.station) return;
-
-            // Check staleness (same logic as client)
-            let docTime = 0;
-            if (d.ts && d.ts.toMillis) docTime = d.ts.toMillis();
-            else if (typeof d.tsClient === 'number') docTime = d.tsClient;
-
-            if (!docTime) return;
-            if (now - docTime > staleThreshold) return; // Stale
-
-            counts[d.station] = (counts[d.station] || 0) + 1;
+            tctvPresence.accumulatePresence(counts, doc.data() || {}, now);
         });
 
-        // Write aggregated counts to tctv_counts (one doc per station)
-        const batch = db.batch();
-        for (const [stationId, count] of Object.entries(counts)) {
-            const countRef = db.collection('tctv_counts').doc(stationId);
-            batch.set(countRef, {
-                count: count,
+        const total = Object.keys(counts).reduce((sum, id) => sum + counts[id], 0);
+        const countRef = db.collection('tctv_counts').doc('live');
+        const existing = await countRef.get();
+        const prev = existing.exists && existing.data() && existing.data().stations && typeof existing.data().stations === 'object'
+            ? existing.data().stations
+            : null;
+        let wrote = false;
+        if (!existing.exists || !tctvPresence.stationCountsEqual(prev, counts)) {
+            await countRef.set({
+                stations: counts,
+                total: total,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
+            });
+            wrote = true;
         }
 
-        // Handle stations with 0 viewers (delete the doc or set count to 0)
-        // Get existing count docs to find ones that should be 0
-        const existingSnap = await db.collection('tctv_counts').get();
-        existingSnap.forEach(doc => {
-            if (!counts[doc.id]) {
-                // No viewers on this station anymore
+        // Bounded. Docs with no timestamp `ts` are left for functions/cleanup-tctv-presence.js.
+        let deleted = 0;
+        const staleSnap = await db.collection('tctv_presence')
+            .where('ts', '<', staleBefore)
+            .orderBy('ts', 'asc')
+            .limit(tctvPresence.STALE_DELETE_LIMIT)
+            .get();
+        if (!staleSnap.empty) {
+            const batch = db.batch();
+            staleSnap.forEach(doc => {
                 batch.delete(doc.ref);
-            }
-        });
+                deleted++;
+            });
+            await batch.commit();
+        }
 
-        await batch.commit();
-
-        console.log('[TCTV] Aggregated presence:', Object.keys(counts).length + ' stations, total viewers:', Object.values(counts).reduce((a,b)=>a+b, 0));
+        console.log('[TCTV] fresh=' + presenceSnap.size + ' stations=' + Object.keys(counts).length + ' viewers=' + total + ' wrote=' + wrote + ' deleted=' + deleted);
         return null;
     } catch (e) {
         console.error('[TCTV] Aggregation error:', e.message);
