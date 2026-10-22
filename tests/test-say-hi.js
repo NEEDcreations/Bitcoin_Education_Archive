@@ -399,8 +399,8 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes('openSayHi()'));
     assert.ok(html.includes('#em-quick-actions { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }'));
     assert.ok(html.includes('@media (max-width: 480px)') && html.includes('#em-quick-actions { grid-template-columns: repeat(3, 1fr); }'));
-    assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2256'") === false);
-    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2256'"));
+    assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2264'") === false);
+    assert.ok(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').includes("const CACHE_NAME = 'btc-archive-v2264'"));
 });
 
 test('Nacho and search can open Say hi', function () {

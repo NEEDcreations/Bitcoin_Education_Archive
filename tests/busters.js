@@ -1,5 +1,5 @@
-// Cache-buster pin. Live gh-pages after #36 is btc-archive-v2262.
-// This branch is btc-archive-v2263. notifications.js stays on v2262.
+// Cache-buster pin. Live gh-pages after #38 is btc-archive-v2263.
+// This branch is btc-archive-v2264. notifications.js stays on v2262.
 // index.html and 404.html must stay identical.
 const assert = require('assert');
 const fs = require('fs');
@@ -17,10 +17,10 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2263', () => {
+test('service worker cache is v2264', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2263'"));
-    ['v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2247'].forEach(function(older) {
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2264'"));
+    ['v2263', 'v2262', 'v2261', 'v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2247'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });
