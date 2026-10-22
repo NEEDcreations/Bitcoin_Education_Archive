@@ -4340,6 +4340,8 @@ window._showToastNow = function _showToastNow(msg, duration) {
     // Strip dangerous tags but allow emoji and simple formatting
     t.innerHTML = _raw.replace(/<(script|svg|img|iframe|object|embed|form|input|link|style|meta|base)[^>]*>/gi, '').replace(/on\w+\s*=/gi, 'data-blocked=');
     if (typeof msg === 'object' && msg.duration) ms = msg.duration;
+    // Above Settings (400000) and the peer/gift dialogs (480000–540000).
+    t.style.zIndex = '620000';
     document.body.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, ms);
@@ -5013,14 +5015,26 @@ function showSettingsPage(tab) {
         // Peers / Gifts section - collapsible, above Advanced Account
         html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersGiftsBadge"></span> <span>▼</span></button>';
         html += '<div id="peersSectionContent" style="display:none;margin-bottom:12px;">';
-        html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:20px 0;">Loading...</div>';
+        html += '<style>@media(max-width:420px){.peer-action-row .peer-primary,.peer-action-row .peer-more{flex-basis:100%!important;}}'
+            + '#peersSectionContent .peer-sent{color:#f97316;}#peersSectionContent .peer-hold{color:#c4b5fd;}#peersSectionContent .peer-remove{color:#fca5a5;}'
+            + '[data-theme="light"] #peersSectionContent .peer-sent{color:#c2410c;}'
+            + '[data-theme="light"] #peersSectionContent .peer-hold{color:#6d28d9;}'
+            + '[data-theme="light"] #peersSectionContent .peer-remove{color:#b91c1c;}</style>';
+        html += '<div style="padding:12px 14px;margin-bottom:10px;background:var(--bg-side);border:1px solid rgba(247,147,26,0.45);border-radius:12px;text-align:left;">';
+        html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">Peers are people you can send keys to. A key opens a locked cipher with the same label. You can send up to 3 keys to each peer, once a day.</div>';
+        html += '</div>';
+        html += '<div style="padding:12px 14px;margin-bottom:12px;background:var(--bg-side);border:1px solid rgba(124,58,237,0.45);border-radius:12px;text-align:left;">';
+        html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">🔒 Locked cipher: you need a key with the same label, such as 3A, to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key, or ask in Global Chat.</div>';
+        html += '<button type="button" onclick="if(typeof window.openGlobalChatForCipher===\'function\')window.openGlobalChatForCipher()" style="margin-top:8px;min-height:40px;padding:8px 12px;background:transparent;border:1px solid var(--link);border-radius:8px;color:var(--link);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Global Chat</button>';
+        html += '</div>';
+        html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:left;padding:4px 0 8px;">Loading...</div>';
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
         html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🎡 Daily wheel and gifts</div>';
         html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Spin the daily wheel once a day. You earn 2 to 5 gifts. Open each gift right away — gifts are not stored. A gift can hold keys, locked ciphers, orange tickets, XP, a streak shield, a closet item, or a rare Nacho shoutout.</div>';
         html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Keys and locked ciphers carry labels such as 3A. A key opens the cipher with the same label. If you get a matching pair, open it right away. Otherwise send keys to peers: up to 3 keys per peer each day, and as many peers as you want.</div>';
         html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:10px;">You can open up to 21 ciphers per day. Most opens pay 50 to 250 XP and 0 to 10 orange tickets. Rare opens pay sats. Wins under 1,000 sats can be claimed with a Lightning invoice or address. Wins of 1,000 sats or more are paid by Phil.</div>';
         html += '<div id="giftsTabContent"></div>';
-        html += '<button type="button" onclick="if(typeof window.openNookInventory===\'function\'){window.openNookInventory();}else if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},200);}" style="margin-top:8px;width:100%;padding:10px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Open keys and ciphers</button>';
+        html += '<button type="button" onclick="if(typeof window.openKeysAndCiphers===\'function\')window.openKeysAndCiphers()" style="margin-top:8px;width:100%;padding:10px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Open keys and ciphers</button>';
         html += '</div>';
         // Partnership levels info
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
@@ -6688,9 +6702,13 @@ function showSettingsPage(tab) {
                         var puid = peers[i];
                         var _keysSentToday = !!_peerKeysSentToday[puid];
                         var _holdingKey = !!_peerKeysHeld[puid];
+                        window._peerNames = window._peerNames || {};
+                        window._peerNames[puid] = name;
+                        var _safeName = (typeof escapeHtml === 'function' ? escapeHtml(name) : name);
+                        var _safeUid = (typeof escapeHtml === 'function' ? escapeHtml(puid) : puid);
                         var _peerMarks = '';
-                        if (_keysSentToday) _peerMarks += '<span title="Keys already sent today" aria-label="Keys already sent today" style="font-size:1rem;color:#f7931a;flex-shrink:0;font-weight:900;line-height:1;">&#10140;</span>';
-                        if (_holdingKey) _peerMarks += '<span title="You are holding a key from this peer" aria-label="You are holding a key from this peer" style="font-size:0.95rem;flex-shrink:0;line-height:1;">&#128273;</span>';
+                        if (_keysSentToday) _peerMarks += '<span class="peer-sent" style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.35);font-size:0.72rem;font-weight:800;">Sent today</span>';
+                        if (_holdingKey) _peerMarks += '<span class="peer-hold" style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.45);font-size:0.72rem;font-weight:800;">Holding their key</span>';
                         var pLvl = typeof getLevel === 'function' ? getLevel(d.points || 0) : { name: 'Pleb', emoji: '🌱' };
                         var pStreak = d.streak || 0;
                         var pPosts = d.forumPosts || 0;
@@ -6714,28 +6732,34 @@ function showSettingsPage(tab) {
                         summaryParts.push(pLvl.emoji + ' ' + pLvl.name);
                         if (pStreak > 0) summaryParts.push('🔥 ' + pStreak + 'd');
                         var summaryText = summaryParts.join(' · ');
-                        peerHtml += '<div style="border-bottom:1px solid var(--border);padding:8px 0;">' +
-                            // Header row: name + expand arrow + remove
-                            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-                                '<span style="flex:1;font-size:0.9rem;cursor:pointer;color:var(--text);min-width:0;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
-                                _peerMarks +
-                                '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">' + summaryText + '</span>' +
-                                '<button onclick="var el=document.getElementById(\'' + pDetailId + '\');var arr=this.querySelector(\'span\');if(el.style.display===\'none\'){el.style.display=\'block\';arr.textContent=\'▲\';}else{el.style.display=\'none\';arr.textContent=\'▼\';}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;"><span>▼</span></button>' +
-                                '<button onclick="window.managePeer(\'remove\',\'' + puid + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
+                        var _sendLabel = _keysSentToday ? '🔑 Sent today' : '🔑 Send keys';
+                        var _sendStyle = _keysSentToday
+                            ? 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text);'
+                            : 'background:linear-gradient(135deg,#f7931a,#ea580c);border:none;color:#fff;';
+                        var _limitLine = _keysSentToday
+                            ? 'Sent today. The limit is 3 keys per peer, once a day. You can send again tomorrow.'
+                            : 'Up to 3 keys per peer per day.';
+                        peerHtml += '<div style="border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 10px;background:var(--bg-side);">' +
+                            '<div style="font-size:1rem;font-weight:800;color:var(--heading);word-break:break-word;line-height:1.3;">🧡 ' + _safeName + '</div>' +
+                            '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-dim);line-height:1.4;">' + summaryText + '</div>' +
+                            (_peerMarks ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + _peerMarks + '</div>' : '') +
+                            '<div class="peer-action-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">' +
+                                '<button type="button" class="peer-primary" data-peer-action="send-keys" data-peer-uid="' + _safeUid + '" style="flex:1 1 160px;min-height:44px;padding:10px 12px;border-radius:10px;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;' + _sendStyle + '">' + _sendLabel + '</button>' +
+                                '<button type="button" class="peer-more" data-peer-action="more" data-peer-panel="' + pDetailId + '" aria-expanded="false" style="flex:1 1 140px;min-height:44px;padding:10px 12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">More options ▾</button>' +
                             '</div>' +
-                            // Expandable detail panel
-                            '<div id="' + pDetailId + '" style="display:none;margin-top:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +
+                            '<div style="margin-top:6px;font-size:0.75rem;color:var(--text-dim);line-height:1.4;">' + _limitLine + '</div>' +
+                            '<div style="display:flex;justify-content:flex-end;margin-top:4px;">' +
+                                '<button type="button" class="peer-remove" data-peer-action="remove" data-peer-uid="' + _safeUid + '" style="padding:6px 10px;background:transparent;border:1px solid rgba(220,38,38,0.45);border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>' +
+                            '</div>' +
+                            '<div id="' + pDetailId + '" style="display:none;margin-top:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;">' +
                                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;">' +
                                     '<div style="color:var(--text-muted);">⭐ <b style="color:var(--text);">' + pXP + '</b> XP</div>' +
                                     '<div style="color:var(--text-muted);">🔥 <b style="color:var(--text);">' + pStreak + 'd</b> streak</div>' +
                                     '<div style="color:var(--text-muted);">🗣️ <b style="color:var(--text);">' + pPosts + '</b> posts</div>' +
                                     '<div style="color:var(--text-muted);">📅 <b style="color:var(--text);">' + (pWeekly > 0 ? '+' + pWeekly.toLocaleString() + ' XP this week' : 'No XP this week') + '</b></div>' +
                                 '</div>' +
-                                (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-faint);">' + pLastStr + '</div>' : '') +
-                                '<button onclick="document.getElementById(\'' + pDetailId + '\').previousElementSibling.querySelector(\'button\').click()" style="margin-top:8px;width:100%;padding:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.72rem;cursor:pointer;">View Full Profile →</button>' +
-                                (_keysSentToday
-                                    ? '<div style="margin-top:6px;width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.78rem;font-weight:700;text-align:center;">&#10140; Keys already sent today</div>'
-                                    : '<button onclick="if(typeof window.showKeyPickerForPeer===\'function\'){window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\');}else{var _kpR=0;var _kpT=setInterval(function(){if(typeof window.showKeyPickerForPeer===\'function\'){clearInterval(_kpT);window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\');}else if(++_kpR>=20)clearInterval(_kpT);},500);}" style="margin-top:6px;width:100%;padding:8px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.06));border:1px solid rgba(247,147,26,0.35);border-radius:8px;color:#f7931a;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 Send Keys to ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</button>') +
+                                (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-dim);">' + pLastStr + '</div>' : '') +
+                                '<button type="button" data-peer-action="profile" data-peer-uid="' + _safeUid + '" style="margin-top:8px;width:100%;min-height:40px;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">View profile</button>' +
                             '</div>' +
                         '</div>';
                     });
@@ -6744,6 +6768,19 @@ function showSettingsPage(tab) {
                 var finalHtml = '';
                 if (reqHtml) finalHtml += reqHtml + '<h4 style="font-size:0.85rem;margin:16px 0 8px;color:var(--text);">Your Peers (' + peers.length + ')</h4>';
                 finalHtml += peerHtml;
+                if (!window._peerRowClicksBound) {
+                    window._peerRowClicksBound = true;
+                    document.addEventListener('click', function(ev) {
+                        var btn = ev.target && ev.target.closest ? ev.target.closest('[data-peer-action]') : null;
+                        if (!btn) return;
+                        var action = btn.getAttribute('data-peer-action');
+                        var uid = btn.getAttribute('data-peer-uid');
+                        if (action === 'send-keys') window._sendKeysToPeer(uid);
+                        else if (action === 'more') window._togglePeerMore(btn);
+                        else if (action === 'remove') window.confirmRemovePeer(uid, btn);
+                        else if (action === 'profile') window._viewPeerProfile(uid);
+                    });
+                }
                 var listEl2 = document.getElementById('peersList');
                 if (listEl2) listEl2.innerHTML = finalHtml || '<p style="text-align:center;color:var(--text-muted);">No peers yet</p>';
             } catch(e) {
@@ -8578,6 +8615,121 @@ window._buyStreakFreeze = async function(amount) {
         if (err.code === 'resource-exhausted') msg = err.message;
         if (typeof showToast === 'function') showToast('\u274c ' + msg);
     }
+};
+
+// Opens Global Chat above Settings (z-index 400000) and the quest hub.
+window.openGlobalChatForCipher = function() {
+    function lift() {
+        var panel = document.getElementById('chatOverlay');
+        if (panel) panel.style.zIndex = '460000';
+    }
+    function open() {
+        if (!window._chatOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
+        lift();
+    }
+    if (typeof toggleChatOverlay === 'function') { open(); return; }
+    if (typeof window._loadDeferred === 'function') window._loadDeferred();
+    if (typeof showToast === 'function') showToast('Opening Global Chat…');
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries++;
+        if (typeof toggleChatOverlay === 'function') { clearInterval(timer); open(); }
+        else if (tries > 20) clearInterval(timer);
+    }, 300);
+};
+
+// Quest hub is z-index 100000, under Settings at 400000. Lift it when opened from here.
+window.openKeysAndCiphers = function() {
+    function raise() {
+        var hub = document.getElementById('questHubOverlay');
+        var settings = document.getElementById('usernameModal');
+        if (hub && settings && settings.classList.contains('open')) hub.style.zIndex = '450000';
+    }
+    if (typeof window.openNookInventory === 'function') window.openNookInventory();
+    else if (typeof showQuestHub === 'function') {
+        showQuestHub();
+        setTimeout(function() {
+            window._questHubTab = 'nook';
+            window._nookSubTab = 'inventory';
+            if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+            raise();
+        }, 200);
+    }
+    setTimeout(raise, 300);
+};
+
+window._togglePeerMore = function(btn) {
+    if (!btn) return;
+    var el = document.getElementById(btn.getAttribute('data-peer-panel'));
+    if (!el) return;
+    var willOpen = el.style.display === 'none';
+    el.style.display = willOpen ? 'block' : 'none';
+    btn.textContent = willOpen ? 'More options ▴' : 'More options ▾';
+    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+};
+
+window._sendKeysToPeer = function(uid) {
+    var name = (window._peerNames && window._peerNames[uid]) || 'peer';
+    function go() {
+        if (typeof window.showKeyPickerForPeer !== 'function') return false;
+        window.showKeyPickerForPeer(uid, name);
+        return true;
+    }
+    if (go()) return;
+    if (typeof showToast === 'function') showToast('Loading keys…');
+    var tries = 0;
+    var timer = setInterval(function() {
+        if (go() || ++tries >= 20) clearInterval(timer);
+    }, 500);
+};
+
+window._viewPeerProfile = function(uid) {
+    if (typeof showUserProfile === 'function') showUserProfile(uid);
+    function lift() {
+        var modal = document.getElementById('userProfileModal');
+        if (modal) modal.style.zIndex = '530000';
+    }
+    setTimeout(lift, 40);
+    setTimeout(lift, 400);
+};
+
+window.confirmRemovePeer = function(uid, btnEl) {
+    var name = (window._peerNames && window._peerNames[uid]) || 'this peer';
+    var old = document.getElementById('peerRemoveConfirm');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'peerRemoveConfirm';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:540000;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px;';
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:18px;width:100%;max-width:400px;box-shadow:0 12px 40px rgba(0,0,0,0.45);';
+    var title = document.createElement('div');
+    title.style.cssText = 'font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;';
+    title.textContent = 'Remove ' + name + '?';
+    var body = document.createElement('div');
+    body.style.cssText = 'font-size:0.85rem;color:var(--text-muted);line-height:1.45;margin-bottom:14px;';
+    body.textContent = 'They will no longer be a peer. You cannot send them keys until you connect again.';
+    var yes = document.createElement('button');
+    yes.type = 'button';
+    yes.textContent = 'Remove peer';
+    yes.style.cssText = 'width:100%;min-height:44px;padding:10px;border:none;border-radius:10px;background:#b91c1c;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;';
+    yes.onclick = function() {
+        overlay.remove();
+        window.managePeer('remove', uid, btnEl).then(function() {
+            if (typeof showSettingsPage === 'function') showSettingsPage('account');
+        });
+    };
+    var no = document.createElement('button');
+    no.type = 'button';
+    no.textContent = 'Cancel';
+    no.style.cssText = 'width:100%;min-height:40px;margin-top:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;';
+    no.onclick = function() { overlay.remove(); };
+    card.appendChild(title);
+    card.appendChild(body);
+    card.appendChild(yes);
+    card.appendChild(no);
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
 };
 
 // Old gift-send entry point. Gifts are opened, not forwarded; this sends keys.

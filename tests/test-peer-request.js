@@ -292,7 +292,8 @@ queue.push(test('settings buttons pass the clicked element into managePeer', fun
     const ranking = read('ranking.js');
     assert.ok(ranking.includes("managePeer(\\'accept\\',\\'' + d.from + '\\',this)"));
     assert.ok(ranking.includes("managePeer(\\'decline\\',\\'' + d.from + '\\',this)"));
-    assert.ok(ranking.includes("managePeer(\\'remove\\',\\'' + puid + '\\',this)"));
+    assert.ok(ranking.includes('data-peer-action="remove"'));
+    assert.ok(ranking.includes("managePeer('remove', uid, btnEl)"));
 }));
 
 queue.push(test('managePeer send reads in one batch and writes the request with the notification', function() {
@@ -384,22 +385,33 @@ queue.push(test('Quest Hub tab label is Nook/Inv on the shared desktop and mobil
     assert.strictEqual(quests.includes('>🦌 Nook/Inventory'), false);
 }));
 
-queue.push(test('cache busters keep v2246 for prediction files and v2250 for this PR', function() {
+queue.push(test('cache busters are v2251 and index.html matches 404.html', function() {
     const html = read('index.html');
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261022_v2246'));
+    assert.ok(html.includes('ranking.js?v=20261022_lightfix'));
+    assert.ok(html.includes('gifting.js?v=20261022_lightfix'));
+    assert.strictEqual(html.includes('ranking.js?v=20261022_v2251'), false);
+    assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
     assert.ok(html.includes('bundle.min.js?v=20261022_v2246'));
-    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2250/g) || []).length, 2);
+    assert.ok(html.includes('global-chat.js?v=20261022_v2251'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));
+    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2251/g) || []).length, 2);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2250'), false);
+    assert.strictEqual(html.includes('ranking.js?v=20261022_v2246'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2245'), false);
+    assert.strictEqual(html.includes('ranking.js?v=20261022_peerux'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_appcheck'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_gifts'), false);
+    assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2250'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2251'"));
+    assert.strictEqual(sw.includes('btc-archive-v2250'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2249'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2248'), false);
     assert.strictEqual(sw.includes('btc-archive-v2246'), false);
     assert.strictEqual(sw.includes('btc-archive-v2245'), false);
     assert.strictEqual(sw.includes('btc-archive-v2242'), false);

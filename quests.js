@@ -8540,7 +8540,7 @@ window._showPinnedBadgeSelector = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'pinnedBadgeSelectorOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var currentPinned = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pinnedBadgeId || '') : '';
@@ -8597,7 +8597,7 @@ window._showChatFlairPicker = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'chatFlairPickerOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0;">';
