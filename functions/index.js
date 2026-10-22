@@ -8612,3 +8612,5 @@ exports.claimSayHi = sayHiFns.claimSayHi;
 const { bindReplyBonus } = require('./src/replyBonus');
 const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
 exports.claimReplyBonus = replyBonusFns.claimReplyBonus;
+const { registerOnboarding } = require('./src/onboardingApi');
+Object.assign(exports, registerOnboarding({ db: db, admin: admin, functionsV1: functionsV1 }));

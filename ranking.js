@@ -176,19 +176,15 @@ function initRanking() {
             localStorage.removeItem('btc_anon_data');
 
             if (!existingDoc.exists) {
-                if (anonData) {
-                    anonData.email = user.email || '';
-                    if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
-                    anonData.created = firebase.firestore.FieldValue.serverTimestamp();
-                    await db.collection('users').doc(user.uid).set(anonData);
-                } else {
-                    await db.collection('users').doc(user.uid).set({
-                        username: user.displayName || 'Bitcoiner',
-                        email: user.email || '',
-                        points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
-                        lastVisit: new Date().toISOString().split('T')[0],
-                        created: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                var _redirExtra = {};
+                if (user.email) _redirExtra.email = user.email;
+                await db.collection('users').doc(user.uid).set(clientCreatePayload(_redirExtra));
+                var _redirName = localStorage.getItem('btc_pending_username') || '';
+                if (_redirName) {
+                    try { await applyServerUsername(_redirName); }
+                    catch (nameErr) { if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400); }
+                } else if (typeof showUsernamePrompt === 'function') {
+                    setTimeout(showUsernamePrompt, 400);
                 }
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                 if (typeof attachReferral === 'function') attachReferral(user.uid);
@@ -197,14 +193,8 @@ function initRanking() {
                 // Anti-abuse: only merge anonymous data once per account
                 // Anonymous data merge now handled minimally (points/visits are server-managed)
                 if (!existData.mergedAnon) {
-                    await existingDoc.ref.update({
-                        mergedAnon: true,
-                    });
-                    // Award any anonymous points through the server-side Cloud Function
-                    var _mergedPts = Math.min(anonData.points || 0, 500);
-                    if (_mergedPts > 0 && typeof awardPoints === 'function') {
-                        await awardPoints(_mergedPts, '\uD83D\uDD17 Anonymous progress merged');
-                    }
+                    try { await existingDoc.ref.update({ mergedAnon: true }); } catch (e) {}
+                    if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
                     // Merge anonymous badges into existing account's visibleBadges.
                     // Anonymous users can't write to Firestore, so their badges are
                     // localStorage-only. mergeAnonBadges CF validates + unions them
@@ -229,16 +219,14 @@ function initRanking() {
                 try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
             }
 
+            if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
             loadUser(user.uid);
             updateAuthButton();
             if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
-            showToast('\u2705 Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
-            // first_save badge: was anonymous, now signed in with real account
+            showToast('You are signed in.');
             if (anonUid && anonUid !== user.uid) {
                 setTimeout(function() {
                     if (typeof awardPoints === 'function') awardPoints(50, '\u2705 Saved your progress!', null, null, null, 'first_save');
-                    // Also show the pleb moment
-                    if (typeof window._showPlebMoment === 'function') setTimeout(window._showPlebMoment, 2000);
                 }, 1500);
             }
             return user;
@@ -272,7 +260,7 @@ function initRanking() {
                 var prevUid = localStorage.getItem('btc_last_auth_uid');
                 if (prevUid && prevUid !== user.uid) {
                     console.log('[Auth] Account switch detected:', prevUid, '->', user.uid, '- clearing localStorage');
-                    clearUserLocalStorage();
+                    clearUserLocalStorage({ keepGuest: !!localStorage.getItem('btc_guest_link') });
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
                 // Sync experienceMode from Firestore (cross-device continuity)
@@ -469,7 +457,8 @@ async function finishEmailSignIn(email, _signInUrl) {
         }
 
         // Sign in with email link (use saved URL that still has Firebase params)
-        console.log('[Email Sign-In] Starting signInWithEmailLink for:', email);
+        if (typeof stashGuestLink === 'function') { try { await stashGuestLink(); } catch (e) {} }
+        console.log('[Email Sign-In] Starting sign-in');
         const result = await auth.signInWithEmailLink(email, _signInUrl);
         console.log('[Email Sign-In] Sign-in result:', result.user ? result.user.uid : 'no user');
         localStorage.removeItem('btc_signin_email');
@@ -497,24 +486,34 @@ async function finishEmailSignIn(email, _signInUrl) {
         const existingDoc = await db.collection('users').doc(emailUid).get();
         console.log('[Email Sign-In] Existing doc exists:', existingDoc.exists);
 
-        if (!existingDoc.exists && anonData) {
-            // Migrate anonymous data to email account
-            anonData.email = email;
-            anonData.created = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('users').doc(emailUid).set(anonData);
-        } else if (existingDoc.exists && anonData) {
-            // Existing email user - merge points if anon had more (one-time only)
-            const existData = existingDoc.data();
-            var _mergedPts = Math.min(anonData.points || 0, 500);
-                if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
-                await existingDoc.ref.update({
-                    points: Math.max(_mergedPts, existData.points || 0),
-                    channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
-                    totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
-                    mergedAnon: true,
-                });
+        const pendingUsername = localStorage.getItem('btc_pending_username');
+        const pendingLnAddress = localStorage.getItem('btc_pending_ln_address') || '';
+        const pendingFaction  = localStorage.getItem('btc_pending_faction')    || '';
+        const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
+        if (!existingDoc.exists) {
+            var extra = {
+                email: email,
+                tosVersion: TOS_CURRENT_VERSION,
+                tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            var _emailLn = normalizeClientLn(pendingLnAddress);
+            if (clientLnValid(_emailLn)) { extra.lightning = _emailLn; extra.lightningAddress = _emailLn; }
+            if (pendingFaction) extra.faction = pendingFaction;
+            if (pendingCountry) extra.country = pendingCountry;
+            var _emailSrc = localStorage.getItem('btc_signup_source');
+            if (_emailSrc) extra.signupSource = _emailSrc;
+            await db.collection('users').doc(emailUid).set(clientCreatePayload(extra));
+            try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+            if (typeof attachReferral === 'function') attachReferral(emailUid);
+            if (pendingUsername) {
+                try { await applyServerUsername(pendingUsername); }
+                catch (nameErr) {
+                    showToast(nameErr.message || 'Pick a different username.');
+                    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                }
             }
         }
+        if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
 
         // Delete the old anonymous user document to prevent duplicates on leaderboard
         if (anonUid && anonUid !== emailUid) {
@@ -523,40 +522,6 @@ async function finishEmailSignIn(email, _signInUrl) {
 
         // Clean URL
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-
-        // Check if this was a new registration (pending username from signup form)
-        const pendingUsername = localStorage.getItem('btc_pending_username');
-        const pendingEmail = localStorage.getItem('btc_pending_email');
-        const pendingLnAddress = localStorage.getItem('btc_pending_ln_address') || '';
-        const pendingFaction  = localStorage.getItem('btc_pending_faction')    || '';
-        const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
-        if (pendingUsername && !existingDoc.exists) {
-            // New user verifying their email - create their full account now
-            const userData = {
-                username: pendingUsername,
-                email: email,
-                points: 0,
-                channelsVisited: 0,
-                totalVisits: 1,
-                streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            var _emailLn = normalizeClientLn(pendingLnAddress);
-            if (clientLnValid(_emailLn)) { userData.lightning = _emailLn; userData.lightningAddress = _emailLn; }
-            if (pendingFaction)   { userData.faction = pendingFaction; }
-            if (pendingCountry)   { userData.country = pendingCountry; }
-            var _emailSrc = localStorage.getItem('btc_signup_source');
-            if (_emailSrc) { userData.signupSource = _emailSrc; }
-            // TOS acceptance recorded at signup (email verification path)
-            userData.tosVersion = TOS_CURRENT_VERSION;
-            userData.tosAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('users').doc(emailUid).set(userData);
-            try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
-
-            // Attach referral if they came via referral link
-            if (typeof attachReferral === 'function') attachReferral(emailUid);
-        }
 
         // Clean up pending data
         localStorage.removeItem('btc_pending_username');
@@ -569,7 +534,7 @@ async function finishEmailSignIn(email, _signInUrl) {
         localStorage.removeItem('btc_wallet_addrs');
 
         loadUser(emailUid);
-        showToast('✅ Email verified! Signed in as ' + escapeHtml(pendingUsername || email));
+        showToast('Email verified. You\'re signed in.');
     } catch(e) {
         console.error('[Email Sign-In] Full error:', e.code, e.message, e.stack);
         // MFA required
@@ -927,12 +892,16 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             if (!userDoc.exists || !userDoc.data().created) {
                 await db.collection('users').doc(uid).set({ created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
             }
-            if (!userDoc.exists || !userDoc.data().username) {
-                var npubShort = 'npub...' + pubkey.substring(0, 8);
-                var _nostrUserData = { username: npubShort, nostr: pubkey, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
-                if (!userDoc.exists) { _nostrUserData.points = 0; _nostrUserData.channelsVisited = 0; }
-                await db.collection('users').doc(uid).set(_nostrUserData, { merge: true });
+            if (!userDoc.exists) {
+                await db.collection('users').doc(uid).set(clientCreatePayload({ nostr: pubkey }), { merge: true });
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+            } else if (pubkey) {
+                try { await db.collection('users').doc(uid).set({ nostr: pubkey }, { merge: true }); } catch (e) {}
+            }
+            if (!userDoc.exists || !userDoc.data() || !userDoc.data().username) {
+                var npubShort = 'npub' + String(pubkey || '').replace(/[^a-f0-9]/gi, '').substring(0, 8);
+                try { await applyServerUsername(npubShort); }
+                catch (nameErr) { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }
             }
             loadUser(uid); hideUsernamePrompt();
             var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
@@ -1004,7 +973,18 @@ window.signInWithLightning = async function() {
         var copyWrap = document.getElementById('lnAuthCopyWrap');
         if (copyWrap) {
             copyWrap.style.display = 'block';
-            copyWrap.innerHTML = '<button onclick="navigator.clipboard.writeText(\'' + lnurlEncoded + '\').then(function(){showToast(\'Copied!\');})" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;">📋 Copy LNURL</button>';
+            copyWrap.textContent = '';
+            var copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.textContent = 'Copy LNURL';
+            copyBtn.style.cssText = 'padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;cursor:pointer;font-family:inherit;';
+            copyBtn.addEventListener('click', function () {
+                var text = String(lnurlEncoded || '');
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(function () { if (typeof showToast === 'function') showToast('Copied'); }).catch(function () {});
+                }
+            });
+            copyWrap.appendChild(copyBtn);
         }
 
         // Update status
@@ -1033,12 +1013,14 @@ window.signInWithLightning = async function() {
                     // Set up user doc if needed
                     var uid = verifyResult.data.uid;
                     var userDoc = await db.collection('users').doc(uid).get();
-                    if (!userDoc.exists || !userDoc.data().username) {
-                        var lnName = '⚡anon-' + k1.substring(0, 8);
-                        var _lnUserData = { username: lnName, authMethod: 'lightning', totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
-                        if (!userDoc.exists) { _lnUserData.points = 0; _lnUserData.channelsVisited = 0; _lnUserData.created = firebase.firestore.FieldValue.serverTimestamp(); }
-                        await db.collection('users').doc(uid).set(_lnUserData, { merge: true });
+                    if (!userDoc.exists) {
+                        await db.collection('users').doc(uid).set(clientCreatePayload({}));
                         try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+                    }
+                    if (!userDoc.exists || !userDoc.data() || !userDoc.data().username) {
+                        var lnName = 'ln' + String(k1 || '').replace(/[^a-f0-9]/gi, '').substring(0, 8);
+                        try { await applyServerUsername(lnName); }
+                        catch (nameErr) { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }
                     }
 
                     loadUser(uid);
@@ -1096,6 +1078,7 @@ async function _saveAnonDataGlobal() {
     var anonUid = null, anonData = null;
     if (anonUser && anonUser.isAnonymous) {
         anonUid = anonUser.uid;
+        try { await stashGuestLink(); } catch (e) {}
         try {
             var anonDoc = await db.collection('users').doc(anonUid).get();
             if (anonDoc.exists) anonData = anonDoc.data();
@@ -1118,30 +1101,22 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
 
     var existingDoc = await db.collection('users').doc(user.uid).get();
     if (!existingDoc.exists) {
-        if (anonData) {
-            anonData.email = user.email || '';
-            if (!anonData.username) anonData.username = _pendingUN || user.displayName || 'Bitcoiner';
-            var _anonLn = normalizeClientLn(_pendingLn);
-            if (clientLnValid(_anonLn)) { anonData.lightning = _anonLn; anonData.lightningAddress = _anonLn; }
-            if (_pendingFaction) { anonData.faction = _pendingFaction; }
-            if (_pendingCountry) { anonData.country = _pendingCountry; }
-            anonData.created = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('users').doc(user.uid).set(anonData);
-        } else {
-            var _newUN = _pendingUN || user.displayName || 'Bitcoiner';
-            var _newProviderDoc = {
-                username: _newUN,
-                username_lower: _newUN.toLowerCase(),
-                email: user.email || '',
-                points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            var _provLn = normalizeClientLn(_pendingLn);
-            if (clientLnValid(_provLn)) { _newProviderDoc.lightning = _provLn; _newProviderDoc.lightningAddress = _provLn; }
-            if (_pendingFaction) { _newProviderDoc.faction = _pendingFaction; }
-            if (_pendingCountry) { _newProviderDoc.country = _pendingCountry; }
-            await db.collection('users').doc(user.uid).set(_newProviderDoc);
+        var _provExtra = {};
+        if (user.email) _provExtra.email = user.email;
+        var _provLn = normalizeClientLn(_pendingLn);
+        if (clientLnValid(_provLn)) { _provExtra.lightning = _provLn; _provExtra.lightningAddress = _provLn; }
+        if (_pendingFaction) _provExtra.faction = _pendingFaction;
+        if (_pendingCountry) _provExtra.country = _pendingCountry;
+        await db.collection('users').doc(user.uid).set(clientCreatePayload(_provExtra));
+        var _nameTry = _pendingUN || '';
+        if (_nameTry) {
+            try { await applyServerUsername(_nameTry); }
+            catch (nameErr) {
+                showToast(nameErr.message || 'Pick a different username.');
+                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            }
+        } else if (typeof showUsernamePrompt === 'function') {
+            showUsernamePrompt();
         }
     } else {
         // Returning user - apply fields they typed only if not already set
@@ -1160,15 +1135,7 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
         if (Object.keys(_returnUpdates).length) {
             try { await existingDoc.ref.update(_returnUpdates); } catch(e) {}
         }
-        if (anonData) {
-            var existData = existingDoc.data();
-            var _mergedPts = Math.min(anonData.points || 0, 500);
-            // NOTE: points/channelsVisited/totalVisits are server-only fields (Firestore rules denylist).
-            // Client cannot update them — skip silently. mergedAnon flag is allowed.
-            if (!existData.mergedAnon) {
-                try { await existingDoc.ref.update({ mergedAnon: true }); } catch(e) {}
-            }
-        }
+        if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
         if (!existingDoc.data().email && user.email) {
             try { await existingDoc.ref.update({ email: user.email }); } catch(e) {}
         }
@@ -1176,22 +1143,14 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
     if (anonUid && anonUid !== user.uid) {
         try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
     }
+    if (typeof tryLinkGuest === 'function') { try { await tryLinkGuest(); } catch (e) {} }
     loadUser(user.uid);
     if (!existingDoc.exists) {
         if (typeof attachReferral === 'function') attachReferral(user.uid);
-        hideUsernamePrompt();
-        showToast('✅ Welcome, ' + escapeHtml(user.displayName || user.email || 'Bitcoiner') + '!');
-        // Show Quest Guide for brand new provider sign-ups
-        try {
-            localStorage.removeItem('guide_dismissed');
-            localStorage.removeItem('guide_seen');
-            if (typeof showGuide === 'function') {
-                setTimeout(function() { showGuide(); }, 1500);
-            }
-        } catch(e) {}
+        showToast('Welcome. You are signed in.');
     } else {
         hideUsernamePrompt();
-        showToast('✅ Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
+        showToast('You are signed in.');
     }
 }
 
@@ -1317,6 +1276,7 @@ async function signInWithProvider(provider) {
             const anonUser = auth.currentUser;
             if (anonUser && anonUser.isAnonymous) {
                 localStorage.setItem('btc_anon_uid', anonUser.uid);
+                try { await stashGuestLink(); } catch (e) {}
                 db.collection('users').doc(anonUser.uid).get().then(function(doc) {
                     if (doc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(doc.data()));
                 }).catch(function() {});
@@ -1362,6 +1322,7 @@ async function signInWithProvider(provider) {
                 const anonUser = auth.currentUser;
                 if (anonUser && anonUser.isAnonymous) {
                     localStorage.setItem('btc_anon_uid', anonUser.uid);
+                    try { await stashGuestLink(); } catch (e) {}
                     try {
                         const anonDoc = await db.collection('users').doc(anonUser.uid).get();
                         if (anonDoc.exists) {
@@ -1691,15 +1652,20 @@ async function loadUser(uid, prefetchedDoc) {
             // Mark onboarding complete for existing users on new devices.
             // An existing user has a username in Firestore - they clearly already onboarded.
             // This prevents the onboarding wizard from firing on every new device login.
-            if (currentUser.username) {
-                try { localStorage.setItem('btc_onboarding_done', 'true'); } catch(e) {}
+            if (currentUser.username || currentUser.introSeen) {
+                try {
+                    localStorage.setItem('btc_onboarding_done', 'true');
+                    localStorage.setItem('btc_intro_seen', '1');
+                } catch(e) {}
             }
+            if (typeof tryLinkGuest === 'function') { tryLinkGuest().catch(function () {}); }
+            if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
             // Restore SF window streak from Firestore so speed boost survives new-device login
             if (typeof currentUser.sfWindowStreak === 'number') {
                 try { localStorage.setItem('btc_sf_window_streak', String(currentUser.sfWindowStreak)); } catch(e) {}
             }
             // Restore Nacho Quest state from Firestore so mid-quest progress survives new-device login
-            if (currentUser.nachoQuestDone) {
+            if (currentUser.nachoQuestDone || (currentUser.onboardingQuest && currentUser.onboardingQuest.complete)) {
                 try {
                     localStorage.setItem('btc_onboarding_quest_done', '1');
                     localStorage.removeItem('btc_onboarding_active');
@@ -1987,17 +1953,9 @@ async function loadUser(uid, prefetchedDoc) {
         // User exists in auth but not in Firestore - recreate their doc
         const user = auth.currentUser;
         if (user && !user.isAnonymous) {
-            const newData = {
-                username: user.displayName || 'Bitcoiner',
-                email: user.email || '',
-                points: 0,
-                channelsVisited: 0,
-                totalVisits: 1,
-                streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
+            const newData = clientCreatePayload({ email: user.email || '' });
             await db.collection('users').doc(uid).set(newData);
+            if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400);
             currentUser = { uid, ...newData };
             rankingReady = true;
             window._badgesReady = true;
@@ -2124,6 +2082,58 @@ function containsProfanity(str) {
     return false;
 }
 
+function clientCreatePayload(extra) {
+    var data = {
+        points: 0,
+        channelsVisited: 0,
+        totalVisits: 1,
+        streak: 1,
+        lastVisit: new Date().toISOString().split('T')[0],
+        created: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    var allow = { email: 1, profilePic: 1, displayName: 1, faction: 1, country: 1, lightning: 1, lightningAddress: 1, nostr: 1, lastLogin: 1, signupSource: 1, tosVersion: 1, tosAcceptedAt: 1 };
+    var src = extra || {};
+    Object.keys(src).forEach(function (k) {
+        if (allow[k] && src[k] !== undefined && src[k] !== '') data[k] = src[k];
+    });
+    return data;
+}
+
+async function applyServerUsername(name) {
+    var fn = firebase.functions().httpsCallable('setUsername');
+    var res = await fn({ name: name });
+    var data = res && res.data ? res.data : {};
+    if (!data.ok || !data.username) throw new Error('Could not save that username.');
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.username = data.username;
+    try { localStorage.setItem('btc_username', data.username); } catch (e) {}
+    return data.username;
+}
+window.applyServerUsername = applyServerUsername;
+
+async function stashGuestLink() {
+    if (!auth || !auth.currentUser || !auth.currentUser.isAnonymous) return;
+    if (localStorage.getItem('btc_guest_link')) return;
+    var fn = firebase.functions().httpsCallable('prepareGuestLink');
+    var res = await fn({});
+    if (res && res.data && res.data.nonce) {
+        localStorage.setItem('btc_guest_link', JSON.stringify({ anonUid: auth.currentUser.uid, nonce: res.data.nonce }));
+    }
+}
+window.stashGuestLink = stashGuestLink;
+
+async function tryLinkGuest() {
+    var raw = localStorage.getItem('btc_guest_link');
+    if (!raw || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    var parsed = null;
+    try { parsed = JSON.parse(raw); } catch (e) { return; }
+    if (!parsed || !parsed.anonUid || parsed.anonUid === auth.currentUser.uid) return;
+    var fn = firebase.functions().httpsCallable('linkGuestAccount');
+    await fn({ anonUid: parsed.anonUid, nonce: parsed.nonce });
+    localStorage.removeItem('btc_guest_link');
+    if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
+}
+window.tryLinkGuest = tryLinkGuest;
+
 async function createUser(username, email, enteredGiveaway, giveawayLnAddress, country) { // giveaway params kept for call-site compat; giveawayLnAddress now used as lightningAddress
     // Wait for auth to be ready if not yet
     if (typeof auth === 'undefined' || !auth) {
@@ -2155,13 +2165,11 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     const uid = auth.currentUser.uid;
-    // Clear any leftover data from previous users on this browser
-    clearUserData();
     username = sanitizeInput(username);
     // Strip non-ASCII characters (prevents Unicode/homoglyph bypass)
     username = username.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
-    if (!username || username.length < 2) {
-        showToast('⚠️ Username must be at least 2 characters (letters, numbers, basic symbols only).');
+    if (!username || username.length < 3) {
+        showToast('Username must be at least 3 characters.');
         return;
     }
     // Only allow English letters, digits, spaces, underscores, hyphens, and dots
@@ -2180,16 +2188,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     if (email) email = sanitizeInput(email);
-    const userData = {
-        username: username,
-        username_lower: username.toLowerCase(),
-        points: 0,
-        channelsVisited: 0,
-        totalVisits: 1,
-        streak: 1,
-        lastVisit: new Date().toISOString().split('T')[0],
-        created: firebase.firestore.FieldValue.serverTimestamp()
-    };
+    const userData = clientCreatePayload({});
     if (email) userData.email = email;
     if (country) userData.country = country;
     // Lightning address from signup field
@@ -2215,7 +2214,14 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     userData.tosVersion = TOS_CURRENT_VERSION;
     userData.tosAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
 
-    await db.collection('users').doc(uid).set(userData);
+    var _existingAccount = await db.collection('users').doc(uid).get();
+    if (!_existingAccount.exists) await db.collection('users').doc(uid).set(userData);
+    try { await applyServerUsername(username); }
+    catch (nameErr) {
+        showToast(nameErr.message || 'Pick a different username.');
+        return;
+    }
+    userData.username = username;
     // Increment global registered user count
     try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
     currentUser = { uid, ...userData };
@@ -2227,17 +2233,8 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
-    // Confirm LN address was saved
-    if (_signupLn) setTimeout(function() { showToast('⚡ Lightning address saved to your profile!'); }, 1200);
-    // Show Quest Guide for new accounts (reset dismiss so they see it fresh)
-    try {
-        localStorage.removeItem('guide_dismissed');
-        localStorage.removeItem('guide_seen');
-        if (typeof showGuide === 'function') {
-            setTimeout(function() { showGuide(); }, 800);
-        }
-    } catch(e) {}
-
+    if (_signupLn) setTimeout(function() { showToast('Lightning address saved to your profile.'); }, 1200);
+    if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
 
     // Attach referral if user came via referral link
     if (typeof attachReferral === 'function') attachReferral(uid);
@@ -6082,6 +6079,7 @@ function showSettingsPage(tab) {
                 (sel?'<span style="color:var(--accent);font-size:1rem;flex-shrink:0;margin-top:2px;">✓</span>':'') +
             '</button>';
         });
+        html += '<button type="button" onclick="if(window.showOnboardingIntro)window.showOnboardingIntro({force:true})" style="width:100%;margin-top:8px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--heading);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Replay welcome tour</button>';
         html += '</div>';
 
         // Delete Account - Danger Zone
@@ -7294,7 +7292,7 @@ window.minimizeSignUpBanner = function() {
     }
 };
 
-function clearUserLocalStorage() {
+function clearUserLocalStorage(opts) {
     var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
         // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
         // a cold-start race where checkBadges() fires before Firestore restores
@@ -7302,6 +7300,9 @@ function clearUserLocalStorage() {
         // These are always safely overwritten by markVisibleBadgesReady() on sign-in.
         'btc_badges', 'btc_hidden_badges'
     ];
+    if (opts && opts.keepGuest) {
+        preserve = preserve.concat(['btc_visited_channels', 'btc_experience_mode', 'btc_intro_seen', 'btc_onboarding_done', 'btc_onboarding_active', 'btc_onboarding_step', 'btc_onboarding_quest_done', 'btc_quest_pending', 'btc_guest_link', 'btc_nacho_quest_channel', 'btc_nacho_quest_nacho', 'btc_nacho_quest_quiz']);
+    }
     var toRemove = [];
     for (var i = 0; i < localStorage.length; i++) {
         var key = localStorage.key(i);
@@ -7426,7 +7427,7 @@ window.submitUsername = async function() {
     if (!input) { console.error('[submitUsername] No input found'); return; }
     var name = input.value.trim();
     if (!name) { showToast('Please enter a username!'); return; }
-    if (name.length < 2) { showToast('Username must be at least 2 characters'); return; }
+    if (name.length < 3) { showToast('Username must be at least 3 characters'); return; }
     if (name.length > 20) { showToast('Username must be 20 characters or less'); return; }
     if (/[^A-Za-z0-9 _\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
@@ -7497,12 +7498,11 @@ window.submitUsername = async function() {
     }
     if (status) status.innerHTML = 'Saving...';
     try {
-        await db.collection('users').doc(currentUser.uid).update({ username: name, username_lower: name.toLowerCase() });
-        currentUser.username = name;
+        await applyServerUsername(name);
         updateAuthButton();
         updateRankUI();
-        if (status) status.innerHTML = '✅ Username updated!';
-        showToast('✅ Username changed to ' + name);
+        if (status) status.textContent = 'Username updated';
+        showToast('Username updated');
     } catch(e) {
         if (status) status.innerHTML = '❌ Error saving';
         showToast('Error updating username. Try again.');
@@ -7616,19 +7616,19 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
     if (!name) { var inp = document.getElementById('newUsername'); if (inp) name = inp.value.trim(); }
     // Strip non-ASCII (prevent Unicode/homoglyph bypass)
     if (name) name = name.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
-    if (!name || name.length < 2) { showToast('Username must be at least 2 characters (ASCII only)'); return; }
+    if (!name || name.length < 3) { showToast('Username must be at least 3 characters'); return; }
     if (name.length > 20) { showToast('Username max 20 characters'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
     if (typeof isCleanText === 'function' && !isCleanText(name)) { showToast('Username contains inappropriate language'); return; }
-    // Save locally always (works for anon too)
-    localStorage.setItem('btc_username', name);
-    if (currentUser) { currentUser.username = name; }
-    updateAuthButton(); updateRankUI();
-    // Save to Firestore if signed in
     if (auth && auth.currentUser && db) {
-        try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name, username_lower: name.toLowerCase() }); } catch(e) { console.warn('Username Firestore save failed:', e); }
+        try { await applyServerUsername(name); }
+        catch (e) { showToast(e.message || 'Could not save that username.'); return; }
+    } else {
+        showToast('Sign in before choosing a username.');
+        return;
     }
-    showToast('✅ Username updated to ' + name);
+    updateAuthButton(); updateRankUI();
+    showToast('Username updated');
     // Update the "Current username" label and button to confirm
     var curLabel = document.querySelector('[id="currentUsernameLabel"]');
     if (!curLabel) {

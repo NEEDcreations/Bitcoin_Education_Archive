@@ -1,0 +1,123 @@
+'use strict';
+
+// Pure onboarding-quest and guest-link decisions. The callable gathers evidence
+// with the Admin SDK and passes it here. Client flags never grant a reward.
+
+const MODES = {
+    beginner: ['pick_topic', 'find_nacho', 'first_quiz'],
+    intermediate: ['pick_topic', 'find_nacho', 'send_chat', 'first_quiz'],
+    advanced: ['pick_topic', 'send_chat', 'spin_wheel', 'find_nacho', 'first_quiz'],
+};
+
+const STEPS = {
+    pick_topic: { evidenceKey: 'channel', pts: 25, tickets: 0 },
+    send_chat: { evidenceKey: 'chat', pts: 25, tickets: 0 },
+    spin_wheel: { evidenceKey: 'spin', pts: 25, tickets: 0 },
+    find_nacho: { evidenceKey: 'nacho', pts: 25, tickets: 0 },
+    first_quiz: { evidenceKey: 'quiz', pts: 50, tickets: 2 },
+};
+
+const GUEST_POINT_CAP = 500;
+const GUEST_TICKET_CAP = 50;
+const GUEST_CHANNEL_CAP = 200;
+
+function normalizeMode(mode) {
+    if (mode === 'beginner' || mode === 'intermediate' || mode === 'advanced') return mode;
+    return 'advanced';
+}
+
+function stepsForMode(mode) {
+    return MODES[normalizeMode(mode)].slice();
+}
+
+function catalogTotals(mode) {
+    const ids = stepsForMode(mode);
+    let pts = 0;
+    let tickets = 0;
+    for (let i = 0; i < ids.length; i++) {
+        const step = STEPS[ids[i]];
+        pts += step.pts;
+        tickets += step.tickets || 0;
+    }
+    return { pts: pts, tickets: tickets, steps: ids.length };
+}
+
+function ledgerSteps(ledger) {
+    const src = ledger && ledger.steps && typeof ledger.steps === 'object' ? ledger.steps : {};
+    return src;
+}
+
+function isComplete(mode, steps) {
+    const ids = stepsForMode(mode);
+    for (let i = 0; i < ids.length; i++) {
+        const row = steps && steps[ids[i]];
+        if (!row || row.granted !== true) return false;
+    }
+    return ids.length > 0;
+}
+
+function decideGrant(input) {
+    const src = input || {};
+    const step = STEPS[src.stepId];
+    if (!step) return { ok: false, error: 'unknown_step', awarded: 0, tickets: 0, complete: false };
+    const mode = normalizeMode(src.mode);
+    if (stepsForMode(mode).indexOf(src.stepId) === -1) {
+        return { ok: false, error: 'not_in_mode', awarded: 0, tickets: 0, complete: false };
+    }
+    const steps = ledgerSteps(src.ledger);
+    // src.completed, src.pts, and src.tickets are ignored on purpose.
+    if (steps[src.stepId] && steps[src.stepId].granted === true) {
+        return { ok: true, already: true, awarded: 0, tickets: 0, complete: isComplete(mode, steps) };
+    }
+    const evidence = src.evidence || {};
+    if (evidence[step.evidenceKey] !== true) {
+        return { ok: false, error: 'not_verified', awarded: 0, tickets: 0, complete: false };
+    }
+    const next = Object.assign({}, steps);
+    next[src.stepId] = { granted: true };
+    return {
+        ok: true,
+        already: false,
+        awarded: step.pts,
+        tickets: step.tickets || 0,
+        complete: isComplete(mode, next),
+    };
+}
+
+function capInt(value, cap) {
+    const n = Math.floor(Number(value));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(cap, n);
+}
+
+// Copies only server-side guest totals. clientPoints is ignored.
+function planGuestMerge(input) {
+    const src = input || {};
+    const nonce = String(src.nonce || '');
+    const stored = String(src.storedNonce || '');
+    if (!nonce || nonce.length < 16 || nonce !== stored) return { ok: false, error: 'bad_nonce' };
+    if (src.mergedInto && src.mergedInto !== src.callerUid) return { ok: false, error: 'already_linked' };
+    if (src.alreadyMerged === true || (src.mergedInto && src.mergedInto === src.callerUid)) {
+        return { ok: true, already: true, points: 0, tickets: 0, channelsVisited: 0 };
+    }
+    return {
+        ok: true,
+        already: false,
+        points: capInt(src.serverPoints, GUEST_POINT_CAP),
+        tickets: capInt(src.serverTickets, GUEST_TICKET_CAP),
+        channelsVisited: capInt(src.serverChannels, GUEST_CHANNEL_CAP),
+    };
+}
+
+module.exports = {
+    MODES,
+    STEPS,
+    normalizeMode,
+    stepsForMode,
+    catalogTotals,
+    decideGrant,
+    isComplete,
+    planGuestMerge,
+    GUEST_POINT_CAP,
+    GUEST_TICKET_CAP,
+};

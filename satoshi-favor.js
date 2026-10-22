@@ -1505,6 +1505,8 @@
             if (!_sfFloatTCTVNudgeDone) {
                 _sfFloatTCTVNudgeDone = true;
                 setTimeout(function() {
+                    if (typeof window.btcPopupBlocked === 'function' && window.btcPopupBlocked('favor')) return;
+                    if (typeof window.btcClaimSessionPopup === 'function' && !window.btcClaimSessionPopup('favor')) return;
                     if (typeof showToast === 'function') {
                         showToast('⛏️ Satoshi\'s Favor is live! Tap the orange button to hash from anywhere — <a href="#timechain-tv" onclick="if(typeof go===\'function\'){go(\'timechain-tv\');}" style="color:#f7931a;font-weight:700;">even while watching Timechain TV</a>! 📺', 6000);
                     }

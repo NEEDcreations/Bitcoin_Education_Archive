@@ -274,6 +274,11 @@
     window.addEventListener('load', function() {
         setTimeout(function() {
             if (!shouldShowGuide()) return;
+            try {
+                if (localStorage.getItem('btc_intro_seen') !== '1') return;
+                if (typeof window.btcPopupBlocked === 'function' && window.btcPopupBlocked('guide')) return;
+                if (typeof window.btcClaimSessionPopup === 'function' && !window.btcClaimSessionPopup('guide')) return;
+            } catch (e) { return; }
             var dismissed = localStorage.getItem(GUIDE_DISMISSED_KEY);
             if (dismissed === 'session' || dismissed === 'permanent') {
                 if (dismissed === 'session') showGuideBanner();
@@ -416,7 +421,7 @@
         var pvpOverlay = document.getElementById('pvpOverlay');
         if (pvpOverlay) { if (typeof exitPVPMode === 'function') exitPVPMode(true); }
         if (typeof goHome === 'function') goHome();
-        setTimeout(function() { if (typeof showGuide === 'function') showGuide(); }, 400);
+        setTimeout(function() { if (typeof showGuide === 'function') showGuide(true); }, 400);
     };
 
     // ---- FAQ Modal ----
@@ -457,6 +462,7 @@
             '<div style="width:40px;height:40px;border-radius:12px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.25);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">❓</div>' +
             '<div style="flex:1;"><div style="font-size:1.05rem;font-weight:800;color:var(--heading);">Frequently Asked Questions</div>' +
             '<div style="font-size:0.72rem;color:var(--text-faint);margin-top:1px;">Tap a question to expand the answer</div></div>' +
+            '<button type="button" onclick="if(window.showOnboardingIntro)window.showOnboardingIntro({force:true})" style="background:none;border:1px solid var(--border);color:var(--heading);border-radius:10px;padding:6px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">Tour</button>' +
             '<button onclick="document.getElementById(\'faqOverlay\').remove()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:10px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;touch-action:manipulation;">✕</button>' +
             '</div>';
 

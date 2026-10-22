@@ -404,12 +404,12 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
     assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2265'") === false);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2272'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2276'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2272'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2271'") === false);
     assert.ok(sw.includes('nacho-fly.svg') === false);
     assert.ok(sw.includes('nacho-deer.svg'));
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
+    assert.ok(html.includes("const CACHE_NAME = 'btc-archive-v2275'") === false);
 });
 
 test('Nacho and search can open Say hi', function () {
