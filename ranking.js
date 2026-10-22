@@ -3595,6 +3595,9 @@ window.showDeleteAccountConfirm = function() {
                     '<div>❌ All forum posts and replies</div>' +
                     '<div>❌ Marketplace listings</div>' +
                     '<div>❌ DM conversations</div>' +
+                    '<div>❌ Global Chat messages (shown as [deleted])</div>' +
+                    '<div>❌ Uploaded music, images, and avatar</div>' +
+                    '<div>❌ Notifications and push tokens</div>' +
                     '<div>❌ Nacho chat history</div>' +
                     '<div>❌ Leaderboard ranking</div>' +
                     '<div>❌ Orange Tickets and quest progress</div>' +
@@ -3624,52 +3627,14 @@ window.confirmDeleteAccount = async function() {
     try {
         var user = auth.currentUser;
         if (!user) throw new Error('Not signed in');
-        var uid = user.uid;
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            throw new Error('Account deletion is unavailable. Reload and try again.');
+        }
 
-        // 1. Delete Firestore user document
-        try { await db.collection('users').doc(uid).delete(); } catch(e) { console.warn('User doc delete failed:', e); }
+        // Server wipe. The owner must have signed in recently. Data deletes
+        // happen in the Cloud Function, not from this browser.
+        await firebase.functions().httpsCallable('deleteAccount')({});
 
-        // 2. Delete forum posts by this user
-        try {
-            var posts = await db.collection('forum_posts').where('authorId', '==', uid).get();
-            var batch1 = db.batch();
-            posts.forEach(function(doc) { batch1.delete(doc.ref); });
-            if (!posts.empty) await batch1.commit();
-        } catch(e) { console.warn('Forum posts delete failed:', e); }
-
-        // 3. Delete forum replies by this user
-        try {
-            var replies = await db.collection('forum_replies').where('authorId', '==', uid).get();
-            var batch2 = db.batch();
-            replies.forEach(function(doc) { batch2.delete(doc.ref); });
-            if (!replies.empty) await batch2.commit();
-        } catch(e) { console.warn('Forum replies delete failed:', e); }
-
-        // 4. Delete marketplace listings
-        try {
-            var listings = await db.collection('marketplace').where('sellerUid', '==', uid).get();
-            var batch3 = db.batch();
-            listings.forEach(function(doc) { batch3.delete(doc.ref); });
-            if (!listings.empty) await batch3.commit();
-        } catch(e) { console.warn('Marketplace delete failed:', e); }
-
-        // 5. Delete DM conversations
-        try {
-            var convos = await db.collection('conversations').where('participants', 'array-contains', uid).get();
-            var batch4 = db.batch();
-            convos.forEach(function(doc) { batch4.delete(doc.ref); });
-            if (!convos.empty) await batch4.commit();
-        } catch(e) { console.warn('DM delete failed:', e); }
-
-        // 6. Delete suggestions
-        try {
-            var suggestions = await db.collection('suggestions').where('uid', '==', uid).get();
-            var batch5 = db.batch();
-            suggestions.forEach(function(doc) { batch5.delete(doc.ref); });
-            if (!suggestions.empty) await batch5.commit();
-        } catch(e) { console.warn('Suggestions delete failed:', e); }
-
-        // 7. Clear all localStorage
         var keysToRemove = [];
         for (var i = 0; i < localStorage.length; i++) {
             var key = localStorage.key(i);
@@ -3680,7 +3645,7 @@ window.confirmDeleteAccount = async function() {
         // [AUDIT FIX M5] Clear SW caches on account deletion
         if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
-        // 8. Delete Firebase Auth account
+        // Firebase Auth still requires a recent login for this call.
         await user.delete();
 
         // 9. Close overlay and show confirmation
@@ -3698,7 +3663,9 @@ window.confirmDeleteAccount = async function() {
 
     } catch(e) {
         console.error('Account deletion error:', e);
-        if (e.code === 'auth/requires-recent-login') {
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        if (code === 'auth/requires-recent-login' || code === 'functions/failed-precondition' || code === 'failed-precondition' || /sign in again/i.test(msg) || /recent login/i.test(msg)) {
             showToast('🔒 For security, please sign out and sign back in, then try again.');
         } else {
             showToast('Error deleting account: ' + (e.message || 'Unknown error'));
@@ -7983,7 +7950,7 @@ window._submitMFASignIn = async function() {
     }
 };
 if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
-if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return; if (auth && auth.currentUser) { var uid = auth.currentUser.uid; db.collection('users').doc(uid).delete().then(function() { return auth.currentUser.delete(); }).then(function() { localStorage.clear(); location.reload(); }).catch(function(e) { showToast('Error: ' + e.message); }); } };
+if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (typeof showToast === 'function') showToast('Reload the page, then try deleting your account again.'); };
 async function loadTotpStatus() {
     var section = document.getElementById('totpSection');
     if (!section) return;

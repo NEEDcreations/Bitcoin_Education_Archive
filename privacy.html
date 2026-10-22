@@ -497,7 +497,7 @@
     <p>You can:</p>
     <ul>
         <li><strong>Export your data</strong> — use the "Export My Data" button in Settings → Data</li>
-        <li><strong>Delete your account</strong> — Settings → Data → Delete My Account, then type DELETE. You may need to sign out and sign back in first if Firebase asks for a recent login</li>
+        <li><strong>Delete your account</strong> — Settings → Data → Delete My Account, then type DELETE. You must have signed in recently (about the last 5 minutes). An admin can run the same server deletion for an account</li>
         <li><strong>Clear local data</strong> — clear your browser's localStorage/cache to remove all client-side data</li>
         <li><strong>Change your username</strong> — in Settings → Account</li>
         <li><strong>Block users</strong> — from any user profile or DM window</li>
@@ -507,7 +507,35 @@
         <li><strong>Disable sounds</strong> — in Settings → Prefs</li>
         <li><strong>Disable push notifications</strong> — in Settings → Prefs or your browser settings</li>
     </ul>
-    <p>The delete button removes your Firebase sign-in, your user profile document, forum posts and replies we can match to you, marketplace listings we can match to you, and suggestion records we can match to you. It also clears site data in this browser that starts with <code>btc_</code>, session storage, and the service-worker cache. Direct messages live in a different collection than the one the button queries, so a message thread can remain. Global Chat messages, music you uploaded, charity donation records, notifications already sent, and peer lists on other accounts are not fully erased by the button. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> if you want us to look for anything left. There is no separate waiting period in the app. We do not promise that every copy is gone the moment you tap delete.</p>
+    <p>Delete runs on the server. The button calls the <code>deleteAccount</code> function, then deletes the Firebase sign-in. Only that account, with a recent sign-in, or an admin, can start it. Running it again after the data is already gone is safe. This browser then clears site data whose keys start with <code>btc_</code>, session storage, and the service-worker cache. There is no waiting period in the app.</p>
+    <p>The server deletes:</p>
+    <ul>
+        <li>Your user profile and the records stored under it, including daily points, daily action counts, badge awards, shop purchases, Proof of Walk data, connected-app records, the in-profile notification list, and the sats withdrawal list stored on the profile. A profile photo saved on that document is deleted with it</li>
+        <li>Your public profile, and a <code>usernames/</code> reservation when one exists for that account</li>
+        <li>Direct message threads you are in, from <code>dm_conversations</code>, including the messages in those threads. An older <code>conversations</code> collection is cleared the same way when it still has your threads</li>
+        <li>Forum posts and replies, articles and article replies, marketplace listings and marketplace messages, suggestions, certificates, and IRL events you created</li>
+        <li>Bitcoin Beats tracks you uploaded, comments on those tracks, and comments you wrote on other tracks</li>
+        <li>Files in Storage under your account: Beats audio (<code>beats/</code>), Beats cover art (<code>beats-covers/</code>), avatars (<code>avatars/</code>), chat images, DM images, article images, article covers, IRL photos, and meetup-builder uploads</li>
+        <li>Notifications in your inbox and notifications you sent</li>
+        <li>Push tokens for the account, including <code>push_tokens/{uid}</code> and its <code>devices</code></li>
+        <li>Authenticator-app secrets, presence, Timechain TV presence and view-day rows, the buddy-pool entry, the PvP lobby entry, and PvP matches you were in</li>
+        <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it</li>
+        <li>Your giveaway entry, visit row, open prediction, and prediction stats</li>
+        <li>Your Global Chat DJ queue entry and your Satoshi's Favor personal best</li>
+    </ul>
+    <p>Global Chat messages you wrote stay in place, because other messages point at them. The server replaces your name and the message text with <code>[deleted]</code>, clears images, GIFs, and captions on those messages, and replaces quotes of those messages with <code>[deleted]</code>. The reply link stays so the thread still lines up.</p>
+    <p>We keep some records after deletion so someone cannot wipe an abuse trail or a payout that already happened:</p>
+    <ul>
+        <li><strong>Faucet ledger, invoice records, and the IP, device, and related faucet logs.</strong> The withdrawal list on the profile is deleted. These server records stay so a new account cannot reset the lifetime sats cap or hide a claim</li>
+        <li><strong>Lightning address locks,</strong> so one address stays tied to the account that used it</li>
+        <li><strong>Cipher win records,</strong> for sats that were already won</li>
+        <li><strong>Charity donation records,</strong> including a public name already shown on a donation. They are part of the community pledge total</li>
+        <li><strong>Referral records,</strong> so the referral bonus cannot be claimed again by deleting the account</li>
+        <li><strong>Admin audit logs and reports</strong> filed for moderation</li>
+        <li><strong>Prediction payout and prediction record ledgers</strong></li>
+        <li><strong>Satoshi's Favor hash records and cooldowns.</strong> The name on the hash record is replaced with <code>[deleted]</code>. The hash and the cooldown stay so the game limits cannot be reset</li>
+    </ul>
+    <p>A Global Chat message may already have been copied to the linked Telegram group. Deleting the account does not remove that Telegram copy. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> if something of yours is still visible and should not be.</p>
 
     <h2>12. Children</h2>
     <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. The direct messaging feature is available only to registered users. If you are a parent and believe your child has provided personal information or been contacted inappropriately, please contact us immediately and we will take action.</p>
@@ -534,7 +562,8 @@
     </ul>
 
     <h2>14. Data Retention</h2>
-    <p>Account data stays while your account exists. Forum posts, marketplace listings, Global Chat messages, and music uploads stay until you delete them, we remove them, or the delete-account button removes the copies it can find. Direct messages can remain after an account is deleted, because the button does not query the collection they are stored in. Charity donation records are kept as part of the community pledge total even if the profile is deleted. Push tokens are dropped when they stop working or when you turn push off. Timechain TV presence heartbeats expire after a short idle period (the client sets about 10 minutes, and a cleanup job removes stale rows). Say hi records sit on the profile and go away with that profile. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> to ask about data the button does not remove.</p>
+    <p>Account data stays while your account exists. Forum posts, marketplace listings, Global Chat messages, and music uploads stay until you delete them, we remove them, or you delete the account. Deleting the account removes the profile, direct messages in <code>dm_conversations</code>, uploads, notifications, and push tokens, and it replaces your Global Chat name and text with <code>[deleted]</code>. Say hi records sit on the profile and go away with that profile. Timechain TV presence heartbeats also expire on their own after a short idle period (the client sets about 10 minutes, and a cleanup job removes stale rows). Push tokens are dropped when they stop working or when you turn push off, and they are deleted with the account.</p>
+    <p>After deletion we still keep the faucet ledger and faucet abuse logs, Lightning address locks, cipher win records, charity donations, referral records, admin audit logs, moderation reports, and prediction payout records. Satoshi's Favor cooldowns and hash values stay, with the name replaced by <code>[deleted]</code>. Those records are kept to prevent abuse, to stop a deleted account from resetting a cap or claiming a referral bonus again, and to keep a record of sats and pledges that already happened. Section 11 lists them.</p>
 
     <h2>15. Sats Faucet (Claim Sats)</h2>
 
@@ -560,6 +589,7 @@
         <li><strong>faucet_ip_log</strong> — IP addresses at claim time only (detects multi-account abuse per network)</li>
         <li><strong>faucet_fingerprints</strong> — device fingerprint hashes (detects multi-account abuse per device)</li>
     </ul>
+    <p>The withdrawal list and daily totals stored on your profile are deleted with the account. The faucet ledger, invoice records, IP log, and device-fingerprint log are kept. Section 11 explains why.</p>
 
     <div class="highlight">
         <strong>Privacy note:</strong> We intentionally do NOT store full Lightning invoices. Only the first 50 characters are retained (followed by "...") for basic audit purposes. This means we cannot reconstruct the full payment destination after the claim is processed.

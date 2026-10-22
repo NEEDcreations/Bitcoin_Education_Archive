@@ -8612,3 +8612,8 @@ exports.claimSayHi = sayHiFns.claimSayHi;
 const { bindReplyBonus } = require('./src/replyBonus');
 const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
 exports.claimReplyBonus = replyBonusFns.claimReplyBonus;
+
+// Account deletion. Owner (recent sign-in) or admin. Admin SDK writes only.
+const { bindDeleteAccount } = require('./src/deleteAccount');
+const deleteAccountFns = bindDeleteAccount(functionsV1, admin, db);
+exports.deleteAccount = deleteAccountFns.deleteAccount;
