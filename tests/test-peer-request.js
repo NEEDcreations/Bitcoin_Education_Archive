@@ -400,7 +400,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
     assert.ok(html.includes('bundle.min.js?v=20261022_v2271'));
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
-    assert.ok(html.includes('global-chat.js?v=20261022_v2267'));
+    assert.ok(html.includes('global-chat.js?v=20261022_v2269'));
+    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2267'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2265'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2264'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2266'), false);

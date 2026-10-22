@@ -1,8 +1,7 @@
 // Cache-buster pin. Live gh-pages after #49 is btc-archive-v2271.
-// This branch is btc-archive-v2271 until the reply-bonus bump.
-// features.registry.js stays on v2266. notifications.js stays on v2262.
-// index.html and 404.html must stay identical. The precache keeps the
-// classic Nacho deer and does not include nacho-fly.svg.
+// global-chat.js is v2269. features.registry.js stays on v2266.
+// notifications.js stays on v2262. index.html and 404.html must stay identical.
+// The precache keeps the classic Nacho deer and does not include nacho-fly.svg.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -39,7 +38,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('notifications.js?v=20261022_v2262'));
     assert.ok(html.includes('ranking.js?v=20261022_v2269'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261022_v2267'));
+    assert.ok(html.includes('global-chat.js?v=20261022_v2269'));
+    assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2265'));
     assert.ok(html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
