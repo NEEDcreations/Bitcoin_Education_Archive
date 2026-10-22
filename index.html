@@ -533,6 +533,8 @@
         .invite-card[data-state="min"] .invite-guest,
         .invite-card[data-state="guest"] .invite-body,
         .invite-card[data-state="guest"] .invite-pill { display: none; }
+        .invite-card[data-state="min"],
+        .invite-card[data-state="guest"] { width: auto; max-height: none; overflow: visible; }
         @media (min-width: 901px) {
             body.ticker-visible .invite-card { top: 48px; }
         }
