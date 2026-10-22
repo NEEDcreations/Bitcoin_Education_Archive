@@ -32,6 +32,33 @@ function _toast(msg, ms) {
     if (typeof showToast === 'function') showToast(msg, ms || 3500);
 }
 
+var SATS_OFF_MSG = 'Sats are disabled on this account.';
+
+async function _readSatsDisabled() {
+    try {
+        var uid = _getUid();
+        if (uid && typeof db !== 'undefined') {
+            var snap = await db.collection('users').doc(uid).get();
+            var off = snap.exists && snap.data().satsDisabled === true;
+            window._satsDisabled = off;
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.satsDisabled = off;
+            return off;
+        }
+    } catch (e) { /* fall through to the loaded profile */ }
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true) {
+        window._satsDisabled = true;
+        return true;
+    }
+    return window._satsDisabled === true;
+}
+
+function _satsOffNote(parent) {
+    var note = document.createElement('div');
+    note.style.cssText = 'padding:10px;margin-bottom:8px;border-radius:10px;background:rgba(239,68,68,0.08);color:#ef4444;font-size:0.8rem;font-weight:700;';
+    note.textContent = SATS_OFF_MSG;
+    parent.appendChild(note);
+}
+
 function _keySendToast(name, res) {
     var awarded = res && res.data ? res.data.xpAwarded : null;
     var xp = (typeof awarded === 'number') ? awarded : 25;
@@ -396,6 +423,11 @@ async function _showGiftFollowUp() {
     try {
         var matches = await _matchingLabels();
         if (!matches.length) return;
+        var satsOff = await _readSatsDisabled();
+        if (satsOff) {
+            _satsOffNote(box);
+            return;
+        }
         matches.forEach(function(m) {
             var banner = document.createElement('div');
             banner.style.cssText = 'margin-top:8px;padding:10px;border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.35);text-align:left;';
@@ -488,7 +520,9 @@ window.renderKeysAndCiphersPanel = async function(container) {
         return;
     }
     var data = await _loadHoldings();
+    var satsOff = await _readSatsDisabled();
     el.innerHTML = '';
+    if (satsOff) _satsOffNote(el);
 
     var heading = document.createElement('div');
     heading.style.cssText = 'font-size:0.72rem;font-weight:800;color:#f7931a;letter-spacing:0.08em;text-transform:uppercase;margin:4px 0 8px;';
@@ -532,7 +566,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
         mid.appendChild(sub);
         card.appendChild(icon);
         card.appendChild(mid);
-        if (match) {
+        if (match && !satsOff) {
             var open = _btn('Open', 'linear-gradient(135deg,#34d399,#10b981)');
             open.className = 'cipher-open-btn';
             open.onclick = function() { window.openCipherWithMatch(group[0].id, label); };
@@ -596,7 +630,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
         from.textContent = 'from ' + (k.sentByName || 'a peer');
         card.appendChild(lab);
         card.appendChild(from);
-        if ((cipherGroups[k.label] || []).length) {
+        if (!satsOff && (cipherGroups[k.label] || []).length) {
             var open = _btn('Open ' + k.label, 'linear-gradient(135deg,#34d399,#10b981)');
             open.onclick = function() { window.openCipherWithMatch(cipherGroups[k.label][0].id, k.label); };
             card.appendChild(open);
@@ -646,7 +680,7 @@ async function _renderMyWins(el) {
             mid.appendChild(t);
             mid.appendChild(s);
             card.appendChild(mid);
-            if (w.status === 'claimable') {
+            if (w.status === 'claimable' && window._satsDisabled !== true) {
                 var b = _btn('Claim');
                 b.onclick = function() { window.showCipherClaim(w); };
                 card.appendChild(b);
@@ -668,6 +702,7 @@ async function _findKeyForLabel(label) {
 
 window.openCipherWithMatch = async function(cipherId, label) {
     if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
+    if (await _readSatsDisabled()) { _toast(SATS_OFF_MSG); return; }
     _injectGiftingCSS();
     var key = null;
     try { key = await _findKeyForLabel(label); } catch (e) { _toast('Could not look up a matching key'); return; }
@@ -677,6 +712,7 @@ window.openCipherWithMatch = async function(cipherId, label) {
 
 window.decryptCipherModal = async function(cipherId, cipherLabel, knownKey) {
     if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
+    if (await _readSatsDisabled()) { _toast(SATS_OFF_MSG); return; }
     _injectGiftingCSS();
     var key = knownKey || null;
     if (!key) {
@@ -769,6 +805,10 @@ window.decryptCipherModal = async function(cipherId, cipherLabel, knownKey) {
 // ─── Claim a small sats win ──────────────────────────────────────────────────
 
 window.showCipherClaim = function(win) {
+    if (window._satsDisabled === true || (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true)) {
+        _toast(SATS_OFF_MSG);
+        return;
+    }
     _injectGiftingCSS();
     var old = document.getElementById('cipherClaimOverlay');
     if (old) old.remove();

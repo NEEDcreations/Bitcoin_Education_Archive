@@ -16,6 +16,8 @@ const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRol
 const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
 const {
     assessCipherClaim,
+    isSatsBanned,
+    SATS_BANNED_ERROR,
     lookupRequestFromDecoded,
     shouldLookupPay,
     lookupSettlement,
@@ -441,6 +443,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     const cipherRef = db.collection('locked_ciphers').doc(cipherId);
     const keyRef = db.collection('keys').doc(keyId);
     const userRef = db.collection('users').doc(uid);
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const reward = rollCipherReward();
     if (reward.rewardType === 'sats' && [100, 500, 1000, 5000, 10000, 50000, 100000].indexOf(reward.satsAmount) === -1) {
         throw httpsError('internal', 'Bad reward roll');
@@ -452,6 +455,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const cipherDoc = await t.get(cipherRef);
         const keyDoc = await t.get(keyRef);
         const userDoc = await t.get(userRef);
+        const ledgerDoc = await t.get(ledgerRef);
         if (!cipherDoc.exists) throw httpsError('not-found', 'Cipher not found');
         if (!keyDoc.exists) throw httpsError('not-found', 'Key not found');
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
@@ -459,6 +463,9 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const cipher = cipherDoc.data();
         const key = keyDoc.data();
         const user = userDoc.data();
+        if (isSatsBanned(user, ledgerDoc.exists ? ledgerDoc.data() : null)) {
+            throw httpsError('failed-precondition', SATS_BANNED_ERROR);
+        }
 
         if (cipher.ownerId !== uid) throw httpsError('permission-denied', 'Not your cipher');
         if (cipher.status === 'opened') throw httpsError('already-exists', 'Cipher already opened');

@@ -10,6 +10,11 @@ const LOOKUP_INTERVAL_MS = 20000; // 3 gaps = 60s between the first and last loo
 const EMAIL_ERROR = 'Verified email required. Link and verify your email in Account settings.';
 const AGE_UNKNOWN_ERROR = 'Could not verify account age. Try again later.';
 const SATS_DISABLED_ERROR = 'Sats withdrawals are disabled on this account. Contact support if you believe this is an error.';
+const SATS_BANNED_ERROR = 'Sats are disabled on this account. Contact support if you believe this is an error.';
+
+function isSatsBanned(user, ledger) {
+    return !!(user && user.satsDisabled === true) || !!(ledger && ledger.banned === true);
+}
 
 function assessCipherClaim(input) {
     const src = input || {};
@@ -27,7 +32,7 @@ function assessCipherClaim(input) {
             error: 'Account must be at least ' + MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + shown + ' days.',
         };
     }
-    if (src.satsDisabled === true || src.ledgerBanned === true) {
+    if (isSatsBanned({ satsDisabled: src.satsDisabled === true }, { banned: src.ledgerBanned === true })) {
         return { ok: false, error: SATS_DISABLED_ERROR };
     }
     return { ok: true };
@@ -161,6 +166,8 @@ module.exports = {
     EMAIL_ERROR: EMAIL_ERROR,
     AGE_UNKNOWN_ERROR: AGE_UNKNOWN_ERROR,
     SATS_DISABLED_ERROR: SATS_DISABLED_ERROR,
+    SATS_BANNED_ERROR: SATS_BANNED_ERROR,
+    isSatsBanned: isSatsBanned,
     assessCipherClaim: assessCipherClaim,
     paymentHashFromDecoded: paymentHashFromDecoded,
     lookupRequestFromDecoded: lookupRequestFromDecoded,

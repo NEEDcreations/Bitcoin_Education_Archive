@@ -2441,7 +2441,10 @@ function _renderFavorTab(body) {
             '</div>' +
             '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
 
-        html += '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">✨⛏️ Start Mining</button>';
+        var satsOff = (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true) || window._satsDisabled === true;
+        html += satsOff
+            ? '<div style="padding:12px;border-radius:12px;background:rgba(239,68,68,0.08);color:#ef4444;font-weight:700;font-size:0.85rem;margin-bottom:12px;">Sats are disabled on this account.</div>'
+            : '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">✨⛏️ Start Mining</button>';
     } else {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">' +

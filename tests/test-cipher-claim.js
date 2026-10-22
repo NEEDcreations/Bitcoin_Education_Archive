@@ -2,6 +2,8 @@
 const assert = require('assert');
 const {
     assessCipherClaim,
+    isSatsBanned,
+    SATS_BANNED_ERROR,
     lookupRequestFromDecoded,
     shouldLookupPay,
     payErrorAction,
@@ -70,6 +72,16 @@ later('account younger than 7 days is rejected with the faucet message', functio
     assert.strictEqual(young.error, 'Account must be at least 7 days old. Yours is 6 days.');
     const unknown = assessCipherClaim(Object.assign({}, okClaim, { ageKnown: false }));
     assert.strictEqual(unknown.error, 'Could not verify account age. Try again later.');
+});
+
+later('satsDisabled or a faucet ledger ban cuts off every sats path', function() {
+    assert.strictEqual(isSatsBanned({ satsDisabled: true }, null), true);
+    assert.strictEqual(isSatsBanned({}, { banned: true }), true);
+    assert.strictEqual(isSatsBanned({ satsDisabled: true }, { banned: true }), true);
+    assert.strictEqual(isSatsBanned({ satsDisabled: false }, { banned: false }), false);
+    assert.strictEqual(isSatsBanned(null, null), false);
+    assert.strictEqual(isSatsBanned({}, {}), false);
+    assert.ok(SATS_BANNED_ERROR.indexOf('Sats are disabled') === 0);
 });
 
 later('satsDisabled or ledger ban blocks the claim', function() {
