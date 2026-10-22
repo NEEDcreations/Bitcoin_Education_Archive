@@ -318,13 +318,6 @@
       ]
     },
     {
-      "text": "Weed for Bitcoin\nhttps://weed4bitcoin.com/",
-      "link": "https://weed4bitcoin.com/",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/resources/swag-merch_0796_swag-merch_cropped-favicon.png"
-      ]
-    },
-    {
       "text": "cool shop LFGO https://lfgo.co/",
       "link": "https://lfgo.co/"
     },
@@ -333,11 +326,13 @@
       "link": "https://predyx.com/",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/swag-merch_0837_Screenshot_20250430-133531.png"
-      ]
+      ],
+      "ageNote": "18+"
     },
     {
       "text": "Another gambling/ prediction market\nhttps://www.bitcoinprediction.market/?ref=getalby.com",
-      "link": "https://www.bitcoinprediction.market/?ref=getalby.com"
+      "link": "https://www.bitcoinprediction.market/?ref=getalby.com",
+      "ageNote": "18+"
     },
     {
       "text": "BTCAccepted\nHelp support the Bitcoin circular economy. Find businesses that accept Bitcoin payments.\nhttps://btcaccepted.org/",

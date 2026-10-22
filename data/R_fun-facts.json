@@ -245,10 +245,6 @@
       "text": "Hash of the Genesis Block:\n000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
     },
     {
-      "text": "Satoshi Dice gambling game \nhttps://en.bitcoin.it/wiki/Satoshi_Dice",
-      "link": "https://en.bitcoin.it/wiki/Satoshi_Dice"
-    },
-    {
       "text": "Bitcoin's Whitepaper is encoded in block 230,009 \nhttps://bitcoin.stackexchange.com/questions/35959/how-is-the-whitepaper-decoded-from-the-blockchain-tx-with-1000x-m-of-n-multisi",
       "link": "https://bitcoin.stackexchange.com/questions/35959/how-is-the-whitepaper-decoded-from-the-blockchain-tx-with-1000x-m-of-n-multisi"
     },
@@ -592,7 +588,7 @@
       "link": "https://themonetaryfuture.blogspot.com/2011/06/bitcoin-is-economic-singularity.html?m=1"
     },
     {
-      "text": "Satoshi's emails satoshin@gmx.com or satoshi@vistomail.com\nhttps://satoshi.nakamotoinstitute.org/emails/",
+      "text": "Satoshi's emails [email removed] or satoshi [at] vistomail.com\nhttps://satoshi.nakamotoinstitute.org/emails/",
       "link": "https://satoshi.nakamotoinstitute.org/emails/"
     },
     {
@@ -725,10 +721,6 @@
     {
       "text": "Biggest transaction ever 500,000 BTC \nhttps://mempool.space/tx/29a3efd3ef04f9153d47a990bd7b048a4b2d213daaa5fb8ed670fb85f13bdbcf",
       "link": "https://mempool.space/tx/29a3efd3ef04f9153d47a990bd7b048a4b2d213daaa5fb8ed670fb85f13bdbcf"
-    },
-    {
-      "text": "Satoshi Dice https://en.bitcoin.it/wiki/Satoshi_Dice",
-      "link": "https://en.bitcoin.it/wiki/Satoshi_Dice"
     },
     {
       "text": "transaction fee = inputs - outputs\n\nwhen you broadcast a transaction to the #Bitcoin network, you don't explicitly set the transaction fee or the fee rate? Instead, the fee is simply the remainder of whatever isn't spent from the inputs to the outputs.\n\nhttps://x.com/w_s_bitcoin/status/1747327796181942434?s=20",
