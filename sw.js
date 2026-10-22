@@ -1,6 +1,6 @@
 // Bitcoin Education Archive - Service Worker v15
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v2268';
+const CACHE_NAME = 'btc-archive-v2281';
 const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
@@ -72,6 +72,27 @@ self.addEventListener('fetch', event => {
             return response;
           }).catch(() => cached || new Response('', { status: 404 }));
         })
+      )
+    );
+    return;
+  }
+
+  // Station lists: network-first, then the cached copy. A miss must fail.
+  // A 200 {} body looks like an empty catalog and marks Timechain TV ready.
+  if (/\.json(\?|$)/i.test(url.pathname) && url.pathname.includes('data/tctv/')) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return response;
+        }
+        return caches.match(event.request).then(cached => cached || response);
+      }).catch(() =>
+        caches.match(event.request).then(cached => cached || new Response('', {
+          status: 504,
+          statusText: 'offline'
+        }))
       )
     );
     return;
