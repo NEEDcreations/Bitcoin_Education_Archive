@@ -359,13 +359,16 @@ service cloud.firestore {
     }
 
     // Active predictions (for server-side resolution)
-    // [AUDIT FIX L-NEW-11] Prevent backdating predictions
+    // [AUDIT FIX L-NEW-11] Prevent backdating predictions.
+    // hasOnly rejects a client-supplied serverStartPrice, void, or any other key.
+    // resolved must be false so the open prediction is eligible for scoring.
     match /active_predictions/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create: if request.auth != null
                     && request.auth.uid == uid
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.keys().hasAll(['direction', 'price', 'uid', 'time'])
+                    && request.resource.data.keys().hasOnly(['uid', 'direction', 'price', 'time', 'resolved'])
+                    && request.resource.data.resolved == false
                     && request.resource.data.direction is string
                     && (request.resource.data.direction == 'up' || request.resource.data.direction == 'down')
                     && request.resource.data.uid == request.auth.uid
@@ -399,6 +402,13 @@ service cloud.firestore {
       match /winners/{winnerId} {
         allow read, write: if false;
       }
+    }
+
+    // Server-fetched start price for one prediction. Document id is {uid}_{time}.
+    // Clients cannot read or write it. The resolver scores only a doc that has
+    // serverPriceSetAt, which only the Admin SDK sets.
+    match /prediction_server/{docId} {
+      allow read, write: if false;
     }
 
     // =============================================

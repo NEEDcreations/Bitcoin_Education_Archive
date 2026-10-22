@@ -3861,7 +3861,9 @@ exports.backfillBestStreak = functionsV1.https.onCall(async (data, context) => {
 });
 
 // ---- Resolve Predictions (runs every 6 hours) ----
-// Scoring is server-only. Clients may create active_predictions; they cannot
+// Scoring is server-only. Clients may create active_predictions with uid,
+// direction, price, time, and resolved:false. The start price is fetched here
+// and stored in prediction_server, which clients cannot write. Clients cannot
 // write prediction_stats, delete the active doc, or bump the community total.
 async function _btcUsd() {
     const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
@@ -3878,8 +3880,9 @@ exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: '
     }
 });
 
-// Copy the open prediction onto the owner's stats doc so the card can show
-// "pending" with one read. Totals stay untouched until resolvePredictions.
+// On create, always fetch BTC and store it in prediction_server, ignoring any
+// client price or void flag. Copy that server price onto predPending so the
+// card can show "pending" with one read. Totals stay untouched until resolve.
 exports.syncPredictionPending = onDocumentWritten('active_predictions/{uid}', async (event) => {
     const uid = event.params.uid;
     const after = event.data.after;

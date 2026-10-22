@@ -5,6 +5,17 @@
 const ps = require('./predictionStats');
 
 function createPredictionJobs(db, admin) {
+    async function readChunked(refs) {
+        const out = [];
+        for (let i = 0; i < refs.length; i += 10) {
+            const part = refs.slice(i, i + 10);
+            if (!part.length) continue;
+            const rows = await db.getAll.apply(db, part);
+            rows.forEach(function(row) { out.push(row); });
+        }
+        return out;
+    }
+
     function statsQuery(period, key) {
         let q = db.collection('prediction_stats');
         if (period === 'weekly') {
@@ -36,15 +47,6 @@ function createPredictionJobs(db, admin) {
         if (snap.empty) return [];
         const userRefs = snap.docs.map(function(d) { return db.collection('users').doc(d.id); });
         const ledgerRefs = snap.docs.map(function(d) { return db.collection('faucet_ledger').doc(d.id); });
-        async function readChunked(refs) {
-            const out = [];
-            for (let i = 0; i < refs.length; i += 10) {
-                const part = refs.slice(i, i + 10);
-                const rows = await db.getAll.apply(db, part);
-                rows.forEach(function(row) { out.push(row); });
-            }
-            return out;
-        }
         const users = await readChunked(userRefs);
         const ledgers = await readChunked(ledgerRefs);
         const byId = {};
@@ -117,27 +119,32 @@ function createPredictionJobs(db, admin) {
         const pred = doc.data() || {};
         const uid = pred.uid || doc.id;
         const predTime = ps.timeMs(pred.time);
-        if (!predTime) return null;
+        if (!uid || !predTime) return null;
         return db.runTransaction(async function(tx) {
             const activeRef = doc.ref;
-            const statsRef = db.collection('prediction_stats').doc(uid);
-            const userRef = db.collection('users').doc(uid);
-            const recordRef = db.collection('prediction_records').doc(uid + '_' + predTime);
             const activeSnap = await tx.get(activeRef);
+            if (!activeSnap.exists) return null;
+            const live = activeSnap.data() || {};
+            const liveUid = live.uid || uid;
+            const liveTime = ps.timeMs(live.time);
+            if (!liveTime || now - liveTime < ps.WINDOW_MS) return null;
+            const statsRef = db.collection('prediction_stats').doc(liveUid);
+            const userRef = db.collection('users').doc(liveUid);
+            const recordRef = db.collection('prediction_records').doc(liveUid + '_' + liveTime);
+            const serverRef = db.collection('prediction_server').doc(ps.serverDocId(liveUid, liveTime));
             const statsSnap = await tx.get(statsRef);
             const userSnap = await tx.get(userRef);
             const recordSnap = await tx.get(recordRef);
-            if (!activeSnap.exists) return null;
-            const live = activeSnap.data() || {};
-            const liveTime = ps.timeMs(live.time);
-            if (!liveTime || now - liveTime < ps.WINDOW_MS) return null;
+            const serverSnap = await tx.get(serverRef);
             if (recordSnap.exists) {
                 tx.delete(activeRef);
                 return { duplicate: true };
             }
-            const decision = ps.resolutionDecision(live);
+            const serverRecord = serverSnap.exists ? (serverSnap.data() || null) : null;
+            const decision = ps.resolutionDecision(live, serverRecord);
+            const prediction = { direction: live.direction, time: liveTime };
             if (decision.action === 'void') {
-                const applied = ps.applyResolution(statsSnap.exists ? statsSnap.data() : null, live, 0, now);
+                const applied = ps.applyResolution(statsSnap.exists ? statsSnap.data() : null, prediction, 0, now, serverRecord);
                 tx.set(statsRef, {
                     predLastResult: applied.stats.predLastResult,
                     predPending: applied.stats.predPending
@@ -145,14 +152,11 @@ function createPredictionJobs(db, admin) {
                 tx.delete(activeRef);
                 return { void: true, reason: decision.reason };
             }
-            const applied = ps.applyResolution(statsSnap.exists ? statsSnap.data() : null, {
-                direction: live.direction,
-                serverStartPrice: decision.startPrice,
-                time: liveTime
-            }, price, now);
+            if (!(Number(price) > 0)) return { needsPrice: true };
+            const applied = ps.applyResolution(statsSnap.exists ? statsSnap.data() : null, prediction, price, now, serverRecord);
             tx.set(statsRef, applied.stats);
             tx.set(recordRef, {
-                uid: uid,
+                uid: liveUid,
                 direction: live.direction === 'down' ? 'down' : 'up',
                 startPrice: decision.startPrice,
                 resolvedPrice: Number(price),
@@ -175,15 +179,18 @@ function createPredictionJobs(db, admin) {
     }
 
     async function resolveDue(getPrice) {
-        const snap = await db.collection('active_predictions').where('resolved', '==', false).get();
+        const snap = await db.collection('active_predictions').get();
         const now = Date.now();
         const due = [];
+        let waiting = 0;
         snap.forEach(function(doc) {
             const pred = doc.data() || {};
-            if (now - ps.timeMs(pred.time) >= ps.WINDOW_MS) due.push(doc);
+            const t = ps.timeMs(pred.time);
+            if (t && now - t >= ps.WINDOW_MS) due.push(doc);
+            else if (t) waiting++;
         });
         if (!due.length) {
-            if (!snap.empty) return { resolved: 0, waiting: snap.size };
+            if (waiting) return { resolved: 0, waiting: waiting };
             try { await refreshLeaderboard(new Date(now)); } catch (e) {
                 console.error('[predict] leaderboard refresh failed:', e.message);
             }
@@ -191,10 +198,18 @@ function createPredictionJobs(db, admin) {
         }
         let price = 0;
         try { price = Number(await getPrice()); } catch (e) { price = 0; }
+        const serverRefs = due.map(function(doc) {
+            const pred = doc.data() || {};
+            const id = ps.serverDocId(pred.uid || doc.id, pred.time);
+            return db.collection('prediction_server').doc(id || (pred.uid || doc.id));
+        });
+        const serverSnaps = await readChunked(serverRefs);
         const voids = [];
         const scoreable = [];
-        due.forEach(function(doc) {
-            const decision = ps.resolutionDecision(doc.data() || {});
+        due.forEach(function(doc, i) {
+            const snapRow = serverSnaps[i];
+            const serverRecord = snapRow && snapRow.exists ? (snapRow.data() || null) : null;
+            const decision = ps.resolutionDecision(doc.data() || {}, serverRecord);
             if (decision.action === 'void') voids.push(doc);
             else scoreable.push(doc);
         });
@@ -232,7 +247,7 @@ function createPredictionJobs(db, admin) {
             try {
                 const result = await resolveOne(doc, price, now);
                 if (result && result.void) voided++;
-                else if (result && !result.duplicate) {
+                else if (result && result.correct !== undefined && !result.duplicate) {
                     total++;
                     if (result.correct) correct++;
                 }
@@ -382,10 +397,8 @@ function createPredictionJobs(db, admin) {
         const snap = await statsRef.get();
         const next = ps.applyResolution(snap.exists ? snap.data() : null, {
             direction: data.direction,
-            time: ps.timeMs(data.time),
-            void: true,
-            voidReason: reason || 'no_server_price'
-        }, 0, Date.now());
+            time: ps.timeMs(data.time)
+        }, 0, Date.now(), { void: true, voidReason: reason || 'no_server_price' });
         await statsRef.set({
             predLastResult: next.stats.predLastResult,
             predPending: next.stats.predPending
@@ -395,42 +408,50 @@ function createPredictionJobs(db, admin) {
     async function syncPending(uid, data, getPrice) {
         if (!uid || !data) return { skipped: true };
         const activeRef = db.collection('active_predictions').doc(uid);
-        if (data.void === true) {
-            await writeVoidStats(uid, data, data.voidReason || 'void');
-            return { void: true, reason: data.voidReason || 'void' };
+        const predTime = ps.timeMs(data.time);
+        const direction = data.direction === 'down' ? 'down' : (data.direction === 'up' ? 'up' : '');
+        if (!predTime || !direction) {
+            await writeVoidStats(uid, data, 'invalid_prediction');
+            try { await activeRef.delete(); } catch (e) { /* resolve will void it again */ }
+            return { void: true, reason: 'invalid_prediction' };
         }
-        let serverPrice = ps.serverStartPriceOf(data);
-        if (serverPrice == null) {
-            let fetched = 0;
-            try {
-                if (typeof getPrice === 'function') fetched = Number(await getPrice());
-            } catch (e) {
-                fetched = 0;
-            }
-            if (!(fetched > 0)) {
-                await writeVoidStats(uid, data, 'no_server_price');
-                try { await activeRef.delete(); } catch (e) { /* resolve will void it again */ }
-                return { void: true, reason: 'no_server_price' };
-            }
-            await db.runTransaction(async function(tx) {
-                const snap = await tx.get(activeRef);
-                if (!snap.exists) return;
-                const live = snap.data() || {};
-                if (live.void === true || ps.serverStartPriceOf(live)) return;
-                tx.set(activeRef, { serverStartPrice: fetched }, { merge: true });
+        let fetched = 0;
+        try {
+            if (typeof getPrice === 'function') fetched = Number(await getPrice());
+        } catch (e) {
+            fetched = 0;
+        }
+        if (!(fetched > 0)) {
+            await writeVoidStats(uid, { direction: direction, time: predTime }, 'no_server_price');
+            try { await activeRef.delete(); } catch (e) { /* resolve will void it again */ }
+            return { void: true, reason: 'no_server_price' };
+        }
+        const setAt = Date.now();
+        const serverRef = db.collection('prediction_server').doc(ps.serverDocId(uid, predTime));
+        let wrote = false;
+        await db.runTransaction(async function(tx) {
+            const snap = await tx.get(activeRef);
+            if (!snap.exists) return;
+            const live = snap.data() || {};
+            if (ps.timeMs(live.time) !== predTime) return;
+            tx.set(serverRef, {
+                uid: uid,
+                time: predTime,
+                serverStartPrice: fetched,
+                serverPriceSetAt: setAt
             });
-            return { priced: true, serverStartPrice: fetched };
-        }
+            wrote = true;
+        });
+        if (!wrote) return { skipped: true };
         const statsRef = db.collection('prediction_stats').doc(uid);
         const snap = await statsRef.get();
         const next = ps.setPending(snap.exists ? snap.data() : null, {
-            direction: data.direction,
-            serverStartPrice: serverPrice,
-            time: ps.timeMs(data.time)
-        });
+            direction: direction,
+            time: predTime
+        }, { serverStartPrice: fetched, serverPriceSetAt: setAt });
         if (!next.predPending) return { pending: false };
         await statsRef.set({ predPending: next.predPending }, { merge: true });
-        return { pending: true, serverStartPrice: serverPrice };
+        return { pending: true, serverStartPrice: fetched, serverPriceSetAt: setAt };
     }
 
     return {

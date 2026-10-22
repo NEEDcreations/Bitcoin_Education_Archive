@@ -6,16 +6,14 @@ const ps = require('../functions/src/predictionStats');
 
 let passed = 0;
 let failed = 0;
+const queue = [];
 
 function test(name, fn) {
-    try {
-        fn();
-        console.log('✅ ' + name);
-        passed++;
-    } catch (e) {
-        console.log('❌ ' + name + ': ' + e.message);
-        failed++;
-    }
+    queue.push({ name: name, fn: fn });
+}
+
+function mark(price, when) {
+    return { serverStartPrice: price, serverPriceSetAt: Number(when) > 0 ? Number(when) : 1 };
 }
 
 test('week flips at Monday 05:00 UTC, not midnight', function() {
@@ -44,21 +42,21 @@ test('month flips at 00:00 UTC on the 1st, not at 05:00', function() {
 
 test('a resolution in a new week or month resets that period only', function() {
     const t1 = new Date('2026-10-25T12:00:00.000Z').getTime();
-    let out = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 100, time: t1 - ps.WINDOW_MS }, 110, t1);
+    let out = ps.applyResolution(null, { direction: 'up', price: 1, time: t1 - ps.WINDOW_MS }, 110, t1, mark(100));
     assert.strictEqual(out.correct, true);
     assert.strictEqual(out.stats.weekTotal, 1);
     assert.strictEqual(out.stats.weekCorrect, 1);
     assert.strictEqual(out.stats.predTotal, 1);
     assert.strictEqual(out.stats.monthKey, '2026-M10');
     const sameWeek = new Date('2026-10-26T04:00:00.000Z').getTime();
-    out = ps.applyResolution(out.stats, { direction: 'down', price: 1, serverStartPrice: 110, time: sameWeek - ps.WINDOW_MS }, 120, sameWeek);
+    out = ps.applyResolution(out.stats, { direction: 'down', price: 1, time: sameWeek - ps.WINDOW_MS }, 120, sameWeek, mark(110));
     assert.strictEqual(out.correct, false);
     assert.strictEqual(out.stats.weekTotal, 2);
     assert.strictEqual(out.stats.weekCorrect, 1);
     assert.strictEqual(out.stats.predTotal, 2);
     assert.strictEqual(out.stats.predStreak, 0);
     const newWeek = new Date('2026-10-26T05:30:00.000Z').getTime();
-    out = ps.applyResolution(out.stats, { direction: 'up', price: 1, serverStartPrice: 120, time: newWeek - ps.WINDOW_MS }, 130, newWeek);
+    out = ps.applyResolution(out.stats, { direction: 'up', price: 1, time: newWeek - ps.WINDOW_MS }, 130, newWeek, mark(120));
     assert.strictEqual(out.stats.weekKey, ps.weekKey(newWeek));
     assert.notStrictEqual(out.stats.weekKey, ps.weekKey(t1));
     assert.strictEqual(out.stats.weekTotal, 1);
@@ -66,7 +64,7 @@ test('a resolution in a new week or month resets that period only', function() {
     assert.strictEqual(out.stats.predTotal, 3);
     assert.strictEqual(out.stats.monthTotal, 3);
     const newMonth = new Date('2026-11-01T00:05:00.000Z').getTime();
-    out = ps.applyResolution(out.stats, { direction: 'down', price: 1, serverStartPrice: 130, time: newMonth - ps.WINDOW_MS }, 120, newMonth);
+    out = ps.applyResolution(out.stats, { direction: 'down', price: 1, time: newMonth - ps.WINDOW_MS }, 120, newMonth, mark(130));
     assert.strictEqual(out.stats.monthKey, '2026-M11');
     assert.strictEqual(out.stats.monthTotal, 1);
     assert.strictEqual(out.stats.monthCorrect, 1);
@@ -82,47 +80,67 @@ test('a resolution in a new week or month resets that period only', function() {
 
 test('flat price is wrong and a bad direction does not score correct', function() {
     const now = new Date('2026-10-20T12:00:00.000Z').getTime();
-    const flat = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 50, time: now - ps.WINDOW_MS }, 50, now);
+    const flat = ps.applyResolution(null, { direction: 'up', price: 1, time: now - ps.WINDOW_MS }, 50, now, mark(50));
     assert.strictEqual(flat.correct, false);
     assert.strictEqual(flat.void, undefined);
-    const bad = ps.applyResolution(null, { direction: 'sideways', price: 1, serverStartPrice: 50, time: now - ps.WINDOW_MS }, 80, now);
+    const bad = ps.applyResolution(null, { direction: 'sideways', price: 1, time: now - ps.WINDOW_MS }, 80, now, mark(50));
     assert.strictEqual(bad.correct, false);
 });
 
-test('scoring uses only the server start price and voids the rest', function() {
+test('a client-forged start price is ignored unless the server wrote it', function() {
     const now = new Date('2026-10-20T12:00:00.000Z').getTime();
     const when = now - ps.WINDOW_MS;
-    const farm = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 100, time: when }, 90, now);
+    const forged = {
+        direction: 'up',
+        price: 1,
+        serverStartPrice: 1,
+        void: true,
+        voidReason: 'skip',
+        time: when
+    };
+    // Up from the forged start of 1 to 90 would be a win. The server recorded 100, so it is a loss.
+    const farm = ps.applyResolution(null, forged, 90, now, mark(100, when));
     assert.strictEqual(farm.void, undefined);
     assert.strictEqual(farm.correct, false);
     assert.strictEqual(farm.stats.predTotal, 1);
     assert.strictEqual(farm.stats.predCorrect, 0);
+    assert.strictEqual(farm.stats.weekTotal, 1);
     assert.strictEqual(farm.stats.predLastResult.startPrice, 100);
     assert.strictEqual(farm.stats.predLastResult.outcome, 'wrong');
-    const honest = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 100, time: when }, 110, now);
+    const honest = ps.applyResolution(null, forged, 110, now, mark(100, when));
     assert.strictEqual(honest.correct, true);
     assert.strictEqual(honest.stats.predLastResult.startPrice, 100);
 
-    const prior = ps.applyResolution(null, { direction: 'up', serverStartPrice: 100, time: when - ps.WINDOW_MS }, 110, when).stats;
+    const prior = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 1, time: when - ps.WINDOW_MS }, 110, when, mark(100, when)).stats;
     assert.strictEqual(prior.predTotal, 1);
-    const missing = ps.applyResolution(prior, { direction: 'up', price: 1, time: when }, 2, now);
+    const missing = ps.applyResolution(prior, forged, 2, now, null);
     assert.strictEqual(missing.void, true);
     assert.strictEqual(missing.reason, 'missing_server_start_price');
     assert.strictEqual(missing.stats.predTotal, 1);
     assert.strictEqual(missing.stats.predCorrect, 1);
     assert.strictEqual(missing.stats.weekTotal, prior.weekTotal);
     assert.strictEqual(missing.stats.predLastResult.outcome, 'void');
-    const flagged = ps.applyResolution(prior, { direction: 'up', price: 1, serverStartPrice: 100, void: true, voidReason: 'no_server_price', time: when }, 200, now);
-    assert.strictEqual(flagged.void, true);
-    assert.strictEqual(flagged.stats.predTotal, 1);
-    assert.strictEqual(flagged.stats.predCorrect, 1);
+    const unmarked = ps.applyResolution(prior, forged, 200, now, { serverStartPrice: 1 });
+    assert.strictEqual(unmarked.void, true);
+    assert.strictEqual(unmarked.reason, 'missing_server_start_price');
+    assert.strictEqual(unmarked.stats.predTotal, 1);
+    assert.strictEqual(unmarked.stats.predCorrect, 1);
+    const clientVoid = ps.applyResolution(prior, forged, 200, now, null);
+    assert.strictEqual(clientVoid.void, true);
+    assert.notStrictEqual(clientVoid.reason, 'skip');
 
-    const pending = ps.setPending(null, { direction: 'up', price: 1, serverStartPrice: 42000, time: now });
+    const pending = ps.setPending(null, { direction: 'up', price: 1, serverStartPrice: 1, time: now }, mark(42000, now));
     assert.strictEqual(pending.predPending.startPrice, 42000);
-    const ignored = ps.setPending(null, { direction: 'up', price: 1, time: now });
+    const ignored = ps.setPending(null, { direction: 'up', price: 1, serverStartPrice: 999, void: true, time: now }, null);
     assert.strictEqual(ignored.predPending, null);
-    assert.strictEqual(ps.resolutionDecision({ price: 1, direction: 'up' }).action, 'void');
-    assert.strictEqual(ps.resolutionDecision({ price: 1, serverStartPrice: 100 }).action, 'score');
+    const ignoredUnmarked = ps.setPending(null, { direction: 'up', price: 1, serverStartPrice: 999, time: now }, { serverStartPrice: 999 });
+    assert.strictEqual(ignoredUnmarked.predPending, null);
+    assert.strictEqual(ps.resolutionDecision(forged, null).action, 'void');
+    assert.strictEqual(ps.resolutionDecision(forged, { serverStartPrice: 100 }).action, 'void');
+    const scored = ps.resolutionDecision(forged, mark(100, now));
+    assert.strictEqual(scored.action, 'score');
+    assert.strictEqual(scored.startPrice, 100);
+    assert.strictEqual(ps.trustedStartPrice({ serverStartPrice: 1, serverPriceSetAt: 0 }), null);
 });
 
 test('minimums are weekly 5, monthly 15, all-time 10', function() {
@@ -244,7 +262,7 @@ test('payout is idempotent per period and skips users already paid', function() 
 
 test('period reset zeroes the closed period and qualification follows', function() {
     const now = new Date('2026-10-26T06:00:00.000Z').getTime();
-    let stats = ps.applyResolution(null, { direction: 'up', price: 1, serverStartPrice: 1, time: now - ps.WINDOW_MS }, 2, now).stats;
+    let stats = ps.applyResolution(null, { direction: 'up', price: 1, time: now - ps.WINDOW_MS }, 2, now, mark(1)).stats;
     assert.strictEqual(stats.weekTotal, 1);
     assert.strictEqual(stats.qualifiesWeek, false);
     const ended = stats.weekKey;
@@ -378,10 +396,25 @@ test('client copy, aria hook, and server-only scoring are wired', function() {
     const jobs = fs.readFileSync(path.join(root, 'functions/src/predictionJobs.js'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(jobs.indexOf('serverStartPrice') !== -1);
+    assert.ok(jobs.indexOf('serverPriceSetAt') !== -1);
+    assert.ok(jobs.indexOf("collection('prediction_server')") !== -1);
     assert.ok(jobs.indexOf('faucet_ledger') !== -1);
     assert.ok(jobs.indexOf('winnerSkipReason') !== -1);
     assert.ok(jobs.indexOf('price: live.price') === -1);
     assert.ok(jobs.indexOf('startPrice: Number(live.price)') === -1);
+    assert.ok(jobs.indexOf('serverStartPriceOf') === -1);
+    assert.ok(!/where\(\s*'resolved'\s*,\s*'=='\s*,\s*false\s*\)/.test(jobs));
+    assert.ok(!/resolutionDecision\(\s*live\s*\)/.test(jobs));
+    assert.ok(!/resolutionDecision\(\s*doc\.data\(\)\s*(?:\|\|\s*\{\s*\})?\s*\)/.test(jobs));
+    const sync = jobs.slice(jobs.indexOf('async function syncPending'), jobs.indexOf('loadRows: loadRows'));
+    assert.ok(sync.indexOf('getPrice()') !== -1);
+    assert.ok(!/data\.void\s*===/.test(sync));
+    assert.ok(!/tx\.set\(\s*activeRef/.test(sync));
+    assert.ok(sync.indexOf('serverPriceSetAt') !== -1);
+    const one = jobs.slice(jobs.indexOf('async function resolveOne'), jobs.indexOf('async function resolveDue'));
+    const serverRead = one.indexOf('tx.get(serverRef)');
+    const firstWrite = one.indexOf('tx.set(');
+    assert.ok(serverRead > 0 && firstWrite > serverRead);
     assert.ok(index.indexOf('syncPending(uid, after.data() || {}, _btcUsd)') !== -1);
     assert.ok(index.indexOf("actionKey === 'prediction_correct'") !== -1);
     assert.ok(index.indexOf("'prediction_correct': 25") === -1);
@@ -389,5 +422,221 @@ test('client copy, aria hook, and server-only scoring are wired', function() {
     assert.ok(index.indexOf("'prediction': 5") !== -1);
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
+test('create rule rejects a client server price, void, extra keys, and a missing resolved flag', function() {
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const activeBlock = rules.split('match /active_predictions/{uid}')[1].split('match /')[0];
+    assert.ok(activeBlock.includes("keys().hasOnly(['uid', 'direction', 'price', 'time', 'resolved'])"));
+    assert.ok(activeBlock.includes('request.resource.data.resolved == false'));
+    assert.ok(!/keys\(\)\.hasAll\(/.test(activeBlock));
+    assert.ok(/allow update: if false;/.test(activeBlock));
+    assert.ok(/allow delete: if false;/.test(activeBlock));
+    const serverBlock = rules.split('match /prediction_server/{docId}')[1].split('match /')[0];
+    assert.ok(serverBlock.includes('allow read, write: if false'));
+    const listed = activeBlock.match(/keys\(\)\.hasOnly\(\[([^\]]+)\]\)/);
+    assert.ok(listed);
+    const allowed = listed[1].split(',').map(function(part) { return part.trim().replace(/['"]/g, ''); });
+    assert.deepStrictEqual(allowed, ['uid', 'direction', 'price', 'time', 'resolved']);
+
+    function createAllowed(data) {
+        const keys = Object.keys(data);
+        for (let i = 0; i < keys.length; i++) {
+            if (allowed.indexOf(keys[i]) === -1) return false;
+        }
+        if (data.resolved !== false) return false;
+        if (data.direction !== 'up' && data.direction !== 'down') return false;
+        if (!(typeof data.price === 'number' && data.price > 0)) return false;
+        if (typeof data.uid !== 'string' || !data.uid) return false;
+        if (data.time == null) return false;
+        return true;
+    }
+    const ok = { uid: 'abc', direction: 'up', price: 100, time: 1, resolved: false };
+    assert.strictEqual(createAllowed(ok), true);
+    assert.strictEqual(createAllowed(Object.assign({ serverStartPrice: 1 }, ok)), false);
+    assert.strictEqual(createAllowed(Object.assign({ void: true }, ok)), false);
+    assert.strictEqual(createAllowed(Object.assign({ extra: true }, ok)), false);
+    const missing = { uid: ok.uid, direction: ok.direction, price: ok.price, time: ok.time };
+    assert.strictEqual(createAllowed(missing), false);
+    assert.strictEqual(createAllowed(Object.assign({}, ok, { resolved: true })), false);
+});
+
+function memoryDb(initial) {
+    const store = {};
+    Object.keys(initial || {}).forEach(function(key) {
+        store[key] = JSON.parse(JSON.stringify(initial[key]));
+    });
+    function clone(value) {
+        return value == null ? value : JSON.parse(JSON.stringify(value));
+    }
+    function write(path, data, opts) {
+        if (opts && opts.merge && store[path]) store[path] = Object.assign({}, store[path], clone(data));
+        else store[path] = clone(data);
+    }
+    function snapOf(path) {
+        const exists = Object.prototype.hasOwnProperty.call(store, path);
+        return {
+            exists: exists,
+            id: path.split('/').pop(),
+            data: function() { return exists ? clone(store[path]) : undefined; }
+        };
+    }
+    function refOf(path) {
+        return {
+            path: path,
+            id: path.split('/').pop(),
+            get: async function() { return snapOf(path); },
+            set: async function(data, opts) { write(path, data, opts); },
+            update: async function(data) { write(path, data, { merge: true }); },
+            delete: async function() { delete store[path]; }
+        };
+    }
+    function emptyQuery() {
+        return {
+            where: function() { return emptyQuery(); },
+            orderBy: function() { return emptyQuery(); },
+            limit: function() { return emptyQuery(); },
+            get: async function() {
+                return { empty: true, size: 0, docs: [], forEach: function() {} };
+            }
+        };
+    }
+    const db = {
+        collection: function(name) {
+            return {
+                doc: function(id) { return refOf(name + '/' + id); },
+                where: function() { return emptyQuery(); },
+                orderBy: function() { return emptyQuery(); },
+                limit: function() { return emptyQuery(); },
+                get: async function() {
+                    const docs = Object.keys(store).filter(function(key) {
+                        return key.indexOf(name + '/') === 0;
+                    }).map(function(key) {
+                        return {
+                            id: key.slice(name.length + 1),
+                            ref: refOf(key),
+                            data: function() { return clone(store[key]); }
+                        };
+                    });
+                    return {
+                        empty: docs.length === 0,
+                        size: docs.length,
+                        docs: docs,
+                        forEach: function(fn) { docs.forEach(fn); }
+                    };
+                }
+            };
+        },
+        getAll: async function() {
+            return Array.prototype.slice.call(arguments).map(function(ref) { return snapOf(ref.path); });
+        },
+        runTransaction: async function(fn) {
+            const writes = [];
+            const tx = {
+                get: async function(ref) { return snapOf(ref.path); },
+                set: function(ref, data, opts) { writes.push(function() { write(ref.path, data, opts); }); },
+                update: function(ref, data) { writes.push(function() { write(ref.path, data, { merge: true }); }); },
+                delete: function(ref) { writes.push(function() { delete store[ref.path]; }); }
+            };
+            const result = await fn(tx);
+            writes.forEach(function(job) { job(); });
+            return result;
+        }
+    };
+    return { db: db, store: store };
+}
+
+test('resolver fetches over a forged price and scores only the server marker', async function() {
+    const { createPredictionJobs } = require('../functions/src/predictionJobs');
+    const admin = {
+        firestore: {
+            FieldValue: {
+                increment: function(n) { return { __inc: n }; },
+                serverTimestamp: function() { return { __ts: true }; },
+                arrayUnion: function(v) { return { __arr: v }; }
+            }
+        }
+    };
+    const placed = Date.now() - ps.WINDOW_MS - 5000;
+    const forged = {
+        uid: 'u1',
+        direction: 'up',
+        price: 1,
+        serverStartPrice: 1,
+        void: true,
+        voidReason: 'skip',
+        time: placed
+    };
+    const mem = memoryDb({
+        'active_predictions/u1': forged,
+        'users/u1': { username: 'A', points: 10 }
+    });
+    const jobs = createPredictionJobs(mem.db, admin);
+    let fetches = 0;
+    const pending = await jobs.syncPending('u1', forged, async function() {
+        fetches++;
+        return 50000;
+    });
+    assert.strictEqual(fetches, 1);
+    assert.strictEqual(pending.serverStartPrice, 50000);
+    const serverId = 'prediction_server/' + ps.serverDocId('u1', placed);
+    assert.strictEqual(mem.store[serverId].serverStartPrice, 50000);
+    assert.ok(mem.store[serverId].serverPriceSetAt > 0);
+    assert.strictEqual(mem.store['active_predictions/u1'].serverStartPrice, 1);
+    assert.strictEqual(mem.store['active_predictions/u1'].void, true);
+    assert.strictEqual(mem.store['prediction_stats/u1'].predPending.startPrice, 50000);
+
+    delete mem.store[serverId];
+    mem.store['active_predictions/u1'] = {
+        uid: 'u1',
+        direction: 'up',
+        price: 1,
+        serverStartPrice: 1,
+        time: placed
+    };
+    const open = await jobs.resolveDue(async function() { return 90; });
+    assert.strictEqual(open.voided, 1);
+    assert.strictEqual(open.resolved, 0);
+    assert.ok(!mem.store['prediction_records/' + ps.serverDocId('u1', placed)]);
+    assert.strictEqual(mem.store['prediction_stats/u1'].predLastResult.outcome, 'void');
+    assert.strictEqual(mem.store['users/u1'].points, 10);
+    assert.ok(!mem.store['active_predictions/u1']);
+
+    mem.store['active_predictions/u1'] = {
+        uid: 'u1',
+        direction: 'up',
+        price: 1,
+        serverStartPrice: 1,
+        void: true,
+        time: placed
+    };
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(mem.store['active_predictions/u1'], 'resolved'), false);
+    mem.store[serverId] = { uid: 'u1', time: placed, serverStartPrice: 100, serverPriceSetAt: placed };
+    const scored = await jobs.resolveDue(async function() { return 90; });
+    assert.strictEqual(scored.resolved, 1);
+    assert.strictEqual(scored.correct, 0);
+    const record = mem.store['prediction_records/' + ps.serverDocId('u1', placed)];
+    assert.strictEqual(record.startPrice, 100);
+    assert.strictEqual(record.correct, false);
+    assert.strictEqual(record.resolvedPrice, 90);
+    assert.strictEqual(mem.store['prediction_stats/u1'].predTotal, 1);
+    assert.strictEqual(mem.store['prediction_stats/u1'].predCorrect, 0);
+    assert.strictEqual(mem.store['prediction_stats/u1'].predLastResult.startPrice, 100);
+    assert.strictEqual(mem.store['users/u1'].points, 10);
+    assert.ok(!mem.store['active_predictions/u1']);
+});
+
+async function run() {
+    for (let i = 0; i < queue.length; i++) {
+        try {
+            await queue[i].fn();
+            console.log('✅ ' + queue[i].name);
+            passed++;
+        } catch (e) {
+            console.log('❌ ' + queue[i].name + ': ' + (e && e.stack ? e.stack : e));
+            failed++;
+        }
+    }
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+}
+
+run();

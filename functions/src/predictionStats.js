@@ -206,24 +206,33 @@ function refreshFlags(stats) {
     return stats;
 }
 
-function serverStartPriceOf(prediction) {
-    const n = Number(prediction && prediction.serverStartPrice);
+function serverDocId(uid, time) {
+    const t = timeMs(time);
+    if (!uid || !t) return '';
+    return String(uid) + '_' + t;
+}
+
+// The only trusted start price is the one this server wrote. serverPriceSetAt is
+// that marker. price, serverStartPrice, and void on the client prediction are ignored.
+function trustedStartPrice(serverRecord) {
+    if (!serverRecord) return null;
+    const setAt = Number(serverRecord.serverPriceSetAt);
+    if (!(setAt > 0)) return null;
+    const n = Number(serverRecord.serverStartPrice);
     return n > 0 ? n : null;
 }
 
-// Scoring never reads the client-supplied price. A missing server price, or an
-// explicit void, is not a result: totals stay unchanged.
-function resolutionDecision(prediction) {
-    if (!prediction || prediction.void === true) {
-        return { action: 'void', reason: (prediction && prediction.voidReason) || 'void' };
+function resolutionDecision(prediction, serverRecord) {
+    const startPrice = trustedStartPrice(serverRecord);
+    if (startPrice != null) return { action: 'score', startPrice: startPrice };
+    if (serverRecord && serverRecord.void === true && !(Number(serverRecord.serverPriceSetAt) > 0)) {
+        return { action: 'void', reason: serverRecord.voidReason || 'void' };
     }
-    const startPrice = serverStartPriceOf(prediction);
-    if (startPrice == null) return { action: 'void', reason: 'missing_server_start_price' };
-    return { action: 'score', startPrice: startPrice };
+    return { action: 'void', reason: 'missing_server_start_price' };
 }
 
-function applyResolution(prev, prediction, resolvedPrice, nowMs) {
-    const decision = resolutionDecision(prediction);
+function applyResolution(prev, prediction, resolvedPrice, nowMs, serverRecord) {
+    const decision = resolutionDecision(prediction, serverRecord);
     const predTime = timeMs(prediction && prediction.time);
     if (decision.action === 'void') {
         const stats = cloneStats(prev);
@@ -274,11 +283,11 @@ function applyResolution(prev, prediction, resolvedPrice, nowMs) {
     return { stats: stats, correct: correct };
 }
 
-function setPending(prev, prediction) {
+function setPending(prev, prediction, serverRecord) {
     const stats = cloneStats(prev);
     const time = timeMs(prediction && prediction.time);
     const direction = prediction && prediction.direction;
-    const price = serverStartPriceOf(prediction);
+    const price = trustedStartPrice(serverRecord);
     if (!time || (direction !== 'up' && direction !== 'down') || price == null) return stats;
     stats.predPending = { direction: direction, startPrice: price, time: time };
     return stats;
@@ -590,7 +599,8 @@ module.exports = {
     displayPct: displayPct,
     isCorrect: isCorrect,
     isSatsBanned: isSatsBanned,
-    serverStartPriceOf: serverStartPriceOf,
+    serverDocId: serverDocId,
+    trustedStartPrice: trustedStartPrice,
     resolutionDecision: resolutionDecision,
     winnerSkipReason: winnerSkipReason,
     emptyStats: emptyStats,
