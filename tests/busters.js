@@ -1,5 +1,5 @@
-// Cache-buster pin after rebasing onto gh-pages (b31019a1, sw v2253).
-// This branch is btc-archive-v2254. index.html and 404.html must stay identical.
+// Cache-buster pin. This branch is btc-archive-v2261.
+// v2254-v2260 are reserved by other open PRs. index.html and 404.html must stay identical.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -16,10 +16,10 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2254', () => {
+test('service worker cache is v2261', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2254'"));
-    ['v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2261'"));
+    ['v2260', 'v2259', 'v2258', 'v2257', 'v2256', 'v2255', 'v2254', 'v2253', 'v2252', 'v2251', 'v2250', 'v2249', 'v2248', 'v2247', 'v2246', 'v2245', 'v2240'].forEach(function(older) {
         assert.ok(!sw.includes('btc-archive-' + older), 'still mentions ' + older);
     });
 });

@@ -1153,6 +1153,43 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
         return null;
     });
 
+// Nacho announces a new top-level PlebTalk post or Marketplace listing in
+// Global Chat, then mirrors it through the shoutout Telegram bridge.
+// Separate from onForumPost so a mail failure cannot drop the chat post.
+const { announceActivity } = require('./src/activityShoutout');
+
+exports.onForumShoutout = onDocumentCreated('forum_posts/{postId}', async (event) => {
+    if (!event.data) return null;
+    try {
+        await announceActivity({
+            kind: 'forum',
+            id: event.params.postId,
+            db: db,
+            admin: admin,
+        });
+    } catch (e) {
+        console.error('[onForumShoutout] failed', e && e.message ? e.message : '');
+        throw e;
+    }
+    return null;
+});
+
+exports.onMarketplaceShoutout = onDocumentCreated('marketplace/{listingId}', async (event) => {
+    if (!event.data) return null;
+    try {
+        await announceActivity({
+            kind: 'marketplace',
+            id: event.params.listingId,
+            db: db,
+            admin: admin,
+        });
+    } catch (e) {
+        console.error('[onMarketplaceShoutout] failed', e && e.message ? e.message : '');
+        throw e;
+    }
+    return null;
+});
+
 // =============================================
 // Push Notification: Spin Wheel Reminder
 // Runs every Monday, Wednesday, Friday at 10am ET

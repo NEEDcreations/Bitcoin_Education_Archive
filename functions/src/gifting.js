@@ -25,6 +25,7 @@ const {
     adminClaimFlag,
 } = require('./cipherClaim');
 const { planShoutout, applyShoutoutCap, shoutoutDocId } = require('./shoutout');
+const { publishShoutoutOnce } = require('./shoutoutPublish');
 const { mirrorShoutoutOnce } = require('./telegramBridge');
 
 const db = admin.firestore();
@@ -132,41 +133,13 @@ async function postNacho(text, mentionUid) {
 
 // One chat message per prize. The doc id is the prize id, and the gift or
 // cipher is marked in the same transaction, so a retry cannot double-post.
+// Activity shoutouts use the same publishShoutoutOnce writer.
 async function publishShoutout(markerRef, plan) {
-    const chatRef = db.collection(plan.collection).doc(plan.docId);
-    const notifRef = db.collection('notifications').doc(plan.docId);
-    await db.runTransaction(async (t) => {
-        const marker = await t.get(markerRef);
-        const existing = await t.get(chatRef);
-        const posted = marker.exists && marker.data().shoutoutPosted === true;
-        if (posted || existing.exists) {
-            if (!posted && marker.exists) t.update(markerRef, { shoutoutPosted: true });
-            return;
-        }
-        t.update(markerRef, {
-            shoutoutPosted: true,
-            shoutoutAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        t.set(chatRef, {
-            uid: plan.authorUid,
-            name: plan.authorName,
-            text: plan.text,
-            isNachoAuto: plan.isNachoAuto,
-            mentionUid: plan.mentionUid,
-            ts: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        const preview = String(plan.text || '').slice(0, 50);
-        t.set(notifRef, {
-            recipientId: plan.mentionUid,
-            senderId: 'nacho-bot',
-            senderName: 'Nacho 🦌',
-            type: 'chat_mention',
-            message: '💬 @Nacho mentioned you in Global Chat: "' + preview + '"',
-            targetType: 'chat',
-            targetId: plan.docId,
-            read: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+    await publishShoutoutOnce({
+        db: db,
+        admin: admin,
+        markerRef: markerRef,
+        plan: plan,
     });
 }
 

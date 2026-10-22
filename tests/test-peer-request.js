@@ -396,8 +396,10 @@ queue.push(test('cache busters are v2252 and index.html matches 404.html', funct
     assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2251'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
-    assert.ok(html.includes('bundle.min.js?v=20261022_v2252'));
-    assert.ok(html.includes('global-chat.js?v=20261022_v2252'));
+    assert.ok(html.includes('bundle.min.js?v=20261022_v2261'));
+    assert.ok(html.includes('global-chat.js?v=20261022_v2261'));
+    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2252'), false);
+    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2252'), false);
     assert.ok(html.includes('satoshi-favor.js?v=20261022_v2250'));
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2252/g) || []).length, 4);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2251/g) || []).length, 0);
@@ -411,7 +413,9 @@ queue.push(test('cache busters are v2252 and index.html matches 404.html', funct
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2254'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2261'"));
+    assert.strictEqual(sw.includes('btc-archive-v2260'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2254'), false);
     assert.strictEqual(sw.includes('btc-archive-v2253'), false);
     assert.strictEqual(sw.includes('btc-archive-v2252'), false);
     assert.strictEqual(sw.includes('btc-archive-v2251'), false);
