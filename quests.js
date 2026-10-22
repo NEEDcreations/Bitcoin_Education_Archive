@@ -5851,7 +5851,7 @@ window._contributeRaidNav = function() {
     // Load trivia bank
     if (typeof TRIVIA_BANK === 'undefined') {
         var ts = document.createElement('script');
-        ts.src = 'data/trivia-bank.js?v=20261022_v2270';
+        ts.src = 'data/trivia-bank.js?v=20261022_v2272';
         ts.onerror = function() { console.warn('[QUEST] Trivia bank failed to load'); };
         document.head.appendChild(ts);
     }
