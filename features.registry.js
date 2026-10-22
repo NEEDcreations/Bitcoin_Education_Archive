@@ -77,6 +77,7 @@
         if (k === 'chat') return function () {
             if (typeof win.renderChatHub === 'function') win.renderChatHub('global');
             else if (typeof win.toggleChatOverlay === 'function') win.toggleChatOverlay();
+            else if (typeof win.openGlobalChatForCipher === 'function') win.openGlobalChatForCipher();
         };
         if (k === 'dms') return function () {
             if (typeof win.showInbox === 'function') win.showInbox();
@@ -130,8 +131,15 @@
             else questOpen('nook', 'inventory')();
         };
         if (k === 'cipher') return function () {
-            if (typeof win.openNookInventory === 'function') win.openNookInventory();
+            if (typeof win.openKeysAndCiphers === 'function') win.openKeysAndCiphers();
+            else if (typeof win.openNookInventory === 'function') win.openNookInventory();
             else questOpen('nook', 'inventory')();
+        };
+        if (k === 'raid') return function () {
+            if (typeof win.openRaidHub === 'function') { win.openRaidHub(); return; }
+            if (typeof win.showQuestHub === 'function') win.showQuestHub();
+            win._questHubTab = 'raid';
+            setTimeout(function () { if (typeof win._renderQuestHubTab === 'function') win._renderQuestHubTab(); }, 80);
         };
         if (k === 'audio') return function () { if (typeof win.toggleAudio === 'function') win.toggleAudio(); };
         if (k === 'tv') return function () {
@@ -287,7 +295,8 @@
             desc: 'The raid boss is a community fight. You deal damage by earning badges and doing activities.',
             how: 'Open Quest Hub → Raid to see the boss, your damage, and the prize.',
             follow: 'Want the leaderboard of raiders next?',
-            hash: 'app/raid', aliases: ['raid', 'raid-boss'], kind: 'quest', arg: 'raid', questTab: 'raid' }),
+            hash: 'app/raid', aliases: ['raid', 'raid-boss'], kind: 'raid', arg: 'raid', questTab: 'raid',
+            openFns: ['openRaidHub', 'showQuestHub'] }),
         R({ id: 'citadel', title: 'Citadel', group: 'Quests', term: 'citadel', priority: 80,
             kw: 'citadel coming soon spend xp',
             desc: 'The Citadel is the coming-soon place to spend XP.',
@@ -374,7 +383,7 @@
             how: 'Open Quest Hub → Nook/Inventory. Pick the locked cipher and use a matching key.',
             follow: 'How do I get a key for my cipher?',
             hash: 'app/ciphers', aliases: ['ciphers', 'cipher', 'locked-cipher'], kind: 'cipher',
-            openFns: ['openNookInventory', 'openCipherWithMatch', 'showQuestHub'] }),
+            openFns: ['openKeysAndCiphers', 'openNookInventory', 'openCipherWithMatch', 'showQuestHub'] }),
         R({ id: 'keys', title: 'Cipher keys', group: 'Rewards', term: 'keys', priority: 100,
             kw: 'key keys cipher key send key peer label',
             desc: 'Keys open locked ciphers when the label matches. You can send up to 3 keys to each peer per day.',
@@ -427,16 +436,16 @@
             hash: 'app/referral', aliases: ['referral', 'refer'], kind: 'settings', arg: 'account' }),
         R({ id: 'sats', title: 'Claim sats', group: 'Rewards', term: 'faucet', priority: 70,
             kw: 'faucet claim sats withdraw payout sats',
-            desc: 'The faucet lets you claim sats. Payouts go to the Lightning address saved on your account.',
-            how: 'Add a Lightning address in Settings → Account, then open Settings → Sats and claim. The faucet keeps a few quiet checks so it stays fair. Those details stay vague on purpose.',
-            follow: 'Want to add or change your Lightning address first?',
+            desc: 'The faucet lets you claim sats. The exact checks stay vague so it stays fair for real learners.',
+            how: 'Open Settings → Sats and claim when you are eligible. Those details stay vague on purpose.',
+            follow: 'Want to open Settings → Sats?',
             hash: 'sats', aliases: ['sats', 'wallet', 'faucet'], kind: 'settings', arg: 'sats', settingsPages: ['sats'],
             openFns: ['showSettings', 'showSettingsPage'] }),
         R({ id: 'ln-address', title: 'Lightning address', group: 'Rewards', term: 'lightning address', priority: 75,
-            kw: 'lightning address payout tips receive',
-            desc: 'Your Lightning address is where faucet payouts and tips are sent.',
+            kw: 'lightning address tips receive',
+            desc: 'Your Lightning address is where tips are sent.',
             how: 'Open Settings → Account and save a Lightning address that looks like an email (name@wallet).',
-            follow: 'Want to claim sats to that address?',
+            follow: 'Want to open Settings → Account?',
             hash: 'app/lightning-address', aliases: ['lightning-address', 'ln-address'], kind: 'settings', arg: 'account',
             settingsPages: ['account', 'profile'] }),
         R({ id: 'predictions', title: 'Price prediction', group: 'Games', term: 'prediction', priority: 80,
@@ -483,7 +492,7 @@
             desc: 'Global chat is the live room, with a Telegram bridge.',
             how: 'Open the chat button and stay on the Global tab.',
             follow: 'Want direct messages instead of the public room?',
-            hash: 'chat', aliases: ['chat', 'global-chat'], kind: 'chat', openFns: ['renderChatHub', 'toggleChatOverlay'] }),
+            hash: 'chat', aliases: ['chat', 'global-chat'], kind: 'chat', openFns: ['renderChatHub', 'toggleChatOverlay', 'openGlobalChatForCipher'] }),
         R({ id: 'dms', title: 'Direct messages', group: 'Community', term: 'messages', priority: 65,
             kw: 'messages dms dm inbox direct message',
             desc: 'Direct messages are private chats.',
@@ -626,6 +635,27 @@
             follow: 'Want cipher keys? Those are a different "keys," in Inventory.',
             hash: 'app/shortcuts', aliases: ['shortcuts', 'keyboard'], kind: 'keyshelp',
             openFns: ['showKeyboardHelp'] }),
+        R({ id: 'exploration-map', title: 'Exploration Map', group: 'Help', term: 'exploration map', priority: 55,
+            kw: 'exploration map visited topics progress coverage grid',
+            desc: 'The Exploration Map shows which topics you have visited.',
+            how: 'Go home and open the Exploration Map to see your coverage.',
+            follow: 'Want the home page?',
+            hash: 'app/exploration-map', aliases: ['exploration-map'], kind: 'home',
+            openFns: ['goHome'] }),
+        R({ id: 'online-status', title: 'Online Status', group: 'Account', term: 'online status', priority: 65,
+            kw: 'online status presence invisible offline green dot activity',
+            desc: 'Online Status lets you show or hide whether you are online to other people.',
+            how: 'Open Settings → Prefs and change your online status.',
+            follow: 'Want the rest of Preferences?',
+            hash: 'app/online-status', aliases: ['online-status'], kind: 'settings', arg: 'prefs',
+            settingsPages: ['prefs'], openFns: ['showSettings', 'showSettingsPage'] }),
+        R({ id: 'profile-picture', title: 'Profile Picture', group: 'Account', term: 'profile picture', priority: 75,
+            kw: 'profile picture photo avatar image upload pfp selfie portrait',
+            desc: 'Your profile picture is the photo other people see on your account.',
+            how: 'Open Settings → Account and upload or change your profile picture.',
+            follow: 'Want the rest of your account settings?',
+            hash: 'app/profile-picture', aliases: ['profile-picture'], kind: 'settings', arg: 'account',
+            settingsPages: ['account', 'profile'], openFns: ['showSettings', 'showSettingsPage'] }),
         R({ id: 'audio', title: 'Sound effects', group: 'Help', term: 'audio', priority: 30, aux: true,
             kw: 'audio sound mute volume',
             desc: 'Sound effects can be turned on or off.',
@@ -869,6 +899,9 @@
         if (/bitcoin music|bitcoin beats|\bbeats\b|dj mode|where can i listen/.test(s)) return 'beats';
         if (/mempool|network stats|bitcoin dashboard|\bdashboard\b/.test(s)) return 'dashboard';
         if (/notification/.test(s)) return 'notifications';
+        if (/exploration map|visited topics/.test(s)) return 'exploration-map';
+        if (/online status|go invisible|presence indicator/.test(s)) return 'online-status';
+        if (/profile (picture|photo|pic)|\bavatar\b|\bpfp\b/.test(s)) return 'profile-picture';
         if (/where are the settings|open settings|\bsettings\b/.test(s) && !/nacho/.test(s)) return 'settings';
         if (/sign in|log in|login|create an account|how do i sign/.test(s)) return 'signin';
         if (/orange ticket/.test(s)) return 'tickets';
@@ -938,7 +971,23 @@
         return null;
     }
 
-    function bqRouteHash(hash) {
+    function openerReady(f) {
+        var names = f.openFns || [];
+        var needsQuest = f.kind === 'quest' || f.kind === 'cipher' || f.kind === 'inventory' || f.kind === 'favor' || f.kind === 'raid';
+        if (needsQuest) {
+            // ranking.js defines openKeysAndCiphers before quests.js loads. That is not ready.
+            if (typeof win.showQuestHub === 'function' || typeof win.openNookInventory === 'function') return true;
+            if (f.kind === 'raid' && typeof win.openRaidHub === 'function') return true;
+            return false;
+        }
+        if (!names.length) return true;
+        for (var j = 0; j < names.length; j++) {
+            if (typeof win[names[j]] === 'function') return true;
+        }
+        return false;
+    }
+
+    function bqRouteHash(hash, attempt) {
         if (win._bqSuppressRoute) return false;
         var f = featureByHash(hash);
         if (!f) return false;
@@ -946,6 +995,22 @@
         var bare = String(hash || '').replace(/^#/, '');
         if (bare.indexOf('app/') !== 0 && bare.indexOf('/') === -1 && typeof win.CHANNELS === 'object' && win.CHANNELS && win.CHANNELS[bare] && f.hash !== bare && f.aliases.indexOf(bare) === -1) {
             return false;
+        }
+        var now = Date.now();
+        if (!attempt) {
+            if (win._bqLastRouted === bare && now - (win._bqLastRoutedAt || 0) < 800) return true;
+            win._bqLastRouted = bare;
+            win._bqLastRoutedAt = now;
+        }
+        if (!openerReady(f)) {
+            if (typeof win._loadDeferred === 'function') {
+                try { win._loadDeferred(); } catch (e0) {}
+            }
+            var n = (attempt || 0) + 1;
+            if (n * 300 <= 10000) {
+                setTimeout(function () { bqRouteHash(bare, n); }, 300);
+                return true;
+            }
         }
         try { f.open(); } catch (e) {}
         return true;
@@ -970,8 +1035,10 @@
 
     function renderNachoAnswerCard(hit) {
         var f = BY_ID[hit.featureId || hit.id];
-        var text = hit.answer || (f ? answerText(f) : '');
+        // The follow-up is the chip only. The card body is the how-to.
+        var text = f ? (f.desc + ' ' + f.how) : String(hit.answer || '');
         var follow = hit.followUp || (f && f.follow) || '';
+        if (follow && text.indexOf(follow) !== -1) text = text.replace(follow, '').trim();
         var id = (f && f.id) || hit.featureId || '';
         var chip = follow
             ? '<button type="button" data-bq-chip="1" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();window.bqAskFollowUp(this.getAttribute(\'data-q\'))" data-q="' + esc(follow) + '" style="display:block;width:100%;margin-top:6px;padding:7px 8px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#aaa);font-size:0.78rem;cursor:pointer;font-family:inherit;text-align:left;">' + esc(follow) + '</button>'
@@ -1036,6 +1103,23 @@
         return text;
     }
 
+    // Top matching features only. The worker caps this again at 1500 chars.
+    function appKnowledgeFor(q) {
+        var hits = searchFeatures(q || '').filter(function (h) { return h.feature && !h.feature.aux; }).slice(0, 5);
+        var lines = [];
+        for (var i = 0; i < hits.length; i++) {
+            var f = hits[i].feature;
+            lines.push(f.title + ': ' + f.desc + ' ' + f.how);
+        }
+        var text = lines.join('\n');
+        if (text.length > 1500) text = text.slice(0, 1500);
+        return text;
+    }
+
+    function cleanLabel(s) {
+        return String(s || '').replace(/[^A-Za-z0-9 .-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    }
+
     function userContext() {
         var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
         var name = (u && u.username) || '';
@@ -1045,7 +1129,7 @@
         var points = (u && u.points) || 0;
         var rank = '';
         try { if (typeof getLevel === 'function') rank = (getLevel(points) || {}).name || ''; } catch (e2) {}
-        return { name: String(name).slice(0, 40), rank: String(rank).slice(0, 40), points: points | 0 };
+        return { name: cleanLabel(name), rank: cleanLabel(rank), points: points | 0 };
     }
 
     function toAppPages() {
@@ -1099,45 +1183,17 @@
             }
         }
         win.bqCloseSearch = bqCloseSearch;
-        function render(q) {
+        function resultsEl() {
             var overlay = document.getElementById('searchOverlay');
             var overlayOpen = overlay && (overlay.getAttribute('data-open') === '1' || overlay.style.display === 'flex');
-            var sr = overlayOpen ? document.getElementById('searchResults') : (document.getElementById('sidebarSearchResults') || document.getElementById('searchResults'));
-            if (!sr) return;
-            var cl = document.getElementById('channelList');
-            var feats = searchFeatures(q);
-            var chans = [];
-            if (typeof CHANNELS === 'object' && CHANNELS) {
-                var phrase = norm(q);
-                Object.keys(CHANNELS).forEach(function (key) {
-                    var meta = CHANNELS[key];
-                    if (!meta) return;
-                    var blob = norm((meta.title || '') + ' ' + (meta.desc || ''));
-                    if (phrase && blob.indexOf(phrase) !== -1) chans.push({ key: key, title: meta.title, cat: meta.cat || 'Channel' });
-                    else {
-                        var ts = tokens(q);
-                        var blobT = tokens((meta.title || '') + ' ' + (meta.desc || ''));
-                        var ok = ts.length && ts.every(function (t) { return bestSim(t, blobT) >= 0.82; });
-                        if (ok) chans.push({ key: key, title: meta.title, cat: meta.cat || 'Channel' });
-                    }
-                });
-            }
-            if (!feats.length && !chans.length) {
-                sr.classList.add('active');
-                if (cl) cl.style.display = 'none';
-                sr.innerHTML = '<div style="padding:20px;text-align:center;">' +
-                    '<div style="color:var(--text-faint);margin-bottom:12px;">No results for “' + esc(q) + '”</div>' +
-                    '<button type="button" onclick="window.bqAskNacho(window._bqSearchQuery||\'\')" style="padding:10px 16px;background:var(--accent,#f7931a);border:none;border-radius:10px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Ask Nacho</button>' +
-                    '</div>';
-                win._bqSearchQuery = q;
-                return;
-            }
-            var html = '<div style="padding:8px 16px 4px;font-size:0.7rem;color:var(--text-faint);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">' +
-                (feats.length ? feats.length + ' feature' + (feats.length === 1 ? '' : 's') : '') +
-                (feats.length && chans.length ? ' · ' : '') +
-                (chans.length ? chans.length + ' channel' + (chans.length === 1 ? '' : 's') : '') +
-                '</div><div>';
-            feats.slice(0, 12).forEach(function (row) {
+            return overlayOpen ? document.getElementById('searchResults') : (document.getElementById('sidebarSearchResults') || document.getElementById('searchResults'));
+        }
+        function featureBlock(q) {
+            var feats = searchFeatures(q).filter(function (row) { return row.feature && !row.feature.aux; }).slice(0, 12);
+            if (!feats.length) return '';
+            var html = '<div data-bq-feature-block="1"><div style="padding:8px 16px 4px;font-size:0.7rem;color:var(--text-faint);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">' +
+                feats.length + ' feature' + (feats.length === 1 ? '' : 's') + '</div><div>';
+            feats.forEach(function (row) {
                 var f = row.feature;
                 html += '<div class="sr-item" data-bq-feature="' + f.id + '" style="border-left:3px solid var(--accent);cursor:pointer;" onclick="window.bqOpenFeature(\'' + f.id + '\');window.bqCloseSearch&&window.bqCloseSearch();">' +
                     '<div class="sr-cat">Feature</div>' +
@@ -1146,15 +1202,22 @@
                     '<button type="button" onclick="event.stopPropagation();event.preventDefault();window.bqOpenFeature(\'' + f.id + '\');window.bqCloseSearch&&window.bqCloseSearch();" style="margin-top:6px;padding:6px 12px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Open</button>' +
                     '</div>';
             });
-            chans.slice(0, 12).forEach(function (c) {
-                html += '<div class="sr-item" style="cursor:pointer;" onclick="if(window.selectResult)window.selectResult(\'' + c.key + '\',-1);">' +
-                    '<div class="sr-cat">' + esc(c.cat) + '</div><div>' + esc(c.title) + '</div></div>';
-            });
-            html += '</div>';
-            sr.innerHTML = html;
-            sr.classList.add('active');
-            if (cl) cl.style.display = 'none';
+            html += '</div></div>';
+            return html;
+        }
+        function prependFeatures(q) {
+            var sr = resultsEl();
+            if (!sr) return;
+            var old = sr.querySelector('[data-bq-feature-block]');
+            if (old && old.parentNode) old.parentNode.removeChild(old);
+            var block = featureBlock(q);
             win._bqSearchQuery = q;
+            if (!block) return;
+            var cl = document.getElementById('channelList');
+            if (cl) cl.style.display = 'none';
+            sr.classList.add('active');
+            if (!sr.querySelector('.sr-item') && /No results/i.test(sr.textContent || '')) sr.innerHTML = '';
+            sr.insertAdjacentHTML('afterbegin', block);
         }
         var wrapped = function (q) {
             var text = (q == null) ? '' : String(q);
@@ -1162,11 +1225,17 @@
                 var el = document.getElementById(id);
                 if (el && el.value !== text) el.value = text;
             });
-            if (!text || text.length < 2 || text.toLowerCase() === 'satoshi' || text.toLowerCase() === 'deer') {
+            var low = text.toLowerCase();
+            if (!text || text.length < 2 || low === 'satoshi' || low === 'deer') {
                 if (typeof orig === 'function') return orig(text);
                 return;
             }
-            render(text);
+            // Feature cards first, then the original channel and message search.
+            if (typeof orig === 'function') {
+                try { orig(text); } catch (e1) {}
+            }
+            prependFeatures(text);
+            setTimeout(function () { prependFeatures(text); }, 650);
         };
         wrapped._bq = true;
         win.doSearch = wrapped;
@@ -1174,25 +1243,62 @@
 
     function decorateResult(result, q) {
         if (!result || result.rendered || !result.answer) return result;
+        if (/data-bq-chip/.test(result.answer)) return result;
         var plain = String(result.answer).replace(/<[^>]+>/g, '');
-        if (/\?\s*$/.test(plain.trim()) || /data-bq-chip/.test(result.answer)) return result;
-        var tip = (result.followUp) || pickTip(q);
+        var tip = result.followUp || win._bqLastFollowUp || '';
+        // The sentence is already in the answer. A second chip would show it twice.
+        if (tip && plain.indexOf(String(tip).slice(0, 24)) !== -1) {
+            win._bqLastFollowUp = tip;
+            if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
+            return result;
+        }
+        if (!tip) {
+            if (/\?\s*$/.test(plain.trim())) {
+                if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
+                return result;
+            }
+            tip = pickTip(q);
+        }
         result.followUp = tip;
         result.answer += '<div data-bq-chip="1" style="margin-top:8px;font-size:0.84rem;color:var(--text-muted,#bbb);">' + esc(tip) + '</div>';
         win._bqLastFollowUp = tip;
+        if (!result.plainAnswer) result.plainAnswer = plain.replace(/\s+/g, ' ').trim();
         return result;
+    }
+
+    function plainFeatureAnswer(hit) {
+        var f = BY_ID[hit.featureId];
+        var hash = (f && f.hash) || hit.hash || ('app/' + hit.featureId);
+        var body = f ? answerText(f) : String(hit.answer || '');
+        body = String(body).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+        return { hash: hash, text: body + ' 👉 #' + hash };
     }
 
     function wrapUnified(orig) {
         var wrapped = function (question, cb) {
+            // Crisis, harm, and profanity beat every feature card.
+            if (typeof win.nachoSafetyCheck === 'function' && win.nachoSafetyCheck(question)) {
+                return orig(question, cb);
+            }
+            win._bqLastFollowUp = '';
             var hit = resolveNachoFeature(question);
             if (hit) {
+                var plain = plainFeatureAnswer(hit);
                 win._bqLastFollowUp = hit.followUp;
                 var card = renderNachoAnswerCard(hit);
                 if (typeof win.nachoRemember === 'function') {
-                    try { win.nachoRemember(question, hit.answer); } catch (e) {}
+                    try { win.nachoRemember(question, plain.text); } catch (e) {}
                 }
-                cb({ type: 'site', answer: card, rendered: true, featureId: hit.featureId, followUp: hit.followUp, siteLabel: 'Open it' });
+                cb({
+                    type: 'site',
+                    answer: card,
+                    plainAnswer: plain.text,
+                    rendered: true,
+                    featureId: hit.featureId,
+                    followUp: hit.followUp,
+                    siteLabel: 'Open it',
+                    hash: plain.hash
+                });
                 return;
             }
             return orig(question, function (result) {
@@ -1214,7 +1320,9 @@
             var wrapped = function (answerText) {
                 var a = String(answerText || '');
                 if (a.indexOf('data-bq-chip') !== -1) return [];
-                if (win._bqLastFollowUp && a.indexOf(String(win._bqLastFollowUp).slice(0, 24)) !== -1) return [win._bqLastFollowUp];
+                // Already printed in the answer text: do not add the same line as a chip.
+                if (win._bqLastFollowUp && a.indexOf(String(win._bqLastFollowUp).slice(0, 24)) !== -1) return [];
+                if (win._bqLastFollowUp) return [win._bqLastFollowUp];
                 var list = [];
                 try { list = prev(a) || []; } catch (e) {}
                 return list.slice(0, 1);
@@ -1225,6 +1333,8 @@
     }
 
     function installRouter() {
+        // app.js handleHash already calls bqRouteHash. A second listener opens twice.
+        if (win._bqAppRoutesHash) return;
         if (win._bqRouter) return;
         win._bqRouter = true;
         function go() {
@@ -1264,7 +1374,9 @@
         answerText: answerText,
         renderNachoAnswerCard: renderNachoAnswerCard,
         appKnowledge: appKnowledge,
-        userContext: userContext
+        appKnowledgeFor: appKnowledgeFor,
+        userContext: userContext,
+        wrapUnified: wrapUnified
     };
 
     win.FEATURE_REGISTRY = FEATURES;
@@ -1277,7 +1389,9 @@
     win.bqToAppPages = toAppPages;
     win.bqSeoPages = toSeoPages;
     win.bqAppKnowledge = appKnowledge;
+    win.bqAppKnowledgeFor = appKnowledgeFor;
     win.bqUserContext = userContext;
+    win.bqWrapUnified = wrapUnified;
     win.renderNachoAnswerCard = renderNachoAnswerCard;
     win.bqAskFollowUp = bqAskFollowUp;
     win.bqAskNacho = bqAskNacho;

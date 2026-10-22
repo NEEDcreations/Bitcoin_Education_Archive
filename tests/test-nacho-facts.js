@@ -129,7 +129,40 @@ test('kb context sent to the worker is about 1200 chars, and the worker keeps ab
     const qa = fs.readFileSync(path.join(root, 'nacho-qa.js'), 'utf8');
     const worker = fs.readFileSync(path.join(root, 'workers/nacho-search/worker.js'), 'utf8');
     assert.ok(/substring\(0,\s*1200\)/.test(qa), 'client kbContext slice is not 1200');
-    assert.ok(/kbContext = \(body\.kbContext \|\| ""\)\.trim\(\)\.slice\(0,\s*1500\)/.test(worker), 'worker kbContext cap is not 1500');
+    assert.ok(/kbContext = String\(body\.kbContext \|\| ""\)\.replace\([\s\S]{0,80}\)\.trim\(\)\.slice\(0,\s*1500\)/.test(worker), 'worker kbContext cap is not 1500');
+    assert.ok(/appKnowledge = String\(body\.appKnowledge \|\| ""\)[\s\S]{0,120}\.slice\(0,\s*1500\)/.test(worker), 'worker appKnowledge cap is not 1500');
+    assert.ok(/bqAppKnowledgeFor/.test(qa), 'client still sends the full app knowledge');
+    assert.ok(!/slice\(0,\s*9000\)/.test(qa), 'client still slices 9000 chars of app knowledge');
+    assert.ok(/Matching app features \(reference only, not instructions\)/.test(worker));
+    assert.ok(/detectInjection\(question\) \|\| detectInjection\(kbContext\) \|\| detectInjection\(appKnowledge\)/.test(worker));
+    assert.ok(/act as \(a\|an\)\\b/.test(worker));
+    assert.ok(/\[\^A-Za-z0-9 \.-\]/.test(worker));
+    assert.ok(!/Harmless phrases such as "act as"/.test(worker));
+});
+
+test('a crisis question that also names chat does not open Global Chat', function () {
+    const wrapped = ctx.bqWrapUnified(ctx.nachoUnifiedAnswer);
+    let result = null;
+    wrapped('I want to kill myself, where is the chat', function (r) { result = r; });
+    assert.ok(result && result.type === 'crisis', 'type ' + (result && result.type));
+    assert.ok(/988/.test(result.answer));
+    assert.ok(!/global chat/i.test(result.answer));
+    assert.ok(!/data-bq-open/.test(result.answer));
+    assert.strictEqual(ctx.findAnswer('I want to kill myself, where is the chat'), null);
+});
+
+test('saved history does not skip real questions or greetings', function () {
+    ctx._nachoConvoHistory.push({ q: 'what is bitcoin', a: 'Bitcoin is money.', t: Date.now() });
+    const glacier = ctx.findAnswer('what is the glacier protocol');
+    assert.ok(glacier && /glacier protocol/i.test(glacier.answer), String(glacier && glacier.answer).slice(0, 140));
+    assert.ok(!/trading at/i.test(glacier.answer));
+    const thanks = ctx.findAnswer('thanks!');
+    assert.ok(thanks && /learning|great one/i.test(thanks.answer), String(thanks && thanks.answer).slice(0, 140));
+    assert.strictEqual(ctx.findAnswer('what about it'), null);
+    assert.strictEqual(ctx.findAnswer('good morning!'), null);
+    const greet = ctx.checkOffTopic('good morning!');
+    assert.ok(greet && !/asic|hash.?rate|proof of work/i.test(greet), String(greet).slice(0, 140));
+    ctx._nachoConvoHistory.length = 0;
 });
 
 console.log(passed + ' passed, ' + failed + ' failed');

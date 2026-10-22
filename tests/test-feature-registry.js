@@ -7,7 +7,7 @@ const { execFileSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const reg = require(path.join(root, 'features.registry.js'));
-const features = require('/cursor/stores/bot/nacho-audit/features.json');
+const features = require(path.join(__dirname, 'fixtures/features.json'));
 
 let passed = 0;
 let failed = 0;
@@ -99,10 +99,26 @@ test('common phrasings, typos, and sentence queries', function () {
 test('sats answers do not publish faucet limits', function () {
     const hit = reg.resolveNachoFeature('how do i claim sats');
     assert.ok(hit);
-    assert.ok(/lightning address/i.test(hit.answer));
+    assert.ok(/settings/i.test(hit.answer) && /sats/i.test(hit.answer));
+    assert.ok(!/lightning address/i.test(hit.answer));
     assert.ok(!/\b200 sats\b|\b15,?000\b|\b100 sats\b|\b7 days\b|\b1,000 points\b/i.test(hit.answer));
     const ref = reg.resolveNachoFeature('how does the referral program work');
     assert.ok(/maxi/i.test(ref.answer) && /50/.test(ref.answer) && /orange ticket/i.test(ref.answer));
+    const qa = fs.readFileSync(path.join(root, 'nacho-qa.js'), 'utf8');
+    const faucet = qa.slice(qa.indexOf('Sats Faucet'), qa.indexOf('points to sats'));
+    assert.ok(faucet.length > 100);
+    assert.ok(!/lightning address saved/i.test(faucet));
+});
+
+test('profile picture opens account, and leaderbord search is the leaderboard', function () {
+    const pic = reg.resolveNachoFeature('profile picture settings');
+    assert.ok(pic && pic.featureId === 'profile-picture', 'got ' + (pic && pic.featureId));
+    assert.strictEqual(reg.BY_ID['profile-picture'].arg, 'account');
+    assert.ok(reg.BY_ID['exploration-map'] && reg.BY_ID['online-status']);
+    const rows = reg.searchFeatures('leaderbord').slice(0, 3).map(function (row) { return row.feature.id; });
+    assert.strictEqual(rows[0], 'leaderboard');
+    const src = fs.readFileSync(path.join(root, 'features.registry.js'), 'utf8');
+    assert.ok(src.indexOf('bestSim(t, blobT) >= 0.82') === -1);
 });
 
 test('every quest hub tab, settings page, and hash route has a registry entry', function () {
@@ -173,7 +189,8 @@ test('show/open/enter navigation openers are in the registry', function () {
         'showMinerModal', 'showOverlayBtn', 'showPWAAuthFallback', 'showPartnershipLevelUpPopup',
         'showPostSpinGiftModal', 'showQuestFinalResults', 'showReactPicker', 'showSignInOnly',
         'showSignInPrompt', 'showSkeletonLoader', 'showSpinReward', 'showToast', 'showTrendingTopics',
-        'showTroubleSigningIn', 'showUserProfile', 'showUserProfileByUsername'
+        'showTroubleSigningIn', 'showUserProfile', 'showUserProfileByUsername',
+        'openNow'
     ]);
     const regSrc = fs.readFileSync(path.join(root, 'features.registry.js'), 'utf8');
     const missing = [];

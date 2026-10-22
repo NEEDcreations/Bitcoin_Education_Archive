@@ -652,7 +652,7 @@ window.reviewTrailWithNacho = function() {
                 if (typeof nachoUnifiedAnswer === 'function') {
                     nachoUnifiedAnswer('Explain in simple terms why this Bitcoin question has this answer. Question: ' + q.q + ' Correct answer: ' + q.a, function(result) {
                         if (result && result.answer) {
-                            var clean = result.answer.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim().substring(0, 500);
+                            var clean = String(result.plainAnswer || result.answer).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim().substring(0, 500);
                             _append('nacho', '', '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.6;padding:10px 12px;background:rgba(247,147,26,0.05);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;margin-bottom:4px;">💡 ' + esc(clean) + '</div>');
                         }
                     });

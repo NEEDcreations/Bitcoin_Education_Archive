@@ -1949,7 +1949,10 @@
         if (!followUps || followUps.length === 0) return '';
         var html = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
         for (var i = 0; i < followUps.length; i++) {
-            html += '<button onclick="nachoModeChip(\''+ followUps[i].replace(/[\\'"]/g, "") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
+            var raw = String(followUps[i] || '').replace(/[<>]/g, '');
+            var safeAttr = raw.replace(/[\\'"]/g, '');
+            var safeText = (typeof escapeHtml === 'function') ? escapeHtml(raw) : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            html += '<button onclick="nachoModeChip(\''+ safeAttr + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + safeText + '</button>';
         }
         html += '</div>';
         return html;
@@ -5115,6 +5118,7 @@ if (locked) {
 // DIRECT HASH ROUTING (#nacho, #forum, #marketplace, etc.)
 // =============================================
 (function() {
+    window._bqAppRoutesHash = true;
     function handleHash() {
         // Support both clean URLs (/channels/X, /app/X) and hash routes (#X)
         var hash = window.location.hash.replace('#', '');
@@ -5125,7 +5129,7 @@ if (locked) {
         console.log('[ROUTE] Routing to:', hash);
         // If this is a deep link to a lazy-loaded feature, kick off deferred loading immediately
         // so the script is ready when _routeApp starts polling for it.
-        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests'];
+        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app'];
         if (_lazyRoutes.indexOf(hash.split('/')[0]) !== -1 && typeof window._loadDeferred === 'function') {
             window._loadDeferred();
         }

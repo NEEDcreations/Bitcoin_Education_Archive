@@ -6,5 +6,5 @@ account_id = "bc12a6ce8540408b7552f1d658c45bf7"
 [ai]
 binding = "AI"
 
-# Secret name only. Set the value with: npx wrangler secret put BRAVE_API_KEY
+# BRAVE_API_KEY already exists on the live worker. Do not re-put it.
 # BRAVE_API_KEY

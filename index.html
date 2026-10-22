@@ -60,7 +60,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261022_v2246" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261022_v2252" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -1461,8 +1461,8 @@
     <script src="ranking.js?v=20261022_lightfix" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261022_v2246" defer fetchpriority="high"></script>
-    <script src="features.registry.js?v=20261022_registry" defer></script>
+    <script src="bundle.min.js?v=20261022_v2252" defer fetchpriority="high"></script>
+    <script src="features.registry.js?v=20261022_v2252" defer></script>
     <script src="patches.js?v=20260713_scrollfix" defer></script>
     <script src="onboarding.js?v=20261013_1908" defer></script>
     <script src="learning-quests.js?v=20261014_0554" defer></script>
@@ -1472,13 +1472,13 @@
     (function(){
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
-            'global-chat.js?v=20261022_v2251',
+            'global-chat.js?v=20261022_v2252',
             'satoshi-favor.js?v=20261022_v2250'
         ];
         var _lazyScripts = [
             'quests.js?v=20261022_v2251',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20261022_kbctx',
+            'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20261022_v2252',
             'scholar.js?v=20260809_1846','beats.js?v=20261013_2307',
             'lightning.js?v=20261022_faucet','lightning-tips.js?v=20261007_2124',
             'notifications.js?v=20261022_gifts','gifting.js?v=20261022_lightfix','guide.js?v=20260716_1628','modules.js?v=20260331',
@@ -1535,13 +1535,14 @@
     // inject its script immediately (don't wait for interaction or 5s timeout).
     // This cuts the initial route delay from up to 5s down to one network fetch.
     (function() {
-        var hash = (window.location.hash || '').replace('#', '').split('/')[0].toLowerCase();
+        var fullHash = (window.location.hash || '').replace('#', '');
+        var hash = fullHash.split('/')[0].toLowerCase();
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2251'],
-            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2251'],
-            'chat':          ['global-chat.js?v=20261022_v2251'],
-            'dms':           ['global-chat.js?v=20261022_v2251'],
+            'bitcoin-beats': ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2252'],
+            'beats':         ['beats.js?v=20261013_2307', 'global-chat.js?v=20261022_v2252'],
+            'chat':          ['global-chat.js?v=20261022_v2252'],
+            'dms':           ['global-chat.js?v=20261022_v2252'],
             'irl-sync':      ['irl-sync.js?v=20260810_0418'],
             'lightning':     ['lightning.js?v=20261022_faucet', 'lightning-tips.js?v=20261007_2124'],
             'pvp':           ['pvp.js?v=20260708_0427'],
@@ -1550,6 +1551,8 @@
             'trails':        ['modules.js?v=20260331'],
             'learning-quests': ['learning-quests.js?v=20261014_0554'],
             'quests':        ['quests.js?v=20261022_v2251'],
+            'questhub':      ['quests.js?v=20261022_v2251'],
+            'app':           ['quests.js?v=20261022_v2251'],
             'timechain-tv':  ['timechain-tv.js?v=20261022_tctv3'],
             'tv':            ['timechain-tv.js?v=20261022_tctv3']
         };
@@ -1563,7 +1566,9 @@
                 _loaded++;
                 if (_loaded >= _toLoad.length) {
                     // All scripts loaded — re-trigger routing so go() runs with scripts ready
-                    if (typeof window.go === 'function') window.go(hash);
+                    if (hash === 'app' || hash === 'questhub') {
+                        if (typeof window.bqRouteHash === 'function') window.bqRouteHash(fullHash);
+                    } else if (typeof window.go === 'function') window.go(hash);
                 }
             }
             _toLoad.forEach(function(src) {

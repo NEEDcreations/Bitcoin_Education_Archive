@@ -1350,15 +1350,15 @@ window.sendGlobalChat = function() {
             // Skip web search and deep search answers (contain HTML, not suitable for chat)
             // Note: allow 'fallback' answers through — better to give a deflection than silence
             if (result.type === 'websearch' || result.type === 'deepsearch') return;
-            var answer = result.answer.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
+            var answer = String(result.plainAnswer || result.answer).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
             if (!answer || answer.length < 10) return;
-            // Append channel link if Nacho's answer references a channel
-            if (result.channel && typeof CHANNELS !== 'undefined' && CHANNELS[result.channel]) {
+            // plainAnswer already carries the feature hash. Don't append a second link.
+            if (!result.plainAnswer && result.channel && typeof CHANNELS !== 'undefined' && CHANNELS[result.channel]) {
                 answer += ' 👉 #' + result.channel;
             }
             // Add links for common app/navigation references
             var lowerAnswer = answer.toLowerCase();
-            if (!result.channel) {
+            if (!result.plainAnswer && !result.channel) {
                 if (/withdraw|redeem|cash.?out|send.*sats|get.*sats|lightning.?address/.test(lowerAnswer) && !/#sats/.test(answer)) answer += ' 👉 #sats';
                 else if (/faq|frequently asked|common question|how do i|where do i|what is this app/.test(lowerAnswer) && !/#faq/.test(answer)) answer += ' 👉 #faq';
                 else if (/satoshi.?s favor|sf.*window|hashing.?game|hash.*compete|miner.*window|proof.?of.?work.*game/.test(lowerAnswer) && !/#sf/.test(answer)) answer += ' 👉 #sf';

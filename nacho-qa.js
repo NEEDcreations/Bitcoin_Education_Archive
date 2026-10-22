@@ -2355,22 +2355,22 @@ const NACHO_KB = [
 
 // ---- Sats Faucet / Claim Sats ----
 { keys: ['earn real sats','earn bitcoin','earn real bitcoin','can i earn bitcoin','get free sats','earn sats on this site','free bitcoin','earn btc','how to earn sats','earn sats here','get sats','get bitcoin'],
-  answer: "Yes, {name} — you can claim real sats from the faucet. ⚡🦌 Earn points by reading, quests, and chat, then open Settings → Sats. Payouts go to the Lightning address saved on your account. The faucet keeps a few quiet checks so it stays fair — those details stay vague on purpose.",
+  answer: "Yes, {name} — you can claim real sats from the faucet. ⚡🦌 Earn points by reading, quests, and chat, then open Settings → Sats. The faucet keeps a few quiet checks so it stays fair — those details stay vague on purpose.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Go to Sats Tab', isSiteNav: true },
 
 { keys: ['claim sats','how to claim sats','withdraw sats','withdraw bitcoin','how to withdraw','cash out points','convert points','redeem points','redeem sats','claim bitcoin','how do i claim','sats tab','get my sats'],
-  answer: "You can claim sats from the faucet, {name}. ⚡🦌 Open Settings → Sats. Payouts go to the Lightning address saved on your account (Settings → Account). The faucet has a few quiet checks so it stays fair for real learners — those details stay vague on purpose.",
+  answer: "You can claim sats from the faucet, {name}. ⚡🦌 Open Settings → Sats. The faucet has a few quiet checks so it stays fair for real learners — those details stay vague on purpose.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: 'Open it', isSiteNav: true },
 
 { keys: ['requirements to claim sats','sats requirements','claim requirements','who can claim sats','eligible for sats','qualify for sats','sats eligibility','requirements for sats'],
-  answer: "The faucet has a few quiet checks so it stays fair for real learners, {name}. 📋🦌 I don't publish the exact rules. Payouts go to the Lightning address saved on your account. Open Settings → Sats when you want to claim.",
+  answer: "The faucet has a few quiet checks so it stays fair for real learners, {name}. 📋🦌 I don't publish the exact rules. Open Settings → Sats when you want to claim.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Check Eligibility', isSiteNav: true },
 
 { keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','claim limit','200 sats','15000 sats','sats per day','cooldown','how often can i claim'],
-  answer: "The faucet pays out to the Lightning address saved on your account, {name}. ⚡🦌 I don't publish the claim limits or the anti-abuse rules — they stay vague so the faucet stays fair. Open Settings → Sats to claim when you're eligible." },
+  answer: "I don't publish the claim limits or the anti-abuse rules, {name}. ⚡🦌 They stay vague so the faucet stays fair. Open Settings → Sats to claim when you're eligible." },
 
 { keys: ['locked points','release points','unlock points','when release','when unlock','points locked','claimed points','pointsClaimed','my points are locked','why are my points locked','redeem points','how to redeem','release my points','when can i claim','how to unlock points'],
-  answer: "Your points are waiting to be claimed as sats, {name}. ⚡🦌 Open Settings → Sats. Payouts go to the Lightning address saved on your account (Settings → Account). The faucet keeps a few quiet checks so it stays fair — those details stay vague on purpose." },
+  answer: "Your points are waiting to be claimed as sats, {name}. ⚡🦌 Open Settings → Sats. The faucet keeps a few quiet checks so it stays fair — those details stay vague on purpose." },
 
 { keys: ['points to sats','sats conversion','conversion rate','how many points per sat','points per sat','exchange rate points','10 points','points ratio','points equal sats'],
   answer: "The conversion rate is simple, {name}: **10 points = 1 sat**! 🔢🦌\n\nSo 1,000 points = 100 sats, 2,000 points = 200 sats. You earn points by reading channels (+15), daily visits (+5), quests, badges, chatting, and more. Points cap at 500 per day. Think of it as earning Bitcoin by learning about Bitcoin — how cool is that? ⚡🧡" },
@@ -3223,6 +3223,8 @@ function fixTypos(input) {
         for (var i = 0; i < words.length; i++) {
             var w = words[i].replace(/[?.!,;:'"()]/g, '');
             if (w.length < 4) continue;
+            // Everyday words that sit one or two edits from a Bitcoin term ("morning" → "mining").
+            if ({ morning: 1, timing: 1, coming: 1, warning: 1, something: 1 }[w]) continue;
             for (var j = 0; j < knownTerms.length; j++) {
                 if (w === knownTerms[j]) break;
                 var dist = _levenshtein(w, knownTerms[j]);
@@ -3257,6 +3259,8 @@ function _levenshtein(a, b) {
 
 function findAnswer(input) {
     var _rawQ = String(input || '');
+    // Safety before the feature registry, so "where is the chat" cannot hide a crisis.
+    if (nachoSafetyCheck(_rawQ)) return null;
     input = fixTypos(_rawQ.toLowerCase().trim());
     // Trailing "?" used to glue onto the last word and hide the real key.
     input = input.replace(/[?!.,;:()"]/g, ' ').replace(/['’]s\b/g, '').replace(/['’]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -3363,12 +3367,13 @@ function findAnswer(input) {
         }
     }
 
-    // Follow-up detection: short questions with pronouns/references that need prior context
-    var _isFollowUp = _nachoConvoHistory.length > 0 && (
-        /^\b(it|that|this|they|them|those|these|the same|which one)\b/i.test(input) ||
-        /^\b(how much|how long|how many|is it|are they|can it|does it|what about|and what|but what|so what|tell me more|go deeper|explain more|elaborate)\b/i.test(input) ||
-        (input.split(/\s+/).length <= 5 && !/bitcoin|btc|mining|lightning|wallet|satoshi|halving|blockchain/i.test(input))
-    );
+    // A follow-up needs a back-reference, and the last turn has to be recent.
+    // A short new question ("thanks", "what is the glacier protocol") still hits the KB.
+    var _lastTurn = _nachoConvoHistory.length ? _nachoConvoHistory[_nachoConvoHistory.length - 1] : null;
+    var _recent = !!(_lastTurn && _lastTurn.t && (Date.now() - _lastTurn.t) < 120000);
+    var _pronoun = /^(it|that|this|they|them|those|these|the same|which one)\b/i.test(input)
+        || /^(how much|how long|how many|is it|are they|can it|does it|what about|and what|but what|so what|tell me more|go deeper|explain more|elaborate)\b/i.test(input);
+    var _isFollowUp = _nachoConvoHistory.length > 0 && _pronoun && (_recent || !_lastTurn.t);
     if (_isFollowUp) return null; // route to AI which has conversation history
 
     // Questions that should ALWAYS go to AI (bypass KB) unless exact match
@@ -3646,6 +3651,16 @@ var CRISIS_RESPONSE = "Hey {name}, I'm just a deer, but I care about you. 🧡 I
     "<strong>🌍 International:</strong> <a href='https://findahelpline.com/' target='_blank' rel='noopener' style='color:#f7931a;'>findahelpline.com</a><br><br>" +
     "You matter, {name}. Please reach out. 💛";
 
+function nachoSafetyCheck(q) {
+    var text = String(q || '');
+    if (isCrisis(text)) return { type: 'crisis', answer: CRISIS_RESPONSE };
+    for (var i = 0; i < HARM_PATTERNS.length; i++) {
+        if (HARM_PATTERNS[i].test(text)) return { type: 'harm', answer: HARM_RESPONSE };
+    }
+    if (isInappropriate(text)) return { type: 'profanity', answer: NACHO_POLITE_DEFLECTIONS[0] };
+    return null;
+}
+
 function isCrisis(text) {
     var lower = text.toLowerCase();
     for (var i = 0; i < CRISIS_PATTERNS.length; i++) {
@@ -3918,7 +3933,7 @@ async function nachoAIAnswer(question, callback) {
             eli5: eli5,
             history: history,
             kbContext: kbContext,
-            appKnowledge: (typeof window.bqAppKnowledge === 'function' ? window.bqAppKnowledge() : '').slice(0, 9000),
+            appKnowledge: (typeof window.bqAppKnowledgeFor === 'function' ? window.bqAppKnowledgeFor(question) : '').slice(0, 1500),
             userContext: (typeof window.bqUserContext === 'function' ? window.bqUserContext() : { name: userName }),
             mode: eli5 ? 'eli5' : 'chat'
         })
@@ -3941,8 +3956,8 @@ async function nachoAIAnswer(question, callback) {
             if (data && data.answer && !data.error) {
                 var conversationalAnswer = data.answer;
                 if (data.followUp) {
-                    window._bqLastFollowUp = data.followUp;
-                    if (conversationalAnswer.indexOf(data.followUp) === -1) conversationalAnswer += '\n\n' + data.followUp;
+                    var _fu = String(data.followUp).replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
+                    if (_fu) window._bqLastFollowUp = _fu;
                 }
                 callback(conversationalAnswer);
             } else {
@@ -3981,7 +3996,7 @@ async function nachoConvoAIAnswer(question, callback) {
             eli5: false,
             history: history,
             kbContext: '',
-            appKnowledge: (typeof window.bqAppKnowledge === 'function' ? window.bqAppKnowledge() : '').slice(0, 9000),
+            appKnowledge: (typeof window.bqAppKnowledgeFor === 'function' ? window.bqAppKnowledgeFor(question) : '').slice(0, 1500),
             userContext: (typeof window.bqUserContext === 'function' ? window.bqUserContext() : { name: userName }),
             mode: 'chat'
         })
@@ -4119,17 +4134,20 @@ function renderNachoAnswer(textEl, answerHtml, match) {
         '</div>';
     }
 
-    // Follow-up suggestions (use explicit followUp from KB entry, or auto-generate)
-    if (match && match.followUp) {
-        html += '<div style="margin-top:8px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.08));border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted);font-size:0.8rem;">' + match.followUp + '</div>';
-    }
-    if (match && match.answer) {
+    // One follow-up chip. The same sentence is not also written into the answer.
+    if (match && match.followUp && String(answerHtml).indexOf(String(match.followUp).slice(0, 24)) === -1 && String(answerHtml).indexOf('data-bq-chip') === -1) {
+        var _fuText = String(match.followUp).replace(/[<>]/g, '');
+        var _fuAttr = _fuText.replace(/[\\'"]/g, '');
+        html += '<button data-bq-chip="1" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + _fuAttr + '\';nachoAnswer();}},150)" style="display:block;width:100%;margin-top:8px;padding:5px 8px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_fuText) + '</button>';
+    } else if (match && match.answer && String(answerHtml).indexOf('data-bq-chip') === -1) {
         var followUps = typeof nachoFollowUps === 'function' ? nachoFollowUps(match.answer) : [];
         if (followUps.length > 0) {
             html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#333);">' +
                 '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">You might also want to ask:</div>';
             for (var fi = 0; fi < Math.min(followUps.length, 2); fi++) {
-                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + followUps[fi].replace(/[\\'"]/g, "") + '\';nachoAnswer();}},150)" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + followUps[fi] + '</button>';
+                var _chip = String(followUps[fi] || '').replace(/[<>]/g, '');
+                var _chipAttr = _chip.replace(/[\\'"]/g, '');
+                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + _chipAttr + '\';nachoAnswer();}},150)" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_chip) + '</button>';
             }
             html += '</div>';
         }
@@ -5094,6 +5112,7 @@ window.nachoAIAnswer = nachoAIAnswer;
 window.nachoConvoAIAnswer = nachoConvoAIAnswer;
 window.isInappropriate = isInappropriate;
 window.isCrisis = isCrisis;
+window.nachoSafetyCheck = nachoSafetyCheck;
 window.isFinancialAdvice = isFinancialAdvice;
 window.deepContentSearch = deepContentSearch;
 window.nachoWebSearch = nachoWebSearch;
@@ -5278,8 +5297,9 @@ window.nachoFollowUps = function(answerText) {
     if (!answerText) return [];
     if (String(answerText).indexOf('data-bq-chip') !== -1) return [];
     if (window._bqLastFollowUp && String(answerText).indexOf(String(window._bqLastFollowUp).slice(0, 24)) !== -1) {
-        return [window._bqLastFollowUp];
+        return [];
     }
+    if (window._bqLastFollowUp) return [window._bqLastFollowUp];
     var a = answerText.toLowerCase();
     var suggestions = [];
 
