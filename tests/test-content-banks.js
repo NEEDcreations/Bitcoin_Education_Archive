@@ -62,9 +62,16 @@ test('daily trivia rotation visits every index once per cycle', () => {
     assert.strictEqual(seen.size, len);
 });
 
+function activePollIndexes(list) {
+    const idx = [];
+    list.forEach((poll, i) => { if (!poll.retired) idx.push(i); });
+    return idx;
+}
+
 test('poll schema, unique ids, and mod 13', () => {
     assert.ok(polls.length > 380);
-    assert.notStrictEqual(polls.length % 13, 0);
+    const active = activePollIndexes(polls);
+    assert.notStrictEqual(active.length % 13, 0);
     const ids = new Set();
     const seen = new Set();
     polls.forEach(poll => {
@@ -80,16 +87,29 @@ test('poll schema, unique ids, and mod 13', () => {
     });
     for (let n = 121; n <= 135; n++) assert.ok(ids.has('poll_' + String(n).padStart(3, '0')));
     assert.ok(ids.has('poll_146') && ids.has('poll_147'));
+    const retired = ['poll_007','poll_009','poll_012','poll_015','poll_021','poll_065','poll_075','poll_089','poll_101','poll_104','poll_106','poll_107','poll_109','poll_115','poll_118','poll_120'];
+    retired.forEach((id, i) => {
+        const poll = polls.find(p => p.id === id);
+        assert.ok(poll && poll.retired, id);
+        const fresh = polls.find(p => p.id === 'poll_' + String(440 + i).padStart(3, '0'));
+        assert.ok(fresh && !fresh.retired, id);
+        assert.notStrictEqual(norm(poll.q), norm(fresh.q));
+    });
+    assert.ok(questSrc.includes('if (!POLL_BANK[i].retired) active.push(i);'));
 });
 
-test('daily poll rotation visits every index once per cycle', () => {
-    const len = polls.length;
+test('daily poll rotation visits every active index once per cycle', () => {
+    const active = activePollIndexes(polls);
+    const len = active.length;
     const seen = new Set();
     for (let day = 0; day < len; day++) {
         const seed = ((day * 13 + 2026) % len + len) % len;
-        seen.add(seed);
+        seen.add(active[seed]);
     }
     assert.strictEqual(seen.size, len);
+    polls.forEach((poll, i) => {
+        if (poll.retired) assert.ok(!seen.has(i), poll.id);
+    });
 });
 
 test('quiz topics, parts of 5, and no duplicate text inside a part', () => {

@@ -5692,13 +5692,21 @@ window.triviaAnswer = function(chosenIdx) {
 
 function _getPollToday() {
     if (typeof POLL_BANK === 'undefined' || !POLL_BANK || !POLL_BANK.length) return null;
+    // Retired ids keep their original wording for old poll_cumulative votes.
+    // The daily picker walks only the active polls, in bank order.
+    var active = [];
+    for (var i = 0; i < POLL_BANK.length; i++) {
+        if (!POLL_BANK[i].retired) active.push(i);
+    }
+    if (!active.length) return null;
     // Deterministic daily rotation keyed by getDailyKey (resets at 5 AM UTC)
     var dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var dkMs = new Date(dk + 'T00:00:00Z').getTime();
     var epoch = new Date('2026-01-01T00:00:00Z').getTime();
     var dayOfYear = Math.floor((dkMs - epoch) / 86400000);
-    var seed = ((dayOfYear * 13 + 2026) % POLL_BANK.length + POLL_BANK.length) % POLL_BANK.length;
-    return { index: seed, poll: POLL_BANK[seed] };
+    var seed = ((dayOfYear * 13 + 2026) % active.length + active.length) % active.length;
+    var index = active[seed];
+    return { index: index, poll: POLL_BANK[index] };
 }
 
 function _getPollState() {
