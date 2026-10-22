@@ -91,7 +91,11 @@ service cloud.firestore {
                     && (!('lightningAddress' in request.resource.data) || request.resource.data.lightningAddress == '' || lnShape(request.resource.data.lightningAddress))
                     && (!('lightning' in request.resource.data) || !('lightningAddress' in request.resource.data)
                         || request.resource.data.lightning == '' || request.resource.data.lightningAddress == ''
-                        || request.resource.data.lightning == request.resource.data.lightningAddress);
+                        || request.resource.data.lightning == request.resource.data.lightningAddress)
+                    // created is optional: Nostr link and TOS acceptance can create a partial
+                    // doc without it. When the field is sent, it must be the server clock.
+                    // Signup, provider, Lightning, and Nostr profile creates send serverTimestamp().
+                    && (!('created' in request.resource.data) || request.resource.data.created == request.time);
 
       allow update: if request.auth != null
                     && request.auth.uid == userId
@@ -125,6 +129,10 @@ service cloud.firestore {
                         // Say-hi reward (armSayHi / claimSayHi). Server only.
                         'sayHiArmedDay', 'sayHiArmedAt',
                         'sayHiClaimedDay', 'sayHiClaimedMessageId', 'sayHiToastSeen',
+                        // Reply bonus (claimReplyBonus). Server only. The first-reward
+                        // flag lives in reply_bonus_state, never on this doc. These
+                        // names are denied so a client cannot plant them.
+                        'replyBonusClaimed', 'replyBonusFirstClaimed', 'replyBonusLastAt', 'replyBonusCount',
                         // Gifting system (CF-only)
                         'lastGiftSpinDate', 'giftsOpenedToday', 'giftsOpenedDate',
                         'lastShoutoutAt',
@@ -1250,7 +1258,13 @@ service cloud.firestore {
                     // Reply fields: length-cap so they can't carry large payloads
                     && (!('replyToName' in request.resource.data) || (request.resource.data.replyToName is string && request.resource.data.replyToName.size() <= 60))
                     && (!('replyToText' in request.resource.data) || (request.resource.data.replyToText is string && request.resource.data.replyToText.size() <= 300))
-                    && (!('replyTo'     in request.resource.data) || request.resource.data.replyTo is string)
+                    && (!('replyTo' in request.resource.data) || (
+                        request.resource.data.replyTo is string
+                        && request.resource.data.replyTo.size() >= 8
+                        && request.resource.data.replyTo.size() <= 128
+                        && request.resource.data.replyTo.matches('^[A-Za-z0-9_-]+$')
+                        && request.resource.data.replyTo != msgId
+                    ))
                     && (request.resource.data.uid == request.auth.uid
                         || ((request.resource.data.uid == 'nacho-bot' || request.resource.data.uid == 'system')
                             && isAdmin()))
@@ -1943,7 +1957,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Say-hi callable rate limit. Admin SDK only.
+    // Reply-bonus callable state. Admin SDK only. Clients cannot read or
+    // write the first-reward flag, the per-message claim, or the pair window.
+    match /reply_bonus_state/{docId} {
+      allow read, write: if false;
+    }
+    match /reply_bonus_claims/{docId} {
+      allow read, write: if false;
+    }
+    match /reply_bonus_pairs/{docId} {
+      allow read, write: if false;
+    }
+
+    // Callable rate limits (say-hi and reply_{uid}). Admin SDK only.
     match /rate_limits/{docId} {
       allow read, write: if false;
     }

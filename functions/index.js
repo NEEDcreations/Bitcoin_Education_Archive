@@ -8973,3 +8973,9 @@ const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;
 exports.claimSayHi = sayHiFns.claimSayHi;
+
+// Hidden reply bonus. App Check is required, same as claimSats. The handler
+// grants XP only inside a transaction after it reads the chat message.
+const { bindReplyBonus } = require('./src/replyBonus');
+const replyBonusFns = bindReplyBonus(functionsV1, admin, db);
+exports.claimReplyBonus = replyBonusFns.claimReplyBonus;

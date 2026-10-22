@@ -31,6 +31,7 @@ const TESTS = [
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
+    { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
 ];
 
 let allPassed = true;
