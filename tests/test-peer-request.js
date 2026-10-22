@@ -311,7 +311,8 @@ queue.push(test('managePeer send reads in one batch and writes the request with 
     assert.ok(send.includes(".where('from', '==', uid).where('status', '==', 'pending').limit(51).get()"));
     assert.ok(send.includes('reqRef.get()'));
     assert.ok(send.includes('revReqRef.get()'));
-    assert.strictEqual((send.match(/await /g) || []).length, 2, 'send should await the parallel read and the batch commit only');
+    assert.strictEqual((send.match(/await /g) || []).length, 3, 'send awaits the parallel read, the batch commit, and the category push');
+    assert.ok(send.includes('await sendUserPush'));
     assert.ok(send.includes('batch.set(reqRef,'));
     assert.ok(send.includes("batch.set(db.collection('notifications').doc(),"));
     assert.ok(send.includes("type: 'peer_request'"));
@@ -390,11 +391,14 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('gifting.js?v=20261022_v2254'));
-    assert.ok(html.includes('notifications.js?v=20261022_v2262'));
-    assert.strictEqual(html.includes('notifications.js?v=20261022_v2254'), false);
+    assert.ok(html.includes('ranking.js?v=20261022_push'));
+    assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
+    assert.ok(html.includes('gifting.js?v=20261022_push'));
+    assert.strictEqual(html.includes('gifting.js?v=20261022_v2254'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
+    assert.ok(html.includes('notifications.js?v=20261022_push'));
+    assert.strictEqual(html.includes('notifications.js?v=20261022_v2262'), false);
+    assert.strictEqual(html.includes('notifications.js?v=20261022_v2254'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2251'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
     assert.ok(html.includes('bundle.min.js?v=20261022_v2265'));
@@ -420,7 +424,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2265'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2266'"));
+    assert.strictEqual(sw.includes('btc-archive-v2265'), false);
     assert.strictEqual(sw.includes('btc-archive-v2264'), false);
     assert.strictEqual(sw.includes('btc-archive-v2263'), false);
     assert.strictEqual(sw.includes('btc-archive-v2262'), false);

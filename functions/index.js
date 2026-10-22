@@ -33,8 +33,10 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     db.settings({ preferRest: true });
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
+const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOthers, capUserDevices } = require('./src/push');
+const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
-const predictionJobs = createPredictionJobs(db, admin);
+const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -429,163 +431,82 @@ exports.totpStatus = functionsV1.https.onCall(async (data, context) => {
 
 // =============================================
 // Streak Reminder Push Notifications
-// Runs daily at 8pm UTC (adjustable)
+// Fires at midnight UTC = 7 PM ET, warning users before the 5 AM UTC reset.
+// Category "reminders". broadcastCategory checks each user's pref.
 // =============================================
-// Fires at midnight UTC = 7 PM ET, warning users 5h before the 5 AM UTC (midnight ET) streak reset
-exports.streakReminder = onSchedule({ schedule: '0 0 * * *', timeZone: 'UTC' }, async (event) => {
-        const today = getOffsetDateKey(); // offset key — warns about the correct reset boundary
-
-        // Find users with push tokens who visited yesterday but NOT today
-        // (their streak is about to expire at midnight)
-        const tokensSnap = await db.collection('push_tokens').get();
-        if (tokensSnap.empty) return null;
-
-        const messages = [];
-
-        for (const tokenDoc of tokensSnap.docs) {
-            const uid = tokenDoc.id;
-            const token = tokenDoc.data().token;
-            if (!token) continue;
-
-            // Get user data
-            try {
-                const userDoc = await db.collection('users').doc(uid).get();
-                if (!userDoc.exists) continue;
-
-                const userData = userDoc.data();
-                const lastVisit = userData.lastVisit;
-                const streak = userData.streak || 0;
-
-                // Only notify if they have an active streak (2+) and haven't visited today
-                if (streak >= 2 && lastVisit && lastVisit !== today) {
-                    messages.push({
-                        token: token,
-                        notification: {
-                            title: '🔥 Your ' + streak + '-day streak is about to expire!',
-                            body: 'Visit the Bitcoin Education Archive before midnight to keep it alive. Don\'t lose your progress!'
-                        },
-                        data: {
-                            url: 'https://bitcoineducation.quest'
-                        },
-                        webpush: {
-                            fcmOptions: {
-                                link: 'https://bitcoineducation.quest'
-                            }
-                        }
-                    });
-                }
-            } catch (e) {
-                console.log('Error checking user ' + uid + ':', e.message);
-            }
-        }
-
-        if (messages.length === 0) return null;
-
-        // Send notifications (batch up to 500)
-        const batches = [];
-        for (let i = 0; i < messages.length; i += 500) {
-            batches.push(messages.slice(i, i + 500));
-        }
-
-        let sent = 0;
-        let failed = 0;
-        for (const batch of batches) {
-            const results = await admin.messaging().sendEach(batch);
-            results.responses.forEach((resp, idx) => {
-                if (resp.success) {
-                    sent++;
-                } else {
-                    failed++;
-                    // Remove invalid tokens
-                    if (resp.error && (
-                        resp.error.code === 'messaging/invalid-registration-token' ||
-                        resp.error.code === 'messaging/registration-token-not-registered'
-                    )) {
-                        const uid = batches[0][idx] ? null : null; // Can't easily get UID here
-                        // We'll clean up stale tokens separately
-                    }
-                }
-            });
-        }
-
-        console.log('Streak reminders sent: ' + sent + ', failed: ' + failed);
+exports.streakReminder = onSchedule({ schedule: '0 0 * * *', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
+        const today = getOffsetDateKey();
+        const result = await broadcastCategory('reminders', async function (uid, userData) {
+            const streak = userData.streak || 0;
+            const lastVisit = userData.lastVisit;
+            if (streak < 2 || !lastVisit || lastVisit === today) return null;
+            return {
+                title: 'Your ' + streak + '-day streak is about to expire',
+                body: 'Open Bitcoin Quest before the reset to keep it alive.',
+                url: 'https://bitcoineducation.quest/'
+            };
+        });
+        console.log('Streak reminders', JSON.stringify(result));
         return null;
     });
 
 // =============================================
 // Weekly Quest Reminder (every Monday 3 PM UTC)
 // =============================================
-exports.weeklyQuestReminder = onSchedule({ schedule: '0 15 * * 1', timeZone: 'UTC' }, async (event) => {
-        const tokensSnap = await db.collection('push_tokens').get();
-        if (tokensSnap.empty) return null;
-
-        const messages = [];
-        for (const tokenDoc of tokensSnap.docs) {
-            const token = tokenDoc.data().token;
-            if (!token) continue;
-            messages.push({
-                token: token,
-                notification: {
-                    title: '⚡ Start your Quest!',
-                    body: 'Learn more about Bitcoin! New questions and channels are waiting for you.'
-                },
-                data: { url: 'https://bitcoineducation.quest' },
-                webpush: { fcmOptions: { link: 'https://bitcoineducation.quest' } }
-            });
-        }
-
-        if (messages.length === 0) return null;
-
-        let sent = 0, failed = 0;
-        for (let i = 0; i < messages.length; i += 500) {
-            const batch = messages.slice(i, i + 500);
-            const results = await admin.messaging().sendEach(batch);
-            results.responses.forEach(r => { if (r.success) sent++; else failed++; });
-        }
-
-        console.log('Weekly quest reminders sent: ' + sent + ', failed: ' + failed);
+exports.weeklyQuestReminder = onSchedule({ schedule: '0 15 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
+        const result = await broadcastCategory('reminders', async function () {
+            return {
+                title: 'Start your Quest',
+                body: 'New Bitcoin questions and channels are waiting.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            };
+        });
+        console.log('Weekly quest reminders', JSON.stringify(result));
         return null;
     });
 
 // =============================================
 // Clean up stale/invalid push tokens (weekly)
+// Dry-run probes each device token and deletes the ones FCM rejects.
 // =============================================
-exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' }, async (event) => {
-        const tokensSnap = await db.collection('push_tokens').get();
-        let cleaned = 0;
-
-        for (const tokenDoc of tokensSnap.docs) {
-            const token = tokenDoc.data().token;
-            if (!token) {
-                await tokenDoc.ref.delete();
-                cleaned++;
-                continue;
-            }
-
-            // Try a dry-run send to check if token is still valid
-            try {
-                await admin.messaging().send({
-                    token: token,
-                    data: { test: 'true' }
-                }, true); // dry run
-            } catch (e) {
-                if (e.code === 'messaging/invalid-registration-token' ||
-                    e.code === 'messaging/registration-token-not-registered') {
-                    await tokenDoc.ref.delete();
-                    // Also remove from user doc
-                    try {
-                        await db.collection('users').doc(tokenDoc.id).update({
-                            pushToken: admin.firestore.FieldValue.delete()
-                        });
-                    } catch (e2) {}
-                    cleaned++;
-                }
-            }
-        }
-
+exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
+        const cleaned = await cleanStaleTokens();
         console.log('Cleaned ' + cleaned + ' stale push tokens');
         return null;
     });
+
+// Admin claim can target any uid. Anyone else can target only themselves.
+// The body is fixed server-side so a caller cannot put text in the notification.
+exports.sendTestPush = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    const caller = context.auth.uid;
+    const isAdmin = context.auth.token && context.auth.token.admin === true;
+    const target = String((data && data.uid) || caller).trim();
+    if (!/^[A-Za-z0-9_-]{4,128}$/.test(target)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'uid required');
+    }
+    if (!testPushTargetAllowed(caller, target, isAdmin)) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const result = await sendUserPush(target, 'rewards', {
+        title: 'Bitcoin Quest test',
+        body: 'Push is working on this device.',
+        url: 'https://bitcoineducation.quest/#settings-notifications',
+        type: 'test'
+    }, {
+        ignorePrefs: true,
+        rateCategory: 'test',
+        rateMax: isAdmin ? 20 : 3
+    });
+    return {
+        ok: (result.sent || 0) > 0,
+        sent: result.sent || 0,
+        failed: result.failed || 0,
+        reason: result.reason || ''
+    };
+});
 
 // =============================================
 // Nostr Sign-In (NIP-07)
@@ -1284,49 +1205,20 @@ exports.onMarketplaceShoutoutUpdated = onDocumentUpdated({
 exports.spinReminder = onSchedule({
     schedule: 'every monday,wednesday,friday 10:00',
     timeZone: 'America/New_York',
+    timeoutSeconds: 540,
     retryCount: 0,
 }, async (event) => {
     try {
-        // Get all users with push enabled
-        const usersSnap = await db.collection('users')
-            .where('pushEnabled', '==', true)
-            .limit(500)
-            .get();
-
-        if (usersSnap.empty) return null;
-
-        // Get their push tokens
-        const messages = [];
-        for (const userDoc of usersSnap.docs) {
-            const tokenDoc = await db.collection('push_tokens').doc(userDoc.id).get();
-            if (tokenDoc.exists && tokenDoc.data().token) {
-                messages.push({
-                    token: tokenDoc.data().token,
-                    notification: {
-                        title: '🎡 Your daily spin is ready!',
-                        body: 'Spin the wheel for free Orange Tickets! 🎫',
-                    },
-                    webpush: {
-                        fcmOptions: {
-                            link: 'https://bitcoineducation.quest',
-                        },
-                    },
-                });
-            }
-        }
-
-        // Send in batches of 500
-        if (messages.length > 0) {
-            const messaging = admin.messaging();
-            for (let i = 0; i < messages.length; i += 500) {
-                const batch = messages.slice(i, i + 500);
-                await messaging.sendEach(batch);
-            }
-            console.log('Sent spin reminders to ' + messages.length + ' users');
-        }
-
+        const result = await broadcastCategory('reminders', async function () {
+            return {
+                title: 'Your spin is ready',
+                body: 'Spin the wheel for free Orange Tickets.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            };
+        });
+        console.log('Spin reminders', JSON.stringify(result));
         return null;
-    } catch(e) {
+    } catch (e) {
         console.error('Spin reminder error:', e);
         return null;
     }
@@ -1574,6 +1466,16 @@ exports.verifyReferral = functionsV1.https.onCall(async (data, context) => {
         onceKey: 'referral_in_' + referrerUid,
     }));
     await batch.commit();
+
+    try {
+        await sendUserPush(referrerUid, 'referrals', {
+            title: 'Referral reward',
+            body: 'Someone you invited reached Maxi. 50 Orange Tickets were added.',
+            url: 'https://bitcoineducation.quest/#questhub'
+        });
+    } catch (e) {
+        console.warn('[verifyReferral] push failed', e.message);
+    }
 
     return { success: true, referrerTickets: 50, referredTickets: 50 };
 });
@@ -2954,6 +2856,13 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         await batch.commit();
+        try {
+            await sendUserPush(targetUid, 'gifts', {
+                title: 'Peer request',
+                body: (ud.username || 'A Bitcoiner') + ' sent you a peer request.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            });
+        } catch (e) { console.warn('[managePeer] push failed', e.message); }
         return { success: true };
     }
 
@@ -2989,6 +2898,14 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         await batch.commit();
+
+        try {
+            await sendUserPush(targetUid, 'gifts', {
+                title: 'Peer request accepted',
+                body: (ud.username || 'A Bitcoiner') + ' accepted your peer request.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            });
+        } catch (e) { console.warn('[managePeer] accept push failed', e.message); }
 
         // Award badges if applicable (non-blocking)
         try {
@@ -4770,6 +4687,8 @@ exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
     // against each other simultaneously.
     const lobbyRef = db.collection('pvp_lobby').doc(lobbyDocId);
     const matchRef = db.collection('pvp_matches').doc(); // pre-generate ID
+    let challengedUid = '';
+    let challengerName = 'A Bitcoiner';
 
     await db.runTransaction(async (tx) => {
         const lobbySnap = await tx.get(lobbyRef);
@@ -4792,6 +4711,8 @@ exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
         if (p1Uid === callerUid) {
             throw new functionsV1.https.HttpsError('permission-denied', 'Cannot match against yourself');
         }
+        challengedUid = p1Uid;
+        challengerName = (player2.name || 'A Bitcoiner');
 
         // Create the match document
         tx.set(matchRef, {
@@ -4831,6 +4752,16 @@ exports.pvpCreateMatch = functionsV1.https.onCall(async (data, context) => {
             opponentProfilePic: player2.profilePic || ''
         });
     });
+
+    if (challengedUid) {
+        try {
+            await sendUserPush(challengedUid, 'pvp', {
+                title: 'PvP challenge',
+                body: challengerName + ' is ready in the lobby.',
+                url: 'https://bitcoineducation.quest/#pvp'
+            });
+        } catch (e) { console.warn('[pvpCreateMatch] push failed', e.message); }
+    }
 
     return { matchId: matchRef.id };
 });
@@ -5248,8 +5179,121 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
                 chatMessages: admin.firestore.FieldValue.increment(1)
             }, { merge: true });
         } catch (e) { console.error('[onChatMessageCreated] failed:', e); }
+        const mentioned = data.mentionUid;
+        if (mentioned && mentioned !== data.uid && /^[A-Za-z0-9_-]{4,128}$/.test(String(mentioned))) {
+            try {
+                await sendUserPush(mentioned, 'mentions', {
+                    title: 'You were mentioned',
+                    body: (data.name || 'Someone') + ' mentioned you in chat.',
+                    url: 'https://bitcoineducation.quest/#chat'
+                });
+            } catch (e) { console.warn('[onChatMessageCreated] mention push failed', e.message); }
+        }
         return null;
     });
+
+function _pushUidOk(id) {
+    return /^[A-Za-z0-9_-]{4,128}$/.test(String(id || ''));
+}
+
+function _pushDisplayName(data, fallback) {
+    const name = data && typeof data.username === 'string' ? data.username.trim() : '';
+    return name || fallback;
+}
+
+function _pushSenderBlocked(recipientData, senderUid) {
+    const blocked = recipientData && Array.isArray(recipientData.blockedUsers) ? recipientData.blockedUsers : [];
+    return blocked.indexOf(senderUid) !== -1;
+}
+
+// Banned accounts and guests never get a push attributed to them.
+function _pushSenderEligible(data) {
+    if (!data) return false;
+    if (data.banned === true) return false;
+    if (data.anonymous === true) return false;
+    return true;
+}
+
+// DM created under a conversation. The recipient's "dms" pref gates delivery.
+// The display name is the sender's server username. Client-written senderName is ignored.
+exports.onDmMessageCreated = onDocumentCreated('dm_conversations/{cid}/messages/{mid}', async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const msg = snap.data() || {};
+    const sender = String(msg.senderUid || '');
+    if (!_pushUidOk(sender)) return null;
+    try {
+        const convo = await db.collection('dm_conversations').doc(event.params.cid).get();
+        if (!convo.exists) return null;
+        const participants = convo.data().participants || [];
+        if (participants.indexOf(sender) === -1) return null;
+        const recipient = participants.find(function (id) { return id && id !== sender; });
+        if (!_pushUidOk(recipient)) return null;
+        const senderSnap = await db.collection('users').doc(sender).get();
+        if (!senderSnap.exists || !_pushSenderEligible(senderSnap.data())) return null;
+        const recipientSnap = await db.collection('users').doc(recipient).get();
+        const recipientData = recipientSnap.exists ? (recipientSnap.data() || {}) : {};
+        if (_pushSenderBlocked(recipientData, sender)) return null;
+        const preview = msg.imageUrl ? 'Sent you an image' : (msg.text || 'New message');
+        await sendUserPush(recipient, 'dms', {
+            title: 'Message from ' + _pushDisplayName(senderSnap.data(), 'a Bitcoiner'),
+            body: preview,
+            url: 'https://bitcoineducation.quest/#dms'
+        });
+    } catch (e) {
+        console.warn('[onDmMessageCreated] push failed', e.message);
+    }
+    return null;
+});
+
+// Marketplace message. The listing document is the source of the seller.
+// Client-written sellerUid and buyerName are ignored.
+exports.onMarketplaceMessageCreated = onDocumentCreated('marketplace_messages/{id}', async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const msg = snap.data() || {};
+    const listingId = String(msg.listingId || '');
+    const buyer = String(msg.buyerUid || '');
+    if (!listingId || listingId.length > 128 || !_pushUidOk(buyer)) return null;
+    try {
+        const listing = await db.collection('marketplace').doc(listingId).get();
+        if (!listing.exists) return null;
+        const seller = String((listing.data() || {}).sellerUid || '');
+        if (!_pushUidOk(seller) || seller === buyer) return null;
+        const buyerSnap = await db.collection('users').doc(buyer).get();
+        if (!buyerSnap.exists || !_pushSenderEligible(buyerSnap.data())) return null;
+        const sellerSnap = await db.collection('users').doc(seller).get();
+        const sellerData = sellerSnap.exists ? (sellerSnap.data() || {}) : {};
+        if (_pushSenderBlocked(sellerData, buyer)) return null;
+        await sendUserPush(seller, 'plebtalk', {
+            title: 'Marketplace message',
+            body: _pushDisplayName(buyerSnap.data(), 'Someone') + ' messaged you about a listing.',
+            url: 'https://bitcoineducation.quest/#marketplace'
+        });
+    } catch (e) {
+        console.warn('[onMarketplaceMessageCreated] push failed', e.message);
+    }
+    return null;
+});
+
+// Last registration of a token wins. Also keep at most 10 devices, oldest first.
+exports.onPushDeviceWritten = onDocumentWritten({
+    document: 'push_tokens/{uid}/devices/{deviceId}',
+    timeoutSeconds: 60
+}, async (event) => {
+    const after = event.data && event.data.after;
+    if (!after || !after.exists) return null;
+    const uid = String(event.params.uid || '');
+    if (!_pushUidOk(uid)) return null;
+    try {
+        const token = after.get('token');
+        if (token) await releaseTokenFromOthers(uid, String(token));
+        await capUserDevices(uid, String(event.params.deviceId || ''));
+    } catch (e) {
+        console.warn('[onPushDeviceWritten]', e.message);
+    }
+    return null;
+});
 
 // PVP match finished → bump pvpMatches (only once per match)
 exports.onPvpMatchFinished = onDocumentUpdated('pvp_matches/{matchId}', async (event) => {
@@ -7245,6 +7289,13 @@ async function _awardTicketsToUser(uid, ticketCount, reason) {
         type: 'leaderboard_reward',
         onceKey: 'lb_' + Date.now(),
     }));
+    try {
+        await sendUserPush(uid, 'rewards', {
+            title: 'You won a reward',
+            body: reason + ' — ' + ticketCount + ' Orange Tickets were added.',
+            url: 'https://bitcoineducation.quest/#questhub'
+        });
+    } catch (e) { console.warn('[leaderboard] push failed', e.message); }
 }
 
 async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
@@ -7446,6 +7497,13 @@ exports.monthlyRaffleDraw = onSchedule({ schedule: '0 18 1 * *', timeZone: 'UTC'
         icon: '🏆',
         message: '🏆 You won the ' + monthLabel + ' raffle! Phil will arrange your 21,000 sats prize.',
     }));
+    try {
+        await sendUserPush(winner.uid, 'rewards', {
+            title: 'Raffle win',
+            body: 'You won this month\'s Orange Ticket raffle.',
+            url: 'https://bitcoineducation.quest/#questhub'
+        });
+    } catch (e) { console.warn('[RAFFLE DRAW] push failed', e.message); }
 
     // 6. Reset all raffleEntries to 0 — new month starts clean
     const allWithEntries = await db.collection('users').where('raffleEntries', '>', 0).get();
@@ -7656,6 +7714,13 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
                         pointsDelta: 100,
                         onceKey: 'weekly_hero_' + weekKey,
                     }));
+                    try {
+                        await sendUserPush(puid, 'rewards', {
+                            title: 'Weekly challenge complete',
+                            body: 'You earned the weekly hero badge and 100 XP.',
+                            url: 'https://bitcoineducation.quest/#questhub'
+                        });
+                    } catch (pushErr) { console.warn('[WEEKLY CHALLENGE] push failed', pushErr.message); }
                 }
             } catch (e) { console.error('[WEEKLY CHALLENGE] participant award error', puid, e); }
         }
@@ -8113,6 +8178,22 @@ exports.useBonusSpin = functionsV1.https.onCall(async (data, context) => {
 const { onSchedule: onScheduleV2 } = require('firebase-functions/v2/scheduler');
 const hotTopics = require('./src/hotTopics');
 
+async function _pushHotTopics(result) {
+    if (!result || !result.saved || !result.topics || !result.topics.length) return;
+    const headline = result.topics[0].title || 'This week\'s Bitcoin topics are in.';
+    try {
+        await broadcastCategory('news', async function () {
+            return {
+                title: 'Hot Topics',
+                body: headline,
+                url: 'https://bitcoineducation.quest/'
+            };
+        });
+    } catch (e) {
+        console.warn('[HotTopics] push failed', e.message);
+    }
+}
+
 // Trigger: Sunday 10 PM Eastern (America/New_York handles DST automatically).
 // Deploying this function updates the Cloud Scheduler job to the new cron.
 // The quality gate still rejects template topics.
@@ -8126,13 +8207,14 @@ exports.refreshHotTopics = onScheduleV2({
 }, async () => {
     console.log('[HotTopics] Starting weekly refresh...');
     try {
-        await hotTopics.runHotTopicsJob({
+        const hotResult = await hotTopics.runHotTopicsJob({
             mode: 'schedule',
             env: process.env,
             db: db,
             admin: admin,
             listAdminUids: _listAdminClaimUids,
         });
+        await _pushHotTopics(hotResult);
     } catch (err) {
         console.error('[HotTopics] Fatal error:', err);
     }
@@ -8155,6 +8237,7 @@ exports.refreshHotTopicsHttp = functionsV1.runWith({
             admin: admin,
             listAdminUids: _listAdminClaimUids,
         });
+        await _pushHotTopics(result);
         res.json({
             ok: true,
             topicsCount: result.topics.length,
@@ -8181,6 +8264,7 @@ exports.refreshHotTopicsForce = functionsV1.runWith({
             admin: admin,
             listAdminUids: _listAdminClaimUids,
         });
+        await _pushHotTopics(result);
         res.json({
             ok: true,
             topicsCount: result.topics.length,
