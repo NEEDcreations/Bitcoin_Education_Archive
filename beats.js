@@ -212,15 +212,27 @@ function _beatsRemember(map, doc) {
     if (track) map[track.id] = track;
 }
 
+function _beatsLicenseNameFromUrl(raw) {
+    var url = String(raw || '');
+    if (/publicdomain\/zero/i.test(url)) return 'CC0 1.0';
+    if (/publicdomain\/mark/i.test(url)) return 'Public Domain Mark 1.0';
+    var match = url.match(/\/licenses\/([a-z-]+)\/(\d+\.\d+)/i);
+    if (!match) return '';
+    var names = {
+        'by': 'CC BY',
+        'by-sa': 'CC BY-SA',
+        'by-nc': 'CC BY-NC',
+        'by-nd': 'CC BY-ND',
+        'by-nc-sa': 'CC BY-NC-SA',
+        'by-nc-nd': 'CC BY-NC-ND'
+    };
+    var name = names[match[1].toLowerCase()];
+    return name ? name + ' ' + match[2] : '';
+}
+
 function _beatsLicenseName(track) {
     var raw = track && (track.license || track.archiveLicense) || '';
-    if (typeof raw === 'string' && /^https?:\/\//i.test(raw)) {
-        if (/publicdomain\/zero/i.test(raw)) return 'CC0 1.0';
-        if (/publicdomain\/mark/i.test(raw)) return 'Public Domain Mark 1.0';
-        if (/by-sa/i.test(raw)) return 'CC BY-SA';
-        if (/\/by\//i.test(raw)) return 'CC BY';
-        return '';
-    }
+    if (typeof raw === 'string' && /^https?:\/\//i.test(raw)) return _beatsLicenseNameFromUrl(raw);
     if (raw && typeof raw === 'string') return raw;
     if (track && (track.v4vLicense === true || track.hasV4VSplits || track.feedTitle)) return 'Value-for-Value open RSS (Wavlake Open Music)';
     return '';
@@ -228,6 +240,10 @@ function _beatsLicenseName(track) {
 
 function _beatsLicenseShort(name) {
     var text = String(name || '');
+    if (/CC BY-NC-ND/i.test(text)) return 'CC BY-NC-ND';
+    if (/CC BY-NC-SA/i.test(text)) return 'CC BY-NC-SA';
+    if (/CC BY-NC/i.test(text)) return 'CC BY-NC';
+    if (/CC BY-ND/i.test(text)) return 'CC BY-ND';
     if (/CC BY-SA/i.test(text)) return 'CC BY-SA';
     if (/CC BY/i.test(text)) return 'CC BY';
     if (/CC0/i.test(text)) return 'CC0';
@@ -254,12 +270,18 @@ function _beatsSourceLink(track) {
     return _beatsCreditUrl(track && track.pageUrl) || _beatsCreditUrl(track && track.sourceUrl) || '';
 }
 
+function _beatsDeedUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+    var upgraded = url.trim().replace(/^http:\/\/((?:www\.)?creativecommons\.org\/)/i, 'https://$1');
+    return _beatsCreditUrl(upgraded);
+}
+
 function _beatsLicenseLink(track) {
-    var direct = _beatsCreditUrl(track && track.licenseUrl);
+    var direct = _beatsDeedUrl(track && track.licenseUrl) || _beatsCreditUrl(track && track.licenseUrl);
     if (direct) return direct;
     var archived = track && track.archiveLicense;
     if (typeof archived === 'string') {
-        var fromArchive = _beatsCreditUrl(archived);
+        var fromArchive = _beatsDeedUrl(archived);
         if (fromArchive) return fromArchive;
     }
     var name = _beatsLicenseName(track);
@@ -282,7 +304,6 @@ function _beatsCreditHtml(track) {
     if (license) parts.push(_beatsLink(_beatsLicenseLink(track), license));
     var source = _beatsSourceName(track);
     if (source) parts.push(_beatsLink(_beatsSourceLink(track), source));
-    if (parts.length < 3) return '';
     return '<div id="beatsCreditLine" style="text-align:center;color:var(--text-faint);font-size:0.68rem;line-height:1.45;margin:0 0 12px;word-break:break-word;">' + parts.join(' · ') + '</div>';
 }
 

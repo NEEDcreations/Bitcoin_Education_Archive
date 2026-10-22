@@ -45,26 +45,30 @@ test('dry-run prints counts only and does not require credentials', function () 
         'artists_upsert: 2',
         'artists_new: 1',
         'artists_update: 1',
-        'hidden_license_nc: 2',
+        'would_hide_nc: 2',
+        'would_hide_grindcore: 0',
+        'hidden_license_nc: 0',
         'stream_url_existing: 1',
         'needs_review: 1',
         'audit_tracks_listed: 2',
+        'audit_grindcore_listed: 0',
         'skipped: 0'
     ].join('\n'));
 });
 
-test('fixture apply hides NC archive tracks, hotlinks Wavlake, and flags Falz', function () {
+test('fixture apply leaves NC archive tracks visible, hotlinks Wavlake, and flags Falz', function () {
     const out = path.join(os.tmpdir(), 'beats-import-fixture.json');
     const output = run(baseArgs.concat(['--apply', '--out', out]));
     assert.ok(output.indexOf('mode: fixture-apply') === 0);
+    assert.ok(output.includes('would_hide_nc: 2'));
+    assert.ok(output.includes('hidden_license_nc: 0'));
     const result = JSON.parse(fs.readFileSync(out, 'utf8'));
     const byId = {};
     result.tracks.forEach(function (track) { byId[track.id] = track; });
 
-    assert.strictEqual(byId['old-archive-1'].hidden, true);
-    assert.strictEqual(byId['old-archive-1'].hiddenReason, 'license-nc');
-    assert.strictEqual(byId['old-archive-2'].hidden, true);
-    assert.strictEqual(byId['old-archive-2'].hiddenReason, 'license-nc');
+    assert.notStrictEqual(byId['old-archive-1'].hidden, true);
+    assert.notStrictEqual(byId['old-archive-2'].hidden, true);
+    assert.strictEqual(byId['old-archive-1'].archiveLicense, 'http://creativecommons.org/licenses/by-nc-nd/3.0/');
     assert.ok(byId['old-archive-1'].audioUrl.indexOf('storage.googleapis.com') !== -1);
 
     const wav = byId['old-wav'];
@@ -94,6 +98,73 @@ test('fixture apply hides NC archive tracks, hotlinks Wavlake, and flags Falz', 
     assert.strictEqual(artists['21satsnode'].claimedUid, 'real-user-uid');
     assert.strictEqual(artists['kevin-macleod'].name, 'Kevin MacLeod');
     fs.unlinkSync(out);
+});
+
+test('--hide-nc hides the audited tracks and --hide-nc=grindcore does not', function () {
+    const out = path.join(os.tmpdir(), 'beats-import-hide-nc.json');
+    const output = run(baseArgs.concat(['--hide-nc', '--apply', '--out', out]));
+    assert.ok(output.includes('hidden_license_nc: 2'));
+    const result = JSON.parse(fs.readFileSync(out, 'utf8'));
+    const byId = {};
+    result.tracks.forEach(function (track) { byId[track.id] = track; });
+    assert.strictEqual(byId['old-archive-1'].hidden, true);
+    assert.strictEqual(byId['old-archive-1'].hiddenReason, 'license-nc');
+    assert.strictEqual(byId['old-archive-2'].hidden, true);
+    assert.notStrictEqual(byId['user-1'].hidden, true);
+    fs.unlinkSync(out);
+
+    const grind = path.join(os.tmpdir(), 'beats-import-grindcore.json');
+    const grindOut = run(baseArgs.concat(['--hide-nc=grindcore', '--apply', '--out', grind]));
+    assert.ok(grindOut.includes('would_hide_grindcore: 0'));
+    assert.ok(grindOut.includes('hidden_license_nc: 0'));
+    const grindResult = JSON.parse(fs.readFileSync(grind, 'utf8'));
+    grindResult.tracks.forEach(function (track) {
+        assert.notStrictEqual(track.hidden, true);
+    });
+    fs.unlinkSync(grind);
+});
+
+test('grindcore hides only the Torn Flesh Records tracks', function () {
+    const torn = {
+        id: 'TFR100-VA-TornFleshRecordsPresentsVestigialSickness',
+        creator: 'Torn Flesh Records',
+        tracks: 42,
+        license: 'http://creativecommons.org/licenses/by-nc-nd/3.0/',
+        sourceUrl: 'https://archive.org/details/TFR100-VA-TornFleshRecordsPresentsVestigialSickness'
+    };
+    const other = {
+        id: 'DWK301',
+        creator: 'Mounika',
+        tracks: 7,
+        sourceUrl: 'https://archive.org/details/DWK301'
+    };
+    const existing = [
+        { id: 'other', source: 'archive.org', sourceUrl: other.sourceUrl, v4vGuid: 'a1', archiveLicense: 'http://creativecommons.org/licenses/by-nc-nd/3.0/' },
+        { id: 'torn', source: 'archive.org', sourceUrl: torn.sourceUrl, v4vGuid: 'a2', artist: 'Torn Flesh' }
+    ];
+    const off = importer.planCatalog({
+        tracks: [], artists: [], feeds: [], audit: [torn, other],
+        existingTracks: existing, existingArtists: []
+    });
+    assert.strictEqual(off.counts.wouldHideNc, 2);
+    assert.strictEqual(off.counts.wouldHideGrindcore, 1);
+    assert.strictEqual(off.counts.hidden, 0);
+    assert.strictEqual(off.counts.auditGrindcoreListed, 42);
+    assert.notStrictEqual(off.tracks[0].hidden, true);
+    assert.notStrictEqual(off.tracks[1].hidden, true);
+
+    const only = importer.planCatalog({
+        tracks: [], artists: [], feeds: [], audit: [torn, other],
+        existingTracks: existing, existingArtists: [], hideNc: 'grindcore'
+    });
+    const byId = {};
+    only.tracks.forEach(function (track) { byId[track.id] = track; });
+    assert.strictEqual(only.counts.hidden, 1);
+    assert.strictEqual(byId.torn.hidden, true);
+    assert.strictEqual(byId.torn.hiddenReason, 'license-nc');
+    assert.notStrictEqual(byId.other.hidden, true);
+    assert.strictEqual(importer.isGrindcoreItem(torn), true);
+    assert.strictEqual(importer.isGrindcoreItem(other), false);
 });
 
 test('flagging an artist does not hide their tracks', function () {

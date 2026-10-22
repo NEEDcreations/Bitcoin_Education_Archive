@@ -52,6 +52,25 @@ function artistMatch(trackArtist, flagName) {
     return String(trackArtist || '').trim().toLowerCase() === String(flagName || '').trim().toLowerCase();
 }
 
+// Torn Flesh Records is the 42-track grindcore/noise item in the NC audit.
+function isGrindcoreItem(item) {
+    if (!item) return false;
+    const creator = String(item.creator || '');
+    const id = String(item.id || '');
+    const note = String(item.genre || item.note || item.tags || '');
+    return /torn flesh/i.test(creator) || /^tfr/i.test(id) || /grindcore/i.test(note + ' ' + creator + ' ' + id);
+}
+
+function hideNcSelected(item, hideNc) {
+    if (!hideNc) return false;
+    if (hideNc === true || String(hideNc).toLowerCase() === 'all') return true;
+    const needle = String(hideNc).trim().toLowerCase();
+    if (!needle) return true;
+    if (needle === 'grindcore') return isGrindcoreItem(item);
+    const hay = [item && item.id, item && item.creator, item && item.license, item && item.sourceUrl].join(' ').toLowerCase();
+    return hay.indexOf(needle) !== -1;
+}
+
 function isWavlake(track) {
     const source = String(track && track.source || '').toLowerCase();
     if (source === 'podcastindex' || source === 'wavlake') return true;
@@ -156,18 +175,24 @@ function planCatalog(input) {
         artistsNew: 0,
         artistsUpdate: 0,
         hidden: 0,
+        wouldHideNc: 0,
+        wouldHideGrindcore: 0,
         streamUrlExisting: 0,
         needsReview: 0,
         auditTracksListed: 0,
+        auditGrindcoreListed: 0,
         skipped: 0
     };
+    const hideNc = input && input.hideNc;
 
-    const auditIds = Object.create(null);
+    const auditById = Object.create(null);
     audit.forEach(function (item) {
         if (!item) return;
         const id = item.id || archiveItemId(item.sourceUrl);
-        if (id) auditIds[id] = 1;
-        counts.auditTracksListed += Number(item.tracks) || 0;
+        if (id) auditById[id] = item;
+        const listed = Number(item.tracks) || 0;
+        counts.auditTracksListed += listed;
+        if (isGrindcoreItem(item)) counts.auditGrindcoreListed += listed;
     });
 
     const byGuid = Object.create(null);
@@ -235,14 +260,22 @@ function planCatalog(input) {
     });
 
     finalTracks.forEach(function (track) {
-        if (track.v4vGuid && seenGuids[track.v4vGuid]) return;
-        const itemId = archiveItemId(track.sourceUrl) || archiveItemId(track.audioUrl) || archiveItemId(track.pageUrl);
-        if (itemId && auditIds[itemId]) {
-            track.hidden = true;
-            track.hiddenReason = 'license-nc';
-            counts.hidden++;
+        const safe = track.v4vGuid && seenGuids[track.v4vGuid];
+        if (!safe) {
+            const itemId = archiveItemId(track.sourceUrl) || archiveItemId(track.audioUrl) || archiveItemId(track.pageUrl);
+            const item = itemId && auditById[itemId];
+            if (item) {
+                counts.wouldHideNc++;
+                if (isGrindcoreItem(item)) counts.wouldHideGrindcore++;
+                if (item.license && !track.license && !track.archiveLicense) track.archiveLicense = item.license;
+                if (hideNcSelected(item, hideNc)) {
+                    track.hidden = true;
+                    track.hiddenReason = 'license-nc';
+                    counts.hidden++;
+                }
+            }
         }
-        if (!isWavlake(track) || !track.v4vGuid || !enclosures[track.v4vGuid]) return;
+        if (safe || !isWavlake(track) || !track.v4vGuid || !enclosures[track.v4vGuid]) return;
         if (track.streamUrl !== enclosures[track.v4vGuid]) {
             track.streamUrl = enclosures[track.v4vGuid];
             counts.streamUrlExisting++;
@@ -334,10 +367,13 @@ function printCounts(mode, counts) {
         'artists_upsert: ' + counts.artistsUpsert,
         'artists_new: ' + counts.artistsNew,
         'artists_update: ' + counts.artistsUpdate,
+        'would_hide_nc: ' + counts.wouldHideNc,
+        'would_hide_grindcore: ' + counts.wouldHideGrindcore,
         'hidden_license_nc: ' + counts.hidden,
         'stream_url_existing: ' + counts.streamUrlExisting,
         'needs_review: ' + counts.needsReview,
         'audit_tracks_listed: ' + counts.auditTracksListed,
+        'audit_grindcore_listed: ' + counts.auditGrindcoreListed,
         'skipped: ' + counts.skipped
     ].join('\n'));
 }
@@ -367,6 +403,8 @@ function parseArgs(argv) {
         else if (arg === '--fixture') out.fixture = argv[++i];
         else if (arg === '--fixture-artists') out.fixtureArtists = argv[++i];
         else if (arg === '--out') out.out = argv[++i];
+        else if (arg === '--hide-nc') out.hideNc = true;
+        else if (arg.indexOf('--hide-nc=') === 0) out.hideNc = arg.slice('--hide-nc='.length) || true;
         else if (arg === '--flag-artist') out.flagArtists.push(argv[++i] || '');
         else if (arg.indexOf('--') === 0) {
             console.error('Unknown argument');
@@ -448,6 +486,8 @@ async function main() {
             '--fixture-artists FILE',
             '--out FILE       JSON result for --fixture --apply',
             '--flag-artist NAME   set needsReview, do not hide (repeatable)',
+            '--hide-nc            opt in: hide every audited NC archive.org track',
+            '--hide-nc=grindcore  opt in: hide only the 42 Torn Flesh Records tracks',
             '--apply'
         ].join('\n'));
         return;
@@ -487,7 +527,8 @@ async function main() {
         audit: audit,
         existingTracks: existingTracks,
         existingArtists: existingArtists,
-        flagArtists: args.flagArtists
+        flagArtists: args.flagArtists,
+        hideNc: args.hideNc || false
     });
 
     if (args.fixture && args.apply) {
@@ -507,7 +548,13 @@ async function main() {
     printCounts('dry-run', plan.counts);
 }
 
-module.exports = { planCatalog: planCatalog, httpsUrl: httpsUrl, archiveItemId: archiveItemId, artistMatch: artistMatch };
+module.exports = {
+    planCatalog: planCatalog,
+    httpsUrl: httpsUrl,
+    archiveItemId: archiveItemId,
+    artistMatch: artistMatch,
+    isGrindcoreItem: isGrindcoreItem
+};
 
 if (require.main === module) {
     main().catch(function (err) {

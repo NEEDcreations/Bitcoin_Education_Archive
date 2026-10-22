@@ -25,6 +25,8 @@ test('player credits escape text and allowlist https links', function () {
     assert.ok(beats.includes('creativecommons.org'));
     assert.ok(beats.includes('incompetech.com'));
     assert.ok(beats.includes("short !== 'CC BY' && short !== 'CC BY-SA'"));
+    assert.ok(beats.includes("'by-nc-nd': 'CC BY-NC-ND'"));
+    assert.ok(beats.includes('function _beatsDeedUrl'));
     assert.ok(beats.includes('/terms.html#open-music-credits'));
     const src = beats.slice(beats.indexOf('function _beatsAudioSrc'), beats.indexOf('function _beatsAudioSrc') + 400);
     assert.ok(src.indexOf('streamUrl') < src.indexOf('audioUrl'));
@@ -40,6 +42,61 @@ test('terms credit Kevin MacLeod and the open licenses', function () {
     assert.ok(terms.includes('https://creativecommons.org/licenses/by/4.0/'));
     assert.ok(terms.includes('https://zine.wavlake.com/open-music/'));
     assert.ok(terms.includes('https://archive.org/'));
+    assert.ok(terms.includes('including NonCommercial licenses'));
+});
+
+test('archive.org tracks get a credit line from the stored license', function () {
+    const vm = require('vm');
+    const context = {
+        console: console,
+        navigator: {},
+        setTimeout: function () {},
+        setInterval: function () {},
+        clearInterval: function () {},
+        localStorage: { getItem: function () { return null; }, setItem: function () {} },
+        location: { hash: '' }
+    };
+    context.escapeHtml = function (str) {
+        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    context.window = context;
+    context.document = {
+        getElementById: function () { return null; },
+        addEventListener: function () {},
+        createTextNode: function (text) { return { textContent: String(text) }; },
+        createElement: function () {
+            const node = { style: {}, child: '' };
+            node.appendChild = function (kid) { node.child = kid.textContent || ''; };
+            Object.defineProperty(node, 'innerHTML', {
+                get: function () { return node.child; },
+                set: function (value) { node.child = value; }
+            });
+            return node;
+        }
+    };
+    context.window.addEventListener = function () {};
+    vm.createContext(context);
+    vm.runInContext(read('beats.js'), context, { filename: 'beats.js' });
+    const track = {
+        title: 'Vestigial',
+        artist: 'Torn Flesh Records',
+        source: 'archive.org',
+        sourceUrl: 'https://archive.org/details/TFR100-VA-TornFleshRecordsPresentsVestigialSickness',
+        archiveLicense: 'http://creativecommons.org/licenses/by-nc-nd/3.0/'
+    };
+    const html = context._beatsCreditHtml(track);
+    assert.ok(html.indexOf('id="beatsCreditLine"') !== -1);
+    assert.ok(html.indexOf('CC BY-NC-ND 3.0') !== -1);
+    assert.ok(html.indexOf('https://creativecommons.org/licenses/by-nc-nd/3.0/') !== -1);
+    assert.ok(html.indexOf('Internet Archive') !== -1);
+    assert.strictEqual(context._beatsShortCredit(track), '');
+    const by = context._beatsShortCredit({
+        title: 'Aces High', artist: 'Kevin MacLeod', source: 'incompetech', license: 'CC BY 4.0'
+    });
+    assert.strictEqual(by, 'CC BY · incompetech');
+    const upload = context._beatsCreditHtml({ title: 'My Upload', artist: 'Phil' });
+    assert.ok(upload.indexOf('My Upload') !== -1);
+    assert.ok(upload.indexOf('Phil') !== -1);
 });
 
 test('clients cannot write catalog credit or hide fields', function () {
