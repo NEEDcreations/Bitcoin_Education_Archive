@@ -191,6 +191,11 @@ service cloud.firestore {
                             && request.resource.data.country.size() >= 2
                             && request.resource.data.country.size() <= 60
                             && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
+                    // Home invite card. Owner may only store open, minimized, or dismissed.
+                    && (!('inviteCard' in request.resource.data)
+                        || request.resource.data.inviteCard == 'open'
+                        || request.resource.data.inviteCard == 'min'
+                        || request.resource.data.inviteCard == 'off')
                     && lightningLockOk();
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second

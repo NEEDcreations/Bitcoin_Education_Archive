@@ -2276,10 +2276,10 @@ async function ensureReferralCode() {}
 
 // ---- Get referral stats for display ----
 async function getReferralStats() {
-    if (!currentUser || !db) return { total: 0, verified: 0, pending: 0 };
+    if (!currentUser || !db) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
 
     const refCode = getReferralCode();
-    if (!refCode) return { total: 0, verified: 0, pending: 0 };
+    if (!refCode) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0 };
 
     try {
         const snapshot = await db.collection('referrals')
@@ -2291,13 +2291,15 @@ async function getReferralStats() {
         let pending = 0;
 
         snapshot.forEach(doc => {
-            if (doc.data().verified) verified++;
+            var data = doc.data() || {};
+            var reached = data.verified === true || data.status === 'paid' || data.ticketsAwarded === true;
+            if (reached) verified++;
             else pending++;
         });
 
-        return { total, verified, pending };
+        return { total: total, verified: verified, pending: pending, invited: total, maxi: verified };
     } catch (e) {
-        return { total: 0, verified: 0, pending: 0 };
+        return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
     }
 }
 
@@ -2328,57 +2330,39 @@ function renderTicketsSection() {
 }
 
 // ---- Render referral section in settings ----
+// The link is filled with textContent after this HTML is inserted.
 function renderReferralSection() {
-    const link = getReferralLink();
     const code = getReferralCode();
-
     if (!code) return '';
 
-    let html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Referral Program</div>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Share your link with friends. You and your friend each earn <strong style="color:#f7931a;">50 Orange Tickets</strong> when they reach Maxi (2,140 points).' +
-        '</div>' +
-        '<div style="position:relative;margin-bottom:12px;">' +
-        '<input type="text" id="referralLinkInput" readonly value="' + link + '" style="width:100%;padding:10px 80px 10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;outline:none;box-sizing:border-box;" onclick="this.select()">' +
-        '<button onclick="copyReferralLink()" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Copy</button>' +
-        '</div>' +
-        '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;">Loading referral stats...</div>' +
+    return '<div id="inviteSettingsBlock" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Invite friends</div>' +
+        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches Maxi rank, you both get 50 orange tickets.</p>' +
+        '<p id="inviteSettingsLink" style="margin:0 0 12px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;word-break:break-all;"></p>' +
+        '<button type="button" onclick="openInviteFriends(true)" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Invite friends</button>' +
+        '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;"></div>' +
         '</div>';
-
-    return html;
 }
 
 function copyReferralLink() {
-    const input = document.getElementById('referralLinkInput');
-    if (!input) return;
-
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(input.value).then(function() {
-            showToast('🔗 Referral link copied!');
-        });
-    } else {
-        input.select();
-        document.execCommand('copy');
-        showToast('🔗 Referral link copied!');
+    var link = getReferralLink();
+    var el = document.getElementById('inviteSettingsLink');
+    if (el && el.textContent) link = el.textContent;
+    if (!link) return;
+    if (_copyTextNow(link) && typeof showToast === 'function') showToast('Referral link copied!');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).catch(function() {});
     }
 }
 
 // ---- Load and display referral stats async ----
 async function loadReferralStatsUI() {
-    const el = document.getElementById('referralStats');
+    var linkEl = document.getElementById('inviteSettingsLink');
+    if (linkEl) linkEl.textContent = getReferralLink();
+    var el = document.getElementById('referralStats');
     if (!el) return;
-
-    const stats = await getReferralStats();
-    if (stats.total === 0) {
-        el.innerHTML = '<span style="color:var(--text-faint);">No referrals yet. Share your link to start earning!</span>';
-    } else {
-        el.innerHTML = '<div style="display:flex;gap:16px;">' +
-            '<span>👥 Total: <strong>' + stats.total + '</strong></span>' +
-            '<span style="color:#22c55e;">✅ Verified: <strong>' + stats.verified + '</strong></span>' +
-            '<span style="color:#eab308;">⏳ Pending: <strong>' + stats.pending + '</strong></span>' +
-            '</div>';
-    }
+    var stats = await getReferralStats();
+    el.textContent = _inviteCountLine(stats);
 }
 
 // ---- Initialize tickets system ----
@@ -2395,12 +2379,7 @@ async function onUserLoadedTickets() {
 
     // Start Double XP floating widget if active
     if (typeof window._checkDoubleXPWidget === 'function') window._checkDoubleXPWidget();
-    var panel = document.getElementById('referFriendPanel');
-    if (panel && panel.getAttribute('data-open') === '1') {
-        var input = document.getElementById('referFriendLink');
-        if (input) input.value = getReferralLink();
-        _renderReferFriendStats();
-    }
+    refreshInviteCard();
 }
 
 // ---- Award tickets for content uploads ----
@@ -2422,88 +2401,235 @@ window.awardTickets = async function(amount, reason) {
     if (typeof showToast === 'function') showToast('🎫 +' + amount + ' Orange Tickets! ' + (reason || ''));
 };
 
-// ---- Home "Refer a friend" card ----
-// The card is in the first HTML paint. This only swaps the hint and fills
-// the fixed overlay. Stats come from fields already on the signed-in user.
+// ---- Home "Invite friends" corner card ----
+// Top-right. Signed-in users get the link. Guests see nothing unless this
+// session has no other popup, in which case one short sign-up line appears.
 
-function _referFriendSignedIn() {
+var INVITE_STATES = { open: 1, min: 1, off: 1 };
+
+function _inviteSignedIn() {
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
-function _renderReferFriendStats() {
-    var el = document.getElementById('referFriendStats');
-    if (!el) return;
-    var friends = 0;
-    var tickets = 0;
-    if (typeof currentUser !== 'undefined' && currentUser) {
-        friends = parseInt(currentUser.referralCount, 10) || 0;
-        tickets = parseInt(currentUser.referralTicketsEarned, 10) || 0;
+function _inviteUid() {
+    if (!_inviteSignedIn()) return '';
+    return String(auth.currentUser.uid || '');
+}
+
+function _inviteStorageKey(uid) {
+    return 'btc_invite_card_' + String(uid || '');
+}
+
+function _inviteReadStored(uid) {
+    var fromUser = '';
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard) {
+        fromUser = String(currentUser.inviteCard);
     }
-    if (!friends && !tickets) {
-        el.textContent = 'No rewards yet — they count when a friend reaches Maxi.';
+    if (INVITE_STATES[fromUser]) return fromUser;
+    try {
+        var local = localStorage.getItem(_inviteStorageKey(uid));
+        if (INVITE_STATES[local]) return local;
+    } catch (e) {}
+    return 'open';
+}
+
+function _inviteWriteStored(state) {
+    var uid = _inviteUid();
+    if (!uid || !INVITE_STATES[state]) return;
+    try { localStorage.setItem(_inviteStorageKey(uid), state); } catch (e) {}
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.inviteCard = state;
+    if (typeof db === 'undefined' || !db) return;
+    db.collection('users').doc(uid).update({ inviteCard: state }).catch(function() {});
+}
+
+function _inviteHomeVisible() {
+    var home = document.getElementById('home');
+    if (!home) return false;
+    if (home.classList.contains('hidden')) return false;
+    if (home.style.display === 'none') return false;
+    return true;
+}
+
+function _invitePopupTaken() {
+    try {
+        var cur = sessionStorage.getItem('btc_session_popup');
+        return !!(cur && cur !== 'invite');
+    } catch (e) { return false; }
+}
+
+function _claimInvitePopup() {
+    if (typeof window.btcClaimSessionPopup === 'function') return window.btcClaimSessionPopup('invite');
+    if (typeof window.claimSessionPopup === 'function') return window.claimSessionPopup('invite');
+    try {
+        if (sessionStorage.getItem('btc_session_popup')) return sessionStorage.getItem('btc_session_popup') === 'invite';
+        sessionStorage.setItem('btc_session_popup', 'invite');
+        return true;
+    } catch (e) { return false; }
+}
+
+function _guestBannerVisible() {
+    var banner = document.getElementById('guestPointsBanner');
+    if (!banner) return false;
+    if (banner.style.display === 'none') return false;
+    return true;
+}
+
+function _copyTextNow(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', 'readonly');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    if (ta.focus) ta.focus({ preventScroll: true });
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+}
+
+function _inviteCountLine(stats) {
+    var invited = stats && typeof stats.invited === 'number' ? stats.invited : 0;
+    var maxi = stats && typeof stats.maxi === 'number' ? stats.maxi : 0;
+    if (!invited && !maxi) return 'No invites yet.';
+    var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
+    var maxiLabel = maxi === 1 ? '1 reached Maxi' : maxi + ' reached Maxi';
+    return invitedLabel + ' · ' + maxiLabel;
+}
+
+function _fillInviteCard() {
+    var linkEl = document.getElementById('inviteLink');
+    if (linkEl) linkEl.textContent = getReferralLink();
+    var share = document.getElementById('inviteShare');
+    if (share) share.hidden = !navigator.share;
+    var copyBtn = document.getElementById('inviteCopy');
+    if (copyBtn && copyBtn.textContent !== 'Copied!') copyBtn.textContent = 'Copy';
+}
+
+function _paintInviteCounts(stats) {
+    var el = document.getElementById('inviteCounts');
+    if (el) el.textContent = _inviteCountLine(stats);
+}
+
+function _loadInviteCounts() {
+    getReferralStats().then(function(stats) {
+        if (stats && stats.failed) throw new Error('counts');
+        _paintInviteCounts(stats || { invited: 0, maxi: 0 });
+    }).catch(function() {
+        var maxi = 0;
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            maxi = parseInt(currentUser.referralCount, 10) || 0;
+        }
+        var el = document.getElementById('inviteCounts');
+        if (!el) return;
+        if (maxi) el.textContent = maxi + (maxi === 1 ? ' reached Maxi' : ' reached Maxi');
+        else el.textContent = 'Invite counts load when you are online.';
+    });
+}
+
+function _applyInviteState(state) {
+    var card = document.getElementById('inviteCard');
+    if (!card) return;
+    card.setAttribute('data-state', state);
+    card.setAttribute('data-show', state === 'off' ? '0' : '1');
+}
+
+function refreshInviteCard() {
+    var card = document.getElementById('inviteCard');
+    if (!card) return;
+    if (!_inviteHomeVisible()) {
+        card.setAttribute('data-show', '0');
         return;
     }
-    el.textContent = friends + (friends === 1 ? ' friend at Maxi' : ' friends at Maxi') + ' · ' + tickets + ' orange tickets earned';
-}
-
-function refreshReferFriendCard() {
-    var hint = document.getElementById('referFriendHint');
-    if (hint) hint.textContent = _referFriendSignedIn() ? 'Tap for your personal link' : 'Sign in to get your link';
-    var panel = document.getElementById('referFriendPanel');
-    if (panel && panel.getAttribute('data-open') === '1' && !_referFriendSignedIn()) closeReferFriend();
-}
-
-function openReferFriend() {
-    if (!_referFriendSignedIn()) {
-        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
-        else {
-            var modal = document.getElementById('usernameModal');
-            if (modal) modal.classList.add('open');
+    if (typeof auth === 'undefined' || !auth) {
+        card.setAttribute('data-show', '0');
+        return;
+    }
+    if (_inviteSignedIn()) {
+        var state = _inviteReadStored(_inviteUid());
+        _applyInviteState(state);
+        if (state === 'open') {
+            _fillInviteCard();
+            _loadInviteCounts();
         }
         return;
     }
-    var panel = document.getElementById('referFriendPanel');
-    if (!panel) return;
-    var input = document.getElementById('referFriendLink');
-    if (input) input.value = getReferralLink();
-    var share = document.getElementById('referFriendShare');
-    if (share) {
-        if (navigator.share) share.hidden = false;
-        else share.hidden = true;
+    var dismissed = false;
+    try { dismissed = sessionStorage.getItem('btc_invite_guest_dismissed') === '1'; } catch (e) {}
+    if (dismissed || _guestBannerVisible() || _invitePopupTaken() || !_claimInvitePopup()) {
+        _applyInviteState('off');
+        return;
     }
-    var copyBtn = document.getElementById('referFriendCopy');
-    if (copyBtn) copyBtn.textContent = 'Copy';
-    _renderReferFriendStats();
-    panel.setAttribute('data-open', '1');
-    if (copyBtn && copyBtn.focus) copyBtn.focus({ preventScroll: true });
+    _applyInviteState('guest');
 }
 
-function closeReferFriend() {
-    var panel = document.getElementById('referFriendPanel');
-    if (panel) panel.removeAttribute('data-open');
+function openInviteFriends(force) {
+    if (!_inviteSignedIn()) {
+        if (!force && (_invitePopupTaken() || !_claimInvitePopup())) return;
+        try { sessionStorage.removeItem('btc_invite_guest_dismissed'); } catch (e) {}
+        if (typeof goHome === 'function') goHome();
+        _applyInviteState('guest');
+        return;
+    }
+    if (force) _inviteWriteStored('open');
+    var modal = document.getElementById('usernameModal');
+    if (modal) modal.classList.remove('open');
+    if (typeof goHome === 'function') goHome();
+    _applyInviteState('open');
+    _fillInviteCard();
+    _loadInviteCounts();
 }
 
-function copyReferFriendLink() {
-    var input = document.getElementById('referFriendLink');
-    var btn = document.getElementById('referFriendCopy');
-    var text = (input && input.value) || getReferralLink();
+function minimizeInviteCard() {
+    if (!_inviteSignedIn()) return;
+    _inviteWriteStored('min');
+    _applyInviteState('min');
+}
+
+function expandInviteCard() {
+    if (!_inviteSignedIn()) return;
+    _inviteWriteStored('open');
+    _applyInviteState('open');
+    _fillInviteCard();
+    _loadInviteCounts();
+}
+
+function dismissInviteCard() {
+    if (!_inviteSignedIn()) {
+        try { sessionStorage.setItem('btc_invite_guest_dismissed', '1'); } catch (e) {}
+        _applyInviteState('off');
+        return;
+    }
+    _inviteWriteStored('off');
+    _applyInviteState('off');
+}
+
+function toggleInviteHow() {
+    var panel = document.getElementById('inviteHow');
+    var btn = document.getElementById('inviteHowBtn');
+    if (!panel || !btn) return;
+    var open = panel.hasAttribute('hidden');
+    if (open) panel.removeAttribute('hidden');
+    else panel.setAttribute('hidden', '');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function copyInviteLink() {
+    var linkEl = document.getElementById('inviteLink');
+    var btn = document.getElementById('inviteCopy');
+    var text = (linkEl && linkEl.textContent) || getReferralLink();
     if (!text) return;
     function mark() {
         if (!btn) return;
         btn.textContent = 'Copied!';
-        clearTimeout(window._referFriendCopiedTimer);
-        window._referFriendCopiedTimer = setTimeout(function() {
+        clearTimeout(window._inviteCopiedTimer);
+        window._inviteCopiedTimer = setTimeout(function() {
             if (btn) btn.textContent = 'Copy';
         }, 2500);
     }
-    // execCommand has to run inside the click. The clipboard promise often
-    // resolves after that gesture is over, so a later fallback cannot copy.
-    var copied = false;
-    if (input) {
-        if (input.focus) input.focus({ preventScroll: true });
-        input.select();
-        try { copied = document.execCommand('copy'); } catch (e) { copied = false; }
-    }
+    var copied = _copyTextNow(text);
     if (copied) mark();
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(mark).catch(function() {
@@ -2514,8 +2640,9 @@ function copyReferFriendLink() {
     }
 }
 
-function shareReferFriendLink() {
-    var link = (document.getElementById('referFriendLink') || {}).value || getReferralLink();
+function shareInviteLink() {
+    var linkEl = document.getElementById('inviteLink');
+    var link = (linkEl && linkEl.textContent) || getReferralLink();
     if (!link || !navigator.share) return;
     navigator.share({
         title: 'Bitcoin Quest',
@@ -2524,32 +2651,54 @@ function shareReferFriendLink() {
     }).catch(function() {});
 }
 
-// Run on page load
+function inviteGuestSignup() {
+    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+    else {
+        var modal = document.getElementById('usernameModal');
+        if (modal) modal.classList.add('open');
+    }
+}
+
 if (typeof window !== 'undefined') {
-    // Capture referral code from URL immediately
     captureReferralCode();
-    window.openReferFriend = openReferFriend;
-    window.closeReferFriend = closeReferFriend;
-    window.copyReferFriendLink = copyReferFriendLink;
-    window.shareReferFriendLink = shareReferFriendLink;
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeReferFriend();
-    });
-    function bindReferFriendAuth() {
+    window.openInviteFriends = openInviteFriends;
+    window.minimizeInviteCard = minimizeInviteCard;
+    window.expandInviteCard = expandInviteCard;
+    window.dismissInviteCard = dismissInviteCard;
+    window.toggleInviteHow = toggleInviteHow;
+    window.copyInviteLink = copyInviteLink;
+    window.shareInviteLink = shareInviteLink;
+    window.inviteGuestSignup = inviteGuestSignup;
+    window.refreshInviteCard = refreshInviteCard;
+    function bindInviteAuth() {
         if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') return false;
-        if (window._referFriendAuthBound) return true;
-        window._referFriendAuthBound = true;
-        auth.onAuthStateChanged(function() { refreshReferFriendCard(); });
-        refreshReferFriendCard();
+        if (window._inviteAuthBound) return true;
+        window._inviteAuthBound = true;
+        auth.onAuthStateChanged(function() { refreshInviteCard(); });
+        refreshInviteCard();
         return true;
     }
-    if (!bindReferFriendAuth()) {
-        var referFriendTries = 0;
-        var referFriendWatch = setInterval(function() {
-            referFriendTries++;
-            if (bindReferFriendAuth() || referFriendTries > 60) clearInterval(referFriendWatch);
+    function watchInviteHome() {
+        var home = document.getElementById('home');
+        if (!home || home._inviteWatch) return;
+        home._inviteWatch = true;
+        if (typeof MutationObserver === 'function') {
+            new MutationObserver(function() { refreshInviteCard(); }).observe(home, { attributes: true, attributeFilter: ['class', 'style'] });
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', watchInviteHome);
+    } else {
+        watchInviteHome();
+    }
+    if (!bindInviteAuth()) {
+        var inviteTries = 0;
+        var inviteWatch = setInterval(function() {
+            inviteTries++;
+            if (bindInviteAuth() || inviteTries > 60) clearInterval(inviteWatch);
         }, 1000);
     }
+    refreshInviteCard();
 }
 // Phase 10: Loyalty & Learning Boosts 🎓
 
@@ -20483,7 +20632,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep memorize practice drill test', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
         { id: '_tickets', title: '🎫 Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
-        { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
+        { id: '_referral', title: '🔗 Invite friends', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'openInviteFriends(true)' },
         { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color hat scarf sunglasses crown hoodie accessories wardrobe', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals — chat, DJ, discovery, knowledge', keywords: 'badges achievement trophy unlock goal progress medal chat dj streak listener', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_story', title: '📖 Nacho\'s Story', desc: 'Read Nacho\'s Bitcoin adventure — one chapter per day', keywords: 'story chapter read book adventure nacho tale', action: 'showNachoStory()' },

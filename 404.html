@@ -61,7 +61,7 @@
     <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <!-- coingecko preconnect removed: connects lazily when price data is fetched -->
-    <link rel="preload" href="bundle.min.js?v=20261022_v2271" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261022_v2279" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -505,26 +505,38 @@
         .home-btc { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; }
-        .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 18px; line-height: 1.6; }
-        .refer-friend-card { appearance: none; -webkit-appearance: none; display: flex; flex-direction: column; align-items: flex-start; text-align: left; width: 100%; box-sizing: border-box; margin: 0 0 24px; padding: 18px 18px 14px; border-radius: 16px; border: 1px solid rgba(247,147,26,0.45); background: linear-gradient(135deg, rgba(247,147,26,0.16), rgba(234,88,12,0.06)); color: var(--text); font-family: inherit; cursor: pointer; box-shadow: 0 8px 28px rgba(247,147,26,0.12); touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: border-color 0.2s, box-shadow 0.2s; }
-        .refer-friend-card:hover { border-color: #f7931a; box-shadow: 0 10px 32px rgba(247,147,26,0.22); }
-        .refer-friend-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-        .refer-friend-kicker { display: block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #f7931a; margin-bottom: 6px; }
-        .refer-friend-reward { display: block; font-size: 1.05rem; font-weight: 800; color: var(--heading); line-height: 1.35; margin-bottom: 6px; }
-        .refer-friend-encourage { display: block; font-size: 0.86rem; color: var(--text-dim); line-height: 1.45; margin-bottom: 10px; }
-        .refer-friend-hint { display: block; height: 1.25em; line-height: 1.25em; font-size: 0.78rem; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-        .refer-friend-panel { display: none; position: fixed; inset: 0; z-index: 10050; background: rgba(0,0,0,0.72); align-items: center; justify-content: center; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-        .refer-friend-panel[data-open="1"] { display: flex; }
-        .refer-friend-sheet { width: min(420px, 100%); max-height: min(90dvh, 560px); overflow: auto; box-sizing: border-box; background: var(--bg-side); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 20px 16px 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); text-align: left; position: relative; }
-        .refer-friend-sheet h2 { margin: 0 28px 8px 0; font-size: 1.15rem; color: var(--heading); font-weight: 800; }
-        .refer-friend-close { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 1rem; cursor: pointer; font-family: inherit; }
-        .refer-friend-link { width: 100%; box-sizing: border-box; margin-top: 12px; padding: 10px 12px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.78rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-        .refer-friend-actions { display: flex; gap: 8px; margin-top: 10px; }
-        .refer-friend-btn { flex: 1; min-height: 44px; padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; font-weight: 800; cursor: pointer; font-family: inherit; touch-action: manipulation; }
-        .refer-friend-btn-primary { background: var(--accent); color: #fff; border: none; }
-        .refer-friend-btn-ghost { background: transparent; color: var(--heading); border: 1px solid var(--border); }
-        #referFriendShare[hidden] { display: none !important; }
-        .refer-friend-stats { min-height: 1.4em; margin: 12px 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+        .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 40px; line-height: 1.6; }
+        /* Invite friends sits top-right. Nacho is bottom-left; the FABs are bottom-right. */
+        .invite-card { display: none; position: fixed; top: 16px; right: 16px; z-index: 200; width: min(280px, calc(100vw - 32px)); max-height: min(70dvh, 460px); overflow: auto; box-sizing: border-box; text-align: left; font-family: inherit; }
+        .invite-card[data-show="1"] { display: block; }
+        .invite-card[data-show="1"][data-state="off"] { display: none !important; }
+        .invite-body { background: var(--bg-side); color: var(--text); border: 1px solid rgba(247,147,26,0.55); border-radius: 16px; padding: 12px 12px 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.28); }
+        .invite-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+        .invite-title { margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--heading); }
+        .invite-tools { display: flex; gap: 4px; flex-shrink: 0; }
+        .invite-tools button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 0.95rem; line-height: 1; cursor: pointer; font-family: inherit; touch-action: manipulation; }
+        .invite-earn, .invite-how p { margin: 0; font-size: 0.78rem; line-height: 1.4; color: var(--text); }
+        .invite-link { margin: 8px 0 0; padding: 8px; border-radius: 8px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); font-size: 0.72rem; line-height: 1.35; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .invite-actions { display: flex; gap: 8px; margin-top: 8px; }
+        .invite-actions button { flex: 1; min-height: 40px; border-radius: 10px; font-size: 0.85rem; font-weight: 800; cursor: pointer; font-family: inherit; touch-action: manipulation; }
+        #inviteCopy { background: var(--accent); color: #fff; border: none; }
+        #inviteShare { background: transparent; color: var(--heading); border: 1px solid var(--border); }
+        #inviteShare[hidden] { display: none !important; }
+        .invite-counts { margin: 8px 0 0; min-height: 1.2em; font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; }
+        .invite-how-btn { margin-top: 8px; padding: 0; border: none; background: none; color: var(--accent); font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: inherit; }
+        .invite-how { margin-top: 6px; }
+        .invite-pill, .invite-guest { border: none; background: #f7931a; color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 0.85rem; cursor: pointer; font-family: inherit; box-shadow: 0 6px 18px rgba(247,147,26,0.35); touch-action: manipulation; }
+        .invite-guest { font-size: 0.75rem; max-width: 220px; text-align: left; line-height: 1.3; }
+        .invite-card[data-state="open"] .invite-pill,
+        .invite-card[data-state="open"] .invite-guest,
+        .invite-card[data-state="min"] .invite-body,
+        .invite-card[data-state="min"] .invite-guest,
+        .invite-card[data-state="guest"] .invite-body,
+        .invite-card[data-state="guest"] .invite-pill { display: none; }
+        @media (min-width: 901px) {
+            body.ticker-visible .invite-card { top: 48px; }
+        }
+        body:has(#searchOverlay[data-open="1"]) .invite-card { display: none !important; }
         .home-credits { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 24px 30px; margin-bottom: 40px; text-align: left; }
         .home-credits p { color: var(--text-dim); font-size: 1rem; margin-bottom: 8px; line-height: 1.6; }
         .home-credits p:last-child { margin-bottom: 0; }
@@ -634,11 +646,8 @@
             .scroll-to-bottom { bottom: calc(190px + env(safe-area-inset-bottom, 0px)) !important; right: 52px; width: 34px; height: 34px; font-size: 0.95rem; }
             .home-page { padding: 30px 16px; min-height: auto; }
             .home-title { font-size: 2rem; letter-spacing: -1px; }
-            .home-subtitle { font-size: 1rem; margin-bottom: 14px; }
-            .refer-friend-card { padding: 14px 14px 12px; margin-bottom: 20px; }
-            .refer-friend-reward { font-size: 0.95rem; }
-            .refer-friend-encourage { font-size: 0.8rem; }
-            .refer-friend-actions { flex-wrap: wrap; }
+            .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
+            .invite-card { top: calc(62px + env(safe-area-inset-top, 0px)); right: 8px; width: min(220px, calc(100vw - 20px)); }
             .home-stats { grid-template-columns: repeat(3, auto); gap: 14px 20px; }
             .home-stat-num { font-size: 1.3rem; }
             .home-stat-label { font-size: 0.7rem; }
@@ -674,8 +683,7 @@
         @media (max-width: 380px) {
             .home-title { font-size: 1.5rem; }
             .home-subtitle { font-size: 0.9rem; }
-            .refer-friend-reward { font-size: 0.88rem; }
-            .refer-friend-kicker { letter-spacing: 0.08em; }
+            .invite-card { width: min(188px, calc(100vw - 16px)); }
             .home-stats { gap: 8px; }
             .home-stat-num { font-size: 1.1rem; }
             .mobile-bar h2 { font-size: 0.75rem; }
@@ -1117,12 +1125,6 @@
                 <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
                 <p style="margin:0 0 16px;font-size:0.78rem;"><a href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates (v2253)</a></p>
                 <p class="home-subtitle">Learn Bitcoin. Earn real sats. ⚡ Explore 146 topics, watch 24/7 streaming TV, play games, join the community — and win actual Bitcoin along the way. Your quest starts now. 🦌</p>
-                <button type="button" id="referFriendCard" class="refer-friend-card" onclick="openReferFriend()" aria-haspopup="dialog" aria-controls="referFriendPanel">
-                    <span class="refer-friend-kicker">Refer a friend</span>
-                    <span class="refer-friend-reward">When a friend you invite reaches Maxi rank, you BOTH get 50 orange tickets</span>
-                    <span class="refer-friend-encourage">One link. Two winners. Send it to someone who's ready to learn Bitcoin.</span>
-                    <span class="refer-friend-hint" id="referFriendHint">Sign in to get your link</span>
-                </button>
                 <!-- As Featured On -->
                 <div id="featuredOnSection" style="width:100%;margin:0 auto 24px;">
                 <div id="featuredOnFull" style="position:relative;width:100%;padding:16px 20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:16px;box-sizing:border-box;">
@@ -1512,8 +1514,8 @@
     <script src="ranking.js?v=20261022_v2269" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261022_v2271" defer fetchpriority="high"></script>
-    <script src="features.registry.js?v=20261022_v2266" defer></script>
+    <script src="bundle.min.js?v=20261022_v2279" defer fetchpriority="high"></script>
+    <script src="features.registry.js?v=20261022_v2279" defer></script>
     <script src="patches.js?v=20261022_v2263" defer></script>
     <script src="onboarding.js?v=20261013_1908" defer></script>
     <script src="learning-quests.js?v=20261014_0554" defer></script>
@@ -1527,11 +1529,11 @@
             'satoshi-favor.js?v=20261022_v2250'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261022_v2263',
+            'quests.js?v=20261022_v2279',
             'hot-topics.js?v=20261022_hottopics',
             'pvp.js?v=20260708_0427','pvp-enhance.js?v=20260405','nacho-qa.js?v=20261022_v2263',
             'scholar.js?v=20260809_1846','beats.js?v=20261013_2307',
-            'lightning.js?v=20261022_faucet','lightning-tips.js?v=20261022_v2255',
+            'lightning.js?v=20261022_faucet','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261022_v2262','gifting.js?v=20261022_v2254','guide.js?v=20260716_1628','modules.js?v=20261022_v2252',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
@@ -1595,15 +1597,15 @@
             'chat':          ['global-chat.js?v=20261022_v2272'],
             'dms':           ['global-chat.js?v=20261022_v2272'],
             'irl-sync':      ['irl-sync.js?v=20260810_0418'],
-            'lightning':     ['lightning.js?v=20261022_faucet', 'lightning-tips.js?v=20261022_v2255'],
+            'lightning':     ['lightning.js?v=20261022_faucet', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20260708_0427'],
             'proof-of-play': ['pvp.js?v=20260708_0427', 'proof-of-play.js?v=20260609_pop'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261022_v2252'],
             'learning-quests': ['learning-quests.js?v=20261014_0554'],
-            'quests':        ['quests.js?v=20261022_v2263'],
-            'questhub':      ['quests.js?v=20261022_v2263'],
-            'app':           ['quests.js?v=20261022_v2263'],
+            'quests':        ['quests.js?v=20261022_v2279'],
+            'questhub':      ['quests.js?v=20261022_v2279'],
+            'app':           ['quests.js?v=20261022_v2279'],
             'timechain-tv':  ['timechain-tv.js?v=20261022_tctv3'],
             'tv':            ['timechain-tv.js?v=20261022_tctv3']
         };
@@ -1680,18 +1682,29 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
-<div id="referFriendPanel" class="refer-friend-panel" role="dialog" aria-modal="true" aria-labelledby="referFriendTitle" onclick="if(event.target===this)closeReferFriend()">
-    <div class="refer-friend-sheet">
-        <button type="button" class="refer-friend-close" onclick="closeReferFriend()" aria-label="Close">✕</button>
-        <h2 id="referFriendTitle">Your referral link</h2>
-        <p class="refer-friend-encourage" style="margin-bottom:0;">When a friend you invite reaches Maxi rank, you BOTH get 50 orange tickets.</p>
-        <input type="text" id="referFriendLink" class="refer-friend-link" readonly value="" onclick="this.select()" aria-label="Referral link">
-        <div class="refer-friend-actions">
-            <button type="button" id="referFriendCopy" class="refer-friend-btn refer-friend-btn-primary" onclick="copyReferFriendLink()">Copy</button>
-            <button type="button" id="referFriendShare" class="refer-friend-btn refer-friend-btn-ghost" hidden onclick="shareReferFriendLink()">Share</button>
+<div id="inviteCard" class="invite-card" data-state="off" data-show="0">
+    <div class="invite-body" id="inviteBody">
+        <div class="invite-top">
+            <p class="invite-title" id="inviteTitle">Invite friends</p>
+            <div class="invite-tools">
+                <button type="button" id="inviteMinBtn" onclick="minimizeInviteCard()" aria-label="Minimize invite card">–</button>
+                <button type="button" id="inviteDismissBtn" onclick="dismissInviteCard()" aria-label="Dismiss invite card">✕</button>
+            </div>
         </div>
-        <p id="referFriendStats" class="refer-friend-stats">No rewards yet — they count when a friend reaches Maxi.</p>
+        <p class="invite-earn" id="inviteEarn">When a friend you invite reaches Maxi rank, you both get 50 orange tickets.</p>
+        <p class="invite-link" id="inviteLink"></p>
+        <div class="invite-actions">
+            <button type="button" id="inviteCopy" onclick="copyInviteLink()">Copy</button>
+            <button type="button" id="inviteShare" onclick="shareInviteLink()" hidden>Share</button>
+        </div>
+        <p class="invite-counts" id="inviteCounts"></p>
+        <button type="button" class="invite-how-btn" id="inviteHowBtn" onclick="toggleInviteHow()" aria-expanded="false" aria-controls="inviteHow">How it works</button>
+        <div id="inviteHow" class="invite-how" hidden>
+            <p id="inviteHowText">Share your link. Your friend signs up with it. When they reach Maxi (2,140 XP), you both get 50 orange tickets automatically.</p>
+        </div>
     </div>
+    <button type="button" class="invite-pill" id="invitePill" onclick="expandInviteCard()">🎟️ Invite</button>
+    <button type="button" class="invite-guest" id="inviteGuest" onclick="inviteGuestSignup()">Sign up to get your invite link</button>
 </div>
 </body>
 </html>
