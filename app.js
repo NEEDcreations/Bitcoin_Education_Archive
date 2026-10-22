@@ -3698,6 +3698,16 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.go = async function go(id, btn, fromPopState) {
+        if (id === 'questhub' || id === 'raid' || id === 'raid-hub') {
+            if (typeof window.openRaidHub === 'function') window.openRaidHub();
+            else if (typeof showQuestHub === 'function') {
+                window._questHubTab = 'raid';
+                showQuestHub();
+                window._questHubTab = 'raid';
+                if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+            }
+            return;
+        }
         // Increment nav generation and capture it — any previously in-flight go() call
         // will see its captured navId !== window._navGeneration and abort after its await.
         var _navId = (window._navGeneration = (window._navGeneration || 0) + 1);

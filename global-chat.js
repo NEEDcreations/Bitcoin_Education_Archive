@@ -748,6 +748,34 @@ window.loadEarlierMessages = function() {
         });
 };
 
+// Open Quest Hub on the Raid tab. quests.js is lazy-loaded, so wait for it.
+window.openRaidHub = function() {
+    window._questHubTab = 'raid';
+    function openNow() {
+        if (typeof window.showQuestHub !== 'function') return false;
+        window._questHubTab = 'raid';
+        window.showQuestHub();
+        window._questHubTab = 'raid';
+        if (typeof window._renderQuestHubTab === 'function') window._renderQuestHubTab();
+        return true;
+    }
+    if (openNow()) return;
+    if (typeof window._loadDeferred === 'function') window._loadDeferred();
+    var existing = document.querySelector('script[src*="quests.js"]');
+    if (!existing) {
+        var s = document.createElement('script');
+        s.src = 'quests.js?v=20261022_v2250';
+        s.onload = function() { setTimeout(openNow, 0); };
+        document.body.appendChild(s);
+        return;
+    }
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries++;
+        if (openNow() || tries > 50) clearInterval(timer);
+    }, 100);
+};
+
 // Format chat text: links, #channels, @mentions, inline images/GIFs
 function formatChatText(text, mentionUid) {
     // Inline images/GIFs: render as image if it's a direct image URL
@@ -765,6 +793,7 @@ function formatChatText(text, mentionUid) {
                      : route === 'nacho' ? "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();"
                      : route === 'quests' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();"
                      : route === 'favor' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();},100);"
+                     : (route === 'questhub' || route === 'raid' || route === 'raid-hub') ? "event.preventDefault();if(typeof openRaidHub==='function')openRaidHub();"
                      : "event.preventDefault();if(typeof go==='function')go('" + route + "');";
         var placeholder = '%%INAPPLINK_' + _inAppLinks.length + '%%';
         _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>');
@@ -791,6 +820,8 @@ function formatChatText(text, mentionUid) {
             onclick = "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();";
         } else if (tag === 'quests') {
             onclick = "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();";
+        } else if (tag === 'questhub' || tag === 'raid' || tag === 'raid-hub') {
+            onclick = "event.preventDefault();if(typeof openRaidHub==='function')openRaidHub();";
         } else {
             onclick = "event.preventDefault();if(typeof go==='function')go('" + tag + "');";
         }
@@ -2269,7 +2300,7 @@ var EMOJI_SEARCH_INDEX = [
     ['😋','yum delicious eating'],['😏','smirk'],['🥹','holding back tears emotional'],['🤫','shush quiet secret'],['🤭','hand over mouth giggle'],['🙃','upside down sarcasm'],['😑','expressionless'],['😶','no mouth silent'],['😮','open mouth surprise'],['🤐','zipper mouth secret'],['🧐','monocle detective curious'],['🤓','nerd glasses smart'],['😪','sleepy'],['😵','dizzy spiral'],
     ['🐶','dog puppy'],['🐱','cat kitten'],['🐭','mouse'],['🐰','rabbit bunny'],['🦊','fox'],['🐻','bear'],['🐼','panda'],['🐨','koala'],['🐯','tiger'],['🦁','lion king'],['🐮','cow'],['🐷','pig'],['🐸','frog'],['🐙','octopus'],['🦑','squid'],['🐬','dolphin'],['🐳','whale spout'],['🐋','whale'],['🦈','shark'],['🐊','crocodile'],['🐅','tiger leopard'],['🦓','zebra'],['🦍','gorilla'],['🐘','elephant'],['🦒','giraffe'],['🐎','horse'],['🐕','dog'],['🐩','poodle dog'],['🐈','cat'],['🦋','butterfly'],['🐝','bee honey'],['🐞','ladybug'],['🦗','cricket bug'],['🌸','cherry blossom'],['🌺','hibiscus'],['🌻','sunflower'],['🌹','rose'],['🌷','tulip'],['🍀','four leaf clover luck'],['🌿','herb plant'],['🌱','seedling sprout'],['🌲','tree'],['🌴','palm tree'],['🍁','maple leaf autumn'],['🐾','paw prints animal'],
     ['🍕','pizza'],['🍔','burger hamburger'],['🍟','fries'],['🌮','taco'],['🌯','burrito wrap'],['🍣','sushi'],['🍜','noodles ramen'],['🍝','pasta spaghetti'],['🍛','curry rice'],['🍱','bento box'],['🍰','cake slice'],['🎂','birthday cake'],['🧁','cupcake'],['🍩','donut'],['🍪','cookie'],['🍫','chocolate'],['🍦','ice cream'],['🍕','pizza'],['🥗','salad'],['🥘','paella stew'],['🍳','egg frying pan'],['🥞','pancakes'],['🧇','waffle'],['🥓','bacon'],['🍗','chicken drumstick'],['🍖','meat bone'],['🧀','cheese'],['🥑','avocado'],['🍎','apple'],['🍊','orange'],['🍋','lemon'],['🍇','grapes'],['🍓','strawberry'],['🍒','cherry'],['🍑','peach'],['🍍','pineapple'],['🥭','mango'],['🍌','banana'],['🥝','kiwi'],['☕','coffee'],['🍵','tea'],['🍺','beer'],['🍻','beers cheers'],['🥂','champagne toast'],['🍷','wine'],['🧃','juice box'],['🧋','boba bubble tea'],['🥤','drink soda'],['🍼','baby bottle milk'],
-    ['✈️','airplane flight travel'],['🚀','rocket launch'],['🚗','car drive'],['🚕','taxi cab'],['🚌','bus'],['🚂','train'],['🚇','subway metro'],['🚢','ship cruise'],['⛵','sailboat'],['🚁','helicopter'],['🏖️','beach summer vacation'],['🏕️','camping tent'],['🏝️','island tropical'],['🏔️','mountain snow'],['⛰️','mountain hiking'],['🗺️','map travel'],['🧭','compass direction'],['🗼','eiffel tower paris'],['🗽','statue of liberty new york'],['🏰','castle'],['🏯','japanese castle'],['🌉','bridge night city'],['🌃','night city stars'],['🌆','city sunset'],['🌇','sunset city'],['🌌','galaxy milky way'],['🌄','sunrise mountain'],['🌅','sunrise beach'],['🌠','shooting star'],['🎆','fireworks'],['🎇','sparkler'],['🧳','suitcase luggage travel'],['🎒','backpack'],['🗾','japan map'],['🌐','globe world'],['🛤️','railway track'],['🛣️','highway road'],['🏞️','national park'],['🏜️','desert'],['🌋','volcano'],['⛱️','beach umbrella']
+    ['✈️','airplane flight travel'],['🚀','rocket launch'],['🚗','car drive'],['🚕','taxi cab'],['🚌','bus'],['🚂','train'],['🚇','subway metro'],['🚢','ship cruise'],['⛵','sailboat'],['🚁','helicopter'],['🏖️','beach summer vacation'],['🏕️','camping tent'],['🏝️','island tropical'],['🏔️','mountain snow'],['⛰️','mountain hiking'],['🗺️','map travel'],['🧭','compass direction'],['🗼','eiffel tower paris'],['🗽','statue of liberty new york'],['🏰','castle'],['🏯','japanese castle'],['🌉','bridge night city'],['🌃','night city stars'],['🌆','city sunset'],['🌇','sunset city'],['🌌','galaxy milky way'],['🌄','sunrise mountain'],['🌅','sunrise beach'],['🌠','shooting star'],['🎆','fireworks'],['🎇','sparkler'],['🧳','suitcase luggage travel'],['🎒','backpack'],['🗾','japan map'],['🌐','globe world'],['🛤️','railway track'],['🛣️','highway road'],['🏞️','national park'],['🏜️','desert'],['🌋','volcano'],['⛱️','beach umbrella'],
     // Gestures & people
     ['👶','baby infant'],['👦','boy child'],['👧','girl child'],['👩','woman female'],['👨','man male'],['🧑','person'],['🧓','older adult'],['👴','old man grandpa'],['👵','old woman grandma'],['🧙','wizard mage'],['🧛','vampire'],['🧟','zombie'],['🧜','mermaid'],['🧝','elf'],['🧞','genie'],['🧚','fairy'],['💆','face massage relax'],['💇','haircut'],['🚶','walking'],['🧍','standing person'],['🧎','kneeling'],['🏃','running'],['🤸','cartwheel gymnastics'],['🏋','weightlifting gym'],['🤾','handball'],['🧘','yoga meditation calm'],
     // Symbols
@@ -2356,8 +2387,12 @@ window._emojiSearch = function(query) {
     // Search across EMOJI_SEARCH_INDEX (keyword match) + category arrays (direct char match)
     var results = [];
     var seen = {};
-    // 1. Keyword index search
+    function _emojiEntryOk(entry) {
+        return !!(entry && typeof entry[0] === 'string' && typeof entry[1] === 'string');
+    }
+    // 1. Keyword index search — names and keywords both live in the keyword string
     EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        if (!_emojiEntryOk(entry)) return;
         var e = entry[0], kw = entry[1];
         if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
     });
@@ -2367,8 +2402,9 @@ window._emojiSearch = function(query) {
             if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
         });
     });
-    // 3. Partial keyword match for first word
+    // 3. Name/keyword word prefix (fire → fire, firework, …)
     EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        if (!_emojiEntryOk(entry)) return;
         var e = entry[0], kw = entry[1];
         if (!seen[e]) {
             var words = kw.split(' ');
@@ -3624,7 +3660,7 @@ window._annNavToHash = function(hash) {
         // but channel routes (forum, marketplace, beats…) need go() so forumContainer is hidden first
         var overlayRoutes = { 'quests':1, 'favor':1, 'sf':1, 'satoshi-favor':1, 'pvp':1, 'nacho':1,
                              'dashboard':1, 'bitcoin-dashboard':1, 'metrics':1, 'network':1,
-                             'pow-support':1, 'leaderboard':1 };
+                             'pow-support':1, 'leaderboard':1, 'questhub':1, 'raid':1, 'raid-hub':1 };
         if (overlayRoutes[hash]) {
             // These open on top of whatever view is current — fine for both surfaces
             if (hash === 'leaderboard' && typeof toggleLeaderboard === 'function') { toggleLeaderboard(); return; }
@@ -3632,6 +3668,10 @@ window._annNavToHash = function(hash) {
             if ((hash === 'favor' || hash === 'sf' || hash === 'satoshi-favor') && typeof showQuestHub === 'function') {
                 showQuestHub(); window._questHubTab = 'favor';
                 setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 50);
+                return;
+            }
+            if ((hash === 'questhub' || hash === 'raid' || hash === 'raid-hub') && typeof openRaidHub === 'function') {
+                openRaidHub();
                 return;
             }
         }

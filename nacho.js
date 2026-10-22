@@ -523,14 +523,16 @@ function createNacho() {
         }
         #nacho-avatar .nacho-name {
             position: absolute;
-            bottom: -46px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: calc(100% + 6px);
+            left: 0;
+            transform: none;
             font-size: 0.66rem;
             color: var(--text-dim, #64748b);
             font-weight: 600;
             letter-spacing: 0.4px;
-            white-space: nowrap;
+            white-space: normal;
+            width: max-content;
+            max-width: min(240px, 78vw);
             background: var(--bg-side);
             border: 1px solid var(--border);
             border-radius: 9px;
@@ -796,7 +798,7 @@ function createNacho() {
                 border-radius: 14px;
             }
             #nacho-bubble::before, #nacho-bubble::after { display: none; }
-            #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -44px; padding: 5px 14px; }
+            #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
         }
         @media (max-width: 480px) {
             #nacho-container { bottom: 76px; left: 8px; }
@@ -812,7 +814,7 @@ function createNacho() {
                 font-size: 0.85rem;
                 padding: 14px 16px;
             }
-            #nacho-avatar .nacho-name { font-size: 0.65rem; bottom: -40px; padding: 5px 12px; }
+            #nacho-avatar .nacho-name { font-size: 0.65rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(220px, 74vw); white-space: normal; padding: 5px 8px; }
         }
 
         /* Bring-back toggle */
@@ -841,7 +843,7 @@ function createNacho() {
     container.innerHTML =
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!" style="' + avatarStyle + '" data-tctv="' + (isTimechainTVPage() ? '1' : '0') + '">' +
             avatarContent +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span></span>' +
             '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
             '<div class="nacho-btn-stack">' +
                 '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
@@ -849,10 +851,10 @@ function createNacho() {
             '</div>' +
             '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>' +
         '</div>' +
-        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\')hideBubble(true)">' +
+        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\'&&this.getAttribute(\'data-trivia\')!==\'1\')hideBubble(true)">' +
             '<div class="nacho-header">' +
                 '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> <span id="nacho-bubble-name">' + ((typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho') + '</span> says</span>' +
-                '<span class="nacho-x" onclick="event.stopPropagation();hideBubble(true)">✕</span>' +
+                '<span class="nacho-x" onclick="event.stopPropagation();window._nachoTriviaXClose=true;hideBubble(true)">✕</span>' +
             '</div>' +
             '<div id="nacho-text"></div>' +
         '</div>';
@@ -1414,6 +1416,7 @@ function _showBubble(text, pose) {
         var b = document.getElementById('nacho-bubble');
         var c = document.getElementById('nacho-container');
         if (!b || !b.classList.contains('show')) return;
+        if (b.getAttribute('data-trivia') === '1') return;
         if (b.contains(e.target)) return;
         if (c && c.contains(e.target)) return;
         var modal = document.getElementById('usernameModal');
@@ -1421,7 +1424,10 @@ function _showBubble(text, pose) {
         hideBubble(true);
     };
     window._nachoEscHandler = function(e) {
-        if (e.key === 'Escape') hideBubble(true);
+        if (e.key !== 'Escape') return;
+        var b = document.getElementById('nacho-bubble');
+        if (b && b.getAttribute('data-trivia') === '1') return;
+        hideBubble(true);
     };
     setTimeout(function() {
         document.addEventListener('mousedown', window._nachoDismissHandler);
@@ -1445,6 +1451,7 @@ function _showBubble(text, pose) {
         if (!b || !b.classList.contains('show') || !e.changedTouches[0]) return;
         var dx = e.changedTouches[0].clientX - _swipeStartX;
         var dy = e.changedTouches[0].clientY - _swipeStartY;
+        if (b.getAttribute('data-trivia') === '1') return;
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
             hideBubble(true);
         }
@@ -1679,7 +1686,11 @@ function _showBubble(text, pose) {
 
 window.hideBubble = function(force) {
         var bubble = document.getElementById('nacho-bubble');
-    // Don't auto-hide interactive content (Q&A, trivia) — only manual close or force
+    // Trivia stays until the X (or the in-bubble Dismiss button) sets this flag.
+    if (bubble && bubble.getAttribute('data-trivia') === '1' && !window._nachoTriviaXClose) return;
+    window._nachoTriviaXClose = false;
+    if (bubble) bubble.removeAttribute('data-trivia');
+    // Don't auto-hide interactive content (Q&A) — only manual close or force
     if (!force && bubble && bubble.getAttribute('data-interactive') === 'true') return;
 
     // Clear busy state — allow queued popups to show
@@ -1936,9 +1947,14 @@ window.nachoOnChannel = function(channelId) {
         var opts = q.options || [];
         for (var qi = 0; qi < opts.length; qi++) {
             var isRight = qi === q.answer;
-            quizHtml += '<button onclick="nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
+            quizHtml += '<button onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
         }
         forceShowBubble(quizHtml, 'brain');
+        var _quizBubble = document.getElementById('nacho-bubble');
+        if (_quizBubble) {
+            _quizBubble.setAttribute('data-interactive', 'true');
+            _quizBubble.setAttribute('data-trivia', '1');
+        }
         sessionStorage.setItem('btc_channel_read_seconds', '0');
         return;
     }
@@ -2000,7 +2016,10 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
     // Don't auto-hide quiz results — let the user dismiss manually
     clearTimeout(bubbleTimeout);
     var bubble = document.getElementById('nacho-bubble');
-    if (bubble) bubble.setAttribute('data-interactive', 'true');
+    if (bubble) {
+        bubble.setAttribute('data-interactive', 'true');
+        bubble.setAttribute('data-trivia', '1');
+    }
 };
 
 // ---- Context-Aware: Points Earned ----
@@ -2315,10 +2334,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
 });
 
-// ---- Click outside bubble to close (only when Q&A input is showing) ----
+// ---- Click outside bubble to close (trivia stays until the X) ----
 document.addEventListener('click', function(e) {
     var bubble = document.getElementById('nacho-bubble');
     if (!bubble || !bubble.classList.contains('show')) return;
+    if (bubble.getAttribute('data-trivia') === '1') return;
     var container = document.getElementById('nacho-container');
     if (container && container.contains(e.target)) return; // Click inside Nacho area
     hideBubble(true);
@@ -2568,7 +2588,7 @@ window.updateNachoAvatarForPage = function() {
         avatar.style.width = '120px';
         avatar.style.height = '100px';
         avatar.innerHTML = COUCH_NACHO_HTML +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span></span>' +
             '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
             '<div class="nacho-btn-stack">' +
                 '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
@@ -2579,7 +2599,7 @@ window.updateNachoAvatarForPage = function() {
         avatar.style.width = '';
         avatar.style.height = '';
         avatar.innerHTML = NACHO_SVG +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span></span>' +
             '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
             '<div class="nacho-btn-stack">' +
                 '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
