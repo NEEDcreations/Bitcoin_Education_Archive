@@ -270,6 +270,14 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
         assert.strictEqual(global._questHubTab, 'nook', 'cipher tab ' + global._renders.join(','));
         assert.strictEqual(global._nookSubTab, 'inventory');
         assert.strictEqual(global._renders[global._renders.length - 1], 'nook>inventory', global._renders.join(','));
+        // The 2.5s hub lock and the 1.5s ignore-route window have expired.
+        // #questhub is the rewritten hash and must not open Raid over Nook.
+        advance(2000);
+        global._bqSuppressRoute = false;
+        if (global._bqHubLock) global._bqHubLock.until = Date.now() - 1;
+        assert.strictEqual(global.bqRouteHash('questhub'), true);
+        assert.strictEqual(global._questHubTab, 'nook', 'late questhub kept cipher tab ' + global._renders.join(','));
+        assert.strictEqual(global._nookSubTab, 'inventory');
 
         reset();
         install();
@@ -299,9 +307,34 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
     assert.ok(html.indexOf('id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);') !== -1);
     assert.ok(html.indexOf('#searchOverlay {') !== -1 && html.indexOf('background: var(--bg) !important;') !== -1);
     assert.ok(html.indexOf('patches.js?v=20261022_v2263') !== -1);
+    const appSrc = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+    const fallbackAt = appSrc.indexOf('Post-load fallback routing to:');
+    const fallback = appSrc.slice(Math.max(0, fallbackAt - 700), fallbackAt);
+    assert.ok(fallback.indexOf('window._bqDeepLinkHandled') !== -1, fallback);
+    assert.ok(fallback.indexOf("getElementById('questHubOverlay')") !== -1, fallback);
     const patches = fs.readFileSync(path.join(root, 'patches.js'), 'utf8');
     assert.ok(patches.indexOf('[data-theme="light"] #searchOverlay {\',"  background: var(--bg) !important;') !== -1);
     assert.ok(patches.indexOf('#searchOverlay {\',"  background: rgba(255,255,255,0.95) !important;') === -1);
+});
+
+test('#questhub keeps an already open Quest Hub tab', function () {
+    global._bqSuppressRoute = false;
+    global._bqDeepLinkHandled = false;
+    global._bqLastRouted = '';
+    global._questHubTab = 'nook';
+    global._nookSubTab = 'inventory';
+    global.document = {
+        getElementById: function (id) { return id === 'questHubOverlay' ? { id: id } : null; }
+    };
+    try {
+        assert.strictEqual(global.bqRouteHash('questhub'), true);
+        assert.strictEqual(global._questHubTab, 'nook');
+        assert.strictEqual(global._nookSubTab, 'inventory');
+    } finally {
+        delete global.document;
+        global._bqSuppressRoute = false;
+        global._bqDeepLinkHandled = false;
+    }
 });
 
 test('suppress swallows feature hashes and leaves channel taps alone', function () {

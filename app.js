@@ -5369,6 +5369,9 @@ if (locked) {
             // generation counter and cancelling the already-in-progress go() call, which
             // is what causes the "skeleton that never resolves" on SW-update reloads.
             var navInFlight = (window._navGeneration || 0) > 0;
+            // Quest Hub rewrites the hash to #questhub. Skip this late pass when a deep
+            // link already ran or the hub is open, or it opens Raid over the chosen tab.
+            if (window._bqDeepLinkHandled || document.getElementById('questHubOverlay')) return;
             if (h && !navInFlight && document.getElementById('home') && !document.getElementById('home').classList.contains('hidden')) {
                 console.log('[HASH] Post-load fallback routing to:', h);
                 handleHash();

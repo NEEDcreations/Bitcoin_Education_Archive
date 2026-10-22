@@ -1029,6 +1029,13 @@
         if (bare.indexOf('app/') !== 0 && bare.indexOf('/') === -1 && typeof win.CHANNELS === 'object' && win.CHANNELS && win.CHANNELS[bare] && f.hash !== bare && f.aliases.indexOf(bare) === -1) {
             return false;
         }
+        // #questhub aliases Raid, and opening the hub rewrites every deep link to that hash.
+        // Only a cold load with no prior deep link should open Raid. An open hub keeps its tab.
+        if (bare === 'questhub') {
+            var hubOpen = typeof document !== 'undefined' && document.getElementById && document.getElementById('questHubOverlay');
+            var priorOther = win._bqDeepLinkHandled && win._bqLastRouted && win._bqLastRouted !== 'questhub';
+            if (hubOpen || priorOther) return true;
+        }
         var now = Date.now();
         if (!attempt) {
             if (win._bqLastRouted === bare && now - (win._bqLastRoutedAt || 0) < 800) return true;
