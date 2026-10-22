@@ -871,19 +871,27 @@ function formatChatText(text, mentionUid) {
         _hashLinks.push('<a href="#' + tag + '" onclick="' + onclick + '" title="' + (friendly ? friendly.replace(/"/g, '&quot;') : tag) + '" style="color:#f59e0b;font-weight:700;text-decoration:none;cursor:pointer;border-bottom:1px dotted rgba(245,158,11,0.4);">#' + tag + '</a>');
         return placeholder;
     });
-    // @mentions — clickable to open user profile
+    // @mentions — clickable to open user profile.
+    // _mentionRe is Unicode-aware (\p{L}\p{N}, u flag) so "José" is one chip.
+    // Stop at the verb ("just", "posted", "listed", …), a possessive, or ! ?.
     var _mentionHandled = false;
+    var _taggedName = '';
     if (mentionUid) {
-        // If we have a direct uid (from level-up announcements etc), use it for the first @mention
-        // Greedy multi-word match; terminators are keyword verbs or '!?' only — NOT bare punctuation
-        // (bare : or . appear mid-sentence in "earned a badge:" and must NOT be swallowed into the link)
+        // Known uid (shoutouts, level-ups): the first @name is the profile tag.
         text = text.replace(_mentionRe('u'), function(match, name) {
             _mentionHandled = true;
             var safeName = name.trim();
+            _taggedName = safeName;
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
             _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-profile-uid="' + esc(mentionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.profileUid)" title="View profile — tap to tip!">@' + safeName + '</span>');
             return placeholder;
         });
+        // Old shoutouts repeated @name. The second copy stays plain text
+        // (no chip, and not just the first word). The name is already escaped.
+        if (_taggedName) {
+            var _repeatRe = new RegExp('@' + _taggedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}_\\-\\u2026.])', 'gu');
+            text = text.replace(_repeatRe, function() { return _taggedName; });
+        }
     }
     // Handle remaining @mentions without uid — try multi-word first (handles display names with spaces)
     text = text.replace(_mentionRe('gu'), function(match, name) {
@@ -1288,6 +1296,7 @@ window.sendGlobalChat = function() {
         if (docRef && docRef.id) {
             bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '', messageId: docRef.id });
             if (typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+            if (replyData.replyTo) _maybeClaimReplyBonus(docRef.id);
         }
     }).catch(function(err) {
         console.error('[CHAT] Send error:', err);
@@ -2283,6 +2292,7 @@ window.sendGifMessage = function(url, caption) {
     if (_gifCaption) msgData.caption = _gifCaption;
 
     // Include reply if active
+    var replyToId = _replyTo && _replyTo._id ? String(_replyTo._id) : '';
     if (_replyTo) {
         msgData.replyTo = _replyTo._id;
         msgData.replyToName = _replyTo.name;
@@ -2295,6 +2305,7 @@ window.sendGifMessage = function(url, caption) {
     db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
         bridgeToTelegram({ user: username, text: '', gifUrl: url });
         if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+        if (replyToId && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
     }).catch(function(e) {
         if (typeof showToast === 'function') showToast('Failed to send GIF');
     });
@@ -2667,6 +2678,7 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 // Bridge https URL to Telegram
                 bridgeToTelegram({ user: username, text: caption || '', imageUrl: url });
                 if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+                if (replyCopy && replyCopy.id && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
             });
         })
        .catch(function(e) {
@@ -4244,6 +4256,31 @@ if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'f
     try { auth.onAuthStateChanged(function() { setTimeout(_paintSayHiButton, 600); }); } catch (e) {}
 }
 // SAY-HI END
+// REPLY-BONUS START
+// Hidden. Nothing in the chat UI mentions this. The server decides the XP.
+function _maybeClaimReplyBonus(messageId) {
+    if (!messageId || typeof messageId !== 'string') return;
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(messageId)) return;
+    if (typeof firebase === 'undefined' || !firebase.functions || !firebase.appCheck) return;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    firebase.appCheck().getToken(false).then(function() {
+        return firebase.functions().httpsCallable('claimReplyBonus')({ messageId: messageId });
+    }).then(function(res) {
+        var data = (res && res.data) || {};
+        if (data.showToast !== true) return;
+        var n = Math.round(Number(data.xp));
+        if (!isFinite(n) || n <= 0 || n > 50) return;
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.points = (Number(currentUser.points) || 0) + n;
+        }
+        if (typeof updateRankUI === 'function') updateRankUI();
+        var text = data.first === true
+            ? '\uD83D\uDCAC +' + n + ' XP for joining the conversation!'
+            : '+' + n + ' XP';
+        if (typeof showToast === 'function') showToast(text);
+    }).catch(function() {});
+}
+// REPLY-BONUS END
 window.formatChatText = formatChatText;
 console.log('[CHAT] Global chat module loaded');
 }();

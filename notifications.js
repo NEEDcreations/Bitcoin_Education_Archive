@@ -1468,7 +1468,7 @@ setInterval(_installClientAwardNotices, 2000);
         var perm = permissionState();
         if (perm === 'unsupported') return 'unsupported';
         if (perm === 'denied') return 'blocked';
-        if (perm === 'granted' && !(map && map.master === false)) return 'on';
+        if (perm === 'granted' && map && map.master === true) return 'on';
         return 'off';
     }
 
@@ -1914,7 +1914,7 @@ setInterval(_installClientAwardNotices, 2000);
         if (!signedIn() || permissionState() !== 'granted') return;
         loadUser().then(function(user) {
             var map = user && user.notificationPrefs;
-            if (map && map.master === false) return;
+            if (!map || map.master !== true) return;
             registerPushToken({ silent: true });
         });
     };

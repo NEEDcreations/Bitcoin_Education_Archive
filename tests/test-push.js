@@ -18,18 +18,30 @@ function test(name, fn) {
     console.log('✅ ' + name);
 }
 
-test('category defaults and fail-closed prefs', function() {
-    assert.strictEqual(prefs.categoryAllowed({}, 'rewards'), true);
-    assert.strictEqual(prefs.categoryAllowed({}, 'gifts'), true);
-    assert.strictEqual(prefs.categoryAllowed({}, 'dms'), true);
+test('push is off until the user doc opts in, then category defaults apply', function() {
+    assert.strictEqual(prefs.categoryAllowed({}, 'rewards'), false);
+    assert.strictEqual(prefs.categoryAllowed({}, 'gifts'), false);
+    assert.strictEqual(prefs.categoryAllowed({}, 'dms'), false);
     assert.strictEqual(prefs.categoryAllowed({}, 'plebtalk'), false);
     assert.strictEqual(prefs.categoryAllowed({}, 'news'), false);
-    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { rewards: false } }, 'rewards'), false);
-    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { news: true } }, 'news'), true);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: {} }, 'rewards'), false);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: {} }, 'reminders'), false);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { rewards: true } }, 'rewards'), false);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { news: true } }, 'news'), false);
     assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: false, rewards: true } }, 'rewards'), false);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: 'true' } }, 'rewards'), false);
     assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { rewards: 'true' } }, 'rewards'), false);
     assert.strictEqual(prefs.categoryAllowed({}, 'nope'), false);
-    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: {} }, 'reminders'), true);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true } }, 'rewards'), true);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true } }, 'gifts'), true);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true } }, 'dms'), true);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true } }, 'reminders'), true);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true } }, 'plebtalk'), false);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true } }, 'news'), false);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true, news: true } }, 'news'), true);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true, rewards: false } }, 'rewards'), false);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true, rewards: 'true' } }, 'rewards'), false);
+    assert.strictEqual(prefs.categoryAllowed({ notificationPrefs: { master: true } }, 'nope'), false);
 });
 
 test('prompt timing', function() {
@@ -95,6 +107,11 @@ test('client and workers share the safe push path', function() {
     const push = read('functions/src/push.js');
     assert.ok(client.includes('decidePrompt'));
     assert.ok(client.includes('categoryAllowed'));
+    const sync = client.slice(client.indexOf('window.syncPushRegistration = function'), client.indexOf('window.schedulePushPrompt = function'));
+    assert.ok(sync.includes('master !== true'), 'silent sync must require an explicit opt-in');
+    assert.strictEqual(sync.includes('master === false'), false, 'granted permission must not subscribe when master is missing');
+    const mode = client.slice(client.indexOf('function masterMode'), client.indexOf('function toast'));
+    assert.ok(mode.includes('map.master === true'));
     assert.ok(client.includes('BF_YipiWF9DWsA4HA44xJwYOZkHuLZ1lE9nBxiF96Ba7mgGgWA3IsG4aUjEnc_PoLuYpsxRLsmjsHSjEvL_Xt-E'));
     assert.strictEqual(client.includes('BEGIN PRIVATE'), false);
     assert.ok(client.includes('settings-notifications'));
@@ -102,7 +119,10 @@ test('client and workers share the safe push path', function() {
     assert.ok(sw.includes('stopImmediatePropagation'));
     assert.ok(sw.includes('clients.matchAll'));
     assert.ok(sw.includes('navigate'));
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2273'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2315'"));
+    assert.strictEqual(sw.includes('btc-archive-v2314'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2295'), false);
+    assert.strictEqual(sw.includes('btc-archive-v2273'), false);
     assert.strictEqual(sw.includes('btc-archive-v2272'), false);
     assert.strictEqual(sw.includes('btc-archive-v2271'), false);
     assert.strictEqual(sw.includes('btc-archive-v2270'), false);

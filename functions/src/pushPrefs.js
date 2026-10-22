@@ -45,14 +45,14 @@
         test: { windowMs: 60 * 60 * 1000, max: 3 }
     };
 
+    // Missing or non-true master is off. Category defaults apply only after
+    // an explicit notificationPrefs.master === true on the user doc.
     function categoryAllowed(userData, category) {
         if (CATEGORIES.indexOf(category) === -1) return false;
         var prefs = userData && userData.notificationPrefs;
-        if (prefs && typeof prefs === 'object') {
-            if (prefs.master === false) return false;
-            if (Object.prototype.hasOwnProperty.call(prefs, category)) {
-                return prefs[category] === true;
-            }
+        if (!prefs || typeof prefs !== 'object' || prefs.master !== true) return false;
+        if (Object.prototype.hasOwnProperty.call(prefs, category)) {
+            return prefs[category] === true;
         }
         return DEFAULTS[category] === true;
     }

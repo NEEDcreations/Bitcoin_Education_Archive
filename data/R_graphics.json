@@ -405,7 +405,7 @@
     {
       "text": "years to one trillion dollar assets...BITCOIN WINS",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/resources/graphics_0069_years_to_one_trillion_dollar_assets...BITCOIN_WINS.png"
+        "images/resources/graphics_0069_years_to_one_trillion_dollar_assets...BITCOIN_WINS.jpg"
       ]
     },
     {
@@ -536,10 +536,10 @@
       ]
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0092_20220417_091938.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "supply"
@@ -579,10 +579,10 @@
       ]
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0100_PXL_20220512_175109645.MP.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "Do you need a Blockchain flowchart",
@@ -1141,40 +1141,40 @@
       ]
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0206_banksy_bitcoin_molotov__MOVE__mk2___5mb.gif"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0207_banksy_girl_4.gif"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0208_scene_7.gif"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0209_chaos_vs_bitcoin_2.gif"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0210_revolution_will_not_be_centralized__starfury.gif"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0211_Pacman_PC_LOOP_4.gif"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "Hey thanks for posting. Just so we're on the same page, these types of posts are better fit for . This Graphics channel here is for educational content. But I appreciate you adding to the server. Keep it up! 🧡"
@@ -1289,11 +1289,14 @@
       ]
     },
     {
-      "text": "Taro transaction using taproot\nhttps://twitter.com/SDWouters/status/1569687517061910529?t=GuCVtHTMYjdFRv5U9-CGmA&s=19",
-      "link": "https://twitter.com/SDWouters/status/1569687517061910529?t=GuCVtHTMYjdFRv5U9-CGmA&s=19",
+      "text": "Taproot Assets (formerly Taro) transaction using Taproot\nhttps://twitter.com/SDWouters/status/1569687517061910529",
+      "link": "https://twitter.com/SDWouters/status/1569687517061910529",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0732_20220913_184422.jpg"
-      ]
+      ],
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://docs.lightning.engineering/the-lightning-network/taproot-assets",
+      "sourceLabel": "Lightning Labs"
     },
     {
       "text": "Gold fiat",
@@ -1344,16 +1347,16 @@
       ]
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0247_20220923_151700.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0248_20220923_151728.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "ooh oops maybe these belong in feel free to repost them in the right channel"
@@ -1397,10 +1400,10 @@
       ]
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0256_20221005_040502.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "Odds of guessing Bitcoin private key keys"
@@ -2059,10 +2062,10 @@
       ]
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0401_20230406_180058.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "Bitcoin Venn diagram commodity digital monopoly money"
@@ -2074,10 +2077,10 @@
       "text": "Not a perfect Venn bc it's missing those"
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0402_20230406_193928.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "Satoshi ranking shrimp to whale wholecoiner"
@@ -2115,7 +2118,7 @@
     {
       "text": "trust in the system IQ maximalism",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/resources/graphics_0626_Screen_Capture_107_-_Thiers_Law_and_hyperinflation_-_Google_Search_-_www.google..jpg"
+        "images/resources/graphics_0626_Screen_Capture_107_-_Thiers_Law_and_hyperinflation_-_Google_Search_-_www.google..jpg"
       ]
     },
     {
@@ -2951,10 +2954,10 @@
       ]
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0606_20241002_151447.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "Bitcoin timeline of the rise of cypherpunks"
@@ -3036,10 +3039,10 @@
       "text": "Thiers' Law and hyperinflation - why people don't spend bitcoin, until the point that bitcoin is the only thing that merchants will accept!"
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0627_IMG_0259.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "since you have so many followers this is a great thing to reply to environmental fud spreaders with"
@@ -3187,8 +3190,8 @@
       ]
     },
     {
-      "text": "Great one pager. Simplest Bitcoin book\nhttps://t.co/JPJIWFojrk",
-      "link": "https://t.co/JPJIWFojrk",
+      "text": "Great one pager. Simplest Bitcoin book\nhttps://thesimplestbitcoinbook.net/wp-content/uploads/2025/02/SBE-Bitcoin-Brochure-Complete-Feb-2025.pdf",
+      "link": "https://thesimplestbitcoinbook.net/wp-content/uploads/2025/02/SBE-Bitcoin-Brochure-Complete-Feb-2025.pdf",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_0656_20250210_174118.jpg"
       ]
@@ -3483,29 +3486,29 @@
       "link": "https://twitter.com/BTCillustrated/status/1673796946660655105?s=20"
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_2023-09-28_Screenshot_20230927_214723_Dropbox.png"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_2023-09-28_Screenshot_20230928_123358_Dropbox.png"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_2023-09-28_Screenshot_20230928_123720_Dropbox.png"
-      ]
+      ],
+      "text": ""
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/graphics_2023-09-29_Screenshot_20230929_150154_Dropbox.jpg",
         "https://assets.bitcoineducation.quest/images/resources/graphics_2023-09-29_Screenshot_20230929_150211_Dropbox.jpg"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "are they?  Maybe.  But consider that coins on exchange are of two types:  coins being actively traded, and coins being held as custody by people not smart enough to use their own key.  As understanding of self custody improves one would assume the second group would shrink compared to the first.\n\nSo thinking forward let's say bitocin goes to 500k and a ton of OG hodlers take some profit by sending to exchange.  Those coins are moved in, sold, and moved out, for a net 0 change to coins on exchange.\n\nSo I am not convinced that \"coins ready to be sold\" is the cohort that is leaving the exchanges in the largest number.\n\nSo some truth to what you're saying?  Yes, sure.  But how much?  Likely the change in actual supply is less than the change in coins held on exchange"
@@ -3516,56 +3519,41 @@
     {
       "text": "Great graphic summary of Bitcoin's properties and brief how to's",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_028_0.jpg"
+        "images/discord-may2026/discord_028_0.jpg"
       ]
     },
     {
       "text": "Bitcoin vs Crypto graphic",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_029_0.png"
+        "images/discord-may2026/discord_029_0.jpg"
       ]
     },
     {
       "text": "What seems to be happening vs what is really happening (graphic)",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_042_0.jpg"
+        "images/discord-may2026/discord_042_0.jpg"
       ]
     },
     {
       "text": "The 3 pillars of bitcoin sovereignty (graphic)",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_053_0.png"
+        "images/discord-may2026/discord_053_0.jpg"
       ]
     },
     {
-      "text": "Bitcoin yearly lows (updated) (graphic)",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_017_0.png"
-      ]
+      "text": "Bitcoin yearly lows (updated) (graphic)"
     },
     {
-      "text": "yearly lows (more accurte, log scale) (graphic)",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_018_0.jpg"
-      ]
+      "text": "yearly lows (more accurte, log scale) (graphic)"
     },
     {
-      "text": "Bitcoin vs Top 100 cryptos since 2020 (graphic)",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_019_0.png"
-      ]
+      "text": "Bitcoin vs Top 100 cryptos since 2020 (graphic)"
     },
     {
-      "text": "Buying Bitcoin's drawdowns (graphic)",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_022_0.png"
-      ]
+      "text": "Buying Bitcoin's drawdowns (graphic)"
     },
     {
-      "text": "bitcoin forks map (graphic)",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_031_0.png"
-      ]
+      "text": "bitcoin forks map (graphic)"
     }
   ]
 }

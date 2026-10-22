@@ -869,6 +869,22 @@ test('formatChatText chips a multi-word name before posted and listed', function
     assert.ok(listedHtml.indexOf('bqOpenMarketListing(\'xyz\')') !== -1);
     const unicode = context.formatChatText(esc('📝 @佐藤 just posted in PlebTalk: "Note"'), 'uid_sato');
     assert.ok(unicode.indexOf('>@佐藤<') !== -1, unicode);
+    const jose = '🎉 Shoutout to @José García! They just unlocked a rare Nacho Shoutout. Go send @José García a peer request! 🤝';
+    const joseHtml = context.formatChatText(esc(jose), 'uid_jose');
+    assert.ok(joseHtml.indexOf('>@José García<') !== -1, joseHtml);
+    assert.strictEqual(joseHtml.indexOf('>@Jos<'), -1);
+    assert.strictEqual((joseHtml.match(/data-profile-uid="uid_jose"/g) || []).length, 1);
+    assert.ok(joseHtml.indexOf('Go send José García a peer request') !== -1, joseHtml);
+    const hostile = context.formatChatText(
+        esc('🎉 Shoutout to @José <img src=x onerror=alert(1)>! Go send @José a peer request!'),
+        '"><img src=x onerror=alert(1)>'
+    );
+    assert.ok(hostile.indexOf('>@José<') !== -1, hostile);
+    assert.strictEqual(hostile.indexOf('<img'), -1);
+    assert.strictEqual(hostile.indexOf('<script'), -1);
+    assert.ok(hostile.indexOf('&lt;img') !== -1, hostile);
+    assert.ok(hostile.indexOf('data-profile-uid="&quot;&gt;&lt;img') !== -1, hostile);
+    assert.ok(hostile.indexOf('Go send José a peer request') !== -1, hostile);
 });
 
 Promise.all(queue).then(function() {
