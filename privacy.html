@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: October 6, 2026</p>
+    <p class="subtitle">Last updated: October 22, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -278,6 +278,7 @@
     <p><strong>Third-party content &amp; opinions.</strong> All videos shown on Timechain TV are publicly embeddable third-party uploads from YouTube. Bitcoin Education Archive does not own, host, verify, or endorse the content. Opinions, price predictions, investment theses, and statements expressed belong solely to the individual creators and speakers — not to us. Nothing on Timechain TV is financial, investment, legal, or tax advice. See our <a href="/terms.html#timechain-tv">Terms</a> for the full disclaimer.</p>
     <p><strong>Anonymous live-viewer presence.</strong> To show the live viewer counter on each channel, your browser writes a small presence record to our database every ~30 seconds containing only: (1) the channel id you are currently watching, and (2) a server timestamp. For signed-in users this record is keyed by your auth UID; for anonymous users it is keyed by a randomly-generated local id (stored in your browser's localStorage as <code>tctv_viewerId</code>). The record is deleted when you leave Timechain TV or close the tab, and automatically expires after ~65 seconds of inactivity. No IP, location, or identifying information is stored in the presence record.</p>
     <p><strong>Watch-time tracking.</strong> We count minutes watched on Timechain TV to power badges and the point reward system (10 points per 10 minutes). Anonymous users have watch time stored only in localStorage. Signed-in users have their cumulative watch time stored in their Firestore user document. You can clear this at any time via Settings → Reset Account.</p>
+    <p><strong>Daily watch-reward heartbeat.</strong> If you are signed in and use the daily "Watch 10 minutes of Timechain TV" challenge, the app sends a heartbeat about once a minute while the YouTube player is playing and this tab is visible. The server stores one ledger for your account (<code>tctv_watch/{uid}</code>) with: the reward day (the UTC date, with the day changing at 5:00 AM UTC), credited seconds for that day (never more than 600), the server time of the last credited heartbeat, the day the reward was granted, and whether the first reward notice was already shown. We store this so we can grant 100 XP and 5 orange tickets once per reward day, and so your browser cannot invent the elapsed time, the day, or the reward. Each heartbeat can add at most about one minute, measured on the server. A pause, a hidden tab, a closed player, or a gap longer than about three minutes does not fill in the missing time. Other open tabs share the same ledger and do not add extra credit. You can read your own progress. Only the server can write the ledger. It is separate from the short-lived live-viewer presence record above, and separate from the localStorage and cumulative watch time used for the older 10-point badge tracking.</p>
 
     <h3>Local Data (stored in your browser only — never sent to us)</h3>
     <table>
@@ -339,6 +340,7 @@
         <li>Enable two-factor authentication (TOTP) for account security</li>
         <li>Verify Nostr and Lightning wallet signatures for authentication</li>
         <li>Enforce server-side daily point caps and prevent points manipulation</li>
+        <li>Credit the daily Timechain TV watch reward from a server heartbeat (credited seconds and reward day on your account), so the app cannot invent watch time</li>
         <li>Detect and prevent multi-account faucet abuse via device fingerprinting and IP logging</li>
         <li>Filter harmful content (hate speech, threats, sexual content, self-harm) in all user-generated text</li>
         <li>Block personal information (phone numbers, emails) from appearing in public chat</li>
