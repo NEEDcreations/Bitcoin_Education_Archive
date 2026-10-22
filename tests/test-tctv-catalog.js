@@ -44,8 +44,8 @@ test('station shells match the allow-list and the video files', () => {
         });
         total += videos.length;
     });
-    assert.strictEqual(total, 15672);
-    assert.strictEqual(shorts, 695);
+    assert.strictEqual(total, 16698);
+    assert.strictEqual(shorts, 888);
     assert.ok(src.includes('function tctvFitShort'));
     assert.ok(src.includes('data/tctv/'));
     assert.ok(src.includes('function tctvRouteOk'));
