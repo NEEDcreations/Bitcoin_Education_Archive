@@ -34,6 +34,21 @@ These creators had **no videos, or only 1 or 2, in Timechain TV before this impo
 
 **Total: 27 new creators, 210 videos.**
 
+## Sweep 2 creators (2026-10-22)
+
+These eight channels were not in the catalog before this batch. Each one was capped (10 videos, or 6 for the homesteading channels). Links are the YouTube channel ids from the import.
+
+| Creator | Link | Timechain TV channel (videos added) | Why it fits |
+|---|---|---|---|
+| Doctor Tro | https://www.youtube.com/channel/UCCZoglf1EL7upJgmb_KaFLQ | health-fitness (10) | Dr. Tro Kalayjian, metabolic health physician and known Bitcoiner. |
+| Dr Dan Maggs | https://www.youtube.com/channel/UCJDtvXkJAisYV-D0VOQfYVQ | health-fitness (1) | UK doctor covering metabolic health (about 280K subscribers). |
+| The Family Stack | https://www.youtube.com/channel/UCFn5EvK5TUhLGIg2bVHPY5g | kids-family (10) | Bitcoin explained for working families. Bitcoin-only. |
+| Bitcoin Mining World | https://www.youtube.com/channel/UCueLJ4vLHTwMpYILmdBjRlg | mining (10) | Bitcoin mining and gas-to-hash education, including conference talks. |
+| Wild North Family | https://www.youtube.com/channel/UCU-5Z1fHWR-GXNjPn0sdyHw | freedom-sovereignty (6) | Off-grid homesteading family: food storage and solar. |
+| North To Alaska | https://www.youtube.com/channel/UCPaLZm7SD-zoweGALooq0rg | freedom-sovereignty (6) | Off-grid homesteading in Alaska (about 275K subscribers). |
+| Off Grid Irish Homestead | https://www.youtube.com/channel/UClD_izmrWudz1n_UCT__0XA | freedom-sovereignty (6) | Self-sufficient homestead in Ireland (about 85K subscribers). |
+| The Bitcoin Source | https://www.youtube.com/channel/UCPOv0TeGQglWw5lZ7BmFMbA | podcasts-debates (3) | Bitcoin-only interview show. |
+
 ## Creators reviewed and NOT added
 
 | Creator | Reason |

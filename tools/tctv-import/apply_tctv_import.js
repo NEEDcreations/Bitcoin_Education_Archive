@@ -73,7 +73,7 @@ for (const st of arr) {
   const tail = spans.length ? region.slice(spans[spans.length - 1][1], vEnd) : '\n            ';
   if (dead.size) { const before = entries.length; entries = entries.filter(e => { const m = e.match(/id:"([A-Za-z0-9_-]{11})"/); return !(m && dead.has(m[1])); }); removed += before - entries.length; }
   for (const v of (plan[st.id] || [])) {
-    const txt = '{id:' + JSON.stringify(v.id) + ',title:' + JSON.stringify(v.title) + ',duration:' + Math.round(v.duration) + '}';
+    const txt = '{id:' + JSON.stringify(v.id) + ',title:' + JSON.stringify(v.title) + ',duration:' + Math.round(v.duration) + (v.short ? ',short:1' : '') + '}';
     entries.splice(Math.floor(rand() * (entries.length + 1)), 0, txt);
   }
   out += region.slice(cursor, vStart + 1) + lead + entries.join(sep) + tail;
