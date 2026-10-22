@@ -405,285 +405,261 @@ window.showPricePrediction = function() {
         return;
     }
     var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
-    // Try multiple sources if localStorage is empty
     if (!currentPrice && typeof _lastWsPrice !== 'undefined' && _lastWsPrice) { currentPrice = _lastWsPrice; localStorage.setItem('btc_last_price', currentPrice.toString()); }
     if (!currentPrice && typeof _dashData !== 'undefined' && _dashData && _dashData.price) { currentPrice = _dashData.price; localStorage.setItem('btc_last_price', currentPrice.toString()); }
     if (!currentPrice) {
-        // Quick fetch as last resort
         if (typeof showToast === 'function') showToast('⏳ Fetching price...');
         fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 if (d && d.bitcoin && d.bitcoin.usd) {
                     localStorage.setItem('btc_last_price', d.bitcoin.usd.toString());
-                    showPricePrediction(); // retry
-                } else { if (typeof showToast === 'function') showToast('⚠️ Could not load price. Try opening the dashboard first.'); }
+                    showPricePrediction();
+                } else if (typeof showToast === 'function') showToast('⚠️ Could not load price. Try opening the dashboard first.');
             }).catch(function() { if (typeof showToast === 'function') showToast('⚠️ Could not load price. Try opening the dashboard first.'); });
         return;
     }
 
     var overlay = document.createElement('div');
+    overlay.className = 'btc-pred-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.95);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-
-    // Check for existing prediction
-    var saved = safeJSON('btc_price_prediction', null);
     var card = document.createElement('div');
-    card.style.cssText = 'background:var(--card-bg,#1a1a2e);border:1px solid #f7931a;border-radius:16px;padding:28px;max-width:420px;width:100%;color:var(--text,#e2e8f0);font-family:inherit;text-align:center;';
+    card.className = 'btc-pred-card';
+    card.style.cssText = 'background:var(--card-bg,#1a1a2e);border:1px solid #f7931a;border-radius:16px;padding:28px;max-width:420px;width:100%;color:var(--text,#e2e8f0);font-family:inherit;text-align:center;margin:auto 0;box-sizing:border-box;';
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
 
-    if (saved && Date.now() - saved.time < 86400000) {
-        var _elapsed = Date.now() - saved.time;
-        var _ready = _elapsed >= 86400000; // 24h passed?
-
-        if (!_ready) {
-            // Prediction pending — show waiting state
-            var _hoursLeft = Math.ceil((86400000 - _elapsed) / 3600000);
-            card.innerHTML = '<span style="font-size:2.5rem;">⏳</span>' +
-                '<h2 style="color:#f7931a;margin:12px 0 8px;">Prediction Locked In!</h2>' +
-                '<p>You predicted <b style="color:' + (saved.direction === 'up' ? '#22c55e' : '#ef4444') + '">' + (saved.direction === 'up' ? '📈 UP' : '📉 DOWN') + '</b></p>' +
-                '<p>Price when predicted: <b>$' + Math.round(saved.price).toLocaleString() + '</b></p>' +
-                '<p>Current price: <b>$' + Math.round(currentPrice).toLocaleString() + '</b></p>' +
-                '<div style="margin-top:16px;padding:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;">' +
-                    '<div style="font-size:0.85rem;color:var(--accent);font-weight:700;">⏳ Results in ~' + _hoursLeft + ' hour' + (_hoursLeft !== 1 ? 's' : '') + '</div>' +
-                    '<div style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-top:4px;">Come back after 24 hours to see if you were right!</div>' +
-                '</div>' +
-                '<div id="globalPredStatsResult" style="margin-top:12px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">Loading community stats...</div>' +
-                '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:12px;background:#f7931a;color:#000;border:none;padding:10px 28px;border-radius:8px;font-weight:700;cursor:pointer;">Close</button>';
-
-            // Load global stats
-            setTimeout(function() {
-                if (typeof getGlobalPredictionStats === 'function') {
-                    getGlobalPredictionStats(function(stats) {
-                        var el = document.getElementById('globalPredStatsResult');
-                        if (!el) return;
-                        if (!stats || !stats.total) { el.innerHTML = '🌍 No community data yet.'; return; }
-                        var pct = Math.round((stats.correct / stats.total) * 100);
-                        el.innerHTML = '🌍 <strong>Community:</strong> ' + (stats.correct || 0) + '/' + stats.total + ' correct (' + pct + '% accuracy)';
-                    });
-                }
-            }, 500);
-
-            overlay.appendChild(card);
-            document.body.appendChild(overlay);
-            return;
+    var saved = safeJSON('btc_price_prediction', null);
+    _paintPredictionCard(card, _localPredModel(saved, currentPrice), null);
+    _fillCommunityAndYou(null);
+    _loadMyPredictionStats(function(stats) {
+        if (!card.isConnected) return;
+        var model = _mergePredModel(saved, currentPrice, stats);
+        _paintPredictionCard(card, model, stats);
+        _fillCommunityAndYou(stats);
+        if (model.scoredLocal) {
+            try {
+                saved.resolved = true;
+                saved.serverScored = true;
+                localStorage.setItem('btc_price_prediction', JSON.stringify(saved));
+            } catch (e) {}
         }
+    });
+};
 
-        // 24h passed — show result
-        var diff = currentPrice - saved.price;
-        var pct = ((diff / saved.price) * 100).toFixed(2);
-        var correct = (saved.direction === 'up' && diff > 0) || (saved.direction === 'down' && diff < 0);
-        // Notify user of prediction result (once per prediction)
-        if (!saved._notified) {
-            if (typeof notifyPredictionResult === 'function') notifyPredictionResult(correct, saved.direction);
-            saved._notified = true;
-            localStorage.setItem('btc_price_prediction', JSON.stringify(saved));
-        }
-        var streak = parseInt(localStorage.getItem('btc_predict_streak') || '0');
-        card.innerHTML = '<span style="font-size:2.5rem;">' + (correct ? '🎉' : '😅') + '</span>' +
-            '<h2 style="color:#f7931a;margin:12px 0 8px;">Your Prediction</h2>' +
-            '<p>You predicted <b style="color:' + (saved.direction === 'up' ? '#22c55e' : '#ef4444') + '">' + (saved.direction === 'up' ? '📈 UP' : '📉 DOWN') + '</b></p>' +
-            '<p>Price when predicted: <b>$' + Math.round(saved.price).toLocaleString() + '</b></p>' +
-            '<p>Current price: <b>$' + Math.round(currentPrice).toLocaleString() + '</b> (' + (diff >= 0 ? '+' : '') + pct + '%)</p>' +
-            '<p style="font-size:1.2rem;margin-top:12px;">' + (correct ? '✅ You were RIGHT! +25 XP' : '❌ Not this time!') + '</p>' +
-            (correct && streak >= 2 ? '<p style="font-size:0.9rem;color:#f7931a;">🔥 ' + streak + ' correct in a row!</p>' : '') +
-            '<div style="margin-top:16px;font-size:0.8rem;color:var(--text-muted,#94a3b8);">Come back tomorrow for a new prediction!</div>' +
-            '<div id="globalPredStatsResult" style="margin-top:12px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">Loading community stats...</div>' +
-            '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:12px;background:#f7931a;color:#000;border:none;padding:10px 28px;border-radius:8px;font-weight:700;cursor:pointer;">Close</button>';
+function _fmtUsd(n) {
+    var v = Math.round(Number(n) || 0);
+    try { return '$' + v.toLocaleString(); } catch (e) { return '$' + v; }
+}
 
-        // Load global stats on result screen
-        setTimeout(function() {
-            if (typeof getGlobalPredictionStats === 'function') {
-                getGlobalPredictionStats(function(stats) {
-                    var el = document.getElementById('globalPredStatsResult');
-                    if (!el) return;
-                    if (!stats || !stats.total) { el.innerHTML = '🌍 No community data yet.'; return; }
-                    var pct = Math.round((stats.correct / stats.total) * 100);
-                    el.innerHTML = '🌍 <strong>Community:</strong> ' + (stats.correct || 0) + '/' + stats.total + ' correct (' + pct + '% accuracy)';
-                });
-            }
-        }, 100);
-    } else {
-        // New prediction
+function _dirHtml(direction) {
+    var up = direction === 'up';
+    return '<b style="color:' + (up ? '#22c55e' : '#ef4444') + '">' + (up ? '📈 UP' : '📉 DOWN') + '</b>';
+}
+
+function _localPredModel(saved, currentPrice) {
+    var pending = null;
+    var mode = 'form';
+    if (saved && saved.time && !saved.resolved && !saved.serverScored) {
+        var elapsed = Date.now() - saved.time;
+        var awaiting = elapsed >= 86400000;
+        var hoursLeft = awaiting ? 0 : Math.max(1, Math.ceil((86400000 - elapsed) / 3600000));
+        pending = { direction: saved.direction, startPrice: saved.price, time: saved.time, hoursLeft: hoursLeft, awaiting: awaiting };
+        mode = awaiting ? 'awaiting' : 'pending';
+    }
+    return { mode: mode, currentPrice: currentPrice, pending: pending, last: null, scoredLocal: false };
+}
+
+function _mergePredModel(saved, currentPrice, stats) {
+    var model = _localPredModel(saved, currentPrice);
+    var last = stats && stats.predLastResult && stats.predLastResult.resolvedPrice != null ? stats.predLastResult : null;
+    var serverPending = stats && stats.predPending && stats.predPending.time ? stats.predPending : null;
+    if (serverPending && !model.pending) {
+        var elapsed = Date.now() - serverPending.time;
+        var awaiting = elapsed >= 86400000;
+        model.pending = {
+            direction: serverPending.direction,
+            startPrice: serverPending.startPrice,
+            time: serverPending.time,
+            hoursLeft: awaiting ? 0 : Math.max(1, Math.ceil((86400000 - elapsed) / 3600000)),
+            awaiting: awaiting
+        };
+        model.mode = awaiting ? 'awaiting' : 'pending';
+    }
+    if (last && model.pending && Number(last.time) && Number(last.time) === Number(model.pending.time)) {
+        model.pending = null;
+        model.mode = 'form';
+        model.scoredLocal = true;
+    } else if (last && saved && !saved.resolved && Number(last.time) && Math.abs(Number(last.time) - Number(saved.time)) < 120000) {
+        model.pending = null;
+        model.mode = 'form';
+        model.scoredLocal = true;
+    }
+    if (last && (!model.pending || Number(last.time) !== Number(model.pending.time))) model.last = last;
+    return model;
+}
+
+function _lastResultHtml(last) {
+    if (!last) return '';
+    var ok = last.outcome === 'correct';
+    return '<div style="margin-top:14px;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(247,147,26,0.2);border-radius:10px;text-align:left;">' +
+        '<div style="font-size:0.72rem;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-muted,#94a3b8);margin-bottom:6px;">Last result</div>' +
+        '<div style="font-size:0.95rem;">' + _dirHtml(last.direction) + '</div>' +
+        '<div style="margin-top:4px;font-size:0.9rem;">' + _fmtUsd(last.startPrice) + ' → ' + _fmtUsd(last.resolvedPrice) + '</div>' +
+        '<div style="margin-top:6px;font-weight:800;">' + (ok ? 'Correct ✅' : 'Wrong ❌') + '</div>' +
+    '</div>';
+}
+
+function _pendingHtml(pending) {
+    if (!pending) return '';
+    var note = pending.awaiting
+        ? 'Pending — the 24 hour window has closed. The server scores this shortly.'
+        : ('Pending — results in ~' + pending.hoursLeft + ' hour' + (pending.hoursLeft === 1 ? '' : 's') + '.');
+    return '<div style="margin-top:14px;padding:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;text-align:left;">' +
+        '<div style="font-weight:800;color:#f7931a;">Pending ⏳</div>' +
+        '<div style="margin-top:6px;">' + _dirHtml(pending.direction) + ' from <b>' + _fmtUsd(pending.startPrice) + '</b></div>' +
+        '<div style="margin-top:6px;font-size:0.8rem;color:var(--text-muted,#94a3b8);line-height:1.4;">' + note + '</div>' +
+    '</div>';
+}
+
+function _statsBoxHtml() {
+    return '<div id="globalPredStats" style="margin-top:16px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">' +
+        '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;line-height:1.45;">' +
+            '<span id="predCommunityLine">Loading community stats...</span>' +
+            '<span id="predPersonalLine"></span>' +
+        '</div></div>';
+}
+
+function _paintPredictionCard(card, model, stats) {
+    var price = model.currentPrice;
+    var history = _pendingHtml(model.pending) + _lastResultHtml(model.last);
+    var closeBtn = '<button type="button" onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:12px;background:#f7931a;color:#000;border:none;padding:10px 28px;border-radius:8px;font-weight:700;cursor:pointer;touch-action:manipulation;">Close</button>';
+    if (model.mode === 'form') {
         card.innerHTML = '<span style="font-size:2.5rem;">📈📉</span>' +
             '<h2 style="color:#f7931a;margin:12px 0 8px;">Predict Bitcoin\'s Price</h2>' +
             '<p style="margin:0 0 4px;">Current BTC Price:</p>' +
-            '<p style="font-size:1.8rem;font-weight:900;color:#f7931a;margin:4px 0 16px;">$' + Math.round(currentPrice).toLocaleString() + '</p>' +
-            '<p style="margin-bottom:16px;">Will Bitcoin go <b>UP</b> or <b>DOWN</b> in the next 24 hours?</p>' +
-            '<div style="display:flex;gap:12px;justify-content:center;">' +
-                '<button onclick="window._savePrediction(\'up\');this.closest(\'div[style*=fixed]\').remove()" style="background:#22c55e;color:#fff;border:none;padding:14px 32px;border-radius:10px;font-weight:700;cursor:pointer;font-size:1.1rem;">📈 UP</button>' +
-                '<button onclick="window._savePrediction(\'down\');this.closest(\'div[style*=fixed]\').remove()" style="background:#ef4444;color:#fff;border:none;padding:14px 32px;border-radius:10px;font-weight:700;cursor:pointer;font-size:1.1rem;">📉 DOWN</button>' +
+            '<p style="font-size:1.8rem;font-weight:900;color:#f7931a;margin:4px 0 12px;">' + _fmtUsd(price) + '</p>' +
+            history +
+            '<p style="margin:16px 0;">Will Bitcoin go <b>UP</b> or <b>DOWN</b> in the next 24 hours?</p>' +
+            '<div class="btc-pred-actions" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
+                '<button type="button" onclick="window._savePrediction(\'up\');this.closest(\'div[style*=fixed]\').remove()" style="background:#22c55e;color:#fff;border:none;padding:14px 20px;border-radius:10px;font-weight:700;cursor:pointer;font-size:1.05rem;flex:1;min-width:120px;touch-action:manipulation;">📈 UP</button>' +
+                '<button type="button" onclick="window._savePrediction(\'down\');this.closest(\'div[style*=fixed]\').remove()" style="background:#ef4444;color:#fff;border:none;padding:14px 20px;border-radius:10px;font-weight:700;cursor:pointer;font-size:1.05rem;flex:1;min-width:120px;touch-action:manipulation;">📉 DOWN</button>' +
             '</div>' +
-            '<div id="globalPredStats" style="margin-top:16px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">Loading community stats...</div>';
-
-        // Load global stats
-        setTimeout(function() {
-            if (typeof getGlobalPredictionStats === 'function') {
-                getGlobalPredictionStats(function(stats) {
-                    var el = document.getElementById('globalPredStats');
-                    if (!el) return;
-                    if (!stats || !stats.total) {
-                        el.innerHTML = '🌍 Be the first to predict!';
-                        return;
-                    }
-                    var pct = Math.round((stats.correct / stats.total) * 100);
-                    el.innerHTML = '🌍 <strong>Community:</strong> ' + (stats.correct || 0) + '/' + stats.total + ' correct (' + pct + '% accuracy)';
-                });
-            }
-        }, 100);
+            _statsBoxHtml();
+    } else {
+        card.innerHTML = '<span style="font-size:2.5rem;">⏳</span>' +
+            '<h2 style="color:#f7931a;margin:12px 0 8px;">Prediction Locked In!</h2>' +
+            '<p style="margin:0 0 4px;">Current BTC Price:</p>' +
+            '<p style="font-size:1.6rem;font-weight:900;color:#f7931a;margin:4px 0 8px;">' + _fmtUsd(price) + '</p>' +
+            history +
+            _statsBoxHtml() +
+            closeBtn;
     }
+    _fillPersonalLine(stats);
+}
 
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-};
+function _fillPersonalLine(stats) {
+    var el = document.getElementById('predPersonalLine');
+    if (!el) return;
+    var total = stats && stats.predTotal ? stats.predTotal : 0;
+    var correct = stats && stats.predCorrect ? stats.predCorrect : 0;
+    var pct = total ? Math.round((correct / total) * 100) : 0;
+    el.textContent = '👤 You: ' + correct + '/' + total + ' correct (' + pct + '%)';
+}
+
+function _fillCommunityAndYou(stats) {
+    _fillPersonalLine(stats);
+    if (typeof getGlobalPredictionStats !== 'function') return;
+    getGlobalPredictionStats(function(g) {
+        var el = document.getElementById('predCommunityLine');
+        if (!el) return;
+        if (!g || !g.total) { el.textContent = '🌍 Be the first to predict!'; return; }
+        var pct = Math.round((g.correct / g.total) * 100);
+        el.textContent = '🌍 Community: ' + (g.correct || 0) + '/' + g.total + ' correct (' + pct + '% accuracy)';
+    });
+}
 
 window._savePrediction = function(direction) {
     var price = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     var prediction = { direction: direction, price: price, time: Date.now(), resolved: false };
     localStorage.setItem('btc_price_prediction', JSON.stringify(prediction));
     if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
-    // Award points for making a prediction
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
-    // Combo tracking
     if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
-    // Daily challenge tracking: prediction made today
     (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pred_made_'+dk,'1'); })();
-    // Sync to Firestore
     _syncPredictionToFirestore(prediction);
+    _myPredStatsCache = null;
 };
 
-// ---- Check prediction result on login/load ----
+// The server scores predictions. This only announces a result the server already stored.
 window.checkPredictionResult = function() {
-    var saved = safeJSON('btc_price_prediction', null);
-    if (!saved || saved.resolved) return;
-    // Only check after 24 hours have passed (prediction window)
-    if (Date.now() - saved.time < 24 * 60 * 60 * 1000) return;
-    var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
-    if (!currentPrice || !saved.price) return;
-
-    var diff = currentPrice - saved.price;
-    var pct = ((diff / saved.price) * 100).toFixed(2);
-    var correct = (saved.direction === 'up' && diff > 0) || (saved.direction === 'down' && diff < 0);
-
-    // Mark as resolved so we don't check again
-    saved.resolved = true;
-    saved.result = correct ? 'correct' : 'wrong';
-    saved.finalPrice = currentPrice;
-    localStorage.setItem('btc_price_prediction', JSON.stringify(saved));
-
-    // Update prediction stats in Firestore
-    _updatePredictionStats(correct);
-
-    // Mark as resolved in active_predictions (so Cloud Function doesn't double-count)
-    try {
-        if (typeof auth !== 'undefined' && auth.currentUser && typeof db !== 'undefined') {
-            db.collection('active_predictions').doc(auth.currentUser.uid).delete().catch(function() {});
+    _loadMyPredictionStats(function(stats) {
+        if (window.updatePredictionLabel) window.updatePredictionLabel();
+        if (!stats || !stats.predLastResult || !stats.predLastResult.resolvedAt) return;
+        var key = String(stats.predLastResult.resolvedAt) + ':' + String(stats.predLastResult.time || '');
+        var seen = '';
+        try { seen = localStorage.getItem('btc_pred_seen_resolved') || ''; } catch (e) {}
+        if (seen && seen !== key && typeof showToast === 'function') {
+            var ok = stats.predLastResult.outcome === 'correct';
+            showToast(ok ? '🎉 Your prediction was right! +25 XP' : '📉 Your prediction was wrong. Try again tomorrow!');
         }
-    } catch(e) {}
-
-    // Award bonus XP for correct prediction
-    if (correct) {
-        if (typeof awardPoints === 'function') awardPoints(25, '🎯 Correct price prediction!');
-        // Track streak
-        var streak = parseInt(localStorage.getItem('btc_predict_streak') || '0') + 1;
-        localStorage.setItem('btc_predict_streak', streak.toString());
-        setTimeout(function() {
-            if (typeof showToast === 'function') {
-                showToast('🎉 Your prediction was RIGHT! Bitcoin went ' + (diff > 0 ? 'UP' : 'DOWN') + ' ' + (diff > 0 ? '+' : '') + pct + '% — +25 XP!' + (streak >= 3 ? ' 🔥 ' + streak + ' correct in a row!' : ''));
-            }
-        }, 2000);
-    } else {
-        // Reset streak
-        localStorage.setItem('btc_predict_streak', '0');
-        setTimeout(function() {
-            if (typeof showToast === 'function') {
-                showToast('📉 Your prediction was wrong — Bitcoin went ' + (diff > 0 ? 'UP' : 'DOWN') + ' ' + (diff > 0 ? '+' : '') + pct + '%. Try again tomorrow!');
-            }
-        }, 2000);
-    }
+        try { localStorage.setItem('btc_pred_seen_resolved', key); } catch (e2) {}
+    }, true);
 };
 
-// ---- Prediction Stats Firestore Sync ----
 function _syncPredictionToFirestore(prediction) {
-    try {
-        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
-        if (typeof db === 'undefined') return;
-        var uid = auth.currentUser.uid;
-        db.collection('users').doc(uid).set({
-            predictions: {
-                lastPrediction: {
-                    direction: prediction.direction,
-                    price: prediction.price,
-                    time: prediction.time
-                }
-            }
-        }, { merge: true }).catch(function() {});
-
-        // Save to active_predictions collection for server-side resolution
-        db.collection('active_predictions').doc(uid).set({
-            uid: uid,
-            direction: prediction.direction,
-            price: prediction.price,
-            time: prediction.time,
-            resolved: false
-        }).catch(function() {});
-    } catch(e) {}
-}
-
-function _updatePredictionStats(correct) {
     try {
         if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
         if (typeof db === 'undefined' || typeof firebase === 'undefined') return;
         var uid = auth.currentUser.uid;
-        var inc = firebase.firestore.FieldValue.increment;
-        var streak = parseInt(localStorage.getItem('btc_predict_streak') || '0');
-        var bestStreak = parseInt(localStorage.getItem('btc_predict_best_streak') || '0');
-
-        var updateData = {
-            'predictions.total': inc(1),
-            'predictions.lastResolved': Date.now()
-        };
-        if (correct) {
-            updateData['predictions.correct'] = inc(1);
-            var newStreak = streak + 1;
-            updateData['predictions.streak'] = newStreak;
-            if (newStreak > bestStreak) {
-                updateData['predictions.bestStreak'] = newStreak;
-                localStorage.setItem('btc_predict_best_streak', newStreak.toString());
-            }
-        } else {
-            updateData['predictions.streak'] = 0;
-        }
-
-        db.collection('users').doc(uid).set(updateData, { merge: true }).catch(function() {});
-
-        // Update global prediction stats
-        var globalUpdate = { total: inc(1) };
-        if (correct) globalUpdate.correct = inc(1);
-        db.collection('stats').doc('predictions').set(globalUpdate, { merge: true }).catch(function() {});
-
-        // Also update local currentUser for immediate display
-        if (typeof currentUser !== 'undefined' && currentUser) {
-            if (!currentUser.predictions) currentUser.predictions = { total: 0, correct: 0, streak: 0, bestStreak: 0 };
-            currentUser.predictions.total = (currentUser.predictions.total || 0) + 1;
-            if (correct) {
-                currentUser.predictions.correct = (currentUser.predictions.correct || 0) + 1;
-                currentUser.predictions.streak = (currentUser.predictions.streak || 0) + 1;
-                if (currentUser.predictions.streak > (currentUser.predictions.bestStreak || 0)) {
-                    currentUser.predictions.bestStreak = currentUser.predictions.streak;
-                }
-            } else {
-                currentUser.predictions.streak = 0;
-            }
-        }
-    } catch(e) {}
+        db.collection('active_predictions').doc(uid).set({
+            uid: uid,
+            direction: prediction.direction,
+            price: prediction.price,
+            time: firebase.firestore.FieldValue.serverTimestamp(),
+            resolved: false
+        }).catch(function() {
+            if (typeof showToast === 'function') showToast('Could not save that prediction. If one is still open, wait for the server to score it.');
+        });
+    } catch (e) {}
 }
 
-// Cache global prediction stats
-var _globalPredCache = null;
-var _globalPredCacheTs = 0;
+var _myPredStatsCache = null;
+var _myPredStatsCacheTs = 0;
+function _loadMyPredictionStats(cb, force) {
+    if (!force && _myPredStatsCache && (Date.now() - _myPredStatsCacheTs < 120000)) {
+        cb(_myPredStatsCache);
+        return;
+    }
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous || typeof db === 'undefined') {
+        cb(null);
+        return;
+    }
+    db.collection('prediction_stats').doc(auth.currentUser.uid).get().then(function(doc) {
+        var data = doc.exists ? (doc.data() || null) : null;
+        _myPredStatsCache = data;
+        _myPredStatsCacheTs = Date.now();
+        if (typeof currentUser !== 'undefined' && currentUser && data) {
+            var total = data.predTotal || 0;
+            var correct = data.predCorrect || 0;
+            currentUser._serverPred = {
+                total: total,
+                correct: correct,
+                percentage: total ? Math.round((correct / total) * 100) : 0,
+                streak: data.predStreak || 0,
+                bestStreak: data.predBestStreak || 0
+            };
+            if (typeof checkBadges === 'function') {
+                try { checkBadges(); } catch (err) {}
+            }
+        }
+        cb(data);
+    }).catch(function() { cb(null); });
+}
+window._loadMyPredictionStats = _loadMyPredictionStats;
 
 window.getGlobalPredictionStats = function(callback) {
-    // Cache for 2 minutes
     if (_globalPredCache && Date.now() - _globalPredCacheTs < 120000) {
         callback(_globalPredCache);
         return;
@@ -699,22 +675,28 @@ window.getGlobalPredictionStats = function(callback) {
                 callback(null);
             }
         }).catch(function() { callback(null); });
-    } catch(e) { callback(null); }
+    } catch (e) { callback(null); }
 };
 
-// Get prediction stats (for profile display)
 window.getPredictionStats = function(user) {
-    var stats = (user && user.predictions) ? user.predictions : null;
-    if (!stats || !stats.total) return null;
-    var pct = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+    var server = user && user._serverPred;
+    var stats = server || ((user && user.predictions) ? user.predictions : null);
+    if (!stats) return null;
+    var total = server ? (server.total || 0) : (stats.total || 0);
+    var correct = server ? (server.correct || 0) : (stats.correct || 0);
+    if (!total) return null;
     return {
-        total: stats.total || 0,
-        correct: stats.correct || 0,
-        percentage: pct,
-        streak: stats.streak || 0,
-        bestStreak: stats.bestStreak || 0
+        total: total,
+        correct: correct,
+        percentage: total ? Math.round((correct / total) * 100) : 0,
+        streak: (server ? server.streak : stats.streak) || 0,
+        bestStreak: (server ? server.bestStreak : stats.bestStreak) || 0
     };
 };
+
+// Cache global prediction stats
+var _globalPredCache = null;
+var _globalPredCacheTs = 0;
 
 // ---- COMMUNITY STATS BAR ----
 var _communityStatsCache = null;
@@ -794,11 +776,17 @@ window.updatePredictionLabel = function() {
             var pct = Math.round((stats.correct / stats.total) * 100);
             lines.push('🌍 ' + pct + '% community accuracy');
         }
-        if (typeof currentUser !== 'undefined' && currentUser && currentUser.predictions && currentUser.predictions.total) {
-            var uPct = Math.round((currentUser.predictions.correct / currentUser.predictions.total) * 100);
-            lines.push('👤 ' + uPct + '% you');
-        }
-        el.innerHTML = lines.join('<br>');
+        var paint = function(mine) {
+            var total = mine && mine.predTotal;
+            if (total) {
+                var correct = mine.predCorrect || 0;
+                var uPct = Math.round((correct / total) * 100);
+                lines.push('👤 ' + correct + '/' + total + ' (' + uPct + '%)');
+            }
+            el.innerHTML = lines.join('<br>');
+        };
+        if (typeof _loadMyPredictionStats === 'function') _loadMyPredictionStats(paint);
+        else paint(null);
     });
     return true;
 };

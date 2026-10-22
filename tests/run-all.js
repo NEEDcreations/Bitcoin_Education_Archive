@@ -17,6 +17,7 @@ const TESTS = [
     { name: 'Nacho Shoutout', file: 'test-shoutout.js' },
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
+    { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
     { name: 'Hot Topics', file: 'test-hot-topics.js' },

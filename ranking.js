@@ -3987,6 +3987,10 @@ async function toggleLeaderboard() {
             html += '<div class="lb-levels"><h4>Your Badges</h4>' + getBadgeHTML() + '</div>';
         }
 
+        // Top Predictors — above PVP. One stats doc holds all three periods.
+        html += '<div id="predictorBoard" style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
+            '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading Top Predictors...</div></div>';
+
         // Level guide
         // PVP LEADERBOARD
         html += '<div style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
@@ -4006,11 +4010,247 @@ async function toggleLeaderboard() {
         lb.innerHTML = html;
 
         // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
+        _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
     } catch(e) {
         console.error('[Leaderboard] Error:', e);
         lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard: ' + (e.message || 'Unknown error') + '</div>';
     }
+}
+
+// Top Predictors — All Time / This Week / This Month, same tab chrome as XP.
+var PRED_LB_COPY = {
+    weekly: 'This Week: make at least 5 predictions to qualify. Top 5 each win 25 orange tickets.',
+    monthly: 'This Month: at least 15 predictions. Top 5 each win 50 orange tickets.',
+    alltime: 'All Time: at least 10 predictions.'
+};
+var PRED_LB_MIN = { weekly: 5, monthly: 15, alltime: 10 };
+
+function _predLbInfoText(period) {
+    return PRED_LB_COPY[period] || PRED_LB_COPY.alltime;
+}
+
+function _predSafePic(src) {
+    if (!src || typeof src !== 'string') return '';
+    if (/^data:image\/(jpeg|jpg|png|webp);base64,[a-z0-9+/=]+$/i.test(src)) return src;
+    if (/^https:\/\/[^\s"'<>]+$/i.test(src) && src.length < 500) return src;
+    return '';
+}
+
+function _predAvatarHtml(entry) {
+    var pic = _predSafePic(entry.profilePic);
+    if (pic) {
+        return '<img alt="" width="24" height="24" src="' + pic.replace(/"/g, '') + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;">';
+    }
+    var raw = (entry.username || 'A').trim().charAt(0).toUpperCase() || 'A';
+    var ch = typeof escapeHtml === 'function' ? escapeHtml(raw) : raw;
+    return '<span class="lb-badge" aria-hidden="true" style="border-radius:50%;background:rgba(247,147,26,0.18);color:#f7931a;font-size:0.72rem;font-weight:800;">' + ch + '</span>';
+}
+
+function _predLbTipEl() {
+    var tip = document.getElementById('predLbTip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'predLbTip';
+        tip.className = 'pred-lb-tip';
+        tip.setAttribute('role', 'tooltip');
+        tip.hidden = true;
+        document.body.appendChild(tip);
+    }
+    return tip;
+}
+
+var _predLbInfoBound = false;
+function _predLbEnsureGlobalHandlers() {
+    if (_predLbInfoBound) return;
+    _predLbInfoBound = true;
+    document.addEventListener('pointerdown', function(e) {
+        var tip = document.getElementById('predLbTip');
+        var btn = document.getElementById('predLbInfo');
+        if (!tip || tip.hidden) return;
+        if (btn && (e.target === btn || btn.contains(e.target))) return;
+        if (tip.contains(e.target)) return;
+        _predLbHideTip();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') _predLbHideTip();
+    });
+}
+
+function _predLbPlaceTip() {
+    var btn = document.getElementById('predLbInfo');
+    var tip = _predLbTipEl();
+    if (!btn) return;
+    var r = btn.getBoundingClientRect();
+    var width = Math.min(280, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(r.left, window.innerWidth - width - 12));
+    var top = r.bottom + 6;
+    if (top + 96 > window.innerHeight) top = Math.max(8, r.top - 96);
+    tip.style.position = 'fixed';
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    tip.style.width = width + 'px';
+    tip.style.zIndex = '400000';
+}
+
+function _predLbShowTip() {
+    var btn = document.getElementById('predLbInfo');
+    var tip = _predLbTipEl();
+    tip.textContent = _predLbInfoText(window._predLbPeriod || 'alltime');
+    tip.hidden = false;
+    _predLbPlaceTip();
+    if (btn) {
+        btn.setAttribute('aria-expanded', 'true');
+        btn.setAttribute('aria-describedby', 'predLbTip');
+    }
+}
+
+function _predLbHideTip() {
+    var tip = document.getElementById('predLbTip');
+    var btn = document.getElementById('predLbInfo');
+    if (tip) tip.hidden = true;
+    if (btn) {
+        btn.setAttribute('aria-expanded', 'false');
+        btn.removeAttribute('aria-describedby');
+        btn.removeAttribute('data-pinned');
+    }
+}
+
+function _predLbToggleInfo(btn) {
+    _predLbEnsureGlobalHandlers();
+    var tip = _predLbTipEl();
+    if (btn && !tip.hidden && btn.getAttribute('data-pinned') === '1') {
+        _predLbHideTip();
+        return;
+    }
+    if (btn) btn.setAttribute('data-pinned', '1');
+    _predLbShowTip();
+}
+window._predLbToggleInfo = _predLbToggleInfo;
+
+function _predLbBindInfo() {
+    var btn = document.getElementById('predLbInfo');
+    if (!btn || btn._predBound) return;
+    btn._predBound = true;
+    _predLbEnsureGlobalHandlers();
+    var hover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+    if (hover) {
+        btn.addEventListener('mouseenter', function() { _predLbShowTip(); });
+        btn.addEventListener('mouseleave', function() {
+            if (btn.getAttribute('data-pinned') !== '1') _predLbHideTip();
+        });
+    }
+    btn.addEventListener('focus', function() { _predLbShowTip(); });
+    btn.addEventListener('blur', function() {
+        if (btn.getAttribute('data-pinned') !== '1') _predLbHideTip();
+    });
+}
+
+function _predLbProgressText(period, made) {
+    var min = PRED_LB_MIN[period] || PRED_LB_MIN.alltime;
+    var n = Math.max(0, Number(made) || 0);
+    if (n >= min) return '';
+    if (period === 'weekly') return "You've made " + n + " of " + min + " predictions this week.";
+    if (period === 'monthly') return "You've made " + n + " of " + min + " predictions this month.";
+    return "You've made " + n + " of " + min + " predictions.";
+}
+
+function _predLbFillProgress(period, data) {
+    var el = document.getElementById('predLbProgress');
+    if (!el) return;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        el.textContent = '';
+        return;
+    }
+    var apply = function(stats) {
+        var node = document.getElementById('predLbProgress');
+        if (!node) return;
+        var made = 0;
+        if (stats) {
+            if (period === 'weekly') made = stats.weekKey === data.weekKey ? (stats.weekTotal || 0) : 0;
+            else if (period === 'monthly') made = stats.monthKey === data.monthKey ? (stats.monthTotal || 0) : 0;
+            else made = stats.predTotal || 0;
+        }
+        node.textContent = _predLbProgressText(period, made);
+    };
+    if (typeof window._loadMyPredictionStats === 'function') window._loadMyPredictionStats(apply);
+    else el.textContent = '';
+}
+
+function _renderPredictorBoard() {
+    var root = document.getElementById('predictorBoard');
+    if (!root) return;
+    var period = window._predLbPeriod || 'alltime';
+    var data = (window._predLbCache && window._predLbCache.data) || {};
+    var rows = data[period] || [];
+    var tabs = [['alltime', 'All Time'], ['weekly', 'This Week'], ['monthly', 'This Month']];
+    var html = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+        '<h4 style="margin:0;">📈 Top Predictors</h4>' +
+        '<button type="button" id="predLbInfo" class="pred-lb-info" aria-label="How Top Predictors works" aria-expanded="false" aria-controls="predLbTip" onclick="event.stopPropagation();_predLbToggleInfo(this)">ⓘ</button>' +
+        '</div>';
+    html += '<div style="display:flex;gap:4px;padding:0 0 10px;">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_predLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div><div id="predictorLeaderboardList">';
+    if (!rows.length) {
+        html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No Questers have qualified yet.</div>';
+    } else {
+        var myUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var uid = String(entry.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+            var isMe = myUid && uid === myUid;
+            var name = typeof escapeHtml === 'function' ? escapeHtml(entry.username || 'Anon') : String(entry.username || 'Anon');
+            var peerTag = (window._myPeers && window._myPeers.has(uid)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pred-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            html += '<div' + hidden + ' onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                _predAvatarHtml(entry) +
+                '<span class="lb-name">' + peerTag + name + '</span>' +
+                '<span class="lb-score pred-score">' + (entry.pct || 0) + '%<span class="pred-score-frac">' + (entry.correct || 0) + '/' + (entry.total || 0) + '</span></span>' +
+            '</div>';
+        });
+        if (rows.length > 10) {
+            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.pred-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' predictors ▼</button>';
+        }
+    }
+    html += '</div><p id="predLbProgress" style="margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--text-muted);"></p>';
+    root.innerHTML = html;
+    _predLbBindInfo();
+    var tip = document.getElementById('predLbTip');
+    if (tip && !tip.hidden) tip.textContent = _predLbInfoText(period);
+    _predLbFillProgress(period, data);
+}
+
+function _predLbSwitchPeriod(period) {
+    window._predLbPeriod = period;
+    _renderPredictorBoard();
+}
+window._predLbSwitchPeriod = _predLbSwitchPeriod;
+
+async function _loadPredictorLeaderboard() {
+    var root = document.getElementById('predictorBoard');
+    if (!root) return;
+    var now = Date.now();
+    var fresh = window._predLbCache && window._predLbCacheTime && (now - window._predLbCacheTime < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined') {
+                window._predLbCache = { data: {} };
+            } else {
+                var doc = await db.collection('stats').doc('predictor_leaderboard').get();
+                window._predLbCache = { data: doc.exists ? (doc.data() || {}) : {} };
+            }
+            window._predLbCacheTime = now;
+        } catch (e) {
+            window._predLbCache = window._predLbCache || { data: {} };
+            window._predLbCacheTime = now;
+        }
+    }
+    _renderPredictorBoard();
 }
 
 // PVP Leaderboard - loaded after main leaderboard renders, sorted by win %
