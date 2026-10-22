@@ -1277,9 +1277,12 @@
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
+        // Fullscreen Nacho Mode replaces the bubble deer with the big Nacho.
+        // Suspend is visual only — minimized state in localStorage is left alone.
+        if (typeof window.suspendNacho === 'function') window.suspendNacho();
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
         var mbar = document.querySelector('.mobile-bar');
         if (mbar) mbar.style.display = 'none';
@@ -2888,9 +2891,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (screen) screen.remove();
 
         // Restore everything that was hidden on enter
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #dashboardFloatBtn, #floatingRandomBtn, #chatOverlayBtn, #aiToolsBtn, #userDisplay, #backToTop, #scrollToBottom, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = '';
         });
+        if (typeof window.resumeNacho === 'function') window.resumeNacho();
         // Restore mobile top bar
         var mbar = document.querySelector('.mobile-bar');
         if (mbar && window.innerWidth <= 900) mbar.style.display = 'flex';
@@ -2949,7 +2953,34 @@ window.nachoQuizAnswer = function(btn, correct) {
         return Math.max(local, firestore);
     };
 
+    // Stop Timechain TV whenever navigation leaves it: sidebar, go(), goHome(),
+    // and the back button. cleanupTimechainTV removes body.tctv-active, which
+    // is what hides the mobile top bar, and it stops the player and presence.
+    window.leaveTimechainTV = function(nextId) {
+        if (nextId === 'timechain-tv' || nextId === 'tv') return;
+        var body = document.body;
+        var active = !!(body && body.classList.contains('tctv-active')) || window._tctvActive === true;
+        if (!active) return;
+        if (nextId) window.currentPage = nextId;
+        if (typeof window.cleanupTimechainTV === 'function') {
+            try { window.cleanupTimechainTV(); }
+            catch (e) { console.warn('[tctv] cleanup failed', e); }
+        }
+        if (body && body.classList.contains('tctv-active')) body.classList.remove('tctv-active');
+        window._tctvActive = false;
+        var mbar = document.querySelector('.mobile-bar');
+        if (mbar) mbar.style.display = '';
+        if (typeof window._nachoRestorePosition === 'function') {
+            try { window._nachoRestorePosition(); } catch (e2) {}
+        }
+        if (typeof window.updateNachoAvatarForPage === 'function') {
+            try { window.updateNachoAvatarForPage(); } catch (e3) {}
+        }
+    };
+
     window.goHome = function goHome(fromPopState) {
+        window.currentPage = 'home';
+        window.leaveTimechainTV('home');
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
 
         // Cancel any in-flight go() calls so they don't write stale content after goHome clears the DOM
@@ -3737,6 +3768,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                 if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
             }
             return;
+        }
+        if (id === 'timechain-tv' || id === 'tv') window.currentPage = 'timechain-tv';
+        else {
+            window.currentPage = id || window.currentPage;
+            if (typeof window.leaveTimechainTV === 'function') window.leaveTimechainTV(id);
         }
         // Increment nav generation and capture it — any previously in-flight go() call
         // will see its captured navId !== window._navGeneration and abort after its await.
@@ -4911,6 +4947,12 @@ if (locked) {
             if (!hash && typeof _parseCleanUrl === 'function') {
                 hash = _parseCleanUrl() || '';
             }
+            // Back/forward leaves TV even on branches that do not call go() or goHome().
+            var _popPage = hash || state.channel || 'home';
+            if (_popPage !== 'timechain-tv' && _popPage !== 'tv' && typeof window.leaveTimechainTV === 'function') {
+                window.currentPage = _popPage;
+                window.leaveTimechainTV(_popPage);
+            }
 
             // GUARD STATE: user tried to leave the app — push them back to home
             if (!e.state || state.guard) {
@@ -5131,17 +5173,8 @@ if (locked) {
         if (h) {
             window._nachoDirectLinkCooldown = Date.now() + 120000;
             window._directLinkMode = true;
-            // Hide Nacho on direct links (visual-only, don't persist to localStorage)
-            function _directLinkHideNacho() {
-                var nc = document.getElementById('nacho-container');
-                var nt = document.getElementById('nacho-toggle');
-                if (nc) nc.classList.add('hidden');
-                if (nt) nt.style.display = 'none';
-                window._nachoAutoHidden = true;
-            }
-            _directLinkHideNacho();
-            setTimeout(_directLinkHideNacho, 1000);
-            setTimeout(_directLinkHideNacho, 2500);
+            // Bubble Nacho stays on screen for direct links. The cooldown only
+            // holds auto speech bubbles so a deep link is not interrupted.
             // Minimize sign-in banner
             sessionStorage.setItem('btc_signin_banner_dismissed', '1');
             // Gradually re-enable features after cooldown (staggered)
@@ -5152,10 +5185,9 @@ if (locked) {
                 sessionStorage.removeItem('btc_signin_banner_dismissed');
                 if (typeof updateUserDisplay === 'function') updateUserDisplay();
             }, 150000);
-            // 120s: allow Nacho bubble + bring him back
+            // 120s: allow Nacho speech bubbles again. He was visible the whole time.
             setTimeout(function() {
                 window._nachoDirectLinkCooldown = 0;
-                if (typeof showNacho === 'function' && localStorage.getItem('btc_nacho_hidden') !== 'user') showNacho();
             }, 120000);
         }
         // Hash routing is handled by the IIFE handleHash() below and its 800ms load fallback.
