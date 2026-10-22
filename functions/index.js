@@ -1560,6 +1560,13 @@ exports.moderateContent = functionsV1.https.onCall(async (data, context) => {
 // [C1] SECURE TELEGRAM BRIDGE
 // Bridge secret lives here, NOT in client code
 // =============================================
+const {
+    postToTelegramBridge,
+    buildWebBridgePayload,
+    redactForLog,
+    WEB_BRIDGE_TIMEOUT_MS,
+} = require('./src/telegramBridge');
+
 exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64) {
@@ -1603,7 +1610,6 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
     });
 
     // Secret lives ONLY in server-side environment variables (.env)
-    const BRIDGE_URL = process.env.BRIDGE_URL || 'https://chat-bridge.needcreations.workers.dev/webhook/firestore';
     const BRIDGE_SECRET = process.env.BRIDGE_SECRET;
 
     if (!BRIDGE_SECRET) {
@@ -1621,26 +1627,12 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
             }
         } catch(e) {}
 
-        const fetch = require('node-fetch');
-        const resp = await fetch(BRIDGE_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + BRIDGE_SECRET
-            },
-            body: JSON.stringify({
-                user: verifiedUsername,
-                text: (data.text || '').substring(0, 500),
-                gifUrl: data.gifUrl || '',
-                imageUrl: data.imageUrl || '',
-                imageBase64: data.imageBase64 || '',
-                replyToName: (data.replyToName || '').substring(0, 50),
-                replyToText: (data.replyToText || '').substring(0, 200),
-                uid: uid,
-                source: 'web'
-            })
+        // The client-supplied name is ignored. The worker renders payload.user as "[🌐 name]".
+        const payload = buildWebBridgePayload(verifiedUsername, uid, data);
+        const json = await postToTelegramBridge(payload, {
+            secret: BRIDGE_SECRET,
+            timeoutMs: WEB_BRIDGE_TIMEOUT_MS,
         });
-        const json = await resp.json();
 
         // Store telegramMsgId if returned by bridge worker
         if (json.telegramMsgId && json.chatId) {
@@ -1665,7 +1657,7 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
 
         return { ok: json.ok || false, telegramMsgId: json.telegramMsgId };
     } catch(e) {
-        console.error('[BRIDGE] Error:', e.message);
+        console.error('[BRIDGE] Error:', redactForLog(e && e.message, BRIDGE_SECRET));
         return { ok: false };
     }
 });

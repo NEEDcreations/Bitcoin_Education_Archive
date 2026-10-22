@@ -23,7 +23,8 @@ const {
     lookupSettlement,
     adminClaimFlag,
 } = require('./cipherClaim');
-const { planShoutout, applyShoutoutCap } = require('./shoutout');
+const { planShoutout, applyShoutoutCap, shoutoutDocId } = require('./shoutout');
+const { mirrorShoutoutOnce } = require('./telegramBridge');
 
 const db = admin.firestore();
 
@@ -186,11 +187,31 @@ async function maybeAnnounceShoutout(opts) {
     if (!plan.post) {
         if (plan.reason === 'banned' && marker.shoutoutPosted !== true) {
             await opts.markerRef.set({ shoutoutSkipped: 'banned' }, { merge: true }).catch(function() {});
+        } else if (plan.reason === 'already_posted') {
+            // openGift retries this function after the chat doc exists. Mirror
+            // is skipped when telegramMsgId or telegramMirrored is already set.
+            await mirrorShoutoutQuiet(shoutoutDocId(opts.prizeId), 'global_chat');
         }
         return plan;
     }
     await publishShoutout(opts.markerRef, plan);
+    await mirrorShoutoutQuiet(plan.docId, plan.collection, plan.text);
     return plan;
+}
+
+// Best-effort. mirrorShoutoutOnce already swallows bridge errors; this guard
+// keeps a surprise throw from failing the gift open or posting twice on retry.
+async function mirrorShoutoutQuiet(docId, collection, text) {
+    try {
+        await mirrorShoutoutOnce({
+            db: db,
+            docId: docId,
+            collection: collection || 'global_chat',
+            text: text,
+        });
+    } catch (err) {
+        console.warn('[shoutout] telegram mirror failed');
+    }
 }
 
 function nachoSatsText(username, amount) {
