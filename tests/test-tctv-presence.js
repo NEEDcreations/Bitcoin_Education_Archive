@@ -253,9 +253,11 @@ test('single-field index is declared for tctv_presence.ts', () => {
     assert.ok(orders.includes('ASCENDING:COLLECTION'));
 });
 
-test('cache name is v2252 and the TV script cache-buster moved', () => {
+test('cache name is v2254 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2252'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2254'"));
+    assert.ok(!sw.includes('btc-archive-v2253'));
+    assert.ok(!sw.includes('btc-archive-v2252'));
     assert.ok(!sw.includes('btc-archive-v2251'));
     assert.ok(!sw.includes('btc-archive-v2250'));
     assert.ok(!sw.includes('btc-archive-v2249'));
@@ -271,7 +273,10 @@ test('cache name is v2252 and the TV script cache-buster moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('timechain-tv.js?v=20261022_tctv3'));
-    assert.ok(html.includes('gifting.js?v=20261022_lightfix'));
+    assert.ok(html.includes('gifting.js?v=20261022_v2254'));
+    assert.ok(html.includes('notifications.js?v=20261022_v2254'));
+    assert.ok(!html.includes('gifting.js?v=20261022_lightfix'));
+    assert.ok(!html.includes('notifications.js?v=20261022_gifts'));
     assert.ok(html.includes('quests.js?v=20261022_v2252'));
     assert.ok(!html.includes('quests.js?v=20261022_v2251'));
     assert.ok(html.includes('ranking.js?v=20261022_lightfix'));

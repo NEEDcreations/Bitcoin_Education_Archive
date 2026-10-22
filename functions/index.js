@@ -144,6 +144,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const rewardNotify = require('./src/rewardNotify');
 
 // ── SSRF guard: resolve a hostname and reject if any resolved IP is private/loopback/link-local.
 // String-only checks are insufficient — a public domain can point to 169.254.169.254 etc.
@@ -1433,6 +1434,21 @@ exports.verifyReferral = functionsV1.https.onCall(async (data, context) => {
         referralVerified: true,
         orangeTickets: admin.firestore.FieldValue.increment(50),
     });
+    const referralTs = admin.firestore.FieldValue.serverTimestamp();
+    rewardNotify.apply(batch, db, referralTs, rewardNotify.plan({
+        uid: referrerUid,
+        tickets: 50,
+        sourceLabel: 'a referral reaching Maxi',
+        icon: '🎟️',
+        onceKey: 'referral_out_' + referredUid,
+    }));
+    rewardNotify.apply(batch, db, referralTs, rewardNotify.plan({
+        uid: referredUid,
+        tickets: 50,
+        sourceLabel: 'reaching Maxi with a referral',
+        icon: '🎟️',
+        onceKey: 'referral_in_' + referrerUid,
+    }));
     await batch.commit();
 
     return { success: true, referrerTickets: 50, referredTickets: 50 };
@@ -2164,9 +2180,11 @@ exports.claimSats = functionsV1.runWith({
             await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: decision.preimage }));
         } catch (e) {
             console.error('[FAUCET] paid but record failed:', e.message);
+            await _notifyClaimedSats(uid, amount);
             return { success: true, amount: amount, preimage: decision.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
         }
         console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid);
+        await _notifyClaimedSats(uid, amount);
         return { success: true, amount: amount, preimage: decision.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
     }
     if (decision.action === 'refund') {
@@ -2207,9 +2225,11 @@ exports.claimSats = functionsV1.runWith({
             await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: afterLookup.preimage, paymentHash: lookupReq.payment_hash }));
         } catch (e) {
             console.error('[FAUCET] settled but record failed:', e.message);
+            await _notifyClaimedSats(uid, amount);
             return { success: true, amount: amount, preimage: afterLookup.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
         }
         console.log('[FAUCET] Lookup settled ' + amount + ' sats to ' + uid);
+        await _notifyClaimedSats(uid, amount);
         return { success: true, amount: amount, preimage: afterLookup.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
     }
     if (afterLookup.action === 'refund') {
@@ -2243,6 +2263,15 @@ function _withTimeout(promise, ms, label) {
             }, ms);
         })
     ]);
+}
+
+async function _notifyClaimedSats(uid, amount) {
+    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+        uid: uid,
+        sats: amount,
+        sourceLabel: 'the sats faucet',
+        icon: '⚡',
+    }));
 }
 
 async function _rollbackClaim(uid, amount, today, invoiceRef) {
@@ -2844,8 +2873,15 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             const tData = tSnap.exists ? tSnap.data() : {};
             const badgeBatch = db.batch();
             let hasBadgeWork = false;
-            const _awardIfMissing = (ref, field, badges) => {
-                if (!badges.includes(field)) { badgeBatch.update(ref, { badges: admin.firestore.FieldValue.arrayUnion(field) }); hasBadgeWork = true; }
+            const _awardIfMissing = (ref, field, badges, badgeUid) => {
+                if (!badges.includes(field)) {
+                    badgeBatch.update(ref, { badges: admin.firestore.FieldValue.arrayUnion(field) });
+                    rewardNotify.apply(badgeBatch, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                        uid: badgeUid,
+                        badgeId: field,
+                    }));
+                    hasBadgeWork = true;
+                }
             };
             const PEER_BADGE_TIERS = [
                 [1,   'first_peer'],
@@ -2855,8 +2891,8 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
                 [250, 'peer_network_250'],
             ];
             PEER_BADGE_TIERS.forEach(([min, id]) => {
-                if ((uData.peerCount || 0) >= min) _awardIfMissing(userRef,   id, uData.badges || []);
-                if ((tData.peerCount || 0) >= min) _awardIfMissing(targetRef, id, tData.badges || []);
+                if ((uData.peerCount || 0) >= min) _awardIfMissing(userRef,   id, uData.badges || [], uid);
+                if ((tData.peerCount || 0) >= min) _awardIfMissing(targetRef, id, tData.badges || [], targetUid);
             });
             if (hasBadgeWork) await badgeBatch.commit();
         } catch(e) { console.warn('[managePeer] badge award failed:', e.message); }
@@ -3413,6 +3449,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     const offsetToday = getOffsetDateKey(); // 5 AM UTC — single source of truth for all daily gates
     const userRef = db.collection('users').doc(uid);
     const dailyPtsRef = userRef.collection('daily_points').doc(offsetToday);
+    const rewardGroup = rewardNotify.groupForAction(matchedAction);
+    const rewardGroupRef = rewardGroup
+        ? db.collection('notifications').doc(rewardNotify.groupDocId(uid, rewardGroup, offsetToday))
+        : null;
 
     // ACTION COOLDOWN: Atomic read-then-write (Fix M-NEW-13)
     const ACTION_COOLDOWNS = {
@@ -3484,11 +3524,12 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 dailyActionRef ? t.get(dailyActionRef) : Promise.resolve(null),
                 t.get(userRef),
                 t.get(dailyPtsRef),
+                rewardGroupRef ? t.get(rewardGroupRef) : Promise.resolve(null),
             ];
             const [
                 cooldownDoc, badgeAwardDoc, triviaDoc, pollDoc, dtDoc,
                 stravaDoc, countedDoc, flexDoc, comboDoc,
-                dailyActionDoc, userDoc, dailyDoc
+                dailyActionDoc, userDoc, dailyDoc, rewardGroupDoc
             ] = await Promise.all(readPromises);
 
             // ── PHASE 2: ALL VALIDATION (throws abort transaction before any writes) ──
@@ -3764,6 +3805,41 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     count: admin.firestore.FieldValue.increment(1),
                     lastAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
+            }
+
+            // Display-only. A failure here must not roll back the grant.
+            try {
+                const ticketsOut = (tickets && awarded > 0) ? tickets : 0;
+                const freezesOut = (streakFreezes && awarded > 0) ? streakFreezes : 0;
+                const rewardSpec = {
+                    uid: uid,
+                    action: matchedAction,
+                    reason: reason,
+                    day: offsetToday,
+                    xp: awarded,
+                    tickets: ticketsOut,
+                    freezes: freezesOut,
+                    badgeId: badgeAwardRef ? badgeId : null,
+                    pointsBefore: userData.points || 0,
+                    pointsDelta: totalPointsOut,
+                };
+                if (rewardGroup) {
+                    rewardSpec.existing = rewardGroupDoc && rewardGroupDoc.exists ? rewardGroupDoc.data() : null;
+                }
+                const rewardPlans = rewardNotify.plan(rewardSpec);
+                if (overflowRedeemed > 0) {
+                    rewardPlans.push.apply(rewardPlans, rewardNotify.plan({
+                        uid: uid,
+                        onceKey: 'overflow_' + offsetToday,
+                        day: offsetToday,
+                        xp: overflowRedeemed,
+                        sourceLabel: 'overflow redeemed from an earlier day',
+                        pointsDelta: 0,
+                    }));
+                }
+                rewardNotify.apply(t, db, admin.firestore.FieldValue.serverTimestamp(), rewardPlans);
+            } catch (notifyErr) {
+                console.warn('[awardPoints] reward notify skipped:', notifyErr && notifyErr.message);
             }
 
             return {
@@ -4107,6 +4183,22 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
 
             t.update(userRef, updateData);
 
+            if (bonusTickets > 0 || usedFreeze) {
+                try {
+                    rewardNotify.apply(t, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                        uid: uid,
+                        onceKey: 'visit_' + today,
+                        tickets: bonusTickets,
+                        freezes: usedFreeze ? -1 : 0,
+                        deduction: usedFreeze && bonusTickets <= 0,
+                        sourceLabel: usedFreeze ? 'a streak freeze on your daily visit' : (newStreak + '-day streak'),
+                        icon: usedFreeze ? '🧊' : '🔥',
+                    }));
+                } catch (notifyErr) {
+                    console.warn('[VISIT] reward notify skipped:', notifyErr && notifyErr.message);
+                }
+            }
+
             return {
                 alreadyVisited: false,
                 streak: newStreak,
@@ -4420,6 +4512,23 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (totalTickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(totalTickets);
         if (totalFreezes > 0) update.streakFreezes = admin.firestore.FieldValue.increment(totalFreezes);
         tx.update(userRef, update);
+        try {
+            const spinGains = reward.closet ? ['👔 a closet drop'] : [];
+            rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                uid: uid,
+                onceKey: isBonusSpin ? ('spin_bonus_' + Date.now()) : ('spin_' + today),
+                xp: totalPts,
+                tickets: totalTickets,
+                freezes: totalFreezes,
+                gains: spinGains,
+                sourceLabel: isBonusSpin ? 'a bonus spin' : 'the daily spin',
+                icon: '🎡',
+                pointsBefore: userData.points || 0,
+                pointsDelta: totalPts,
+            }));
+        } catch (notifyErr) {
+            console.warn('[SPIN] reward notify skipped:', notifyErr && notifyErr.message);
+        }
 
         // Increment global spin counter
         const statsRef = db.collection('stats').doc('global');
@@ -4725,6 +4834,21 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         }
 
         tx.update(userRef, update);
+        if (passed) {
+            try {
+                rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                    uid: uid,
+                    onceKey: 'scholar_' + keyPrefix,
+                    xp: 2100,
+                    sourceLabel: type === 'technical' ? 'the protocol exam' : 'the scholar exam',
+                    icon: '🎓',
+                    pointsBefore: userData.points || 0,
+                    pointsDelta: 2100,
+                }));
+            } catch (notifyErr) {
+                console.warn('[SCHOLAR] reward notify skipped:', notifyErr && notifyErr.message);
+            }
+        }
 
         return { score, passed, type };
     });
@@ -4861,6 +4985,21 @@ exports.gradeQuest = functionsV1.https.onCall(async (data, context) => {
             }
             if (Object.keys(userUpdate).length > 0) {
                 tx.update(userRef, userUpdate);
+            }
+            if (awarded > 0) {
+                try {
+                    rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                        uid: uid,
+                        onceKey: 'quest_' + String(questId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60),
+                        xp: awarded,
+                        sourceLabel: 'a quest',
+                        icon: '🏆',
+                        pointsBefore: userData.points || 0,
+                        pointsDelta: awarded,
+                    }));
+                } catch (notifyErr) {
+                    console.warn('[QUEST] reward notify skipped:', notifyErr && notifyErr.message);
+                }
             }
         }
 
@@ -6094,6 +6233,7 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
 
     let totalPoints = 0;
     let syncedCount = 0;
+    let powPointsBefore = 0;
 
     const userRef = db.collection('users').doc(uid);
     const statsRef = userRef.collection('proof_of_walk_stats').doc('daily');
@@ -6120,6 +6260,7 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
         // Phase 2: COMPUTE points
         let dailyData = dailyDoc.exists ? dailyDoc.data() : { date: '', distance: 0 };
         const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
+        powPointsBefore = currentPoints;
 
         for (let i = 0; i < eligible.length; i++) {
             if (actDocs[i].exists) continue; // Already processed
@@ -6161,6 +6302,17 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     });
 
     console.log('[POW] Done. synced:', syncedCount, 'pts:', totalPoints);
+    if (totalPoints > 0) {
+        await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+            uid: uid,
+            onceKey: 'walk_' + Date.now(),
+            xp: totalPoints,
+            sourceLabel: 'Proof of Walk',
+            icon: '👟',
+            pointsBefore: powPointsBefore,
+            pointsDelta: totalPoints,
+        }));
+    }
     return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
 });
 exports.adminLookupUser = functionsV1.https.onRequest(async (req, res) => {
@@ -6432,6 +6584,34 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
             userUpdate.orangeTickets = admin.firestore.FieldValue.increment(donationTicket);
         }
         tx.update(userRef, userUpdate);
+        try {
+            const donatePlans = rewardNotify.plan({
+                uid: uid,
+                onceKey: 'donate_' + Date.now(),
+                tickets: donationTicket,
+                icon: '🧡',
+                message: (donationTicket > 0)
+                    ? ('Donated ' + amount.toLocaleString('en-US') + ' XP and +' + donationTicket + ' 🎟️')
+                    : ('Donated ' + amount.toLocaleString('en-US') + ' XP'),
+            });
+            newBadges.forEach(function(badgeId) {
+                donatePlans.push.apply(donatePlans, rewardNotify.plan({ uid: uid, badgeId: badgeId }));
+            });
+            if (bonusPts > 0) {
+                donatePlans.push.apply(donatePlans, rewardNotify.plan({
+                    uid: uid,
+                    onceKey: 'donate_bonus_' + Date.now(),
+                    xp: bonusPts,
+                    sourceLabel: 'donation badges',
+                    icon: '🏅',
+                    pointsBefore: points,
+                    pointsDelta: bonusPts,
+                }));
+            }
+            rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), donatePlans);
+        } catch (notifyErr) {
+            console.warn('[DONATE] reward notify skipped:', notifyErr && notifyErr.message);
+        }
 
         // Write donation record
         tx.set(donationRef, {
@@ -6919,18 +7099,15 @@ async function _awardTicketsToUser(uid, ticketCount, reason) {
             awardedAt: Date.now()
         })
     });
-    // Write a persistent notification so it shows in the bell tray
-    await db.collection('notifications').add({
-        recipientId: uid,
-        senderId: 'system',
-        senderName: 'Leaderboard',
+    // Bell feed. Same grant, display-only, written with the ticket update above.
+    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+        uid: uid,
+        tickets: ticketCount,
+        sourceLabel: reason,
+        icon: '🏆',
         type: 'leaderboard_reward',
-        message: '🏆 ' + reason + ' — you earned ' + ticketCount + ' 🎫 Orange Tickets! Check your wallet.',
-        targetType: null,
-        targetId: null,
-        read: false,
-        createdAt: admin.firestore.Timestamp.now()
-    });
+        onceKey: 'lb_' + Date.now(),
+    }));
 }
 
 async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
@@ -7126,15 +7303,30 @@ exports.monthlyRaffleDraw = onSchedule({ schedule: '0 18 1 * *', timeZone: 'UTC'
     });
 
     console.log('[RAFFLE DRAW] Announcement posted to global_chat.');
+    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+        uid: winner.uid,
+        onceKey: 'raffle_win_' + monthKey,
+        icon: '🏆',
+        message: '🏆 You won the ' + monthLabel + ' raffle! Phil will arrange your 21,000 sats prize.',
+    }));
 
     // 6. Reset all raffleEntries to 0 — new month starts clean
     const allWithEntries = await db.collection('users').where('raffleEntries', '>', 0).get();
     if (!allWithEntries.empty) {
-        const BATCH_SIZE = 400;
+        const BATCH_SIZE = 200;
         const docs = allWithEntries.docs;
         for (let i = 0; i < docs.length; i += BATCH_SIZE) {
             const batch = db.batch();
-            docs.slice(i, i + BATCH_SIZE).forEach(doc => batch.update(doc.ref, { raffleEntries: 0 }));
+            const raffleTs = admin.firestore.FieldValue.serverTimestamp();
+            docs.slice(i, i + BATCH_SIZE).forEach(function(doc) {
+                batch.update(doc.ref, { raffleEntries: 0 });
+                rewardNotify.apply(batch, db, raffleTs, rewardNotify.plan({
+                    uid: doc.id,
+                    onceKey: 'raffle_reset_' + monthKey,
+                    icon: '🎟️',
+                    message: '🎟️ Raffle entries reset for the new month',
+                }));
+            });
             await batch.commit();
         }
         console.log(`[RAFFLE DRAW] Reset raffleEntries for ${docs.length} users — ${monthKey + 1} raffle is open.`);
@@ -7180,6 +7372,18 @@ exports.spendTicketsForFreeze = functionsV1.https.onCall(async (data, context) =
             streakFreezes: admin.firestore.FieldValue.increment(amount),
         };
         t.update(userRef, update);
+        try {
+            rewardNotify.apply(t, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                uid: uid,
+                onceKey: 'freeze_buy_' + Date.now(),
+                tickets: -ticketCost,
+                freezes: amount,
+                sourceLabel: 'buying streak freezes',
+                icon: '🧊',
+            }));
+        } catch (notifyErr) {
+            console.warn('[FREEZE] reward notify skipped:', notifyErr && notifyErr.message);
+        }
         return {
             newTickets: currentTickets - ticketCost,
             newFreezes: currentFreezes + amount,
@@ -7296,6 +7500,8 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
                 const badgeRef = pRef.collection('badge_awards').doc('weekly_hero');
                 const badgeDoc = await badgeRef.get();
                 if (!badgeDoc.exists) {
+                    const heroSnap = await pRef.get();
+                    const heroBefore = heroSnap.exists ? (heroSnap.data().points || 0) : 0;
                     await badgeRef.set({ awardedAt: admin.firestore.FieldValue.serverTimestamp() });
                     await pRef.update({
                         points: admin.firestore.FieldValue.increment(100),
@@ -7303,6 +7509,16 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
                         monthlyXP: admin.firestore.FieldValue.increment(100),
                         visibleBadges: admin.firestore.FieldValue.arrayUnion('weekly_hero'),
                     });
+                    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                        uid: puid,
+                        badgeId: 'weekly_hero',
+                        xp: 100,
+                        sourceLabel: 'the weekly challenge',
+                        icon: '🏆',
+                        pointsBefore: heroBefore,
+                        pointsDelta: 100,
+                        onceKey: 'weekly_hero_' + weekKey,
+                    }));
                 }
             } catch (e) { console.error('[WEEKLY CHALLENGE] participant award error', puid, e); }
         }
@@ -7426,6 +7642,27 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
             read: false,
             ts: admin.firestore.FieldValue.serverTimestamp(),
         });
+        try {
+            const got = [];
+            if (g.streakFreezes) got.push('+' + g.streakFreezes + ' 🧊');
+            if (g.hashBoosters) got.push('+' + (g.hashBoosters * qty) + ' hash booster' + (g.hashBoosters * qty === 1 ? '' : 's'));
+            if (g.hintTokens) got.push('+' + g.hintTokens + ' hint' + (g.hintTokens === 1 ? '' : 's'));
+            if (g.doubleXP) got.push('+' + (g.doubleXP * qty) + ' Double XP');
+            if (g.bonusSpins) got.push('+' + (g.bonusSpins * qty) + ' bonus spin' + (g.bonusSpins * qty === 1 ? '' : 's'));
+            if (g.raffleEntries) got.push('+' + (g.raffleEntries * qty) + ' raffle ticket' + (g.raffleEntries * qty === 1 ? '' : 's'));
+            if (g.secondRigCharges) got.push('+' + (g.secondRigCharges * qty) + ' second rig');
+            if (g.cosmetics) got.push('a closet item');
+            const gotText = got.length ? ' (' + got.join(', ') + ')' : '';
+            rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                uid: uid,
+                onceKey: 'shop_' + Date.now(),
+                tickets: -totalCost,
+                icon: '🛒',
+                message: '-' + totalCost + ' 🎟️: bought ' + item.name + gotText,
+            }));
+        } catch (notifyErr) {
+            console.warn('[SHOP] reward notify skipped:', notifyErr && notifyErr.message);
+        }
 
         // Compute new inventory counts to return to client
         const newInventory = {
@@ -7525,6 +7762,17 @@ exports.convertPointsToTickets = functionsV1.https.onCall(async (data, context) 
             read: false,
             ts: admin.firestore.FieldValue.serverTimestamp(),
         });
+        try {
+            rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                uid: uid,
+                onceKey: 'xptix_' + Date.now(),
+                tickets: tickets,
+                icon: '💱',
+                message: '+' + tickets + ' 🎟️ from exchanging ' + pointsCost.toLocaleString('en-US') + ' XP',
+            }));
+        } catch (notifyErr) {
+            console.warn('[EXCHANGE] reward notify skipped:', notifyErr && notifyErr.message);
+        }
 
         return {
             success: true,
@@ -7564,6 +7812,16 @@ exports.activateHashBooster = functionsV1.https.onCall(async (data, context) => 
             hashBoosterHashes: admin.firestore.FieldValue.increment(100),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        try {
+            rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                uid: uid,
+                onceKey: 'booster_' + Date.now(),
+                icon: '⚡',
+                message: '-1 hash booster: +100 bonus hashes ready',
+            }));
+        } catch (notifyErr) {
+            console.warn('[BOOST] reward notify skipped:', notifyErr && notifyErr.message);
+        }
 
         return {
             success: true,
@@ -7597,6 +7855,16 @@ exports.useHintToken = functionsV1.https.onCall(async (data, context) => {
             hintTokens: admin.firestore.FieldValue.increment(-1),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        try {
+            rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                uid: uid,
+                onceKey: 'hint_' + Date.now(),
+                icon: '💡',
+                message: '-1 hint: used a hint token',
+            }));
+        } catch (notifyErr) {
+            console.warn('[HINT] reward notify skipped:', notifyErr && notifyErr.message);
+        }
 
         return { success: true, hintTokens: hintTokens - 1 };
     });
@@ -7636,6 +7904,16 @@ exports.activateDoubleXP = functionsV1.https.onCall(async (data, context) => {
             doubleXPExpiry: newExpiry,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        try {
+            rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                uid: uid,
+                onceKey: 'doublexp_' + Date.now(),
+                icon: '✨',
+                message: '-1 Double XP charge: activated for 60 minutes',
+            }));
+        } catch (notifyErr) {
+            console.warn('[2XP] reward notify skipped:', notifyErr && notifyErr.message);
+        }
 
         return {
             success: true,
@@ -7672,6 +7950,16 @@ exports.useBonusSpin = functionsV1.https.onCall(async (data, context) => {
             bonusSpinGranted: true,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        try {
+            rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+                uid: uid,
+                onceKey: 'bonusspin_' + Date.now(),
+                icon: '🎡',
+                message: '-1 bonus spin: spin unlocked',
+            }));
+        } catch (notifyErr) {
+            console.warn('[SPIN] reward notify skipped:', notifyErr && notifyErr.message);
+        }
 
         return { success: true, bonusSpins: bonusSpins - 1 };
     });
@@ -8317,6 +8605,11 @@ exports.mergeAnonBadges = functionsV1.https.onCall(async (data, context) => {
         visibleBadges: admin.firestore.FieldValue.arrayUnion(...toAdd),
         anonBadgesMerged: true,
     });
+    const mergedPlans = [];
+    toAdd.forEach(function(id) {
+        mergedPlans.push.apply(mergedPlans, rewardNotify.plan({ uid: uid, badgeId: id }));
+    });
+    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), mergedPlans);
 
     console.log('[mergeAnonBadges] uid:', uid, 'merged:', toAdd.length, 'skipped:', skipped, 'badges:', toAdd.join(','));
     return { merged: toAdd.length, skipped };

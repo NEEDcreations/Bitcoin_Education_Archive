@@ -24,6 +24,8 @@ const TESTS = [
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
+    { name: 'Reward Notifications', file: 'test-reward-notify.js' },
+    { name: 'Cache Busters', file: 'busters.js' },
 ];
 
 let allPassed = true;

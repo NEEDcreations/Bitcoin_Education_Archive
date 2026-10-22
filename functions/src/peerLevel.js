@@ -17,6 +17,7 @@
  */
 
 const admin = require('firebase-admin');
+const rewardNotify = require('./rewardNotify');
 
 const db = admin.firestore();
 
@@ -124,7 +125,14 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
     t.update(senderRef, senderPeerUpdate);
     t.update(recipRef,  recipPeerUpdate);
 
-    return { giftsExchanged, newLevel, didLevelUp, xpAwarded: didLevelUp ? newLevel.xp : 0 };
+    return {
+      giftsExchanged,
+      newLevel,
+      didLevelUp,
+      xpAwarded: didLevelUp ? newLevel.xp : 0,
+      senderPoints: senderDoc.data().points || 0,
+      recipPoints: recipDoc.data().points || 0,
+    };
   });
 
   // ── Level-up notifications (outside transaction — non-critical) ──────────
@@ -156,6 +164,19 @@ async function updatePeerLevelAfterGift(senderUid, recipientUid) {
       ]);
     } catch (e) {
       console.warn('[peerLevel] notification failed:', e.message);
+    }
+    if (txResult.xpAwarded > 0) {
+      await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(),
+        rewardNotify.plan({
+          uid: senderUid,
+          pointsBefore: txResult.senderPoints,
+          pointsDelta: txResult.xpAwarded,
+        }).concat(rewardNotify.plan({
+          uid: recipientUid,
+          pointsBefore: txResult.recipPoints,
+          pointsDelta: txResult.xpAwarded,
+        }))
+      );
     }
 
     console.log(

@@ -14,6 +14,7 @@ const { updatePeerLevelAfterGift } = require('./peerLevel');
 const { rollCipherReward } = require('./cipherReward');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
 const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
+const rewardNotify = require('./rewardNotify');
 const {
     assessCipherClaim,
     isSatsBanned,
@@ -27,6 +28,10 @@ const { planShoutout, applyShoutoutCap, shoutoutDocId } = require('./shoutout');
 const { mirrorShoutoutOnce } = require('./telegramBridge');
 
 const db = admin.firestore();
+
+function rewardStamp() {
+    return admin.firestore.FieldValue.serverTimestamp();
+}
 
 const CIPHER_LABELS = ['3A', '7F', 'B2', 'D9', '1C', '8E', 'A4', 'F6'];
 const CIPHER_OPENS_PER_DAY = 21;
@@ -253,6 +258,21 @@ const awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
         }
 
         t.update(userRef, { lastGiftSpinDate: today });
+        if (giftsToAdd > 0) {
+            try {
+                rewardNotify.apply(t, db, rewardStamp(), rewardNotify.plan({
+                    uid: uid,
+                    onceKey: 'gifts_' + today,
+                    type: 'gift_received',
+                    icon: '🎁',
+                    targetType: 'gift',
+                    targetId: gifts[0] ? gifts[0].id : null,
+                    message: '🎁 You received ' + giftsToAdd + ' gift' + (giftsToAdd === 1 ? '' : 's') + '. Open them to see what is inside.',
+                }));
+            } catch (notifyErr) {
+                console.warn('[awardDailyGifts] reward notify skipped:', notifyErr && notifyErr.message);
+            }
+        }
         return { success: true, giftsAdded: giftsToAdd, gifts: gifts };
     });
 
@@ -273,6 +293,7 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
     const userRef = db.collection('users').doc(uid);
     let rewardResult = null;
     let peerSender = null;
+    let giftPointsBefore = 0;
 
     await db.runTransaction(async (t) => {
         const giftDoc = await t.get(giftRef);
@@ -384,11 +405,42 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         }
 
         rewardResult = reward;
+        giftPointsBefore = user.points || 0;
     });
 
     if (peerSender) {
         try { await updatePeerLevelAfterGift(peerSender, uid); }
         catch (e) { console.warn('[openGift] peerLevel failed:', e.message); }
+    }
+
+    if (rewardResult) {
+        const spec = { uid: uid, sourceLabel: 'opening a gift', icon: '🎁', pointsBefore: giftPointsBefore, pointsDelta: 0 };
+        if (rewardResult.rewardType === 'tickets') {
+            spec.tickets = rewardResult.ticketCount || 1;
+            if (rewardResult.closetDupe) spec.sourceLabel = 'opening a gift (closet item already owned)';
+        } else if (rewardResult.rewardType === 'xp_bonus') {
+            spec.xp = rewardResult.xpAmount || 50;
+            spec.pointsDelta = spec.xp;
+        } else if (rewardResult.rewardType === 'streak_shield') {
+            spec.freezes = 1;
+            spec.icon = '🧊';
+        } else if (rewardResult.rewardType === 'closet_item') {
+            spec.gains = ['👔 a closet item'];
+            spec.icon = '👔';
+        } else if (rewardResult.rewardType === 'keys') {
+            const labels = (rewardResult.keyLabels || []).filter(Boolean).join(', ');
+            spec.message = '🔑 You received ' + (labels || 'a key') + ' from opening a gift';
+            spec.icon = '🔑';
+        } else if (rewardResult.rewardType === 'locked_ciphers') {
+            const labels = (rewardResult.cipherLabels || []).filter(Boolean).join(', ');
+            spec.message = '🔒 You received locked cipher ' + (labels || '') + ' from opening a gift';
+            spec.icon = '🔒';
+        } else if (rewardResult.rewardType === 'nacho_shoutout') {
+            spec.message = '🎁 Nacho shoutout from opening a gift';
+        }
+        if (spec.tickets || spec.xp || spec.freezes || spec.gains || spec.message) {
+            await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan(spec));
+        }
     }
 
     if (rewardResult && rewardResult.rewardType === 'nacho_shoutout') {
@@ -433,6 +485,8 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
 
     let senderName = 'Someone';
     let xpAwarded = 0;
+    let sentLabels = [];
+    let senderPointsBefore = 0;
 
     await db.runTransaction(async (t) => {
         const docs = await Promise.all([
@@ -452,6 +506,8 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
 
         const sender = senderDoc.data();
         senderName = safeName(sender.username || 'Someone');
+        senderPointsBefore = sender.points || 0;
+        sentLabels = [];
         const peers = sender.peers || [];
         if (peers.indexOf(recipientUid) === -1) throw httpsError('failed-precondition', 'You must be peers to send keys');
 
@@ -467,6 +523,7 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             if (key.ownerId !== uid) throw httpsError('permission-denied', 'Not your key');
             if (key.status !== 'inventory') throw httpsError('failed-precondition', 'Key already sent or used');
             if (CIPHER_LABELS.indexOf(key.label) === -1) throw httpsError('invalid-argument', 'Invalid key label');
+            sentLabels.push(key.label);
         });
 
         const now = admin.firestore.FieldValue.serverTimestamp();
@@ -531,16 +588,24 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
                 });
             } catch (pushErr) { console.warn('[sendKeys] push failed:', pushErr.message); }
         }
-        await db.collection('notifications').add({
-            recipientId: recipientUid,
-            senderId: uid,
-            senderName: senderName,
+        const labelText = sentLabels.filter(Boolean).join(', ');
+        const keyWord = sentLabels.length === 1 ? 'an ' + (labelText || 'key') : (labelText || (keyIds.length + ' keys'));
+        await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
+            uid: recipientUid,
             type: 'keys_received',
-            message: senderName + ' sent you ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '! 🔑',
+            icon: '🔑',
             targetType: 'keys',
-            read: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+            message: '🔑 You received ' + keyWord + ' from @' + senderName,
+            onceKey: 'keys_' + uid + '_' + todayUtc,
+        }).concat(xpAwarded > 0 ? rewardNotify.plan({
+            uid: uid,
+            xp: xpAwarded,
+            sourceLabel: 'sending keys',
+            icon: '🔑',
+            pointsBefore: senderPointsBefore,
+            pointsDelta: xpAwarded,
+            onceKey: 'keysend_' + recipientUid + '_' + todayUtc,
+        }) : []));
     } catch (e) { console.warn('[sendKeys] notification failed:', e.message); }
 
     return { success: true, keysSent: keyIds.length, xpAwarded: xpAwarded };
@@ -566,6 +631,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     }
 
     let applied = null;
+    let cipherPointsBefore = 0;
 
     await db.runTransaction(async (t) => {
         const cipherDoc = await t.get(cipherRef);
@@ -644,6 +710,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         t.update(keyRef, { status: 'consumed', consumedAt: now });
         t.update(userRef, userUpdate);
 
+        cipherPointsBefore = user.points || 0;
         applied = {
             reward: Object.assign({}, reward, { winId: winId, satsStatus: satsStatus }),
             keySentBy: peerKey ? (key.sentBy || null) : null,
@@ -657,12 +724,34 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
     }
 
-    // Cipher odds do not roll a shoutout today (sats, or XP and tickets).
-    // If a cipher prize is ever a shoutout, it posts the same way a gift does.
-    if (applied && applied.reward && applied.reward.rewardType === 'nacho_shoutout') {
-        try {
-            await maybeAnnounceShoutout({ uid: uid, prizeId: 'cipher_' + cipherId, markerRef: cipherRef });
-        } catch (e) { console.warn('[decryptCipher] nacho shoutout failed:', e.message); }
+    if (applied && applied.reward) {
+        const r = applied.reward;
+        const spec = {
+            uid: uid,
+            sourceLabel: 'opening a cipher',
+            icon: '🔓',
+            pointsBefore: cipherPointsBefore,
+            pointsDelta: 0,
+        };
+        if (r.rewardType === 'sats') {
+            spec.icon = '⚡';
+            spec.message = '+' + Number(r.satsAmount || 0).toLocaleString('en-US') + ' sats from a cipher (' + (r.satsStatus === 'claimable' ? 'ready to claim' : 'pending review') + ')';
+        } else if (r.rewardType === 'nacho_shoutout') {
+            spec.message = '🎁 Nacho shoutout from opening a cipher';
+            spec.icon = '🎁';
+        } else {
+            spec.xp = r.xpAmount || 50;
+            spec.pointsDelta = spec.xp;
+            spec.tickets = r.ticketCount || 0;
+        }
+        await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan(spec));
+        // Cipher odds do not roll a shoutout today (sats, or XP and tickets).
+        // If a cipher prize is ever a shoutout, it posts the same way a gift does.
+        if (r.rewardType === 'nacho_shoutout') {
+            try {
+                await maybeAnnounceShoutout({ uid: uid, prizeId: 'cipher_' + cipherId, markerRef: cipherRef });
+            } catch (e) { console.warn('[decryptCipher] nacho shoutout failed:', e.message); }
+        }
     }
 
     const pub = publicReward(applied.reward);
@@ -861,8 +950,20 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
             await invoiceRef.set({ uid: uid, winId: winId, amount: amount, status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() });
         } catch (e) {
             console.error('[claimCipherWin] paid but record update failed:', e.message);
+            await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
+                uid: uid,
+                sats: amount,
+                sourceLabel: 'a cipher win',
+                icon: '⚡',
+            }));
             return { success: true, amount: amount, warning: 'Paid, but the receipt did not save. Phil can confirm it in the admin list.' };
         }
+        await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
+            uid: uid,
+            sats: amount,
+            sourceLabel: 'a cipher win',
+            icon: '⚡',
+        }));
 
         try {
             await postNacho(nachoSatsText(username, amount), uid);
