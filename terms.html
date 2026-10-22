@@ -26,7 +26,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Terms of Service</h1>
-    <p class="subtitle">Last updated: October 6, 2026</p>
+    <p class="subtitle">Last updated: October 22, 2026</p>
 
     <h2>1. Acceptance of Terms</h2>
     <p>By accessing or using the Bitcoin Education Archive website at <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> ("the Site"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Site.</p>
@@ -58,7 +58,10 @@
         <li><strong>Sats vs Bits</strong> — a live community denomination vote in Global Chat</li>
         <li><strong>Meetup Builder</strong> — resources, platforms, and guides for organizing Bitcoin meetups</li>
         <li>Bookmarks and favorites synced across devices via Firestore</li>
-        <li>In-app notifications for sats claims, DMs, streaks, and exploration milestones</li>
+        <li>An in-app notifications inbox (sats, DMs, mentions, tips, gifts, streaks, and similar alerts). Web push can be turned on per device from Settings</li>
+        <li><strong>Say hi</strong> — a once-a-day Global Chat greeting that can award XP and an Orange Ticket</li>
+        <li>Gifts, keys, and locked ciphers between peers</li>
+        <li>A short onboarding guide for new visitors</li>
         <li>Community statistics dashboard (aggregate activity counters)</li>
         <li>Quest topic picker with 77+ browsable quiz categories and progress tracking</li>
         <li>Server-side price prediction resolution via Cloud Functions</li>
@@ -85,7 +88,7 @@
     </ul>
 
     <h2>3. Accounts</h2>
-    <p>You may create an account using a username, email, or third-party sign-in (Google, Twitter/X, GitHub, Facebook, Nostr, or Lightning wallet). You agree to:</p>
+    <p>You may create an account with a username and email, or sign in with Google, Twitter/X, GitHub, Facebook, Nostr (NIP-07), or a Lightning wallet (LNURL-auth). You can also continue as a guest. A guest session is an anonymous Firebase sign-in. Guests can look around, but rewards and posting that require a real account — including the daily spin, Say hi, Global Chat, direct messages, and sats claims — stay off until you sign in with one of the methods above. You agree to:</p>
     <ul>
         <li>Provide accurate information</li>
         <li>Not impersonate others or use offensive usernames</li>
@@ -97,10 +100,10 @@
 
     <h2>4. Orange Tickets, Referral Program & Nacho's Nook</h2>
     <ul>
-        <li>Orange Tickets are earned through daily logins (+1 ticket), spinning the daily wheel, and verified referrals</li>
-        <li>Each Orange Ticket also awards 5 bonus points toward your rank</li>
-        <li>Tickets increase your chances in periodic sats giveaways but do not guarantee any prize</li>
-        <li>Referral verification requires the referred user to log in and earn 2,100+ points (Maxi rank)</li>
+        <li>Orange Tickets are earned through daily logins (+1 ticket), the daily spin, Say hi, the shop, and verified referrals</li>
+        <li>Some ticket awards also add a small XP bonus (5 XP per ticket on the daily-login and referral checks in the app)</li>
+        <li>Tickets increase your chances in periodic sats giveaways and can be spent in Nacho's Nook, but they do not guarantee any prize</li>
+        <li>Maxi rank starts at 2,140 XP. The referral reward at Maxi is 50 Orange Tickets for the person who shared the link and 50 Orange Tickets for the referred account. The in-app check credits the referrer after the referred account reaches Maxi and has at least two visits. A server check can pay both sides and can reject a referral. Reaching Maxi does not move the tickets by itself</li>
         <li>Referral abuse (fake accounts, self-referrals, bots) will result in ticket forfeiture and account suspension</li>
         <li>Tickets have no monetary value and cannot be sold, traded, or transferred</li>
         <li>We reserve the right to modify the ticket and referral system at any time</li>
@@ -121,10 +124,12 @@
     <ul>
         <li>Points are earned through site visits, reading channels, completing quests, earning badges, earning tickets, trivia, community participation, Global Chat engagement, DJ broadcasts, and tune-ins</li>
         <li>There are visible goal badges (including chat, DJ, discovery, trails, PVP, music, social, streaks, Nacho, marketplace, and prediction categories) and hidden secret badges with point values ranging from 10 to 1,000</li>
-        <li>Ranks range from Normie (0 pts) to Satoshi (21,000 pts)</li>
+        <li>Ranks run from Normie (0 XP) through Maxi (2,140 XP) up to Satoshi (210,000 XP)</li>
         <li>Leaderboard rankings are public and display your chosen username and online status. Three leaderboard periods are available: All-Time, Weekly (resets every Monday), and Monthly (resets on the 1st of each month)</li>
         <li>Weekly and Monthly leaderboards track XP earned during that period only; all-time XP is never reduced</li>
-        <li>Points are awarded through server-side Cloud Functions with a <strong>500 point daily cap</strong> enforced via atomic database transactions — client-side manipulation is not possible</li>
+        <li>XP is awarded on the server. The main award function caps a day at <strong>1,000 XP</strong>. Some actions, including graded quiz quests and some gift and key rewards, use a lower cap (500 XP). XP past the cap can be held and applied on a later day, still inside that day's cap. A change in the browser does not raise the cap</li>
+        <li>Quiz quests are graded on the server. The browser sends your answers; we keep the answer key. Daily trivia can award XP through the same server award function. Trivia and quiz grading may run entirely on the server. We do not treat a score you type into the browser as final</li>
+        <li>Engagement in Global Chat, including replies, may earn XP. There is no promise of XP for any particular message</li>
         <li>Attempting to manipulate points through automated tools, scripts, browser console commands, or exploits is prohibited and will be detected</li>
         <li>We reserve the right to reset points or remove accounts engaged in abuse</li>
         <li><strong>XP/points, badges, and ranks are virtual, have no monetary value, and are non-transferable.</strong> They cannot be exchanged for real currency, Bitcoin, or any asset of value.</li>
@@ -168,7 +173,8 @@
             <li>Doxxing or sharing others' personal information</li>
             <li>Promotion of altcoins or non-Bitcoin cryptocurrencies</li>
         </ul>
-        <li>We reserve the right to remove posts and ban users who violate these rules</li>
+        <li>You are responsible for what you post</li>
+        <li>We may remove posts, replies, and listings, and we may suspend or ban accounts, at any time</li>
         <li>Clicking a username in PlebTalk opens that user's profile</li>
     </ul>
 
@@ -182,7 +188,7 @@
         <li><strong>We are not liable for any Bitcoin, satoshis, or property lost through marketplace transactions, including scams, fraud, non-delivery, misrepresentation, or disputes between users.</strong> You transact entirely at your own risk.</li>
         <li>Bitcoin transactions are irreversible. Once you send Bitcoin or satoshis to another user, it cannot be recovered by us under any circumstances.</li>
         <li>Users are solely responsible for the accuracy of their listings</li>
-        <li>You are responsible for your listings and trades, and we can remove listings</li>
+        <li><strong>You are responsible for your listings and for any trade you make.</strong> Check the item, the person, and the payment yourself. We do not inspect goods, hold sats in escrow, or settle disputes, and we can remove listings</li>
         <li>The following listings are <strong>strictly prohibited</strong>:</li>
         <ul>
             <li>Illegal items or services of any kind, including but not limited to: drugs, narcotics, controlled substances, weapons, firearms, ammunition, explosives, or any item whose sale violates applicable law</li>
@@ -243,6 +249,8 @@
         <li>Uploaded tracks are <strong>publicly accessible</strong> — all users can browse, play, and like them</li>
         <li>Audio files are stored in Firebase Storage (large files) or as base64 data in Firestore (small files)</li>
         <li>Cover art images are stored in Firebase Storage and shared across tracks in an album/EP</li>
+        <li>Some music is licensed from third parties (including Value-4-Value feeds). Those tracks are shown with credit, such as the artist, feed title, or Podcast Index. Streaming from Wavlake uses Wavlake's embedded player, so Wavlake's terms apply to that player</li>
+        <li>You are responsible for what you upload. We may remove a track or an account. Copyright notices go to <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> under the takedown process below and our <a href="/dmca.html">DMCA Copyright Policy</a></li>
     </ul>
 
     <h3>Copyright & Intellectual Property</h3>
@@ -283,7 +291,8 @@
     </ul>
 
     <h3>Timechain TV & Video Content</h3>
-    <p>Timechain TV is a synchronized video playback experience. 'Live' refers to our internal clock synchronization that ensures all users on a specific channel see the same content at the same time. We do not host the video files; content is embedded from third-party platforms like YouTube. By using the video player, you also agree to be bound by the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a>. For the full Timechain TV terms, see the <a href="/tctv-terms.html">Timechain TV Terms of Service</a>.</p>
+    <p>Timechain TV is a synchronized video playback experience. 'Live' refers to our internal clock synchronization that ensures all users on a specific channel see the same content at the same time. We do not host the video files; content is embedded from YouTube, so <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube's Terms of Service</a> and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a> apply to the player. For the full Timechain TV terms, see the <a href="/tctv-terms.html">Timechain TV Terms of Service</a>.</p>
+    <p>While you watch, the app stores a short presence heartbeat and, for signed-in users, watch time. A daily challenge may ask you to watch Timechain TV. Completing it can award XP, subject to the daily cap. Details of what we store are in the <a href="/privacy.html">Privacy Policy</a>.</p>
     <p><strong>Third-party content disclaimer.</strong> All videos shown on Timechain TV are publicly embeddable videos uploaded by independent YouTube creators. Bitcoin Education Archive does not own, host, verify, endorse, or sponsor any of the content. Views, opinions, price predictions, trading strategies, investment theses, endorsements, and statements of fact expressed in these videos are solely those of the individual speakers, hosts, and guests — not of Bitcoin Education Archive, its operators, or its affiliates.</p>
     <p><strong>Not financial, investment, legal, or tax advice.</strong> Nothing shown on Timechain TV (including commentary from Couch Nacho and any on-screen captions, ads, or labels) constitutes financial, investment, legal, accounting, or tax advice. Bitcoin is volatile and speculative; you can lose some or all of your money. You are solely responsible for your own financial decisions and should consult a licensed professional before buying, selling, holding, or using Bitcoin or any other asset. Past performance is not indicative of future results.</p>
     <p><strong>No responsibility for accuracy or outcomes.</strong> Bitcoin Education Archive makes no warranty regarding the accuracy, completeness, timeliness, or reliability of any content shown on Timechain TV. We are not responsible for losses, damages, or any consequences (financial or otherwise) arising from reliance on content shown on the platform. If you believe a video contains infringing or prohibited content, please contact us and we will review it.</p>
@@ -323,6 +332,9 @@
         <li>An online user counter displays how many users are currently active (seen within the last 3 minutes)</li>
         <li>Content rules from Section 6 (PlebTalk) apply equally to Global Chat — no spam, scams, harassment, hate speech, NSFW content, or doxxing</li>
         <li>We reserve the right to moderate, remove messages, and ban users who violate chat rules</li>
+        <li>Typing @ and a username can tag that person. The tag can open their profile, and they may get an in-app notification</li>
+        <li>Nacho may post in Global Chat, including posts that tag a username. Those posts, and other Global Chat messages, may be mirrored to a linked Telegram group</li>
+        <li>Engagement in chat may earn XP. Say hi is a separate once-a-day greeting: after you arm it, a real chat message you send that day can award 50 XP and 1 Orange Ticket, if the server accepts the message. Guest accounts cannot claim it. It counts toward the daily XP cap and can be refused</li>
         <li>Nacho may automatically respond to questions posted in Global Chat</li>
     </ul>
 
@@ -385,7 +397,7 @@
         <li>By connecting Strava, you authorize Bitcoin Education Archive to read your activity data (steps, distance, duration) via the Strava API for the purpose of awarding points</li>
         <li>Only activity data is read — we do not access your Strava followers, social graph, heart rate data, GPS route maps, or any data beyond activity metrics needed for point calculation</li>
         <li>Strava authentication is handled via OAuth 2.0 through a secure Cloud Function — your Strava credentials are never exposed to the client or stored on our servers</li>
-        <li>Points awarded through Proof of Walk are subject to the same daily 500-point cap as all other point sources (Section 5)</li>
+        <li>Points awarded through Proof of Walk are subject to the same daily XP cap as other point sources (Section 5)</li>
         <li>Bitcoin Education Archive is not affiliated with or endorsed by Strava. Use of the Strava integration is also subject to <a href="https://www.strava.com/legal/terms" target="_blank" rel="noopener">Strava's Terms of Service</a></li>
         <li>We are not responsible for any issues arising from Strava's service availability, API changes, or account access</li>
     </ul>
@@ -398,6 +410,26 @@
         <li>Peer connections do not grant access to private data — they are a social indicator only</li>
         <li>Peer requests are stored in Firebase and are subject to the same conduct rules as all other features. Sending unsolicited, harassing, or spam peer requests is prohibited</li>
         <li>We reserve the right to modify or remove the Peers feature at any time</li>
+    </ul>
+
+    <h2>13d. Gifts, Keys &amp; Locked Ciphers</h2>
+    <ul>
+        <li>Signed-in users may send gifts and keys to peers. Locked ciphers are virtual items. The server decides what a gift or cipher contains. The browser does not choose the reward</li>
+        <li>Keys and ciphers are stored on your account. They have no cash value by themselves. If a reward is paid in sats, the sats rules in these Terms apply, including that we may refuse or reverse a payout</li>
+        <li>Opening or sending these items can create an in-app notification and, for some results, a Global Chat post that may also appear on Telegram</li>
+    </ul>
+
+    <h2>13e. PvP &amp; Satoshi's Favor</h2>
+    <ul>
+        <li>PvP is a quiz battle between signed-in users. Scores and results may be shown publicly, including in Global Chat. Cheating is prohibited. Rewards follow the XP rules in Section 5, and we may decide match rewards on the server</li>
+        <li>Satoshi's Favor is a timed hashing game. You submit hashes; the server checks them and decides any reward. Changing the page in your browser does not change the outcome. A Favor window may be announced in Global Chat and, if you opt in, by push notification</li>
+    </ul>
+
+    <h2>13f. Notifications, Web Push &amp; Onboarding</h2>
+    <ul>
+        <li>The in-app inbox stores notices for you, such as messages, mentions, tips, gifts, and rewards. Only you can read your inbox. You can mark a notice read or delete it</li>
+        <li>Web push is optional. If you allow it, we store a token for that device so Firebase Cloud Messaging can deliver a notification. Settings includes per-category controls and a switch that turns push off. You can also block notifications in your browser or device settings. Turning push off stops new pushes to that device. Category defaults can change</li>
+        <li>New visitors may see a short onboarding guide from Nacho: pick a topic, open chat, try the daily spin, and similar steps. Finishing a step can award a small amount of XP. Your place in the guide is stored in this browser</li>
     </ul>
 
     <h2>14. User Profiles & Online Status</h2>
@@ -428,7 +460,8 @@
     <ul>
         <li>Nacho is an AI-powered mascot that provides Bitcoin education, tips, trivia, and entertainment</li>
         <li>Nacho's Q&A system provides general educational information and is <strong>not financial, investment, or legal advice</strong></li>
-        <li>Nacho's AI answers are powered by <strong>Meta Llama 4 Scout</strong>, a large language model (LLM) hosted by Cloudflare Workers AI. Only your question text is sent — no username, user ID, or account data. We do not use your questions to train AI models. Cloudflare processes queries under their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a>; the Llama model is subject to <a href="https://github.com/meta-llama/llama-models/blob/main/models/llama4/LICENSE" target="_blank" rel="noopener">Meta's Llama 4 license</a>.</li>
+        <li>Nacho's AI answers can be wrong. They are educational entertainment, not advice, and they are not a promise that a fact, price, or app instruction is current</li>
+        <li>When a local answer is not enough, your question is sent to a Cloudflare Worker that runs <strong>Meta Llama 3.3 70B Instruct</strong> on Cloudflare Workers AI. The model is given your question, a short recent Nacho conversation, your display name, rank, and point total, your language, whether simple-explanation mode is on, a knowledge snippet, and a short note about matching app features. A weekly summary of public posts may use a different Cloudflare-hosted Llama model. We do not put your email, Lightning address, or wallet into the prompt, and we do not use your questions to train our own models. Cloudflare processes the request under their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a>. If you are signed in, the request may also carry your Firebase sign-in token</li>
         <li>Live data features (price, fees, block height) are sourced from third-party APIs and may not be perfectly accurate or real-time</li>
         <li>Nacho includes a profanity filter; inappropriate inputs will be deflected</li>
         <li>Nacho's friendship levels, trivia scores, and collectible accessories (Nacho's Closet) are for entertainment purposes only</li>
@@ -493,7 +526,10 @@
         <li>Google, Twitter/X, GitHub, Facebook (sign-in providers)</li>
         <li>Nostr protocol (NIP-07 authentication via browser extensions)</li>
         <li>LNURL-auth protocol (Lightning wallet authentication)</li>
-        <li>Cloudflare Workers (Nacho AI proxy)</li>
+        <li>Cloudflare (Workers AI for Nacho, Turnstile on sats claims, and our chat bridge)</li>
+        <li>Alby (Nostr Wallet Connect) for Lightning payouts we send, and your own WebLN or NWC wallet for tips you send</li>
+        <li>YouTube (Timechain TV embeds) and Wavlake (optional music player)</li>
+        <li>Telegram (a copy of some Global Chat messages)</li>
         <li>mempool.space API (live Bitcoin price, block height, fee data)</li>
         <li>GitHub Pages (hosting)</li>
     </ul>
@@ -552,7 +588,7 @@
         <li>Sats (satoshis) are earned through genuine engagement with the Site's educational content — they are <strong>not purchased, traded, or invested</strong></li>
         <li>The sats faucet is an <strong>educational reward program</strong>, not a financial service. 603BTC LLC is not a money transmitter, bank, or financial institution</li>
         <li>All claims are subject to the following limits: <strong>minimum 100 sats</strong> per claim, <strong>maximum 200 sats per day</strong>, <strong>lifetime cap of 15,000 sats per user</strong>, and a <strong>24-hour cooldown</strong> between claims</li>
-        <li>Points are earned at a maximum rate of 500 points per day and convert at a fixed rate of <strong>10 points = 1 sat</strong></li>
+        <li>XP converts to sats at a fixed rate of <strong>10 XP = 1 sat</strong>. Daily XP earning follows the cap in Section 5</li>
         <li>Lightning Network routing fees are deducted from claims — the amount you receive may be slightly less than the amount claimed</li>
         <li>Payouts are processed via the Lightning Network through Alby Hub NWC. You must provide a valid Lightning invoice for the exact claim amount</li>
         <li>Eligibility requirements: account age ≥7 days, ≥10 topics read, verified email address</li>
@@ -564,15 +600,7 @@
         <li>603BTC LLC makes no representations regarding the future value of Bitcoin or satoshis received through the faucet</li>
     </ul>
     <div class="warn">
-        <strong>⚠️ Anti-Abuse Policy:</strong> We employ device fingerprinting, IP-based rate limiting, server-side point validation, and behavioral analysis to detect faucet abuse. Specific protections include:
-        <ul style="margin-top:8px;margin-bottom:0;">
-            <li><strong>Device fingerprinting</strong> — a hashed hardware/canvas fingerprint is generated at claim time to detect multiple accounts on the same device (max 2 accounts per device)</li>
-            <li><strong>IP rate limiting</strong> — claims from the same IP address across multiple accounts are flagged and may be blocked (max 3 accounts per IP, 2-hour cross-account cooldown)</li>
-            <li><strong>Server-side point enforcement</strong> — all point awards are processed through Firebase Cloud Functions with atomic transactions. The 500 pts/day cap is enforced server-side and cannot be bypassed by client modification</li>
-            <li><strong>Points sanity check</strong> — total points are validated against account age using immutable Firebase Auth metadata. Impossibly high balances are flagged for review</li>
-            <li><strong>Invoice replay protection</strong> — Lightning invoices are SHA-256 hashed and deduplicated. Each invoice can only be used once</li>
-        </ul>
-        <p style="margin-top:8px;margin-bottom:0;">Violations are taken seriously and may result in permanent exclusion from all reward features, forfeiture of unclaimed points, and account termination.</p>
+        <strong>⚠️ Anti-abuse:</strong> We may detect abuse of rewards, chat, referrals, or other features. If we do, we may refuse a reward, reverse XP, tickets, or sats, or suspend or ban an account. We do not publish how those checks work. Firebase App Check protects some server actions, including sats claims and Say hi. Other actions are rate-limited. Requests that fail a check are rejected.
     </div>
 
     <h2>29. Disclaimer</h2>
@@ -599,9 +627,9 @@
 
     <h2>30a. Cookies &amp; Local Storage</h2>
     <p>We take a minimal, privacy-first approach to browser storage. Here is an exact breakdown of what we store and why:</p>
-    <p><strong>Cookies:</strong> We set one first-party cookie under normal operation — <code>googtrans</code> — used solely to remember your Google Translate language selection. If you do not use Google Translate, this cookie is never set. Firebase Authentication may set a short-lived <code>__session</code> cookie to manage your sign-in state; it contains no personal data beyond an opaque auth token and is cleared on sign-out. We do <strong>not</strong> use advertising cookies, cross-site tracking cookies, or any third-party analytics that profile your behavior (no Google Analytics, no Facebook Pixel, no fingerprinting).</p>
+    <p><strong>Cookies:</strong> We set one first-party cookie under normal operation — <code>googtrans</code> — used solely to remember your Google Translate language selection. If you do not use Google Translate, this cookie is never set. Firebase Authentication may set a short-lived <code>__session</code> cookie to manage your sign-in state; it contains no personal data beyond an opaque auth token and is cleared on sign-out. We do <strong>not</strong> use advertising cookies, cross-site tracking cookies, or third-party analytics that profile your browsing (no Google Analytics, no Facebook Pixel). A separate device hash may be used for abuse checks, as described in the Privacy Policy. That is not an advertising fingerprint.</p>
     <p>Because we do not use non-essential cookies, no cookie consent banner is required under GDPR/ePrivacy rules.</p>
-    <p><strong>Browser localStorage:</strong> The majority of your in-app state — theme preferences, audio settings, streak data, badge cache, quiz history, PVP results, daily spin timestamps, and Lightning wallet connection settings — is stored in your browser&apos;s localStorage, entirely on your device. This data is never transmitted to us unless you create an account, at which point it syncs to your secure Firebase profile. Your Lightning wallet configuration (NWC relay URL if provided) is stored only locally and is transmitted solely to your own wallet when you initiate a payment, never to our servers.</p>
+    <p><strong>Browser localStorage:</strong> The majority of your in-app state — theme preferences, audio settings, streak data, badge cache, quiz history, PVP results, daily spin timestamps, onboarding progress, and Lightning wallet connection settings — is stored in your browser&apos;s localStorage, entirely on your device. This data is never transmitted to us unless you create an account, at which point profile fields sync to Firebase. Your NWC connection method and relay URL are stored in localStorage. The NWC secret is stored in sessionStorage and cleared when the tab closes. That secret is sent to your wallet or relay when you pay. We do not store it on our servers.</p>
     <p>You can clear your localStorage at any time via your browser settings, which will reset local app preferences and cached progress. Signed-in account data (XP, wallet balance, posts) stored in Firebase is unaffected by a localStorage clear.</p>
     <p><strong>Service Worker Cache:</strong> The Site operates as a Progressive Web App (PWA). A service worker caches static app assets (scripts, stylesheets, images) on your device for offline access. This cache contains no personal data and can be cleared via your browser&apos;s &ldquo;Clear site data&rdquo; function.</p>
     <p>For a full technical breakdown, see the Cookies &amp; Local Storage section of our <a href="/privacy.html#cookies" target="_blank" rel="noopener">Privacy Policy</a>.</p>
