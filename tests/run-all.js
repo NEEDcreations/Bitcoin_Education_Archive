@@ -14,6 +14,7 @@ const TESTS = [
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
     { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
+    { name: 'Nacho Shoutout', file: 'test-shoutout.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
 ];

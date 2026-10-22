@@ -3932,7 +3932,9 @@ function _renderNookInventoryContent(el) {
         '</div>';
     }
 
-    var html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+    // Keys and ciphers sit directly under the orange ticket balance.
+    var html = '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
 
     // Streak Freezes
     html += invRow('🧊', 'Streak Freezes', freezes,
@@ -4002,14 +4004,14 @@ function _renderNookInventoryContent(el) {
     }
 
     if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
-        html = '<div style="text-align:center;padding:32px 20px;">' +
+        html = '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>' +
+            '<div style="text-align:center;padding:32px 20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">No shop items yet.</div>' +
             '<div style="font-size:0.78rem;color:var(--text-faint);">Visit the Shop to buy items with your Orange Tickets <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></div>' +
         '</div>';
     }
 
-    html += '<div id="nookKeysCiphers" style="margin-top:16px;"></div>';
     el.innerHTML = html;
 
     (function _fillNookKeys() {
