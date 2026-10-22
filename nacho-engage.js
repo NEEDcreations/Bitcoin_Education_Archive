@@ -341,6 +341,10 @@ var _shownFollowUps = [];
 
 window.nachoFollowUps = function(answer) {
     if (!answer) return [];
+    if (/call or text 988|crisis text line|findahelpline\.com|i care about you/i.test(String(answer)) || window._bqSuppressFollowUps) {
+        window._bqLastFollowUp = '';
+        return [];
+    }
     var lower = answer.toLowerCase();
     var candidates = [];
     for (var topic in FOLLOW_UPS) {

@@ -4,6 +4,20 @@
     'use strict';
     var win = (typeof window !== 'undefined') ? window : root;
 
+    function armHubLock(tab, sub) {
+        win._bqHubLock = { tab: tab, sub: sub || '', until: Date.now() + 2500 };
+        win._questHubTab = tab;
+        if (sub) win._nookSubTab = sub;
+    }
+    function reapplyHubLock(tab, sub) {
+        setTimeout(function () {
+            var lock = win._bqHubLock;
+            if (!lock || lock.tab !== tab || Date.now() > lock.until) return;
+            win._questHubTab = tab;
+            if (sub) win._nookSubTab = sub;
+            if (typeof win._renderQuestHubTab === 'function') win._renderQuestHubTab();
+        }, 400);
+    }
     function questOpen(tab, sub) {
         return function () {
             if (typeof win.showQuestHub === 'function') win.showQuestHub();
@@ -127,15 +141,21 @@
             }, 250);
         };
         if (k === 'inventory') return function () {
+            armHubLock('nook', 'inventory');
             if (typeof win.openNookInventory === 'function') win.openNookInventory();
             else questOpen('nook', 'inventory')();
+            reapplyHubLock('nook', 'inventory');
         };
         if (k === 'cipher') return function () {
+            armHubLock('nook', 'inventory');
             if (typeof win.openKeysAndCiphers === 'function') win.openKeysAndCiphers();
             else if (typeof win.openNookInventory === 'function') win.openNookInventory();
             else questOpen('nook', 'inventory')();
+            reapplyHubLock('nook', 'inventory');
         };
         if (k === 'raid') return function () {
+            var lock = win._bqHubLock;
+            if (lock && lock.tab && lock.tab !== 'raid' && Date.now() < lock.until) return;
             if (typeof win.openRaidHub === 'function') { win.openRaidHub(); return; }
             if (typeof win.showQuestHub === 'function') win.showQuestHub();
             win._questHubTab = 'raid';
@@ -1219,7 +1239,7 @@
     function installSearch(orig) {
         function bqCloseSearch() {
             var ov = document.getElementById('searchOverlay');
-            if (ov) ov.style.display = 'none';
+            if (ov) { ov.style.display = 'none'; ov.removeAttribute('data-open'); }
             var sr = document.getElementById('searchResults');
             if (sr) { sr.classList.remove('active'); sr.innerHTML = ''; }
             var side = document.getElementById('sidebarSearchResults');
@@ -1291,12 +1311,19 @@
             prependFeatures(text);
             setTimeout(function () { prependFeatures(text); }, 650);
         };
+        win._bqRefreshSearchFeatures = function (text) {
+            try { prependFeatures(text); } catch (e2) {}
+        };
         wrapped._bq = true;
         win.doSearch = wrapped;
     }
 
     function decorateResult(result, q) {
         if (!result || result.rendered || !result.answer) return result;
+        if (result.type === 'crisis' || result.type === 'harm' || result.suppressFollowUps) {
+            win._bqLastFollowUp = '';
+            return result;
+        }
         if (/data-bq-chip/.test(result.answer)) return result;
         var plain = String(result.answer).replace(/<[^>]+>/g, '');
         var tip = result.followUp || win._bqLastFollowUp || '';
@@ -1338,7 +1365,20 @@
         var wrapped = function (question, cb) {
             // Crisis, harm, and profanity beat every feature card.
             if (typeof win.nachoSafetyCheck === 'function' && win.nachoSafetyCheck(question)) {
-                return orig(question, cb);
+                win._bqLastFollowUp = '';
+                win._bqSuppressFollowUps = true;
+                return orig(question, function (result) {
+                    win._bqSuppressFollowUps = false;
+                    win._bqLastFollowUp = '';
+                    if (result) {
+                        result.followUp = '';
+                        result.suppressFollowUps = true;
+                        if (result.answer) {
+                            result.answer = String(result.answer).replace(/<(button|div)[^>]*data-bq-chip[\s\S]*?<\/\1>/gi, '');
+                        }
+                    }
+                    cb(result);
+                });
             }
             win._bqLastFollowUp = '';
             var hit = resolveNachoFeature(question);
@@ -1379,6 +1419,10 @@
             var prev = win.nachoFollowUps;
             var wrapped = function (answerText) {
                 var a = String(answerText || '');
+                if (/call or text 988|crisis text line|findahelpline\.com|i care about you/i.test(a) || win._bqSuppressFollowUps) {
+                    win._bqLastFollowUp = '';
+                    return [];
+                }
                 if (a.indexOf('data-bq-chip') !== -1) return [];
                 // Already printed in the answer text: do not add the same line as a chip.
                 if (win._bqLastFollowUp && a.indexOf(String(win._bqLastFollowUp).slice(0, 24)) !== -1) return [];

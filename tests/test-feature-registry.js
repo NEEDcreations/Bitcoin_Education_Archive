@@ -298,7 +298,7 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
     assert.ok(html.indexOf('location.replace(_href)') === -1);
     assert.ok(html.indexOf('id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);') !== -1);
     assert.ok(html.indexOf('#searchOverlay {') !== -1 && html.indexOf('background: var(--bg) !important;') !== -1);
-    assert.ok(html.indexOf('patches.js?v=20261022_v2252') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261022_v2263') !== -1);
     const patches = fs.readFileSync(path.join(root, 'patches.js'), 'utf8');
     assert.ok(patches.indexOf('[data-theme="light"] #searchOverlay {\',"  background: var(--bg) !important;') !== -1);
     assert.ok(patches.indexOf('#searchOverlay {\',"  background: rgba(255,255,255,0.95) !important;') === -1);
@@ -416,7 +416,7 @@ test('every registry opener calls a function that exists', function () {
         const names = [];
         src.replace(/win\.([A-Za-z_][A-Za-z0-9_]*)/g, function (_, name) { names.push(name); return _; });
         const called = names.filter(function (name) {
-            return name !== '_questHubTab' && name !== '_nookSubTab' && name !== '_renderQuestHubTab' && name !== 'location' && name !== 'history';
+            return name !== '_questHubTab' && name !== '_nookSubTab' && name !== '_renderQuestHubTab' && name !== '_bqHubLock' && name !== 'location' && name !== 'history';
         });
         assert.ok(called.length, f.id + ' opener calls nothing');
         called.forEach(function (name) {

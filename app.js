@@ -1315,7 +1315,7 @@
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
                         '<div id="nachoHeroAvatar" class="nm-hero-avatar" style="position:relative;display:inline-block;width:40px;height:40px;" onclick="nachoModeAvatarTap()">' +
-                            '<img src="nacho-fly.svg" alt="Nacho" style="width:40px;height:40px;pointer-events:none;">' +
+                            '<img src="/nacho-fly.svg" alt="Nacho" style="width:40px;height:40px;pointer-events:none;">' +
                             '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
                         '</div>' +
                         '<div style="min-width:0;overflow:hidden;">' +
@@ -1939,6 +1939,10 @@
     // Nacho Mode follow-ups: delegate to the unified nachoFollowUps() engine in nacho-qa.js
     // This ensures bubble and Nacho Mode always suggest the same quality follow-ups.
     function getFollowUps(question, answer) {
+        if (/call or text 988|crisis text line|findahelpline\.com|i care about you/i.test(String(answer || '')) || window._bqSuppressFollowUps) {
+            window._bqLastFollowUp = '';
+            return [];
+        }
         if (typeof nachoFollowUps === 'function') {
             return nachoFollowUps((question || '') + ' ' + (answer || ''));
         }
@@ -2300,7 +2304,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
             chat.innerHTML =
                 '<div style="text-align:center;padding:30px 20px;">' +
-                    '<div id="nachoModeAvatar" style="width:180px;height:180px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="nacho-fly.svg" alt="Nacho" style="width:180px;height:180px;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<div style=\\\'font-size:100px;line-height:180px;text-align:center;\\\'>🦌</div>\';"></div>' +
+                    '<div id="nachoModeAvatar" style="width:180px;height:180px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="/nacho-fly.svg" alt="Nacho" style="width:180px;height:180px;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<div style=\\\'font-size:100px;line-height:180px;text-align:center;\\\'>🦌</div>\';"></div>' +
                     '<div style="color:var(--accent);font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
                     '<div style="color:var(--heading);font-size:1.2rem;font-weight:800;margin-bottom:12px;">' +
                         (userName ? 'Hey ' + escapeHtml(userName) + '! Let\'s talk Bitcoin.' : 'Hey! Let\'s talk Bitcoin.') +
@@ -2660,7 +2664,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             nachoModeStopTalking();
             var extras = '';
             // Add action buttons for non-safety responses
-            if (source && source !== 'safety') {
+            if (source && source !== 'safety' && source !== 'crisis' && source !== 'harm' && source !== 'profanity') {
                 // Thumbs up/down + share + bookmark row
                 // Store answer data for Share/Bookmark buttons (avoids inline HTML escaping issues)
                 if (!window._nachoAnswerData) window._nachoAnswerData = {};
@@ -3189,7 +3193,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (qm && qm.classList.contains('open')) { qm.classList.remove('open'); return; }
             // Close search overlay
             var so = document.getElementById('searchOverlay');
-            if (so && so.style.display !== 'none') { so.style.display = 'none'; return; }
+            if (so && so.style.display !== 'none') { so.style.display = 'none'; so.removeAttribute('data-open'); return; }
             // Close Nacho story overlay
             var ns = document.getElementById('nachoStoryOverlay');
             if (ns) { ns.remove(); return; }
@@ -4117,10 +4121,13 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Search index cache for deep search
     let searchIndexLoaded = false;
+    let searchIndexPromise = null;
     let searchFullData = {};
 
     async function loadSearchIndex() {
         if (searchIndexLoaded) return;
+        if (searchIndexPromise) return searchIndexPromise;
+        searchIndexPromise = (async function () {
         // Load all data files in background for deep search
         const promises = Object.entries(CHANNELS).map(async ([key, meta]) => {
             if (channelCache[key]) { searchFullData[key] = channelCache[key]; return; }
@@ -4133,6 +4140,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         });
         await Promise.all(promises);
         searchIndexLoaded = true;
+        })();
+        try { await searchIndexPromise; }
+        finally { searchIndexPromise = null; }
     }
 
     let searchTimeout = null;
@@ -4323,12 +4333,21 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         }
 
-        renderSearchResults([...appResults, ...results], sr);
+        if ((appResults.length + results.length) === 0 && !searchIndexLoaded) {
+            sr.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);">Searching…</div>';
+        } else {
+            renderSearchResults([...appResults, ...results], sr);
+        }
 
-        // Deep search: load full data and search message content (debounced)
+        // Deep search: load the index first, then run this same query again.
         clearTimeout(searchTimeout);
+        var scheduledQ = q.trim();
         searchTimeout = setTimeout(async () => {
-            await loadSearchIndex();
+            try { await loadSearchIndex(); } catch (e) {}
+            var liveOv = document.getElementById('searchOverlayInput');
+            var liveSide = document.getElementById('searchInput');
+            var live = ((liveOv && liveOv.value) || (liveSide && liveSide.value) || '').trim().toLowerCase();
+            if (live !== scheduledQ) return;
             let deepResults = [];
             for (const [key, d] of Object.entries(searchFullData)) {
                 const meta = CHANNELS[key];
@@ -4338,17 +4357,18 @@ window.nachoQuizAnswer = function(btn, correct) {
                 const msgs = d.msgs || [];
                 for (let mi = 0; mi < msgs.length; mi++) {
                     const m = msgs[mi];
-                    if (m.text && m.text.toLowerCase().includes(q)) {
-                        let idx = m.text.toLowerCase().indexOf(q);
+                    if (m.text && m.text.toLowerCase().includes(scheduledQ)) {
+                        let idx = m.text.toLowerCase().indexOf(scheduledQ);
                         let start = Math.max(0, idx - 30);
-                        let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + q.length + 30).replace(/<[^>]+>/g, '') + '...';
+                        let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + scheduledQ.length + 30).replace(/<[^>]+>/g, '') + '...';
                         deepResults.push({key, title: meta.title, cat: meta.cat, match: snippet, msgIdx: mi});
                         break;
                     }
                 }
             }
             renderSearchResults([...appResults, ...results, ...deepResults], sr);
-        }, 500);
+            if (typeof window._bqRefreshSearchFeatures === 'function') window._bqRefreshSearchFeatures(scheduledQ);
+        }, searchIndexLoaded ? 500 : 0);
     }
 
     // Trending topics data
@@ -4403,7 +4423,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             const isApp = r.key && r.key.startsWith('_');
             const onclick = isApp && r.action ? r.action : "selectResult('" + r.key + "'," + (typeof r.msgIdx === 'number' ? r.msgIdx : -1) + ")";
             const style = isApp ? 'border-left:3px solid var(--accent);' : '';
-            return '<div class="sr-item" style="' + style + '" onclick="' + onclick + ';document.getElementById(\'searchOverlay\').style.display=\'none\';document.getElementById(\'searchResults\').classList.remove(\'active\');document.getElementById(\'searchResults\').innerHTML=\'\';document.getElementById(\'channelList\').style.display=\'\';document.getElementById(\'searchInput\').value=\'\';if(document.getElementById(\'searchOverlayInput\'))document.getElementById(\'searchOverlayInput\').value=\'\';if(isMobile())document.getElementById(\'sidebar\').classList.remove(\'open\')">' +
+            return '<div class="sr-item" style="' + style + '" onclick="' + onclick + ';document.getElementById(\'searchOverlay\').style.display=\'none\';document.getElementById(\'searchOverlay\').removeAttribute(\'data-open\');document.getElementById(\'searchResults\').classList.remove(\'active\');document.getElementById(\'searchResults\').innerHTML=\'\';document.getElementById(\'channelList\').style.display=\'\';document.getElementById(\'searchInput\').value=\'\';if(document.getElementById(\'searchOverlayInput\'))document.getElementById(\'searchOverlayInput\').value=\'\';if(isMobile())document.getElementById(\'sidebar\').classList.remove(\'open\')">' +
                 '<div class="sr-cat">' + r.cat + '</div>' +
                 '<div>' + r.title + '</div>' +
                 '<div class="sr-match">' + r.match + '</div></div>';
@@ -4428,7 +4448,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         saveRecentSearch(query);
         if (sideInput) sideInput.value = '';
         if (overlayInput) overlayInput.value = '';
-        document.getElementById('searchOverlay').style.display = 'none';
+        var _soClose = document.getElementById('searchOverlay');
+        if (_soClose) { _soClose.style.display = 'none'; _soClose.removeAttribute('data-open'); }
         doSearch('');
         // Store target message index for scroll-after-render
         if (typeof msgIdx === 'number' && msgIdx >= 0) {

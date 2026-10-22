@@ -140,6 +140,30 @@ test('kb context sent to the worker is about 1200 chars, and the worker keeps ab
     assert.ok(!/Harmless phrases such as "act as"/.test(worker));
 });
 
+test('crisis replies have no follow-ups and the empty-name text keeps its spaces', function () {
+    const nachoSrc = fs.readFileSync(path.join(root, 'nacho.js'), 'utf8');
+    const start = nachoSrc.indexOf('window.personalize = function(text)');
+    const end = nachoSrc.indexOf('\nfunction pickRandom', start);
+    vm.runInContext('function nachoUserName(){return ""}' + nachoSrc.slice(start, end), ctx);
+    ctx._bqLastFollowUp = 'What do you think is the significance of the halving for Bitcoin scarcity?';
+    const wrapped = ctx.bqWrapUnified(ctx.nachoUnifiedAnswer);
+    let result = null;
+    wrapped('I want to die', function (r) { result = r; });
+    assert.ok(result && result.type === 'crisis', 'type ' + (result && result.type));
+    assert.ok(!/data-bq-chip/.test(result.answer || ''));
+    assert.ok(!/halving/i.test(result.answer || ''), result.answer);
+    assert.ok(/Hey I'm/.test(result.answer), result.answer.slice(0, 80));
+    assert.ok(!/HeyI'm/.test(result.answer));
+    assert.ok(/You matter\./.test(result.answer));
+    assert.ok(!/You matter \./.test(result.answer));
+    assert.strictEqual(ctx._bqLastFollowUp, '');
+    ctx._bqLastFollowUp = 'What do you think is the significance of the halving for Bitcoin scarcity?';
+    const fups = ctx.nachoFollowUps(result.answer);
+    assert.ok(Array.isArray(fups) && fups.length === 0, JSON.stringify(fups));
+    const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+    assert.ok(app.indexOf("source !== 'crisis'") !== -1);
+});
+
 test('a crisis question that also names chat does not open Global Chat', function () {
     const wrapped = ctx.bqWrapUnified(ctx.nachoUnifiedAnswer);
     let result = null;
