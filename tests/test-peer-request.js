@@ -389,7 +389,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261022_v2286'));
+    assert.ok(html.includes('ranking.js?v=20261022_acctdel'));
+    assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
     assert.ok(html.includes('gifting.js?v=20261022_v2254'));
     assert.ok(html.includes('notifications.js?v=20261022_v2262'));
@@ -403,7 +404,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2279'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2271'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
-    assert.ok(html.includes('global-chat.js?v=20261022_v2272'));
+    assert.ok(html.includes('global-chat.js?v=20261022_acctdel'));
+    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2272'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2267'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2265'), false);
@@ -434,7 +436,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2298'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2299'"));
     assert.strictEqual(sw.includes('btc-archive-v2295'), false);
     assert.strictEqual(sw.includes('btc-archive-v2293'), false);
     assert.strictEqual(sw.includes('btc-archive-v2286'), false);

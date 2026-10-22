@@ -3609,6 +3609,9 @@ window.showDeleteAccountConfirm = function() {
                     '<div>❌ All forum posts and replies</div>' +
                     '<div>❌ Marketplace listings</div>' +
                     '<div>❌ DM conversations</div>' +
+                    '<div>❌ Global Chat messages (shown as [deleted])</div>' +
+                    '<div>❌ Uploaded music, images, and avatar</div>' +
+                    '<div>❌ Notifications and push tokens</div>' +
                     '<div>❌ Nacho chat history</div>' +
                     '<div>❌ Leaderboard ranking</div>' +
                     '<div>❌ Orange Tickets and quest progress</div>' +
@@ -3639,52 +3642,14 @@ window.confirmDeleteAccount = async function() {
     try {
         var user = auth.currentUser;
         if (!user) throw new Error('Not signed in');
-        var uid = user.uid;
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            throw new Error('Account deletion is unavailable. Reload and try again.');
+        }
 
-        // 1. Delete Firestore user document
-        try { await db.collection('users').doc(uid).delete(); } catch(e) { console.warn('User doc delete failed:', e); }
+        // Server wipe. The owner must have signed in recently. Data deletes
+        // happen in the Cloud Function, not from this browser.
+        await firebase.functions().httpsCallable('deleteAccount', { timeout: 540000 })({});
 
-        // 2. Delete forum posts by this user
-        try {
-            var posts = await db.collection('forum_posts').where('authorId', '==', uid).get();
-            var batch1 = db.batch();
-            posts.forEach(function(doc) { batch1.delete(doc.ref); });
-            if (!posts.empty) await batch1.commit();
-        } catch(e) { console.warn('Forum posts delete failed:', e); }
-
-        // 3. Delete forum replies by this user
-        try {
-            var replies = await db.collection('forum_replies').where('authorId', '==', uid).get();
-            var batch2 = db.batch();
-            replies.forEach(function(doc) { batch2.delete(doc.ref); });
-            if (!replies.empty) await batch2.commit();
-        } catch(e) { console.warn('Forum replies delete failed:', e); }
-
-        // 4. Delete marketplace listings
-        try {
-            var listings = await db.collection('marketplace').where('sellerUid', '==', uid).get();
-            var batch3 = db.batch();
-            listings.forEach(function(doc) { batch3.delete(doc.ref); });
-            if (!listings.empty) await batch3.commit();
-        } catch(e) { console.warn('Marketplace delete failed:', e); }
-
-        // 5. Delete DM conversations
-        try {
-            var convos = await db.collection('conversations').where('participants', 'array-contains', uid).get();
-            var batch4 = db.batch();
-            convos.forEach(function(doc) { batch4.delete(doc.ref); });
-            if (!convos.empty) await batch4.commit();
-        } catch(e) { console.warn('DM delete failed:', e); }
-
-        // 6. Delete suggestions
-        try {
-            var suggestions = await db.collection('suggestions').where('uid', '==', uid).get();
-            var batch5 = db.batch();
-            suggestions.forEach(function(doc) { batch5.delete(doc.ref); });
-            if (!suggestions.empty) await batch5.commit();
-        } catch(e) { console.warn('Suggestions delete failed:', e); }
-
-        // 7. Clear all localStorage
         var keysToRemove = [];
         for (var i = 0; i < localStorage.length; i++) {
             var key = localStorage.key(i);
@@ -3695,9 +3660,16 @@ window.confirmDeleteAccount = async function() {
         // [AUDIT FIX M5] Clear SW caches on account deletion
         if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
-        // 8. Delete the server-only referral signup record, then the Auth account.
+        // Delete the server-only referral signup record, then finish any
+        // Auth session still cached in the browser. The server wipe already
+        // deletes the Firebase user, so user-not-found means that step is done.
         try { await firebase.functions().httpsCallable('deleteMyReferralSignal')({}); } catch (e) { console.warn('Referral signal delete failed:', e); }
-        await user.delete();
+        try {
+            await user.delete();
+        } catch (authErr) {
+            var authCode = authErr && authErr.code;
+            if (authCode !== 'auth/user-not-found' && authCode !== 'auth/user-token-expired') throw authErr;
+        }
 
         // 9. Close overlay and show confirmation
         var overlay = document.getElementById('deleteAccountOverlay');
@@ -3714,12 +3686,68 @@ window.confirmDeleteAccount = async function() {
 
     } catch(e) {
         console.error('Account deletion error:', e);
-        if (e.code === 'auth/requires-recent-login') {
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        if (/2FA code/i.test(msg)) {
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            window._promptDeleteAccountTotp();
+            return;
+        }
+        if (code === 'auth/requires-recent-login' || code === 'functions/failed-precondition' || code === 'failed-precondition' || /sign in again/i.test(msg) || /recent login/i.test(msg)) {
             showToast('🔒 For security, please sign out and sign back in, then try again.');
         } else {
             showToast('Error deleting account: ' + (e.message || 'Unknown error'));
         }
         if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+    }
+};
+
+// Shown when deleteAccount asks for the authenticator code. totpCheck writes
+// the server session, then the same deletion is tried again.
+window._promptDeleteAccountTotp = function() {
+    if (document.getElementById('deleteTotpOverlay')) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'deleteTotpOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100020;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML =
+        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid #ef4444;border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">' +
+            '<div style="font-size:2.2rem;margin-bottom:10px;">📱</div>' +
+            '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;">Enter your 2FA code</div>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Enter your 2FA code, then try again.</div>' +
+            '<input id="deleteTotpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
+            '<div id="deleteTotpStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
+            '<button id="deleteTotpBtn" type="button" style="width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify and delete</button>' +
+            '<button type="button" id="deleteTotpCancel" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    document.getElementById('deleteTotpCancel').onclick = function() { overlay.remove(); };
+    var submit = async function() {
+        var inp = document.getElementById('deleteTotpInput');
+        var statusEl = document.getElementById('deleteTotpStatus');
+        var verifyBtn = document.getElementById('deleteTotpBtn');
+        if (!inp) return;
+        var code = inp.value.trim();
+        if (code.length < 6) {
+            if (statusEl) statusEl.textContent = 'Enter the full 6-digit code';
+            return;
+        }
+        if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
+        try {
+            var checkFn = firebase.functions().httpsCallable('totpCheck');
+            await checkFn({ code: code });
+            overlay.remove();
+            window.confirmDeleteAccount();
+        } catch (err) {
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify and delete'; }
+            if (statusEl) statusEl.textContent = (err && err.message) ? err.message : 'Verification failed';
+            if (inp) { inp.value = ''; inp.focus(); }
+        }
+    };
+    document.getElementById('deleteTotpBtn').onclick = submit;
+    var inp = document.getElementById('deleteTotpInput');
+    if (inp) {
+        inp.focus();
+        inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') submit(); });
     }
 };
 
@@ -8000,7 +8028,7 @@ window._submitMFASignIn = async function() {
     }
 };
 if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
-if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return; if (auth && auth.currentUser) { var uid = auth.currentUser.uid; db.collection('users').doc(uid).delete().then(function() { return auth.currentUser.delete(); }).then(function() { localStorage.clear(); location.reload(); }).catch(function(e) { showToast('Error: ' + e.message); }); } };
+if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (typeof showToast === 'function') showToast('Reload the page, then try deleting your account again.'); };
 async function loadTotpStatus() {
     var section = document.getElementById('totpSection');
     if (!section) return;

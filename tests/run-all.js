@@ -31,6 +31,7 @@ const TESTS = [
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
     { name: 'Server ticket grants', file: 'test-ticket-grants.js' },
+    { name: 'Account deletion', file: 'test-delete-account.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },

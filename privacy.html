@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: October 6, 2026</p>
+    <p class="subtitle">Last updated: October 22, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -47,7 +47,7 @@
         <tr><th>Data</th><th>Purpose</th></tr>
         <tr><td>Username</td><td>Display on leaderboard, PlebTalk forum, LightningMart, and direct messages</td></tr>
         <tr><td>Email (if provided)</td><td>Account verification via magic link sign-in</td></tr>
-        <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, Facebook, Nostr (NIP-07), or Lightning (LNURL-auth) authentication</td></tr>
+        <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, Facebook, Nostr (NIP-07), Lightning (LNURL-auth), email link, or a guest (anonymous) session</td></tr>
         <tr><td>Profile picture</td><td>Optional avatar upload (resized to 128px JPEG, stored in Firestore)</td></tr>
         <tr><td>TOTP 2FA secret</td><td>Encrypted TOTP secret for two-factor authentication (if enabled)</td></tr>
         <tr><td>Points & rank</td><td>Gamification and leaderboard</td></tr>
@@ -73,6 +73,10 @@
         <tr><td>Faction (Cyber Hornets or Honey Badgers)</td><td>Displayed publicly on profile and leaderboard; used in community charity and challenge leaderboards</td></tr>
         <tr><td>Peer connections (peer_requests subcollection)</td><td>Mutual-follow social graph — sent/received peer requests and confirmed connections</td></tr>
         <tr><td>Price prediction history (predictions subcollection)</td><td>Daily up/down predictions, resolution status, accuracy streak</td></tr>
+        <tr><td>Say hi progress</td><td>Whether you armed and claimed the daily greeting, and which chat message was used</td></tr>
+        <tr><td>Gifts, keys, and locked ciphers</td><td>Virtual items on your account, including keys you send to peers</td></tr>
+        <tr><td>Notification preferences</td><td>Which push categories you have turned on or off, including a master off switch</td></tr>
+        <tr><td>Web push tokens</td><td>A token per device you opt in, so we can deliver push notifications. Older accounts may also have a single token on the profile</td></tr>
     </table>
 
     <h3>Direct Messages (stored in Firebase)</h3>
@@ -117,7 +121,7 @@
         <tr><td>Copyright confirmation</td><td>Record that uploader confirmed rights ownership</td></tr>
     </table>
     <div class="warn">
-        <strong>⚠️ Music uploads are public.</strong> Any audio you upload to Bitcoin Beats (including bulk album/EP uploads of up to 20 tracks) is visible and playable by all users. You must own the copyright or have permission to upload. See our <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;">Terms of Service</a> for copyright and takedown policies.
+        <strong>⚠️ Music uploads are public.</strong> Any audio you upload to Bitcoin Beats (including bulk album/EP uploads of up to 20 tracks) is visible and playable by all users. You must own the copyright or have permission to upload. Third-party tracks are shown with the source credit, such as the artist, the feed title, or Wavlake. A takedown request goes to <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a>. See our <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;">Terms of Service</a> for the copyright and takedown policy. We do not send your account id to Wavlake.
     </div>
 
     <h3>Global Chat (stored in Firebase)</h3>
@@ -209,7 +213,7 @@
     </table>
 
     <h3>Telegram Bridge (via Cloud Function)</h3>
-    <p>Global Chat messages may be forwarded to a linked Telegram group via a secure Cloud Function. Messages from Telegram users are also displayed in Global Chat. The bridge transmits: username, message text, and image/GIF URLs. No personal data beyond your chosen username is shared with Telegram.</p>
+    <p>Some Global Chat messages are copied to a linked Telegram group through a Cloudflare Worker, and messages from that group can appear in Global Chat. The copy includes your username and the message text. It can also include an image or GIF link and a short quote of the message you replied to. Your account id is sent to our bridge so we can match the post; it is not shown in the Telegram message. Nacho posts that tag a username are mirrored the same way. People in the Telegram group can see the username and the text.</p>
 
     <h3>Bitcoin Dashboard / Top Indicators</h3>
     <p>The Bitcoin Dashboard fetches public market data from third-party APIs including CoinGecko, ColintalksCrypto (CBBI), alternative.me (Fear & Greed), mempool.space, and Bitbo.io. No user data is sent in these requests — they are read-only public API calls. Indicator data may be cached in your browser's localStorage for up to 1 hour.</p>
@@ -277,7 +281,7 @@
     <p>Timechain TV embeds content using standard YouTube IFrame embeds. When you use the video player, YouTube may collect data according to their own privacy policy. We do not transmit your identity to YouTube. Locally in your browser, we store your 'last station' and 'mute/autoplay' preferences so your experience is preserved between visits.</p>
     <p><strong>Third-party content &amp; opinions.</strong> All videos shown on Timechain TV are publicly embeddable third-party uploads from YouTube. Bitcoin Education Archive does not own, host, verify, or endorse the content. Opinions, price predictions, investment theses, and statements expressed belong solely to the individual creators and speakers — not to us. Nothing on Timechain TV is financial, investment, legal, or tax advice. See our <a href="/terms.html#timechain-tv">Terms</a> for the full disclaimer.</p>
     <p><strong>Anonymous live-viewer presence.</strong> To show the live viewer counter on each channel, your browser writes a small presence record to our database every ~30 seconds containing only: (1) the channel id you are currently watching, and (2) a server timestamp. For signed-in users this record is keyed by your auth UID; for anonymous users it is keyed by a randomly-generated local id (stored in your browser's localStorage as <code>tctv_viewerId</code>). The record is deleted when you leave Timechain TV or close the tab, and automatically expires after ~65 seconds of inactivity. No IP, location, or identifying information is stored in the presence record.</p>
-    <p><strong>Watch-time tracking.</strong> We count minutes watched on Timechain TV to power badges and the point reward system (10 points per 10 minutes). Anonymous users have watch time stored only in localStorage. Signed-in users have their cumulative watch time stored in their Firestore user document. You can clear this at any time via Settings → Reset Account.</p>
+    <p><strong>Watch-time tracking.</strong> Minutes you watch are counted in this browser for badges and XP. About every 10 minutes of that count, the app can award 10 XP and 1 Orange Ticket. That XP reward has its own daily limit in the browser, and it still has to pass the server XP cap. Signed-in viewers also add one minute at a time to a site-wide watch counter that is not labeled with your name. The first time you tune a channel on a given day, we may store a view record with the channel id, the day, and your viewer id. A daily watch challenge may store that day's progress as well. Clear local watch time from your browser settings. Presence heartbeats are described above and expire on their own.</p>
 
     <h3>Local Data (stored in your browser only — never sent to us)</h3>
     <table>
@@ -308,7 +312,16 @@
         <tr><td>NWC connection string</td><td>Stored in sessionStorage (cleared when tab closes) for Lightning wallet connection</td></tr>
     </table>
 
-    <p>We do <strong>not</strong> collect your real name, physical location, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway). <strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, and once when you register a referral. The referral IP is not stored in raw form. The server keeps an HMAC of it in a server-only record with a 90-day expiry. Other users cannot read it. That record is deleted when you delete your account. IPs are not collected during normal browsing or sign-in.</p>
+    <h3>Device, platform, IP, and push</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Web push token, per device</td><td>Deliver optional notifications. Stored when you opt in. Removed or ignored when you turn push off or the token is no longer valid</td></tr>
+        <tr><td>Notification category choices</td><td>Honor the switches in Settings. A master switch turns push off</td></tr>
+        <tr><td>Device and browser signals, stored as a hash</td><td>Abuse checks on sats claims and some votes. The hash can reflect signals such as user agent, screen size, language, and timezone. It is not shown on your public profile</td></tr>
+        <tr><td>IP address</td><td>Rate limiting and abuse prevention on sats claims, Nostr and Lightning sign-in, and some votes. Operator audit logs for admin actions can also store an IP address and user agent. We do not put your IP on your public profile</td></tr>
+    </table>
+    <p>We do <strong>not</strong> use a third-party analytics product, advertising network, or tracking pixel. Thumbs up or down on a Nacho answer can be stored on our servers as feedback. We do not sell that feedback. We do <strong>not</strong> collect your real name, precise location, or browsing history outside the Site. The financial details we store are the ones you type in, such as a Lightning address for a sats claim or giveaway. We do not receive your wallet seed or private keys.</p>
+    <p><strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, and once at referral signup. The referral IP is not stored in raw form. The server keeps an HMAC of it in a server-only record with a 90-day expiry. Other users cannot read it. That record is deleted when you delete your account. IPs are not collected during normal browsing or sign-in.</p>
 
     <h2>2. How We Use Your Data</h2>
     <ul>
@@ -317,7 +330,8 @@
         <li>Process referrals and pay both sides 50 orange tickets when the referred friend reaches Maxi (2,140 points). The signup IP used for that check is stored only as an HMAC in a server-only record that expires after 90 days, and is not shown to the referrer or anyone else. Deleting your account deletes that record.</li>
         <li>Determine giveaway eligibility based on Orange Ticket count</li>
         <li>Send sign-in magic links to verify your email</li>
-        <li>Send optional push notifications (only if you opt in)</li>
+        <li>Send optional web push notifications to devices you opt in, using the category switches in Settings</li>
+        <li>Run Say hi, gifts, keys, and ciphers for signed-in accounts</li>
         <li>Power Nacho's personalized greetings (using your username only)</li>
         <li>Sync your favorites, read progress, and badges across devices</li>
         <li>Deliver direct messages between users</li>
@@ -373,8 +387,12 @@
         <tr><td>Facebook OAuth</td><td>Facebook sign-in</td><td>Facebook account info</td></tr>
         <tr><td>Nostr (NIP-07)</td><td>Nostr sign-in via browser extension</td><td>Public key, signed auth event</td></tr>
         <tr><td>LNURL-auth</td><td>Lightning wallet sign-in</td><td>Linking key, signed challenge</td></tr>
-        <tr><td>QR Server API</td><td>Generate QR codes for Lightning auth</td><td>LNURL string (no user identity)</td></tr>
-        <tr><td>Cloudflare Workers AI</td><td>Nacho AI — question answering powered by Meta Llama 4 Scout (a large language model hosted by Cloudflare)</td><td>Question text only (no username, no user ID, no account data)</td></tr>
+        <tr><td>QR codes</td><td>Lightning sign-in and payment codes drawn in your browser</td><td>None sent to a QR-code website. The code stays on the page</td></tr>
+        <tr><td>Cloudflare Workers AI</td><td>Nacho answers, using Meta Llama 3.3 70B Instruct. A separate weekly summary of public posts may use another Llama model on Cloudflare</td><td>Your question, a short recent Nacho chat, display name, rank, point total, language, simple-explanation flag, a knowledge snippet, and matching app-feature text. A Firebase sign-in token may be attached to the request. Email, Lightning address, and wallet are not put in the prompt</td></tr>
+        <tr><td>Cloudflare Turnstile</td><td>Bot check on sats claims</td><td>The challenge token. Cloudflare may see connection data under its own policy</td></tr>
+        <tr><td>Alby (Nostr Wallet Connect)</td><td>Lightning payouts we send from the faucet and similar rewards. Your own NWC or WebLN wallet, if you connect one, sends tips you choose</td><td>For our payouts: the Lightning invoice we resolve from the address you provide. Your NWC secret stays in this browser and is sent to your wallet, not stored by us</td></tr>
+        <tr><td>YouTube</td><td>Timechain TV video player</td><td>Whatever YouTube collects in its embedded player. We do not send your account id to YouTube</td></tr>
+        <tr><td>Wavlake</td><td>Optional embedded music player inside Bitcoin Beats</td><td>Whatever Wavlake collects in its player. We do not send your account id to Wavlake</td></tr>
         <tr><td>mempool.space API</td><td>Live BTC price, block height, fees</td><td>None (read-only public API)</td></tr>
         <tr><td>GitHub Pages</td><td>Website hosting</td><td>Standard web server logs</td></tr>
         <tr><td>CoinGecko API</td><td>Market data, price charts, dominance</td><td>None (read-only public API)</td></tr>
@@ -418,7 +436,7 @@
         <li>Advertising or marketing cookies</li>
         <li>Cross-site tracking cookies</li>
         <li>Third-party analytics cookies (Google Analytics, Facebook Pixel, etc.)</li>
-        <li>Fingerprinting or supercookies</li>
+        <li>Advertising fingerprints or supercookies. A separate device hash, described above, is used only for abuse checks on certain actions</li>
     </ul>
     <p>Because we do not use non-essential cookies, you are <strong>not required to give cookie consent</strong> under GDPR/ePrivacy rules. There is no cookie banner because there is nothing to consent to beyond functional operation.</p>
 
@@ -428,7 +446,7 @@
         <li><strong>Preferences:</strong> theme (dark/light), audio settings, language, visited channels, notification preferences</li>
         <li><strong>Session state:</strong> anonymous user ID (<code>btc_anon_uid</code>), pending username/email during sign-up, streak data</li>
         <li><strong>Game &amp; progress state:</strong> badges earned, PVP win history, daily spin timestamps, Satoshi&apos;s Favor data, quiz answers</li>
-        <li><strong>Lightning wallet:</strong> your wallet connection method and NWC relay URL (if provided). These are stored only locally and are never sent to our servers. They are transmitted only directly to your own Lightning node or wallet when you initiate a payment.</li>
+        <li><strong>Lightning wallet:</strong> your wallet connection method and NWC relay URL (if provided) in localStorage. The NWC secret, if you connect one, stays in sessionStorage and is cleared when the tab closes. We do not store that secret. It is sent to your own wallet or relay when you pay</li>
         <li><strong>Nacho AI:</strong> question history, friendship level, trivia scores, and closet items — all local only</li>
     </ul>
     <p>You can clear all localStorage data at any time from your browser settings, which will reset app preferences and cached progress. If you have a signed-in account, your server-side profile (XP, badges, wallet balance, posts) is unaffected.</p>
@@ -437,15 +455,16 @@
     <p>The app operates as a <strong>Progressive Web App (PWA)</strong>. A service worker caches app assets (scripts, stylesheets, images) on your device for offline access and faster loading. This cache contains only static app files — no personal data. You can clear it via your browser&apos;s &quot;Clear site data&quot; or &quot;Clear cache&quot; function.</p>
 
     <h2>8. Nacho (AI Mascot) Privacy</h2>
-    <p>Nacho's AI answers are powered by <strong>Meta Llama 4 Scout</strong>, a large language model (LLM) hosted by Cloudflare Workers AI. Cloudflare processes questions on our behalf under their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a>. The Llama model is provided by Meta; see <a href="https://github.com/meta-llama/llama-models/blob/main/models/llama4/LICENSE" target="_blank" rel="noopener">Meta's Llama 4 license</a>. We do not use your questions to train AI models.</p>
+    <p>Nacho's answers can be wrong. When a saved answer is not enough, the question goes to Cloudflare Workers AI, which runs <strong>Meta Llama 3.3 70B Instruct</strong>. Cloudflare processes that request under their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a>. The model is Meta's. We do not use your questions to train our own models. A weekly summary of public posts may use a different Llama model on Cloudflare. That job reads public sources, not your account.</p>
     <ul>
-        <li>Questions you ask Nacho are first processed <strong>in your browser</strong> using keyword matching against 500+ curated Bitcoin Q&amp;A entries</li>
-        <li>If no local answer is found, the question text is sent to our <strong>Cloudflare Workers AI proxy</strong> for AI-assisted answers using Meta Llama 4 Scout — only the question text is sent, with no username, user ID, or account data attached</li>
-        <li>Nacho Mode chat history is stored <strong>only in your browser's localStorage</strong></li>
-        <li>Question history (last 100 questions) is stored locally for analytics and improvement</li>
-        <li>Nacho uses your username to personalize greetings — no other personal data is accessed</li>
-        <li>Nacho's friendship levels, trivia scores, and closet items are all stored locally</li>
-        <li>Live data (price, fees) is fetched from the public mempool.space API — no user data is sent in these requests</li>
+        <li>Questions you ask Nacho are first checked <strong>in your browser</strong> against saved Bitcoin answers</li>
+        <li>If that is not enough, we send your question, a short recent Nacho conversation, your display name, rank, and point total, your language, whether simple-explanation mode is on, a knowledge snippet, and a short note about matching app features. If you are signed in, the request may also include your Firebase sign-in token. We do not put your email, Lightning address, or wallet in the prompt</li>
+        <li>Nacho chat history for the session is stored <strong>in your browser</strong></li>
+        <li>A local list of recent questions stays on your device</li>
+        <li>Nacho uses your username for greetings</li>
+        <li>Friendship, trivia progress, and closet items are stored locally unless a feature also writes them to your account</li>
+        <li>Live price and fee lookups go to public APIs such as mempool.space. Those calls do not include your account</li>
+        <li>Nacho posts in Global Chat can tag a username. Those posts may be copied to Telegram, as described above</li>
     </ul>
 
     <h2>9. Content Moderation & Filtering</h2>
@@ -479,7 +498,7 @@
     <p>You can:</p>
     <ul>
         <li><strong>Export your data</strong> — use the "Export My Data" button in Settings → Data</li>
-        <li><strong>Delete your account</strong> — use the "Delete My Account" button in Settings → Data (permanently removes all server-side data including messages, posts, and listings)</li>
+        <li><strong>Delete your account</strong> — Settings → Data → Delete My Account, then type DELETE. You must have signed in recently (about the last 5 minutes). If an authenticator app is turned on for the account, enter that code first. An admin can run the same server deletion for an account</li>
         <li><strong>Clear local data</strong> — clear your browser's localStorage/cache to remove all client-side data</li>
         <li><strong>Change your username</strong> — in Settings → Account</li>
         <li><strong>Block users</strong> — from any user profile or DM window</li>
@@ -489,7 +508,40 @@
         <li><strong>Disable sounds</strong> — in Settings → Prefs</li>
         <li><strong>Disable push notifications</strong> — in Settings → Prefs or your browser settings</li>
     </ul>
-    <p>When you delete your account, all your data is permanently removed from our Firebase database, including messages, posts, listings, and reports. Local browser data must be cleared separately.</p>
+    <p>Delete runs on the server. The button calls the <code>deleteAccount</code> function. That function deletes the Firebase sign-in itself, for the account owner and for an admin, and it revokes refresh tokens. Daily points, daily action counts, and badge awards are removed only in that same step, after the sign-in is gone, so those caps cannot be reset while the account still exists. Only that account, with a recent sign-in, or an admin, can start it. Running it again after the data is already gone is safe. This browser then clears site data whose keys start with <code>btc_</code>, session storage, and the service-worker cache. If the server already removed the sign-in, this browser treats that as finished. There is no waiting period in the app.</p>
+    <p>The server deletes:</p>
+    <ul>
+        <li>Your user profile and the records stored under it, including shop purchases, Proof of Walk data, connected-app records, the in-profile notification list, and the sats withdrawal list stored on the profile. A profile photo saved on that document is deleted with it. Daily points, daily action counts, badge awards, quest completion rows, lifetime award rows, and onboarding evidence are removed in the same step that deletes the sign-in</li>
+        <li>Your public profile, and a <code>usernames/</code> reservation when that reservation's account id matches the account being deleted</li>
+        <li>Direct message threads you are in, from <code>dm_conversations</code>, including every message in those threads. That removes the other person's messages in the thread as well. An older <code>conversations</code> collection is cleared the same way when it still has your threads</li>
+        <li>Forum posts and replies, articles and article replies, marketplace listings and marketplace messages, suggestions, certificates, and IRL events you created</li>
+        <li>Bitcoin Beats tracks you uploaded, comments on those tracks, and comments you wrote on other tracks. Your account id is removed from the like list on other people's tracks, and that track's like count drops by one. The track stays</li>
+        <li>Files in Storage under your account: Beats audio (<code>beats/</code>), Beats cover art (<code>beats-covers/</code>), avatars (<code>avatars/</code>), chat images, DM images, article images, article covers, IRL photos, and meetup-builder uploads</li>
+        <li>Notifications in your inbox and notifications you sent. You can mark a notice read. The app does not delete a single notice. Read and unread status is removed with the account</li>
+        <li>Push tokens for the account, including <code>push_tokens/{uid}</code> and its <code>devices</code></li>
+        <li>Authenticator-app secrets and the authenticator session, presence, Timechain TV presence, view-day rows, and channel ratings, the buddy-pool entry, and the PvP lobby entry. PvP matches and Bitcoin Buddy matches you were in are deleted for both people, including the other person's copy of that match</li>
+        <li>Peer requests and peer relationships, gifts, keys, and locked ciphers you currently hold. A gift or key you already sent stays with the person who holds it. Gift secrets you hold are deleted. Pending gift-pair records that name your account are deleted after the sign-in is gone</li>
+        <li>Nacho posts in Global Chat that tagged you have the tag removed and your name in that post replaced with <code>[deleted]</code>. Other people's names in the same post stay. Your account id is removed from reactions on the newest Global Chat messages and announcements (about the latest 2,000 of each). An older message can still list it</li>
+        <li>Your username on raid participation rows, raid winner rows, and Satoshi's Favor contributor rows. The contribution count and the sats awarded stay. The same replacement is applied to raffle snapshots and leaderboard winner history. The payout record stays</li>
+        <li>Nacho feedback, missed questions, and bad-match notes that include the question you typed, plus rows that record an AI tool you opened and channel feedback you sent</li>
+        <li>After the sign-in is deleted: your shoutout claim and rate rows, action cooldowns, raid daily caps, raid deck completions, weekly challenge contribution rows, key-send pair records, quiz and exam answer keys, the daily faucet cap and Proof of Walk dedupe rows stored on the profile, and the per-account rate-limit rows for the chat bridge, Beats imports, Say hi, announcements, account deletion, and reply bonus. Your account id is removed from poll voter lists. The vote totals stay. Reply-bonus state, pair rows, and claim rows are deleted, as are marketplace listing-count markers for your listings, and a Timechain TV watch row when one exists. Files in Storage are removed in that same step, after the sign-in is gone</li>
+        <li>Your giveaway entry, visit row, open prediction, and prediction stats</li>
+        <li>Your Global Chat DJ queue entry and your Satoshi's Favor personal best</li>
+    </ul>
+    <p>Global Chat messages you wrote stay in place, because other messages point at them. The server replaces your name and the message text with <code>[deleted]</code>, clears images, GIFs, and captions on those messages, and replaces quotes of those messages with <code>[deleted]</code>. The reply link stays so the thread still lines up. The chat hides the profile, reply, and tip controls on a deleted message.</p>
+    <p>We keep some records after deletion so someone cannot wipe an abuse trail or a payout that already happened:</p>
+    <ul>
+        <li><strong>Faucet ledger, invoice records, and the IP, device, and related faucet logs.</strong> The withdrawal list on the profile is deleted. These server records stay so a new account cannot reset the lifetime sats cap or hide a claim</li>
+        <li><strong>Lightning address locks,</strong> so one address stays tied to the account that used it</li>
+        <li><strong>Cipher win records,</strong> for sats that were already won</li>
+        <li><strong>Charity donation records,</strong> including a public name already shown on a donation. They are part of the community pledge total</li>
+        <li><strong>Referral records,</strong> so the referral bonus cannot be claimed again by deleting the account</li>
+        <li><strong>Admin audit logs and reports</strong> filed for moderation, including suspicious-activity notes, watchlist snapshots, and Beats reports. Those can hold an email address or the id of the person who filed the report</li>
+        <li><strong>Prediction payout and prediction record ledgers</strong></li>
+        <li><strong>Satoshi's Favor hash records and cooldowns.</strong> The name on the hash record is replaced with <code>[deleted]</code>. The hash and the cooldown stay so the game limits cannot be reset</li>
+        <li><strong>Shared rate-limit rows keyed by network address, including the global shoutout limit, and public topic summaries.</strong> The account-deletion limit for a network, and the Nostr and Lightning sign-in limits, are stored as a keyed hash, not the address itself. The hash key is a random daily salt kept in a server-only record that this site cannot read, or a server secret. That row expires after about a day, and a scheduled cleanup deletes it if the database expiry policy is not on yet. Deleting one account does not erase those shared rows</li>
+    </ul>
+    <p>A Global Chat message may already have been copied to the linked Telegram group. Deleting the account does not remove that Telegram copy. Email <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a> if something of yours is still visible and should not be.</p>
 
     <h2>12. Children</h2>
     <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. The direct messaging feature is available only to registered users. If you are a parent and believe your child has provided personal information or been contacted inappropriately, please contact us immediately and we will take action.</p>
@@ -507,6 +559,9 @@
         <li>Server-side daily point cap enforcement (500 pts/day, atomic transactions)</li>
         <li>Device fingerprinting and IP-based multi-account detection for faucet claims and referral signup</li>
         <li>Invoice replay protection (SHA-256 hash deduplication)</li>
+        <li>Firebase App Check on some actions, including sats claims, Say hi, and account deletion. Calls without a valid token are rejected</li>
+        <li>Rate limits on sign-in, chat, messages, and other actions</li>
+        <li>Abuse checks that can refuse a reward or restrict an account. We do not publish how those checks work</li>
         <li>HTML sanitization on all user-generated content</li>
         <li>Client-side scam and phishing link detection in messages</li>
         <li>PII blocking (phone numbers, emails) in public chat</li>
@@ -515,7 +570,8 @@
     </ul>
 
     <h2>14. Data Retention</h2>
-    <p>Account data is retained as long as your account exists. Direct messages are retained as long as both participants' accounts exist. Forum posts and marketplace listings are retained indefinitely unless deleted by the author or removed by administrators. If you delete your account, all associated data is permanently deleted from Firebase. Anonymous visit data (visitor ID and count) may be retained for aggregate statistics but contains no personally identifiable information.</p>
+    <p>Account data stays while your account exists. Forum posts, marketplace listings, Global Chat messages, and music uploads stay until you delete them, we remove them, or you delete the account. Deleting the account removes the profile, direct messages in <code>dm_conversations</code>, uploads, notifications, and push tokens, and it replaces your Global Chat name and text with <code>[deleted]</code>. Say hi records sit on the profile and go away with that profile. Timechain TV presence heartbeats also expire on their own after a short idle period (the client sets about 10 minutes, and a cleanup job removes stale rows). Push tokens are dropped when they stop working or when you turn push off, and they are deleted with the account.</p>
+    <p>After deletion we still keep the faucet ledger and faucet abuse logs, Lightning address locks, cipher win records, charity donations, referral records, admin audit logs (including suspicious-activity notes, watchlist snapshots, and Beats reports), moderation reports, and prediction payout records. Satoshi's Favor cooldowns and hash values stay, with the name replaced by <code>[deleted]</code>. The account-deletion limit for a network is a keyed hash of a server-only daily salt and expires after about a day. Those records are kept to prevent abuse, to stop a deleted account from resetting a cap or claiming a referral bonus again, and to keep a record of sats and pledges that already happened. Section 11 lists them.</p>
 
     <h2>15. Sats Faucet (Claim Sats)</h2>
 
@@ -542,6 +598,7 @@
         <li><strong>referral_signals</strong> — an HMAC of the IP captured when a referral is registered, plus a 90-day expiry. Server-only. Not readable by other users. Deleted when the account-delete function runs.</li>
         <li><strong>faucet_fingerprints</strong> — device fingerprint hashes (detects multi-account abuse per device)</li>
     </ul>
+    <p>The withdrawal list and daily totals stored on your profile are deleted with the account. The faucet ledger, invoice records, IP log, and device-fingerprint log are kept. Section 11 explains why.</p>
 
     <div class="highlight">
         <strong>Privacy note:</strong> We intentionally do NOT store full Lightning invoices. Only the first 50 characters are retained (followed by "...") for basic audit purposes. This means we cannot reconstruct the full payment destination after the claim is processed.

@@ -2008,6 +2008,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Daily HMAC salt for network rate limits. Admin SDK only.
+    match /rate_limit_salts/{docId} {
+      allow read, write: if false;
+    }
+
     // Nacho activity shoutouts. Claims and rate limits are server-only so a
     // client cannot forge a Nacho post or reset the cap.
     // One marker per listing so onMarketplaceListingCount cannot double-count.
