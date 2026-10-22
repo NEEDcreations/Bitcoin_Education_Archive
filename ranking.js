@@ -4744,6 +4744,7 @@ function showSettingsPage(tab) {
     if (!modal) { if (typeof showToast === 'function') showToast('Error: modal not found'); return; }
     if (!box) { if (typeof showToast === 'function') showToast('Error: username-box not found'); return; }
     const user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    var fillSettingsPred = null;
     // If no auth user resolved yet, show sign-up form instead of crashing
     if (!user) {
         modal.classList.add('open');
@@ -6151,17 +6152,28 @@ function showSettingsPage(tab) {
         } else {
             html += statRow('PVP Record', 'No battles yet - <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
         }
-        // Prediction Stats
-        if (typeof getPredictionStats === 'function') {
-            var predStats = getPredictionStats(currentUser);
-            if (predStats) {
-                html += statRow('Predictions', predStats.total + ' total · ' + predStats.correct + ' correct', '📈');
-                html += statRow('Prediction Accuracy', predStats.percentage + '%', '🎯');
-                if (predStats.bestStreak > 0) html += statRow('Best Prediction Streak', predStats.bestStreak + ' in a row', '🔥');
-            } else {
-                html += statRow('Predictions', '<a href="#" onclick="event.preventDefault();hideUsernamePrompt();showPricePrediction();" style="color:var(--accent);">Make your first prediction →</a>', '📈');
-            }
-        }
+        // Prediction stats come from prediction_stats/{uid}, not users['predictions.total'].
+        html += '<div id="settingsPredStats"></div>';
+        fillSettingsPred = function() {
+            var paint = function(stats) {
+                var node = document.getElementById('settingsPredStats');
+                if (!node) return;
+                var total = stats ? (Number(stats.predTotal) || 0) : 0;
+                var correct = stats ? (Number(stats.predCorrect) || 0) : 0;
+                var best = stats ? (Number(stats.predBestStreak) || 0) : 0;
+                if (!total) {
+                    node.innerHTML = statRow('Predictions', '<a href="#" onclick="event.preventDefault();hideUsernamePrompt();showPricePrediction();" style="color:var(--accent);">Make your first prediction →</a>', '📈');
+                    return;
+                }
+                var pct = Math.round((correct / total) * 100);
+                var rows = statRow('Predictions', total + ' total · ' + correct + ' correct', '📈');
+                rows += statRow('Prediction Accuracy', pct + '%', '🎯');
+                if (best > 0) rows += statRow('Best Prediction Streak', best + ' in a row', '🔥');
+                node.innerHTML = rows;
+            };
+            if (typeof window._loadMyPredictionStats === 'function') window._loadMyPredictionStats(paint);
+            else paint(null);
+        };
         // ---- Enhanced Stats ----
         // Time on site (approximate from session starts)
         var _totalSessions = currentUser ? (currentUser.totalVisits || 0) : 0;
@@ -6412,6 +6424,7 @@ function showSettingsPage(tab) {
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
     modal.classList.add('open');
+    if (fillSettingsPred) fillSettingsPred();
 
     // Auto-focus key inputs after render
     setTimeout(function() {

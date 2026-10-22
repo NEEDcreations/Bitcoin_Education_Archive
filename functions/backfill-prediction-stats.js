@@ -3,8 +3,13 @@
  * Recompute prediction_stats/{uid} from existing data.
  *
  * Sources, kept disjoint on purpose:
- *   users.predictions   — legacy aggregate written by the old resolver. The new
- *                         resolver does not touch it, so these totals are added
+ *   users['predictions.total'] and users['predictions.correct'] — the legacy
+ *                         resolver stored these as literal dotted field names,
+ *                         not a nested map. A nested users.predictions map is
+ *                         used only when the dotted fields are absent. If both
+ *                         shapes exist, the larger total wins and the choice is
+ *                         recorded. Those numbers seed all-time accuracy only.
+ *                         The new resolver does not touch them, so they are added
  *                         to later prediction_records without double-counting.
  *   prediction_records  — one resolved prediction each (written after this deploy).
  *   active_predictions  — the open prediction, stored as predPending. A prediction
@@ -67,6 +72,67 @@ function canon(value) {
     return value === undefined ? null : value;
 }
 
+const LEGACY_KEYS = ['total', 'correct', 'streak', 'bestStreak', 'lastResolved'];
+
+function pickLegacyFields(source, dotted) {
+    if (!source || typeof source !== 'object') return null;
+    const out = {};
+    let present = false;
+    LEGACY_KEYS.forEach(function(key) {
+        const raw = dotted ? source['predictions.' + key] : source[key];
+        if (raw !== undefined && raw !== null && raw !== '') {
+            out[key] = raw;
+            present = true;
+        }
+    });
+    return present ? out : null;
+}
+
+function totalOf(shape) {
+    if (!shape || shape.total == null || shape.total === '') return null;
+    const n = Number(shape.total);
+    return isFinite(n) ? n : null;
+}
+
+// Dotted keys are the live legacy shape. The nested map is the fallback.
+// When both are present, the larger total is kept and shape records which one.
+function legacyFromUser(data) {
+    data = data || {};
+    const dotted = pickLegacyFields(data, true);
+    const nestedSource = data.predictions && typeof data.predictions === 'object' && !Array.isArray(data.predictions)
+        ? data.predictions : null;
+    const nested = nestedSource ? pickLegacyFields(nestedSource, false) : null;
+    const dottedTotal = totalOf(dotted);
+    const nestedTotal = totalOf(nested);
+    let chosen = null;
+    let shape = 'none';
+    if (dotted && nested) {
+        const dottedN = dottedTotal == null ? -1 : dottedTotal;
+        const nestedN = nestedTotal == null ? -1 : nestedTotal;
+        if (nestedN > dottedN) {
+            chosen = nested;
+            shape = 'both_shapes_prefer_nested';
+        } else {
+            chosen = dotted;
+            shape = 'both_shapes_prefer_dotted';
+        }
+    } else if (dotted) {
+        chosen = dotted;
+        shape = 'dotted';
+    } else if (nested) {
+        chosen = nested;
+        shape = 'nested';
+    }
+    const total = chosen ? totalOf(chosen) : null;
+    const correct = chosen && chosen.correct != null && chosen.correct !== '' ? Number(chosen.correct) : 0;
+    return {
+        shape: shape,
+        legacy: chosen ? { predictions: chosen } : null,
+        total: total == null ? 0 : Math.max(0, total),
+        correct: isFinite(correct) ? Math.max(0, correct) : 0
+    };
+}
+
 function unchanged(existing, computed) {
     if (!existing) return false;
     const keys = Object.keys(ps.emptyStats());
@@ -119,6 +185,7 @@ async function main() {
     const gapCounts = {};
     const sample = [];
     const pendingWrites = [];
+    const shapeCounts = {};
     let wouldWrite = 0;
     let unchangedCount = 0;
     let skipped = 0;
@@ -141,7 +208,7 @@ async function main() {
         });
     }
 
-    async function consider(uid, legacy, activeDoc) {
+    async function consider(uid, legacy, activeDoc, shape) {
         seen[uid] = true;
         const result = ps.recomputeUser({
             uid: uid,
@@ -150,6 +217,8 @@ async function main() {
             records: recordsByUid[uid] || [],
             active: activeDoc || null
         });
+        result.shape = shape || 'none';
+        if (shape && shape.indexOf('both_shapes_') === 0) result.gaps.push(shape);
         tally(result);
         if (result.skip) {
             skipped++;
@@ -170,8 +239,10 @@ async function main() {
                 gaps: result.gaps,
                 predCorrect: result.stats.predCorrect,
                 predTotal: result.stats.predTotal,
+                predAccuracy: result.stats.predAccuracy,
                 weekTotal: result.stats.weekTotal,
                 monthTotal: result.stats.monthTotal,
+                shape: result.shape,
                 pending: result.stats.predPending ? result.stats.predPending.direction : null
             });
         }
@@ -198,17 +269,16 @@ async function main() {
             const doc = snap.docs[i];
             userCount++;
             const data = doc.data() || {};
-            const predictions = data.predictions || null;
-            const legacyTotal = predictions ? (Number(predictions.total) || 0) : 0;
-            const legacyCorrect = predictions ? (Number(predictions.correct) || 0) : 0;
-            const hasLegacy = legacyTotal > 0 || legacyCorrect > 0;
+            const picked = legacyFromUser(data);
+            if (picked.shape !== 'none') shapeCounts[picked.shape] = (shapeCounts[picked.shape] || 0) + 1;
+            const hasLegacy = picked.total > 0 || picked.correct > 0;
             const hasOther = !!(recordsByUid[doc.id] || activeByUid[doc.id]);
             if (!hasLegacy && !hasOther) {
                 skipped++;
                 seen[doc.id] = true;
                 continue;
             }
-            await consider(doc.id, predictions ? { predictions: predictions } : null, activeByUid[doc.id] || null);
+            await consider(doc.id, picked.legacy, activeByUid[doc.id] || null, picked.shape);
         }
         lastUser = snap.docs[snap.docs.length - 1];
         if (snap.size < PAGE) break;
@@ -244,6 +314,7 @@ async function main() {
     console.log('unchanged: ' + unchangedCount);
     console.log('skipped: ' + skipped);
     console.log('writes: ' + (args.apply ? written : 0));
+    console.log('legacy field shapes: ' + JSON.stringify(shapeCounts));
     console.log('gaps: ' + JSON.stringify(gapCounts));
     console.log('sample: ' + JSON.stringify(sample, null, 2));
     if (!records.count) {
@@ -276,4 +347,9 @@ if (require.main === module) {
     }
 }
 
-module.exports = { unchanged: unchanged, canon: canon, parseArgs: parseArgs };
+module.exports = {
+    unchanged: unchanged,
+    canon: canon,
+    parseArgs: parseArgs,
+    legacyFromUser: legacyFromUser
+};

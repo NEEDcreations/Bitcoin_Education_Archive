@@ -360,6 +360,87 @@ test('backfill recomputes from records, keeps legacy totals, and is idempotent',
     assert.ok(none.gaps.indexOf('no_prediction_data') !== -1);
 });
 
+test('backfill reads dotted legacy fields, prefers the larger total, and seeds all-time only', function() {
+    const backfill = require('../functions/backfill-prediction-stats');
+    const now = new Date('2026-10-26T12:00:00.000Z').getTime();
+    const old = new Date('2026-09-01T12:00:00.000Z').getTime();
+    const dottedOnly = backfill.legacyFromUser({
+        'predictions.total': 20,
+        'predictions.correct': 5,
+        'predictions.lastResolved': old,
+        'predictions.streak': 2,
+        'predictions.bestStreak': 4
+    });
+    assert.strictEqual(dottedOnly.shape, 'dotted');
+    assert.strictEqual(dottedOnly.total, 20);
+    assert.strictEqual(dottedOnly.correct, 5);
+    const seeded = ps.recomputeUser({
+        uid: 'dot',
+        now: now,
+        legacy: dottedOnly.legacy,
+        records: [],
+        active: null
+    });
+    assert.strictEqual(seeded.stats.predTotal, 20);
+    assert.strictEqual(seeded.stats.predCorrect, 5);
+    assert.strictEqual(seeded.stats.predAccuracy, ps.accuracyOf(5, 20));
+    assert.strictEqual(seeded.stats.weekTotal, 0);
+    assert.strictEqual(seeded.stats.weekCorrect, 0);
+    assert.strictEqual(seeded.stats.monthTotal, 0);
+    assert.strictEqual(seeded.stats.monthCorrect, 0);
+    assert.strictEqual(seeded.stats.weekAccuracy, 0);
+    assert.strictEqual(seeded.stats.monthAccuracy, 0);
+    assert.strictEqual(seeded.stats.qualifiesWeek, false);
+    assert.strictEqual(seeded.stats.qualifiesMonth, false);
+    assert.strictEqual(seeded.stats.predStreak, 2);
+    assert.strictEqual(seeded.stats.predBestStreak, 4);
+    assert.strictEqual(seeded.stats.reachedAt, old);
+
+    const nestedOnly = backfill.legacyFromUser({ predictions: { total: 8, correct: 3, lastResolved: old } });
+    assert.strictEqual(nestedOnly.shape, 'nested');
+    assert.strictEqual(ps.recomputeUser({
+        uid: 'nest', now: now, legacy: nestedOnly.legacy, records: [], active: null
+    }).stats.predTotal, 8);
+
+    const dottedWins = backfill.legacyFromUser({
+        'predictions.total': 15,
+        'predictions.correct': 9,
+        'predictions.lastResolved': old,
+        predictions: { total: 4, correct: 4, lastResolved: now }
+    });
+    assert.strictEqual(dottedWins.shape, 'both_shapes_prefer_dotted');
+    assert.strictEqual(dottedWins.total, 15);
+    assert.strictEqual(dottedWins.correct, 9);
+    assert.strictEqual(dottedWins.legacy.predictions.lastResolved, old);
+
+    const nestedWins = backfill.legacyFromUser({
+        'predictions.total': 3,
+        'predictions.correct': 1,
+        predictions: { total: 12, correct: 6, lastResolved: old }
+    });
+    assert.strictEqual(nestedWins.shape, 'both_shapes_prefer_nested');
+    assert.strictEqual(nestedWins.total, 12);
+    assert.strictEqual(nestedWins.correct, 6);
+    const fromNested = ps.recomputeUser({
+        uid: 'both', now: now, legacy: nestedWins.legacy, records: [], active: null
+    });
+    assert.strictEqual(fromNested.stats.predTotal, 12);
+    assert.strictEqual(fromNested.stats.predCorrect, 6);
+    assert.strictEqual(fromNested.stats.predAccuracy, ps.accuracyOf(6, 12));
+    assert.strictEqual(fromNested.stats.weekTotal, 0);
+    assert.strictEqual(fromNested.stats.monthTotal, 0);
+
+    const empty = backfill.legacyFromUser({ username: 'x', 'predictions.total': 0 });
+    assert.strictEqual(empty.total, 0);
+    assert.strictEqual(backfill.legacyFromUser({ username: 'y' }).shape, 'none');
+
+    const script = fs.readFileSync(path.join(__dirname, '..', 'functions/backfill-prediction-stats.js'), 'utf8');
+    assert.ok(script.indexOf("'predictions.' + key") !== -1);
+    assert.ok(script.indexOf("'total', 'correct', 'streak', 'bestStreak', 'lastResolved'") !== -1);
+    assert.ok(script.indexOf('both_shapes_prefer_dotted') !== -1);
+    assert.ok(script.indexOf('both_shapes_prefer_nested') !== -1);
+});
+
 test('client copy, aria hook, and server-only scoring are wired', function() {
     const root = path.join(__dirname, '..');
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
@@ -375,6 +456,17 @@ test('client copy, aria hook, and server-only scoring are wired', function() {
     assert.ok(ranking.indexOf("You've made ") !== -1);
     assert.ok(features.indexOf('Correct ✅') !== -1 || features.indexOf('Correct \\u2705') !== -1 || features.indexOf('outcome === \'correct\'') !== -1);
     assert.ok(features.indexOf('serverTimestamp') !== -1);
+    assert.ok(features.indexOf("db.collection('prediction_stats')") !== -1);
+    const statsFn = features.slice(features.indexOf('window.getPredictionStats'), features.indexOf('// Cache global prediction stats'));
+    assert.ok(statsFn.indexOf('_serverPred') !== -1);
+    assert.ok(statsFn.indexOf('.predictions') === -1);
+    assert.ok(statsFn.indexOf("['predictions.total']") === -1);
+    assert.ok(ranking.indexOf('settingsPredStats') !== -1);
+    assert.ok(ranking.indexOf('stats.predTotal') !== -1);
+    assert.ok(ranking.indexOf('getPredictionStats(currentUser)') === -1);
+    const messaging = fs.readFileSync(path.join(root, 'messaging.js'), 'utf8');
+    assert.ok(messaging.indexOf('profilePredStats') !== -1);
+    assert.ok(messaging.indexOf('u.predictions') === -1);
     assert.ok(!/predictions\.correct/.test(features));
     assert.ok(!/predictions\.total/.test(features));
     assert.ok(!/active_predictions'\)\.doc\([^)]*\)\.delete/.test(features));

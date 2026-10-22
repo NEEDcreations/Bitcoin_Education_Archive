@@ -689,17 +689,16 @@ window.getGlobalPredictionStats = function(callback) {
 
 window.getPredictionStats = function(user) {
     var server = user && user._serverPred;
-    var stats = server || ((user && user.predictions) ? user.predictions : null);
-    if (!stats) return null;
-    var total = server ? (server.total || 0) : (stats.total || 0);
-    var correct = server ? (server.correct || 0) : (stats.correct || 0);
+    if (!server) return null;
+    var total = server.total || 0;
+    var correct = server.correct || 0;
     if (!total) return null;
     return {
         total: total,
         correct: correct,
         percentage: total ? Math.round((correct / total) * 100) : 0,
-        streak: (server ? server.streak : stats.streak) || 0,
-        bestStreak: (server ? server.bestStreak : stats.bestStreak) || 0
+        streak: server.streak || 0,
+        bestStreak: server.bestStreak || 0
     };
 };
 
