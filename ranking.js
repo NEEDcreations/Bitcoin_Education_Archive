@@ -6735,7 +6735,7 @@ function showSettingsPage(tab) {
                         var _limitLine = _keysSentToday
                             ? 'Sent today. The limit is 3 keys per peer, once a day. You can send again tomorrow.'
                             : 'Up to 3 keys per peer per day.';
-                        peerHtml += '<div style="border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 10px;background:rgba(255,255,255,0.02);">' +
+                        peerHtml += '<div style="border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 10px;background:#0f172a;">' +
                             '<div style="font-size:1rem;font-weight:800;color:var(--heading);word-break:break-word;line-height:1.3;">🧡 ' + _safeName + '</div>' +
                             '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-faint);line-height:1.4;">' + summaryText + '</div>' +
                             (_peerMarks ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + _peerMarks + '</div>' : '') +
@@ -6747,7 +6747,7 @@ function showSettingsPage(tab) {
                             '<div style="display:flex;justify-content:flex-end;margin-top:4px;">' +
                                 '<button type="button" data-peer-action="remove" data-peer-uid="' + _safeUid + '" style="padding:6px 10px;background:transparent;border:1px solid rgba(239,68,68,0.35);border-radius:8px;color:#fca5a5;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>' +
                             '</div>' +
-                            '<div id="' + pDetailId + '" style="display:none;margin-top:10px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">' +
+                            '<div id="' + pDetailId + '" style="display:none;margin-top:10px;padding:10px;background:#1e293b;border:1px solid var(--border);border-radius:10px;">' +
                                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;">' +
                                     '<div style="color:var(--text-muted);">⭐ <b style="color:var(--text);">' + pXP + '</b> XP</div>' +
                                     '<div style="color:var(--text-muted);">🔥 <b style="color:var(--text);">' + pStreak + 'd</b> streak</div>' +
